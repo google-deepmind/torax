@@ -1,0 +1,12 @@
+absl-py>=2.0.0
+typing_extensions>=4.2.0
+jax>=0.4.20
+jaxlib>=0.4.20
+jaxopt>=0.8.2
+numpy>=1.24.1
+setuptools;python_version>="3.10"
+chex>=0.1.85
+fancyflags>=1.2
+equinox>=0.11.2
+h5py>=3.10.0
+PyYAML>=6.0.1
