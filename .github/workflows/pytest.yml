@@ -1,0 +1,44 @@
+name: Unittests
+
+# Allow to trigger the workflow manually (e.g. when deps changes)
+on: [push, workflow_dispatch]
+
+jobs:
+  pytest-job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # Install deps
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - run: git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
+    - run: echo "TORAX_QLKNN_MODEL_PATH=$PWD/qlknn-hyper" >> "$GITHUB_ENV"
+    - run: echo "TORAX_ERRORS_ENABLED=True" >> "$GITHUB_ENV"
+
+    - run: pip --version
+    - run: pip install -e .[dev]
+    # TODO(b/323504363): [dev] should install these
+    - run: pip install pytest pytest-xdist
+    - run: pip freeze
+
+    # Run tests (in parallel)
+    # TODO(b/323504363): tests should be discovered automatically
+    - name: Run core tests
+      run: pytest -vv -n auto torax/tests/{boundary_conditions,config,config_slice,geometry,interpolated_param,jax_utils,math_utils,opt,sim_time_dependence}.py
+
+    # TODO(b/323504363): these tests should also run under pytest
+    - name: "Run sim_custom_sources.py"
+      run: python torax/tests/sim_custom_sources.py
+    - name: "Run sim_no_compile.py"
+      run: TORAX_COMPILATION_ENABLED=False python torax/tests/sim_no_compile.py
+    - name: "Run sim.py"
+      run: python torax/tests/sim.py
