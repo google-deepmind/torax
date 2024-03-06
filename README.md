@@ -87,11 +87,9 @@ Activate the virtual env:
 $ source toraxvenv/bin/activate
 ```
 
-Download and install QLKNN dependencies:
+Download QLKNN dependencies:
 
 ```shell
-$ git clone https://gitlab.com/qualikiz-group/QLKNN-develop.git
-$ pip install ./QLKNN-develop
 $ git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
 $ export TORAX_QLKNN_MODEL_PATH="$PWD/qlknn-hyper"
 ```

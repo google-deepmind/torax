@@ -10,3 +10,4 @@ fancyflags>=1.2
 equinox>=0.11.2
 h5py>=3.10.0
 PyYAML>=6.0.1
+qlknn @ git+https://gitlab.com/qualikiz-group/QLKNN-develop.git
