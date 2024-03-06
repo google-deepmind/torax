@@ -19,8 +19,6 @@ diffusion. The role of the wrapper is send JAX tracers through the
 network.
 """
 
-from __future__ import annotations
-
 import functools
 import os
 import warnings
@@ -29,14 +27,14 @@ from absl import flags
 import chex
 import jax
 from jax import numpy as jnp
-from qlknn.models import ffnn
 from torax import config_slice
 from torax import constants as constants_module
 from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state as state_module
-from torax.transport_model import _qlknn_np
+from torax.transport_model import base_qlknn_model
+from torax.transport_model import qlknn_10d
 from torax.transport_model import transport_model
 
 
@@ -53,12 +51,10 @@ _MODEL_PATH = flags.DEFINE_string(
     'Users may set the model path by flag or env variable.',
 )
 
-# Singleton instance for storing QLKNN networks. These params will be lazily
-# loaded once they are needed.
-_NETWORKS: Networks | None = None
 
-# TODO( b/320469912)
-# make epsilonNN a QLKNN version specific constant
+# Singleton instance for storing the QLKNN model. The params will be lazily
+# loaded once they are needed.
+_MODEL: base_qlknn_model.BaseQLKNNModel | None = None
 _EPSILON_NN = 1 / 3  # fixed inverse aspect ratio used to train QLKNN10D
 
 
@@ -73,70 +69,23 @@ def _get_model_path() -> str:
   return os.environ.get(_MODEL_PATH_ENV_VAR, 'third_party/qlknn_hyper')
 
 
-def _get_networks() -> Networks:
+def _get_model() -> base_qlknn_model.BaseQLKNNModel:
   """Gets the Networks singleton instance."""
   # The advantags of lazily loading the networks is we don't need to do file
   # I/O operations at import time and only need to read these files when needed.
-  global _NETWORKS
-  if _NETWORKS is None:
+  global _MODEL
+  if _MODEL is None:
     path = _get_model_path()
-    _NETWORKS = Networks(path)
-  return _NETWORKS
-
-
-class WrappedQLKNN:
-  """A wrapper around a QLKNN network, to be called with JAX tracers.
-
-  Attributes:
-    network: The raw `qlknn` network.
-  """
-
-  def __init__(self, network: ffnn.QuaLiKizNDNN):
-    self.network = network
-
-  def __call__(self, x: jnp.ndarray):
-    """Call the network, with a JAX argument."""
-    return self.network.get_output(x, safe=False, output_pandas=False)
-
-
-class Networks:
-  """Class holding QLKNN networks.
-
-  Attributes:
-    model_path: Path to qlknn-hyper
-    net_itgleading: ITG Qi net
-    net_itgqediv: ITG Qe/Qi net
-    net_temleading: TEM Qe net
-    net_temqediv: TEM Qi/Qe net
-    net_etgleading: ETG Qe net
-    net_temqidiv: TEM Qi/Qe net
-    net_tempfediv: Tem pfe/Qe net
-    net_etgleading: ITG Qe/Qi net
-    net_itgpfediv: ITG pfe/Qi net
-  """
-
-  def __init__(self, model_path: str):
-    self.model_path = model_path
-    self.net_itgleading = self._load('efiitg_gb.json')
-    self.net_itgqediv = self._load('efeitg_gb_div_efiitg_gb.json')
-    self.net_temleading = self._load('efetem_gb.json')
-    self.net_temqidiv = self._load('efitem_gb_div_efetem_gb.json')
-    self.net_tempfediv = self._load('pfetem_gb_div_efetem_gb.json')
-    self.net_etgleading = self._load('efeetg_gb.json')
-    self.net_itgpfediv = self._load('pfeitg_gb_div_efiitg_gb.json')
-
-  def _load(self, path):
-    full_path = os.path.join(self.model_path, path)
     try:
-      raw = ffnn.QuaLiKizNDNN.from_json(full_path, np=_qlknn_np)
+      _MODEL = qlknn_10d.QLKNN10D(path)
     except FileNotFoundError as fnfe:
       raise FileNotFoundError(
-          f'Failed to find file: {full_path}. Check that the file exists. If '
-          'the path to the file is not correct, make sure you set '
+          f'Failed to load model from {path}. Check that the path exists. If '
+          'the path is not correct, make sure you set '
           f'--{_MODEL_PATH.name} or export the environment variable '
           f'{_MODEL_PATH_ENV_VAR} with the correct path.'
       ) from fnfe
-    return WrappedQLKNN(raw)
+  return _MODEL
 
 
 @chex.dataclass(frozen=True)
@@ -164,7 +113,7 @@ class _QLKNNRuntimeConfigInputs:
   @staticmethod
   def from_config_slice(
       dynamic_config_slice: config_slice.DynamicConfigSlice,
-  ) -> _QLKNNRuntimeConfigInputs:
+  ) -> '_QLKNNRuntimeConfigInputs':
     return _QLKNNRuntimeConfigInputs(
         Rmin=dynamic_config_slice.Rmin,
         Rmaj=dynamic_config_slice.Rmaj,
@@ -176,6 +125,33 @@ class _QLKNNRuntimeConfigInputs:
         set_pedestal=dynamic_config_slice.set_pedestal,
         q_correction_factor=dynamic_config_slice.q_correction_factor,
     )
+
+
+def _filter_model_output(
+    model_output: base_qlknn_model.ModelOutput,
+    runtime_config_inputs: _QLKNNRuntimeConfigInputs,
+    zeros_shape: tuple[int, ...],
+) -> base_qlknn_model.ModelOutput:
+  """Potentially filtering out some fluxes."""
+  filter_map = {
+      'qi_itg': runtime_config_inputs.transport.include_ITG,
+      'qe_itg': runtime_config_inputs.transport.include_ITG,
+      'pfe_itg': runtime_config_inputs.transport.include_ITG,
+      'efe_tem': runtime_config_inputs.transport.include_TEM,
+      'efi_tem': runtime_config_inputs.transport.include_TEM,
+      'pfe_tem': runtime_config_inputs.transport.include_TEM,
+      'efe_etg': runtime_config_inputs.transport.include_ETG,
+  }
+  zeros = jnp.zeros(zeros_shape)
+
+  def filter_flux(flux_name: str, value: jnp.ndarray) -> jnp.ndarray:
+    return jax.lax.cond(
+        filter_map.get(flux_name, True),
+        lambda: value,
+        lambda: zeros,
+    )
+
+  return {k: filter_flux(k, v) for k, v in model_output.items()}
 
 
 class QLKNNTransportModel(transport_model.TransportModel):
@@ -256,6 +232,8 @@ class QLKNNTransportModel(transport_model.TransportModel):
     """
     constants = constants_module.CONSTANTS
 
+    model = _get_model()
+
     # pylint: disable=invalid-name
     Rmin = runtime_config_inputs.Rmin
     Rmaj = runtime_config_inputs.Rmaj
@@ -278,6 +256,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
     raw_ni = state.ni
     raw_ni_face = raw_ni.face_value()
     raw_ni_face_grad = raw_ni.face_grad(rmid)
+
     # True SI value versions
     true_ne_face = raw_ne_face * runtime_config_inputs.nref
     true_ni_face = raw_ni_face * runtime_config_inputs.nref
@@ -347,14 +326,15 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
     # local r/Rmin
     # epsilon = r/R
-
     epsilon = rmid_face[-1] / Rmaj  # inverse aspect ratio at LCFS
 
-    # to take into account a different aspect ratio compared to the qlknn
-    # training set, the qlknn input normalized radius needs to be rescaled by
-    # the aspect ratio ratio. This ensures that the model is evaluated with
-    # the correct trapped electron fraction
-    x = rmid_face / rmid_face[-1] * epsilon / _EPSILON_NN
+    x = rmid_face / rmid_face[-1] * epsilon
+    if model.version == '10D':
+      # To take into account a different aspect ratio compared to the qlknn10D
+      # training set, the qlknn input normalized radius needs to be rescaled by
+      # the aspect ratio ratio. This ensures that the model is evaluated with
+      # the correct trapped electron fraction.
+      x /= _EPSILON_NN
 
     # Ion to electron temperature ratio
     Ti_Te = temp_ion_face / temp_electron_face
@@ -413,73 +393,33 @@ class QLKNNTransportModel(transport_model.TransportModel):
         smag,
     )
 
-    # Shape: (num_face, 9)
-    feature_scan = jnp.array(
-        [Zeff, Ati, Ate, Ane, q, smag, x, Ti_Te, log_nu_star_face]
-    ).T
-    zeros = jnp.expand_dims(jnp.zeros_like(feature_scan[..., 0]), axis=-1)
+    model = _get_model()
+    if model.version == '10D':
+      # Shape: (num_face, 9)
+      feature_scan = jnp.array(
+          [Zeff, Ati, Ate, Ane, q, smag, x, Ti_Te, log_nu_star_face]
+      ).T
+    else:
+      raise ValueError(f'Unknown model version: {model.version}')
 
-    networks = _get_networks()
-
-    # ITG Qi net
-    # propagate inputs through net. Clip negative output to zero
-    qi_itg = jax.lax.cond(
-        runtime_config_inputs.transport.include_ITG,
-        lambda: networks.net_itgleading(feature_scan).clip(0),
-        lambda: zeros,
-    )
-    # ITG Qe/Qi net
-    # propagate inputs through net and multiply by Qi
-    qe_itg = jax.lax.cond(
-        runtime_config_inputs.transport.include_ITG,
-        lambda: networks.net_itgqediv(feature_scan) * qi_itg,
-        lambda: zeros,
-    )
-    # ITG pfe/Qi net
-    # propagate inputs through net and multiply by Qi
-    pfe_itg = jax.lax.cond(
-        runtime_config_inputs.transport.include_ITG,
-        lambda: networks.net_itgpfediv(feature_scan) * qi_itg,
-        lambda: zeros,
-    )
-
-    # TEM Qe net
-    # Clip negative output to zero
-    qe_tem = jax.lax.cond(
-        runtime_config_inputs.transport.include_TEM,
-        lambda: networks.net_temleading(feature_scan).clip(0),
-        lambda: zeros,
-    )
-    # TEM Qi/Qe net
-    qi_tem = jax.lax.cond(
-        runtime_config_inputs.transport.include_TEM,
-        lambda: networks.net_temqidiv(feature_scan) * qe_tem,
-        lambda: zeros,
-    )
-    # TEM pfe/Qe net
-    pfe_tem = jax.lax.cond(
-        runtime_config_inputs.transport.include_TEM,
-        lambda: networks.net_tempfediv(feature_scan) * qe_tem,
-        lambda: zeros,
-    )
-
-    qe_etg = jax.lax.cond(
-        runtime_config_inputs.transport.include_ETG,
-        lambda: networks.net_etgleading(feature_scan).clip(0),
-        lambda: zeros,
+    model_output = model.predict(feature_scan)
+    model_output = _filter_model_output(
+        model_output=model_output,
+        runtime_config_inputs=runtime_config_inputs,
+        zeros_shape=jnp.expand_dims(feature_scan[..., 0], axis=-1).shape,
     )
 
     # combine fluxes
-    qi_itg_squeezed = qi_itg.squeeze()
-    qi = qi_itg_squeezed + qi_tem.squeeze()
+    qi_itg_squeezed = model_output['qi_itg'].squeeze()
+    qi = qi_itg_squeezed + model_output['qi_tem'].squeeze()
     qe = (
-        qe_itg.squeeze()
+        model_output['qe_itg'].squeeze()
         * runtime_config_inputs.transport.ITG_flux_ratio_correction
-        + qe_tem.squeeze()
-        + qe_etg.squeeze()
+        + model_output['qe_tem'].squeeze()
+        + model_output['qe_etg'].squeeze()
     )
 
-    pfe = pfe_itg.squeeze() + pfe_tem.squeeze()
+    pfe = model_output['pfe_itg'].squeeze() + model_output['pfe_tem'].squeeze()
 
     # conversion to SI units (note that n is normalized here)
     pfe_SI = pfe * state.ne.face_value() * chiGB / Rmin
