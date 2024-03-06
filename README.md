@@ -9,7 +9,7 @@ TORAX is a differentiable tokamak core transport simulator aimed for fast and ac
 TORAX is in a pre-release phase with a basic physics feature set, including:
 
 - Coupled PDEs of ion and electron heat transport, electron particle transport, and current diffusion
-    - Finite-volume-elements
+    - Finite-volume-method
     - Multiple solver options: linear with Pereverzev-Corrigan terms, nonlinear with Newton-Raphson, nonlinear with optimization using the jaxopt library
 - Ohmic power, ion-electron heat exchange, fusion power, bootstrap current with the analytical Sauter model
 - Time dependent boundary conditions and sources
