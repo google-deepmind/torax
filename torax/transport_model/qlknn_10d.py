@@ -13,12 +13,105 @@
 # limitations under the License.
 """Class for handling QLKNN10D models."""
 
+import json
 import os
+from typing import Any
 
+import flax.linen as nn
+import immutabledict
 import jax.numpy as jnp
-from qlknn.models import ffnn
-from torax.transport_model import _qlknn_np
+import numpy as np
 from torax.transport_model import base_qlknn_model
+
+
+# Move this to common lib.
+_ACTIVATION_FNS = immutabledict.immutabledict({
+    'relu': nn.relu,
+    'tanh': nn.tanh,
+    'sigmoid': nn.sigmoid,
+    'none': lambda x: x,
+})
+
+
+class MLP(nn.Module):
+  hidden_sizes: list[int]
+  activations: list[str]
+
+  @nn.compact
+  def __call__(self, x):
+    for act, size in zip(self.activations, self.hidden_sizes):
+      x = _ACTIVATION_FNS[act](nn.Dense(size)(x))
+    return x
+
+
+class QuaLiKizNDNN:
+  """Jax implementation for QLKNN10D inference."""
+
+  def __init__(
+      self,
+      model_config: dict[str, Any],
+  ):
+    self._model_config = model_config
+
+    self._feature_names = model_config.get('feature_names')
+    self._target_names = model_config.get('target_names')
+
+    self._feature_prescale_factor = self._load_prescale(
+        'prescale_factor', self._feature_names
+    )
+    self._feature_prescale_bias = self._load_prescale(
+        'prescale_bias', self._feature_names
+    )
+    self._target_prescale_factor = self._load_prescale(
+        'prescale_factor', self._target_names
+    )
+    self._target_prescale_bias = self._load_prescale(
+        'prescale_bias', self._target_names
+    )
+
+    activations = model_config['hidden_activation'] + [
+        model_config['output_activation']
+    ]
+    hidden_sizes = []
+    params = {}
+    for i in range(len(activations)):
+      weights = np.array(model_config[f'layer{i+1}/weights/Variable:0'])
+      params[f'Dense_{i}'] = {
+          'bias': np.array(model_config[f'layer{i+1}/biases/Variable:0']),
+          'kernel': weights,
+      }
+      hidden_sizes.append(weights.shape[1])
+      del model_config[f'layer{i+1}/biases/Variable:0']
+      del model_config[f'layer{i+1}/weights/Variable:0']
+    self._params = {'params': params}
+    self._model = MLP(hidden_sizes=hidden_sizes, activations=activations)
+
+  def _load_prescale(self, key: str, names: list[str]) -> np.ndarray:
+    return np.array([self._model_config[key][k] for k in names])[
+        np.newaxis, :
+    ]
+
+  def get_output(
+      self,
+      inputs: jnp.ndarray,
+  ):
+    """Calculate the outputs given specific inputs."""
+
+    inputs = (
+        self._feature_prescale_factor * inputs + self._feature_prescale_bias
+    )
+    outputs = self._model.apply(self._params, inputs)
+    outputs = (
+        outputs - self._target_prescale_bias
+    ) / self._target_prescale_factor
+
+    return outputs
+
+  @classmethod
+  def from_json(cls, json_file):
+    with open(json_file) as file_:
+      model_dict = json.load(file_)
+    return cls(model_dict)
 
 
 class _WrappedQLKNN:
@@ -28,12 +121,12 @@ class _WrappedQLKNN:
     network: The raw `qlknn` network.
   """
 
-  def __init__(self, network: ffnn.QuaLiKizNDNN):
+  def __init__(self, network: QuaLiKizNDNN):
     self.network = network
 
   def __call__(self, x: jnp.ndarray):
     """Call the network, with a JAX argument."""
-    return self.network.get_output(x, safe=False, output_pandas=False)
+    return self.network.get_output(x)
 
 
 class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
@@ -65,7 +158,7 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
 
   def _load(self, path):
     full_path = os.path.join(self.model_path, path)
-    raw = ffnn.QuaLiKizNDNN.from_json(full_path, np=_qlknn_np)
+    raw = QuaLiKizNDNN.from_json(full_path)
     return _WrappedQLKNN(raw)
 
   def predict(
