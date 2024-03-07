@@ -6,7 +6,7 @@ TORAX is a differentiable tokamak core transport simulator aimed for fast and ac
 - JAX provides auto-differentiation capabilities and code compilation for fast runtimes. Differentiability allows for gradient-based nonlinear PDE solvers for fast and accurate modelling, and for sensitivity analysis of simulation results to arbitrary parameter inputs, enabling applications such as trajectory optimization and data-driven parameter identification for semi-empirical models. Auto-differentiability allows for these applications to be easily extended with the addition of new physics models, or new parameter inputs, by avoiding the need to hand-derive Jacobians
 - Python-JAX is a natural framework for the coupling of ML-surrogates of physics models
 
-TORAX is in a pre-release phase with a basic physics feature set, including:
+TORAX is in a pre-beta phase with a basic physics feature set, including:
 
 - Coupled PDEs of ion and electron heat transport, electron particle transport, and current diffusion
     - Finite-volume-method
@@ -27,10 +27,15 @@ This is not an officially supported Google product.
 
 Short term development plans include:
 
+- Time dependent geometry
+- Time dependent prescribed state profiles
+- More flexible initial conditions
 - Implementation of forward sensitivity calculations w.r.t. control inputs and parameters
 - Implementation of persistent compilation cache for CPU
 - Performance optimization and cleanup
 - More extensive documentation and tutorials
+- Visualisation: run summaries, run comparisons
+- Port the unit-test and integration test suite
 
 Longer term desired features include:
 
@@ -45,7 +50,7 @@ Longer term desired features include:
 - Stationary-state solver
 - Momentum transport
 
-Contributions in line with the roadmap are welcome. In particular, TORAX is envisaged as a natural framework for coupling of various ML-surrogates of physics models. These could include surrogates for turbulent transport, neoclassical transport, line radiation, pedestal physics, and core-edge integration, MHD, among others.
+Contributions in line with the roadmap are welcome. In particular, TORAX is envisaged as a natural framework for coupling of various ML-surrogates of physics models. These could include surrogates for turbulent transport, neoclassical transport, heat and particle sources, line radiation, pedestal physics, and core-edge integration, MHD, among others.
 
 # Installation guide
 
@@ -74,6 +79,7 @@ dependencies.
 ```shell
 $ mkdir /path/to/torax_dir && cd "$_"
 ```
+Where `/path/to/torax_dir` should be replaced by a path of your choice.
 
 Create a TORAX virtual env:
 
@@ -91,8 +97,14 @@ Download QLKNN dependencies:
 
 ```shell
 $ git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
-$ export TORAX_QLKNN_MODEL_PATH="$PWD/qlknn-hyper"
+$ export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
 ```
+It is recommended to automate the environment variable export. For example, if using bash, run:
+
+```shell
+$ echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
+```
+This command only needs to be run once on a given system.
 
 Download and install the TORAX codebase:
 
@@ -116,16 +128,16 @@ Additional configuration is provided through flags which append the above run co
 
 ### Set environment variables
 
-Path to the QuaLiKiz-neural-network parameters
+Path to the QuaLiKiz-neural-network parameters. Note: if installation instructions above were followed, this may already be set.
 
 ```shell
 $ export TORAX_QLKNN_MODEL_PATH="<myqlknnmodelpath>"
 ```
 
-Path to the geometry file directory
+Path to the geometry file directory. This prefixes the path and filename provided in the `geometry_file` geometry constructor argument in the run config file. If not set, `TORAX_GEOMETRY_DIR` defaults to the relative path `torax/data/third_party/geo`.
 
 ```shell
-$ export TORAX_QLKNN_MODEL_PATH="<mygeodir>"
+$ export TORAX_GEOMETRY_DIR="<mygeodir>"
 ```
 
 If true, error checking is enabled in internal routines. Used for debugging. Default is false since it is incompatible with the persistent compilation cache.
@@ -170,7 +182,7 @@ $   --log_progress --plot_progress
 
 Once complete, the time history of a simulation state and derived quantities is written to `state_history.h5`. The output path is written to stdout
 
-To take advantage of the in-memory (non-persistent) cache, the process does not end upon simulation termination. It is possible to modify the config and rerun the simulation. Only the following modifications will then trigger a recompilation:
+To take advantage of the in-memory (non-persistent) cache, the process does not end upon simulation termination. It is possible to modify the config, toggle the `log_progress` and `plot_progress` flags, and rerun the simulation. Only the following modifications will then trigger a recompilation:
 
 - Grid resolution
 - Evolved variables (equations being solved)
