@@ -61,7 +61,7 @@ Install Python 3.10 or greater.
 Make sure that tkinter is installed:
 
 ```shell
-$ sudo apt-get install python3-tk
+sudo apt-get install python3-tk
 ```
 
 ## How to install
@@ -69,47 +69,64 @@ $ sudo apt-get install python3-tk
 Install virtualenv (if not already installed):
 
 ```shell
-$ pip install --upgrade pip
-$ pip install virtualenv
+pip install --upgrade pip
+```
+
+```shell
+pip install virtualenv
 ```
 
 Create a code directory where you will install the virtual env and other TORAX
 dependencies.
 
 ```shell
-$ mkdir /path/to/torax_dir && cd "$_"
+mkdir /path/to/torax_dir && cd "$_"
 ```
 Where `/path/to/torax_dir` should be replaced by a path of your choice.
 
 Create a TORAX virtual env:
 
 ```shell
-$ python3 -m venv toraxvenv
+python3 -m venv toraxvenv
 ```
 
 Activate the virtual env:
 
 ```shell
-$ source toraxvenv/bin/activate
+source toraxvenv/bin/activate
 ```
 
 Download QLKNN dependencies:
 
 ```shell
-$ git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
-$ export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
+git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
 ```
+
+```shell
+export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
+```
+
 It is recommended to automate the environment variable export. For example, if using bash, run:
 
 ```shell
-$ echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
+echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
 ```
-This command only needs to be run once on a given system.
+The above command only needs to be run once on a given system.
 
-Download and install the TORAX codebase:
+Download and install the TORAX codebase via http:
 
 ```shell
-$ pip install git+git://github.com/google-deepmind/torax.git
+git clone https://github.com/google-deepmind/torax.git
+```
+or ssh (ensure that you have the appropriate SSH key uploaded to github).
+
+```shell
+git clone git@github.com:google-deepmind/torax.git
+```
+Enter the TORAX directory and pip install the dependencies.
+
+```shell
+cd torax; pip install .
 ```
 
 Optional: Install additional GPU support for JAX if your machine has a GPU:
@@ -120,8 +137,8 @@ https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
 The following command will run TORAX using the configuration file `tests/test_data/default_config.py`. TORAX configuration files overwrite the defaults in `config.py`. Comments in `config.py` provide a brief explanation of all configuration variables. More detailed documentation is on the roadmap.
 
 ```shell
-$ python3 run_simulation_main.py \
-$   --python_config='torax.tests.test_data.default_config'
+python3 run_simulation_main.py \
+   --python_config='torax.tests.test_data.default_config --log_progress'
 ```
 
 Additional configuration is provided through flags which append the above run command, and environment variables:
@@ -157,25 +174,25 @@ $ export TORAX_COMPILATION_ENABLED=<True/False>
 Output simulation time, dt, and number of stepper iterations (dt backtracking with nonlinear solver) carried out at each timestep.
 
 ```shell
-$ python3 run_simulation_main.py \
-$   --python_config='torax.tests.test_data.default_config' \
-$   --log_progress
+python3 run_simulation_main.py \
+   --python_config='torax.tests.test_data.default_config' \
+   --log_progress
 ```
 
 Live plotting of simulation state and derived quantities.
 
 ```shell
-$ python3 run_simulation_main.py \
-$   --python_config='torax.tests.test_data.default_config' \
-$   --plot_progress
+python3 run_simulation_main.py \
+   --python_config='torax.tests.test_data.default_config' \
+   --plot_progress
 ```
 
 Combination of the above.
 
 ```shell
-$ python3 run_simulation_main.py \
-$   --python_config='torax.tests.test_data.default_config' \
-$   --log_progress --plot_progress
+python3 run_simulation_main.py \
+   --python_config='torax.tests.test_data.default_config' \
+   --log_progress --plot_progress
 ```
 
 ### Post-simulation
@@ -194,7 +211,7 @@ To take advantage of the in-memory (non-persistent) cache, the process does not 
 You can get out of the Python virtual env by deactivating it:
 
 ```shell
-$ deactivate
+deactivate
 ```
 
 # Simulation tutorials
@@ -208,7 +225,13 @@ Under construction
 * Solution: You need to tell the OS where HDF5 is, try
 
 ```shell
-$ brew install hdf5
-$ export HDF5_DIR="$(brew --prefix hdf5)"
-$ pip install --no-binary=h5py h5py
+brew install hdf5
+```
+
+```shell
+export HDF5_DIR="$(brew --prefix hdf5)"
+```
+
+```shell
+pip install --no-binary=h5py h5py
 ```
