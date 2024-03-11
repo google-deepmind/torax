@@ -6,7 +6,7 @@ on: [push, workflow_dispatch]
 jobs:
   pytest-job:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 80
 
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}

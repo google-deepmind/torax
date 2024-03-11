@@ -229,7 +229,7 @@ class SimTestCase(parameterized.TestCase):
 
       raise AssertionError(final_msg)
 
-  def _test_pyntegrated(
+  def _test_torax_sim(
       self,
       config_name: str,
       ref_name: str,
@@ -238,7 +238,7 @@ class SimTestCase(parameterized.TestCase):
       atol: Optional[float] = None,
       use_ref_time: bool = False,
   ):
-    """Integration test comparing to reference output from PINT or TORAX.
+    """Integration test comparing to TORAX reference output.
 
     Args:
       config_name: Name of py config to load. (Leave off dir path, include
@@ -249,9 +249,6 @@ class SimTestCase(parameterized.TestCase):
       rtol: Optional float, to override the class level rtol.
       atol: Optional float, to override the class level atol.
       use_ref_time: If True, locks to time steps calculated by reference.
-
-    Raises:
-      SkipTest: in the case of a known discrepancy with FiPy
     """
 
     if rtol is None:

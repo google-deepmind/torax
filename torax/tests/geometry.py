@@ -76,8 +76,6 @@ class GeometryTest(parameterized.TestCase):
 
 
 def face_to_cell(nr, face):
-  """Reference implementation from pyntegrated model."""
-
   cell = np.zeros(nr)
   cell[:] = 0.5 * (face[1:] + face[:-1])
   return cell
