@@ -37,8 +37,7 @@ from torax.sources import fusion_heat_source
 from torax.stepper import linear_theta_method
 
 # pylint:disable=invalid-name
-# Names like "Ip" are chosen so that configuration YAML files are compatible
-# with PINT
+# Names like "Ip" are chosen for consistency with standard physics notation
 
 
 def fusion_power(
@@ -88,10 +87,8 @@ def fusion_power(
 def main(argv: Sequence[str]) -> None:
   _, path = argv
 
-  # For this demo we use the configuration from PINT's test9, with a few
-  # changes:
-  # - We use our best solver behaviors rather than matching FiPy exactly.
-  # - We include the bootstrap current.
+  # For this demo we use the configuration from sim test9, but include the
+  # bootstrap current
   override = {
       "transport_model": "qlknn",
       "Ti_bound_left": 8.0,

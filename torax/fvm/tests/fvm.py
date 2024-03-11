@@ -26,20 +26,20 @@ from torax import config_slice
 from torax import fvm
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
-from torax.tests.test_lib import pint_ref
+from torax.tests.test_lib import torax_refs
 
 
-class FVMTest(pint_ref.ReferenceValueTest):
+class FVMTest(torax_refs.ReferenceValueTest):
   """Unit tests for the `torax.fvm` module."""
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_face_grad(
       self,
-      references_getter: Callable[[], pint_ref.References],
+      references_getter: Callable[[], torax_refs.References],
   ):
     """Test that CellVariable.face_grad matches reference values."""
     references = references_getter()
@@ -49,13 +49,13 @@ class FVMTest(pint_ref.ReferenceValueTest):
     np.testing.assert_allclose(face_grad_jax, references.psi_face_grad)
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_underconstrained(
       self,
-      references_getter: Callable[[], pint_ref.References],
+      references_getter: Callable[[], torax_refs.References],
   ):
     """Test that CellVariable raises for underconstrained problems."""
     references = references_getter()
@@ -79,13 +79,13 @@ class FVMTest(pint_ref.ReferenceValueTest):
       )
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_overconstrained(
       self,
-      references_getter: Callable[[], pint_ref.References],
+      references_getter: Callable[[], torax_refs.References],
   ):
     """Test that CellVariable raises for overconstrained problems."""
     references = references_getter()
@@ -109,15 +109,15 @@ class FVMTest(pint_ref.ReferenceValueTest):
   @parameterized.parameters([
       dict(
           seed=20221114,
-          references_getter=pint_ref.circular_references,
+          references_getter=torax_refs.circular_references,
       ),
       dict(
           seed=20221114,
-          references_getter=pint_ref.chease_references_Ip_from_chease,
+          references_getter=torax_refs.chease_references_Ip_from_chease,
       ),
       dict(
           seed=20221114,
-          references_getter=pint_ref.chease_references_Ip_from_config,
+          references_getter=torax_refs.chease_references_Ip_from_config,
       ),
   ])
   def test_face_grad_constraints(self, seed, references_getter):

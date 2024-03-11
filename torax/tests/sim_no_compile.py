@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests that Torax can be run with compilation disabled."""
+"""Tests that TORAX can be run with compilation disabled."""
 
 from typing import Optional, Sequence
 
@@ -50,7 +50,7 @@ class SimTest(sim_test_case.SimTestCase):
           False,
       ),
   )
-  def test_pyntegrated(
+  def test_torax_sim(
       self,
       config_name: str,
       ref_name: str,
@@ -62,7 +62,7 @@ class SimTest(sim_test_case.SimTestCase):
     """No-compilation version of integration tests."""
     assert not jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True)
 
-    self._test_pyntegrated(
+    self._test_torax_sim(
         config_name,
         ref_name,
         profiles,

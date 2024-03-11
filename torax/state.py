@@ -52,7 +52,7 @@ class Currents:
   j_bootstrap: jax.Array
   j_bootstrap_face: jax.Array
   # pylint: disable=invalid-name
-  # Using PINT / physics notation naming convention
+  # Using physics notation naming convention
   I_bootstrap: jax.Array
   sigma: jax.Array
 

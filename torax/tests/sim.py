@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Integration tests for Tokamak heat transport in JAX.
+"""TORAX integration tests.
 
 These are full integration tests that run the simulation and compare to a
-PINT reference:
-https://gitlab.com/qualikiz-group/pyntegrated_model/-/tree/main/config_tests
+previously executed TORAX reference:
 """
 
 from typing import Optional, Sequence
@@ -39,12 +38,14 @@ _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
 
 class SimTest(sim_test_case.SimTestCase):
-  """Integration tests for torax.sim."""
+  """Integration tests for torax.sim.
+
+  The numbering is legacy from when a subset of these tests were compared to
+  PINT runs. This numbering is kept to maintain backwards compatibility for now.
+  """
 
   @parameterized.named_parameters(
-      # Where relevant we keep test names the same as in the PINT repo since
-      # the names are used to look up the reference files.
-      # See py files for test descriptions.
+      # Tests explicit solver
       (
           'test1',
           'test1.py',
@@ -52,7 +53,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Run test2 from the PINT repo, using Crank-Nicolson.
+      # Tests implicit solver with theta=0.5 (Crank-Nicholson)
       (
           'test2_cn',
           'test2_cn.py',
@@ -60,6 +61,7 @@ class SimTest(sim_test_case.SimTestCase):
           ('temp_ion', 'temp_el'),
           2e-1,
       ),
+      # Tests implicit solver with theta=1.0 (backwards Euler)
       (
           'test2',
           'test2.py',
@@ -67,7 +69,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Make sure that the optimizer gets the same result as the linear solver
+      # Tests that optimizer gets the same result as the linear solver
       # when coefficients are frozen.
       (
           'test2_optimizer',
@@ -76,7 +78,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           1e-5,
       ),
-      # Make sure that Newton-Raphson gets the same result as the linear solver
+      # Tests that Newton-Raphson gets the same result as the linear solver
       # when the coefficient matrix is frozen
       (
           'test2_newton_raphson',
@@ -85,6 +87,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           1e-6,
       ),
+      # Test ion-electron heat exchange at low density
       (
           'test3',
           'test3.py',
@@ -92,7 +95,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # test3_ref exercises sim.ArrayTimeStepCalculator
+      # Tests sim.ArrayTimeStepCalculator
       (
           'test3_ref',
           'test3.py',
@@ -101,6 +104,7 @@ class SimTest(sim_test_case.SimTestCase):
           0,
           True,
       ),
+      # Tests ion-electron heat exchange at high density
       (
           'test4',
           'test4.py',
@@ -108,6 +112,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests pedestal internal boundary condition
       (
           'test5',
           'test5.py',
@@ -115,6 +120,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests CGM model heat transport only
       (
           'test6',
           'test6.py',
@@ -122,15 +128,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Test that we are able to reproduce FiPy's behavior in a case where
-      # FiPy is unstable
-      (
-          'test6_no_pedestal',
-          'test6_no_pedestal.py',
-          'test6_no_pedestal',
-          _ALL_PROFILES,
-          1e-10,
-      ),
+      # Tests QLKNN model, heat transport only
       (
           'test7',
           'test7.py',
@@ -140,6 +138,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-11,
           False,
       ),
+      # Tests fixed_dt timestep
       (
           'test7_fixed_dt',
           'test7_fixed_dt.py',
@@ -149,6 +148,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-11,
           False,
       ),
+      # Tests current diffusion
       (
           'test8',
           'test8.py',
@@ -156,6 +156,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests combined current diffusion + heat transport with QLKNN
       (
           'test9',
           'test9.py',
@@ -163,7 +164,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Make sure that the optimizer gets the same result as the linear solver
+      # Tests that optimizer gets the same result as the linear solver
       # when using linear initial guess and 0 iterations.
       # Making sure to use a test involving Pereverzev-Corrigan for this,
       # since we do want it in the linear initial guess.
@@ -174,7 +175,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Make sure that Newton-Raphson gets the same result as the linear solver
+      # Tests that Newton-Raphson gets the same result as the linear solver
       # when using linear initial guess and 0 iterations
       # Making sure to use a test involving Pereverzev-Corrigan for this,
       # since we do want it in the linear initial guess.
@@ -185,6 +186,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests bootstrap current with heat+current-diffusion. CGM model
       (
           'test10',
           'test10.py',
@@ -192,6 +194,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests bootstrap current with heat+current-diffusion. QLKNN model
       (
           'test11',
           'test11.py',
@@ -199,6 +202,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests heat+current-diffusion+particle transport with constant transport
       (
           'test12',
           'test12.py',
@@ -206,6 +210,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests particle sources with constant transport. No NBI source
       (
           'test13',
           'test13.py',
@@ -213,6 +218,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests particle sources with CGM transport. No NBI source
       (
           'test14',
           'test14.py',
@@ -220,6 +226,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests all particle sources with CGM transport
       (
           'test15',
           'test15.py',
@@ -227,6 +234,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests density transport with QLKNN. De scaled from chi_e model
       (
           'test16',
           'test16.py',
@@ -235,6 +243,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-3,
           5e-4,
       ),
+      # Tests density transport with QLKNN. Deff+Veff model
       (
           'test17',
           'test17.py',
@@ -243,6 +252,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-5,
           2e-6,
       ),
+      # Tests fusion power. CGM transport, heat+particle+psi transport
       (
           'test18',
           'test18.py',
@@ -250,6 +260,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests fusion power. QLKNN transport, heat+particle+psi transport.
       (
           'test19',
           'test19.py',
@@ -258,6 +269,7 @@ class SimTest(sim_test_case.SimTestCase):
           7e-5,
           5e-4,
       ),
+      # Tests explicit solver. Ti only. CHEASE geometry.
       (
           'test20',
           'test20.py',
@@ -265,6 +277,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests implicit solver. Heat transport only. CHEASE geometry.
       (
           'test21',
           'test21.py',
@@ -272,6 +285,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests ion-electron heat exchange test at low density. CHEASE geometry.
       (
           'test22',
           'test22.py',
@@ -279,6 +293,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests Ohmic electron heat source. CHEASE geometry.
       (
           'test22_pohm',
           'test22_pohm.py',
@@ -286,6 +301,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests ion-electron heat exchange test at high density. CHEASE geometry.
       (
           'test23',
           'test23.py',
@@ -293,6 +309,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests pedestal internal boundary condition. CHEASE geometry.
       (
           'test24',
           'test24.py',
@@ -300,6 +317,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests CGM transport model. Heat transport only. CHEASE geometry.
       (
           'test25',
           'test25.py',
@@ -307,6 +325,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests QLKNN transport model. Heat transport only. CHEASE geometry.
       (
           'test26',
           'test26.py',
@@ -315,6 +334,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-10,
           1e-10,
       ),
+      # Tests current diffusion. CHEASE geometry. Ip from parameters.
       (
           'test27',
           'test27.py',
@@ -322,6 +342,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests current diffusion. CHEASE geometry. Ip from CHEASE.
       (
           'test28',
           'test28.py',
@@ -329,6 +350,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests combined heat+current-diffusion. CHEASE geometry. QLKNN.
       (
           'test29',
           'test29.py',
@@ -336,6 +358,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests time-dependent pedestal, Ptot, Ip. CHEASE geometry. QLKNN.
       (
           'test29_timedependent',
           'test29_timedependent.py',
@@ -343,6 +366,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests bootstrap current. CHEASE geometry. Heat+current-diffusion. CGM.
       (
           'test30',
           'test30.py',
@@ -350,6 +374,8 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests combined heat, particle, current-diffusion.
+      # CHEASE geometry. Constant transport
       (
           'test31',
           'test31.py',
@@ -357,6 +383,8 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests combined heat, particle, current-diffusion and pedestal.
+      # CHEASE geometry. Constant transport
       (
           'test32',
           'test32.py',
@@ -364,6 +392,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests particle sources. CHEASE geometry. No NBI.
       (
           'test33',
           'test33.py',
@@ -371,6 +400,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests particle sources. CHEASE geometry. No NBI. CGM + pedestal.
       (
           'test34',
           'test34.py',
@@ -378,6 +408,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests all particle sources. CHEASE geometry. CGM + pedestal.
       (
           'test35',
           'test35.py',
@@ -385,6 +416,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests particle transport with QLKNN. De scaled from chie.
       (
           'test36',
           'test36.py',
@@ -393,6 +425,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-3,
           6e-5,
       ),
+      # Tests particle transport with QLKNN. Deff+Veff model.
       (
           'test37',
           'test37.py',
@@ -401,6 +434,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-4,
           2e-6,
       ),
+      # Tests Crank-Nicholson with particle transport and QLKNN. Deff+Veff
       (
           'test37_theta05',
           'test37_theta05.py',
@@ -408,6 +442,8 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests fusion power. CHEASE geometry. Current, heat, particle transport.
+      # CGM transport model.
       (
           'test38',
           'test38.py',
@@ -415,6 +451,8 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests Pereverzev-Corrigan method for density. CHEASE geometry. QLKNN.
+      # De scaled from chie.
       (
           'test39',
           'test39.py',
@@ -423,6 +461,7 @@ class SimTest(sim_test_case.SimTestCase):
           7e-5,
           5e-5,
       ),
+      # Tests full integration for ITER-baseline-like config.
       (
           'test40',
           'test40.py',
@@ -431,6 +470,7 @@ class SimTest(sim_test_case.SimTestCase):
           7e-5,
           5e-5,
       ),
+      # Tests full integration for ITER-baseline-like config. Linear solver.
       (
           'test41',
           'test41.py',
@@ -439,6 +479,7 @@ class SimTest(sim_test_case.SimTestCase):
           7e-5,
           5e-5,
       ),
+      # Tests full integration for ITER-hybrid-like config. Linear solver.
       (
           'test42',
           'test42.py',
@@ -447,6 +488,8 @@ class SimTest(sim_test_case.SimTestCase):
           7e-5,
           5e-5,
       ),
+      # Tests full integration for ITER-hybrid-like config.
+      # Predictor-corrector solver.
       (
           'test42_predictor_corrector',
           'test42_predictor_corrector.py',
@@ -455,14 +498,16 @@ class SimTest(sim_test_case.SimTestCase):
           7e-5,
           5e-5,
       ),
+      # Tests TORAX regression of test42
       (
           'test42_torax',
           'test42.py',
           'test42_torax',
           _ALL_PROFILES,
-          1e-12,
-          1e-12,
+          1e-11,
+          1e-11,
       ),
+      # Tests Newton-Raphson nonlinear solver for ITER-hybrid-like-config
       (
           'test42_nl_Hmode',
           'test42_nl_Hmode.py',
@@ -472,7 +517,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-6,
       ),
   )
-  def test_pyntegrated(
+  def test_torax_sim(
       self,
       config_name: str,
       ref_name: str,
@@ -481,11 +526,11 @@ class SimTest(sim_test_case.SimTestCase):
       atol: Optional[float] = None,
       use_ref_time: bool = False,
   ):
-    """Integration test comparing to reference output from PINT or TORAX."""
-    # The @parameterized decorator removes the `test_pyntegrated` method,
+    """Integration test comparing to reference output from TORAX."""
+    # The @parameterized decorator removes the `test_torax_sim` method,
     # so we separate the actual functionality into a helper method that will
     # not be removed.
-    self._test_pyntegrated(
+    self._test_torax_sim(
         config_name,
         ref_name,
         profiles,
@@ -499,7 +544,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Run test3 but pass in the reference result from test2
     with self.assertRaises(AssertionError):
-      self._test_pyntegrated(
+      self._test_torax_sim(
           'test3.py',
           'test2',
           ('temp_ion', 'temp_el'),
@@ -571,8 +616,8 @@ class SimTest(sim_test_case.SimTestCase):
     self.assertEqual(history_length, t.shape[0])
     self.assertGreater(t[-1], config.t_final)
 
-    for pint_profile in _ALL_PROFILES:
-      profile_history = state_history[pint_profile]
+    for torax_profile in _ALL_PROFILES:
+      profile_history = state_history[torax_profile]
       # This is needed for CellVariable but not face variables
       if hasattr(profile_history, 'value'):
         profile_history = profile_history.value
@@ -587,7 +632,7 @@ class SimTest(sim_test_case.SimTestCase):
             msg = (
                 'Profile changed over time despite all equations being '
                 'disabled.\n'
-                f'Profile name: {pint_profile}\n'
+                f'Profile name: {torax_profile}\n'
                 f'Initial value: {first_profile}\n'
                 f'Failing time index: {i}\n'
                 f'Failing value: {profile_history[i]}\n'

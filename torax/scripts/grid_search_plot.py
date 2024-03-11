@@ -32,8 +32,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 # pylint:disable=invalid-name
-# Names like "Ip" are chosen so that configuration YAML files are compatible
-# with PINT
+# Names like "Ip" are chosen for consistency with standard physics notation
 
 
 def main(argv: Sequence[str]) -> None:
