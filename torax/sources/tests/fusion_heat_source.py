@@ -26,7 +26,7 @@ from torax.sources import source
 from torax.sources import source_config
 from torax.sources import source_profiles
 from torax.sources.tests import test_lib
-from torax.tests.test_lib import pint_ref
+from torax.tests.test_lib import torax_refs
 
 
 class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
@@ -46,12 +46,12 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     )
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_calc_fusion(
-      self, references_getter: Callable[[], pint_ref.References]
+      self, references_getter: Callable[[], torax_refs.References]
   ):
     """Compare `calc_fusion` function to a reference implementation."""
     references = references_getter()
@@ -72,11 +72,11 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         nref,
     )
 
-    def calculate_fusion(config, geo, profiles):
-      """Reference implementation from pyntegrated_model."""
-      # pyntegrated_model doesn't follow Google style
+    def calculate_fusion(config, geo, state):
+      """Reference implementation from PINT. We still use TORAX state here."""
+      # PINT doesn't follow Google style
       # pylint:disable=invalid-name
-      T = profiles.Ti.faceValue()
+      T = state.temp_ion.face_value()
       consts = constants.CONSTANTS
 
       # P [W/m^3] = Efus *1/4 * n^2 * <sigma*v>.
@@ -105,20 +105,15 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
       )  # units of m^3/s
 
       Pfus = (
-          Efus * 0.25 * (profiles.ni.faceValue() * config.nref) ** 2 * sigmav
+          Efus * 0.25 * (state.ni.face_value() * config.nref) ** 2 * sigmav
       )  # [W/m^3]
-      # Modification from raw pyntegrated_model: we use geo.r_face here,
-      # rather than a call to geo.rface(), which in pyntegrated_model is FiPy
-      # FaceVariable.
       Ptot = np.trapz(Pfus * geo.vpr_face, geo.r_face) / 1e6  # [MW]
 
       return Ptot
 
-    profiles = pint_ref.state_to_profiles(state)
+    fusion_pint = calculate_fusion(config, geo, state)
 
-    fusion_pyntegrated = calculate_fusion(config, geo, profiles)
-
-    np.testing.assert_allclose(fusion_jax, fusion_pyntegrated)
+    np.testing.assert_allclose(fusion_jax, fusion_pint)
 
 
 if __name__ == '__main__':

@@ -396,7 +396,7 @@ def initial_currents(
   johmform_face = (1 - geo.r_face_norm**2) ** config.nu
   Cohm = Iohm * 1e6 / _trapz(johmform_face * geo.spr_face, geo.r_face)
   johm_face = Cohm * johmform_face  # ohmic current profile on face grid
-  johm = geometry.face_to_cell(johm_face)  # TODO see if can be removed
+  johm = geometry.face_to_cell(johm_face)
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
@@ -423,9 +423,8 @@ def initial_currents(
     johm_hires = Cohm_hires * johmform_hires
 
     # calculate "External" current profile (e.g. ECCD) on cell grid.
-    # TODO(b/323504363): Remove ad-hoc circular equilibrium and hires
-    # logic. Try doing something more similar to RAPTOR's analytical circular
-    # equilibrium.
+    # TODO(b/323504363): Replace ad-hoc circular equilibrium
+    # with more accurate analytical equilibrium
     jext_hires = jext_source.jext_hires(
         source_type=dynamic_config_slice.sources[jext_source.name].source_type,
         dynamic_config_slice=dynamic_config_slice,
