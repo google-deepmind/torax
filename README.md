@@ -1,3 +1,5 @@
+[![Unittests](https://github.com/google-deepmind/torax/actions/workflows/pytest.yml/badge.svg)](https://github.com/google-deepmind/torax/actions/workflows/pytest.yml)
+
 # What is TORAX?
 
 TORAX is a differentiable tokamak core transport simulator aimed for fast and accurate forward modelling, pulse-design, trajectory optimization, and controller design workflows. TORAX is written in Python-JAX, with the following motivations:
