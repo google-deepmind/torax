@@ -26,10 +26,10 @@ from torax import config as config_lib
 from torax import geometry
 from torax import initial_states
 from torax import state as state_module
-from torax.tests.test_lib import pint_ref
+from torax.tests.test_lib import torax_refs
 
 
-class StateTest(pint_ref.ReferenceValueTest):
+class StateTest(torax_refs.ReferenceValueTest):
   """Unit tests for the `torax.state` module."""
 
   def setUp(self):
@@ -64,13 +64,13 @@ class StateTest(pint_ref.ReferenceValueTest):
     self._make_history = make_history
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_sanity_check(
       self,
-      references_getter: Callable[[], pint_ref.References],
+      references_getter: Callable[[], torax_refs.References],
   ):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
@@ -81,13 +81,13 @@ class StateTest(pint_ref.ReferenceValueTest):
     basic_state.sanity_check()
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_index(
       self,
-      references_getter: Callable[[], pint_ref.References],
+      references_getter: Callable[[], torax_refs.References],
   ):
     """Test State.index."""
     references = references_getter()
@@ -97,13 +97,13 @@ class StateTest(pint_ref.ReferenceValueTest):
       self.assertEqual(i, history.index(i).temp_ion.value[0])
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_project(
       self,
-      references_getter: Callable[[], pint_ref.References],
+      references_getter: Callable[[], torax_refs.References],
   ):
     """Test State.project."""
     references = references_getter()

@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared setup code for unit tests using reference values from PINT."""
+"""Shared setup code for unit tests using reference values."""
 
 import os
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
-import fipy
 from jax import numpy as jnp
 import numpy as np
 import torax
@@ -42,12 +41,6 @@ class References:
   psi_face_grad: np.ndarray
   jtot: np.ndarray
   s: np.ndarray
-
-
-# TODO(b/323504363): Eventually, we will want to get reference values and h5
-# files from Torax itself. We will want the ability to test against Torax for
-# regression testing. This will include removing PINT-related flags for
-# comparison.
 
 
 def circular_references() -> References:
@@ -75,7 +68,7 @@ def circular_references() -> References:
       kappa=1.72,
       hires_fac=4,
   )
-  # ground truth values copied from an example PINT execution using
+  # ground truth values copied from example executions using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.CellVariable(
       value=jnp.array(
@@ -109,7 +102,7 @@ def circular_references() -> References:
       ),
       right_face_grad_constraint=jnp.array(53.182574789531735),
       dr=geo.dr_norm,
-  )  # TODO revisit these tests after general geometry is done
+  )
   psi_face_grad = np.array([
       '0.0',
       '10.227178846458628',
@@ -379,7 +372,7 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
       Ip_from_parameters=True,
   )
-  # ground truth values copied from an example PINT execution using
+  # ground truth values copied from an example executions using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.CellVariable(
       value=jnp.array(
@@ -413,7 +406,7 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
       ),
       right_face_grad_constraint=jnp.array(64.25482269382654),
       dr=geo.dr_norm,
-  )  # TODO revisit these tests after general geometry is done
+  )
   psi_face_grad = np.array([
       '0.0',
       '7.329120928506605',
@@ -507,15 +500,13 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
   )
 
 
-# TODO(b/323504363): Might be able to remove this test class completely since all
-# the references are constants.
 class ReferenceValueTest(parameterized.TestCase):
-  """Unit using reference values from PINT."""
+  """Unit using reference values from previous executions."""
 
   def setUp(self):
     super().setUp()
-    # Some reference values from pyntegrated model are used in more than one
-    # test. These are loaded here.
+    # Some pre-calculated reference values are used in more than one test.
+    # These are loaded here.
     self.circular_references = circular_references()
     # pylint: disable=invalid-name
     self.chease_references_with_Ip_from_chease = (
@@ -525,75 +516,6 @@ class ReferenceValueTest(parameterized.TestCase):
         chease_references_Ip_from_config()
     )
     # pylint: enable=invalid-name
-
-
-def convert_cell_var_torax_to_fipy(
-    torax_var: torax.fvm.CellVariable,
-) -> fipy.CellVariable:
-  """Convert a Torax CellVariable to a FiPy CellVariable.
-
-  Args:
-    torax_var: The Torax variable to convert.
-
-  Returns:
-    fipy_var: The FiPy equivalent of that variable.
-  """
-
-  mesh = fipy.Grid1D(nx=torax_var.value.shape[0], dx=torax_var.dr)
-  fipy_var = fipy.CellVariable(mesh=mesh, value=torax_var.value)
-  if torax_var.left_face_constraint is not None:
-    fipy_var.constrain(torax_var.left_face_constraint, mesh.facesLeft)
-  if torax_var.left_face_grad_constraint is not None:
-    fipy_var.faceGrad.constrain(
-        torax_var.left_face_grad_constraint, mesh.facesLeft
-    )
-  if torax_var.right_face_constraint is not None:
-    fipy_var.constrain(torax_var.right_face_constraint, mesh.facesRight)
-  if torax_var.right_face_grad_constraint is not None:
-    fipy_var.faceGrad.constrain(
-        torax_var.right_face_grad_constraint, mesh.facesRight
-    )
-  return fipy_var
-
-
-class Profiles:
-  """A class analogous to State from Torax.
-
-  This class is used to support some reference code from pyntegrated_model
-  used to provide ground truth for tests.
-
-  Attributes:
-    Ti: Analogous to `temp_ion` from Torax's `State`.
-    ne: Analogous to `ne` from Torax's `State`.
-    ni: Analogous to `ni` from Torax's `State`.
-  """
-
-  # pyntegrated_model doesn't follow Google style
-  # pylint:disable=invalid-name
-
-  def __init__(
-      self, Ti: fipy.CellVariable, ne: fipy.CellVariable, ni: fipy.CellVariable
-  ):
-    self.Ti = Ti
-    self.ne = ne
-    self.ni = ni
-
-
-def state_to_profiles(state: torax.state.State):
-  """Converts a Torax `State` to a `Profiles` for use with pyntegrated model.
-
-  Args:
-    state: The Torax State
-
-  Returns:
-    profiles: The Profiles for use with pyntegrated model.
-  """
-  return Profiles(
-      Ti=convert_cell_var_torax_to_fipy(state.temp_ion),
-      ne=convert_cell_var_torax_to_fipy(state.ne),
-      ni=convert_cell_var_torax_to_fipy(state.ni),
-  )
-
 
 if __name__ == '__main__':
   absltest.main()

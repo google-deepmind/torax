@@ -24,19 +24,19 @@ from torax import geometry
 from torax import initial_states
 from torax import physics
 from torax.sources import source_profiles
-from torax.tests.test_lib import pint_ref
+from torax.tests.test_lib import torax_refs
 
 
-class PhysicsTest(pint_ref.ReferenceValueTest):
+class PhysicsTest(torax_refs.ReferenceValueTest):
   """Unit tests for the `torax.physics` module."""
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_calc_q_from_psi(
-      self, references_getter: Callable[[], pint_ref.References]
+      self, references_getter: Callable[[], torax_refs.References]
   ):
     """Compare `calc_q_from_psi` function to a reference implementation."""
     references = references_getter()
@@ -57,7 +57,7 @@ class PhysicsTest(pint_ref.ReferenceValueTest):
 
     # Make ground truth
     def calc_q_from_psi(config, geo):
-      """Reference implementation from pyntegrated model."""
+      """Reference implementation from PINT."""
       consts = constants.CONSTANTS
       iota = np.zeros(config.nr + 1)  # on face grid
       q = np.zeros(config.nr + 1)  # on face grid
@@ -69,15 +69,13 @@ class PhysicsTest(pint_ref.ReferenceValueTest):
           / (2 * np.pi * geo.B0 * geo.r_face[1:])
       )
       q[1:] = 1 / iota[1:]
-      # Change from pyntegrated model: we don't read jtot from `geo`
+      # Change from PINT: we don't read jtot from `geo`
       q[0] = (
           2 * geo.B0 / (consts.mu0 * jtot[0] * config.Rmaj)
       )  # use on-axis definition of q (Wesson 2004, Eq 3.48)
       q *= config.q_correction_factor
 
       def face_to_cell(config, face):
-        """Reference implementation from pyntegrated model."""
-
         cell = np.zeros(config.nr)
         cell[:] = 0.5 * (face[1:] + face[:-1])
         return cell
@@ -91,12 +89,12 @@ class PhysicsTest(pint_ref.ReferenceValueTest):
     np.testing.assert_allclose(q_cell_jax, q_cell_np)
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_initial_psi(
-      self, references_getter: Callable[[], pint_ref.References]
+      self, references_getter: Callable[[], torax_refs.References]
   ):
     """Compare `initial_psi` function to a reference implementation."""
     references = references_getter()
@@ -120,12 +118,12 @@ class PhysicsTest(pint_ref.ReferenceValueTest):
     np.testing.assert_allclose(psi, references.psi.value)
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_calc_jtot_from_psi(
-      self, references_getter: Callable[[], pint_ref.References]
+      self, references_getter: Callable[[], torax_refs.References]
   ):
     """Compare `calc_jtot_from_psi` to a reference value."""
     references = references_getter()
@@ -139,12 +137,12 @@ class PhysicsTest(pint_ref.ReferenceValueTest):
     np.testing.assert_allclose(j, references.jtot)
 
   @parameterized.parameters([
-      dict(references_getter=pint_ref.circular_references),
-      dict(references_getter=pint_ref.chease_references_Ip_from_chease),
-      dict(references_getter=pint_ref.chease_references_Ip_from_config),
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
   def test_calc_s_from_psi(
-      self, references_getter: Callable[[], pint_ref.References]
+      self, references_getter: Callable[[], torax_refs.References]
   ):
     """Compare `calc_s_from_psi` to a reference value."""
     references = references_getter()
