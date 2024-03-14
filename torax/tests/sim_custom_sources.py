@@ -150,7 +150,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     with self.subTest('with_defaults_and_without_custom_source'):
       # Need to run the sim once to build the step_fn.
       torax_outputs = sim.run()
-      state_history = state_lib.build_state_history_from_outputs(torax_outputs)
+      state_history, _ = state_lib.build_history_from_outputs(torax_outputs)
       t = state_lib.build_time_history_from_outputs(torax_outputs)
       self._check_profiles_vs_expected(
           state_history=state_history,
@@ -227,7 +227,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         static_config_slice=sim.static_config_slice,
         time_step_calculator=sim.time_step_calculator,
     )
-    state_history = state_lib.build_state_history_from_outputs(torax_outputs)
+    state_history, _ = state_lib.build_history_from_outputs(torax_outputs)
     t = state_lib.build_time_history_from_outputs(torax_outputs)
     self._check_profiles_vs_expected(
         state_history=state_history,

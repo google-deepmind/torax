@@ -236,12 +236,15 @@ class ToraxOutput:
   aux: AuxOutput
 
 
-def build_state_history_from_outputs(
+def build_history_from_outputs(
     torax_outputs: tuple[ToraxOutput, ...],
-) -> State:
+) -> tuple[State, AuxOutput]:
   mesh_states = [out.state.mesh_state.history_elem() for out in torax_outputs]
+  aux = [out.aux for out in torax_outputs]
   stack = lambda *ys: jnp.stack(ys)
-  return jax.tree_util.tree_map(stack, *mesh_states)
+  return jax.tree_util.tree_map(stack, *mesh_states), jax.tree_util.tree_map(
+      stack, *aux
+  )
 
 
 def build_time_history_from_outputs(

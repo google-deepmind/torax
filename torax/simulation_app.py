@@ -84,10 +84,10 @@ def log_to_stdout(output: str, color: AnsiColors | None = None) -> None:
     logging.info('%s%s%s', color.value, output, _ANSI_END)
 
 
-# TODO(b/323504363): extend simulation output to more variables
 def write_simulation_output_to_file(
     output_dir: str,
     state_history: torax.State,
+    aux_history: torax.AuxOutput,
     geo: torax.Geometry,
     t: jnp.ndarray,
 ) -> None:
@@ -115,6 +115,16 @@ def write_simulation_output_to_file(
         'j_bootstrap', data=state_history.currents.j_bootstrap.tolist()
     )
     h5_file.create_dataset('sigma', data=state_history.currents.sigma.tolist())
+    h5_file.create_dataset(
+        'chi_face_ion', data=aux_history.chi_face_ion.tolist()
+    )
+    h5_file.create_dataset('chi_face_el', data=aux_history.chi_face_el.tolist())
+    h5_file.create_dataset('source_ion', data=aux_history.source_ion.tolist())
+    h5_file.create_dataset('source_el', data=aux_history.source_el.tolist())
+    h5_file.create_dataset('Pfus_i', data=aux_history.Pfus_i.tolist())
+    h5_file.create_dataset('Pfus_e', data=aux_history.Pfus_e.tolist())
+    h5_file.create_dataset('Pohm', data=aux_history.Pohm.tolist())
+    h5_file.create_dataset('Qei', data=aux_history.Qei.tolist())
   log_to_stdout(f'Wrote simulation output to {output_file}', AnsiColors.GREEN)
 
 
@@ -252,7 +262,9 @@ def main(
       log_timestep_info=log_sim_progress,
       spectator=spectator,
   )
-  state_history = state_lib.build_state_history_from_outputs(torax_outputs)
+  state_history, aux_history = state_lib.build_history_from_outputs(
+      torax_outputs
+  )
   t = state_lib.build_time_history_from_outputs(torax_outputs)
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
 
@@ -261,7 +273,9 @@ def main(
   if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
   os.makedirs(output_dir)
-  write_simulation_output_to_file(output_dir, state_history, geo, t)
+  write_simulation_output_to_file(
+      output_dir, state_history, aux_history, geo, t
+  )
   # TODO(b/323504363): Add back functionality to write configs to file after
   # running to help with keeping track of simulation runs. This may need to
   # happen after we move to Fiddle.
