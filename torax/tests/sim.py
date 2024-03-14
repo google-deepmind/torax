@@ -563,7 +563,7 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     torax_outputs = sim.run()
-    state_history = state_lib.build_state_history_from_outputs(torax_outputs)
+    state_history, _ = state_lib.build_history_from_outputs(torax_outputs)
     t = state_lib.build_time_history_from_outputs(torax_outputs)
 
     chex.assert_rank(t, 1)

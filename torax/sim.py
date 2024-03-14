@@ -204,7 +204,9 @@ class SimulationStepFn:
         stepper, static_argnames=['static_config_slice']
     )
     self._time_step_calculator = time_step_calculator
-    self._transport_model = jax_utils.jit(transport_model.__call__,)
+    self._transport_model = jax_utils.jit(
+        transport_model.__call__,
+    )
 
   @property
   def stepper(self) -> stepper_lib.Stepper:
@@ -373,7 +375,7 @@ class SimulationStepFn:
 
       output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
 
-    # Update current, q, and s profiles based on new psi
+    # Update total current, q, and s profiles based on new psi
     output_state.state.mesh_state = physics.update_jtot_q_face_s_face(
         geo=geo,
         state=output_state.state.mesh_state,
@@ -381,8 +383,8 @@ class SimulationStepFn:
         q_correction_factor=dynamic_config_slice.q_correction_factor,
     )
 
-    # Update bootstrap current based on new state
-    output_state.state.mesh_state = update_j_bootstrap(
+    # Update ohmic and bootstrap current based on new state
+    output_state.state.mesh_state = update_current_distribution(
         sources=self._stepper.sources,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
@@ -915,7 +917,7 @@ def _update_spectator(
   spectator.observe(key='Qei', data=output_state.aux.Qei)
 
 
-def update_j_bootstrap(
+def update_current_distribution(
     sources: source_profiles_lib.Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
@@ -929,11 +931,22 @@ def update_j_bootstrap(
       state=state,
   )
 
+  johm = (
+      state.currents.jtot - bootstrap_profile.j_bootstrap - state.currents.jext
+  )
+  johm_face = (
+      state.currents.jtot_face
+      - bootstrap_profile.j_bootstrap_face
+      - state.currents.jext_face
+  )
+
   currents = dataclasses.replace(
       state.currents,
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
+      johm=johm,
+      johm_face=johm_face,
   )
   new_state = dataclasses.replace(
       state,

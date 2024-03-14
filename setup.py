@@ -44,7 +44,7 @@ setup(
     version=_get_version(),
     license='Apache 2.0',
     author='Google DeepMind',
-    description='TORAX',  # TODO(b/323504363): Add desc.
+    description='Differentiable 1D tokamak plasma transport simulator in JAX',
     long_description=open(
         os.path.join(_CURRENT_DIR, 'README.md')
     ).read(),
