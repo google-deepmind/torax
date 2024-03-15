@@ -140,7 +140,7 @@ The following command will run TORAX using the configuration file `tests/test_da
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.tests.test_data.default_config --log_progress'
+   --python_config='torax.tests.test_data.default_config' --log_progress
 ```
 
 Additional configuration is provided through flags which append the above run command, and environment variables:

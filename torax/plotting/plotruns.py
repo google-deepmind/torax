@@ -198,11 +198,11 @@ lines1.append(line)
 # pylint: disable=undefined-variable
 if comp_plot:
   (line,) = ax1.plot(
-      plotdata2.rface_coord, plotdata2.chi_i[1, :], 'r', label=r'$\chi_i~(2)$'
+      plotdata2.rface_coord, plotdata2.chi_i[1, :], 'r--', label=r'$\chi_i~(2)$'
   )
   lines2.append(line)
   (line,) = ax1.plot(
-      plotdata2.rface_coord, plotdata2.chi_e[1, :], 'b', label=r'$\chi_e~(2)$'
+      plotdata2.rface_coord, plotdata2.chi_e[1, :], 'b--', label=r'$\chi_e~(2)$'
   )
   lines2.append(line)
   (line,) = ax2.plot(
