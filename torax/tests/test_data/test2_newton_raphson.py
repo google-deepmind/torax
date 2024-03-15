@@ -17,48 +17,10 @@
 import functools
 
 from torax import config as config_lib
-from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
-from torax import stepper as stepper_lib
-from torax import transport_model as transport_model_lib
 from torax.sources import source_config
-from torax.sources import source_profiles
-from torax.stepper import nonlinear_theta_method
-
-
-def make_frozen_newton_raphson_stepper(
-    transport_model: transport_model_lib.TransportModel,
-    sources: source_profiles.Sources,
-    config: config_lib.Config,
-) -> stepper_lib.Stepper:
-  """Makes a Newton Raphson stepper with frozen coefficients.
-
-  Under these conditions, we can test that the nonlinear stepper behaves the
-  same as
-  the linear solver.
-
-  Args:
-    transport_model: Transport model.
-    sources: TORAX sources/sinks used to compute profile terms in the state
-      evolution equations.
-    config: General TORAX config.
-
-  Returns:
-    Stepper: the stepper.
-  """
-  # Get the dynamic config for the start of the simulation.
-  dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
-  callback_builder = functools.partial(
-      sim_lib.FrozenCoeffsCallback,
-      dynamic_config_slice=dynamic_config_slice,
-  )
-  functools.partial(sim_lib.FrozenCoeffsCallback, config=config)
-  return nonlinear_theta_method.NewtonRaphsonThetaMethod(
-      transport_model,
-      sources=sources,
-      callback_class=callback_builder,  # pytype: disable=wrong-arg-types
-  )
+from torax.tests.test_lib import sim_test_case
 
 
 def get_config() -> config_lib.Config:
@@ -99,7 +61,7 @@ def get_sim() -> sim_lib.Sim:
       config,
       geo,
       functools.partial(
-          make_frozen_newton_raphson_stepper,
+          sim_test_case.make_frozen_newton_raphson_stepper,
           config=config,
       ),
   )

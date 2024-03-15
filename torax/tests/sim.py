@@ -82,7 +82,7 @@ class SimTest(sim_test_case.SimTestCase):
       # when the coefficient matrix is frozen
       (
           'test2_newton_raphson',
-          'test2.py',
+          'test2_newton_raphson.py',
           'test2',
           _ALL_PROFILES,
           1e-6,
@@ -104,14 +104,6 @@ class SimTest(sim_test_case.SimTestCase):
           0,
           True,
       ),
-      # Tests ion-electron heat exchange at high density
-      (
-          'test4',
-          'test4.py',
-          'test4',
-          _ALL_PROFILES,
-          0,
-      ),
       # Tests pedestal internal boundary condition
       (
           'test5',
@@ -127,6 +119,15 @@ class SimTest(sim_test_case.SimTestCase):
           'test6',
           _ALL_PROFILES,
           0,
+      ),
+      # Test that we are able to reproduce FiPy's behavior in a case where
+      # FiPy is unstable
+      (
+          'test6_no_pedestal',
+          'test6_no_pedestal.py',
+          'test6_no_pedestal',
+          _ALL_PROFILES,
+          1e-10,
       ),
       # Tests QLKNN model, heat transport only
       (
@@ -186,14 +187,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests bootstrap current with heat+current-diffusion. CGM model
-      (
-          'test10',
-          'test10.py',
-          'test10',
-          _ALL_PROFILES,
-          0,
-      ),
       # Tests bootstrap current with heat+current-diffusion. QLKNN model
       (
           'test11',
@@ -218,39 +211,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests particle sources with CGM transport. No NBI source
-      (
-          'test14',
-          'test14.py',
-          'test14',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests all particle sources with CGM transport
+      # Tests all particle sources including NBI, with CGM transport
       (
           'test15',
           'test15.py',
           'test15',
           _ALL_PROFILES,
           0,
-      ),
-      # Tests density transport with QLKNN. De scaled from chi_e model
-      (
-          'test16',
-          'test16.py',
-          'test16',
-          _ALL_PROFILES,
-          1e-3,
-          5e-4,
-      ),
-      # Tests density transport with QLKNN. Deff+Veff model
-      (
-          'test17',
-          'test17.py',
-          'test17',
-          _ALL_PROFILES,
-          1e-5,
-          2e-6,
       ),
       # Tests fusion power. CGM transport, heat+particle+psi transport
       (
@@ -269,27 +236,11 @@ class SimTest(sim_test_case.SimTestCase):
           7e-5,
           5e-4,
       ),
-      # Tests explicit solver. Ti only. CHEASE geometry.
-      (
-          'test20',
-          'test20.py',
-          'test20',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests implicit solver. Heat transport only. CHEASE geometry.
+      # Tests CHEASE geometry. Implicit solver. Heat transport only.
       (
           'test21',
           'test21.py',
           'test21',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests ion-electron heat exchange test at low density. CHEASE geometry.
-      (
-          'test22',
-          'test22.py',
-          'test22',
           _ALL_PROFILES,
           0,
       ),
@@ -309,32 +260,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests pedestal internal boundary condition. CHEASE geometry.
-      (
-          'test24',
-          'test24.py',
-          'test24',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests CGM transport model. Heat transport only. CHEASE geometry.
-      (
-          'test25',
-          'test25.py',
-          'test25',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests QLKNN transport model. Heat transport only. CHEASE geometry.
-      (
-          'test26',
-          'test26.py',
-          'test26',
-          _ALL_PROFILES,
-          1e-10,
-          1e-10,
-      ),
-      # Tests current diffusion. CHEASE geometry. Ip from parameters.
+      # Tests current diffusion with Ip from parameters. CHEASE geometry.
       (
           'test27',
           'test27.py',
@@ -342,19 +268,11 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests current diffusion. CHEASE geometry. Ip from CHEASE.
+      # Tests current diffusion with Ip from CHEASE.
       (
           'test28',
           'test28.py',
           'test28',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests combined heat+current-diffusion. CHEASE geometry. QLKNN.
-      (
-          'test29',
-          'test29.py',
-          'test29',
           _ALL_PROFILES,
           0,
       ),
@@ -366,57 +284,8 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests bootstrap current. CHEASE geometry. Heat+current-diffusion. CGM.
-      (
-          'test30',
-          'test30.py',
-          'test30',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests combined heat, particle, current-diffusion.
-      # CHEASE geometry. Constant transport
-      (
-          'test31',
-          'test31.py',
-          'test31',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests combined heat, particle, current-diffusion and pedestal.
-      # CHEASE geometry. Constant transport
-      (
-          'test32',
-          'test32.py',
-          'test32',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests particle sources. CHEASE geometry. No NBI.
-      (
-          'test33',
-          'test33.py',
-          'test33',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests particle sources. CHEASE geometry. No NBI. CGM + pedestal.
-      (
-          'test34',
-          'test34.py',
-          'test34',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests all particle sources. CHEASE geometry. CGM + pedestal.
-      (
-          'test35',
-          'test35.py',
-          'test35',
-          _ALL_PROFILES,
-          0,
-      ),
       # Tests particle transport with QLKNN. De scaled from chie.
+      # CHEASE geometry
       (
           'test36',
           'test36.py',
@@ -425,7 +294,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-3,
           6e-5,
       ),
-      # Tests particle transport with QLKNN. Deff+Veff model.
+      # Tests particle transport with QLKNN. Deff+Veff model. CHEASE geometry.
       (
           'test37',
           'test37.py',
@@ -439,15 +308,6 @@ class SimTest(sim_test_case.SimTestCase):
           'test37_theta05',
           'test37_theta05.py',
           'test37_theta05',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests fusion power. CHEASE geometry. Current, heat, particle transport.
-      # CGM transport model.
-      (
-          'test38',
-          'test38.py',
-          'test38',
           _ALL_PROFILES,
           0,
       ),
@@ -497,15 +357,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           7e-5,
           5e-5,
-      ),
-      # Tests TORAX regression of test42
-      (
-          'test42_torax',
-          'test42.py',
-          'test42_torax',
-          _ALL_PROFILES,
-          1e-11,
-          1e-11,
       ),
       # Tests Newton-Raphson nonlinear solver for ITER-hybrid-like-config
       (
