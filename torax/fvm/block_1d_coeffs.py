@@ -79,11 +79,8 @@ class Block1DCoeffs:
     v_face: Tuple, with v_face[i] containing convection term coefficients for
       channel i on the face grid.
     source_mat_cell: 2-D matrix of Tuples, with source_mat_cell[i][j] adding to
-      block-row i a term of the form source_cell[j] * u[channel j] Pass explicit
-      None values on off-diagonal rows to get a performance optimization using a
-      tridiagonal solver. Passing values for the off diagonal entries, including
-      jnp.zeros, will result in the dense solver being used. Depending on the
-      source config, may be constant values for a timestep, or updated
+      block-row i a term of the form source_cell[j] * u[channel j]. Depending on
+      the source config, may be constant values for a timestep, or updated
       iteratively with new states in a nonlinear solver
     source_cell: Additional source terms on the cell grid for each channel.
       Depending on the source config, may be constant values for a timestep, or

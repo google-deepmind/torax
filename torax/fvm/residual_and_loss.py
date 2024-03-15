@@ -173,13 +173,13 @@ def theta_method_matrix_equation(
   left_transient = jnp.identity(len(x_new_vec))
   right_transient = jnp.diag(jnp.squeeze(tc_in_old / tc_in_new))
 
-  c_mat_old, c_old, _ = discrete_system.calc_c(
+  c_mat_old, c_old = discrete_system.calc_c(
       coeffs_old,
       x_old,
       convection_dirichlet_mode,
       convection_neumann_mode,
   )
-  c_mat_new, c_new, _ = discrete_system.calc_c(
+  c_mat_new, c_new = discrete_system.calc_c(
       coeffs_new,
       x_new,
       convection_dirichlet_mode,

@@ -40,7 +40,6 @@ def get_config() -> config_lib.Config:
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          coupling_use_explicit_source=True,
           use_pereverzev=True,
       ),
       bootstrap_mult=0,  # remove bootstrap current

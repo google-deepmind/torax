@@ -51,11 +51,6 @@ def get_config() -> config_lib.Config:
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          # We need to use FiPy's boundary condition strategy because this test
-          # has convection all the way to the edges, no pedestal.
-          convection_dirichlet_mode='semi-implicit',
-          convection_neumann_mode='semi-implicit',
-          coupling_use_explicit_source=True,
       ),
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(

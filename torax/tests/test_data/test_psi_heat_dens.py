@@ -51,7 +51,6 @@ def get_config() -> config_lib.Config:
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          coupling_use_explicit_source=True,
       ),
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(

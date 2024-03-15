@@ -124,11 +124,7 @@ def _model_based_qei(
   implicit_ee = -qei_coef
 
   if (
-      # if off-diagonal ion-electron heat exchange source terms are
-      # explicit
-      static_config_slice.solver.coupling_use_explicit_source
-      or
-      # or only a single heat equation is being evolved
+      # if only a single heat equation is being evolved
       (static_config_slice.ion_heat_eq and not static_config_slice.el_heat_eq)
       or (
           static_config_slice.el_heat_eq and not static_config_slice.ion_heat_eq

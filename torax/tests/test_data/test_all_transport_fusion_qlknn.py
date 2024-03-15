@@ -53,9 +53,6 @@ def get_config() -> config_lib.Config:
       Ptot=53.0e6,  # total external heating
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          coupling_use_explicit_source=True,
-          convection_dirichlet_mode='semi-implicit',
-          convection_neumann_mode='semi-implicit',
           use_pereverzev=True,
       ),
       sources=dict(

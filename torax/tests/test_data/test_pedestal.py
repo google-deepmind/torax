@@ -29,7 +29,6 @@ def get_config() -> config_lib.Config:
       t_final=1,
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          coupling_use_explicit_source=True,
       ),
       bootstrap_mult=0,  # remove bootstrap current
       transport=config_lib.TransportConfig(

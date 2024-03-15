@@ -41,7 +41,6 @@ def get_config() -> config_lib.Config:
           # this makes us reproduce FiPy's behavior.
           convection_dirichlet_mode='semi-implicit',
           convection_neumann_mode='semi-implicit',
-          coupling_use_explicit_source=True,
           use_pereverzev=True,
       ),
       bootstrap_mult=0,  # remove bootstrap current

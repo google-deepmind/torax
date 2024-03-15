@@ -84,7 +84,6 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         ),
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
-            coupling_use_explicit_source=True,
         ),
     )
     # We need to turn off some other sources for test_particle_sources_constant

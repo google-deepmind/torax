@@ -381,14 +381,6 @@ class StaticConfigSlice:
 @chex.dataclass(frozen=True)
 class StaticSolverConfigSlice:
   """Static params for the solver."""
-
-  # If coupling_use_explicit_source is True, we evaluate source terms of the
-  # form coeff * Te once at time t and make that a frozen term in Ti's equation.
-  # Otherwise we make coeff an entry in the matrix, so that Ti experiences the
-  # effect of changes in Te.
-  coupling_use_explicit_source: bool
-
-  use_tridiagonal_solve: bool
   # See `fvm.convection_terms` docstring, `dirichlet_mode` argument
   convection_dirichlet_mode: str
   # See `fvm.convection_terms` docstring, `neumann_mode` argument

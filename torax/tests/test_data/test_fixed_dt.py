@@ -43,7 +43,6 @@ def get_config() -> config_lib.Config:
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
-          coupling_use_explicit_source=True,
       ),
   )
 

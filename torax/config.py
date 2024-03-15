@@ -51,14 +51,9 @@ def _check_config_param_in_set(
 @chex.dataclass
 class SolverConfig:
   """Configuration parameters for the differential equation solver."""
-
+  # theta value in the theta method.
+  # 0 = explicit, 1 = fully implicit, 0.5 = Crank-Nicolson
   theta_imp: float = 1.0
-  # If coupling_use_explicit_source is True, we evaluate source terms of the
-  # form coeff * Te once at time t and make that a frozen term in Ti's equation.
-  # Otherwise we make coeff an entry in the matrix, so that Ti experiences the
-  # effect of changes in Te.
-  coupling_use_explicit_source: bool = False
-  use_tridiagonal_solve: bool = True
   # Enables predictor_corrector iterations with the linear solver.
   # If False, compilation is faster
   predictor_corrector: bool = True

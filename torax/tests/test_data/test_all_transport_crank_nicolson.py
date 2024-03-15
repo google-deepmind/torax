@@ -54,9 +54,6 @@ def get_config() -> config_lib.Config:
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          coupling_use_explicit_source=True,
-          convection_dirichlet_mode="semi-implicit",
-          convection_neumann_mode="semi-implicit",
           use_pereverzev=True,
           chi_per=60.0,
           d_per=30.0,

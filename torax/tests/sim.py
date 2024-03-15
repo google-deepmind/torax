@@ -49,7 +49,8 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests implicit solver with theta=0.5 (Crank-Nicholson)
+      # Tests implicit solver with theta=0.5 (Crank-Nicolson)
+      # Low tolerance since solver parameters are different
       (
           'test_crank_nicolson',
           'test_crank_nicolson.py',
@@ -72,7 +73,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_frozen_optimizer.py',
           'test_implicit',
           _ALL_PROFILES,
-          1e-5,
+          0,
       ),
       # Tests that Newton-Raphson gets the same result as the linear solver
       # when the coefficient matrix is frozen
@@ -81,7 +82,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_frozen_newton_raphson.py',
           'test_implicit',
           _ALL_PROFILES,
-          1e-6,
+          0,
       ),
       # Test ion-electron heat exchange at low density
       (
@@ -123,7 +124,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_semiimplicit_convection.py',
           'test_semiimplicit_convection',
           _ALL_PROFILES,
-          1e-10,
+          0,
       ),
       # Tests QLKNN model, heat transport only
       (
@@ -229,8 +230,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_all_transport_fusion_qlknn.py',
           'test_all_transport_fusion_qlknn',
           _ALL_PROFILES,
-          7e-5,
-          5e-4,
+          0,
       ),
       # Tests CHEASE geometry. Implicit solver. Heat transport only.
       (
@@ -287,8 +287,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_ne_qlknn_defromchie.py',
           'test_ne_qlknn_defromchie',
           _ALL_PROFILES,
-          1e-3,
-          6e-5,
+          0,
       ),
       # Tests particle transport with QLKNN. Deff+Veff model. CHEASE geometry.
       (
@@ -296,8 +295,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_ne_qlknn_deff_veff.py',
           'test_ne_qlknn_deff_veff',
           _ALL_PROFILES,
-          1e-4,
-          2e-6,
+          0,
       ),
       # Tests Crank-Nicholson with particle transport and QLKNN. Deff+Veff
       (
@@ -314,8 +312,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_pc_method_ne.py',
           'test_pc_method_ne',
           _ALL_PROFILES,
-          7e-5,
-          5e-5,
+          0,
       ),
       # Tests full integration for ITER-baseline-like config. Linear solver.
       (
@@ -323,8 +320,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterbaseline_mockup.py',
           'test_iterbaseline_mockup',
           _ALL_PROFILES,
-          7e-5,
-          5e-5,
+          1e-10,
       ),
       # Tests full integration for ITER-hybrid-like config. Linear solver.
       (
@@ -332,8 +328,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_mockup.py',
           'test_iterhybrid_mockup',
           _ALL_PROFILES,
-          7e-5,
-          5e-5,
+          0,
       ),
       # Tests full integration for ITER-hybrid-like config.
       # Predictor-corrector solver.
@@ -342,8 +337,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector.py',
           'test_iterhybrid_predictor_corrector',
           _ALL_PROFILES,
-          7e-5,
-          5e-5,
+          0,
       ),
       # Tests Newton-Raphson nonlinear solver for ITER-hybrid-like-config
       (
@@ -351,8 +345,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_newton.py',
           'test_iterhybrid_newton',
           _ALL_PROFILES,
-          1e-6,
-          1e-6,
+          0,
       ),
   )
   def test_torax_sim(

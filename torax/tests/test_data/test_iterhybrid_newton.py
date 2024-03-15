@@ -157,7 +157,6 @@ def get_config() -> config_lib.Config:
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          coupling_use_explicit_source=True,
           convection_dirichlet_mode='ghost',
           convection_neumann_mode='ghost',
           # (deliberately) large heat conductivity for Pereverzev rule

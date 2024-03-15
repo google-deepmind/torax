@@ -43,7 +43,7 @@ def calc_c(
     x: tuple[cell_variable.CellVariable, ...],
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
-) -> tuple[jax.Array, jax.Array, bool]:
+) -> tuple[jax.Array, jax.Array]:
   """Calculate C and c such that F = C x + c.
 
   See docstrings for `Block1DCoeff` and `implicit_solve_block` for
@@ -61,7 +61,6 @@ def calc_c(
   Returns:
     c_mat: matrix C, such that F = C x + c
     c: the vector c
-    tridiag: If true, C is tridiagonal
   """
 
   d_face = coeffs.d_face
@@ -88,12 +87,6 @@ def calc_c(
   # C and c are both block structured, with one block per channel.
   c_mat = [zero_row_of_blocks.copy() for _ in range(num_channels)]
   c = zero_block_vec.copy()
-
-  tridiag = True  # Whether the complete C block matrix is tridiagonal
-
-  # Disable tridiagonal solving if matrix isn't big enough to be tridiagonal
-  if num_cells * num_channels < 3:
-    tridiag = False
 
   # Add diffusion terms
   if d_face is not None:
@@ -137,8 +130,6 @@ def calc_c(
       for j in range(num_channels):
         source = source_mat_cell[i][j]
         if source is not None:
-          if i != j:
-            tridiag = False
           c_mat[i][j] += jnp.diag(source)
 
   # Add explicit source terms
@@ -155,4 +146,4 @@ def calc_c(
   c_mat = jnp.block(c_mat)
   c = jnp.block(c)
 
-  return c_mat, c, tridiag
+  return c_mat, c

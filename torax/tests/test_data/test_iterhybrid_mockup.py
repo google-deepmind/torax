@@ -144,9 +144,6 @@ def get_config() -> config_lib.Config:
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          coupling_use_explicit_source=True,
-          convection_dirichlet_mode='semi-implicit',
-          convection_neumann_mode='semi-implicit',
           # (deliberately) large heat conductivity for Pereverzev rule
           chi_per=30,
           # (deliberately) large particle diffusion for Pereverzev rule
