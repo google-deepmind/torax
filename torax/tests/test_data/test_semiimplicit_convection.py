@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_exact_t_final: tests deterministic t_final with exact_t_final = True."""
+"""Tests semi-implicit convection as carried out with FiPy.
+
+Semi-implicit convection can lead to numerical instability at boundary
+condition. No pedestal, implicit + pereverzev-corrigan, Ti+Te,
+Pei standard dens, chi from CGM.
+"""
 
 from torax import config as config_lib
 from torax import geometry
@@ -23,20 +28,19 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      Ti_bound_left=8,
-      Te_bound_left=8,
-      current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
-      # set flat Ohmic current to provide larger range of current evolution for
-      # test
-      nu=0,
-      t_final=2,
-      exact_t_final=True,
+      # This is test6 but modified to not use the pedestal feature, to exercise
+      # the convection term at the boundary. This causes FiPy to explode.
+      set_pedestal=False,
+      t_final=1,
       transport=config_lib.TransportConfig(
-          transport_model="qlknn",
+          transport_model='CGM',
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
+          # Use FiPy's less stable boundary condition handling, to verify that
+          # this makes us reproduce FiPy's behavior.
+          convection_dirichlet_mode='semi-implicit',
+          convection_neumann_mode='semi-implicit',
           coupling_use_explicit_source=True,
           use_pereverzev=True,
       ),

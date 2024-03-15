@@ -12,35 +12,74 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_exact_t_final: tests deterministic t_final with exact_t_final = True."""
+"""Optimizer zero iteration test. Linear solver initial condition.
+
+Tests that we get the same result as the linear solver, when we use
+a nonlinear solver but then hack it to act like a linear solver by
+using 0 iterations and an initial guess based on the linear solver.
+"""
 
 from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
+from torax.fvm import enums
 from torax.sources import source_config
-from torax.stepper import linear_theta_method
+from torax.sources import source_profiles
+from torax.stepper import nonlinear_theta_method
+from torax.stepper import stepper as stepper_lib
+from torax.transport_model import transport_model as transport_model_lib
+
+
+def make_linear_optimizer_stepper(
+    transport_model: transport_model_lib.TransportModel,
+    sources: source_profiles.Sources,
+) -> stepper_lib.Stepper:
+  """Makes an optimizer stepper that behaves linearly.
+
+  The optimizer is configured to use a linear initial guess, then run for 0
+  iterations.
+  Under these conditions, we can test that the optimizer behaves the same as
+  the linear solver.
+
+  Args:
+    transport_model: Transport model.
+    sources: TORAX sources/sinks used to compute profile terms in the state
+      evolution equations.
+
+  Returns:
+    Stepper: the stepper.
+  """
+  return nonlinear_theta_method.OptimizerThetaMethod(
+      transport_model,
+      sources=sources,
+      initial_guess_mode=enums.InitialGuessMode.LINEAR,
+      maxiter=0,
+  )
 
 
 def get_config() -> config_lib.Config:
+  # This config based approach is deprecated.
+  # Over time more will be built with pure Python constructors in `get_sim`.
   return config_lib.Config(
       Ti_bound_left=8,
       Te_bound_left=8,
       current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
+      adaptive_dt=False,
+      # to shorten current diffusion time for the test
+      resistivity_mult=100,
       # set flat Ohmic current to provide larger range of current evolution for
       # test
       nu=0,
       t_final=2,
-      exact_t_final=True,
-      transport=config_lib.TransportConfig(
-          transport_model="qlknn",
-      ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           coupling_use_explicit_source=True,
           use_pereverzev=True,
       ),
       bootstrap_mult=0,  # remove bootstrap current
+      transport=config_lib.TransportConfig(
+          transport_model="qlknn",
+      ),
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,
@@ -63,5 +102,5 @@ def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
-      config, geo, linear_theta_method.LinearThetaMethod
+      config, geo, make_linear_optimizer_stepper
   )

@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_exact_t_final: tests deterministic t_final with exact_t_final = True."""
+"""Tests Crank-Nicolson method, Ti+Te, no Pei, no pedestal, constant chi.
+
+The ground truth for this test was generated using implicit method, we
+just check that Crank-Nicolson doesn't deviate too far from that.
+"""
 
 from torax import config as config_lib
 from torax import geometry
@@ -22,23 +26,18 @@ from torax.stepper import linear_theta_method
 
 
 def get_config() -> config_lib.Config:
+  # This config based approach is deprecated.
+  # Over time more will be built with pure Python constructors in `get_sim`.
   return config_lib.Config(
-      Ti_bound_left=8,
-      Te_bound_left=8,
-      current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
-      # set flat Ohmic current to provide larger range of current evolution for
-      # test
-      nu=0,
-      t_final=2,
-      exact_t_final=True,
+      set_pedestal=False,
+      Qei_mult=0,
+      t_final=1,
       transport=config_lib.TransportConfig(
-          transport_model="qlknn",
+          transport_model="constant",
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          coupling_use_explicit_source=True,
-          use_pereverzev=True,
+          theta_imp=0.5,
       ),
       bootstrap_mult=0,  # remove bootstrap current
       sources=dict(

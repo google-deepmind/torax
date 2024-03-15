@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_exact_t_final: tests deterministic t_final with exact_t_final = True."""
+"""Tests time dependent boundary conditions and sources.
+
+Ip from parameters. implicit + pereverzev-corrigan, Ti+Te+Psi, Pei standard
+dens, pedestal, chi from QLKNN. Includes time dependent Ip, Ptot, and
+pedestal, mocking up current-overshoot and an LH transition
+"""
 
 from torax import config as config_lib
 from torax import geometry
@@ -23,24 +28,34 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      Ti_bound_left=8,
-      Te_bound_left=8,
+      Ti_bound_left=10,
+      Te_bound_left=10,
+      Ip={0: 5, 10: 15, 11: 12, 15: 12},
       current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
-      # set flat Ohmic current to provide larger range of current evolution for
-      # test
-      nu=0,
-      t_final=2,
-      exact_t_final=True,
+      resistivity_mult=50,  # to shorten current diffusion time for the test
+      bootstrap_mult=0,  # remove bootstrap current
+      dtmult=150,
+      maxdt=0.5,
+      t_final=20,
+      w=0.18202270915319393,
+      S_pellet_tot=0,
+      S_puff_tot=0,
+      S_nbi_tot=0,
+      Ptot={0: 20e6, 9: 20e6, 10: 120e6, 15: 120e6},
+      Tiped={0: 2, 9: 2, 10: 5, 15: 4},
+      Teped={0: 2, 9: 2, 10: 5, 15: 4},
       transport=config_lib.TransportConfig(
           transport_model="qlknn",
+          apply_inner_patch=True,
+          chii_inner=2.0,
+          chie_inner=2.0,
+          rho_inner=0.3,
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           coupling_use_explicit_source=True,
           use_pereverzev=True,
       ),
-      bootstrap_mult=0,  # remove bootstrap current
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,
@@ -53,7 +68,11 @@ def get_config() -> config_lib.Config:
 
 
 def get_geometry(config: config_lib.Config) -> geometry.Geometry:
-  return geometry.build_circular_geometry(config)
+  return geometry.build_chease_geometry(
+      config,
+      geometry_file="ITER_hybrid_citrin_equil_cheasedata.mat2cols",
+      Ip_from_parameters=True,
+  )
 
 
 def get_sim() -> sim_lib.Sim:

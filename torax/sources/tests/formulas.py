@@ -43,7 +43,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # should give the same profiles throughout the entire simulation run as the
     # original puff source.
 
-    # For this test, use test13 with the linear stepper.
+    # For this test, use test_particle_sources_constant with the linear stepper.
     custom_source_name = 'custom_exponential_source'
 
     sources = source_profiles.Sources(
@@ -60,9 +60,9 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         ]
     )
 
-    # Copy the test13 config in here for clarity. These are the common kwargs
-    # without any of the sources.
-    test13_config_kwargs = dict(
+    # Copy the test_particle_sources_constant config in here for clarity.
+    # These are the common kwargs without any of the sources.
+    test_particle_sources_constant_config_kwargs = dict(
         set_pedestal=True,
         Qei_mult=1,
         ion_heat_eq=True,
@@ -87,8 +87,8 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
             coupling_use_explicit_source=True,
         ),
     )
-    # We need to turn off some other sources for test13 that are unrelated to
-    # our test for the ne custom source.
+    # We need to turn off some other sources for test_particle_sources_constant
+    # that are unrelated to our test for the ne custom source.
     unrelated_source_configs = dict(
         fusion_heat_source=source_config.SourceConfig(
             source_type=source_config.SourceType.ZERO,
@@ -99,13 +99,15 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     )
 
     # Load reference profiles
-    ref_profiles, ref_time = self._get_refs('test13', _ALL_PROFILES)
+    ref_profiles, ref_time = self._get_refs(
+        'test_particle_sources_constant', _ALL_PROFILES
+    )
 
     # Set up the sim with the original config. We set up the sim only once and
     # update the config on each run below in a way that does not trigger
     # recompiles. This way we only trace the code once.
-    test13_config = config_lib.Config(
-        **test13_config_kwargs,
+    test_particle_sources_constant_config = config_lib.Config(
+        **test_particle_sources_constant_config_kwargs,
         sources=dict(
             **unrelated_source_configs,
             # Turn off the custom source
@@ -114,9 +116,11 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
             ),
         ),
     )
-    geo = geometry.build_circular_geometry(test13_config)
+    geo = geometry.build_circular_geometry(
+        test_particle_sources_constant_config
+    )
     sim = sim_lib.build_sim_from_config(
-        config=test13_config,
+        config=test_particle_sources_constant_config,
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethod,
         sources=sources,
@@ -139,16 +143,17 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
 
     with self.subTest('without_puff_and_with_custom_source'):
       config_with_custom_source = config_lib.Config(
-          **test13_config_kwargs,
+          **test_particle_sources_constant_config_kwargs,
           sources=dict(
               **unrelated_source_configs,
               custom_exponential_source=source_config.SourceConfig(
                   source_type=source_config.SourceType.FORMULA_BASED,
                   formula=formula_config.FormulaConfig(
                       exponential=formula_config.Exponential(
-                          total=test13_config.S_puff_tot / test13_config.nref,
+                          total=test_particle_sources_constant_config.S_puff_tot
+                          / test_particle_sources_constant_config.nref,
                           c1=1.0,
-                          c2=test13_config.puff_decay_length,
+                          c2=test_particle_sources_constant_config.puff_decay_length,
                           use_normalized_r=True,
                       )
                   ),
@@ -165,7 +170,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     with self.subTest('without_puff_and_without_custom_source'):
       # Confirm that the custom source actual has an effect.
       config_without_ne_sources = config_lib.Config(
-          **test13_config_kwargs,
+          **test_particle_sources_constant_config_kwargs,
           sources=dict(
               **unrelated_source_configs,
               custom_exponential_source=source_config.SourceConfig(

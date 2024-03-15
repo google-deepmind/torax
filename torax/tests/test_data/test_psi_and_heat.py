@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_exact_t_final: tests deterministic t_final with exact_t_final = True."""
+"""Tests combined current diffusion and heat transport.
+
+Implicit solver + pereverzev-corrigan, Ti+Te+Psi, Pei standard dens,
+pedestal, chi from qlknn.
+"""
 
 from torax import config as config_lib
 from torax import geometry
@@ -31,7 +35,6 @@ def get_config() -> config_lib.Config:
       # test
       nu=0,
       t_final=2,
-      exact_t_final=True,
       transport=config_lib.TransportConfig(
           transport_model="qlknn",
       ),

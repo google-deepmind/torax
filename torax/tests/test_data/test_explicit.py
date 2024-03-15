@@ -12,35 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_exact_t_final: tests deterministic t_final with exact_t_final = True."""
+"""Config for test_explicit. Basic test of explicit linear solver."""
 
 from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
 from torax.sources import source_config
-from torax.stepper import linear_theta_method
+from torax.tests.test_lib import explicit_stepper
 
 
 def get_config() -> config_lib.Config:
+  # This config based approach is deprecated.
+  # Over time more will be built with pure Python constructors in `get_sim`.
   return config_lib.Config(
-      Ti_bound_left=8,
-      Te_bound_left=8,
-      current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
-      # set flat Ohmic current to provide larger range of current evolution for
-      # test
-      nu=0,
-      t_final=2,
-      exact_t_final=True,
-      transport=config_lib.TransportConfig(
-          transport_model="qlknn",
-      ),
-      solver=config_lib.SolverConfig(
-          predictor_corrector=False,
-          coupling_use_explicit_source=True,
-          use_pereverzev=True,
-      ),
+      set_pedestal=False,
+      dtmult=0.9,
+      Ptot=200.0e6,
+      Qei_mult=0,
+      t_final=0.1,
       bootstrap_mult=0,  # remove bootstrap current
+      ion_heat_eq=True,
+      el_heat_eq=False,
+      # Do not use the fusion heat source.
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,
@@ -48,6 +41,15 @@ def get_config() -> config_lib.Config:
           ohmic_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,
           ),
+          generic_ion_el_heat_source=source_config.SourceConfig(
+              source_type=source_config.SourceType.FORMULA_BASED,
+              is_explicit=True,
+          ),
+      ),
+      transport=config_lib.TransportConfig(transport_model='constant'),
+      solver=config_lib.SolverConfig(
+          predictor_corrector=False,
+          use_pereverzev=False,
       ),
   )
 
@@ -63,5 +65,5 @@ def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
-      config, geo, linear_theta_method.LinearThetaMethod
+      config, geo, explicit_stepper.ExplicitStepper
   )

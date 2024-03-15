@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_exact_t_final: tests deterministic t_final with exact_t_final = True."""
+"""Tests QLKNN heat transport.
+
+Implicit + pereverzev-corrigan, Ti+Te, Pei standard dens, pedestal, chi from
+QLKNN.
+"""
 
 from torax import config as config_lib
 from torax import geometry
@@ -23,15 +27,7 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      Ti_bound_left=8,
-      Te_bound_left=8,
-      current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
-      # set flat Ohmic current to provide larger range of current evolution for
-      # test
-      nu=0,
       t_final=2,
-      exact_t_final=True,
       transport=config_lib.TransportConfig(
           transport_model="qlknn",
       ),

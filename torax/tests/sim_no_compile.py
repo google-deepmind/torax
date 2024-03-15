@@ -30,20 +30,20 @@ class SimTest(sim_test_case.SimTestCase):
 
   @parameterized.named_parameters(
       (
-          'test2_optimizer_no_compile',
-          'test2_short_optimizer.py',
-          'test2_short',
+          'test_implicit_optimizer_no_compile',
+          'test_implicit_short_optimizer.py',
+          'test_implicit_short',
           _ALL_PROFILES,
           1e-5,
           None,
           False,
       ),
-      # test7 is the simplest test known to have had the no-compile mode
-      # diverge from the compiled mode.
+      # test_qlknnheat is the simplest test known to have had the no-compile
+      # mode diverge from the compiled mode.
       (
-          'test7',
-          'test7.py',
-          'test7',
+          'test_qlknnheat',
+          'test_qlknnheat.py',
+          'test_qlknnheat',
           _ALL_PROFILES,
           0,
           1e-11,

@@ -12,35 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_exact_t_final: tests deterministic t_final with exact_t_final = True."""
+"""Config for test_implicit. Basic test of implicit solver."""
+
+import functools
 
 from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
 from torax.sources import source_config
-from torax.stepper import linear_theta_method
+from torax.tests.test_lib import sim_test_case
 
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      Ti_bound_left=8,
-      Te_bound_left=8,
-      current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
-      # set flat Ohmic current to provide larger range of current evolution for
-      # test
-      nu=0,
-      t_final=2,
-      exact_t_final=True,
-      transport=config_lib.TransportConfig(
-          transport_model="qlknn",
-      ),
+      set_pedestal=False,
+      Qei_mult=0,
+      t_final=1,
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
-          coupling_use_explicit_source=True,
-          use_pereverzev=True,
+          theta_imp=1.0,
       ),
       bootstrap_mult=0,  # remove bootstrap current
+      transport=config_lib.TransportConfig(
+          transport_model="constant",
+      ),
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,
@@ -63,5 +58,10 @@ def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
-      config, geo, linear_theta_method.LinearThetaMethod
+      config,
+      geo,
+      functools.partial(
+          sim_test_case.make_frozen_optimizer_stepper,
+          config=config,
+      ),
   )

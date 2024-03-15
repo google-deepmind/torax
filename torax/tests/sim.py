@@ -38,102 +38,98 @@ _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
 
 class SimTest(sim_test_case.SimTestCase):
-  """Integration tests for torax.sim.
-
-  The numbering is legacy from when a subset of these tests were compared to
-  PINT runs. This numbering is kept to maintain backwards compatibility for now.
-  """
+  """Integration tests for torax.sim."""
 
   @parameterized.named_parameters(
       # Tests explicit solver
       (
-          'test1',
-          'test1.py',
-          'test1',
+          'test_explicit',
+          'test_explicit.py',
+          'test_explicit',
           _ALL_PROFILES,
           0,
       ),
       # Tests implicit solver with theta=0.5 (Crank-Nicholson)
       (
-          'test2_cn',
-          'test2_cn.py',
-          'test2',
+          'test_crank_nicolson',
+          'test_crank_nicolson.py',
+          'test_implicit',
           ('temp_ion', 'temp_el'),
           2e-1,
       ),
       # Tests implicit solver with theta=1.0 (backwards Euler)
       (
-          'test2',
-          'test2.py',
-          'test2',
+          'test_implicit',
+          'test_implicit.py',
+          'test_implicit',
           _ALL_PROFILES,
           0,
       ),
       # Tests that optimizer gets the same result as the linear solver
       # when coefficients are frozen.
       (
-          'test2_optimizer',
-          'test2_optimizer.py',
-          'test2',
+          'test_frozen_optimizer',
+          'test_frozen_optimizer.py',
+          'test_implicit',
           _ALL_PROFILES,
           1e-5,
       ),
       # Tests that Newton-Raphson gets the same result as the linear solver
       # when the coefficient matrix is frozen
       (
-          'test2_newton_raphson',
-          'test2_newton_raphson.py',
-          'test2',
+          'test_frozen_newton_raphson',
+          'test_frozen_newton_raphson.py',
+          'test_implicit',
           _ALL_PROFILES,
           1e-6,
       ),
       # Test ion-electron heat exchange at low density
       (
-          'test3',
-          'test3.py',
-          'test3',
+          'test_qei',
+          'test_qei.py',
+          'test_qei',
           _ALL_PROFILES,
           0,
       ),
       # Tests sim.ArrayTimeStepCalculator
       (
-          'test3_ref',
-          'test3.py',
-          'test3',
+          'test_arraytimestepcalculator',
+          'test_qei.py',
+          'test_qei',
           _ALL_PROFILES,
           0,
           True,
       ),
       # Tests pedestal internal boundary condition
       (
-          'test5',
-          'test5.py',
-          'test5',
+          'test_pedestal',
+          'test_pedestal.py',
+          'test_pedestal',
           _ALL_PROFILES,
           0,
       ),
       # Tests CGM model heat transport only
       (
-          'test6',
-          'test6.py',
-          'test6',
+          'test_cgmheat',
+          'test_cgmheat.py',
+          'test_cgmheat',
           _ALL_PROFILES,
           0,
       ),
       # Test that we are able to reproduce FiPy's behavior in a case where
       # FiPy is unstable
       (
-          'test6_no_pedestal',
-          'test6_no_pedestal.py',
-          'test6_no_pedestal',
+          'test_semiimplicit_convection',
+          'test_semiimplicit_convection.py',
+          'test_semiimplicit_convection',
           _ALL_PROFILES,
           1e-10,
       ),
       # Tests QLKNN model, heat transport only
       (
-          'test7',
-          'test7.py',
-          'test7',
+          'test_qlknnheat',
+          'test_qlknnheat.py',
+          'test_qlknnheat',
           _ALL_PROFILES,
           0,
           1e-11,
@@ -141,9 +137,9 @@ class SimTest(sim_test_case.SimTestCase):
       ),
       # Tests fixed_dt timestep
       (
-          'test7_fixed_dt',
-          'test7_fixed_dt.py',
-          'test7_fixed_dt',
+          'test_fixed_dt',
+          'test_fixed_dt.py',
+          'test_fixed_dt',
           _ALL_PROFILES,
           0,
           1e-11,
@@ -151,17 +147,17 @@ class SimTest(sim_test_case.SimTestCase):
       ),
       # Tests current diffusion
       (
-          'test8',
-          'test8.py',
-          'test8',
+          'test_psiequation',
+          'test_psiequation.py',
+          'test_psiequation',
           _ALL_PROFILES,
           0,
       ),
       # Tests combined current diffusion + heat transport with QLKNN
       (
-          'test9',
-          'test9.py',
-          'test9',
+          'test_psi_and_heat',
+          'test_psi_and_heat.py',
+          'test_psi_and_heat',
           _ALL_PROFILES,
           0,
       ),
@@ -170,9 +166,9 @@ class SimTest(sim_test_case.SimTestCase):
       # Making sure to use a test involving Pereverzev-Corrigan for this,
       # since we do want it in the linear initial guess.
       (
-          'test9_optimizer',
-          'test9_optimizer.py',
-          'test9',
+          'test_optimizer_zeroiter',
+          'test_optimizer_zeroiter.py',
+          'test_psi_and_heat',
           _ALL_PROFILES,
           0,
       ),
@@ -181,169 +177,160 @@ class SimTest(sim_test_case.SimTestCase):
       # Making sure to use a test involving Pereverzev-Corrigan for this,
       # since we do want it in the linear initial guess.
       (
-          'test9_newton_raphson',
-          'test9_newton_raphson.py',
-          'test9',
+          'test_newton_raphson_zeroiter',
+          'test_newton_raphson_zeroiter.py',
+          'test_psi_and_heat',
           _ALL_PROFILES,
           0,
       ),
       # Tests bootstrap current with heat+current-diffusion. QLKNN model
       (
-          'test11',
-          'test11.py',
-          'test11',
+          'test_bootstrap',
+          'test_bootstrap.py',
+          'test_bootstrap',
           _ALL_PROFILES,
           0,
       ),
       # Tests heat+current-diffusion+particle transport with constant transport
       (
-          'test12',
-          'test12.py',
-          'test12',
+          'test_psi_heat_dens',
+          'test_psi_heat_dens.py',
+          'test_psi_heat_dens',
           _ALL_PROFILES,
           0,
       ),
       # Tests particle sources with constant transport. No NBI source
       (
-          'test13',
-          'test13.py',
-          'test13',
+          'test_particle_sources_constant',
+          'test_particle_sources_constant.py',
+          'test_particle_sources_constant',
           _ALL_PROFILES,
           0,
       ),
       # Tests all particle sources including NBI, with CGM transport
       (
-          'test15',
-          'test15.py',
-          'test15',
+          'test_particle_sources_cgm',
+          'test_particle_sources_cgm.py',
+          'test_particle_sources_cgm',
           _ALL_PROFILES,
           0,
       ),
       # Tests fusion power. CGM transport, heat+particle+psi transport
       (
-          'test18',
-          'test18.py',
-          'test18',
+          'test_fusion_power',
+          'test_fusion_power.py',
+          'test_fusion_power',
           _ALL_PROFILES,
           0,
       ),
       # Tests fusion power. QLKNN transport, heat+particle+psi transport.
       (
-          'test19',
-          'test19.py',
-          'test19',
+          'test_all_transport_fusion_qlknn',
+          'test_all_transport_fusion_qlknn.py',
+          'test_all_transport_fusion_qlknn',
           _ALL_PROFILES,
           7e-5,
           5e-4,
       ),
       # Tests CHEASE geometry. Implicit solver. Heat transport only.
       (
-          'test21',
-          'test21.py',
-          'test21',
+          'test_chease',
+          'test_chease.py',
+          'test_chease',
           _ALL_PROFILES,
           0,
       ),
       # Tests Ohmic electron heat source. CHEASE geometry.
       (
-          'test22_pohm',
-          'test22_pohm.py',
-          'test22_pohm',
+          'test_ohmic_power',
+          'test_ohmic_power.py',
+          'test_ohmic_power',
           _ALL_PROFILES,
           0,
       ),
       # Tests ion-electron heat exchange test at high density. CHEASE geometry.
       (
-          'test23',
-          'test23.py',
-          'test23',
+          'test_qei_chease_highdens',
+          'test_qei_chease_highdens.py',
+          'test_qei_chease_highdens',
           _ALL_PROFILES,
           0,
       ),
       # Tests current diffusion with Ip from parameters. CHEASE geometry.
       (
-          'test27',
-          'test27.py',
-          'test27',
+          'test_psichease_ip_parameters',
+          'test_psichease_ip_parameters.py',
+          'test_psichease_ip_parameters',
           _ALL_PROFILES,
           0,
       ),
       # Tests current diffusion with Ip from CHEASE.
       (
-          'test28',
-          'test28.py',
-          'test28',
+          'test_psichease_ip_chease',
+          'test_psichease_ip_chease.py',
+          'test_psichease_ip_chease',
           _ALL_PROFILES,
           0,
       ),
       # Tests time-dependent pedestal, Ptot, Ip. CHEASE geometry. QLKNN.
       (
-          'test29_timedependent',
-          'test29_timedependent.py',
-          'test29_timedependent',
+          'test_timedependence',
+          'test_timedependence.py',
+          'test_timedependence',
           _ALL_PROFILES,
           0,
       ),
       # Tests particle transport with QLKNN. De scaled from chie.
       # CHEASE geometry
       (
-          'test36',
-          'test36.py',
-          'test36',
+          'test_ne_qlknn_defromchie',
+          'test_ne_qlknn_defromchie.py',
+          'test_ne_qlknn_defromchie',
           _ALL_PROFILES,
           1e-3,
           6e-5,
       ),
       # Tests particle transport with QLKNN. Deff+Veff model. CHEASE geometry.
       (
-          'test37',
-          'test37.py',
-          'test37',
+          'test_ne_qlknn_deff_veff',
+          'test_ne_qlknn_deff_veff.py',
+          'test_ne_qlknn_deff_veff',
           _ALL_PROFILES,
           1e-4,
           2e-6,
       ),
       # Tests Crank-Nicholson with particle transport and QLKNN. Deff+Veff
       (
-          'test37_theta05',
-          'test37_theta05.py',
-          'test37_theta05',
+          'test_all_transport_crank_nicolson',
+          'test_all_transport_crank_nicolson.py',
+          'test_all_transport_crank_nicolson',
           _ALL_PROFILES,
           0,
       ),
       # Tests Pereverzev-Corrigan method for density. CHEASE geometry. QLKNN.
       # De scaled from chie.
       (
-          'test39',
-          'test39.py',
-          'test39',
-          _ALL_PROFILES,
-          7e-5,
-          5e-5,
-      ),
-      # Tests full integration for ITER-baseline-like config.
-      (
-          'test40',
-          'test40.py',
-          'test40',
+          'test_pc_method_ne',
+          'test_pc_method_ne.py',
+          'test_pc_method_ne',
           _ALL_PROFILES,
           7e-5,
           5e-5,
       ),
       # Tests full integration for ITER-baseline-like config. Linear solver.
       (
-          'test41',
-          'test41.py',
-          'test41',
+          'test_iterbaseline_mockup',
+          'test_iterbaseline_mockup.py',
+          'test_iterbaseline_mockup',
           _ALL_PROFILES,
           7e-5,
           5e-5,
       ),
       # Tests full integration for ITER-hybrid-like config. Linear solver.
       (
-          'test42',
-          'test42.py',
-          'test42',
+          'test_iterhybrid_mockup',
+          'test_iterhybrid_mockup.py',
+          'test_iterhybrid_mockup',
           _ALL_PROFILES,
           7e-5,
           5e-5,
@@ -351,18 +338,18 @@ class SimTest(sim_test_case.SimTestCase):
       # Tests full integration for ITER-hybrid-like config.
       # Predictor-corrector solver.
       (
-          'test42_predictor_corrector',
-          'test42_predictor_corrector.py',
-          'test42_predictor_corrector',
+          'test_iterhybrid_predictor_corrector',
+          'test_iterhybrid_predictor_corrector.py',
+          'test_iterhybrid_predictor_corrector',
           _ALL_PROFILES,
           7e-5,
           5e-5,
       ),
       # Tests Newton-Raphson nonlinear solver for ITER-hybrid-like-config
       (
-          'test42_nl_Hmode',
-          'test42_nl_Hmode.py',
-          'test42_nl_Hmode',
+          'test_iterhybrid_newton',
+          'test_iterhybrid_newton.py',
+          'test_iterhybrid_newton',
           _ALL_PROFILES,
           1e-6,
           1e-6,
@@ -396,8 +383,8 @@ class SimTest(sim_test_case.SimTestCase):
     # Run test3 but pass in the reference result from test2
     with self.assertRaises(AssertionError):
       self._test_torax_sim(
-          'test3.py',
-          'test2',
+          'test_qei.py',
+          'test_implicit',
           ('temp_ion', 'temp_el'),
       )
 
@@ -505,7 +492,7 @@ class SimTest(sim_test_case.SimTestCase):
   def test_observers_update_during_runs(self, stepper):
     """Verify that the observer's state is updated after the simulation run."""
     # Load config structure.
-    config_module = self._get_config_module('test1.py')
+    config_module = self._get_config_module('test_explicit.py')
     config = config_module.get_config()
     geo = config_module.get_geometry(config)
 
