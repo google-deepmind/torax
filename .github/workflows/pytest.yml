@@ -98,9 +98,9 @@ jobs:
           -vv -n auto \
           --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
 
-    # # TODO(b/323504363): fix UnparsedFlagAccessError and run under pytest
-    # - name: "Run torax/tests/sim_custom_sources.py"
-    #   run: python torax/tests/sim_custom_sources.py
+    # TODO(b/323504363): fix UnparsedFlagAccessError and run under pytest
+    - name: "Run torax/tests/sim_custom_sources.py"
+      run: python torax/tests/sim_custom_sources.py
 
     # # TODO(b/323504363): fix UnparsedFlagAccessError and run under pytest
     # - name: "Run torax/sources/tests/formulas.py"
