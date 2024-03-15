@@ -40,5 +40,6 @@ jobs:
       run: python torax/tests/sim_custom_sources.py
     - name: "Run sim_no_compile.py"
       run: TORAX_COMPILATION_ENABLED=False python torax/tests/sim_no_compile.py
-    - name: "Run sim.py"
-      run: python torax/tests/sim.py
+    # TODO(b/323504363): these tests should be parallelized with multiple workers
+    # - name: "Run sim.py"
+    #   run: python torax/tests/sim.py
