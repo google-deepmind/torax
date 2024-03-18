@@ -219,7 +219,7 @@ class SimulationStepFn:
       dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
       static_config_slice: config_slice.StaticConfigSlice,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> state_module.ToraxOutput:
+  ) -> tuple[state_module.ToraxOutput, int]:
     """Advances the simulation state one time step.
 
     Args:
@@ -243,6 +243,11 @@ class SimulationStepFn:
         - the mesh state at the end of the time step.
         - time and time step calculator state info.
         - extra auxiliary outputs useful for internal inspection.
+      stepper_error_state:
+         0 if solver converged with fine tolerance for this step
+         1 if solver did not converge for this step (was above coarse tolerance)
+         2 if solver converged within coarse tolerance. Allowed to pass with a
+            warning. Occasional error=2 has low impact on final simulation state
     """
     dynamic_config_slice = dynamic_config_slice_provider(input_state.t)
     # TODO(b/323504363): We call the transport model both here and in the the
@@ -324,7 +329,11 @@ class SimulationStepFn:
     if static_config_slice.adaptive_dt:
       # Check if stepper converged. If not, proceed to body_fun
       def cond_fun(updated_output: state_module.ToraxOutput) -> bool:
-        return jnp.bool_(updated_output.state.stepper_error_state)
+        if updated_output.state.stepper_error_state == 1:
+          do_dt_backtrack = True
+        else:
+          do_dt_backtrack = False
+        return do_dt_backtrack
 
       # Make a new step with a smaller dt, starting from orig_mesh_state
       # Exit if dt < mindt
@@ -416,7 +425,7 @@ class SimulationStepFn:
         )
     )
 
-    return output_state
+    return output_state, output_state.state.stepper_error_state
 
 
 def get_initial_state(
@@ -798,6 +807,7 @@ def run_simulation(
           ),
       )
   ]
+  stepper_error_state = 0
   dynamic_config_slice = dynamic_config_slice_provider(initial_state.t)
   sim_state = initial_state
   # Keep advancing the simulation until the time_step_calculator tells us we are
@@ -811,6 +821,18 @@ def run_simulation(
     step_start_time = time.time()
     if log_timestep_info:
       _log_timestep(sim_state.t, sim_state.dt, sim_state.stepper_iterations)
+      # TODO(b/323504363): once tol and coarse_tol are configurable in the config,
+      # also log the value of tol and coarse_tol below
+      match stepper_error_state:
+        case 0:
+          pass
+        case 1:
+          logging.info('Solver did not converge in previous step.')
+        case 2:
+          logging.info(
+              'Solver converged only within coarse tolerance in previous step.'
+          )
+
     geo = geometry_provider(sim_state)
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
@@ -824,7 +846,7 @@ def run_simulation(
     )
     if spectator is not None:
       spectator.before_step()
-    torax_output = step_fn(
+    torax_output, stepper_error_state = step_fn(
         sim_state,
         geo,
         dynamic_config_slice_provider,

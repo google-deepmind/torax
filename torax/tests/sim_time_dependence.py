@@ -81,7 +81,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     initial_dynamic_config_slice = dynamic_config_slice_provider(
         config.t_initial
     )
-    output_state = sim_step_fn(
+    output_state, _ = sim_step_fn(
         input_state=input_state,
         geo=geo,
         dynamic_config_slice_provider=dynamic_config_slice_provider,

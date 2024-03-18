@@ -41,13 +41,14 @@ InitialGuessMode = fvm.InitialGuessMode
 
 INITIAL_GUESS_MODE = InitialGuessMode.LINEAR
 MAXITER = 30
-TOL = 1e-6
+TOL = 1e-5
+COARSE_TOL = 1e-2
 DELTA_REDUCTION_FACTOR = 0.5
 TAU_MIN = 0.01
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
-# the delta loop. This is mostly to avoid getting stuck in an infinite loop in
-# cases of bad numerics.
-MIN_DELTA = 1e-3
+# the delta loop. This is to avoid getting stuck in an infinite loop in edge
+# cases with bad numerics.
+MIN_DELTA = 1e-7
 
 
 # TODO(b/323504363): considering merging with spectator mechanism
@@ -110,6 +111,7 @@ def newton_raphson_solve_block(
     initial_guess_mode: InitialGuessMode = INITIAL_GUESS_MODE,
     maxiter: int = MAXITER,
     tol: float = TOL,
+    coarse_tol: float = COARSE_TOL,
     delta_reduction_factor: float = DELTA_REDUCTION_FACTOR,
     tau_min: float = TAU_MIN,
 ) -> tuple[tuple[cell_variable.CellVariable, ...], int, AuxiliaryOutput]:
@@ -176,6 +178,8 @@ def newton_raphson_solve_block(
     maxiter: Quit iterating after this many iterations reached.
     tol: Quit iterating after the average absolute value of the residual is <=
       tol.
+    coarse_tol: coarser allowed tolerance for cases when solver develops small
+      steps in the vicinity of the solution.
     delta_reduction_factor: Multiply by delta_reduction_factor after each failed
       line search step.
     tau_min: minimum delta/delta_original allowed before the newton raphson
@@ -183,7 +187,9 @@ def newton_raphson_solve_block(
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
-    error: int. 0 signifies residual < tol at exit, 1 signifies residual > tol
+    error: int. 0 signifies residual < tol at exit, 1 signifies residual > tol,
+      2 signifies tol < residual < coarse_tol, deemed acceptable if the solver
+      steps became small
     aux_output: Extra auxiliary output from the coeffs_callback.
   """
   # pyformat: enable
@@ -289,10 +295,19 @@ def newton_raphson_solve_block(
 
   # Tell the caller whether or not x_new successfully reduces the residual below
   # the tolerance by providing an extra output, error.
+  # error = 0: residual converged within fine tolerance (tol)
+  # error = 1: not converged. Possibly backtrack to smaller dt and retry
+  # error = 2: residual not strictly converged but is still within reasonable
+  # tolerance (coarse_tol). Can occur when solver exits early due to small steps
+  # in solution vicinity. Proceed but provide a warning to user.
   error = jax.lax.cond(
-      residual_scalar(output_state['residual']) > tol,
-      lambda: 1,  # Called when True
-      lambda: 0,  # Called when False
+      residual_scalar(output_state['residual']) < tol,
+      lambda: 0,  # Called when True
+      lambda: jax.lax.cond(  # Called when False
+          residual_scalar(output_state['residual']) < coarse_tol,
+          lambda: 2,  # Called when True
+          lambda: 1,  # Called when False
+      ),
   )
 
   return x_new, error, output_state['aux_output']

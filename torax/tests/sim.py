@@ -347,6 +347,16 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests current and density rampup for for ITER-hybrid-like-config
+      # using Newton-Raphson. Only case which reverts to coarse_tol for several
+      # timesteps (with negligible impact on results compared to full tol).
+      (
+          'test_iterhybrid_rampup',
+          'test_iterhybrid_rampup.py',
+          'test_iterhybrid_rampup',
+          _ALL_PROFILES,
+          0,
+      ),
   )
   def test_torax_sim(
       self,

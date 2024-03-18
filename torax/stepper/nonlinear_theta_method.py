@@ -201,12 +201,14 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       initial_guess_mode: fvm.InitialGuessMode = newton_raphson_solve_block.INITIAL_GUESS_MODE,
       maxiter: int = newton_raphson_solve_block.MAXITER,
       tol: float = newton_raphson_solve_block.TOL,
+      coarse_tol: float = newton_raphson_solve_block.COARSE_TOL,
       delta_reduction_factor: float = newton_raphson_solve_block.DELTA_REDUCTION_FACTOR,
       tau_min: float = newton_raphson_solve_block.TAU_MIN,
   ):
     self.initial_guess_mode = initial_guess_mode
     self.maxiter = maxiter
     self.tol = tol
+    self.coarse_tol = coarse_tol
     self.delta_reduction_factor = delta_reduction_factor
     self.tau_min = tau_min
     super().__init__(transport_model, sources, callback_class)
@@ -250,6 +252,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         initial_guess_mode=self.initial_guess_mode,
         maxiter=self.maxiter,
         tol=self.tol,
+        coarse_tol=self.coarse_tol,
         delta_reduction_factor=self.delta_reduction_factor,
     )
 
