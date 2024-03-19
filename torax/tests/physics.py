@@ -19,6 +19,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
+from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import initial_states
@@ -100,11 +101,12 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     config = references.config
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = references.geo
 
     if isinstance(geo, geometry.CircularGeometry):
       currents = initial_states.initial_currents(
-          config,
+          dynamic_config_slice,
           geo,
           bootstrap=False,
           sources=source_profiles.Sources(),

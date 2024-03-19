@@ -162,6 +162,14 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests implementation of use_absolute_jext
+      (
+          'test_absolute_jext',
+          'test_absolute_jext.py',
+          'test_psi_and_heat',
+          _ALL_PROFILES,
+          0,
+      ),
       # Tests that optimizer gets the same result as the linear solver
       # when using linear initial guess and 0 iterations.
       # Making sure to use a test involving Pereverzev-Corrigan for this,

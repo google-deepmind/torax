@@ -107,7 +107,7 @@ def initial_state(
   if config.set_fGW:
     # set nbar to desired fraction of Greenwald density
     # Use normalized nbar
-    nGW = Ip / (jnp.pi * config.Rmin**2) * 1e20 / config.nref
+    nGW = Ip / (jnp.pi * dynamic_config_slice.Rmin**2) * 1e20 / config.nref
     nbar = config.fGW * nGW  # normalized nbar
   else:
     nbar = config.nbar
@@ -137,7 +137,7 @@ def initial_state(
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
 
   dilution_factor = physics.get_main_ion_dilution_factor(
-      config.Zimp, config.Zeff
+      dynamic_config_slice.Zimp, dynamic_config_slice.Zeff
   )
 
   ni = fvm.CellVariable(
@@ -153,8 +153,8 @@ def initial_state(
     # set up initial current profile without bootstrap current, to get
     # q-profile approximation (needed for bootstrap)
     currents_no_bootstrap = initial_currents(
-        config,
-        geo,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
         bootstrap=False,
         sources=sources,
     )
@@ -164,7 +164,7 @@ def initial_state(
     )
     psi_no_bootstrap = fvm.CellVariable(
         value=initial_psi(
-            config,
+            dynamic_config_slice,
             geo,
             currents_no_bootstrap.jtot_hires,
         ),
@@ -174,8 +174,8 @@ def initial_state(
 
     # second iteration, with bootstrap current
     currents = initial_currents(
-        config,
-        geo,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
         bootstrap=True,
         sources=sources,
         temp_ion=temp_ion,
@@ -225,7 +225,7 @@ def initial_state(
 
     # calculation external currents
     currents = initial_currents(
-        config=config,
+        dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         bootstrap=True,
         sources=sources,
@@ -307,7 +307,7 @@ def initial_state(
 # TODO(b/323504363): Clean this up so it is less hacky and with less branches.
 # Potentially split this up into several methods.
 def initial_currents(
-    config: config_lib.Config,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
     bootstrap: bool,
     sources: source_profiles_lib.Sources,
@@ -322,7 +322,7 @@ def initial_currents(
   """Creates the initial Currents.
 
   Args:
-    config: General configuration parameters.
+    dynamic_config_slice: General configuration parameters at t_initial.
     geo: Geometry of the tokamak.
     bootstrap: Whether to include bootstrap current.
     sources: All TORAX sources/sinks used to compute the initial currents.
@@ -344,10 +344,6 @@ def initial_currents(
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
-
-  # TODO(b/323504363): Remove currents from state so that we don't need a hack
-  # like this where the initial state depends on the config slice.
-  dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
   Ip = dynamic_config_slice.Ip
 
   # Defining here to make pytype happy.
@@ -389,11 +385,18 @@ def initial_currents(
       assert isinstance(geo, geometry.CircularGeometry)
       j_bootstrap_hires = jnp.zeros_like(geo.r_hires)
 
-  Iohm = Ip * (1 - config.fext - f_bootstrap)  # total Ohmic current MA
+  if dynamic_config_slice.use_absolute_jext:
+    Iohm = (
+        Ip * (1 - f_bootstrap) - dynamic_config_slice.Iext
+    )  # total Ohmic current MA
+  else:
+    Iohm = Ip * (
+        1 - dynamic_config_slice.fext - f_bootstrap
+    )  # total Ohmic current MA
 
   # calculate "Ohmic" current profile
   # form of Ohmic current on face grid
-  johmform_face = (1 - geo.r_face_norm**2) ** config.nu
+  johmform_face = (1 - geo.r_face_norm**2) ** dynamic_config_slice.nu
   Cohm = Iohm * 1e6 / _trapz(johmform_face * geo.spr_face, geo.r_face)
   johm_face = Cohm * johmform_face  # ohmic current profile on face grid
   johm = geometry.face_to_cell(johm_face)
@@ -415,7 +418,7 @@ def initial_currents(
 
     # calculate high resolution "Ohmic" current profile
     # form of Ohmic current on cell grid
-    johmform_hires = (1 - geo.r_hires_norm**2) ** config.nu
+    johmform_hires = (1 - geo.r_hires_norm**2) ** dynamic_config_slice.nu
     denom = _trapz(johmform_hires * geo.spr_hires, geo.r_hires)
     Cohm_hires = Iohm * 1e6 / denom
 
@@ -453,7 +456,7 @@ def initial_currents(
 
 
 def initial_psi(
-    config: config_lib.Config,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
     jtot_hires: jax.Array,
 ) -> jax.Array:
@@ -463,7 +466,7 @@ def initial_psi(
   circular geometry model (due to double integration).
 
   Args:
-    config: General configuration parameters.
+    dynamic_config_slice: Configuration parameters for t_initial.
     geo: Torus geometry.
     jtot_hires: High resolution version of jtot.
 
@@ -479,7 +482,8 @@ def initial_psi(
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
-      constants.CONSTANTS.mu0 / (2 * jnp.pi * config.Rmaj * geo.G2_hires[1:]),
+      constants.CONSTANTS.mu0
+      / (2 * jnp.pi * dynamic_config_slice.Rmaj * geo.G2_hires[1:]),
   ))
   # dpsi_dr on the cell grid
   dpsi_dr_hires = scale * integrated

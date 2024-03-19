@@ -274,7 +274,11 @@ class Config:
   # current profiles (broad "Ohmic" + localized "external" currents)
   # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
   nu: float = 3.0
-  # total "external" current fraction
+  # toggles if external current is provided absolutely or as a fraction of Ip
+  use_absolute_jext: bool = False
+  # total "external" current in MA. Used if use_absolute_jext=True.
+  Iext: TimeDependentField = 3.0
+  # total "external" current fraction. Used if use_absolute_jext=False.
   fext: TimeDependentField = 0.2
   # width of "external" Gaussian current profile
   wext: TimeDependentField = 0.05

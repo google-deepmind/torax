@@ -140,7 +140,15 @@ class DynamicConfigSlice:
   S_nbi_tot: float
 
   # current profiles (broad "Ohmic" + localized "external" currents)
-  # total "external" current fraction
+
+  # peaking factor of prescribed (initial) "Ohmic" current:
+  # johm = j0*(1 - r^2/a^2)^nu
+  nu: float
+  # toggles if external current is provided absolutely or as a fraction of Ip
+  use_absolute_jext: bool
+  # total "external" current in MA. Used if use_absolute_jext=True.
+  Iext: float
+  # total "external" current fraction. Used if use_absolute_jext=False.
   fext: float
   # width of "external" Gaussian current profile
   wext: float
