@@ -49,7 +49,8 @@ class ExplicitStepper(stepper_lib.Stepper):
 
   def __call__(
       self,
-      state: state_module.State,
+      state_t: state_module.State,
+      state_t_plus_dt: state_module.State,
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
@@ -73,8 +74,8 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     consts = constants.CONSTANTS
 
-    true_ni = state.ni.value * dynamic_config_slice_t.nref
-    true_ni_face = state.ni.face_value() * dynamic_config_slice_t.nref
+    true_ni = state_t.ni.value * dynamic_config_slice_t.nref
+    true_ni_face = state_t.ni.face_value() * dynamic_config_slice_t.nref
 
     # Transient term coefficient vectors for ion heat equation
     # (has radial dependence through r, n)
@@ -90,7 +91,7 @@ class ExplicitStepper(stepper_lib.Stepper):
     )
 
     c_mat, c = fvm.diffusion_terms.make_diffusion_terms(
-        d_face_ion, state.temp_ion
+        d_face_ion, state_t.temp_ion
     )
 
     # Source term
@@ -99,8 +100,8 @@ class ExplicitStepper(stepper_lib.Stepper):
     )
 
     temp_ion_new = (
-        state.temp_ion.value
-        + dt * (jnp.dot(c_mat, state.temp_ion.value) + c) / cti
+        state_t.temp_ion.value
+        + dt * (jnp.dot(c_mat, state_t.temp_ion.value) + c) / cti
     )
     # Update the potentially time-dependent boundary conditions as well.
     updated_boundary_conditions = (
@@ -110,19 +111,19 @@ class ExplicitStepper(stepper_lib.Stepper):
         )
     )
     temp_ion_new = dataclasses.replace(
-        state.temp_ion,
+        state_t.temp_ion,
         value=temp_ion_new,
         **updated_boundary_conditions['temp_ion'],
     )
 
     q_face, _ = physics.calc_q_from_jtot_psi(
         geo=geo,
-        jtot_face=state.currents.jtot,
-        psi=state.psi,
+        jtot_face=state_t.currents.jtot,
+        psi=state_t.psi,
         Rmaj=dynamic_config_slice_t_plus_dt.Rmaj,
         q_correction_factor=dynamic_config_slice_t_plus_dt.q_correction_factor,
     )
-    s_face = physics.calc_s_from_psi(geo, state.psi)
+    s_face = physics.calc_s_from_psi(geo, state_t.psi)
 
     # error isn't used for timestep adaptation for this method.
     # However, too large a timestep will lead to numerical instabilities.
@@ -131,7 +132,7 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     return (
         dataclasses.replace(
-            state,
+            state_t,
             temp_ion=temp_ion_new,
             q_face=q_face,
             s_face=s_face,

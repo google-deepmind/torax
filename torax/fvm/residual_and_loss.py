@@ -19,15 +19,16 @@ these to scalar functions, for example using mean squared error.
 Residual functions are for use with e.g. the Newton-Raphson method
 while loss functions can be minimized using any optimization method.
 """
-import dataclasses
 
 import jax
 from jax import numpy as jnp
 from torax import config_slice
 from torax import jax_utils
+from torax import state as state_module
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import discrete_system
+from torax.fvm import fvm_conversions
 
 AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffs = block_1d_coeffs.Block1DCoeffs
@@ -37,7 +38,8 @@ Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 def theta_method_matrix_equation(
     x_new_vec: jax.Array,
     x_old: tuple[cell_variable.CellVariable, ...],
-    x_new_update_fns: tuple[cell_variable.CellVariableUpdateFn, ...],
+    state_t_plus_dt: state_module.State,
+    evolving_names: tuple[str, ...],
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
     coeffs_callback: Block1DCoeffsCallback,
@@ -99,8 +101,11 @@ def theta_method_matrix_equation(
     x_new_vec: A single vector containing all values of x_new concatenated
       together.
     x_old: The starting x defined as a tuple of CellVariables.
-    x_new_update_fns: Tuple containing callables that update the CellVariables
-      in x_new to the correct boundary conditions at time t + dt.
+    state_t_plus_dt: Sim state which contains all available prescribed
+      quantities at the end of the time step. This includes evolving boundary
+      conditions and prescribed time-dependent profiles that are not being
+      evolved by the PDE system.
+    evolving_names: The names of variables within the state that should evolve.
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old. We have this passed in
       separately rather than using `coeffs_callback` to reduce the size of the
@@ -136,13 +141,10 @@ def theta_method_matrix_equation(
      - auxiliary output from calculating new coefficients for x_new.
   """
 
-  num_channels = len(x_old)
-  x_new_values = jnp.split(x_new_vec, num_channels)
-  x_new = [
-      update_fn(dataclasses.replace(var, value=value))
-      for var, value, update_fn in zip(x_old, x_new_values, x_new_update_fns)
-  ]
-  x_new = tuple(x_new)
+  # Convert input flattened evolving state vector to tuple of CellVariables
+  x_new = fvm_conversions.vec_to_cell_variable_tuple(
+      x_new_vec, state_t_plus_dt, evolving_names
+  )
 
   coeffs_new = coeffs_callback(
       x_new, dynamic_config_slice_t_plus_dt, allow_pereverzev=allow_pereverzev
@@ -203,7 +205,8 @@ def theta_method_matrix_equation(
 def theta_method_block_residual(
     x_new_vec: jax.Array,
     x_old: tuple[cell_variable.CellVariable, ...],
-    x_new_update_fns: tuple[cell_variable.CellVariableUpdateFn, ...],
+    state_t_plus_dt: state_module.State,
+    evolving_names: tuple[str, ...],
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
     coeffs_callback: Block1DCoeffsCallback,
@@ -218,8 +221,11 @@ def theta_method_block_residual(
     x_new_vec: A single vector containing all values of x_new concatenated
       together.
     x_old: The starting x defined as a tuple of CellVariables.
-    x_new_update_fns: Tuple containing callables that update the CellVariables
-      in x_new to the correct boundary conditions at time t + dt.
+    state_t_plus_dt: Sim state which contains all available prescribed
+      quantities at the end of the time step. This includes evolving boundary
+      conditions and prescribed time-dependent profiles that are not being
+      evolved by the PDE system.
+    evolving_names: The names of variables within the state that should evolve.
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old. We have this passed in
       separately rather than using `coeffs_callback` to reduce the size of the
@@ -249,7 +255,8 @@ def theta_method_block_residual(
   lhs_mat, lhs_vec, rhs_mat, rhs_vec, aux_output = theta_method_matrix_equation(
       x_new_vec=x_new_vec,
       x_old=x_old,
-      x_new_update_fns=x_new_update_fns,
+      state_t_plus_dt=state_t_plus_dt,
+      evolving_names=evolving_names,
       dt=dt,
       coeffs_old=coeffs_old,
       coeffs_callback=coeffs_callback,
@@ -269,7 +276,8 @@ def theta_method_block_residual(
 def theta_method_block_loss(
     x_new_vec: jax.Array,
     x_old: tuple[cell_variable.CellVariable, ...],
-    x_new_update_fns: tuple[cell_variable.CellVariableUpdateFn, ...],
+    state_t_plus_dt: state_module.State,
+    evolving_names: tuple[str, ...],
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
     coeffs_callback: Block1DCoeffsCallback,
@@ -284,8 +292,11 @@ def theta_method_block_loss(
     x_new_vec: A single vector containing all values of x_new concatenated
       together.
     x_old: The starting x defined as a tuple of CellVariables.
-    x_new_update_fns: Tuple containing callables that update the CellVariables
-      in x_new to the correct boundary conditions at time t + dt.
+    state_t_plus_dt: Sim state which contains all available prescribed
+      quantities at the end of the time step. This includes evolving boundary
+      conditions and prescribed time-dependent profiles that are not being
+      evolved by the PDE system.
+    evolving_names: The names of variables within the state that should evolve.
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old. We have this passed in
       separately rather than using `coeffs_callback` to reduce the size of the
@@ -315,7 +326,8 @@ def theta_method_block_loss(
   residual, aux_output = theta_method_block_residual(
       x_new_vec=x_new_vec,
       x_old=x_old,
-      x_new_update_fns=x_new_update_fns,
+      state_t_plus_dt=state_t_plus_dt,
+      evolving_names=evolving_names,
       dt=dt,
       coeffs_old=coeffs_old,
       coeffs_callback=coeffs_callback,

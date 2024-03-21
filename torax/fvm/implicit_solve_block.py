@@ -17,20 +17,21 @@
 See function docstring for details.
 """
 
-import dataclasses
-
 import jax
 from jax import numpy as jnp
 from torax import config_slice
+from torax import state as state_module
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
+from torax.fvm import fvm_conversions
 from torax.fvm import residual_and_loss
 
 
 def implicit_solve_block(
     x_old: tuple[cell_variable.CellVariable, ...],
     x_new_vec_guess: jax.Array,
-    x_new_update_fns: tuple[cell_variable.CellVariableUpdateFn, ...],
+    state_t_plus_dt: state_module.State,
+    evolving_names: tuple[str, ...],
     dt: jax.Array,
     coeffs_old: block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: block_1d_coeffs.Block1DCoeffsCallback,
@@ -52,11 +53,16 @@ def implicit_solve_block(
 
   Args:
     x_old: Tuple containing CellVariables for each channel with their values at
-      the start of the time step.
+      the start of the time step. `x[i]` maps to the `evolving_names[i]` field
+      of `state`
     x_new_vec_guess: Initial guess for x_new. Used to compute new coefficients
       at time t + dt.
-    x_new_update_fns: Tuple containing callables that update the CellVariables
-      in x_new to the correct boundary conditions at time t + dt.
+    state_t_plus_dt: Sim state which contains all available prescribed
+      quantities at the end of the time step. This includes evolving boundary
+      conditions and prescribed time-dependent profiles that are not being
+      evolved by the PDE system.
+    evolving_names: The names of variables within the state that should evolve.
+      `x[i]` maps to the `evolving_names[i]` field of `state`
     dt: Discrete time step.
     coeffs_old: Coefficients defining the equation, computed for time t.
       Coefficients can depend on time-varying parameters, which is why both the
@@ -84,7 +90,8 @@ def implicit_solve_block(
       `neumann_mode` argument.
 
   Returns:
-    x_new: Tuple, with x_new[i] giving channel i of x at the next time step
+    x_new: Tuple, with x_new[i] giving channel i of x at the next time step.
+      `x[i]` maps to the `evolving_names[i]` field of `state`.
     Auxiliary output from computing the matrices used to solve for x_new.
   """
   # pyformat: enable
@@ -97,14 +104,14 @@ def implicit_solve_block(
   # See residual_and_loss.theta_method_matrix_equation for a complete
   # description of how the equation is set up.
 
-  num_channels = len(x_old)
-  x_old_vec = jnp.concatenate([var.value for var in x_old])
+  x_old_vec = fvm_conversions.cell_variable_tuple_to_vec(x_old)
 
   lhs_mat, lhs_vec, rhs_mat, rhs_vec, aux_output = (
       residual_and_loss.theta_method_matrix_equation(
           x_new_vec=x_new_vec_guess,
           x_old=x_old,
-          x_new_update_fns=x_new_update_fns,
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           dt=dt,
           coeffs_old=coeffs_old,
           coeffs_callback=coeffs_callback,
@@ -119,13 +126,10 @@ def implicit_solve_block(
   rhs = jnp.dot(rhs_mat, x_old_vec) + rhs_vec - lhs_vec
   x_new = jnp.linalg.solve(lhs_mat, rhs)
 
-  x_new = jnp.split(x_new, num_channels)
-
-  # Make new CellVariable instances with updated constraints as well.
-  out = [
-      update_fn(dataclasses.replace(var, value=value))
-      for var, value, update_fn in zip(x_old, x_new, x_new_update_fns)
-  ]
-  out = tuple(out)
+  # Create updated CellVariable instances based on state_plus_dt which has
+  # updated boundary conditions and prescribed profiles.
+  out = fvm_conversions.vec_to_cell_variable_tuple(
+      x_new, state_t_plus_dt, evolving_names
+  )
 
   return out, aux_output

@@ -44,25 +44,24 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
   def _x_new(
       self,
-      state: state_module.State,
+      state_t: state_module.State,
+      state_t_plus_dt: state_module.State,
+      evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
-      evolving_names: tuple[str, ...],
-      x_new_update_fns: tuple[fvm.CellVariableUpdateFn, ...],
       dt: jax.Array,
       mask: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
     """See Stepper._x_new docstring."""
 
-    orig_evolving = copy.deepcopy([state[name] for name in evolving_names])
-    orig_state = state
+    x_old = tuple(copy.deepcopy([state_t[name] for name in evolving_names]))
 
     # Instantiate coeffs_callback class
     coeffs_callback = self.callback_class(
-        orig_state=orig_state,
+        state_t=state_t,
         evolving_names=evolving_names,
         geo=geo,
         static_config_slice=static_config_slice,
@@ -74,7 +73,6 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
     # Compute the explicit coeffs based on the state at time t and all runtime
     # parameters at time t.
-    x_old = tuple(orig_evolving)
     coeffs_exp = coeffs_callback(
         x_old, dynamic_config_slice_t, allow_pereverzev=True
     )
@@ -94,7 +92,8 @@ class LinearThetaMethod(stepper_lib.Stepper):
     x_new, auxiliary_outputs = (
         predictor_corrector_method.predictor_corrector_method(
             init_val=init_val,
-            x_new_update_fns=x_new_update_fns,
+            state_t_plus_dt=state_t_plus_dt,
+            evolving_names=evolving_names,
             dt=dt,
             coeffs_exp=coeffs_exp,
             coeffs_callback=coeffs_callback,

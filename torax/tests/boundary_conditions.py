@@ -45,11 +45,14 @@ class BoundaryConditionsTest(absltest.TestCase):
     geo = geometry.build_circular_geometry(config)
     state = initial_states.initial_state(config, geo)
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config, 0.5)
-    updated = boundary_conditions.update_boundary_conditions(
-        state=state,
-        dynamic_config_slice=dynamic_config_slice,
-        geo=geo,
+
+    bc = boundary_conditions.compute_boundary_conditions(
+        dynamic_config_slice,
+        geo,
     )
+
+    updated = config_lib.recursive_replace(state, **bc)
+
     psi_constraint = 6e6 * constants.CONSTANTS.mu0 / geo.G2_face[-1] * geo.rmax
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
     np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)

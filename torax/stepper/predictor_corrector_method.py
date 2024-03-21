@@ -25,6 +25,7 @@ from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import jax_utils
+from torax import state as state_module
 from torax.fvm import implicit_solve_block
 
 
@@ -32,7 +33,8 @@ def predictor_corrector_method(
     init_val: tuple[
         tuple[fvm.cell_variable.CellVariable, ...], calc_coeffs.AuxOutput
     ],
-    x_new_update_fns: tuple[fvm.CellVariableUpdateFn, ...],
+    state_t_plus_dt: state_module.State,
+    evolving_names: tuple[str, ...],
     dt: jax.Array,
     coeffs_exp: fvm.block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: fvm.block_1d_coeffs.Block1DCoeffsCallback,
@@ -43,8 +45,11 @@ def predictor_corrector_method(
 
   Args:
     init_val: initial guess for the predictor corrector output.
-    x_new_update_fns: function to obtain state boundary conditions at time
-      t_plus_dt
+    state_t_plus_dt: Sim state which contains all available prescribed
+      quantities at the end of the time step. This includes evolving boundary
+      conditions and prescribed time-dependent profiles that are not being
+      evolved by the PDE system.
+    evolving_names: The names of variables within the state that should evolve.
     dt: current timestep
     coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep
     coeffs_callback: coefficient callback function
@@ -68,7 +73,8 @@ def predictor_corrector_method(
     x_new, auxiliary_outputs = implicit_solve_block.implicit_solve_block(
         x_old=init_val[0],
         x_new_vec_guess=x_new_vec_guess,
-        x_new_update_fns=x_new_update_fns,
+        state_t_plus_dt=state_t_plus_dt,
+        evolving_names=evolving_names,
         dt=dt,
         coeffs_old=coeffs_exp,
         coeffs_callback=coeffs_callback,

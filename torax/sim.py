@@ -26,7 +26,6 @@ it easier to print error messages in context).
 
 from __future__ import annotations
 
-import copy
 import dataclasses
 import time
 from typing import Optional, Protocol
@@ -76,7 +75,7 @@ class CoeffsCallback:
   """Implements fvm.Block1DCoeffsCallback using calc_coeffs.
 
   Attributes:
-    orig_state: The state at the start of the time step. During iterative
+    state_t: The state at the start of the time step. During iterative
       optimization, the current state is built by changing the values of
       CellVariables (but not their boundary conditions etc) from this state.
     evolving_names: The names of the evolving variables.
@@ -90,7 +89,7 @@ class CoeffsCallback:
 
   def __init__(
       self,
-      orig_state: state_module.State,
+      state_t: state_module.State,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       static_config_slice: config_slice.StaticConfigSlice,
@@ -99,7 +98,7 @@ class CoeffsCallback:
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       sources: source_profiles_lib.Sources,
   ):
-    self.orig_state = orig_state
+    self.state_t = state_t
     self.evolving_names = evolving_names
     self.geo = geo
     self.static_config_slice = static_config_slice
@@ -115,7 +114,8 @@ class CoeffsCallback:
       allow_pereverzev: bool = False,
   ):
     replace = {k: v for k, v in zip(self.evolving_names, x)}
-    state = config_lib.recursive_replace(self.orig_state, **replace)
+    # TODO( b/326579003) revisit due to prescribed profiles
+    state = config_lib.recursive_replace(self.state_t, **replace)
     # update ion density in state if ne is being evolved.
     # Necessary for consistency in iterative nonlinear solutions
     if 'ne' in self.evolving_names:
@@ -160,7 +160,7 @@ class FrozenCoeffsCallback(CoeffsCallback):
       raise ValueError('dynamic_config_slice must be provided.')
     dynamic_config_slice = kwargs.pop('dynamic_config_slice')
     super().__init__(*args, **kwargs)
-    x = tuple([self.orig_state[name] for name in self.evolving_names])
+    x = tuple([self.state_t[name] for name in self.evolving_names])
     self.frozen_coeffs = super().__call__(
         x, dynamic_config_slice, allow_pereverzev=False
     )
@@ -249,7 +249,7 @@ class SimulationStepFn:
          2 if solver converged within coarse tolerance. Allowed to pass with a
             warning. Occasional error=2 has low impact on final simulation state
     """
-    dynamic_config_slice = dynamic_config_slice_provider(input_state.t)
+    dynamic_config_slice_t = dynamic_config_slice_provider(input_state.t)
     # TODO(b/323504363): We call the transport model both here and in the the
     # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
     # calls fall within the same jit scope* because can use
@@ -258,30 +258,27 @@ class SimulationStepFn:
     # calculate transport coeffs at delta_t = 0 in only one place, so that we
     # have some flexibility in where to place the jit boundaries.
     transport_coeffs = self._transport_model(
-        dynamic_config_slice, geo, input_state.mesh_state
+        dynamic_config_slice_t, geo, input_state.mesh_state
     )
-
-    orig_mesh_state = copy.deepcopy(input_state.mesh_state)
 
     # initialize new dt and reset stepper iterations.
     dt, time_step_calculator_state = self._time_step_calculator.next_dt(
-        dynamic_config_slice,
+        dynamic_config_slice_t,
         geo,
         input_state.mesh_state,
         input_state.time_step_calculator_state,
         transport_coeffs,
     )
-    stepper_iterations = 0
 
-    crosses_t_final = (input_state.t < dynamic_config_slice.t_final) * (
-        input_state.t + input_state.dt > dynamic_config_slice.t_final
+    crosses_t_final = (input_state.t < dynamic_config_slice_t.t_final) * (
+        input_state.t + input_state.dt > dynamic_config_slice_t.t_final
     )
     dt = jnp.where(
         jnp.logical_and(
-            dynamic_config_slice.exact_t_final,
+            dynamic_config_slice_t.exact_t_final,
             crosses_t_final,
         ),
-        dynamic_config_slice.t_final - input_state.t,
+        dynamic_config_slice_t.t_final - input_state.t,
         dt,
     )
 
@@ -290,12 +287,25 @@ class SimulationStepFn:
     dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
         input_state.t + dt,
     )
+
+    state_t = input_state.mesh_state
+
+    # Construct the state object for time t+dt with evolving boundary conditions
+    # and time-dependent prescribed profiles not directly solved by PDE system.
+    # TODO( b/326579003)
+    state_t_plus_dt = provide_state_t_plus_dt(
+        state_t, dynamic_config_slice_t_plus_dt, geo
+    )
+
+    stepper_iterations = 0
+
     # Initial trial for stepper. If did not converge (can happen for nonlinear
     # step with large dt) we apply the adaptive time step routine if requested.
     mesh_state, stepper_error_state, aux_output = self._stepper_fn(
-        state=orig_mesh_state,
+        state_t=state_t,
+        state_t_plus_dt=state_t_plus_dt,
         geo=geo,
-        dynamic_config_slice_t=dynamic_config_slice,
+        dynamic_config_slice_t=dynamic_config_slice_t,
         dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
         static_config_slice=static_config_slice,
         dt=dt,
@@ -341,19 +351,22 @@ class SimulationStepFn:
           updated_output: state_module.ToraxOutput,
       ) -> state_module.ToraxOutput:
         updated_sim_state = updated_output.state
-        dt = jax_utils.error_if(
-            updated_sim_state.dt / dynamic_config_slice.dt_reduction_factor,
-            (updated_sim_state.dt / dynamic_config_slice.dt_reduction_factor)
-            < dynamic_config_slice.mindt,
-            msg='dt below minimum timestep following adaptation',
-        )
+
+        dt = updated_sim_state.dt / dynamic_config_slice_t.dt_reduction_factor
+        if dt < dynamic_config_slice_t.mindt:
+          raise ValueError('dt below minimum timestep following adaptation')
+
         dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
             input_state.t + dt,
         )
+        state_t_plus_dt = provide_state_t_plus_dt(
+            state_t, dynamic_config_slice_t_plus_dt, geo
+        )
         mesh_state, stepper_error_state, aux_output = self._stepper_fn(
-            state=orig_mesh_state,
+            state_t=state_t,
+            state_t_plus_dt=state_t_plus_dt,
             geo=geo,
-            dynamic_config_slice_t=dynamic_config_slice,
+            dynamic_config_slice_t=dynamic_config_slice_t,
             dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
             static_config_slice=static_config_slice,
             dt=dt,
@@ -385,17 +398,20 @@ class SimulationStepFn:
       output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
 
     # Update total current, q, and s profiles based on new psi
+    dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
+        input_state.t + output_state.state.dt,
+    )
     output_state.state.mesh_state = physics.update_jtot_q_face_s_face(
         geo=geo,
         state=output_state.state.mesh_state,
-        Rmaj=dynamic_config_slice.Rmaj,
-        q_correction_factor=dynamic_config_slice.q_correction_factor,
+        Rmaj=dynamic_config_slice_t_plus_dt.Rmaj,
+        q_correction_factor=dynamic_config_slice_t_plus_dt.q_correction_factor,
     )
 
     # Update ohmic and bootstrap current based on new state
     output_state.state.mesh_state = update_current_distribution(
         sources=self._stepper.sources,
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
         state=output_state.state.mesh_state,
     )
@@ -403,27 +419,13 @@ class SimulationStepFn:
     # Update psidot based on new state
     output_state.state.mesh_state = update_psidot(
         sources=self._stepper.sources,
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
         state=output_state.state.mesh_state,
     )
 
     # Update the time based on the final dt that was used.
     output_state.state.t = output_state.state.t + output_state.state.dt
-
-    # Update the boundary conditions of all state variables regardless of
-    # whether they are being evolved. This involves recomputing some conditions,
-    # but that's ok because boundary condition interpolation (if they are
-    # time-dependent) is cheap.
-    output_state.state.mesh_state = (
-        boundary_conditions.update_boundary_conditions(
-            state=output_state.state.mesh_state,
-            dynamic_config_slice=dynamic_config_slice_provider(
-                output_state.state.t,
-            ),
-            geo=geo,
-        )
-    )
 
     return output_state, output_state.state.stepper_error_state
 
@@ -997,3 +999,37 @@ def update_psidot(
       psidot=psidot,
   )
   return new_state
+
+
+def provide_state_t_plus_dt(
+    state_t: state_module.State,
+    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    geo: geometry.Geometry,
+) -> state_module.State:
+  """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
+  updated_boundary_conditions = boundary_conditions.compute_boundary_conditions(
+      dynamic_config_slice_t_plus_dt,
+      geo,
+  )
+  temp_ion = dataclasses.replace(
+      state_t.temp_ion,
+      **updated_boundary_conditions['temp_ion'],
+  )
+  temp_el = dataclasses.replace(
+      state_t.temp_el,
+      **updated_boundary_conditions['temp_el'],
+  )
+  psi = dataclasses.replace(state_t.psi, **updated_boundary_conditions['psi'])
+  ne = dataclasses.replace(state_t.ne, **updated_boundary_conditions['ne'])
+  ni = dataclasses.replace(
+      state_t.ni,
+      value=ne.value
+      * physics.get_main_ion_dilution_factor(
+          dynamic_config_slice_t_plus_dt.Zimp,
+          dynamic_config_slice_t_plus_dt.Zeff,
+      ),
+  )
+  state_t_plus_dt = dataclasses.replace(
+      state_t, temp_ion=temp_ion, temp_el=temp_el, psi=psi, ne=ne, ni=ni
+  )
+  return state_t_plus_dt

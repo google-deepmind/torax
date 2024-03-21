@@ -22,7 +22,6 @@ import dataclasses
 from typing import Callable
 
 import jax
-from torax import boundary_conditions
 from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
@@ -56,7 +55,8 @@ class Stepper(abc.ABC):
 
   def __call__(
       self,
-      state: state_module.State,
+      state_t: state_module.State,
+      state_t_plus_dt: state_module.State,
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
@@ -67,7 +67,11 @@ class Stepper(abc.ABC):
     """Applies a time step update.
 
     Args:
-      state: Sim state at the beginning of the time step.
+      state_t: Sim state at the beginning of the time step.
+      state_t_plus_dt: Sim state which contains all available prescribed
+        quantities at the end of the time step. This includes evolving boundary
+        conditions and prescribed time-dependent profiles that are not being
+        evolved by the PDE system.
       geo: Geometry of the torus.
       dynamic_config_slice_t: Runtime configuration for time t (the start time
         of the step). These config params can change from step to step without
@@ -105,56 +109,26 @@ class Stepper(abc.ABC):
 
     # Use config to determine which variables to evolve
     evolving_names = []
-    boundary_condition_update_fns = []
-    updated_boundary_conditions = (
-        boundary_conditions.compute_boundary_conditions(
-            dynamic_config_slice_t_plus_dt,
-            geo,
-        )
-    )
-    # pylint: disable=unnecessary-lambda
     if static_config_slice.ion_heat_eq:
       evolving_names.append('temp_ion')
-      boundary_condition_update_fns.append(
-          lambda orig_temp_ion: dataclasses.replace(
-              orig_temp_ion, **updated_boundary_conditions['temp_ion']
-          )
-      )
     if static_config_slice.el_heat_eq:
       evolving_names.append('temp_el')
-      boundary_condition_update_fns.append(
-          lambda orig_temp_el: dataclasses.replace(
-              orig_temp_el, **updated_boundary_conditions['temp_el']
-          )
-      )
     if static_config_slice.current_eq:
       evolving_names.append('psi')
-      boundary_condition_update_fns.append(
-          lambda orig_psi: dataclasses.replace(
-              orig_psi, **updated_boundary_conditions['psi']
-          )
-      )
     if static_config_slice.dens_eq:
       evolving_names.append('ne')
-      boundary_condition_update_fns.append(
-          lambda orig_ne: dataclasses.replace(
-              orig_ne, **updated_boundary_conditions['ne']
-          )
-      )
-    # pylint: enable=unnecessary-lambda
-
     evolving_names = tuple(evolving_names)
 
     # Don't call solver functions on an empty list
     if evolving_names:
       x_new, error, aux_output = self._x_new(
-          state=state,
+          state_t=state_t,
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           geo=geo,
           dynamic_config_slice_t=dynamic_config_slice_t,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
           static_config_slice=static_config_slice,
-          evolving_names=evolving_names,
-          x_new_update_fns=tuple(boundary_condition_update_fns),
           dt=dt,
           mask=mask,
           explicit_source_profiles=explicit_source_profiles,
@@ -164,19 +138,19 @@ class Stepper(abc.ABC):
       error = 0
       aux_output = calc_coeffs.AuxOutput.build_from_geo(geo)
 
-    def get_update(var):
+    def get_update(x_new, var):
       """Returns the new value of `var`."""
       if var in evolving_names:
         return x_new[evolving_names.index(var)]
       # `var` is not evolving, so its new value is just its old value
-      return getattr(state, var)
+      return getattr(state_t_plus_dt, var)
 
-    temp_ion = get_update('temp_ion')
-    temp_el = get_update('temp_el')
-    psi = get_update('psi')
-    ne = get_update('ne')
+    temp_ion = get_update(x_new, 'temp_ion')
+    temp_el = get_update(x_new, 'temp_el')
+    psi = get_update(x_new, 'psi')
+    ne = get_update(x_new, 'ne')
     ni = dataclasses.replace(
-        state.ni,
+        state_t_plus_dt.ni,
         value=ne.value
         * physics.get_main_ion_dilution_factor(
             dynamic_config_slice_t_plus_dt.Zimp,
@@ -186,7 +160,7 @@ class Stepper(abc.ABC):
 
     return (
         dataclasses.replace(
-            state,
+            state_t_plus_dt,
             temp_ion=temp_ion,
             temp_el=temp_el,
             psi=psi,
@@ -199,13 +173,13 @@ class Stepper(abc.ABC):
 
   def _x_new(
       self,
-      state: state_module.State,
+      state_t: state_module.State,
+      state_t_plus_dt: state_module.State,
+      evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
-      evolving_names: tuple[str, ...],
-      x_new_update_fns: tuple[fvm.CellVariableUpdateFn, ...],
       dt: jax.Array,
       mask: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -216,7 +190,12 @@ class Stepper(abc.ABC):
     will work, or implement a different `__call__`.
 
     Args:
-      state: The State at time t.
+      state_t: The State at time t.
+      state_t_plus_dt: Sim state which contains all available prescribed
+        quantities at the end of the time step. This includes evolving boundary
+        conditions and prescribed time-dependent profiles that are not being
+        evolved by the PDE system.
+      evolving_names: The names of state variables that should evolve.
       geo: Geometry of the torus.
       dynamic_config_slice_t: Runtime configuration for time t (the start time
         of the step). These config params can change from step to step without
@@ -227,10 +206,6 @@ class Stepper(abc.ABC):
         lifetime of the joint state stepper, which wraps this stepper. These
         don't have to be JAX-friendly types and can be used in control-flow
         logic.
-      evolving_names: The names of variables within the state that should
-        evolve.
-      x_new_update_fns: Tuple containing callables that update the CellVariables
-        in x_new to the correct boundary conditions at time t + dt.
       dt: Time step duration.
       mask: Boolean mask for enforcing internal temperature boundary conditions
         to model the pedestal.

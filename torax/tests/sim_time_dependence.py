@@ -133,7 +133,8 @@ class FakeStepper(stepper_lib.Stepper):
 
   def __call__(
       self,
-      state: state_module.State,
+      state_t: state_module.State,
+      state_t_plus_dt: state_module.State,
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
@@ -149,8 +150,8 @@ class FakeStepper(stepper_lib.Stepper):
     aux.Qei = jnp.ones_like(geo.r) * combined
     return jax.lax.cond(
         combined < self._max_value,
-        lambda: (state, 0, aux),
-        lambda: (state, 1, aux),
+        lambda: (state_t, 0, aux),
+        lambda: (state_t, 1, aux),
     )
 
 

@@ -28,8 +28,8 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import config
-from torax import fvm
 from torax import geometry
+from torax.fvm import cell_variable
 
 
 @chex.dataclass(frozen=True)
@@ -61,12 +61,14 @@ class Currents:
 class State:
   """Dataclass for holding the evolving state of the system."""
 
-  temp_ion: fvm.CellVariable  # Ion temperature
-  temp_el: fvm.CellVariable  # Electron temperature
-  psi: fvm.CellVariable  # Poloidal flux
-  psidot: fvm.CellVariable  # Time derivative of poloidal flux (loop voltage)
-  ne: fvm.CellVariable  # Electron density
-  ni: fvm.CellVariable  # Main ion density
+  temp_ion: cell_variable.CellVariable  # Ion temperature
+  temp_el: cell_variable.CellVariable  # Electron temperature
+  psi: cell_variable.CellVariable  # Poloidal flux
+  psidot: (
+      cell_variable.CellVariable
+  )  # Time derivative of poloidal flux (loop voltage)
+  ne: cell_variable.CellVariable  # Electron density
+  ni: cell_variable.CellVariable  # Main ion density
   currents: Currents
   q_face: jax.Array
   s_face: jax.Array
@@ -76,8 +78,8 @@ class State:
 
     Histories are States with all the tree leaves getting an extra dimension
     due to stacking, e.g. as the output of `jax.lax.scan`.
-    Some State fields such as `fvm.CellVariable` cease to function after
-    becoming histories.
+    Some State fields such as `cell_variable.CellVariable` cease to function
+    after becoming histories.
     """
 
     return dataclasses.replace(

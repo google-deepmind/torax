@@ -16,13 +16,11 @@
 
 import jax
 from jax import numpy as jnp
-from torax import config as config_lib
 from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import physics
-from torax import state as state_module
 
 
 # Type-alias for brevity.
@@ -90,15 +88,3 @@ def compute_boundary_conditions(
           right_face_constraint=None,
       ),
   }
-
-
-def update_boundary_conditions(
-    state: state_module.State,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
-    geo: geometry.Geometry,
-) -> state_module.State:
-  boundary_conditions = compute_boundary_conditions(
-      dynamic_config_slice,
-      geo,
-  )
-  return config_lib.recursive_replace(state, **boundary_conditions)

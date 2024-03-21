@@ -50,13 +50,13 @@ class NonlinearThetaMethod(stepper.Stepper):
 
   def _x_new(
       self,
-      state: state_module.State,
+      state_t: state_module.State,
+      state_t_plus_dt: state_module.State,
+      evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
-      evolving_names: tuple[str, ...],
-      x_new_update_fns: tuple[fvm.CellVariableUpdateFn, ...],
       dt: jax.Array,
       mask: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -64,7 +64,7 @@ class NonlinearThetaMethod(stepper.Stepper):
     """See Stepper._x_new docstring."""
 
     coeffs_callback = self.callback_class(
-        orig_state=state,
+        state_t=state_t,
         evolving_names=evolving_names,
         geo=geo,
         static_config_slice=static_config_slice,
@@ -77,10 +77,10 @@ class NonlinearThetaMethod(stepper.Stepper):
         dynamic_config_slice_t=dynamic_config_slice_t,
         dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
         static_config_slice=static_config_slice,
-        state=state,
-        geo=geo,
+        state_t=state_t,
+        state_t_plus_dt=state_t_plus_dt,
         evolving_names=evolving_names,
-        x_new_update_fns=x_new_update_fns,
+        geo=geo,
         dt=dt,
         coeffs_callback=coeffs_callback,
     )
@@ -93,10 +93,10 @@ class NonlinearThetaMethod(stepper.Stepper):
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
-      state: state_module.State,
-      geo: geometry.Geometry,
+      state_t: state_module.State,
+      state_t_plus_dt: state_module.State,
       evolving_names: tuple[str, ...],
-      x_new_update_fns: tuple[fvm.CellVariableUpdateFn, ...],
+      geo: geometry.Geometry,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
@@ -140,17 +140,18 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
-      state: state_module.State,
-      geo: geometry.Geometry,
+      state_t: state_module.State,
+      state_t_plus_dt: state_module.State,
       evolving_names: tuple[str, ...],
-      x_new_update_fns: tuple[fvm.CellVariableUpdateFn, ...],
+      geo: geometry.Geometry,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
     """Final implementation of x_new after callback has been created etc."""
     return optimizer_solve_block.optimizer_solve_block(
-        x_old=tuple([getattr(state, var) for var in evolving_names]),
-        x_new_update_fns=x_new_update_fns,
+        x_old=tuple([state_t[name] for name in evolving_names]),
+        state_t_plus_dt=state_t_plus_dt,
+        evolving_names=evolving_names,
         dt=dt,
         coeffs_callback=coeffs_callback,
         dynamic_config_slice_t=dynamic_config_slice_t,
@@ -218,10 +219,10 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
-      state: state_module.State,
-      geo: geometry.Geometry,
+      state_t: state_module.State,
+      state_t_plus_dt: state_module.State,
       evolving_names: tuple[str, ...],
-      x_new_update_fns: tuple[fvm.CellVariableUpdateFn, ...],
+      geo: geometry.Geometry,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
@@ -230,8 +231,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     # error checking based on result of each linear step
 
     return newton_raphson_solve_block.newton_raphson_solve_block(
-        x_old=tuple([getattr(state, var) for var in evolving_names]),
-        x_new_update_fns=x_new_update_fns,
+        x_old=tuple([state_t[name] for name in evolving_names]),
+        state_t_plus_dt=state_t_plus_dt,
+        evolving_names=evolving_names,
         dt=dt,
         coeffs_callback=coeffs_callback,
         dynamic_config_slice_t=dynamic_config_slice_t,

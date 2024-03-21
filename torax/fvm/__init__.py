@@ -26,5 +26,3 @@ from torax.fvm.block_1d_coeffs import Block1DCoeffs
 from torax.fvm.cell_variable import CellVariable
 from torax.fvm.cell_variable import CellVariableUpdateFn
 from torax.fvm.enums import InitialGuessMode
-from torax.fvm.residual_and_loss import theta_method_block_loss
-from torax.fvm.residual_and_loss import theta_method_block_residual

@@ -24,6 +24,9 @@ import numpy as np
 from torax import config as config_lib
 from torax import config_slice
 from torax import fvm
+from torax import geometry
+from torax import initial_states
+from torax.fvm import fvm_conversions
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
 from torax.tests.test_lib import torax_refs
@@ -209,11 +212,20 @@ class FVMTest(torax_refs.ReferenceValueTest):
         v_face=v_face,
     )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    geo = geometry.build_circular_geometry(config)
+    state_t_plus_dt = initial_states.initial_state(config, geo)
+    state_t_plus_dt = dataclasses.replace(
+        state_t_plus_dt,
+        temp_ion=x_0,
+        temp_el=x_1,
+    )
+    evolving_names = tuple(['temp_ion', 'temp_el'])
     for _ in range(time_steps):
       x, _ = implicit_solve_block.implicit_solve_block(
           x_old=x,
-          x_new_vec_guess=jnp.concatenate([var.value for var in x]),
-          x_new_update_fns=tuple([lambda cv: cv for _ in x]),  # no-ops.
+          x_new_vec_guess=fvm_conversions.cell_variable_tuple_to_vec(x),
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           dt=dt,
           coeffs_old=coeffs,
           # Assume no time-dependent params.
@@ -320,11 +332,20 @@ class FVMTest(torax_refs.ReferenceValueTest):
           source_mat_cell=source_mat_cell,
           source_cell=source_cell,
       )
+      geo = geometry.build_circular_geometry(config)
+      state_t_plus_dt = initial_states.initial_state(config, geo)
+      state_t_plus_dt = dataclasses.replace(
+          state_t_plus_dt,
+          temp_ion=x_0,
+          temp_el=x_1,
+      )
+      evolving_names = tuple(['temp_ion', 'temp_el'])
 
       x, _ = implicit_solve_block.implicit_solve_block(
           x_old=x,
-          x_new_vec_guess=jnp.concatenate([var.value for var in x]),
-          x_new_update_fns=tuple([lambda cv: cv for _ in x]),  # no-ops.
+          x_new_vec_guess=fvm_conversions.cell_variable_tuple_to_vec(x),
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           coeffs_old=coeffs,
           # Assume no time-dependent params.
           coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,  # pylint: disable=cell-var-from-loop
@@ -381,12 +402,21 @@ class FVMTest(torax_refs.ReferenceValueTest):
         transient_in_cell=transient_cell,
         v_face=v_face,
     )
+    geo = geometry.build_circular_geometry(config)
+    state_t_plus_dt = initial_states.initial_state(config, geo)
+    state_t_plus_dt = dataclasses.replace(
+        state_t_plus_dt,
+        temp_ion=x_0,
+        temp_el=x_1,
+    )
+    evolving_names = tuple(['temp_ion', 'temp_el'])
     for _ in range(time_steps):
       dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
       x_new, _ = implicit_solve_block.implicit_solve_block(
           x_old=x,
-          x_new_vec_guess=jnp.concatenate([var.value for var in x]),
-          x_new_update_fns=tuple([lambda cv: cv for _ in x]),  # no-ops.
+          x_new_vec_guess=fvm_conversions.cell_variable_tuple_to_vec(x),
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           coeffs_old=coeffs,
           # Assume no time-dependent params.
           coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,
@@ -399,9 +429,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # should just be a quadratic bowl with the linear
       # solution as the minimum with approximately zero residual
       loss, _ = residual_and_loss.theta_method_block_loss(
-          x_new_vec=jnp.concatenate([var.value for var in x_new]),
+          x_new_vec=fvm_conversions.cell_variable_tuple_to_vec(x_new),
           x_old=x,
-          x_new_update_fns=tuple([lambda cv: cv for _ in x_new]),  # no-ops.
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           dt=dt,
           coeffs_old=coeffs,
           coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,
@@ -410,9 +441,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
       )
 
       residual, _ = residual_and_loss.theta_method_block_residual(
-          x_new_vec=jnp.concatenate([var.value for var in x_new]),
+          x_new_vec=fvm_conversions.cell_variable_tuple_to_vec(x_new),
           x_old=x,
-          x_new_update_fns=tuple([lambda cv: cv for _ in x_new]),  # no-ops.
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           dt=dt,
           coeffs_old=coeffs,
           coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,
@@ -456,13 +488,20 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_constraint=initial_right_boundary,
     )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
-
+    geo = geometry.build_circular_geometry(config)
+    state_t_plus_dt = initial_states.initial_state(config, geo)
+    state_t_plus_dt = dataclasses.replace(
+        state_t_plus_dt,
+        temp_ion=x_0,
+    )
+    evolving_names = tuple(['temp_ion'])
     # Run with different theta_imp values.
     for theta_imp in [0.0, 0.5, 1.0]:
       x_new, _ = implicit_solve_block.implicit_solve_block(
           x_old=(x_0,),
           x_new_vec_guess=x_0.value,
-          x_new_update_fns=tuple([lambda cv: cv]),  # no-op.
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           coeffs_old=coeffs,
           # Assume no time-dependent params.
           coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,
@@ -481,12 +520,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
     x_new, _ = implicit_solve_block.implicit_solve_block(
         x_old=(x_0,),
         x_new_vec_guess=x_0.value,
-        x_new_update_fns=tuple([
-            lambda cv: dataclasses.replace(
-                cv,
-                right_face_constraint=final_right_boundary,
-            )
-        ]),
+        state_t_plus_dt=dataclasses.replace(
+            state_t_plus_dt,
+            temp_ion=dataclasses.replace(
+                x_0, right_face_constraint=final_right_boundary
+            ),
+        ),
+        evolving_names=evolving_names,
         coeffs_old=coeffs,
         # Assume no time-dependent params.
         coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,
@@ -503,12 +543,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
     x_new, _ = implicit_solve_block.implicit_solve_block(
         x_old=(x_0,),
         x_new_vec_guess=x_0.value,
-        x_new_update_fns=tuple([
-            lambda cv: dataclasses.replace(
-                cv,
-                right_face_constraint=final_right_boundary,
-            )
-        ]),
+        state_t_plus_dt=dataclasses.replace(
+            state_t_plus_dt,
+            temp_ion=dataclasses.replace(
+                x_0, right_face_constraint=final_right_boundary
+            ),
+        ),
+        evolving_names=evolving_names,
         coeffs_old=coeffs,
         # Assume no time-dependent params.
         coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,
@@ -548,6 +589,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_constraint=initial_right_boundary,
     )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    geo = geometry.build_circular_geometry(config)
+    state_t_plus_dt = initial_states.initial_state(config, geo)
+    state_t_plus_dt = dataclasses.replace(
+        state_t_plus_dt,
+        temp_ion=x_0,
+    )
+    evolving_names = tuple(['temp_ion'])
 
     with self.subTest('static_boundary_conditions'):
       # When the boundary conditions are not time-dependent and stay at 0, the
@@ -555,7 +603,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
       residual, _ = residual_and_loss.theta_method_block_residual(
           x_new_vec=x_0.value,
           x_old=(x_0,),
-          x_new_update_fns=tuple([lambda cv: cv]),  # no-op.
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           dt=dt,
           coeffs_old=coeffs,
           coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,
@@ -571,12 +620,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
       residual, _ = residual_and_loss.theta_method_block_residual(
           x_new_vec=x_0.value,
           x_old=(x_0,),
-          x_new_update_fns=tuple([
-              lambda cv: dataclasses.replace(
-                  cv,
-                  right_face_constraint=final_right_boundary,
-              )
-          ]),
+          state_t_plus_dt=dataclasses.replace(
+              state_t_plus_dt,
+              temp_ion=dataclasses.replace(
+                  x_0, right_face_constraint=final_right_boundary
+              ),
+          ),
+          evolving_names=evolving_names,
           dt=dt,
           coeffs_old=coeffs,
           coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,
@@ -588,12 +638,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
       residual, _ = residual_and_loss.theta_method_block_residual(
           x_new_vec=x_0.value,
           x_old=(x_0,),
-          x_new_update_fns=tuple([
-              lambda cv: dataclasses.replace(
-                  cv,
-                  right_face_constraint=final_right_boundary,
-              )
-          ]),
+          state_t_plus_dt=dataclasses.replace(
+              state_t_plus_dt,
+              temp_ion=dataclasses.replace(
+                  x_0, right_face_constraint=final_right_boundary
+              ),
+          ),
+          evolving_names=evolving_names,
           dt=dt,
           coeffs_old=coeffs,
           coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,

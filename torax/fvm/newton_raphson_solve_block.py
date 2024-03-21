@@ -17,7 +17,6 @@
 See function docstring for details.
 """
 
-import dataclasses
 import functools
 from typing import Callable, Union
 
@@ -30,8 +29,10 @@ from torax import config_slice
 from torax import fvm
 from torax import geometry
 from torax import jax_utils
+from torax import state as state_module
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
+from torax.fvm import fvm_conversions
 from torax.fvm import residual_and_loss
 from torax.stepper import predictor_corrector_method
 
@@ -97,7 +98,8 @@ def _log_iterations(
 
 def newton_raphson_solve_block(
     x_old: tuple[cell_variable.CellVariable, ...],
-    x_new_update_fns: tuple[cell_variable.CellVariableUpdateFn, ...],
+    state_t_plus_dt: state_module.State,
+    evolving_names: tuple[str, ...],
     dt: jax.Array,
     coeffs_callback: Block1DCoeffsCallback,
     dynamic_config_slice_t: config_slice.DynamicConfigSlice,
@@ -141,8 +143,11 @@ def newton_raphson_solve_block(
   Args:
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
-    x_new_update_fns: Tuple containing callables that update the CellVariables
-      in x_new to the correct boundary conditions at time t + dt.
+    state_t_plus_dt: Sim state which contains all available prescribed
+      quantities at the end of the time step. This includes evolving boundary
+      conditions and prescribed time-dependent profiles that are not being
+      evolved by the PDE system.
+    evolving_names: The names of variables within the state that should evolve.
     dt: Discrete time step.
     coeffs_callback: Calculates diffusion, convection etc. coefficients given a
       state. Repeatedly called by the iterative optimizer.
@@ -196,8 +201,6 @@ def newton_raphson_solve_block(
 
   coeffs_old = coeffs_callback(x_old, dynamic_config_slice_t)
 
-  num_channels = len(x_old)
-
   match initial_guess_mode:
     # LINEAR initial guess will provide the initial guess using the predictor-
     # corrector method if predictor_corrector=True in the solver config
@@ -216,16 +219,17 @@ def newton_raphson_solve_block(
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
           init_val=init_val,
-          x_new_update_fns=x_new_update_fns,
+          state_t_plus_dt=state_t_plus_dt,
+          evolving_names=evolving_names,
           dt=dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
           static_config_slice=static_config_slice,
       )
-      init_x_new_vec = jnp.concatenate([var.value for var in init_x_new])
+      init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case InitialGuessMode.X_OLD:
-      init_x_new_vec = jnp.concatenate([var.value for var in x_old])
+      init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(x_old)
     case _:
       raise ValueError(
           f'Unknown option for first guess in iterations: {initial_guess_mode}'
@@ -237,7 +241,8 @@ def newton_raphson_solve_block(
       residual_and_loss.theta_method_block_residual,
       dt=dt,
       x_old=x_old,
-      x_new_update_fns=x_new_update_fns,
+      state_t_plus_dt=state_t_plus_dt,
+      evolving_names=evolving_names,
       coeffs_callback=coeffs_callback,
       coeffs_old=coeffs_old,
       dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
@@ -283,15 +288,11 @@ def newton_raphson_solve_block(
   # carry out iterations. jax.lax.while needed for JAX-compliance
   output_state = jax.lax.while_loop(cond_fun, body_fun, initial_state)
 
-  x_new_values = jnp.split(output_state['x'], num_channels)
-  # Make new CellVariable instances with updated values and constraints.
-  x_new = [
-      update_boundary_fn(dataclasses.replace(var, value=value))
-      for var, value, update_boundary_fn in zip(
-          x_old, x_new_values, x_new_update_fns
-      )
-  ]
-  x_new = tuple(x_new)
+  # Create updated CellVariable instances based on state_plus_dt which has
+  # updated boundary conditions and prescribed profiles.
+  x_new = fvm_conversions.vec_to_cell_variable_tuple(
+      output_state['x'], state_t_plus_dt, evolving_names
+  )
 
   # Tell the caller whether or not x_new successfully reduces the residual below
   # the tolerance by providing an extra output, error.
