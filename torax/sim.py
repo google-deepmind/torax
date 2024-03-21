@@ -143,7 +143,6 @@ class CoeffsCallback:
         mask=self.mask,
         explicit_source_profiles=self.explicit_source_profiles,
         sources=self.sources,
-        dens_eq=self.static_config_slice.dens_eq,
         use_pereverzev=use_pereverzev,
     )
 
@@ -199,10 +198,7 @@ class SimulationStepFn:
       time_step_calculator: Calculates the dt for each time step.
       transport_model: Calculates diffusion and convection coefficients.
     """
-    self._stepper = stepper
-    self._stepper_fn = jax_utils.jit(
-        stepper, static_argnames=['static_config_slice']
-    )
+    self._stepper_fn = stepper
     self._time_step_calculator = time_step_calculator
     self._transport_model = jax_utils.jit(
         transport_model.__call__,
@@ -210,7 +206,7 @@ class SimulationStepFn:
 
   @property
   def stepper(self) -> stepper_lib.Stepper:
-    return self._stepper
+    return self._stepper_fn
 
   def __call__(
       self,
@@ -410,7 +406,7 @@ class SimulationStepFn:
 
     # Update ohmic and bootstrap current based on new state
     output_state.state.mesh_state = update_current_distribution(
-        sources=self._stepper.sources,
+        sources=self._stepper_fn.sources,
         dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
         state=output_state.state.mesh_state,
@@ -418,7 +414,7 @@ class SimulationStepFn:
 
     # Update psidot based on new state
     output_state.state.mesh_state = update_psidot(
-        sources=self._stepper.sources,
+        sources=self._stepper_fn.sources,
         dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
         state=output_state.state.mesh_state,
@@ -839,7 +835,7 @@ def run_simulation(
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
     # set to 0.
-    explicit_source_profile = source_profiles_lib.build_source_profiles(
+    explicit_source_profiles = source_profiles_lib.build_source_profiles(
         sources=step_fn.stepper.sources,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
@@ -853,7 +849,7 @@ def run_simulation(
         geo,
         dynamic_config_slice_provider,
         static_config_slice,
-        explicit_source_profile,
+        explicit_source_profiles,
     )
     if spectator is not None:
       _update_spectator(spectator, torax_output)

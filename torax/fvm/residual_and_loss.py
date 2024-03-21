@@ -19,36 +19,45 @@ these to scalar functions, for example using mean squared error.
 Residual functions are for use with e.g. the Newton-Raphson method
 while loss functions can be minimized using any optimization method.
 """
-
+import functools
 import jax
 from jax import numpy as jnp
+import jaxopt
+from torax import calc_coeffs
 from torax import config_slice
+from torax import geometry
 from torax import jax_utils
 from torax import state as state_module
+from torax import update_state
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import discrete_system
 from torax.fvm import fvm_conversions
+from torax.sources import source_profiles
+from torax.transport_model import transport_model as transport_model_lib
 
 AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffs = block_1d_coeffs.Block1DCoeffs
 Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 
 
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'convection_dirichlet_mode',
+        'convection_neumann_mode',
+    ],
+)
 def theta_method_matrix_equation(
-    x_new_vec: jax.Array,
+    x_new_guess: tuple[cell_variable.CellVariable, ...],
     x_old: tuple[cell_variable.CellVariable, ...],
-    state_t_plus_dt: state_module.State,
-    evolving_names: tuple[str, ...],
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
-    coeffs_callback: Block1DCoeffsCallback,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    coeffs_new: Block1DCoeffs,
     theta_imp: jax.Array | float = 1.0,
-    allow_pereverzev: bool = False,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
-) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array, AuxiliaryOutput]:
+) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
   """Returns the left-hand and right-hand sides of the theta method equation.
 
   The theta method solves a differential equation
@@ -98,35 +107,12 @@ def theta_method_matrix_equation(
   ```
 
   Args:
-    x_new_vec: A single vector containing all values of x_new concatenated
-      together.
+    x_new_guess: Current guess of x_new defined as a tuple of CellVariables.
     x_old: The starting x defined as a tuple of CellVariables.
-    state_t_plus_dt: Sim state which contains all available prescribed
-      quantities at the end of the time step. This includes evolving boundary
-      conditions and prescribed time-dependent profiles that are not being
-      evolved by the PDE system.
-    evolving_names: The names of variables within the state that should evolve.
     dt: Time step duration.
-    coeffs_old: The coefficients calculated at x_old. We have this passed in
-      separately rather than using `coeffs_callback` to reduce the size of the
-      computation graph passed to the `minimize` function and thus reduces
-      compilation time.
-    coeffs_callback: Calculates diffusion, convection etc. coefficients given a
-      state. Repeatedly called by the nonlinear solver as x_new changes. This
-      callback is allowed to inject "fake" coefficients, e.g. such as keeping
-      some coefficients locked to coeffs_old, introducing stop_gradient, etc. In
-      particular a callback that injects coeffs_old with stop_gradient on every
-      timestep should make the nonlinear solver solution equivalent to the
-      `implicit_solve_block` solution. This function assumes that the callback
-      has already been called once with first=True to create `coeffs_old`.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt. Used
-      with the coeffs_callback to compute the coefficients used with x_new.
+    coeffs_old: The coefficients calculated at x_old.
+    coeffs_new: The coefficients calculated at x_new.
     theta_imp: Coefficient on implicit term of theta method.
-    allow_pereverzev: Passed to the coeffs_callback to determine whether the
-      callback can use pereverzev-corrigan terms. These are typically not
-      desired with nonlinear solvers. Note that, if True, the actual use of the
-      terms depends on the static_config_slice.solver.use_pereverzev (depending
-      on the implementation of the coeffs_callback).
     convection_dirichlet_mode: See docstring of the `convection_terms` function,
       `dirichlet_mode` argument.
     convection_neumann_mode: See docstring of the `convection_terms` function,
@@ -141,15 +127,7 @@ def theta_method_matrix_equation(
      - auxiliary output from calculating new coefficients for x_new.
   """
 
-  # Convert input flattened evolving state vector to tuple of CellVariables
-  x_new = fvm_conversions.vec_to_cell_variable_tuple(
-      x_new_vec, state_t_plus_dt, evolving_names
-  )
-
-  coeffs_new = coeffs_callback(
-      x_new, dynamic_config_slice_t_plus_dt, allow_pereverzev=allow_pereverzev
-  )
-  aux_output = coeffs_new.auxiliary_outputs
+  x_new_guess_vec = fvm_conversions.cell_variable_tuple_to_vec(x_new_guess)
 
   tc_out_old = jnp.concatenate(coeffs_old.transient_out_cell)
   tc_in_old = jnp.concatenate(coeffs_old.transient_in_cell)
@@ -172,7 +150,7 @@ def theta_method_matrix_equation(
       msg='tc_out_old*tc_in_new unexpectedly < eps',
   )
 
-  left_transient = jnp.identity(len(x_new_vec))
+  left_transient = jnp.identity(len(x_new_guess_vec))
   right_transient = jnp.diag(jnp.squeeze(tc_in_old / tc_in_new))
 
   c_mat_old, c_old = discrete_system.calc_c(
@@ -183,7 +161,7 @@ def theta_method_matrix_equation(
   )
   c_mat_new, c_new = discrete_system.calc_c(
       coeffs_new,
-      x_new,
+      x_new_guess,
       convection_dirichlet_mode,
       convection_neumann_mode,
   )
@@ -199,18 +177,34 @@ def theta_method_matrix_equation(
   )
   rhs_vec = dt * theta_exp * (1 / (tc_out_old * tc_in_new)) * c_old
 
-  return lhs_mat, lhs_vec, rhs_mat, rhs_vec, aux_output
+  return lhs_mat, lhs_vec, rhs_mat, rhs_vec
 
 
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'static_config_slice',
+        'evolving_names',
+        'transport_model',
+        'sources',
+        'convection_dirichlet_mode',
+        'convection_neumann_mode',
+    ],
+)
 def theta_method_block_residual(
-    x_new_vec: jax.Array,
+    x_new_guess_vec: jax.Array,
     x_old: tuple[cell_variable.CellVariable, ...],
     state_t_plus_dt: state_module.State,
     evolving_names: tuple[str, ...],
+    geo: geometry.Geometry,
+    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_config_slice: config_slice.StaticConfigSlice,
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
-    coeffs_callback: Block1DCoeffsCallback,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    transport_model: transport_model_lib.TransportModel,
+    sources: source_profiles.Sources,
+    mask: jax.Array,
+    explicit_source_profiles: source_profiles.SourceProfiles,
     theta_imp: jax.Array | float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
@@ -218,29 +212,25 @@ def theta_method_block_residual(
   """Residual of theta-method equation for state at next time-step.
 
   Args:
-    x_new_vec: A single vector containing all values of x_new concatenated
-      together.
+    x_new_guess_vec: Flattened array of current guess of x_new for all evolving
+      state profiles.
     x_old: The starting x defined as a tuple of CellVariables.
     state_t_plus_dt: Sim state which contains all available prescribed
       quantities at the end of the time step. This includes evolving boundary
       conditions and prescribed time-dependent profiles that are not being
       evolved by the PDE system.
     evolving_names: The names of variables within the state that should evolve.
+    geo: geometry object
+    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    static_config_slice: Static runtime configuration. Changes to these config
+      params will trigger recompilation
     dt: Time step duration.
-    coeffs_old: The coefficients calculated at x_old. We have this passed in
-      separately rather than using `coeffs_callback` to reduce the size of the
-      computation graph passed to the `minimize` function and thus reduces
-      compilation time.
-    coeffs_callback: Calculates diffusion, convection etc. coefficients given a
-      state. Repeatedly called by the nonlinear solver as x_new changes. This
-      callback is allowed to inject "fake" coefficients, e.g. such as keeping
-      some coefficients locked to coeffs_old, introducing stop_gradient, etc. In
-      particular a callback that injects coeffs_old with stop_gradient on every
-      timestep should make the nonlinear solver solution equivalent to the
-      `implicit_solve_block` solution. This function assumes that the callback
-      has already been called once with first=True to create `coeffs_old`.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt. Used
-      with the coeffs_callback to compute the coefficients used with x_new.
+    coeffs_old: The coefficients calculated at x_old.
+    transport_model: Turbulent transport model callable
+    sources: Collection of source callables to generate source PDE coefficients
+    mask: Boolean mask array setting pedestal zone
+    explicit_source_profiles: Pre-calculated sources implemented as explicit
+      sources in the PDE
     theta_imp: Coefficient on implicit term of theta method.
     convection_dirichlet_mode: See docstring of the `convection_terms` function,
       `dirichlet_mode` argument.
@@ -249,39 +239,91 @@ def theta_method_block_residual(
 
   Returns:
     residual: Vector residual between LHS and RHS of the theta method equation.
-    aux_output: Auxiliary outputs coming from the coeffs_callback()
   """
   x_old_vec = jnp.concatenate([var.value for var in x_old])
-  lhs_mat, lhs_vec, rhs_mat, rhs_vec, aux_output = theta_method_matrix_equation(
-      x_new_vec=x_new_vec,
-      x_old=x_old,
-      state_t_plus_dt=state_t_plus_dt,
+  # Create updated CellVariable instances based on state_plus_dt which has
+  # updated boundary conditions and prescribed profiles.
+  x_new_guess = fvm_conversions.vec_to_cell_variable_tuple(
+      x_new_guess_vec, state_t_plus_dt, evolving_names
+  )
+  state_t_plus_dt = update_state.update_state(
+      state_t_plus_dt,
+      x_new_guess,
+      evolving_names,
+      dynamic_config_slice_t_plus_dt,
+  )
+  coeffs_new = calc_coeffs.calc_coeffs(
+      state=state_t_plus_dt,
       evolving_names=evolving_names,
+      geo=geo,
+      dynamic_config_slice=dynamic_config_slice_t_plus_dt,
+      static_config_slice=static_config_slice,
+      transport_model=transport_model,
+      mask=mask,
+      explicit_source_profiles=explicit_source_profiles,
+      sources=sources,
+      use_pereverzev=False,
+  )
+
+  lhs_mat, lhs_vec, rhs_mat, rhs_vec = theta_method_matrix_equation(
+      x_new_guess=x_new_guess,
+      x_old=x_old,
       dt=dt,
       coeffs_old=coeffs_old,
-      coeffs_callback=coeffs_callback,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      coeffs_new=coeffs_new,
       theta_imp=theta_imp,
       convection_dirichlet_mode=convection_dirichlet_mode,
       convection_neumann_mode=convection_neumann_mode,
   )
 
-  lhs = jnp.dot(lhs_mat, x_new_vec) + lhs_vec
+  lhs = jnp.dot(lhs_mat, x_new_guess_vec) + lhs_vec
   rhs = jnp.dot(rhs_mat, x_old_vec) + rhs_vec
 
   residual = lhs - rhs
-  return residual, aux_output
+  return residual, coeffs_new.auxiliary_outputs
 
 
+theta_method_block_jacobian = jax.jacfwd(
+    theta_method_block_residual, has_aux=True
+)
+theta_method_block_jacobian = jax_utils.jit(
+    theta_method_block_jacobian,
+    static_argnames=[
+        'static_config_slice',
+        'evolving_names',
+        'transport_model',
+        'sources',
+        'convection_dirichlet_mode',
+        'convection_neumann_mode',
+    ],
+)
+
+
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'static_config_slice',
+        'evolving_names',
+        'transport_model',
+        'sources',
+        'convection_dirichlet_mode',
+        'convection_neumann_mode',
+    ],
+)
 def theta_method_block_loss(
-    x_new_vec: jax.Array,
+    x_new_guess_vec: jax.Array,
     x_old: tuple[cell_variable.CellVariable, ...],
     state_t_plus_dt: state_module.State,
     evolving_names: tuple[str, ...],
+    geo: geometry.Geometry,
+    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_config_slice: config_slice.StaticConfigSlice,
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
-    coeffs_callback: Block1DCoeffsCallback,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    transport_model: transport_model_lib.TransportModel,
+    sources: source_profiles.Sources,
+    mask: jax.Array,
+    explicit_source_profiles: source_profiles.SourceProfiles,
     theta_imp: jax.Array | float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
@@ -289,29 +331,25 @@ def theta_method_block_loss(
   """Loss for the optimizer method of nonlinear solution.
 
   Args:
-    x_new_vec: A single vector containing all values of x_new concatenated
-      together.
+    x_new_guess_vec: Flattened array of current guess of x_new for all evolving
+      state profiles.
     x_old: The starting x defined as a tuple of CellVariables.
     state_t_plus_dt: Sim state which contains all available prescribed
       quantities at the end of the time step. This includes evolving boundary
       conditions and prescribed time-dependent profiles that are not being
       evolved by the PDE system.
     evolving_names: The names of variables within the state that should evolve.
+    geo: geometry object
+    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    static_config_slice: Static runtime configuration. Changes to these config
+      params will trigger recompilation
     dt: Time step duration.
-    coeffs_old: The coefficients calculated at x_old. We have this passed in
-      separately rather than using `coeffs_callback` to reduce the size of the
-      computation graph passed to the `minimize` function and thus reduces
-      compilation time.
-    coeffs_callback: Calculates diffusion, convection etc. coefficients given a
-      state. Repeatedly called by the nonlinear solver as x_new changes. This
-      callback is allowed to inject "fake" coefficients, e.g. such as keeping
-      some coefficients locked to coeffs_old, introducing stop_gradient, etc. In
-      particular a callback that injects coeffs_old with stop_gradient on every
-      timestep should make the nonlinear solver solution equivalent to the
-      `implicit_solve_block` solution. This function assumes that the callback
-      has already been called once with first=True to create `coeffs_old`.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt. Used
-      with the coeffs_callback to compute the coefficients used with x_new.
+    coeffs_old: The coefficients calculated at x_old.
+    transport_model: turbulent transport model callable
+    sources: collection of source callables to generate source PDE coefficients
+    mask: boolean mask array setting pedestal zone
+    explicit_source_profiles: pre-calculated sources implemented as explicit
+      sources in the PDE
     theta_imp: Coefficient on implicit term of theta method.
     convection_dirichlet_mode: See docstring of the `convection_terms` function,
       `dirichlet_mode` argument.
@@ -320,21 +358,118 @@ def theta_method_block_loss(
 
   Returns:
     loss: mean squared loss of theta method residual.
-    aux_output: Auxiliary output coming from the coeffs_callback.
   """
 
   residual, aux_output = theta_method_block_residual(
-      x_new_vec=x_new_vec,
+      x_new_guess_vec=x_new_guess_vec,
       x_old=x_old,
       state_t_plus_dt=state_t_plus_dt,
       evolving_names=evolving_names,
+      geo=geo,
+      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_config_slice=static_config_slice,
       dt=dt,
       coeffs_old=coeffs_old,
-      coeffs_callback=coeffs_callback,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      transport_model=transport_model,
+      sources=sources,
+      mask=mask,
+      explicit_source_profiles=explicit_source_profiles,
       theta_imp=theta_imp,
       convection_dirichlet_mode=convection_dirichlet_mode,
       convection_neumann_mode=convection_neumann_mode,
   )
   loss = jnp.mean(jnp.square(residual))
   return loss, aux_output
+
+
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'static_config_slice',
+        'evolving_names',
+        'transport_model',
+        'sources',
+        'convection_dirichlet_mode',
+        'convection_neumann_mode',
+    ],
+)
+def jaxopt_solver(
+    init_x_new_vec: jax.Array,
+    x_old: tuple[cell_variable.CellVariable, ...],
+    state_t_plus_dt: state_module.State,
+    evolving_names: tuple[str, ...],
+    geo: geometry.Geometry,
+    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_config_slice: config_slice.StaticConfigSlice,
+    dt: jax.Array,
+    coeffs_old: Block1DCoeffs,
+    transport_model: transport_model_lib.TransportModel,
+    sources: source_profiles.Sources,
+    mask: jax.Array,
+    explicit_source_profiles: source_profiles.SourceProfiles,
+    maxiter: int,
+    tol: float,
+    theta_imp: jax.Array | float = 1.0,
+    convection_dirichlet_mode: str = 'ghost',
+    convection_neumann_mode: str = 'ghost',
+) -> tuple[jax.Array, float, AuxiliaryOutput]:
+  """Advances jaxopt solver by one timestep.
+
+  Args:
+    init_x_new_vec: Flattened array of initial guess of x_new for all evolving
+      state profiles.
+    x_old: The starting x defined as a tuple of CellVariables.
+    state_t_plus_dt: Sim state which contains all available prescribed
+      quantities at the end of the time step. This includes evolving boundary
+      conditions and prescribed time-dependent profiles that are not being
+      evolved by the PDE system.
+    evolving_names: The names of variables within the state that should evolve.
+    geo: geometry object
+    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    static_config_slice: Static runtime configuration. Changes to these config
+      params will trigger recompilation
+    dt: Time step duration.
+    coeffs_old: The coefficients calculated at x_old.
+    transport_model: turbulent transport model callable
+    sources: collection of source callables to generate source PDE coefficients
+    mask: boolean mask array setting pedestal zone
+    explicit_source_profiles: pre-calculated sources implemented as explicit
+      sources in the PDE
+    maxiter: maximum number of iterations of jaxopt solver.
+    tol: tolerance for jaxopt solver convergence.
+    theta_imp: Coefficient on implicit term of theta method.
+    convection_dirichlet_mode: See docstring of the `convection_terms` function,
+      `dirichlet_mode` argument.
+    convection_neumann_mode: See docstring of the `convection_terms` function,
+      `neumann_mode` argument.
+
+  Returns:
+    x_new_vec: Flattened evolving profile array after jaxopt evolution.
+    aux_output: auxilliary outputs from calc_coeffs.
+  """
+
+  loss = functools.partial(
+      theta_method_block_loss,
+      dt=dt,
+      x_old=x_old,
+      state_t_plus_dt=state_t_plus_dt,
+      geo=geo,
+      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_config_slice=static_config_slice,
+      evolving_names=evolving_names,
+      coeffs_old=coeffs_old,
+      transport_model=transport_model,
+      sources=sources,
+      mask=mask,
+      explicit_source_profiles=explicit_source_profiles,
+      theta_imp=theta_imp,
+      convection_dirichlet_mode=convection_dirichlet_mode,
+      convection_neumann_mode=convection_neumann_mode,
+  )
+  solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, has_aux=True)
+  solver_output = solver.run(init_x_new_vec)
+  x_new_vec = solver_output.params
+  aux_output = solver_output.state.aux
+  final_loss, _ = loss(x_new_vec)
+
+  return x_new_vec, final_loss, aux_output

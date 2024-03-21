@@ -34,7 +34,9 @@ from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import fvm_conversions
 from torax.fvm import residual_and_loss
+from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
+from torax.transport_model import transport_model as transport_model_lib
 
 AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
@@ -106,6 +108,10 @@ def newton_raphson_solve_block(
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
+    transport_model: transport_model_lib.TransportModel,
+    sources: source_profiles.Sources,
+    mask: jax.Array,
+    explicit_source_profiles: source_profiles.SourceProfiles,
     theta_imp: Union[jax.Array, float] = 1.0,
     log_iterations: bool = False,
     convection_dirichlet_mode: str = 'ghost',
@@ -157,7 +163,12 @@ def newton_raphson_solve_block(
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
       parrams will trigger recompilation
-    geo: geometry object used to initialize auxiliary outputs
+    geo: Geometry object
+    transport_model: Turbulent transport model callable
+    sources: Collection of source callables to generate source PDE coefficients
+    mask: Boolean mask array setting pedestal zone
+    explicit_source_profiles: Pre-calculated sources implemented as explicit
+      sources in the PDE
     theta_imp: Coefficient in [0, 1] determining which solution method to use.
       We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) + (1 -
       theta_imp) F(t_old). Three values of theta_imp correspond to named
@@ -195,7 +206,7 @@ def newton_raphson_solve_block(
     error: int. 0 signifies residual < tol at exit, 1 signifies residual > tol,
       2 signifies tol < residual < coarse_tol, deemed acceptable if the solver
       steps became small
-    aux_output: Extra auxiliary output from the coeffs_callback.
+    aux_output: Extra auxiliary output from calc_coeffs.
   """
   # pyformat: enable
 
@@ -237,21 +248,44 @@ def newton_raphson_solve_block(
 
   # Create a residual() function with only one argument: x_new.
   # The other arguments (dt, x_old, etc.) are fixed.
+  # Note that state_t_plus_dt only contains the known quantities at
+  # t_plus_dt, e.g. boundary conditions and prescribed profiles.
   residual_fun = functools.partial(
       residual_and_loss.theta_method_block_residual,
       dt=dt,
       x_old=x_old,
       state_t_plus_dt=state_t_plus_dt,
-      evolving_names=evolving_names,
-      coeffs_callback=coeffs_callback,
-      coeffs_old=coeffs_old,
+      geo=geo,
       dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_config_slice=static_config_slice,
+      evolving_names=evolving_names,
+      coeffs_old=coeffs_old,
+      transport_model=transport_model,
+      sources=sources,
+      mask=mask,
+      explicit_source_profiles=explicit_source_profiles,
       theta_imp=theta_imp,
       convection_dirichlet_mode=convection_dirichlet_mode,
       convection_neumann_mode=convection_neumann_mode,
   )
-
-  jacobian_fun = jax.jacfwd(residual_fun, has_aux=True)
+  jacobian_fun = functools.partial(
+      residual_and_loss.theta_method_block_jacobian,
+      dt=dt,
+      x_old=x_old,
+      state_t_plus_dt=state_t_plus_dt,
+      geo=geo,
+      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_config_slice=static_config_slice,
+      evolving_names=evolving_names,
+      coeffs_old=coeffs_old,
+      transport_model=transport_model,
+      sources=sources,
+      mask=mask,
+      explicit_source_profiles=explicit_source_profiles,
+      theta_imp=theta_imp,
+      convection_dirichlet_mode=convection_dirichlet_mode,
+      convection_neumann_mode=convection_neumann_mode,
+  )
 
   cond_fun = functools.partial(cond, tol=tol, tau_min=tau_min, maxiter=maxiter)
   delta_cond_fun = functools.partial(
@@ -286,7 +320,7 @@ def newton_raphson_solve_block(
     )
 
   # carry out iterations. jax.lax.while needed for JAX-compliance
-  output_state = jax.lax.while_loop(cond_fun, body_fun, initial_state)
+  output_state = jax_utils.py_while(cond_fun, body_fun, initial_state)
 
   # Create updated CellVariable instances based on state_plus_dt which has
   # updated boundary conditions and prescribed profiles.
@@ -362,7 +396,7 @@ def body(
       'delta': jnp.linalg.solve(a_mat, rhs),
       'tau': jnp.array(1.0),
   }
-  output_delta_state = jax.lax.while_loop(
+  output_delta_state = jax_utils.py_while(
       delta_cond_fun, delta_body_fun, initial_delta_state
   )
 

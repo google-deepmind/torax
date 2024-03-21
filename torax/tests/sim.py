@@ -66,24 +66,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests that optimizer gets the same result as the linear solver
-      # when coefficients are frozen.
-      (
-          'test_frozen_optimizer',
-          'test_frozen_optimizer.py',
-          'test_implicit',
-          _ALL_PROFILES,
-          0,
-      ),
-      # Tests that Newton-Raphson gets the same result as the linear solver
-      # when the coefficient matrix is frozen
-      (
-          'test_frozen_newton_raphson',
-          'test_frozen_newton_raphson.py',
-          'test_implicit',
-          _ALL_PROFILES,
-          0,
-      ),
       # Test ion-electron heat exchange at low density
       (
           'test_qei',

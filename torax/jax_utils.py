@@ -269,12 +269,11 @@ def py_while(
 def py_fori_loop(
     lower: int, upper: int, body_fun: Callable[[int, T], T], init_val: T
 ) -> T:
-  """Optional pure Python implementation of jax.lax.fori_loop.
+  """Pure Python implementation of jax.lax.fori_loop.
 
-  jax.lax.fori_loop jits by default, which we want to avoid if compilation is
-  disabled. This function allows us to branch between a native Python for loop 
-  implementation, and jax.lax.fori_loop, while abstracting away the additional
-  logic based on the compilation environment variables. 
+  This gives us a way to write code that could easily be changed to be
+  Jax-compatible in the future, if we want to expand the scope of the jit
+  compilation.
 
   Args:
     lower: lower integer of loop
@@ -289,10 +288,7 @@ def py_fori_loop(
 
   .. _Haskell-like type signature: https://wiki.haskell.org/Type_signature
   """
-  if _compilation_enabled:
-    val = jax.lax.fori_loop(lower, upper, body_fun, init_val)
-  else:
-    val = init_val
-    for i in range(lower, upper):
-      val = body_fun(i, val)
+  val = init_val
+  for i in range(lower, upper):
+    val = body_fun(i, val)
   return val

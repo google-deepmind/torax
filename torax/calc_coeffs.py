@@ -17,16 +17,17 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 
 import chex
 import jax
 import jax.numpy as jnp
 from torax import config_slice
 from torax import constants
-from torax import fvm
 from torax import geometry
 from torax import jax_utils
 from torax import state as state_module
+from torax.fvm import block_1d_coeffs
 from torax.sources import qei_source as qei_source_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -169,6 +170,15 @@ def calculate_pereverzev_flux(
   )
 
 
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'transport_model',
+        'static_config_slice',
+        'evolving_names',
+        'sources',
+    ],
+)
 def calc_coeffs(
     state: state_module.State,
     evolving_names: tuple[str, ...],
@@ -179,9 +189,8 @@ def calc_coeffs(
     mask: jax.Array,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     sources: source_profiles_lib.Sources,
-    dens_eq: bool = False,
     use_pereverzev: bool = False,
-) -> fvm.Block1DCoeffs:
+) -> block_1d_coeffs.Block1DCoeffs:
   """Calculates Block1DCoeffs for the time step described by `state`.
 
   Args:
@@ -206,7 +215,6 @@ def calc_coeffs(
       zeros.
     sources: All TORAX source/sinks that generate the explicit and implicit
       source profiles used as terms for the mesh state equations.
-    dens_eq: If True, solving for density.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
 
   Returns:
@@ -316,7 +324,7 @@ def calc_coeffs(
   v_face_el = transport_coeffs.v_face_el
   d_face_psi = geo.G2_face / geo.J_face / geo.rmax**2
 
-  if dens_eq:
+  if static_config_slice.dens_eq:
     if d_face_el is None or v_face_el is None:
       raise NotImplementedError(
           f'{type(transport_model)} does not support the density equation.'
@@ -466,29 +474,26 @@ def calc_coeffs(
 
   # Pereverzev-Corrigan correction for heat and particle transport
   # (deals with stiff nonlinearity of transport coefficients)
-  # TODO( b/312726008): Change this logic to a jax.lax.cond or
-  # jnp.where so that use_pereverzev is a dynamic param rather than static.
-  if use_pereverzev:
-    # Add extra flux terms which are stiff but zero at present state
-    (
-        chi_face_per_ion,
-        chi_face_per_el,
-        v_heat_face_ion,
-        v_heat_face_el,
-        d_face_per_el,
-        v_face_per_el,
-    ) = calculate_pereverzev_flux(
-        state,
-        geo,
-        dynamic_config_slice,
-    )
-    full_chi_face_ion += chi_face_per_ion
-    full_chi_face_el += chi_face_per_el
-    full_d_face_el += d_face_per_el
-    full_v_face_el += v_face_per_el
-  else:
-    v_heat_face_ion = None
-    v_heat_face_el = None
+  # TODO( b/311653933) this forces us to include value 0
+  # convection terms in discrete system, slowing compilation down by ~10%.
+  # See if can improve with a different pattern.
+  (
+      chi_face_per_ion,
+      chi_face_per_el,
+      v_heat_face_ion,
+      v_heat_face_el,
+      d_face_per_el,
+      v_face_per_el,
+  ) = jax.lax.cond(
+      use_pereverzev,
+      lambda: calculate_pereverzev_flux(state, geo, dynamic_config_slice),
+      lambda: tuple([jnp.zeros_like(geo.r_face)] * 6),
+  )
+
+  full_chi_face_ion += chi_face_per_ion
+  full_chi_face_el += chi_face_per_el
+  full_d_face_el += d_face_per_el
+  full_v_face_el += v_face_per_el
 
   # Ion and electron heat sources.
   # Select which state to use for Qei.
@@ -623,7 +628,7 @@ def calc_coeffs(
   }
   source_cell = tuple(var_to_source.get(var) for var in evolving_names)
 
-  coeffs = fvm.Block1DCoeffs(
+  coeffs = block_1d_coeffs.Block1DCoeffs(
       transient_out_cell=transient_out_cell,
       transient_in_cell=transient_in_cell,
       d_face=d_face,
@@ -676,4 +681,3 @@ def _populate_aux_outputs_with_ion_el_heat_sources(
   aux_outputs.Qei = qei.qei_coef * (
       qei_state.temp_el.value - qei_state.temp_ion.value
   )
-

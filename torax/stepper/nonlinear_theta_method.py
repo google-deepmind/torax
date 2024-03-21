@@ -36,7 +36,14 @@ class NonlinearThetaMethod(stepper.Stepper):
 
   Attributes:
     transport_model: A TransportModel subclass, calculates transport coeffs.
-    callback_class: Which class should be used to calculate the coefficients.
+    sources: All TORAX sources used to compute both the explicit and implicit
+      source profiles used for each time step as terms in the state evolution
+      equations. Though the explicit profiles are computed outside the call to
+      Stepper, the same sources should be used to compute those. The Sources are
+      exposed here to provide a single source of truth for which sources are
+      used during a run.
+    callback_class: Which class should be used to calculate the PDE coefficients
+       for the linear and predictor-corrector initial guess routines.
   """
 
   def __init__(
@@ -81,6 +88,8 @@ class NonlinearThetaMethod(stepper.Stepper):
         state_t_plus_dt=state_t_plus_dt,
         evolving_names=evolving_names,
         geo=geo,
+        mask=mask,
+        explicit_source_profiles=explicit_source_profiles,
         dt=dt,
         coeffs_callback=coeffs_callback,
     )
@@ -97,6 +106,8 @@ class NonlinearThetaMethod(stepper.Stepper):
       state_t_plus_dt: state_module.State,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
+      mask: jax.Array,
+      explicit_source_profiles: source_profiles.SourceProfiles,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
@@ -144,6 +155,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       state_t_plus_dt: state_module.State,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
+      mask: jax.Array,
+      explicit_source_profiles: source_profiles.SourceProfiles,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
@@ -158,6 +171,10 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
         static_config_slice=static_config_slice,
         geo=geo,
+        transport_model=self.transport_model,
+        sources=self.sources,
+        mask=mask,
+        explicit_source_profiles=explicit_source_profiles,
         # theta_imp is not time-dependent. Not all parameters in the
         # dynamic_config_slice need to be time-dependent. They can simply change
         # from simulation run to simulation run without triggering a recompile.
@@ -223,6 +240,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       state_t_plus_dt: state_module.State,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
+      mask: jax.Array,
+      explicit_source_profiles: source_profiles.SourceProfiles,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
@@ -244,6 +263,10 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         # dynamic_config_slice need to be time-dependent. They can simply change
         # from simulation run to simulation run without triggering a recompile.
         theta_imp=dynamic_config_slice_t.solver.theta_imp,
+        transport_model=self.transport_model,
+        sources=self.sources,
+        mask=mask,
+        explicit_source_profiles=explicit_source_profiles,
         log_iterations=static_config_slice.solver.log_iterations,
         convection_dirichlet_mode=(
             static_config_slice.solver.convection_dirichlet_mode

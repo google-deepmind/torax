@@ -23,10 +23,10 @@ from jax import numpy as jnp
 from jax.scipy import integrate
 from torax import config_slice
 from torax import constants
-from torax import fvm
 from torax import geometry
 from torax import physics
 from torax import state as state_lib
+from torax.fvm import cell_variable
 from torax.sources import source
 from torax.sources import source_config
 
@@ -52,12 +52,12 @@ class BootstrapCurrentProfile:
 def calc_neoclassical(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    temp_ion: fvm.CellVariable,
-    temp_el: fvm.CellVariable,
-    ne: fvm.CellVariable,
-    ni: fvm.CellVariable,
+    temp_ion: cell_variable.CellVariable,
+    temp_el: cell_variable.CellVariable,
+    ne: cell_variable.CellVariable,
+    ni: cell_variable.CellVariable,
     jtot_face: jnp.ndarray,
-    psi: fvm.CellVariable,
+    psi: cell_variable.CellVariable,
 ) -> BootstrapCurrentProfile:
   """Calculates sigmaneo, j_bootstrap, and I_bootstrap.
 
@@ -334,12 +334,12 @@ class BootstrapCurrentSource(source.Source):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       state: state_lib.State | None = None,
-      temp_ion: fvm.CellVariable | None = None,
-      temp_el: fvm.CellVariable | None = None,
-      ne: fvm.CellVariable | None = None,
-      ni: fvm.CellVariable | None = None,
+      temp_ion: cell_variable.CellVariable | None = None,
+      temp_el: cell_variable.CellVariable | None = None,
+      ne: cell_variable.CellVariable | None = None,
+      ni: cell_variable.CellVariable | None = None,
       jtot_face: jnp.ndarray | None = None,
-      psi: fvm.CellVariable | None = None,
+      psi: cell_variable.CellVariable | None = None,
   ) -> BootstrapCurrentProfile:
     if not state and any([
         not temp_ion,

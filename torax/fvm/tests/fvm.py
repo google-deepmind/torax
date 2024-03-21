@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Unit tests for torax.fvm."""
-
+import copy
 import dataclasses
 from typing import Callable
 from absl.testing import absltest
@@ -21,15 +21,19 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax import calc_coeffs
 from torax import config as config_lib
 from torax import config_slice
 from torax import fvm
 from torax import geometry
 from torax import initial_states
-from torax.fvm import fvm_conversions
+from torax import physics
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
+from torax.sources import source_config
+from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import torax_refs
+from torax.transport_model import transport_model_factory
 
 
 class FVMTest(torax_refs.ReferenceValueTest):
@@ -181,7 +185,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
   ])
   def test_leftward_convection(self, num_cells, theta_imp, time_steps):
     """Tests that leftward convection spreads the right boundary value."""
-    config = config_lib.Config(nr=num_cells)
     num_faces = num_cells + 1
     right_boundary = jnp.array((1.0, -2.0))
     dr = jnp.array(1.0)
@@ -211,26 +214,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
         transient_in_cell=transient_cell,
         v_face=v_face,
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
-    geo = geometry.build_circular_geometry(config)
-    state_t_plus_dt = initial_states.initial_state(config, geo)
-    state_t_plus_dt = dataclasses.replace(
-        state_t_plus_dt,
-        temp_ion=x_0,
-        temp_el=x_1,
-    )
-    evolving_names = tuple(['temp_ion', 'temp_el'])
     for _ in range(time_steps):
-      x, _ = implicit_solve_block.implicit_solve_block(
+      x = implicit_solve_block.implicit_solve_block(
           x_old=x,
-          x_new_vec_guess=fvm_conversions.cell_variable_tuple_to_vec(x),
-          state_t_plus_dt=state_t_plus_dt,
-          evolving_names=evolving_names,
+          x_new_guess=x,
           dt=dt,
           coeffs_old=coeffs,
           # Assume no time-dependent params.
-          coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          coeffs_new=coeffs,
           theta_imp=theta_imp,
       )
 
@@ -273,8 +264,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # it's OK to look at either cell in isolation. Since there is 0 diffusion
     # and 0 convection the two cells don't interact.
     num_cells = 2
-    config = config_lib.Config(nr=num_cells)
-    dymamic_config_slice = config_slice.build_dynamic_config_slice(config)
 
     num_faces = num_cells + 1
     dt = jnp.array(1.0)
@@ -332,24 +321,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
           source_mat_cell=source_mat_cell,
           source_cell=source_cell,
       )
-      geo = geometry.build_circular_geometry(config)
-      state_t_plus_dt = initial_states.initial_state(config, geo)
-      state_t_plus_dt = dataclasses.replace(
-          state_t_plus_dt,
-          temp_ion=x_0,
-          temp_el=x_1,
-      )
-      evolving_names = tuple(['temp_ion', 'temp_el'])
 
-      x, _ = implicit_solve_block.implicit_solve_block(
+      x = implicit_solve_block.implicit_solve_block(
           x_old=x,
-          x_new_vec_guess=fvm_conversions.cell_variable_tuple_to_vec(x),
-          state_t_plus_dt=state_t_plus_dt,
-          evolving_names=evolving_names,
+          x_new_guess=x,
           coeffs_old=coeffs,
           # Assume no time-dependent params.
-          coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,  # pylint: disable=cell-var-from-loop
-          dynamic_config_slice_t_plus_dt=dymamic_config_slice,
+          coeffs_new=coeffs,
           **kwargs,
       )
 
@@ -370,57 +348,72 @@ class FVMTest(torax_refs.ReferenceValueTest):
   def test_nonlinear_solve_block_loss_minimum(
       self, num_cells, theta_imp, time_steps
   ):
-    """Tests that the solution yields zero residual and loss according to _nonlinear_solve_block_loss."""
-    config = config_lib.Config(nr=num_cells)
-    num_faces = num_cells + 1
-    right_boundary = jnp.array((1.0, -2.0))
-    dr = jnp.array(1.0)
-    x_0 = fvm.CellVariable(
-        value=jnp.zeros(num_cells),
-        dr=dr,
-        right_face_grad_constraint=None,
-        right_face_constraint=right_boundary[0],
-    )
-    x_1 = fvm.CellVariable(
-        value=jnp.zeros(num_cells),
-        dr=dr,
-        right_face_grad_constraint=None,
-        right_face_constraint=right_boundary[1],
-    )
-    x = (x_0, x_1)
-    # Not deeply investigated, but dt = 1. seems unstable for explicit method.
-    dt = jnp.array(1.0 - 0.5 * (theta_imp == 0))
-    # The actual setup for this problem is arbitrary, we just want an example
-    # problem to test the loss on
-    transient_cell_i = jnp.ones(num_cells)
-    transient_cell = (transient_cell_i, transient_cell_i)
-    v_face_i = -jnp.ones(num_faces)
-    v_face = (v_face_i, v_face_i)
-
-    coeffs = fvm.Block1DCoeffs(
-        transient_out_cell=transient_cell,
-        transient_in_cell=transient_cell,
-        v_face=v_face,
+    """Tests that the linear solution for a linear problem yields zero residual and loss."""
+    config = config_lib.Config(
+        nr=num_cells,
+        Qei_mult=0,
+        Ptot=0,
+        el_heat_eq=False,
+        set_pedestal=False,
+        solver=config_lib.SolverConfig(
+            predictor_corrector=False,
+            theta_imp=1.0,
+        ),
+        transport=config_lib.TransportConfig(
+            transport_model='constant',
+            chimin=0,
+            chii_const=1,
+        ),
+        sources=dict(
+            fusion_heat_source=source_config.SourceConfig(
+                source_type=source_config.SourceType.ZERO,
+            ),
+            ohmic_heat_source=source_config.SourceConfig(
+                source_type=source_config.SourceType.ZERO,
+            ),
+        ),
     )
     geo = geometry.build_circular_geometry(config)
-    state_t_plus_dt = initial_states.initial_state(config, geo)
-    state_t_plus_dt = dataclasses.replace(
-        state_t_plus_dt,
-        temp_ion=x_0,
-        temp_el=x_1,
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    static_config_slice = config_slice.build_static_config_slice(config)
+    sources = source_profiles_lib.Sources()
+    state = initial_states.initial_state(config, geo, sources)
+    evolving_names = tuple(['temp_ion'])
+    mask = physics.internal_boundary(
+        geo, dynamic_config_slice.Ped_top, dynamic_config_slice.set_pedestal
     )
-    evolving_names = tuple(['temp_ion', 'temp_el'])
+    explicit_source_profiles = source_profiles_lib.build_source_profiles(
+        sources=source_profiles_lib.Sources(),
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        state=state,
+        explicit=True,
+    )
+    transport_model = transport_model_factory.construct(config)
+    coeffs = calc_coeffs.calc_coeffs(
+        state=state,
+        evolving_names=evolving_names,
+        geo=geo,
+        dynamic_config_slice=dynamic_config_slice,
+        static_config_slice=static_config_slice,
+        transport_model=transport_model,
+        mask=mask,
+        explicit_source_profiles=explicit_source_profiles,
+        sources=sources,
+        use_pereverzev=False,
+    )
+    # dt well under the explicit stability limit for dx=1 and chi=1
+    dt = jnp.array(0.2)
+    # initialize x_new for timestepping
+    x_new = (state.temp_ion,)
     for _ in range(time_steps):
-      dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
-      x_new, _ = implicit_solve_block.implicit_solve_block(
-          x_old=x,
-          x_new_vec_guess=fvm_conversions.cell_variable_tuple_to_vec(x),
-          state_t_plus_dt=state_t_plus_dt,
-          evolving_names=evolving_names,
+      x_old = copy.deepcopy(x_new)
+      x_new = implicit_solve_block.implicit_solve_block(
+          x_old=x_old,
+          x_new_guess=x_new,
           coeffs_old=coeffs,
           # Assume no time-dependent params.
-          coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          coeffs_new=coeffs,
           dt=dt,
           theta_imp=theta_imp,
       )
@@ -428,58 +421,107 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # When the coefficients are kept constant, the loss
       # should just be a quadratic bowl with the linear
       # solution as the minimum with approximately zero residual
+      # state_t_plus_dt is not updated since coeffs stay constant here
       loss, _ = residual_and_loss.theta_method_block_loss(
-          x_new_vec=fvm_conversions.cell_variable_tuple_to_vec(x_new),
-          x_old=x,
-          state_t_plus_dt=state_t_plus_dt,
+          x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
+          x_old=x_old,
+          state_t_plus_dt=state,
           evolving_names=evolving_names,
+          geo=geo,
+          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_config_slice=config_slice.build_static_config_slice(config),
           dt=dt,
           coeffs_old=coeffs,
-          coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          transport_model=transport_model,
+          sources=sources,
+          mask=mask,
+          explicit_source_profiles=explicit_source_profiles,
           theta_imp=theta_imp,
       )
 
       residual, _ = residual_and_loss.theta_method_block_residual(
-          x_new_vec=fvm_conversions.cell_variable_tuple_to_vec(x_new),
-          x_old=x,
-          state_t_plus_dt=state_t_plus_dt,
+          x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
+          x_old=x_old,
+          state_t_plus_dt=state,
           evolving_names=evolving_names,
+          geo=geo,
+          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_config_slice=config_slice.build_static_config_slice(config),
           dt=dt,
           coeffs_old=coeffs,
-          coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          transport_model=transport_model,
+          sources=sources,
+          mask=mask,
+          explicit_source_profiles=explicit_source_profiles,
           theta_imp=theta_imp,
       )
 
       np.testing.assert_allclose(loss, 0.0, atol=1e-7)
       np.testing.assert_allclose(residual, 0.0, atol=1e-7)
 
-      x = x_new
-
   def test_implicit_solve_block_uses_updated_boundary_conditions(self):
     """Tests that updated boundary conditions affect x_new."""
-    # Create a system with boundary conditions set to 0, zero source inputs, but
-    # diffusion and convection terms.
+    # Create a system with diffusive transport and no sources. When initialized
+    # flat, x_new should remain zero unless boundary conditions change.
     num_cells = 2
-    config = config_lib.Config(nr=num_cells)
-
-    dt = jnp.array(1.0)
-    transient_cell = (jnp.ones(num_cells),)
-    d_face = (jnp.ones(num_cells + 1),)
-    v_face = (jnp.ones(num_cells + 1),)
-    source_mat_i = jnp.zeros(num_cells)
-    source_mat_cell = ((source_mat_i, source_mat_i),)
-    source_cell = (jnp.zeros(num_cells),)
-    coeffs = fvm.Block1DCoeffs(
-        transient_out_cell=transient_cell,
-        transient_in_cell=transient_cell,
-        d_face=d_face,
-        v_face=v_face,
-        source_mat_cell=source_mat_cell,
-        source_cell=source_cell,
+    config = config_lib.Config(
+        nr=num_cells,
+        Qei_mult=0,
+        Ptot=0,
+        el_heat_eq=False,
+        set_pedestal=False,
+        solver=config_lib.SolverConfig(
+            predictor_corrector=False,
+            theta_imp=1.0,
+        ),
+        transport=config_lib.TransportConfig(
+            transport_model='constant',
+            chimin=0,
+            chii_const=1,
+        ),
+        sources=dict(
+            fusion_heat_source=source_config.SourceConfig(
+                source_type=source_config.SourceType.ZERO,
+            ),
+            ohmic_heat_source=source_config.SourceConfig(
+                source_type=source_config.SourceType.ZERO,
+            ),
+        ),
+    )
+    geo = geometry.build_circular_geometry(config)
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    static_config_slice = config_slice.build_static_config_slice(config)
+    transport_model = transport_model_factory.construct(
+        config,
+    )
+    sources = source_profiles_lib.Sources()
+    initial_mesh_state = initial_states.initial_state(config, geo, sources)
+    explicit_source_profiles = source_profiles_lib.build_source_profiles(
+        sources=sources,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        state=initial_mesh_state,
+        explicit=True,
+    )
+    mask = physics.internal_boundary(
+        geo, dynamic_config_slice.Ped_top, dynamic_config_slice.set_pedestal
     )
 
+    dt = jnp.array(1.0)
+    evolving_names = tuple(['temp_ion'])
+
+    coeffs = calc_coeffs.calc_coeffs(
+        state=initial_mesh_state,
+        evolving_names=evolving_names,
+        geo=geo,
+        dynamic_config_slice=dynamic_config_slice,
+        static_config_slice=static_config_slice,
+        transport_model=transport_model,
+        mask=mask,
+        explicit_source_profiles=explicit_source_profiles,
+        sources=sources,
+        use_pereverzev=False,
+    )
     initial_right_boundary = jnp.array(0.0)
     x_0 = fvm.CellVariable(
         value=jnp.zeros(num_cells),
@@ -487,25 +529,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_grad_constraint=None,
         right_face_constraint=initial_right_boundary,
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
-    geo = geometry.build_circular_geometry(config)
-    state_t_plus_dt = initial_states.initial_state(config, geo)
-    state_t_plus_dt = dataclasses.replace(
-        state_t_plus_dt,
-        temp_ion=x_0,
-    )
-    evolving_names = tuple(['temp_ion'])
     # Run with different theta_imp values.
     for theta_imp in [0.0, 0.5, 1.0]:
-      x_new, _ = implicit_solve_block.implicit_solve_block(
+      x_new = implicit_solve_block.implicit_solve_block(
           x_old=(x_0,),
-          x_new_vec_guess=x_0.value,
-          state_t_plus_dt=state_t_plus_dt,
-          evolving_names=evolving_names,
+          x_new_guess=(x_0,),
           coeffs_old=coeffs,
           # Assume no time-dependent params.
-          coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          coeffs_new=coeffs,
           dt=dt,
           theta_imp=theta_imp,
       )
@@ -516,21 +547,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # If we run with an updated boundary condition applied at time t=dt, then
     # we should get non-zero values from the implicit terms.
     final_right_boundary = jnp.array(1.0)
+    x_1 = dataclasses.replace(x_0, right_face_constraint=final_right_boundary)
     # However, the explicit terms (when theta_imp = 0), should still be all 0.
-    x_new, _ = implicit_solve_block.implicit_solve_block(
+    x_new = implicit_solve_block.implicit_solve_block(
         x_old=(x_0,),
-        x_new_vec_guess=x_0.value,
-        state_t_plus_dt=dataclasses.replace(
-            state_t_plus_dt,
-            temp_ion=dataclasses.replace(
-                x_0, right_face_constraint=final_right_boundary
-            ),
-        ),
-        evolving_names=evolving_names,
+        x_new_guess=(x_1,),
         coeffs_old=coeffs,
         # Assume no time-dependent params.
-        coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,
-        dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+        coeffs_new=coeffs,
         dt=dt,
         theta_imp=0.0,
     )
@@ -540,45 +564,78 @@ class FVMTest(torax_refs.ReferenceValueTest):
         x_new[0].right_face_constraint, final_right_boundary
     )
     # And when theta_imp is > 0, the values should be > 0.
-    x_new, _ = implicit_solve_block.implicit_solve_block(
+    x_new = implicit_solve_block.implicit_solve_block(
         x_old=(x_0,),
-        x_new_vec_guess=x_0.value,
-        state_t_plus_dt=dataclasses.replace(
-            state_t_plus_dt,
-            temp_ion=dataclasses.replace(
-                x_0, right_face_constraint=final_right_boundary
-            ),
-        ),
-        evolving_names=evolving_names,
+        x_new_guess=(x_1,),
         coeffs_old=coeffs,
         # Assume no time-dependent params.
-        coeffs_callback=lambda x, dcs, allow_pereverzev=False: coeffs,
-        dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+        coeffs_new=coeffs,
         dt=dt,
         theta_imp=0.5,
     )
     self.assertGreater(x_new[0].value.min(), 0.0)
 
   def test_theta_residual_uses_updated_boundary_conditions(self):
-    # Create a system with boundary conditions set to 0, zero source inputs, but
-    # diffusion and convection terms.
+    # Create a system with diffusive transport and no sources. When initialized
+    # flat, residual should remain zero unless boundary conditions change.
     num_cells = 2
-    config = config_lib.Config(nr=num_cells)
+    config = config_lib.Config(
+        nr=num_cells,
+        Qei_mult=0,
+        Ptot=0,
+        el_heat_eq=False,
+        set_pedestal=False,
+        solver=config_lib.SolverConfig(
+            predictor_corrector=False,
+            theta_imp=1.0,
+        ),
+        transport=config_lib.TransportConfig(
+            transport_model='constant',
+            chimin=0,
+            chii_const=1,
+        ),
+        sources=dict(
+            fusion_heat_source=source_config.SourceConfig(
+                source_type=source_config.SourceType.ZERO,
+            ),
+            ohmic_heat_source=source_config.SourceConfig(
+                source_type=source_config.SourceType.ZERO,
+            ),
+        ),
+    )
+    geo = geometry.build_circular_geometry(config)
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    static_config_slice = config_slice.build_static_config_slice(config)
+    transport_model = transport_model_factory.construct(
+        config,
+    )
+    sources = source_profiles_lib.Sources()
+    initial_mesh_state = initial_states.initial_state(config, geo, sources)
+    explicit_source_profiles = source_profiles_lib.build_source_profiles(
+        sources=sources,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        state=initial_mesh_state,
+        explicit=True,
+    )
+    mask = physics.internal_boundary(
+        geo, dynamic_config_slice.Ped_top, dynamic_config_slice.set_pedestal
+    )
 
     dt = jnp.array(1.0)
-    transient_cell = (jnp.ones(num_cells),)
-    d_face = (jnp.ones(num_cells + 1),)
-    v_face = (jnp.ones(num_cells + 1),)
-    source_mat_i = jnp.zeros(num_cells)
-    source_mat_cell = ((source_mat_i, source_mat_i),)
-    source_cell = (jnp.zeros(num_cells),)
-    coeffs = fvm.Block1DCoeffs(
-        transient_out_cell=transient_cell,
-        transient_in_cell=transient_cell,
-        d_face=d_face,
-        v_face=v_face,
-        source_mat_cell=source_mat_cell,
-        source_cell=source_cell,
+    evolving_names = tuple(['temp_ion'])
+
+    coeffs_old = calc_coeffs.calc_coeffs(
+        state=initial_mesh_state,
+        evolving_names=evolving_names,
+        geo=geo,
+        dynamic_config_slice=dynamic_config_slice,
+        static_config_slice=static_config_slice,
+        transport_model=transport_model,
+        mask=mask,
+        explicit_source_profiles=explicit_source_profiles,
+        sources=sources,
+        use_pereverzev=False,
     )
 
     initial_right_boundary = jnp.array(0.0)
@@ -588,27 +645,30 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_grad_constraint=None,
         right_face_constraint=initial_right_boundary,
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
-    geo = geometry.build_circular_geometry(config)
     state_t_plus_dt = initial_states.initial_state(config, geo)
     state_t_plus_dt = dataclasses.replace(
         state_t_plus_dt,
         temp_ion=x_0,
     )
-    evolving_names = tuple(['temp_ion'])
 
     with self.subTest('static_boundary_conditions'):
-      # When the boundary conditions are not time-dependent and stay at 0, the
-      # state will stay at all 0, and the residual should be 0.
+      # When the boundary conditions are not time-dependent and stay at 0,
+      # with diffusive transport and zero transport, then the state will stay
+      # at all 0, and the residual should be 0.
       residual, _ = residual_and_loss.theta_method_block_residual(
-          x_new_vec=x_0.value,
+          x_new_guess_vec=x_0.value,
           x_old=(x_0,),
           state_t_plus_dt=state_t_plus_dt,
           evolving_names=evolving_names,
-          dt=dt,
-          coeffs_old=coeffs,
-          coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,
+          geo=geo,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_config_slice=static_config_slice,
+          dt=dt,
+          coeffs_old=coeffs_old,
+          transport_model=transport_model,
+          sources=sources,
+          mask=mask,
+          explicit_source_profiles=explicit_source_profiles,
           theta_imp=0.5,
       )
       np.testing.assert_allclose(residual, 0.0)
@@ -618,7 +678,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # residual would still be 0.
       final_right_boundary = jnp.array(1.0)
       residual, _ = residual_and_loss.theta_method_block_residual(
-          x_new_vec=x_0.value,
+          x_new_guess_vec=x_0.value,
           x_old=(x_0,),
           state_t_plus_dt=dataclasses.replace(
               state_t_plus_dt,
@@ -627,16 +687,21 @@ class FVMTest(torax_refs.ReferenceValueTest):
               ),
           ),
           evolving_names=evolving_names,
-          dt=dt,
-          coeffs_old=coeffs,
-          coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,
+          geo=geo,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_config_slice=static_config_slice,
+          dt=dt,
+          coeffs_old=coeffs_old,
+          transport_model=transport_model,
+          sources=sources,
+          mask=mask,
+          explicit_source_profiles=explicit_source_profiles,
           theta_imp=0.0,
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_imp > 0, the residual should be non-zero.
       residual, _ = residual_and_loss.theta_method_block_residual(
-          x_new_vec=x_0.value,
+          x_new_guess_vec=x_0.value,
           x_old=(x_0,),
           state_t_plus_dt=dataclasses.replace(
               state_t_plus_dt,
@@ -646,9 +711,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
           ),
           evolving_names=evolving_names,
           dt=dt,
-          coeffs_old=coeffs,
-          coeffs_callback=lambda x, dcs, allow_pereverzev: coeffs,
+          geo=geo,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_config_slice=static_config_slice,
+          coeffs_old=coeffs_old,
+          transport_model=transport_model,
+          sources=sources,
+          mask=mask,
+          explicit_source_profiles=explicit_source_profiles,
           theta_imp=0.5,
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)

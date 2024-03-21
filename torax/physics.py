@@ -23,10 +23,10 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import fvm
 from torax import geometry
 from torax import math_utils
 from torax import state as state_module
+from torax.fvm import cell_variable
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -137,7 +137,7 @@ def internal_boundary(
 def calc_q_from_jtot_psi(
     geo: Geometry,
     jtot_face: jax.Array,
-    psi: fvm.CellVariable,
+    psi: cell_variable.CellVariable,
     Rmaj: float,
     q_correction_factor: float,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
@@ -181,7 +181,7 @@ def calc_q_from_jtot_psi(
 
 def calc_jtot_from_psi(
     geo: Geometry,
-    psi: fvm.CellVariable,
+    psi: cell_variable.CellVariable,
     Rmaj: float,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Calculates j from psi.
@@ -213,7 +213,9 @@ def calc_jtot_from_psi(
   return jtot, jtot_face
 
 
-def calc_s_from_psi(geo: Geometry, psi: fvm.CellVariable) -> jnp.ndarray:
+def calc_s_from_psi(
+    geo: Geometry, psi: cell_variable.CellVariable
+) -> jnp.ndarray:
   """Calculates s from psi.
 
   Args:

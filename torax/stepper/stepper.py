@@ -18,7 +18,6 @@ Abstract base class defining updates to State.
 """
 
 import abc
-import dataclasses
 from typing import Callable
 
 import jax
@@ -28,6 +27,7 @@ from torax import fvm
 from torax import geometry
 from torax import physics
 from torax import state as state_module
+from torax import update_state
 from torax.sources import source_profiles
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -138,35 +138,15 @@ class Stepper(abc.ABC):
       error = 0
       aux_output = calc_coeffs.AuxOutput.build_from_geo(geo)
 
-    def get_update(x_new, var):
-      """Returns the new value of `var`."""
-      if var in evolving_names:
-        return x_new[evolving_names.index(var)]
-      # `var` is not evolving, so its new value is just its old value
-      return getattr(state_t_plus_dt, var)
-
-    temp_ion = get_update(x_new, 'temp_ion')
-    temp_el = get_update(x_new, 'temp_el')
-    psi = get_update(x_new, 'psi')
-    ne = get_update(x_new, 'ne')
-    ni = dataclasses.replace(
-        state_t_plus_dt.ni,
-        value=ne.value
-        * physics.get_main_ion_dilution_factor(
-            dynamic_config_slice_t_plus_dt.Zimp,
-            dynamic_config_slice_t_plus_dt.Zeff,
-        ),
+    state_t_plus_dt = update_state.update_state(
+        state_t_plus_dt,
+        x_new,
+        evolving_names,
+        dynamic_config_slice_t_plus_dt,
     )
 
     return (
-        dataclasses.replace(
-            state_t_plus_dt,
-            temp_ion=temp_ion,
-            temp_el=temp_el,
-            psi=psi,
-            ne=ne,
-            ni=ni,
-        ),
+        state_t_plus_dt,
         error,
         aux_output,
     )

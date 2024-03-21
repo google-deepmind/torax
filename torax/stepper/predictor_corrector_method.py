@@ -18,9 +18,8 @@ Picard iterations to approximate the nonlinear solution. If
 static_config_slice.solver.predictor_corrector is False, reverts to a
 standard linear solution.
 """
-
+import dataclasses
 import jax
-from jax import numpy as jnp
 from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
@@ -31,7 +30,7 @@ from torax.fvm import implicit_solve_block
 
 def predictor_corrector_method(
     init_val: tuple[
-        tuple[fvm.cell_variable.CellVariable, ...], calc_coeffs.AuxOutput
+        tuple[fvm.CellVariable, ...], calc_coeffs.AuxOutput
     ],
     state_t_plus_dt: state_module.State,
     evolving_names: tuple[str, ...],
@@ -68,17 +67,24 @@ def predictor_corrector_method(
   # predictor-corrector mode
   def loop_body(i, val):  # pylint: disable=unused-argument
     x_new_guess = val[0]
-    x_new_vec_guess = jnp.concatenate([var.value for var in x_new_guess])
 
-    x_new, auxiliary_outputs = implicit_solve_block.implicit_solve_block(
+    x_new_guess = [
+        dataclasses.replace(state_t_plus_dt[name], value=value.value)
+        for name, value in zip(evolving_names, x_new_guess)
+    ]
+    x_new_guess = tuple(x_new_guess)
+
+    coeffs_new = coeffs_callback(
+        x_new_guess, dynamic_config_slice_t_plus_dt, allow_pereverzev=True,
+    )
+    aux_output = coeffs_new.auxiliary_outputs
+
+    x_new = implicit_solve_block.implicit_solve_block(
         x_old=init_val[0],
-        x_new_vec_guess=x_new_vec_guess,
-        state_t_plus_dt=state_t_plus_dt,
-        evolving_names=evolving_names,
+        x_new_guess=x_new_guess,
         dt=dt,
         coeffs_old=coeffs_exp,
-        coeffs_callback=coeffs_callback,
-        dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+        coeffs_new=coeffs_new,
         # theta_imp is not time-dependent. Not all parameters in the
         # dynamic_config_slice need to be time-dependent. They can simply
         # change from simulation run to simulation run without triggering a
@@ -92,7 +98,7 @@ def predictor_corrector_method(
         ),
     )
 
-    return (x_new, auxiliary_outputs)
+    return (x_new, aux_output)
 
   # jax.lax.fori_loop jits the function by default. Need to explicitly avoid
   # compilation and revert to a standard for loop if

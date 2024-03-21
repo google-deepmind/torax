@@ -15,10 +15,8 @@
 
 See function docstring for details.
 """
-import functools
 
 import jax
-import jaxopt
 from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
@@ -28,7 +26,9 @@ from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import fvm_conversions
 from torax.fvm import residual_and_loss
+from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
+from torax.transport_model import transport_model as transport_model_lib
 
 
 AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
@@ -52,6 +52,10 @@ def optimizer_solve_block(
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
+    transport_model: transport_model_lib.TransportModel,
+    sources: source_profiles.Sources,
+    mask: jax.Array,
+    explicit_source_profiles: source_profiles.SourceProfiles,
     theta_imp: jax.Array | float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
@@ -86,7 +90,12 @@ def optimizer_solve_block(
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
       parrams will trigger recompilation
-    geo: geometry object used to initialize auxiliary outputs
+    geo: Geometry object used to initialize auxiliary outputs
+    transport_model: Turbulent transport model callable
+    sources: Collection of source callables to generate source PDE coefficients
+    mask: Boolean mask array setting pedestal zone
+    explicit_source_profiles: Pre-calculated sources implemented as explicit
+      sources in the PDE
     theta_imp: Coefficient in [0, 1] determining which solution method to use.
       We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) + (1 -
       theta_imp) F(t_old). Three values of theta_imp correspond to named
@@ -110,7 +119,7 @@ def optimizer_solve_block(
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
     error: int. 0 signifies loss < tol at exit, 1 signifies loss > tol
-    aux_output: Extra auxiliary output from the coeffs_callback.
+    aux_output: Extra auxiliary output from the calc_coeffs.
   """
   # pyformat: enable
 
@@ -149,26 +158,27 @@ def optimizer_solve_block(
           f'Unknown option for first guess in iterations: {initial_guess_mode}'
       )
 
-  # Create a loss() function with only one argument: x_new.
-  # The other arguments (dt, x_old, etc.) are fixed.
-  loss = functools.partial(
-      residual_and_loss.theta_method_block_loss,
-      dt=dt,
+  # Advance jaxopt_solver by one timestep
+  x_new_vec, final_loss, aux_output = residual_and_loss.jaxopt_solver(
+      init_x_new_vec=init_x_new_vec,
       x_old=x_old,
       state_t_plus_dt=state_t_plus_dt,
-      evolving_names=evolving_names,
-      coeffs_callback=coeffs_callback,
-      coeffs_old=coeffs_old,
+      geo=geo,
       dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_config_slice=static_config_slice,
+      dt=dt,
+      evolving_names=evolving_names,
+      coeffs_old=coeffs_old,
+      transport_model=transport_model,
+      sources=sources,
+      mask=mask,
+      explicit_source_profiles=explicit_source_profiles,
+      maxiter=maxiter,
+      tol=tol,
       theta_imp=theta_imp,
       convection_dirichlet_mode=convection_dirichlet_mode,
       convection_neumann_mode=convection_neumann_mode,
   )
-
-  solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, has_aux=True)
-  solver_output = solver.run(init_x_new_vec)
-  x_new_vec = solver_output.params
-  aux_output = solver_output.state.aux
 
   # Create updated CellVariable instances based on state_plus_dt which has
   # updated boundary conditions and prescribed profiles.
@@ -178,9 +188,8 @@ def optimizer_solve_block(
 
   # Tell the caller whether or not x_new successfully reduces the loss below
   # the tolerance by providing an extra output, error.
-  loss_scalar, _ = loss(x_new_vec)
   error = jax.lax.cond(
-      loss_scalar > tol,
+      final_loss > tol,
       lambda: 1,  # Called when True
       lambda: 0,  # Called when False
   )
