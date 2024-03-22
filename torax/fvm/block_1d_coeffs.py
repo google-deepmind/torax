@@ -89,8 +89,8 @@ class Block1DCoeffs:
       or information useful for inspecting the computation inside the callback
       which calculated these coeffs.
   """
-  transient_out_cell: tuple[jax.Array, ...]
   transient_in_cell: tuple[jax.Array, ...]
+  transient_out_cell: Optional[tuple[jax.Array, ...]] = None
   d_face: Optional[tuple[jax.Array, ...]] = None
   v_face: Optional[tuple[jax.Array, ...]] = None
   source_mat_cell: OptionalTupleMatrix = None
@@ -106,6 +106,7 @@ class Block1DCoeffsCallback(Protocol):
       x: tuple[cell_variable.CellVariable, ...],
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       allow_pereverzev: bool = False,
+      explicit_call: bool = False,
   ) -> Block1DCoeffs:
     """Returns coefficients given a state. Can be called in various modes.
 
@@ -131,6 +132,8 @@ class Block1DCoeffsCallback(Protocol):
         guess based on a linear step as opposed to just passing the iniitial
         state. This is a special case which may lead to the pereverzev-corrigan
         terms being included in calc_coeffs.
+      explicit_call: If True, then if theta_imp=1, only a reduced Block1DCoeffs
+        is calculated since most explicit coefficients will not be used.
 
     Returns:
       coeffs: The diffusion, convection, etc. coefficients for this state.

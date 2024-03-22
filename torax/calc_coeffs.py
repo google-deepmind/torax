@@ -171,6 +171,72 @@ def calculate_pereverzev_flux(
   )
 
 
+def calc_coeffs(
+    state: state_module.State,
+    evolving_names: tuple[str, ...],
+    geo: geometry.Geometry,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_config_slice: config_slice.StaticConfigSlice,
+    transport_model: transport_model_lib.TransportModel,
+    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    sources: source_profiles_lib.Sources,
+    use_pereverzev: bool = False,
+    explicit_call: bool = False,
+) -> block_1d_coeffs.Block1DCoeffs:
+  """Calculates Block1DCoeffs for the time step described by `state`.
+
+  Args:
+    state: Sim state for this time step during this iteration. Depending on the
+      type of stepper being used, this may or may not be equal to the original
+      state at the beginning of the time step.
+    evolving_names: The names of the evolving variables in the order that their
+      coefficients should be written to `coeffs`.
+    geo: Geometry describing the torus.
+    dynamic_config_slice: General input parameters that can change from time
+      step to time step or simulation run to run, and do so without triggering a
+      recompile.
+    static_config_slice: General input parameters which are fixed through a
+      simulation run, and if changed, would trigger a recompile.
+    transport_model: A TransportModel subclass, calculates transport coeffs.
+    explicit_source_profiles: Precomputed explicit source profiles. These
+      profiles either do not depend on the state or depend on the original state
+      at the start of the time step (orig_state), not the "live" state (state).
+      For sources that are implicit, their explicit profiles are set to all
+      zeros.
+    sources: All TORAX source/sinks that generate the explicit and implicit
+      source profiles used as terms for the mesh state equations.
+    use_pereverzev: Toggle whether to calculate Pereverzev terms
+    explicit_call: If True, indicates that calc_coeffs is being called for the
+      explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
+      theta_imp=1. This saves computation for the default fully implicit
+      implementation.
+
+  Returns:
+    coeffs: Block1DCoeffs containing the coefficients at this time step.
+  """
+
+  # If we are fully implicit and we are making a call for calc_coeffs for the
+  # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
+  if explicit_call and static_config_slice.solver.theta_imp == 1.0:
+    return _calc_coeffs_reduced(
+        state,
+        evolving_names,
+        geo,
+    )
+  else:
+    return _calc_coeffs_full(
+        state,
+        evolving_names,
+        geo,
+        dynamic_config_slice,
+        static_config_slice,
+        transport_model,
+        explicit_source_profiles,
+        sources,
+        use_pereverzev,
+    )
+
+
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
@@ -180,7 +246,7 @@ def calculate_pereverzev_flux(
         'sources',
     ],
 )
-def calc_coeffs(
+def _calc_coeffs_full(
     state: state_module.State,
     evolving_names: tuple[str, ...],
     geo: geometry.Geometry,
@@ -642,6 +708,39 @@ def calc_coeffs(
       auxiliary_outputs=aux_outputs,
   )
 
+  return coeffs
+
+
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'evolving_names',
+    ],
+)
+def _calc_coeffs_reduced(
+    state: state_module.State,
+    evolving_names: tuple[str, ...],
+    geo: geometry.Geometry,
+) -> block_1d_coeffs.Block1DCoeffs:
+  """Calculates only the transient_in_cell terms in Block1DCoeffs."""
+
+  # Only transient_in_cell is used for explicit terms if theta_imp=1
+  tic_temp_ion = state.ni.value
+  tic_temp_el = state.ne.value
+  tic_psi = jnp.ones_like(geo.vpr)
+  tic_dens_el = jnp.ones_like(geo.vpr)
+
+  var_to_tic = {
+      'temp_ion': tic_temp_ion,
+      'temp_el': tic_temp_el,
+      'psi': tic_psi,
+      'ne': tic_dens_el,
+  }
+  transient_in_cell = tuple(var_to_tic[var] for var in evolving_names)
+
+  coeffs = block_1d_coeffs.Block1DCoeffs(
+      transient_in_cell=transient_in_cell,
+  )
   return coeffs
 
 

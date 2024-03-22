@@ -109,6 +109,9 @@ class CoeffsCallback:
       x: tuple[fvm.CellVariable, ...],
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       allow_pereverzev: bool = False,
+      # Checks if reduced calc_coeffs for explicit terms when theta_imp=1
+      # should be called
+      explicit_call: bool = False,
   ):
     replace = {k: v for k, v in zip(self.evolving_names, x)}
     # TODO( b/326579003) revisit due to prescribed profiles
@@ -140,6 +143,7 @@ class CoeffsCallback:
         explicit_source_profiles=self.explicit_source_profiles,
         sources=self.sources,
         use_pereverzev=use_pereverzev,
+        explicit_call=explicit_call,
     )
 
 
@@ -157,10 +161,12 @@ class FrozenCoeffsCallback(CoeffsCallback):
     super().__init__(*args, **kwargs)
     x = tuple([self.state_t[name] for name in self.evolving_names])
     self.frozen_coeffs = super().__call__(
-        x, dynamic_config_slice, allow_pereverzev=False
+        x, dynamic_config_slice, allow_pereverzev=False, explicit_call=False
     )
 
-  def __call__(self, x, dynamic_config_slice, allow_pereverzev=False):
+  def __call__(
+      self, x, dynamic_config_slice, allow_pereverzev=False, explicit_call=False
+  ):
 
     return self.frozen_coeffs
 
