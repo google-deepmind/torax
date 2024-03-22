@@ -71,7 +71,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
     # Compute the explicit coeffs based on the state at time t and all runtime
     # parameters at time t.
     coeffs_exp = coeffs_callback(
-        x_old, dynamic_config_slice_t, allow_pereverzev=True
+        x_old, dynamic_config_slice_t, allow_pereverzev=True, explicit_call=True
     )
 
     # Calculate x_new with the predictor corrector method. Reverts to a

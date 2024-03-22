@@ -130,7 +130,8 @@ def theta_method_matrix_equation(
 
   x_new_guess_vec = fvm_conversions.cell_variable_tuple_to_vec(x_new_guess)
 
-  tc_out_old = jnp.concatenate(coeffs_old.transient_out_cell)
+  theta_exp = 1.0 - theta_imp
+
   tc_in_old = jnp.concatenate(coeffs_old.transient_in_cell)
   tc_out_new = jnp.concatenate(coeffs_new.transient_out_cell)
   tc_in_new = jnp.concatenate(coeffs_new.transient_in_cell)
@@ -145,11 +146,6 @@ def theta_method_matrix_equation(
       jnp.any(tc_out_new * tc_in_new < eps),
       msg='tc_out_new*tc_in_new unexpectedly < eps',
   )
-  tc_in_new = jax_utils.error_if(
-      tc_in_new,
-      jnp.any(tc_out_old * tc_in_new < eps),
-      msg='tc_out_old*tc_in_new unexpectedly < eps',
-  )
 
   left_transient = jnp.identity(len(x_new_guess_vec))
   right_transient = jnp.diag(jnp.squeeze(tc_in_old / tc_in_new))
@@ -161,14 +157,18 @@ def theta_method_matrix_equation(
       convection_neumann_mode,
   )
 
-  theta_exp = 1.0 - theta_imp
-
   lhs_mat = left_transient - dt * theta_imp * jnp.dot(
       jnp.diag(1 / (tc_out_new * tc_in_new)), c_mat_new
   )
   lhs_vec = -theta_imp * dt * (1 / (tc_out_new * tc_in_new)) * c_new
 
   if theta_exp > 0.0:
+    tc_out_old = jnp.concatenate(coeffs_old.transient_out_cell)
+    tc_in_new = jax_utils.error_if(
+        tc_in_new,
+        jnp.any(tc_out_old * tc_in_new < eps),
+        msg='tc_out_old*tc_in_new unexpectedly < eps',
+    )
     c_mat_old, c_old = discrete_system.calc_c(
         coeffs_old,
         x_old,

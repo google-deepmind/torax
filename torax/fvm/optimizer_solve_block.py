@@ -112,7 +112,9 @@ def optimizer_solve_block(
   """
   # pyformat: enable
 
-  coeffs_old = coeffs_callback(x_old, dynamic_config_slice_t)
+  coeffs_old = coeffs_callback(
+      x_old, dynamic_config_slice_t, explicit_call=True
+  )
 
   match initial_guess_mode:
     # LINEAR initial guess will provide the initial guess using the predictor-
@@ -122,7 +124,10 @@ def optimizer_solve_block(
       # if set by config, needed if stiff transport models (e.g. qlknn)
       # are used.
       coeffs_exp_linear = coeffs_callback(
-          x_old, dynamic_config_slice_t, allow_pereverzev=True
+          x_old,
+          dynamic_config_slice_t,
+          allow_pereverzev=True,
+          explicit_call=True,
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
       x_new_init = tuple([state_t_plus_dt[name] for name in evolving_names])
