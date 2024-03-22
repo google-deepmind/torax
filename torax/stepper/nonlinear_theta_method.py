@@ -43,7 +43,7 @@ class NonlinearThetaMethod(stepper.Stepper):
       exposed here to provide a single source of truth for which sources are
       used during a run.
     callback_class: Which class should be used to calculate the PDE coefficients
-       for the linear and predictor-corrector initial guess routines.
+      for the linear and predictor-corrector initial guess routines.
   """
 
   def __init__(
@@ -57,8 +57,8 @@ class NonlinearThetaMethod(stepper.Stepper):
 
   def _x_new(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      sim_state_t: state_module.ToraxSimState,
+      sim_state_t_plus_dt: state_module.ToraxSimState,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
@@ -70,7 +70,7 @@ class NonlinearThetaMethod(stepper.Stepper):
     """See Stepper._x_new docstring."""
 
     coeffs_callback = self.callback_class(
-        state_t=state_t,
+        sim_state_t=sim_state_t,
         evolving_names=evolving_names,
         geo=geo,
         static_config_slice=static_config_slice,
@@ -82,8 +82,8 @@ class NonlinearThetaMethod(stepper.Stepper):
         dynamic_config_slice_t=dynamic_config_slice_t,
         dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
         static_config_slice=static_config_slice,
-        state_t=state_t,
-        state_t_plus_dt=state_t_plus_dt,
+        sim_state_t=sim_state_t,
+        sim_state_t_plus_dt=sim_state_t_plus_dt,
         evolving_names=evolving_names,
         geo=geo,
         explicit_source_profiles=explicit_source_profiles,
@@ -99,8 +99,8 @@ class NonlinearThetaMethod(stepper.Stepper):
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      sim_state_t: state_module.ToraxSimState,
+      sim_state_t_plus_dt: state_module.ToraxSimState,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -147,8 +147,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      sim_state_t: state_module.ToraxSimState,
+      sim_state_t_plus_dt: state_module.ToraxSimState,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -157,8 +157,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
     """Final implementation of x_new after callback has been created etc."""
     return optimizer_solve_block.optimizer_solve_block(
-        x_old=tuple([state_t[name] for name in evolving_names]),
-        state_t_plus_dt=state_t_plus_dt,
+        x_old=tuple([sim_state_t.mesh_state[name] for name in evolving_names]),
+        sim_state_t_plus_dt=sim_state_t_plus_dt,
         evolving_names=evolving_names,
         dt=dt,
         coeffs_callback=coeffs_callback,
@@ -220,8 +220,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      sim_state_t: state_module.ToraxSimState,
+      sim_state_t_plus_dt: state_module.ToraxSimState,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -233,8 +233,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     # error checking based on result of each linear step
 
     return newton_raphson_solve_block.newton_raphson_solve_block(
-        x_old=tuple([state_t[name] for name in evolving_names]),
-        state_t_plus_dt=state_t_plus_dt,
+        x_old=tuple([sim_state_t.mesh_state[name] for name in evolving_names]),
+        sim_state_t_plus_dt=sim_state_t_plus_dt,
         evolving_names=evolving_names,
         dt=dt,
         coeffs_callback=coeffs_callback,

@@ -42,8 +42,8 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
   def _x_new(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      sim_state_t: state_module.ToraxSimState,
+      sim_state_t_plus_dt: state_module.ToraxSimState,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
@@ -54,12 +54,14 @@ class LinearThetaMethod(stepper_lib.Stepper):
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
     """See Stepper._x_new docstring."""
 
-    x_old = tuple([state_t[name] for name in evolving_names])
-    x_new_init = tuple([state_t_plus_dt[name] for name in evolving_names])
+    x_old = tuple([sim_state_t.mesh_state[name] for name in evolving_names])
+    x_new_init = tuple(
+        [sim_state_t_plus_dt.mesh_state[name] for name in evolving_names]
+    )
 
     # Instantiate coeffs_callback class
     coeffs_callback = self.callback_class(
-        state_t=state_t,
+        sim_state_t=sim_state_t,
         evolving_names=evolving_names,
         geo=geo,
         static_config_slice=static_config_slice,

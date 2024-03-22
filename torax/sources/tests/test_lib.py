@@ -28,6 +28,7 @@ from torax import initial_states
 from torax.sources import source as source_lib
 from torax.sources import source_config as source_config_lib
 from torax.sources import source_profiles
+from torax.time_step_calculator import fixed_time_step_calculator
 
 
 # Most of the checks and computations in TORAX require float64.
@@ -103,9 +104,11 @@ class SingleProfileSourceTestCase(SourceTestCase):
     else:
       sources = source_profiles.Sources()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=sources,
     )
     source_type = config.sources[source.name].source_type.value
@@ -113,7 +116,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        sim_state=sim_state,
     )
     chex.assert_rank(value, 1)
 
@@ -121,9 +124,11 @@ class SingleProfileSourceTestCase(SourceTestCase):
     """Tests that using unsupported types raises an error."""
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(),  # only need default sources here.
     )
     # pylint: disable=missing-kwoa
@@ -139,7 +144,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
                   config_slice.build_dynamic_config_slice(config)
               ),
               geo=geo,
-              state=state,
+              sim_state=sim_state,
           )
 
 
@@ -154,9 +159,11 @@ class IonElSourceTestCase(SourceTestCase):
     self.assertIsInstance(source, source_lib.IonElectronSource)
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(),  # only need default sources here.
     )
     source_type = config.sources[source.name].source_type.value
@@ -164,7 +171,7 @@ class IonElSourceTestCase(SourceTestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        sim_state=sim_state,
     )
     chex.assert_rank(ion_and_el, 2)
 
@@ -172,9 +179,11 @@ class IonElSourceTestCase(SourceTestCase):
     """Tests that using unsupported types raises an error."""
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(),  # only need default sources here.
     )
     # pylint: disable=missing-kwoa
@@ -190,7 +199,7 @@ class IonElSourceTestCase(SourceTestCase):
                   config_slice.build_dynamic_config_slice(config)
               ),
               geo=geo,
-              state=state,
+              sim_state=sim_state,
           )
 
   def test_extraction_of_relevant_profile_from_output(self):

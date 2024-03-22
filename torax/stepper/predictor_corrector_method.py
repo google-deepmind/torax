@@ -62,7 +62,9 @@ def predictor_corrector_method(
     x_new_guess = val[0]
 
     coeffs_new = coeffs_callback(
-        x_new_guess, dynamic_config_slice_t_plus_dt, allow_pereverzev=True,
+        x_new_guess,
+        dynamic_config_slice_t_plus_dt,
+        allow_pereverzev=True,
     )
     aux_output = coeffs_new.auxiliary_outputs
 

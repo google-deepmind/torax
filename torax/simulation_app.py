@@ -54,6 +54,7 @@ from matplotlib import pyplot as plt
 import torax
 from torax import config_slice
 from torax import geometry
+from torax import initial_states
 from torax import sim as sim_lib
 from torax import state as state_lib
 from torax.spectators import plotting
@@ -181,7 +182,7 @@ def update_sim(
   # notifying the user that using this new config will result in recompiling
   # the SimulationStepFn.
   static_config_slice = config_slice.build_static_config_slice(config)
-  initial_state = sim_lib.get_initial_state(
+  initial_state = initial_states.get_initial_sim_state(
       config=config,
       geo=geo,
       time_step_calculator=sim.time_step_calculator,

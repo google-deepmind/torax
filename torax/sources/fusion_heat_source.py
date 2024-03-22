@@ -123,10 +123,12 @@ def calc_fusion(
 def fusion_heat_model_func(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_lib.State,
+    sim_state: state_lib.ToraxSimState,
 ) -> jnp.ndarray:
   # pylint: disable=invalid-name
-  _, Pfus_i, Pfus_e = calc_fusion(geo, state, dynamic_config_slice.nref)
+  _, Pfus_i, Pfus_e = calc_fusion(
+      geo, sim_state.mesh_state, dynamic_config_slice.nref
+  )
   return jnp.stack((Pfus_i, Pfus_e))
   # pylint: enable=invalid-name
 

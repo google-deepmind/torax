@@ -27,6 +27,7 @@ from torax.sources import bootstrap_current_source
 from torax.sources import source as source_lib
 from torax.sources import source_config
 from torax.sources import source_profiles
+from torax.time_step_calculator import fixed_time_step_calculator
 
 
 class SourcesTest(parameterized.TestCase):
@@ -45,13 +46,16 @@ class SourceProfilesTest(parameterized.TestCase):
     config = torax.Config()
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = torax.build_circular_geometry(config)
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     sources = source_profiles.Sources()
-    state = initial_states.initial_state(config, geo, sources)
-    _ = source_profiles.build_source_profiles(
-        sources, dynamic_config_slice, geo, state, explicit=True
+    sim_state = initial_states.get_initial_sim_state(
+        config, geo, ts_calculator, sources
     )
     _ = source_profiles.build_source_profiles(
-        sources, dynamic_config_slice, geo, state, explicit=False
+        sources, dynamic_config_slice, geo, sim_state, explicit=True
+    )
+    _ = source_profiles.build_source_profiles(
+        sources, dynamic_config_slice, geo, sim_state, explicit=False
     )
 
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
@@ -145,14 +149,17 @@ class SourceProfilesTest(parameterized.TestCase):
     )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = torax.build_circular_geometry(config)
-    state = initial_states.initial_state(config, geo, sources)
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
+        config, geo, ts_calculator, sources
+    )
 
     def compute_and_sum_profiles():
       profiles = source_profiles.build_source_profiles(
           sources=sources,
           dynamic_config_slice=dynamic_config_slice,
           geo=geo,
-          state=state,
+          sim_state=sim_state,
           # Configs set sources to implicit by default, so set this to False to
           # calculate the custom source's profile.
           explicit=False,

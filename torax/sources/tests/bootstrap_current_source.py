@@ -26,6 +26,7 @@ from torax.sources import source as source_lib
 from torax.sources import source_config
 from torax.sources import source_profiles
 from torax.sources.tests import test_lib
+from torax.time_step_calculator import fixed_time_step_calculator
 
 
 class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
@@ -48,9 +49,11 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     source = bootstrap_current_source.BootstrapCurrentSource()
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(j_bootstrap=source),
     )
     self.assertIsNotNone(
@@ -59,12 +62,12 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
                 config_slice.build_dynamic_config_slice(config)
             ),
             geo=geo,
-            temp_ion=state.temp_ion,
-            temp_el=state.temp_el,
-            ne=state.ne,
-            ni=state.ni,
-            jtot_face=state.currents.jtot_face,
-            psi=state.psi,
+            temp_ion=sim_state.mesh_state.temp_ion,
+            temp_el=sim_state.mesh_state.temp_el,
+            ne=sim_state.mesh_state.ne,
+            ni=sim_state.mesh_state.ni,
+            jtot_face=sim_state.mesh_state.currents.jtot_face,
+            psi=sim_state.mesh_state.psi,
         )
     )
 

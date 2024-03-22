@@ -76,14 +76,14 @@ class QeiSource(source.Source):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State,
+      sim_state: state_lib.ToraxSimState,
   ) -> QeiInfo:
     """Computes the value of the source."""
     source_type = self.check_source_type(source_type)
     return jax.lax.cond(
         source_type == source_config.SourceType.MODEL_BASED.value,
         lambda: _model_based_qei(
-            dynamic_config_slice, static_config_slice, geo, state
+            dynamic_config_slice, static_config_slice, geo, sim_state
         ),
         lambda: _zero_qei(geo),
     )
@@ -93,7 +93,7 @@ class QeiSource(source.Source):
       source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      sim_state: state_lib.ToraxSimState | None = None,
   ) -> QeiInfo:
     raise NotImplementedError('Call get_qei() instead.')
 
@@ -110,12 +110,12 @@ def _model_based_qei(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
-    state: state_lib.State,
+    sim_state: state_lib.ToraxSimState,
 ) -> QeiInfo:
   """Computes Qei via the coll_exchange model."""
   zeros = jnp.zeros_like(geo.r_norm)
   qei_coef = physics.coll_exchange(
-      state=state,
+      state=sim_state.mesh_state,
       nref=dynamic_config_slice.nref,
       Ai=dynamic_config_slice.Ai,
       Qei_mult=dynamic_config_slice.Qei_mult,
@@ -130,8 +130,8 @@ def _model_based_qei(
           static_config_slice.el_heat_eq and not static_config_slice.ion_heat_eq
       )
   ):
-    explicit_i = qei_coef * state.temp_el.value
-    explicit_e = qei_coef * state.temp_ion.value
+    explicit_i = qei_coef * sim_state.mesh_state.temp_el.value
+    explicit_e = qei_coef * sim_state.mesh_state.temp_ion.value
     implicit_ie = zeros
     implicit_ei = zeros
   else:

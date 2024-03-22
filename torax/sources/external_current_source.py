@@ -122,7 +122,7 @@ class ExternalCurrentSource(source.Source):
       source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      sim_state: state_lib.ToraxSimState | None = None,
   ) -> tuple[jnp.ndarray, jnp.ndarray]:
     """Return the external current density profile along face and cell grids."""
     source_type = self.check_source_type(source_type)
@@ -130,7 +130,7 @@ class ExternalCurrentSource(source.Source):
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=state,
+        sim_state=sim_state,
         # There is no model implementation.
         model_func=(
             lambda _0, _1, _2: source.ProfileType.FACE.get_zero_profile(geo)
@@ -155,7 +155,7 @@ class ExternalCurrentSource(source.Source):
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=None,
+        sim_state=None,
         # There is no model for this source.
         model_func=(lambda _0, _1, _2: jnp.zeros_like(geo.r_hires_norm)),
         formula=lambda dcs, g, _: calculate_jext_hires(

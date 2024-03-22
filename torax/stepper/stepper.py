@@ -54,8 +54,8 @@ class Stepper(abc.ABC):
 
   def __call__(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      sim_state_t: state_module.ToraxSimState,
+      sim_state_t_plus_dt: state_module.ToraxSimState,
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
@@ -66,11 +66,13 @@ class Stepper(abc.ABC):
     """Applies a time step update.
 
     Args:
-      state_t: Sim state at the beginning of the time step.
-      state_t_plus_dt: Sim state which contains all available prescribed
-        quantities at the end of the time step. This includes evolving boundary
-        conditions and prescribed time-dependent profiles that are not being
-        evolved by the PDE system.
+      sim_state_t: Full sim state at the beginning of the time step, including
+        the "mesh_state" which includes the profiles that are evolved by the PDE
+        system.
+      sim_state_t_plus_dt: Full sim state which contains all available
+        prescribed quantities at the end of the time step. This includes
+        evolving boundary conditions and prescribed time-dependent profiles that
+        are not being evolved by the PDE system.
       geo: Geometry of the torus.
       dynamic_config_slice_t: Runtime configuration for time t (the start time
         of the step). These config params can change from step to step without
@@ -117,8 +119,8 @@ class Stepper(abc.ABC):
     # Don't call solver functions on an empty list
     if evolving_names:
       x_new, error, aux_output = self._x_new(
-          state_t=state_t,
-          state_t_plus_dt=state_t_plus_dt,
+          sim_state_t=sim_state_t,
+          sim_state_t_plus_dt=sim_state_t_plus_dt,
           evolving_names=evolving_names,
           geo=geo,
           dynamic_config_slice_t=dynamic_config_slice_t,
@@ -133,7 +135,7 @@ class Stepper(abc.ABC):
       aux_output = calc_coeffs.AuxOutput.build_from_geo(geo)
 
     state_t_plus_dt = update_state.update_state(
-        state_t_plus_dt,
+        sim_state_t_plus_dt.mesh_state,
         x_new,
         evolving_names,
         dynamic_config_slice_t_plus_dt,
@@ -147,8 +149,8 @@ class Stepper(abc.ABC):
 
   def _x_new(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      sim_state_t: state_module.ToraxSimState,
+      sim_state_t_plus_dt: state_module.ToraxSimState,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
@@ -163,11 +165,11 @@ class Stepper(abc.ABC):
     will work, or implement a different `__call__`.
 
     Args:
-      state_t: The State at time t.
-      state_t_plus_dt: Sim state which contains all available prescribed
-        quantities at the end of the time step. This includes evolving boundary
-        conditions and prescribed time-dependent profiles that are not being
-        evolved by the PDE system.
+      sim_state_t: The full simulation state at time t.
+      sim_state_t_plus_dt: Full sim state which contains all available
+        prescribed quantities at the end of the time step. This includes
+        evolving boundary conditions and prescribed time-dependent profiles that
+        are not being evolved by the PDE system.
       evolving_names: The names of state variables that should evolve.
       geo: Geometry of the torus.
       dynamic_config_slice_t: Runtime configuration for time t (the start time

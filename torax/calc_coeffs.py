@@ -172,7 +172,7 @@ def calculate_pereverzev_flux(
 
 
 def calc_coeffs(
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
     evolving_names: tuple[str, ...],
     geo: geometry.Geometry,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
@@ -186,9 +186,9 @@ def calc_coeffs(
   """Calculates Block1DCoeffs for the time step described by `state`.
 
   Args:
-    state: Sim state for this time step during this iteration. Depending on the
-      type of stepper being used, this may or may not be equal to the original
-      state at the beginning of the time step.
+    sim_state: Full simulation state for this time step during this iteration.
+      Depending on the type of stepper being used, this may or may not be equal
+      to the original state at the beginning of the time step.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     geo: Geometry describing the torus.
@@ -219,21 +219,21 @@ def calc_coeffs(
   # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
   if explicit_call and static_config_slice.solver.theta_imp == 1.0:
     return _calc_coeffs_reduced(
-        state,
-        evolving_names,
-        geo,
+        state=sim_state.mesh_state,
+        evolving_names=evolving_names,
+        geo=geo,
     )
   else:
     return _calc_coeffs_full(
-        state,
-        evolving_names,
-        geo,
-        dynamic_config_slice,
-        static_config_slice,
-        transport_model,
-        explicit_source_profiles,
-        sources,
-        use_pereverzev,
+        sim_state=sim_state,
+        evolving_names=evolving_names,
+        geo=geo,
+        dynamic_config_slice=dynamic_config_slice,
+        static_config_slice=static_config_slice,
+        transport_model=transport_model,
+        explicit_source_profiles=explicit_source_profiles,
+        sources=sources,
+        use_pereverzev=use_pereverzev,
     )
 
 
@@ -247,7 +247,7 @@ def calc_coeffs(
     ],
 )
 def _calc_coeffs_full(
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
     evolving_names: tuple[str, ...],
     geo: geometry.Geometry,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
@@ -260,9 +260,9 @@ def _calc_coeffs_full(
   """Calculates Block1DCoeffs for the time step described by `state`.
 
   Args:
-    state: Sim state for this time step during this iteration. Depending on the
-      type of stepper being used, this may or may not be equal to the original
-      state at the beginning of the time step.
+    sim_state: Full simulation state for this time step during this iteration.
+      Depending on the type of stepper being used, this may or may not be equal
+      to the original state at the beginning of the time step.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     geo: Geometry describing the torus.
@@ -302,7 +302,7 @@ def _calc_coeffs_full(
       sources=sources,
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
-      state=state,
+      sim_state=sim_state,
       explicit=False,
   )
   # The above call calculates the implicit value for the bootstrap current. Note
@@ -337,17 +337,25 @@ def _calc_coeffs_full(
   )
 
   currents = dataclasses.replace(
-      state.currents,
+      sim_state.mesh_state.currents,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
-      johm=state.currents.jtot - j_bootstrap - state.currents.jext,
+      johm=(
+          sim_state.mesh_state.currents.jtot
+          - j_bootstrap
+          - sim_state.mesh_state.currents.jext
+      ),
       johm_face=(
-          state.currents.jtot_face - j_bootstrap_face - state.currents.jext_face
+          sim_state.mesh_state.currents.jtot_face
+          - j_bootstrap_face
+          - sim_state.mesh_state.currents.jext_face
       ),
       I_bootstrap=I_bootstrap,
       sigma=sigma,
   )
-  state = dataclasses.replace(state, currents=currents)
+  sim_state.mesh_state = dataclasses.replace(
+      sim_state.mesh_state, currents=currents
+  )
 
   # psi source terms. Source matrix is zero for all psi sources
   source_mat_psi = jnp.zeros_like(geo.r)
@@ -365,14 +373,18 @@ def _calc_coeffs_full(
       dynamic_config_slice.Rmaj,
   )
 
-  true_ne_face = state.ne.face_value() * dynamic_config_slice.nref
-  true_ni_face = state.ni.face_value() * dynamic_config_slice.nref
+  true_ne_face = (
+      sim_state.mesh_state.ne.face_value() * dynamic_config_slice.nref
+  )
+  true_ni_face = (
+      sim_state.mesh_state.ni.face_value() * dynamic_config_slice.nref
+  )
 
   # Transient term coefficient vector (has radial dependence through r, n)
   toc_temp_ion = 1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.nref
-  tic_temp_ion = state.ni.value
+  tic_temp_ion = sim_state.mesh_state.ni.value
   toc_temp_el = 1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.nref
-  tic_temp_el = state.ne.value
+  tic_temp_el = sim_state.mesh_state.ne.value
   toc_psi = (
       1.0
       / dynamic_config_slice.resistivity_mult
@@ -387,7 +399,9 @@ def _calc_coeffs_full(
   tic_dens_el = jnp.ones_like(geo.vpr)
 
   # Diffusion term coefficients
-  transport_coeffs = transport_model(dynamic_config_slice, geo, state)
+  transport_coeffs = transport_model(
+      dynamic_config_slice, geo, sim_state.mesh_state
+  )
   chi_face_ion = transport_coeffs.chi_face_ion
   chi_face_el = transport_coeffs.chi_face_el
   d_face_el = transport_coeffs.d_face_el
@@ -556,7 +570,9 @@ def _calc_coeffs_full(
       v_face_per_el,
   ) = jax.lax.cond(
       use_pereverzev,
-      lambda: calculate_pereverzev_flux(state, geo, dynamic_config_slice),
+      lambda: calculate_pereverzev_flux(
+          sim_state.mesh_state, geo, dynamic_config_slice
+      ),
       lambda: tuple([jnp.zeros_like(geo.r_face)] * 6),
   )
 
@@ -577,13 +593,13 @@ def _calc_coeffs_full(
       # time step) or the updated state in predictor-corrector, and in the
       # nonlinear solver, calc_coeffs is called at least twice, once with the
       # state at time t, and again (iteratively) with state at t+dt.
-      state=state,
+      sim_state=sim_state,
   )
   _populate_aux_outputs_with_ion_el_heat_sources(
       implicit_source_profiles,
       explicit_source_profiles,
       qei,
-      state,
+      sim_state.mesh_state,
       aux_outputs,
   )
 

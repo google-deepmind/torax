@@ -48,6 +48,15 @@ class BootstrapCurrentProfile:
   j_bootstrap_face: jnp.ndarray
   I_bootstrap: jnp.ndarray  # pylint: disable=invalid-name
 
+  @classmethod
+  def zero_profile(cls, geo: geometry.Geometry) -> BootstrapCurrentProfile:
+    return BootstrapCurrentProfile(
+        sigma=jnp.zeros_like(geo.r),
+        j_bootstrap=jnp.zeros_like(geo.r),
+        j_bootstrap_face=jnp.zeros_like(geo.r_face),
+        I_bootstrap=jnp.zeros(()),
+    )
+
 
 def calc_neoclassical(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
@@ -333,7 +342,7 @@ class BootstrapCurrentSource(source.Source):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      sim_state: state_lib.ToraxSimState | None = None,
       temp_ion: cell_variable.CellVariable | None = None,
       temp_el: cell_variable.CellVariable | None = None,
       ne: cell_variable.CellVariable | None = None,
@@ -341,7 +350,7 @@ class BootstrapCurrentSource(source.Source):
       jtot_face: jnp.ndarray | None = None,
       psi: cell_variable.CellVariable | None = None,
   ) -> BootstrapCurrentProfile:
-    if not state and any([
+    if not sim_state and any([
         not temp_ion,
         not temp_el,
         ne is None,
@@ -350,16 +359,20 @@ class BootstrapCurrentSource(source.Source):
         not psi,
     ]):
       raise ValueError(
-          'If you cannot provide "state", then provide all of temp_ion, '
+          'If you do not provide "sim_state", then provide all of temp_ion, '
           'temp_el, ne, ni, jtot_face, and psi.'
       )
     # pytype: disable=attribute-error
-    temp_ion = temp_ion or state.temp_ion
-    temp_el = temp_el or state.temp_el
-    ne = ne if ne is not None else state.ne
-    ni = ni if ni is not None else state.ni
-    jtot_face = jtot_face if jtot_face is not None else state.currents.jtot_face
-    psi = psi or state.psi
+    temp_ion = temp_ion or sim_state.mesh_state.temp_ion
+    temp_el = temp_el or sim_state.mesh_state.temp_el
+    ne = ne if ne is not None else sim_state.mesh_state.ne
+    ni = ni if ni is not None else sim_state.mesh_state.ni
+    jtot_face = (
+        jtot_face
+        if jtot_face is not None
+        else sim_state.mesh_state.currents.jtot_face
+    )
+    psi = psi or sim_state.mesh_state.psi
     # pytype: enable=attribute-error
     return calc_neoclassical(
         dynamic_config_slice,

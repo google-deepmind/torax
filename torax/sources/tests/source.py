@@ -26,6 +26,7 @@ from torax import initial_states
 from torax.sources import source as source_lib
 from torax.sources import source_config
 from torax.sources import source_profiles
+from torax.time_step_calculator import fixed_time_step_calculator
 
 
 class SourceTest(parameterized.TestCase):
@@ -42,9 +43,11 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(additional_sources=[source]),
     )
     source_type = source_config.SourceType.ZERO.value
@@ -52,7 +55,7 @@ class SourceTest(parameterized.TestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        sim_state=sim_state,
     )
     np.testing.assert_allclose(
         profile,
@@ -74,9 +77,11 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(additional_sources=[source]),
     )
     # But calling requesting ZERO shouldn't work.
@@ -88,7 +93,7 @@ class SourceTest(parameterized.TestCase):
               config_slice.build_dynamic_config_slice(config)
           ),
           geo=geo,
-          state=state,
+          sim_state=sim_state,
       )
 
   def test_defaults_output_zeros(self):
@@ -106,9 +111,11 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(additional_sources=[source]),
     )
     with self.subTest('model_based'):
@@ -119,7 +126,7 @@ class SourceTest(parameterized.TestCase):
               config_slice.build_dynamic_config_slice(config)
           ),
           geo=geo,
-          state=state,
+          sim_state=sim_state,
       )
       np.testing.assert_allclose(
           profile,
@@ -133,7 +140,7 @@ class SourceTest(parameterized.TestCase):
               config_slice.build_dynamic_config_slice(config)
           ),
           geo=geo,
-          state=state,
+          sim_state=sim_state,
       )
       np.testing.assert_allclose(
           profile,
@@ -157,9 +164,11 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(additional_sources=[source]),
     )
     source_type = source_config.SourceType.FORMULA_BASED.value
@@ -167,7 +176,7 @@ class SourceTest(parameterized.TestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        sim_state=sim_state,
     )
     np.testing.assert_allclose(profile, expected_output)
 
@@ -189,9 +198,11 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(additional_sources=[source]),
     )
     source_type = source_config.SourceType.MODEL_BASED.value
@@ -199,7 +210,7 @@ class SourceTest(parameterized.TestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        sim_state=sim_state,
     )
     np.testing.assert_allclose(profile, expected_output)
 
@@ -250,9 +261,11 @@ class SingleProfileSourceTest(parameterized.TestCase):
         nr=5,
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(),  # defaults are enough for this.
     )
     expected_output = jnp.ones(5)  # 5 matches config.nr.
@@ -266,7 +279,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        sim_state=sim_state,
     )
     np.testing.assert_allclose(profile, expected_output)
 
@@ -277,9 +290,11 @@ class SingleProfileSourceTest(parameterized.TestCase):
         nr=5,
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
+        time_step_calculator=ts_calculator,
         sources=source_profiles.Sources(),  # defaults are enough for this.
     )
     source = source_lib.SingleProfileSource(
@@ -298,7 +313,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
               config_slice.build_dynamic_config_slice(config)
           ),
           geo=geo,
-          state=state,
+          sim_state=sim_state,
       )
 
   def test_retrieving_profile_for_affected_state(self):

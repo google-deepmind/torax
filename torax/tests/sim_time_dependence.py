@@ -23,6 +23,7 @@ from torax import calc_coeffs
 from torax import config as config_lib
 from torax import config_slice
 from torax import geometry
+from torax import initial_states
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.sources import source_profiles
@@ -69,7 +70,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         time_calculator,
         transport_model=FakeTransportModel(),
     )
-    input_state = sim_lib.get_initial_state(
+    input_state = initial_states.get_initial_sim_state(
         config=config,
         geo=geo,
         time_step_calculator=time_calculator,
@@ -90,7 +91,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
             sources=sources,
             dynamic_config_slice=initial_dynamic_config_slice,
             geo=geo,
-            state=input_state.mesh_state,
+            sim_state=input_state,
             explicit=True,
         ),
     )
@@ -133,8 +134,8 @@ class FakeStepper(stepper_lib.Stepper):
 
   def __call__(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      sim_state_t: state_module.ToraxSimState,
+      sim_state_t_plus_dt: state_module.ToraxSimState,
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
@@ -150,8 +151,8 @@ class FakeStepper(stepper_lib.Stepper):
     aux.Qei = jnp.ones_like(geo.r) * combined
     return jax.lax.cond(
         combined < self._max_value,
-        lambda: (state_t, 0, aux),
-        lambda: (state_t, 1, aux),
+        lambda: (sim_state_t.mesh_state, 0, aux),
+        lambda: (sim_state_t.mesh_state, 1, aux),
     )
 
 

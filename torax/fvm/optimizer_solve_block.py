@@ -44,7 +44,7 @@ TOL = 1e-12
 
 def optimizer_solve_block(
     x_old: tuple[cell_variable.CellVariable, ...],
-    state_t_plus_dt: state_module.State,
+    sim_state_t_plus_dt: state_module.ToraxSimState,
     evolving_names: tuple[str, ...],
     dt: jax.Array,
     coeffs_callback: Block1DCoeffsCallback,
@@ -72,7 +72,7 @@ def optimizer_solve_block(
   Args:
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
-    state_t_plus_dt: Sim state which contains all available prescribed
+    sim_state_t_plus_dt: Full sim state which contains all available prescribed
       quantities at the end of the time step. This includes evolving boundary
       conditions and prescribed time-dependent profiles that are not being
       evolved by the PDE system.
@@ -130,7 +130,9 @@ def optimizer_solve_block(
           explicit_call=True,
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
-      x_new_init = tuple([state_t_plus_dt[name] for name in evolving_names])
+      x_new_init = tuple(
+          [sim_state_t_plus_dt.mesh_state[name] for name in evolving_names]
+      )
       init_val = (
           x_new_init,
           calc_coeffs.AuxOutput.build_from_geo(geo),
@@ -156,7 +158,7 @@ def optimizer_solve_block(
   x_new_vec, final_loss, aux_output = residual_and_loss.jaxopt_solver(
       init_x_new_vec=init_x_new_vec,
       x_old=x_old,
-      state_t_plus_dt=state_t_plus_dt,
+      sim_state_t_plus_dt=sim_state_t_plus_dt,
       geo=geo,
       dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
       static_config_slice=static_config_slice,
@@ -173,7 +175,7 @@ def optimizer_solve_block(
   # Create updated CellVariable instances based on state_plus_dt which has
   # updated boundary conditions and prescribed profiles.
   x_new = fvm_conversions.vec_to_cell_variable_tuple(
-      x_new_vec, state_t_plus_dt, evolving_names
+      x_new_vec, sim_state_t_plus_dt.mesh_state, evolving_names
   )
 
   # Tell the caller whether or not x_new successfully reduces the loss below

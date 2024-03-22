@@ -39,7 +39,7 @@ from torax.sources import source_config
 def get_cell_profile_shape(
     unused_config: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    unused_state: state_lib.State | None,
+    unused_state: state_lib.ToraxSimState | None,
 ):
   """Returns the shape of a source profile on the cell grid."""
   return ProfileType.CELL.get_profile_shape(geo)
@@ -52,7 +52,7 @@ SourceOutputShapeFunction = Callable[
     [  # Arguments
         config_slice.DynamicConfigSlice,
         geometry.Geometry,
-        state_lib.State | None,
+        state_lib.ToraxSimState | None,
     ],
     # Returns shape of the source's output.
     tuple[int, ...],
@@ -181,7 +181,7 @@ class Source:
       source_type: int,  # value of the source_config.SourceType enum.
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      sim_state: state_lib.ToraxSimState | None = None,
   ) -> chex.ArrayTree:
     """Returns the profile for this source during one time step.
 
@@ -194,17 +194,21 @@ class Source:
       dynamic_config_slice: Slice of the general TORAX config that can be used
         as input for this time step.
       geo: Geometry of the torus.
-      state: Mesh state of the simulator. May be the state at the start of the
-        time step or a live state being actively updated depending on whether
-        this source is explicit or implicit. Explicit sources get the state at
-        the start of the time step, implicit sources get the "live" state that
-        is updated through the course of the time step as the solver converges.
+      sim_state: Complete state of the TORAX simulator, including the mesh state
+        of profiles being evolved by the PDE system. May be the state at the
+        start of the time step or a live state being actively updated depending
+        on whether this source is explicit or implicit. Explicit sources get the
+        state at the start of the time step, implicit sources get the "live"
+        state that is updated through the course of the time step as the solver
+        converges.
 
     Returns:
       Array, arrays, or nested dataclass/dict of arrays for the source profile.
     """
     source_type = self.check_source_type(source_type)
-    output_shape = self.output_shape_getter(dynamic_config_slice, geo, state)
+    output_shape = self.output_shape_getter(
+        dynamic_config_slice, geo, sim_state
+    )
     model_func = (
         (lambda _0, _1, _2: jnp.zeros(output_shape))
         if self.model_func is None
@@ -219,7 +223,7 @@ class Source:
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=state,
+        sim_state=sim_state,
         model_func=model_func,
         formula=formula,
         output_shape=output_shape,
@@ -363,15 +367,17 @@ class SingleProfileSource(Source):
       source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      sim_state: state_lib.ToraxSimState | None = None,
   ) -> jnp.ndarray:
     """Returns the profile for this source during one time step."""
-    output_shape = self.output_shape_getter(dynamic_config_slice, geo, state)
+    output_shape = self.output_shape_getter(
+        dynamic_config_slice, geo, sim_state
+    )
     profile = super().get_value(
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=state,
+        sim_state=sim_state,
     )
     assert isinstance(profile, jnp.ndarray)
     chex.assert_rank(profile, 1)
@@ -417,7 +423,7 @@ def get_source_profiles(
     source_type: int | jnp.ndarray,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_lib.State | None,
+    sim_state: state_lib.ToraxSimState | None,
     model_func: source_config.SourceProfileFunction,
     formula: source_config.SourceProfileFunction,
     output_shape: tuple[int, ...],
@@ -432,7 +438,8 @@ def get_source_profiles(
     dynamic_config_slice: Slice of the general TORAX config that can be used as
       input for this time step.
     geo: Geometry information. Used as input to the source profile functions.
-    state: Simulation state. Used as input to the source profile functions.
+    sim_state: Full simulation state. Used as input to the source profile
+      functions.
     model_func: Model function.
     formula: Formula implementation.
     output_shape: Expected shape of the outut array.
@@ -444,12 +451,12 @@ def get_source_profiles(
   output = jnp.zeros(output_shape)
   output += jnp.where(
       source_type == source_config.SourceType.MODEL_BASED.value,
-      model_func(dynamic_config_slice, geo, state),
+      model_func(dynamic_config_slice, geo, sim_state),
       zeros,
   )
   output += jnp.where(
       source_type == source_config.SourceType.FORMULA_BASED.value,
-      formula(dynamic_config_slice, geo, state),
+      formula(dynamic_config_slice, geo, sim_state),
       zeros,
   )
   return output
@@ -559,7 +566,7 @@ class IonElectronSource(Source):
       source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      sim_state: state_lib.ToraxSimState | None = None,
   ) -> jnp.ndarray:
     """Computes the ion and electron values of the source.
 
@@ -570,18 +577,21 @@ class IonElectronSource(Source):
       dynamic_config_slice: Input config which can change from time step to time
         step.
       geo: Geometry of the torus.
-      state: Mesh state to use while calculating this source profile.
+      sim_state: Full simulation state including the mesh state to use while
+        calculating this source profile.
 
     Returns:
       2 stacked arrays, the first for the ion profile and the second for the
       electron profile.
     """
-    output_shape = self.output_shape_getter(dynamic_config_slice, geo, state)
+    output_shape = self.output_shape_getter(
+        dynamic_config_slice, geo, sim_state
+    )
     profile = super().get_value(
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=state,
+        sim_state=sim_state,
     )
     assert isinstance(profile, jnp.ndarray)
     chex.assert_rank(profile, 2)

@@ -56,7 +56,7 @@ def build_source_profiles(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
     explicit: bool,
 ) -> SourceProfiles:
   """Builds explicit or implicit source profiles.
@@ -66,8 +66,9 @@ def build_source_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    sim_state: Full TORAX sim state which includes the mesh state, either at the
+      start of the time step (if explicit) or the live state being evolved
+      during the time step (if implicit).
     explicit: If True, this function should return profiles for all explicit
       sources. All implicit sources should be set to 0. And same vice versa.
 
@@ -82,22 +83,26 @@ def build_source_profiles(
   bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_config_slice,
       geo,
-      state,
+      sim_state,
       sources.j_bootstrap,
       explicit,
   )
   other_profiles = {}
   other_profiles.update(
-      _build_psi_profiles(dynamic_config_slice, geo, state, sources, explicit)
+      _build_psi_profiles(
+          dynamic_config_slice, geo, sim_state, sources, explicit
+      )
   )
   other_profiles.update(
-      _build_ne_profiles(dynamic_config_slice, geo, state, sources, explicit)
+      _build_ne_profiles(
+          dynamic_config_slice, geo, sim_state, sources, explicit
+      )
   )
   other_profiles.update(
       _build_temp_ion_el_profiles(
           dynamic_config_slice,
           geo,
-          state,
+          sim_state,
           sources,
           explicit,
       )
@@ -111,7 +116,7 @@ def build_source_profiles(
 def _build_bootstrap_profiles(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
     j_bootstrap_source: bootstrap_current_source.BootstrapCurrentSource,
     explicit: bool = True,
     calculate_anyway: bool = False,
@@ -122,8 +127,9 @@ def _build_bootstrap_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    sim_state: Full TORAX sim state which includes the mesh state, either at the
+      start of the time step (if explicit) or the live state being evolved
+      during the time step (if implicit).
     j_bootstrap_source: Bootstrap current source used to compute the profile.
     explicit: If True, this function should return the profile for an explicit
       source. If explicit is True and the bootstrap current source is not
@@ -138,7 +144,7 @@ def _build_bootstrap_profiles(
   bootstrap_profile = j_bootstrap_source.get_value(
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
-      state=state,
+      sim_state=sim_state,
   )
   sigma = jax_utils.select(
       jnp.logical_or(
@@ -187,7 +193,7 @@ def _build_bootstrap_profiles(
 def _build_psi_profiles(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
     sources: Sources,
     explicit: bool = True,
     calculate_anyway: bool = False,
@@ -198,8 +204,9 @@ def _build_psi_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    sim_state: Full TORAX sim state which includes the mesh state, either at the
+      start of the time step (if explicit) or the live state being evolved
+      during the time step (if implicit).
     sources: Collection of all TORAX sources.
     explicit: If True, this function should return the profile for an explicit
       source. If explicit is True and a given source is not explicit, then this
@@ -219,7 +226,7 @@ def _build_psi_profiles(
           == dynamic_config_slice.sources[sources.jext.name].is_explicit,
           calculate_anyway,
       ),
-      state.currents.jext,
+      sim_state.mesh_state.currents.jext,
       jnp.zeros_like(geo.r),
   )
   # Iterate through the rest of the sources and compute profiles for the ones
@@ -234,7 +241,7 @@ def _build_psi_profiles(
             dynamic_source_config.source_type,
             dynamic_config_slice,
             geo,
-            state,
+            sim_state,
         ),
         jnp.zeros_like(geo.r),
     )
@@ -244,7 +251,7 @@ def _build_psi_profiles(
 def _build_ne_profiles(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
     sources: Sources,
     explicit: bool,
 ) -> dict[str, jnp.ndarray]:
@@ -254,8 +261,9 @@ def _build_ne_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    sim_state: Full TORAX sim state which includes the mesh state, either at the
+      start of the time step (if explicit) or the live state being evolved
+      during the time step (if implicit).
     sources: Collection of all TORAX sources.
     explicit: If True, this function should return the profile for an explicit
       source. If explicit is True and a given source is not explicit, then this
@@ -277,7 +285,7 @@ def _build_ne_profiles(
             dynamic_source_config.source_type,
             dynamic_config_slice,
             geo,
-            state,
+            sim_state,
         ),
         jnp.zeros_like(geo.r),
     )
@@ -287,7 +295,7 @@ def _build_ne_profiles(
 def _build_temp_ion_el_profiles(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
     sources: Sources,
     explicit: bool,
 ) -> dict[str, jnp.ndarray]:
@@ -297,8 +305,9 @@ def _build_temp_ion_el_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    sim_state: Full TORAX sim state which includes the mesh state, either at the
+      start of the time step (if explicit) or the live state being evolved
+      during the time step (if implicit).
     sources: Collection of all TORAX sources.
     explicit: If True, this function should return the profile for an explicit
       source. If explicit is True and a given source is not explicit, then this
@@ -314,7 +323,7 @@ def _build_temp_ion_el_profiles(
   temp_ion_el_sources = sources.temp_ion_sources | sources.temp_el_sources
   for source_name, source in temp_ion_el_sources.items():
     zeros = jnp.zeros(
-        source.output_shape_getter(dynamic_config_slice, geo, state)
+        source.output_shape_getter(dynamic_config_slice, geo, sim_state)
     )
     dynamic_source_config = dynamic_config_slice.sources[source_name]
     ion_el_profiles[source_name] = jax_utils.select(
@@ -323,7 +332,7 @@ def _build_temp_ion_el_profiles(
             dynamic_source_config.source_type,
             dynamic_config_slice,
             geo,
-            state,
+            sim_state,
         ),
         zeros,
     )
@@ -408,7 +417,7 @@ def calc_and_sum_sources_psi(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Computes sum of psi sources for psi_dot calculation."""
 
@@ -416,7 +425,7 @@ def calc_and_sum_sources_psi(
   # expensive source functions that might not jittable (like file-based or
   # RPC-based sources).
   psi_profiles = _build_psi_profiles(
-      dynamic_config_slice, geo, state, sources, calculate_anyway=True
+      dynamic_config_slice, geo, sim_state, sources, calculate_anyway=True
   )
   total = 0
   for key in psi_profiles:
@@ -424,7 +433,7 @@ def calc_and_sum_sources_psi(
   j_bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_config_slice,
       geo,
-      state,
+      sim_state,
       sources.j_bootstrap,
       calculate_anyway=True,
   )
@@ -439,7 +448,7 @@ def calc_psidot(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
 ) -> jnp.ndarray:
   r"""Calculates psidot (loop voltage). Used for the Ohmic electron heat source.
 
@@ -453,7 +462,7 @@ def calc_psidot(
     sources: All TORAX source/sinks.
     dynamic_config_slice: Simulation configuration at this timestep
     geo: Torus geometry
-    state: Plasma state r
+    sim_state: Full TORAX simulation state including plasma state r
 
   Returns:
     psidot: on cell grid
@@ -464,7 +473,7 @@ def calc_psidot(
       sources,
       dynamic_config_slice,
       geo,
-      state,
+      sim_state,
   )
   toc_psi = (
       1.0
@@ -477,10 +486,12 @@ def calc_psidot(
   )
   d_face_psi = geo.G2_face / geo.J_face / geo.rmax**2
 
-  c_mat, c = diffusion_terms.make_diffusion_terms(d_face_psi, state.psi)
+  c_mat, c = diffusion_terms.make_diffusion_terms(
+      d_face_psi, sim_state.mesh_state.psi
+  )
   c += psi_sources
 
-  psidot = (jnp.dot(c_mat, state.psi.value) + c) / toc_psi
+  psidot = (jnp.dot(c_mat, sim_state.mesh_state.psi.value) + c) / toc_psi
 
   return psidot
 
@@ -491,16 +502,16 @@ def _ohmic_heat_model(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    sim_state: state_module.ToraxSimState,
 ) -> jnp.ndarray:
   """Returns the Ohmic source for electron heat equation."""
   jtot, _ = physics.calc_jtot_from_psi(
       geo,
-      state.psi,
+      sim_state.mesh_state.psi,
       dynamic_config_slice.Rmaj,
   )
 
-  psidot = calc_psidot(sources, dynamic_config_slice, geo, state)
+  psidot = calc_psidot(sources, dynamic_config_slice, geo, sim_state)
 
   pohm = jtot * psidot / (2 * jnp.pi * dynamic_config_slice.Rmaj)
   return pohm
@@ -540,13 +551,13 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
     def _model_func(
         dynamic_config_slice: config_slice.DynamicConfigSlice,
         geo: geometry.Geometry,
-        state: state_module.State,
+        sim_state: state_module.ToraxSimState,
     ) -> jnp.ndarray:
       return _ohmic_heat_model(
           sources=self.sources,
           dynamic_config_slice=dynamic_config_slice,
           geo=geo,
-          state=state,
+          sim_state=sim_state,
       )
 
     # Must use object.__setattr__ instead of simply doing

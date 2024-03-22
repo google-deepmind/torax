@@ -32,6 +32,7 @@ from torax.fvm import residual_and_loss
 from torax.sources import source_config
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import torax_refs
+from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import transport_model_factory
 
 
@@ -376,18 +377,24 @@ class FVMTest(torax_refs.ReferenceValueTest):
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     static_config_slice = config_slice.build_static_config_slice(config)
     sources = source_profiles_lib.Sources()
-    state = initial_states.initial_state(config, geo, sources)
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    sim_state = initial_states.get_initial_sim_state(
+        config=config,
+        geo=geo,
+        time_step_calculator=ts_calculator,
+        sources=sources,
+    )
     evolving_names = tuple(['temp_ion'])
     explicit_source_profiles = source_profiles_lib.build_source_profiles(
-        sources=source_profiles_lib.Sources(),
+        sources=sources,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=state,
+        sim_state=sim_state,
         explicit=True,
     )
     transport_model = transport_model_factory.construct(config)
     coeffs = calc_coeffs.calc_coeffs(
-        state=state,
+        sim_state=sim_state,
         evolving_names=evolving_names,
         geo=geo,
         dynamic_config_slice=dynamic_config_slice,
@@ -400,7 +407,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # dt well under the explicit stability limit for dx=1 and chi=1
     dt = jnp.array(0.2)
     # initialize x_new for timestepping
-    x_new = (state.temp_ion,)
+    x_new = (sim_state.mesh_state.temp_ion,)
     for _ in range(time_steps):
       x_old = copy.deepcopy(x_new)
       x_new = implicit_solve_block.implicit_solve_block(
@@ -420,7 +427,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
       loss, _ = residual_and_loss.theta_method_block_loss(
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
           x_old=x_old,
-          state_t_plus_dt=state,
+          sim_state_t_plus_dt=sim_state,
           evolving_names=evolving_names,
           geo=geo,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
@@ -435,7 +442,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
       residual, _ = residual_and_loss.theta_method_block_residual(
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
           x_old=x_old,
-          state_t_plus_dt=state,
+          sim_state_t_plus_dt=sim_state,
           evolving_names=evolving_names,
           geo=geo,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
@@ -486,12 +493,18 @@ class FVMTest(torax_refs.ReferenceValueTest):
         config,
     )
     sources = source_profiles_lib.Sources()
-    initial_mesh_state = initial_states.initial_state(config, geo, sources)
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    initial_sim_state = initial_states.get_initial_sim_state(
+        config=config,
+        geo=geo,
+        time_step_calculator=ts_calculator,
+        sources=sources,
+    )
     explicit_source_profiles = source_profiles_lib.build_source_profiles(
         sources=sources,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=initial_mesh_state,
+        sim_state=initial_sim_state,
         explicit=True,
     )
 
@@ -499,7 +512,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     evolving_names = tuple(['temp_ion'])
 
     coeffs = calc_coeffs.calc_coeffs(
-        state=initial_mesh_state,
+        sim_state=initial_sim_state,
         evolving_names=evolving_names,
         geo=geo,
         dynamic_config_slice=dynamic_config_slice,
@@ -604,12 +617,18 @@ class FVMTest(torax_refs.ReferenceValueTest):
         config,
     )
     sources = source_profiles_lib.Sources()
-    initial_mesh_state = initial_states.initial_state(config, geo, sources)
+    ts_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
+    initial_sim_state = initial_states.get_initial_sim_state(
+        config=config,
+        geo=geo,
+        time_step_calculator=ts_calculator,
+        sources=sources,
+    )
     explicit_source_profiles = source_profiles_lib.build_source_profiles(
         sources=sources,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=initial_mesh_state,
+        sim_state=initial_sim_state,
         explicit=True,
     )
 
@@ -617,7 +636,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     evolving_names = tuple(['temp_ion'])
 
     coeffs_old = calc_coeffs.calc_coeffs(
-        state=initial_mesh_state,
+        sim_state=initial_sim_state,
         evolving_names=evolving_names,
         geo=geo,
         dynamic_config_slice=dynamic_config_slice,

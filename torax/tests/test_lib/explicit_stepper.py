@@ -49,8 +49,8 @@ class ExplicitStepper(stepper_lib.Stepper):
 
   def __call__(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      sim_state_t: state_module.ToraxSimState,
+      sim_state_t_plus_dt: state_module.ToraxSimState,
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
@@ -73,6 +73,7 @@ class ExplicitStepper(stepper_lib.Stepper):
     assert not static_config_slice.current_eq
 
     consts = constants.CONSTANTS
+    state_t = sim_state_t.mesh_state
 
     true_ni = state_t.ni.value * dynamic_config_slice_t.nref
     true_ni_face = state_t.ni.face_value() * dynamic_config_slice_t.nref

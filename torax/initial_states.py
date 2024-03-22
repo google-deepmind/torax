@@ -30,6 +30,7 @@ from torax import state as state_module
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
 from torax.sources import bootstrap_current_source
 from torax.sources import source_profiles as source_profiles_lib
+from torax.time_step_calculator import time_step_calculator as ts
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -258,10 +259,22 @@ def initial_state(
       s_face=s_face,
   )
 
+  # The API calculating psidot requires the full simulation state because that's
+  # what the sources API requires. In here, we can construct a dummy initial
+  # full sim state to help with the calculation.
+  dummy_initial_sim_state = state_module.ToraxSimState(
+      t=dynamic_config_slice.t_initial,
+      dt=0.0,
+      stepper_iterations=0,
+      mesh_state=state,
+      time_step_calculator_state=None,
+      stepper_error_state=0,
+  )
+
   psidot = dataclasses.replace(
       psidot,
       value=source_profiles_lib.calc_psidot(
-          sources, dynamic_config_slice, geo, state
+          sources, dynamic_config_slice, geo, dummy_initial_sim_state
       ),
   )
 
@@ -498,3 +511,21 @@ def initial_psi(
   psi = jnp.interp(geo.r, geo.r_hires, psi_hires)
 
   return psi
+
+
+def get_initial_sim_state(
+    config: config_lib.Config,
+    geo: geometry.Geometry,
+    time_step_calculator: ts.TimeStepCalculator,
+    sources: source_profiles_lib.Sources,
+) -> state_module.ToraxSimState:
+  """Returns the initial state to be used by sim.run_simulation()."""
+  initial_mesh_state = initial_state(config, geo, sources)
+  return state_module.ToraxSimState(
+      t=jnp.array(config.t_initial),
+      dt=jnp.zeros(()),
+      mesh_state=initial_mesh_state,
+      time_step_calculator_state=time_step_calculator.initial_state(),
+      stepper_error_state=0,
+      stepper_iterations=0,
+  )
