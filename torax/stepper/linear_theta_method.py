@@ -14,9 +14,7 @@
 
 """The LinearThetaMethodStepper class."""
 
-import copy
 from typing import Type
-
 import jax
 from torax import calc_coeffs
 from torax import config_slice
@@ -52,12 +50,12 @@ class LinearThetaMethod(stepper_lib.Stepper):
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
-      mask: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
     """See Stepper._x_new docstring."""
 
-    x_old = tuple(copy.deepcopy([state_t[name] for name in evolving_names]))
+    x_old = tuple([state_t[name] for name in evolving_names])
+    x_new_init = tuple([state_t_plus_dt[name] for name in evolving_names])
 
     # Instantiate coeffs_callback class
     coeffs_callback = self.callback_class(
@@ -66,7 +64,6 @@ class LinearThetaMethod(stepper_lib.Stepper):
         geo=geo,
         static_config_slice=static_config_slice,
         transport_model=self.transport_model,
-        mask=mask,
         explicit_source_profiles=explicit_source_profiles,
         sources=self.sources,
     )
@@ -85,15 +82,14 @@ class LinearThetaMethod(stepper_lib.Stepper):
     # auxiliary_outputs (index 1) is an AuxOutput dataclass with correct array
     # sizes for tracing
     init_val = (
-        x_old,
+        x_new_init,
         calc_coeffs.AuxOutput.build_from_geo(geo),
     )
 
     x_new, auxiliary_outputs = (
         predictor_corrector_method.predictor_corrector_method(
             init_val=init_val,
-            state_t_plus_dt=state_t_plus_dt,
-            evolving_names=evolving_names,
+            x_old=x_old,
             dt=dt,
             coeffs_exp=coeffs_exp,
             coeffs_callback=coeffs_callback,

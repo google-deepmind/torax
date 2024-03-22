@@ -26,6 +26,7 @@ from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import jax_utils
+from torax import physics
 from torax import state as state_module
 from torax.fvm import block_1d_coeffs
 from torax.sources import qei_source as qei_source_lib
@@ -186,7 +187,6 @@ def calc_coeffs(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
     transport_model: transport_model_lib.TransportModel,
-    mask: jax.Array,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     sources: source_profiles_lib.Sources,
     use_pereverzev: bool = False,
@@ -206,8 +206,6 @@ def calc_coeffs(
     static_config_slice: General input parameters which are fixed through a
       simulation run, and if changed, would trigger a recompile.
     transport_model: A TransportModel subclass, calculates transport coeffs.
-    mask: Boolean mask for enforcing internal temperature boundary conditions to
-      model the pedestal.
     explicit_source_profiles: Precomputed explicit source profiles. These
       profiles either do not depend on the state or depend on the original state
       at the start of the time step (orig_state), not the "live" state (state).
@@ -224,6 +222,12 @@ def calc_coeffs(
   consts = constants.CONSTANTS
   #  Initialize AuxOutput object with array sizes taken from geo
   aux_outputs = AuxOutput.build_from_geo(geo)
+
+  # Boolean mask for enforcing internal temperature boundary conditions to
+  # model the pedestal.
+  mask = physics.internal_boundary(
+      geo, dynamic_config_slice.Ped_top, dynamic_config_slice.set_pedestal
+  )
 
   # This only calculates sources set to implicit in the config. All other
   # sources are set to 0 (and should have their profiles already calculated in

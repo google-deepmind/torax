@@ -27,7 +27,6 @@ from torax import config_slice
 from torax import fvm
 from torax import geometry
 from torax import initial_states
-from torax import physics
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
 from torax.sources import source_config
@@ -379,9 +378,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
     sources = source_profiles_lib.Sources()
     state = initial_states.initial_state(config, geo, sources)
     evolving_names = tuple(['temp_ion'])
-    mask = physics.internal_boundary(
-        geo, dynamic_config_slice.Ped_top, dynamic_config_slice.set_pedestal
-    )
     explicit_source_profiles = source_profiles_lib.build_source_profiles(
         sources=source_profiles_lib.Sources(),
         dynamic_config_slice=dynamic_config_slice,
@@ -397,7 +393,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
         dynamic_config_slice=dynamic_config_slice,
         static_config_slice=static_config_slice,
         transport_model=transport_model,
-        mask=mask,
         explicit_source_profiles=explicit_source_profiles,
         sources=sources,
         use_pereverzev=False,
@@ -434,7 +429,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
           coeffs_old=coeffs,
           transport_model=transport_model,
           sources=sources,
-          mask=mask,
           explicit_source_profiles=explicit_source_profiles,
           theta_imp=theta_imp,
       )
@@ -451,7 +445,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
           coeffs_old=coeffs,
           transport_model=transport_model,
           sources=sources,
-          mask=mask,
           explicit_source_profiles=explicit_source_profiles,
           theta_imp=theta_imp,
       )
@@ -503,9 +496,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
         state=initial_mesh_state,
         explicit=True,
     )
-    mask = physics.internal_boundary(
-        geo, dynamic_config_slice.Ped_top, dynamic_config_slice.set_pedestal
-    )
 
     dt = jnp.array(1.0)
     evolving_names = tuple(['temp_ion'])
@@ -517,7 +507,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
         dynamic_config_slice=dynamic_config_slice,
         static_config_slice=static_config_slice,
         transport_model=transport_model,
-        mask=mask,
         explicit_source_profiles=explicit_source_profiles,
         sources=sources,
         use_pereverzev=False,
@@ -618,9 +607,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
         state=initial_mesh_state,
         explicit=True,
     )
-    mask = physics.internal_boundary(
-        geo, dynamic_config_slice.Ped_top, dynamic_config_slice.set_pedestal
-    )
 
     dt = jnp.array(1.0)
     evolving_names = tuple(['temp_ion'])
@@ -632,7 +618,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
         dynamic_config_slice=dynamic_config_slice,
         static_config_slice=static_config_slice,
         transport_model=transport_model,
-        mask=mask,
         explicit_source_profiles=explicit_source_profiles,
         sources=sources,
         use_pereverzev=False,
@@ -667,7 +652,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
           coeffs_old=coeffs_old,
           transport_model=transport_model,
           sources=sources,
-          mask=mask,
           explicit_source_profiles=explicit_source_profiles,
           theta_imp=0.5,
       )
@@ -694,7 +678,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
           coeffs_old=coeffs_old,
           transport_model=transport_model,
           sources=sources,
-          mask=mask,
           explicit_source_profiles=explicit_source_profiles,
           theta_imp=0.0,
       )
@@ -717,7 +700,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
           coeffs_old=coeffs_old,
           transport_model=transport_model,
           sources=sources,
-          mask=mask,
           explicit_source_profiles=explicit_source_profiles,
           theta_imp=0.5,
       )

@@ -65,7 +65,6 @@ class NonlinearThetaMethod(stepper.Stepper):
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
-      mask: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
     """See Stepper._x_new docstring."""
@@ -76,7 +75,6 @@ class NonlinearThetaMethod(stepper.Stepper):
         geo=geo,
         static_config_slice=static_config_slice,
         transport_model=self.transport_model,
-        mask=mask,
         explicit_source_profiles=explicit_source_profiles,
         sources=self.sources,
     )
@@ -88,7 +86,6 @@ class NonlinearThetaMethod(stepper.Stepper):
         state_t_plus_dt=state_t_plus_dt,
         evolving_names=evolving_names,
         geo=geo,
-        mask=mask,
         explicit_source_profiles=explicit_source_profiles,
         dt=dt,
         coeffs_callback=coeffs_callback,
@@ -106,7 +103,6 @@ class NonlinearThetaMethod(stepper.Stepper):
       state_t_plus_dt: state_module.State,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
-      mask: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
@@ -128,8 +124,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     transport_model: A TransportModel subclass, calculates transport coeffs.
     callback_class: Which class should be used to calculate the coefficients.
     initial_guess_mode: Passed through to `fvm.optimizer_solve_block`.
-    maxiter: Passed through to `jaxopt.LBFGS`
-    tol: Passed through to `jaxopt.LBFGS`
+    maxiter: Passed through to `jaxopt.LBFGS`.
+    tol: Passed through to `jaxopt.LBFGS`.
   """
 
   def __init__(
@@ -155,7 +151,6 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       state_t_plus_dt: state_module.State,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
-      mask: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
@@ -173,7 +168,6 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         geo=geo,
         transport_model=self.transport_model,
         sources=self.sources,
-        mask=mask,
         explicit_source_profiles=explicit_source_profiles,
         # theta_imp is not time-dependent. Not all parameters in the
         # dynamic_config_slice need to be time-dependent. They can simply change
@@ -240,7 +234,6 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       state_t_plus_dt: state_module.State,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
-      mask: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
@@ -265,7 +258,6 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         theta_imp=dynamic_config_slice_t.solver.theta_imp,
         transport_model=self.transport_model,
         sources=self.sources,
-        mask=mask,
         explicit_source_profiles=explicit_source_profiles,
         log_iterations=static_config_slice.solver.log_iterations,
         convection_dirichlet_mode=(

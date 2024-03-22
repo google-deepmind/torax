@@ -203,7 +203,6 @@ def theta_method_block_residual(
     coeffs_old: Block1DCoeffs,
     transport_model: transport_model_lib.TransportModel,
     sources: source_profiles.Sources,
-    mask: jax.Array,
     explicit_source_profiles: source_profiles.SourceProfiles,
     theta_imp: jax.Array | float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
@@ -220,17 +219,16 @@ def theta_method_block_residual(
       conditions and prescribed time-dependent profiles that are not being
       evolved by the PDE system.
     evolving_names: The names of variables within the state that should evolve.
-    geo: geometry object
+    geo: Geometry object.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation
+      params will trigger recompilation.
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old.
-    transport_model: Turbulent transport model callable
+    transport_model: Turbulent transport model callable.
     sources: Collection of source callables to generate source PDE coefficients
-    mask: Boolean mask array setting pedestal zone
     explicit_source_profiles: Pre-calculated sources implemented as explicit
-      sources in the PDE
+      sources in the PDE.
     theta_imp: Coefficient on implicit term of theta method.
     convection_dirichlet_mode: See docstring of the `convection_terms` function,
       `dirichlet_mode` argument.
@@ -259,7 +257,6 @@ def theta_method_block_residual(
       dynamic_config_slice=dynamic_config_slice_t_plus_dt,
       static_config_slice=static_config_slice,
       transport_model=transport_model,
-      mask=mask,
       explicit_source_profiles=explicit_source_profiles,
       sources=sources,
       use_pereverzev=False,
@@ -322,7 +319,6 @@ def theta_method_block_loss(
     coeffs_old: Block1DCoeffs,
     transport_model: transport_model_lib.TransportModel,
     sources: source_profiles.Sources,
-    mask: jax.Array,
     explicit_source_profiles: source_profiles.SourceProfiles,
     theta_imp: jax.Array | float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
@@ -347,7 +343,6 @@ def theta_method_block_loss(
     coeffs_old: The coefficients calculated at x_old.
     transport_model: turbulent transport model callable
     sources: collection of source callables to generate source PDE coefficients
-    mask: boolean mask array setting pedestal zone
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE
     theta_imp: Coefficient on implicit term of theta method.
@@ -372,7 +367,6 @@ def theta_method_block_loss(
       coeffs_old=coeffs_old,
       transport_model=transport_model,
       sources=sources,
-      mask=mask,
       explicit_source_profiles=explicit_source_profiles,
       theta_imp=theta_imp,
       convection_dirichlet_mode=convection_dirichlet_mode,
@@ -405,7 +399,6 @@ def jaxopt_solver(
     coeffs_old: Block1DCoeffs,
     transport_model: transport_model_lib.TransportModel,
     sources: source_profiles.Sources,
-    mask: jax.Array,
     explicit_source_profiles: source_profiles.SourceProfiles,
     maxiter: int,
     tol: float,
@@ -424,17 +417,16 @@ def jaxopt_solver(
       conditions and prescribed time-dependent profiles that are not being
       evolved by the PDE system.
     evolving_names: The names of variables within the state that should evolve.
-    geo: geometry object
+    geo: geometry object.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation
+      params will trigger recompilation.
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old.
-    transport_model: turbulent transport model callable
+    transport_model: turbulent transport model callable.
     sources: collection of source callables to generate source PDE coefficients
-    mask: boolean mask array setting pedestal zone
     explicit_source_profiles: pre-calculated sources implemented as explicit
-      sources in the PDE
+      sources in the PDE.
     maxiter: maximum number of iterations of jaxopt solver.
     tol: tolerance for jaxopt solver convergence.
     theta_imp: Coefficient on implicit term of theta method.
@@ -460,7 +452,6 @@ def jaxopt_solver(
       coeffs_old=coeffs_old,
       transport_model=transport_model,
       sources=sources,
-      mask=mask,
       explicit_source_profiles=explicit_source_profiles,
       theta_imp=theta_imp,
       convection_dirichlet_mode=convection_dirichlet_mode,

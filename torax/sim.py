@@ -82,7 +82,6 @@ class CoeffsCallback:
     geo: See the docstring for `stepper.Stepper`.
     static_config_slice: See the docstring for `stepper.Stepper`.
     transport_model: See the docstring for `stepper.Stepper`.
-    mask: See the docstring for `stepper.Stepper`.
     explicit_source_profiles: See the docstring for `stepper.Stepper`.
     sources: See the docstring for `stepper.Stepper`.
   """
@@ -94,7 +93,6 @@ class CoeffsCallback:
       geo: geometry.Geometry,
       static_config_slice: config_slice.StaticConfigSlice,
       transport_model: transport_model_lib.TransportModel,
-      mask: jax.Array,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       sources: source_profiles_lib.Sources,
   ):
@@ -103,7 +101,6 @@ class CoeffsCallback:
     self.geo = geo
     self.static_config_slice = static_config_slice
     self.transport_model = transport_model
-    self.mask = mask
     self.explicit_source_profiles = explicit_source_profiles
     self.sources = sources
 
@@ -140,7 +137,6 @@ class CoeffsCallback:
         dynamic_config_slice=dynamic_config_slice,
         static_config_slice=self.static_config_slice,
         transport_model=self.transport_model,
-        mask=self.mask,
         explicit_source_profiles=self.explicit_source_profiles,
         sources=self.sources,
         use_pereverzev=use_pereverzev,

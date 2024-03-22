@@ -110,7 +110,6 @@ def newton_raphson_solve_block(
     geo: geometry.Geometry,
     transport_model: transport_model_lib.TransportModel,
     sources: source_profiles.Sources,
-    mask: jax.Array,
     explicit_source_profiles: source_profiles.SourceProfiles,
     theta_imp: Union[jax.Array, float] = 1.0,
     log_iterations: bool = False,
@@ -162,13 +161,12 @@ def newton_raphson_solve_block(
       triggering a recompilation.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
-      parrams will trigger recompilation
-    geo: Geometry object
-    transport_model: Turbulent transport model callable
+      params will trigger recompilation.
+    geo: Geometry object.
+    transport_model: Turbulent transport model callable.
     sources: Collection of source callables to generate source PDE coefficients
-    mask: Boolean mask array setting pedestal zone
     explicit_source_profiles: Pre-calculated sources implemented as explicit
-      sources in the PDE
+      sources in the PDE.
     theta_imp: Coefficient in [0, 1] determining which solution method to use.
       We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) + (1 -
       theta_imp) F(t_old). Three values of theta_imp correspond to named
@@ -194,18 +192,18 @@ def newton_raphson_solve_block(
     maxiter: Quit iterating after this many iterations reached.
     tol: Quit iterating after the average absolute value of the residual is <=
       tol.
-    coarse_tol: coarser allowed tolerance for cases when solver develops small
+    coarse_tol: Coarser allowed tolerance for cases when solver develops small
       steps in the vicinity of the solution.
     delta_reduction_factor: Multiply by delta_reduction_factor after each failed
       line search step.
-    tau_min: minimum delta/delta_original allowed before the newton raphson
-      routine resets at a lower timestep
+    tau_min: Minimum delta/delta_original allowed before the newton raphson
+      routine resets at a lower timestep.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
     error: int. 0 signifies residual < tol at exit, 1 signifies residual > tol,
       2 signifies tol < residual < coarse_tol, deemed acceptable if the solver
-      steps became small
+      steps became small.
     aux_output: Extra auxiliary output from calc_coeffs.
   """
   # pyformat: enable
@@ -224,14 +222,14 @@ def newton_raphson_solve_block(
       )
 
       # See linear_theta_method.py for comments on the predictor_corrector API
+      x_new_init = tuple([state_t_plus_dt[name] for name in evolving_names])
       init_val = (
-          x_old,
+          x_new_init,
           calc_coeffs.AuxOutput.build_from_geo(geo),
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
           init_val=init_val,
-          state_t_plus_dt=state_t_plus_dt,
-          evolving_names=evolving_names,
+          x_old=x_old,
           dt=dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
@@ -262,7 +260,6 @@ def newton_raphson_solve_block(
       coeffs_old=coeffs_old,
       transport_model=transport_model,
       sources=sources,
-      mask=mask,
       explicit_source_profiles=explicit_source_profiles,
       theta_imp=theta_imp,
       convection_dirichlet_mode=convection_dirichlet_mode,
@@ -280,7 +277,6 @@ def newton_raphson_solve_block(
       coeffs_old=coeffs_old,
       transport_model=transport_model,
       sources=sources,
-      mask=mask,
       explicit_source_profiles=explicit_source_profiles,
       theta_imp=theta_imp,
       convection_dirichlet_mode=convection_dirichlet_mode,

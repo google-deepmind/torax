@@ -18,13 +18,11 @@ Picard iterations to approximate the nonlinear solution. If
 static_config_slice.solver.predictor_corrector is False, reverts to a
 standard linear solution.
 """
-import dataclasses
 import jax
 from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import jax_utils
-from torax import state as state_module
 from torax.fvm import implicit_solve_block
 
 
@@ -32,8 +30,7 @@ def predictor_corrector_method(
     init_val: tuple[
         tuple[fvm.CellVariable, ...], calc_coeffs.AuxOutput
     ],
-    state_t_plus_dt: state_module.State,
-    evolving_names: tuple[str, ...],
+    x_old: tuple[fvm.CellVariable, ...],
     dt: jax.Array,
     coeffs_exp: fvm.block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: fvm.block_1d_coeffs.Block1DCoeffsCallback,
@@ -43,22 +40,18 @@ def predictor_corrector_method(
   """Predictor-corrector method.
 
   Args:
-    init_val: initial guess for the predictor corrector output.
-    state_t_plus_dt: Sim state which contains all available prescribed
-      quantities at the end of the time step. This includes evolving boundary
-      conditions and prescribed time-dependent profiles that are not being
-      evolved by the PDE system.
-    evolving_names: The names of variables within the state that should evolve.
+    init_val: Initial guess for the predictor corrector output.
+    x_old: Tuple of CellVariables correspond to the evolving state at time t.
     dt: current timestep
     coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep
     coeffs_callback: coefficient callback function
-    dynamic_config_slice_t_plus_dt: dynamic config parameters corresponding to
+    dynamic_config_slice_t_plus_dt: Dynamic config parameters corresponding to
       the next time step, needed for the implicit PDE coefficients
     static_config_slice: General input parameters which are fixed through a
       simulation run, and if changed, would trigger a recompile.
 
   Returns:
-    x_new: solution of evolving state variables
+    x_new: Solution of evolving state variables
     auxiliary_outputs: Block1DCoeffs containing the PDE coefficients
     corresponding to the last guess of x_new
   """
@@ -68,19 +61,13 @@ def predictor_corrector_method(
   def loop_body(i, val):  # pylint: disable=unused-argument
     x_new_guess = val[0]
 
-    x_new_guess = [
-        dataclasses.replace(state_t_plus_dt[name], value=value.value)
-        for name, value in zip(evolving_names, x_new_guess)
-    ]
-    x_new_guess = tuple(x_new_guess)
-
     coeffs_new = coeffs_callback(
         x_new_guess, dynamic_config_slice_t_plus_dt, allow_pereverzev=True,
     )
     aux_output = coeffs_new.auxiliary_outputs
 
     x_new = implicit_solve_block.implicit_solve_block(
-        x_old=init_val[0],
+        x_old=x_old,
         x_new_guess=x_new_guess,
         dt=dt,
         coeffs_old=coeffs_exp,

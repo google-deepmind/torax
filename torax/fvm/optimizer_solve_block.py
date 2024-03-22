@@ -54,7 +54,6 @@ def optimizer_solve_block(
     geo: geometry.Geometry,
     transport_model: transport_model_lib.TransportModel,
     sources: source_profiles.Sources,
-    mask: jax.Array,
     explicit_source_profiles: source_profiles.SourceProfiles,
     theta_imp: jax.Array | float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
@@ -89,13 +88,12 @@ def optimizer_solve_block(
       triggering a recompilation.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
-      parrams will trigger recompilation
-    geo: Geometry object used to initialize auxiliary outputs
-    transport_model: Turbulent transport model callable
+      params will trigger recompilation.
+    geo: Geometry object used to initialize auxiliary outputs.
+    transport_model: Turbulent transport model callable.
     sources: Collection of source callables to generate source PDE coefficients
-    mask: Boolean mask array setting pedestal zone
     explicit_source_profiles: Pre-calculated sources implemented as explicit
-      sources in the PDE
+      sources in the PDE.
     theta_imp: Coefficient in [0, 1] determining which solution method to use.
       We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) + (1 -
       theta_imp) F(t_old). Three values of theta_imp correspond to named
@@ -108,13 +106,13 @@ def optimizer_solve_block(
       `dirichlet_mode` argument.
     convection_neumann_mode: See docstring of the `convection_terms` function,
       `neumann_mode` argument.
-    initial_guess_mode: chooses the initial_guess for the iterative method,
+    initial_guess_mode: Chooses the initial_guess for the iterative method,
       either x_old or linear step. When taking the linear step, it is also
       recommended to use Pereverzev-Corrigan terms if the transport use
       pereverzev terms for linear solver. Is only applied in the nonlinear
-      solver for the optional initial guess from the linear solver
-    maxiter: See docstring of `jaxopt.LBFGS`
-    tol: See docstring of `jaxopt.LBFGS`
+      solver for the optional initial guess from the linear solver.
+    maxiter: See docstring of `jaxopt.LBFGS`.
+    tol: See docstring of `jaxopt.LBFGS`.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
@@ -136,14 +134,14 @@ def optimizer_solve_block(
           x_old, dynamic_config_slice_t, allow_pereverzev=True
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
+      x_new_init = tuple([state_t_plus_dt[name] for name in evolving_names])
       init_val = (
-          x_old,
+          x_new_init,
           calc_coeffs.AuxOutput.build_from_geo(geo),
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
           init_val=init_val,
-          state_t_plus_dt=state_t_plus_dt,
-          evolving_names=evolving_names,
+          x_old=x_old,
           dt=dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
@@ -171,7 +169,6 @@ def optimizer_solve_block(
       coeffs_old=coeffs_old,
       transport_model=transport_model,
       sources=sources,
-      mask=mask,
       explicit_source_profiles=explicit_source_profiles,
       maxiter=maxiter,
       tol=tol,

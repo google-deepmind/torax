@@ -25,7 +25,6 @@ from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import geometry
-from torax import physics
 from torax import state as state_module
 from torax import update_state
 from torax.sources import source_profiles
@@ -103,10 +102,6 @@ class Stepper(abc.ABC):
     # This base class method can be completely overriden by a subclass, but
     # most can make use of the boilerplate here and just implement `_x_new`.
 
-    mask = physics.internal_boundary(
-        geo, dynamic_config_slice_t.Ped_top, dynamic_config_slice_t.set_pedestal
-    )
-
     # Use config to determine which variables to evolve
     evolving_names = []
     if static_config_slice.ion_heat_eq:
@@ -130,7 +125,6 @@ class Stepper(abc.ABC):
           dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
           static_config_slice=static_config_slice,
           dt=dt,
-          mask=mask,
           explicit_source_profiles=explicit_source_profiles,
       )
     else:
@@ -161,7 +155,6 @@ class Stepper(abc.ABC):
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
-      mask: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
     """Calculates new values of the changing variables.
@@ -187,8 +180,6 @@ class Stepper(abc.ABC):
         don't have to be JAX-friendly types and can be used in control-flow
         logic.
       dt: Time step duration.
-      mask: Boolean mask for enforcing internal temperature boundary conditions
-        to model the pedestal.
       explicit_source_profiles: see the docstring of __call__
 
     Returns:
