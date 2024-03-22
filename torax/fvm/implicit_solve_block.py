@@ -32,6 +32,7 @@ from torax.fvm import residual_and_loss
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
+        'theta_imp',
     ],
 )
 def implicit_solve_block(
@@ -40,7 +41,7 @@ def implicit_solve_block(
     dt: jax.Array,
     coeffs_old: block_1d_coeffs.Block1DCoeffs,
     coeffs_new: block_1d_coeffs.Block1DCoeffs,
-    theta_imp: jax.Array | float = 1.0,
+    theta_imp: float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
 ) -> tuple[cell_variable.CellVariable, ...]:
@@ -61,10 +62,8 @@ def implicit_solve_block(
       We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) + (1 -
       theta_imp) F(t_old). Three values of theta_imp correspond to named
       solution methods: theta_imp = 1: Backward Euler implicit method (default).
-      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Produces results
-      equivalent to explicit method, but should not be used because this
-      function will needless call the linear algebra solver. Use
-      `explicit_stepper` instead.
+      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
+      method
     convection_dirichlet_mode: See docstring of the `convection_terms` function,
       `dirichlet_mode` argument.
     convection_neumann_mode: See docstring of the `convection_terms` function,

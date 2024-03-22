@@ -287,7 +287,6 @@ class DynamicTransportConfigSlice:
 class DynamicSolverConfigSlice:
   """Input params for the solver which can be used as compiled args."""
 
-  theta_imp: float
   # (deliberately) large heat conductivity for Pereverzev rule
   chi_per: float
   # (deliberately) large particle diffusion for Pereverzev rule
@@ -389,6 +388,8 @@ class StaticConfigSlice:
 @chex.dataclass(frozen=True)
 class StaticSolverConfigSlice:
   """Static params for the solver."""
+  # Theta for theta-method. 0 is fully explicit, 1 is fully implicit.
+  theta_imp: float
   # See `fvm.convection_terms` docstring, `dirichlet_mode` argument
   convection_dirichlet_mode: str
   # See `fvm.convection_terms` docstring, `neumann_mode` argument

@@ -55,9 +55,6 @@ def optimizer_solve_block(
     transport_model: transport_model_lib.TransportModel,
     sources: source_profiles.Sources,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    theta_imp: jax.Array | float = 1.0,
-    convection_dirichlet_mode: str = 'ghost',
-    convection_neumann_mode: str = 'ghost',
     initial_guess_mode: InitialGuessMode = INITIAL_GUESS_MODE,
     maxiter=MAXITER,
     tol=TOL,
@@ -88,24 +85,18 @@ def optimizer_solve_block(
       triggering a recompilation.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation.
+      params will trigger recompilation. A key parameter in static_config slice
+      is theta_imp, a coefficient in [0, 1] determining which solution method
+      to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new)
+      + (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
+      solution methods: theta_imp = 1: Backward Euler implicit method (default).
+      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
+      method.
     geo: Geometry object used to initialize auxiliary outputs.
     transport_model: Turbulent transport model callable.
     sources: Collection of source callables to generate source PDE coefficients
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
-    theta_imp: Coefficient in [0, 1] determining which solution method to use.
-      We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) + (1 -
-      theta_imp) F(t_old). Three values of theta_imp correspond to named
-      solution methods: theta_imp = 1: Backward Euler implicit method (default).
-      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Produces results
-      equivalent to explicit method, but should not be used because this
-      function will needless call the linear algebra solver. Use
-      explicit_stepper` instead.
-    convection_dirichlet_mode: See docstring of the `convection_terms` function,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See docstring of the `convection_terms` function,
-      `neumann_mode` argument.
     initial_guess_mode: Chooses the initial_guess for the iterative method,
       either x_old or linear step. When taking the linear step, it is also
       recommended to use Pereverzev-Corrigan terms if the transport use
@@ -172,9 +163,6 @@ def optimizer_solve_block(
       explicit_source_profiles=explicit_source_profiles,
       maxiter=maxiter,
       tol=tol,
-      theta_imp=theta_imp,
-      convection_dirichlet_mode=convection_dirichlet_mode,
-      convection_neumann_mode=convection_neumann_mode,
   )
 
   # Create updated CellVariable instances based on state_plus_dt which has

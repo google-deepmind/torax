@@ -169,16 +169,6 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         transport_model=self.transport_model,
         sources=self.sources,
         explicit_source_profiles=explicit_source_profiles,
-        # theta_imp is not time-dependent. Not all parameters in the
-        # dynamic_config_slice need to be time-dependent. They can simply change
-        # from simulation run to simulation run without triggering a recompile.
-        theta_imp=dynamic_config_slice_t.solver.theta_imp,
-        convection_dirichlet_mode=(
-            static_config_slice.solver.convection_dirichlet_mode
-        ),
-        convection_neumann_mode=(
-            static_config_slice.solver.convection_neumann_mode
-        ),
         initial_guess_mode=self.initial_guess_mode,
         maxiter=self.maxiter,
         tol=self.tol,
@@ -252,20 +242,10 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
         static_config_slice=static_config_slice,
         geo=geo,
-        # theta_imp is not time-dependent. Not all parameters in the
-        # dynamic_config_slice need to be time-dependent. They can simply change
-        # from simulation run to simulation run without triggering a recompile.
-        theta_imp=dynamic_config_slice_t.solver.theta_imp,
         transport_model=self.transport_model,
         sources=self.sources,
         explicit_source_profiles=explicit_source_profiles,
         log_iterations=static_config_slice.solver.log_iterations,
-        convection_dirichlet_mode=(
-            static_config_slice.solver.convection_dirichlet_mode
-        ),
-        convection_neumann_mode=(
-            static_config_slice.solver.convection_neumann_mode
-        ),
         initial_guess_mode=self.initial_guess_mode,
         maxiter=self.maxiter,
         tol=self.tol,

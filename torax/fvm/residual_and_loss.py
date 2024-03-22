@@ -46,6 +46,7 @@ Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
     static_argnames=[
         'convection_dirichlet_mode',
         'convection_neumann_mode',
+        'theta_imp',
     ],
 )
 def theta_method_matrix_equation(
@@ -54,7 +55,7 @@ def theta_method_matrix_equation(
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
     coeffs_new: Block1DCoeffs,
-    theta_imp: jax.Array | float = 1.0,
+    theta_imp: float = 1.0,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
@@ -153,12 +154,6 @@ def theta_method_matrix_equation(
   left_transient = jnp.identity(len(x_new_guess_vec))
   right_transient = jnp.diag(jnp.squeeze(tc_in_old / tc_in_new))
 
-  c_mat_old, c_old = discrete_system.calc_c(
-      coeffs_old,
-      x_old,
-      convection_dirichlet_mode,
-      convection_neumann_mode,
-  )
   c_mat_new, c_new = discrete_system.calc_c(
       coeffs_new,
       x_new_guess,
@@ -172,10 +167,21 @@ def theta_method_matrix_equation(
       jnp.diag(1 / (tc_out_new * tc_in_new)), c_mat_new
   )
   lhs_vec = -theta_imp * dt * (1 / (tc_out_new * tc_in_new)) * c_new
-  rhs_mat = right_transient + dt * theta_exp * jnp.dot(
-      jnp.diag(1 / (tc_out_old * tc_in_new)), c_mat_old
-  )
-  rhs_vec = dt * theta_exp * (1 / (tc_out_old * tc_in_new)) * c_old
+
+  if theta_exp > 0.0:
+    c_mat_old, c_old = discrete_system.calc_c(
+        coeffs_old,
+        x_old,
+        convection_dirichlet_mode,
+        convection_neumann_mode,
+    )
+    rhs_mat = right_transient + dt * theta_exp * jnp.dot(
+        jnp.diag(1 / (tc_out_old * tc_in_new)), c_mat_old
+    )
+    rhs_vec = dt * theta_exp * (1 / (tc_out_old * tc_in_new)) * c_old
+  else:
+    rhs_mat = right_transient
+    rhs_vec = jnp.zeros_like(x_new_guess_vec)
 
   return lhs_mat, lhs_vec, rhs_mat, rhs_vec
 
@@ -187,8 +193,6 @@ def theta_method_matrix_equation(
         'evolving_names',
         'transport_model',
         'sources',
-        'convection_dirichlet_mode',
-        'convection_neumann_mode',
     ],
 )
 def theta_method_block_residual(
@@ -204,9 +208,6 @@ def theta_method_block_residual(
     transport_model: transport_model_lib.TransportModel,
     sources: source_profiles.Sources,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    theta_imp: jax.Array | float = 1.0,
-    convection_dirichlet_mode: str = 'ghost',
-    convection_neumann_mode: str = 'ghost',
 ) -> tuple[jax.Array, AuxiliaryOutput]:
   """Residual of theta-method equation for state at next time-step.
 
@@ -222,18 +223,19 @@ def theta_method_block_residual(
     geo: Geometry object.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation.
+      params will trigger recompilation. A key parameter in static_config slice
+      is theta_imp, a coefficient in [0, 1] determining which solution method
+      to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new)
+      + (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
+      solution methods: theta_imp = 1: Backward Euler implicit method (default).
+      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
+      method.
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old.
     transport_model: Turbulent transport model callable.
     sources: Collection of source callables to generate source PDE coefficients
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
-    theta_imp: Coefficient on implicit term of theta method.
-    convection_dirichlet_mode: See docstring of the `convection_terms` function,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See docstring of the `convection_terms` function,
-      `neumann_mode` argument.
 
   Returns:
     residual: Vector residual between LHS and RHS of the theta method equation.
@@ -268,9 +270,9 @@ def theta_method_block_residual(
       dt=dt,
       coeffs_old=coeffs_old,
       coeffs_new=coeffs_new,
-      theta_imp=theta_imp,
-      convection_dirichlet_mode=convection_dirichlet_mode,
-      convection_neumann_mode=convection_neumann_mode,
+      theta_imp=static_config_slice.solver.theta_imp,
+      convection_dirichlet_mode=static_config_slice.solver.convection_dirichlet_mode,
+      convection_neumann_mode=static_config_slice.solver.convection_neumann_mode,
   )
 
   lhs = jnp.dot(lhs_mat, x_new_guess_vec) + lhs_vec
@@ -290,8 +292,6 @@ theta_method_block_jacobian = jax_utils.jit(
         'evolving_names',
         'transport_model',
         'sources',
-        'convection_dirichlet_mode',
-        'convection_neumann_mode',
     ],
 )
 
@@ -303,8 +303,6 @@ theta_method_block_jacobian = jax_utils.jit(
         'evolving_names',
         'transport_model',
         'sources',
-        'convection_dirichlet_mode',
-        'convection_neumann_mode',
     ],
 )
 def theta_method_block_loss(
@@ -320,9 +318,6 @@ def theta_method_block_loss(
     transport_model: transport_model_lib.TransportModel,
     sources: source_profiles.Sources,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    theta_imp: jax.Array | float = 1.0,
-    convection_dirichlet_mode: str = 'ghost',
-    convection_neumann_mode: str = 'ghost',
 ) -> tuple[jax.Array, AuxiliaryOutput]:
   """Loss for the optimizer method of nonlinear solution.
 
@@ -338,18 +333,19 @@ def theta_method_block_loss(
     geo: geometry object
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation
+      params will trigger recompilation. A key parameter in static_config slice
+      is theta_imp, a coefficient in [0, 1] determining which solution method
+      to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new)
+      + (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
+      solution methods: theta_imp = 1: Backward Euler implicit method (default).
+      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
+      method.
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old.
     transport_model: turbulent transport model callable
     sources: collection of source callables to generate source PDE coefficients
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE
-    theta_imp: Coefficient on implicit term of theta method.
-    convection_dirichlet_mode: See docstring of the `convection_terms` function,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See docstring of the `convection_terms` function,
-      `neumann_mode` argument.
 
   Returns:
     loss: mean squared loss of theta method residual.
@@ -368,9 +364,6 @@ def theta_method_block_loss(
       transport_model=transport_model,
       sources=sources,
       explicit_source_profiles=explicit_source_profiles,
-      theta_imp=theta_imp,
-      convection_dirichlet_mode=convection_dirichlet_mode,
-      convection_neumann_mode=convection_neumann_mode,
   )
   loss = jnp.mean(jnp.square(residual))
   return loss, aux_output
@@ -383,8 +376,6 @@ def theta_method_block_loss(
         'evolving_names',
         'transport_model',
         'sources',
-        'convection_dirichlet_mode',
-        'convection_neumann_mode',
     ],
 )
 def jaxopt_solver(
@@ -402,9 +393,6 @@ def jaxopt_solver(
     explicit_source_profiles: source_profiles.SourceProfiles,
     maxiter: int,
     tol: float,
-    theta_imp: jax.Array | float = 1.0,
-    convection_dirichlet_mode: str = 'ghost',
-    convection_neumann_mode: str = 'ghost',
 ) -> tuple[jax.Array, float, AuxiliaryOutput]:
   """Advances jaxopt solver by one timestep.
 
@@ -420,7 +408,13 @@ def jaxopt_solver(
     geo: geometry object.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation.
+      params will trigger recompilation. A key parameter in static_config slice
+      is theta_imp, a coefficient in [0, 1] determining which solution method
+      to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new)
+      + (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
+      solution methods: theta_imp = 1: Backward Euler implicit method (default).
+      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
+      method.
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old.
     transport_model: turbulent transport model callable.
@@ -429,11 +423,6 @@ def jaxopt_solver(
       sources in the PDE.
     maxiter: maximum number of iterations of jaxopt solver.
     tol: tolerance for jaxopt solver convergence.
-    theta_imp: Coefficient on implicit term of theta method.
-    convection_dirichlet_mode: See docstring of the `convection_terms` function,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See docstring of the `convection_terms` function,
-      `neumann_mode` argument.
 
   Returns:
     x_new_vec: Flattened evolving profile array after jaxopt evolution.
@@ -453,9 +442,6 @@ def jaxopt_solver(
       transport_model=transport_model,
       sources=sources,
       explicit_source_profiles=explicit_source_profiles,
-      theta_imp=theta_imp,
-      convection_dirichlet_mode=convection_dirichlet_mode,
-      convection_neumann_mode=convection_neumann_mode,
   )
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, has_aux=True)
   solver_output = solver.run(init_x_new_vec)

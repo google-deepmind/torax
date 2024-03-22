@@ -356,7 +356,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         set_pedestal=False,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
-            theta_imp=1.0,
+            theta_imp=theta_imp,
         ),
         transport=config_lib.TransportConfig(
             transport_model='constant',
@@ -430,7 +430,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
           transport_model=transport_model,
           sources=sources,
           explicit_source_profiles=explicit_source_profiles,
-          theta_imp=theta_imp,
       )
 
       residual, _ = residual_and_loss.theta_method_block_residual(
@@ -446,7 +445,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
           transport_model=transport_model,
           sources=sources,
           explicit_source_profiles=explicit_source_profiles,
-          theta_imp=theta_imp,
       )
 
       np.testing.assert_allclose(loss, 0.0, atol=1e-7)
@@ -576,7 +574,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         set_pedestal=False,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
-            theta_imp=1.0,
+            theta_imp=0.0,
         ),
         transport=config_lib.TransportConfig(
             transport_model='constant',
@@ -594,7 +592,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     geo = geometry.build_circular_geometry(config)
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
-    static_config_slice = config_slice.build_static_config_slice(config)
+    static_config_slice_theta0 = config_slice.build_static_config_slice(config)
+    static_config_slice_theta05 = dataclasses.replace(
+        static_config_slice_theta0,
+        solver=dataclasses.replace(
+            static_config_slice_theta0.solver, theta_imp=0.5
+        ),
+    )
+
     transport_model = transport_model_factory.construct(
         config,
     )
@@ -616,7 +621,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         evolving_names=evolving_names,
         geo=geo,
         dynamic_config_slice=dynamic_config_slice,
-        static_config_slice=static_config_slice,
+        static_config_slice=static_config_slice_theta05,
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         sources=sources,
@@ -647,13 +652,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
           evolving_names=evolving_names,
           geo=geo,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
-          static_config_slice=static_config_slice,
+          static_config_slice=static_config_slice_theta05,
           dt=dt,
           coeffs_old=coeffs_old,
           transport_model=transport_model,
           sources=sources,
           explicit_source_profiles=explicit_source_profiles,
-          theta_imp=0.5,
       )
       np.testing.assert_allclose(residual, 0.0)
     with self.subTest('updated_boundary_conditions'):
@@ -673,13 +677,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
           evolving_names=evolving_names,
           geo=geo,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
-          static_config_slice=static_config_slice,
+          static_config_slice=static_config_slice_theta0,
           dt=dt,
           coeffs_old=coeffs_old,
           transport_model=transport_model,
           sources=sources,
           explicit_source_profiles=explicit_source_profiles,
-          theta_imp=0.0,
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_imp > 0, the residual should be non-zero.
@@ -696,12 +699,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
           dt=dt,
           geo=geo,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
-          static_config_slice=static_config_slice,
+          static_config_slice=static_config_slice_theta05,
           coeffs_old=coeffs_old,
           transport_model=transport_model,
           sources=sources,
           explicit_source_profiles=explicit_source_profiles,
-          theta_imp=0.5,
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
 

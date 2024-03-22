@@ -72,11 +72,7 @@ def predictor_corrector_method(
         dt=dt,
         coeffs_old=coeffs_exp,
         coeffs_new=coeffs_new,
-        # theta_imp is not time-dependent. Not all parameters in the
-        # dynamic_config_slice need to be time-dependent. They can simply
-        # change from simulation run to simulation run without triggering a
-        # recompile.
-        theta_imp=dynamic_config_slice_t_plus_dt.solver.theta_imp,
+        theta_imp=static_config_slice.solver.theta_imp,
         convection_dirichlet_mode=(
             static_config_slice.solver.convection_dirichlet_mode
         ),

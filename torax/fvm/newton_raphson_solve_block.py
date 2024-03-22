@@ -18,7 +18,7 @@ See function docstring for details.
 """
 
 import functools
-from typing import Callable, Union
+from typing import Callable
 
 from absl import logging
 import jax
@@ -111,10 +111,7 @@ def newton_raphson_solve_block(
     transport_model: transport_model_lib.TransportModel,
     sources: source_profiles.Sources,
     explicit_source_profiles: source_profiles.SourceProfiles,
-    theta_imp: Union[jax.Array, float] = 1.0,
     log_iterations: bool = False,
-    convection_dirichlet_mode: str = 'ghost',
-    convection_neumann_mode: str = 'ghost',
     initial_guess_mode: InitialGuessMode = INITIAL_GUESS_MODE,
     maxiter: int = MAXITER,
     tol: float = TOL,
@@ -167,23 +164,11 @@ def newton_raphson_solve_block(
     sources: Collection of source callables to generate source PDE coefficients
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
-    theta_imp: Coefficient in [0, 1] determining which solution method to use.
-      We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) + (1 -
-      theta_imp) F(t_old). Three values of theta_imp correspond to named
-      solution methods: theta_imp = 1: Backward Euler implicit method (default).
-      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Produces results
-      equivalent to explicit method, but should not be used because this
-      function will needless call the linear algebra solver. Use `sim.
-      explicit_update` instead.
     log_iterations: If true, output diagnostic information from within iteration
       loop. NOTE: If this is True, then this function will not be cached in
-      JAX's compilation cache, meaning a compiled function that calls this
-      method cannot be saved for usage in a later Python process. Turn this off
-      to enable the cache.
-    convection_dirichlet_mode: See docstring of the `convection_terms` function,
-      `dirichlet_mode` argument.
-    convection_neumann_mode: See docstring of the `convection_terms` function,
-      `neumann_mode` argument.
+      JAX's persistent compilation cache, meaning a compiled function that calls
+      this method cannot be saved for usage in a later Python process. Turn this
+      off to enable the cache.
     initial_guess_mode: chooses the initial_guess for the iterative method,
       either x_old or linear step. When taking the linear step, it is also
       recommended to use Pereverzev-Corrigan terms if the transport coefficients
@@ -261,9 +246,6 @@ def newton_raphson_solve_block(
       transport_model=transport_model,
       sources=sources,
       explicit_source_profiles=explicit_source_profiles,
-      theta_imp=theta_imp,
-      convection_dirichlet_mode=convection_dirichlet_mode,
-      convection_neumann_mode=convection_neumann_mode,
   )
   jacobian_fun = functools.partial(
       residual_and_loss.theta_method_block_jacobian,
@@ -278,9 +260,6 @@ def newton_raphson_solve_block(
       transport_model=transport_model,
       sources=sources,
       explicit_source_profiles=explicit_source_profiles,
-      theta_imp=theta_imp,
-      convection_dirichlet_mode=convection_dirichlet_mode,
-      convection_neumann_mode=convection_neumann_mode,
   )
 
   cond_fun = functools.partial(cond, tol=tol, tau_min=tau_min, maxiter=maxiter)
