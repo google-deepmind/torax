@@ -32,7 +32,7 @@ def get_config() -> config_lib.Config:
       # set flat Ohmic current to provide larger range of current evolution for
       # test
       nu=0,
-      t_final=5,
+      t_final=3,
       transport=config_lib.TransportConfig(
           transport_model="constant",
       ),

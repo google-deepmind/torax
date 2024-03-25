@@ -28,10 +28,12 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      # This is test6 but modified to not use the pedestal feature, to exercise
-      # the convection term at the boundary. This causes FiPy to explode.
+      # This is test_cgm_heat but modified to not use the pedestal feature,
+      # to exercise the convection term at the boundary. This causes FiPy to
+      # explode. The time was reduced compared to test_cgm_heat to avoid test
+      # time bottlenecks
       set_pedestal=False,
-      t_final=1,
+      t_final=0.5,
       transport=config_lib.TransportConfig(
           transport_model='CGM',
       ),

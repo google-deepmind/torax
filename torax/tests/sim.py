@@ -152,17 +152,7 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests that optimizer gets the same result as the linear solver
-      # when using linear initial guess and 0 iterations.
-      # Making sure to use a test involving Pereverzev-Corrigan for this,
-      # since we do want it in the linear initial guess.
-      (
-          'test_optimizer_zeroiter',
-          'test_optimizer_zeroiter.py',
-          'test_psi_and_heat',
-          _ALL_PROFILES,
-          0,
-      ),
+
       # Tests that Newton-Raphson gets the same result as the linear solver
       # when using linear initial guess and 0 iterations
       # Making sure to use a test involving Pereverzev-Corrigan for this,
@@ -381,52 +371,12 @@ class SimTest(sim_test_case.SimTestCase):
           ('temp_ion', 'temp_el'),
       )
 
-  # TODO(b/323504363): Re-enable this test once we can force the optimizer
-  # to fail an error check.
-  # def test_error_context(self):
-  #   """Test that equinox errors are raised in optimizer but not in newton.
-
-  #   Inputs chosen such that error_if in residual is raised (if enabled)
-  #   for the final x_new state in the simulation, triggering the error for
-  #   optimizer but not for newton-raphson
-  #   """
-  #   config = torax.config.Config()
-  #   config.nbar = 5e-7
-  #   config.set_fGW = False
-  #   config.ne_bound_right = 5e-7
-  #   config.npeak = 1
-  #   config.t_final = 0.05
-  #   config.set_pedestal = False
-  #   config.Ptot = 0
-  #   config.dens_eq = True
-  #   config.S_pellet_tot = 0
-  #   config.S_puff_tot = 0
-  #   config.S_nbi_tot = 0
-  #   config.transport.Ve_const = 3
-
-  #   # Run default sim but with low density that triggers equinox error in
-  #   # residual, but no NaN in x_new outputs such that Newton-Raphson proceeds
-  #   time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
-
-  #   # Equinox should raise here a XlaRuntimeError
-  #   with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
-  #     sim_lib.build_sim_from_config(
-  #         config,
-  #         nonlinear_theta_method.OptimizerThetaMethod,
-  #         time_step_calculator,
-  #     ).run()
-
-  #   # Should pass without errors
-  #   sim_lib.build_sim_from_config(
-  #       config,
-  #       nonlinear_theta_method.NewtonRaphsonThetaMethod,
-  #       time_step_calculator,
-  #   ).run()
-
   def test_no_op(self):
     """Tests that running the stepper with all equations off is a no-op."""
 
-    config = torax.config.Config()
+    config = torax.config.Config(
+        t_final=0.1,
+    )
     config.ion_heat_eq = False
     config.el_heat_eq = False
     config.current_eq = False

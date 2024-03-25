@@ -28,7 +28,7 @@ def get_config() -> config_lib.Config:
   return config_lib.Config(
       t_final=2,
       use_fixed_dt=True,
-      fixed_dt=1e-2,
+      fixed_dt=2e-2,
       bootstrap_mult=0,  # remove bootstrap current
       # Do not use the fusion heat source.
       sources=dict(

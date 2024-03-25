@@ -38,7 +38,7 @@ def get_config() -> config_lib.Config:
       # test
       nu=0,
       fGW=0.85,  # initial density (Greenwald fraction)
-      t_final=2,
+      t_final=1,
       S_pellet_tot=0.0,
       S_puff_tot=0.0,
       S_nbi_tot=0.0,

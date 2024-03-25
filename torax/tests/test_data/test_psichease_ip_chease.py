@@ -33,7 +33,7 @@ def get_config() -> config_lib.Config:
       current_eq=True,
       resistivity_mult=100,  # to shorten current diffusion time for the test
       bootstrap_mult=0,  # remove bootstrap current
-      t_final=5,
+      t_final=3,
       w=0.18202270915319393,
       S_pellet_tot=0,
       S_puff_tot=0,

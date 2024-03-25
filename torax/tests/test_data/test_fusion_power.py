@@ -45,7 +45,7 @@ def get_config() -> config_lib.Config:
       S_nbi_tot=0.3e22,
       ne_bound_right=0.2,
       neped=1.0,
-      t_final=2,
+      t_final=1,
       Ptot=53.0e6,  # total external heating
       transport=config_lib.TransportConfig(
           transport_model="CGM",

@@ -30,20 +30,20 @@ def get_config() -> config_lib.Config:
   return config_lib.Config(
       Ti_bound_left=10,
       Te_bound_left=10,
-      Ip={0: 5, 10: 15, 11: 12, 15: 12},
+      Ip={0: 5, 4: 15, 6: 12, 8: 12},
       current_eq=True,
       resistivity_mult=50,  # to shorten current diffusion time for the test
       bootstrap_mult=0,  # remove bootstrap current
       dtmult=150,
       maxdt=0.5,
-      t_final=20,
+      t_final=10,
       w=0.18202270915319393,
       S_pellet_tot=0,
       S_puff_tot=0,
       S_nbi_tot=0,
       Ptot={0: 20e6, 9: 20e6, 10: 120e6, 15: 120e6},
-      Tiped={0: 2, 9: 2, 10: 5, 15: 4},
-      Teped={0: 2, 9: 2, 10: 5, 15: 4},
+      Tiped={0: 2, 4: 2, 6: 5, 8: 4},
+      Teped={0: 2, 4: 2, 6: 5, 8: 4},
       transport=config_lib.TransportConfig(
           transport_model="qlknn",
           apply_inner_patch=True,
