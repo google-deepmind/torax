@@ -24,6 +24,7 @@ import jax
 from jax import numpy as jnp
 from torax import constants
 from torax import geometry
+from torax import jax_utils
 from torax import math_utils
 from torax import state as state_module
 from torax.fvm import cell_variable
@@ -44,6 +45,7 @@ def get_main_ion_dilution_factor(
   return (Zimp - Zeff) / (Zimp - 1)
 
 
+@jax_utils.jit
 def update_jtot_q_face_s_face(
     geo: Geometry,
     state: state_module.State,

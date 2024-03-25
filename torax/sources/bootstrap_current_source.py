@@ -24,6 +24,7 @@ from jax.scipy import integrate
 from torax import config_slice
 from torax import constants
 from torax import geometry
+from torax import jax_utils
 from torax import physics
 from torax import state as state_lib
 from torax.fvm import cell_variable
@@ -49,6 +50,7 @@ class BootstrapCurrentProfile:
   I_bootstrap: jnp.ndarray  # pylint: disable=invalid-name
 
 
+@jax_utils.jit
 def calc_neoclassical(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,

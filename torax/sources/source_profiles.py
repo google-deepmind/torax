@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-
+import functools
 import chex
 import jax.numpy as jnp
 from torax import config_slice
@@ -52,6 +52,12 @@ class SourceProfiles:
   profiles: dict[str, jnp.ndarray]
 
 
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'sources',
+    ],
+)
 def build_source_profiles(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
@@ -435,6 +441,12 @@ def calc_and_sum_sources_psi(
   return scale_source(total), j_bootstrap_profiles.sigma
 
 
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'sources',
+    ],
+)
 def calc_psidot(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
