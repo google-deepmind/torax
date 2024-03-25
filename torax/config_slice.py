@@ -294,6 +294,8 @@ class DynamicSolverConfigSlice:
   # Number of corrector steps for the predictor-corrector linear solver.
   # 0 means a pure linear solve with no corrector steps.
   corrector_steps: int
+  # log internal iterations in Newton-Raphson solver
+  log_iterations: bool
 
 
 @chex.dataclass(frozen=True)
@@ -400,8 +402,6 @@ class StaticSolverConfigSlice:
   # Enables predictor_corrector iterations with the linear solver.
   # If False, compilation is faster
   predictor_corrector: bool
-  # log internal iterations in Newton-Raphson solver
-  log_iterations: bool
 
 
 # pylint: enable=invalid-name

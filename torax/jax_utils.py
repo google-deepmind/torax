@@ -292,3 +292,30 @@ def py_fori_loop(
   for i in range(lower, upper):
     val = body_fun(i, val)
   return val
+
+
+# pylint: disable=g-bare-generic
+def py_cond(
+    cond: bool,
+    true_fun: Callable,
+    false_fun: Callable,
+) -> Any:
+  """Pure Python implementation of jax.lax.cond.
+
+  This gives us a way to write code that could easily be changed to be
+  Jax-compatible in the future, if we want to expand the scope of the jit
+  compilation.
+
+  Args:
+    cond: The condition
+    true_fun: Function to be called if cond==True.
+    false_fun: Function to be called if cond==False.
+
+  Returns:
+    The output from either true_fun or false_fun.
+  """
+  if cond:
+    return true_fun()
+  else:
+    return false_fun()
+# pylint: enable=g-bare-generic

@@ -23,7 +23,7 @@ from typing import Callable
 from absl import logging
 import jax
 from jax import numpy as jnp
-from jax.experimental import host_callback
+import numpy as np
 from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
@@ -54,7 +54,6 @@ TAU_MIN = 0.01
 MIN_DELTA = 1e-7
 
 
-# TODO(b/323504363): considering merging with spectator mechanism
 def _log_iterations(
     residual: jax.Array,
     iterations: jax.Array,
@@ -63,39 +62,29 @@ def _log_iterations(
 ) -> None:
   """Logs info on internal Newton-Raphson iterations.
 
-  NOTE: This function uses jax.experimental.host_callback() to do the logging,
-  which means that any code that uses this function will NOT work with JAX's
-  compilation cache. Disable logging to use the compilation cache.
-
   Args:
     residual: Scalar residual.
     iterations: Number of iterations taken so far in the solve block.
     delta_reduction: Current tau used in this iteration.
     dt: Current dt used in this iteration.
   """
-  # pylint: disable=g-long-lambda
   if dt is not None:
-    host_callback.id_tap(
-        lambda arg, _: logging.info(
-            'Iteration: %d. Residual: %.16f. dt = %.6f', arg[0], arg[1], arg[2]
-        ),
-        (iterations, residual, dt),
+    logging.info(
+        'Iteration: %d. Residual: %.16f. dt = %.6f',
+        iterations,
+        residual,
+        dt,
     )
+
   elif delta_reduction is not None:
-    host_callback.id_tap(
-        lambda arg, _: logging.info(
-            'Iteration: %d. Residual: %.16f. tau = %.6f', arg[0], arg[1], arg[2]
-        ),
-        (iterations, residual, delta_reduction),
+    logging.info(
+        'Iteration: %d. Residual: %.16f. tau = %.6f',
+        iterations,
+        residual,
+        delta_reduction,
     )
   else:
-    host_callback.id_tap(
-        lambda arg, _: logging.info(
-            'Iteration: %d. Residual: %.16f', arg[0], arg[1]
-        ),
-        (iterations, residual),
-    )
-  # pylint: enable=g-long-lambda
+    logging.info('Iteration: %d. Residual: %.16f', iterations, residual)
 
 
 def newton_raphson_solve_block(
@@ -165,10 +154,7 @@ def newton_raphson_solve_block(
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
     log_iterations: If true, output diagnostic information from within iteration
-      loop. NOTE: If this is True, then this function will not be cached in
-      JAX's persistent compilation cache, meaning a compiled function that calls
-      this method cannot be saved for usage in a later Python process. Turn this
-      off to enable the cache.
+      loop.
     initial_guess_mode: chooses the initial_guess for the iterative method,
       either x_old or linear step. When taking the linear step, it is also
       recommended to use Pereverzev-Corrigan terms if the transport coefficients
@@ -315,10 +301,10 @@ def newton_raphson_solve_block(
   # error = 2: residual not strictly converged but is still within reasonable
   # tolerance (coarse_tol). Can occur when solver exits early due to small steps
   # in solution vicinity. Proceed but provide a warning to user.
-  error = jax.lax.cond(
+  error = jax_utils.py_cond(
       residual_scalar(output_state['residual']) < tol,
       lambda: 0,  # Called when True
-      lambda: jax.lax.cond(  # Called when False
+      lambda: jax_utils.py_cond(  # Called when False
           residual_scalar(output_state['residual']) < coarse_tol,
           lambda: 2,  # Called when True
           lambda: 1,  # Called when False
@@ -329,7 +315,7 @@ def newton_raphson_solve_block(
 
 
 def residual_scalar(x):
-  return jnp.mean(jnp.abs(x))
+  return np.mean(np.abs(x))
 
 
 def cond(

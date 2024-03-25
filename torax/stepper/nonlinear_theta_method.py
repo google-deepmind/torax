@@ -245,7 +245,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         transport_model=self.transport_model,
         sources=self.sources,
         explicit_source_profiles=explicit_source_profiles,
-        log_iterations=static_config_slice.solver.log_iterations,
+        log_iterations=dynamic_config_slice_t.solver.log_iterations,
         initial_guess_mode=self.initial_guess_mode,
         maxiter=self.maxiter,
         tol=self.tol,
