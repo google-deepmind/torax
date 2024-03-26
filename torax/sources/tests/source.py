@@ -36,13 +36,13 @@ class SourceTest(parameterized.TestCase):
     source = source_lib.Source(
         name='foo',
         output_shape_getter=source_lib.get_cell_profile_shape,
-        affected_mesh_states=(source_lib.AffectedMeshStateAttribute.PSI,),
+        affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
     config = config_lib.Config(
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(additional_sources=[source]),
@@ -52,7 +52,7 @@ class SourceTest(parameterized.TestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
     )
     np.testing.assert_allclose(
         profile,
@@ -68,13 +68,13 @@ class SourceTest(parameterized.TestCase):
             source_config.SourceType.FORMULA_BASED,
         ),
         output_shape_getter=source_lib.get_cell_profile_shape,
-        affected_mesh_states=(source_lib.AffectedMeshStateAttribute.NE,),
+        affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
     config = config_lib.Config(
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(additional_sources=[source]),
@@ -88,7 +88,7 @@ class SourceTest(parameterized.TestCase):
               config_slice.build_dynamic_config_slice(config)
           ),
           geo=geo,
-          state=state,
+          core_profiles=core_profiles,
       )
 
   def test_defaults_output_zeros(self):
@@ -100,13 +100,13 @@ class SourceTest(parameterized.TestCase):
             source_config.SourceType.FORMULA_BASED,
         ),
         output_shape_getter=source_lib.get_cell_profile_shape,
-        affected_mesh_states=(source_lib.AffectedMeshStateAttribute.NE,),
+        affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
     config = config_lib.Config(
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(additional_sources=[source]),
@@ -119,7 +119,7 @@ class SourceTest(parameterized.TestCase):
               config_slice.build_dynamic_config_slice(config)
           ),
           geo=geo,
-          state=state,
+          core_profiles=core_profiles,
       )
       np.testing.assert_allclose(
           profile,
@@ -133,7 +133,7 @@ class SourceTest(parameterized.TestCase):
               config_slice.build_dynamic_config_slice(config)
           ),
           geo=geo,
-          state=state,
+          core_profiles=core_profiles,
       )
       np.testing.assert_allclose(
           profile,
@@ -148,16 +148,16 @@ class SourceTest(parameterized.TestCase):
         name='foo',
         output_shape_getter=lambda _0, _1, _2: output_shape,
         formula=lambda _0, _1, _2: expected_output,
-        affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.TEMP_ION,
-            source_lib.AffectedMeshStateAttribute.TEMP_EL,
+        affected_core_profiles=(
+            source_lib.AffectedCoreProfile.TEMP_ION,
+            source_lib.AffectedCoreProfile.TEMP_EL,
         ),
     )
     config = config_lib.Config(
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(additional_sources=[source]),
@@ -167,7 +167,7 @@ class SourceTest(parameterized.TestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
     )
     np.testing.assert_allclose(profile, expected_output)
 
@@ -180,16 +180,16 @@ class SourceTest(parameterized.TestCase):
         supported_types=(source_config.SourceType.MODEL_BASED,),
         output_shape_getter=lambda _0, _1, _2: output_shape,
         model_func=lambda _0, _1, _2: expected_output,
-        affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.TEMP_ION,
-            source_lib.AffectedMeshStateAttribute.TEMP_EL,
+        affected_core_profiles=(
+            source_lib.AffectedCoreProfile.TEMP_ION,
+            source_lib.AffectedCoreProfile.TEMP_EL,
         ),
     )
     config = config_lib.Config(
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(additional_sources=[source]),
@@ -199,7 +199,7 @@ class SourceTest(parameterized.TestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
     )
     np.testing.assert_allclose(profile, expected_output)
 
@@ -212,9 +212,9 @@ class SourceTest(parameterized.TestCase):
         supported_types=(source_config.SourceType.MODEL_BASED,),
         output_shape_getter=lambda _0, _1, _2: output_shape,
         model_func=lambda _0, _1, _2: profile,
-        affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.PSI,
-            source_lib.AffectedMeshStateAttribute.NE,
+        affected_core_profiles=(
+            source_lib.AffectedCoreProfile.PSI,
+            source_lib.AffectedCoreProfile.NE,
         ),
     )
     config = config_lib.Config(
@@ -222,20 +222,20 @@ class SourceTest(parameterized.TestCase):
         nr=4,
     )
     geo = geometry.build_circular_geometry(config)
-    psi_profile = source.get_profile_for_affected_state(
-        profile, source_lib.AffectedMeshStateAttribute.PSI.value, geo
+    psi_profile = source.get_source_profile_for_affected_core_profile(
+        profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )
     np.testing.assert_allclose(psi_profile, [1, 2, 3, 4])
-    ne_profile = source.get_profile_for_affected_state(
-        profile, source_lib.AffectedMeshStateAttribute.NE.value, geo
+    ne_profile = source.get_source_profile_for_affected_core_profile(
+        profile, source_lib.AffectedCoreProfile.NE.value, geo
     )
     np.testing.assert_allclose(ne_profile, [5, 6, 7, 8])
-    temp_ion_profile = source.get_profile_for_affected_state(
-        profile, source_lib.AffectedMeshStateAttribute.TEMP_ION.value, geo
+    temp_ion_profile = source.get_source_profile_for_affected_core_profile(
+        profile, source_lib.AffectedCoreProfile.TEMP_ION.value, geo
     )
     np.testing.assert_allclose(temp_ion_profile, [0, 0, 0, 0])
-    temp_el_profile = source.get_profile_for_affected_state(
-        profile, source_lib.AffectedMeshStateAttribute.TEMP_EL.value, geo
+    temp_el_profile = source.get_source_profile_for_affected_core_profile(
+        profile, source_lib.AffectedCoreProfile.TEMP_EL.value, geo
     )
     np.testing.assert_allclose(temp_el_profile, [0, 0, 0, 0])
 
@@ -250,7 +250,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         nr=5,
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(),  # defaults are enough for this.
@@ -259,14 +259,14 @@ class SingleProfileSourceTest(parameterized.TestCase):
     source = source_lib.SingleProfileSource(
         name='foo',
         formula=lambda _0, _1, _2: expected_output,
-        affected_mesh_states=(source_lib.AffectedMeshStateAttribute.PSI,),
+        affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
     source_type = source_config.SourceType.FORMULA_BASED.value
     profile = source.get_value(
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
     )
     np.testing.assert_allclose(profile, expected_output)
 
@@ -277,7 +277,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         nr=5,
     )
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(),  # defaults are enough for this.
@@ -285,9 +285,9 @@ class SingleProfileSourceTest(parameterized.TestCase):
     source = source_lib.SingleProfileSource(
         name='foo',
         formula=lambda _0, _1, _2: jnp.ones((2, 5)),
-        affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.PSI,
-            source_lib.AffectedMeshStateAttribute.NE,
+        affected_core_profiles=(
+            source_lib.AffectedCoreProfile.PSI,
+            source_lib.AffectedCoreProfile.NE,
         ),
     )
     source_type = source_config.SourceType.FORMULA_BASED.value
@@ -298,7 +298,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
               config_slice.build_dynamic_config_slice(config)
           ),
           geo=geo,
-          state=state,
+          core_profiles=core_profiles,
       )
 
   def test_retrieving_profile_for_affected_state(self):
@@ -308,19 +308,19 @@ class SingleProfileSourceTest(parameterized.TestCase):
         name='foo',
         supported_types=(source_config.SourceType.MODEL_BASED,),
         model_func=lambda _0, _1, _2: profile,
-        affected_mesh_states=(source_lib.AffectedMeshStateAttribute.NE,),
+        affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
     config = config_lib.Config(
         sources={source.name: source_config.SourceConfig()},
         nr=4,
     )
     geo = geometry.build_circular_geometry(config)
-    psi_profile = source.get_profile_for_affected_state(
-        profile, source_lib.AffectedMeshStateAttribute.PSI.value, geo
+    psi_profile = source.get_source_profile_for_affected_core_profile(
+        profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )
     np.testing.assert_allclose(psi_profile, [0, 0, 0, 0])
-    ne_profile = source.get_profile_for_affected_state(
-        profile, source_lib.AffectedMeshStateAttribute.NE.value, geo
+    ne_profile = source.get_source_profile_for_affected_core_profile(
+        profile, source_lib.AffectedCoreProfile.NE.value, geo
     )
     np.testing.assert_allclose(ne_profile, [1, 2, 3, 4])
 

@@ -31,9 +31,9 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_ION,
-            source.AffectedMeshStateAttribute.TEMP_EL,
+        expected_affected_core_profiles=(
+            source.AffectedCoreProfile.TEMP_ION,
+            source.AffectedCoreProfile.TEMP_EL,
         ),
     )
 

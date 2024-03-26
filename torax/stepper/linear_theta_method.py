@@ -21,7 +21,7 @@ from torax import config_slice
 from torax import fvm
 from torax import geometry
 from torax import sim
-from torax import state as state_module
+from torax import state
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
 from torax.stepper import stepper as stepper_lib
@@ -42,8 +42,8 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
   def _x_new(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
@@ -54,12 +54,14 @@ class LinearThetaMethod(stepper_lib.Stepper):
   ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
     """See Stepper._x_new docstring."""
 
-    x_old = tuple([state_t[name] for name in evolving_names])
-    x_new_init = tuple([state_t_plus_dt[name] for name in evolving_names])
+    x_old = tuple([core_profiles_t[name] for name in evolving_names])
+    x_new_init = tuple(
+        [core_profiles_t_plus_dt[name] for name in evolving_names]
+    )
 
     # Instantiate coeffs_callback class
     coeffs_callback = self.callback_class(
-        state_t=state_t,
+        core_profiles_t=core_profiles_t,
         evolving_names=evolving_names,
         geo=geo,
         static_config_slice=static_config_slice,
@@ -68,8 +70,8 @@ class LinearThetaMethod(stepper_lib.Stepper):
         sources=self.sources,
     )
 
-    # Compute the explicit coeffs based on the state at time t and all runtime
-    # parameters at time t.
+    # Compute the explicit coeffs based on the core profiles at time t and all
+    # runtime parameters at time t.
     coeffs_exp = coeffs_callback(
         x_old, dynamic_config_slice_t, allow_pereverzev=True, explicit_call=True
     )

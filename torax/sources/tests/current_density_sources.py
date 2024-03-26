@@ -31,9 +31,7 @@ class ECRHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.PSI,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.PSI,),
     )
 
 
@@ -47,9 +45,7 @@ class ICRHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.PSI,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.PSI,),
     )
 
 
@@ -63,9 +59,7 @@ class LHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.PSI,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.PSI,),
     )
 
 
@@ -79,9 +73,7 @@ class NBICurrentSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.PSI,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.PSI,),
     )
 
 

@@ -25,7 +25,7 @@ import numpy as np
 from torax import config as config_lib
 from torax import geometry
 from torax import initial_states
-from torax import state as state_module
+from torax import state
 from torax.tests.test_lib import torax_refs
 
 
@@ -41,12 +41,14 @@ class StateTest(torax_refs.ReferenceValueTest):
     def make_hist(config, geo):
       initial_counter = jnp.array(0)
 
-      def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state_module.State]:
-        state = initial_states.initial_state(config, geo)
+      def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
+        core_profiles = initial_states.initial_core_profiles(config, geo)
         # Make one variable in the history track the value of the counter
-        value = jnp.ones_like(state.temp_ion.value) * counter
-        state = config_lib.recursive_replace(state, temp_ion={'value': value})
-        return counter + 1, state.history_elem()
+        value = jnp.ones_like(core_profiles.temp_ion.value) * counter
+        core_profiles = config_lib.recursive_replace(
+            core_profiles, temp_ion={'value': value}
+        )
+        return counter + 1, core_profiles.history_elem()
 
       _, history = jax.lax.scan(
           scan_f,
@@ -74,11 +76,11 @@ class StateTest(torax_refs.ReferenceValueTest):
   ):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
-    basic_state = initial_states.initial_state(
+    basic_core_profiles = initial_states.initial_core_profiles(
         references.config,
         references.geo,
     )
-    basic_state.sanity_check()
+    basic_core_profiles.sanity_check()
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -130,7 +132,7 @@ class InitialStatesTest(parameterized.TestCase):
   def test_initial_boundary_condition_from_time_dependent_params(self):
     """Tests that the initial boundary conditions are set from the config."""
     # Boundary conditions can be time-dependent, but when creating the initial
-    # state, we want to grab the boundary condition params at time 0.
+    # core profiles, we want to grab the boundary condition params at time 0.
     config = config_lib.Config(
         Ti_bound_right=27.7,
         Te_bound_right={0.0: 42.0, 1.0: 0.0},
@@ -139,12 +141,16 @@ class InitialStatesTest(parameterized.TestCase):
             interpolation_mode=config_lib.InterpolationMode.STEP,
         ),
     )
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config, geometry.build_circular_geometry(config)
     )
-    np.testing.assert_allclose(state.temp_ion.right_face_constraint, 27.7)
-    np.testing.assert_allclose(state.temp_el.right_face_constraint, 42.0)
-    np.testing.assert_allclose(state.ne.right_face_constraint, 0.1)
+    np.testing.assert_allclose(
+        core_profiles.temp_ion.right_face_constraint, 27.7
+    )
+    np.testing.assert_allclose(
+        core_profiles.temp_el.right_face_constraint, 42.0
+    )
+    np.testing.assert_allclose(core_profiles.ne.right_face_constraint, 0.1)
 
 
 if __name__ == '__main__':

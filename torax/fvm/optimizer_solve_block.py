@@ -21,7 +21,7 @@ from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import geometry
-from torax import state as state_module
+from torax import state
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import fvm_conversions
@@ -44,7 +44,7 @@ TOL = 1e-12
 
 def optimizer_solve_block(
     x_old: tuple[cell_variable.CellVariable, ...],
-    state_t_plus_dt: state_module.State,
+    core_profiles_t_plus_dt: state.CoreProfiles,
     evolving_names: tuple[str, ...],
     dt: jax.Array,
     coeffs_callback: Block1DCoeffsCallback,
@@ -72,23 +72,24 @@ def optimizer_solve_block(
   Args:
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
-    state_t_plus_dt: Sim state which contains all available prescribed
-      quantities at the end of the time step. This includes evolving boundary
-      conditions and prescribed time-dependent profiles that are not being
-      evolved by the PDE system.
-    evolving_names: The names of variables within the state that should evolve.
+    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+      prescribed quantities at the end of the time step. This includes evolving
+      boundary conditions and prescribed time-dependent profiles that are not
+      being evolved by the PDE system.
+    evolving_names: The names of variables within the core profiles that should
+      evolve.
     dt: Discrete time step.
     coeffs_callback: Calculates diffusion, convection etc. coefficients given a
-      state. Repeatedly called by the iterative optimizer.
+      core_profiles. Repeatedly called by the iterative optimizer.
     dynamic_config_slice_t: Runtime configuration for time t (the start time of
       the step). These config params can change from step to step without
       triggering a recompilation.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
       params will trigger recompilation. A key parameter in static_config slice
-      is theta_imp, a coefficient in [0, 1] determining which solution method
-      to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new)
-      + (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
+      is theta_imp, a coefficient in [0, 1] determining which solution method to
+      use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) +
+      (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
       solution methods: theta_imp = 1: Backward Euler implicit method (default).
       theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
       method.
@@ -130,7 +131,9 @@ def optimizer_solve_block(
           explicit_call=True,
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
-      x_new_init = tuple([state_t_plus_dt[name] for name in evolving_names])
+      x_new_init = tuple(
+          [core_profiles_t_plus_dt[name] for name in evolving_names]
+      )
       init_val = (
           x_new_init,
           calc_coeffs.AuxOutput.build_from_geo(geo),
@@ -156,7 +159,7 @@ def optimizer_solve_block(
   x_new_vec, final_loss, aux_output = residual_and_loss.jaxopt_solver(
       init_x_new_vec=init_x_new_vec,
       x_old=x_old,
-      state_t_plus_dt=state_t_plus_dt,
+      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       geo=geo,
       dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
       static_config_slice=static_config_slice,
@@ -170,10 +173,10 @@ def optimizer_solve_block(
       tol=tol,
   )
 
-  # Create updated CellVariable instances based on state_plus_dt which has
-  # updated boundary conditions and prescribed profiles.
+  # Create updated CellVariable instances based on core_profiles_t_plus_dt which
+  # has updated boundary conditions and prescribed profiles.
   x_new = fvm_conversions.vec_to_cell_variable_tuple(
-      x_new_vec, state_t_plus_dt, evolving_names
+      x_new_vec, core_profiles_t_plus_dt, evolving_names
   )
 
   # Tell the caller whether or not x_new successfully reduces the loss below

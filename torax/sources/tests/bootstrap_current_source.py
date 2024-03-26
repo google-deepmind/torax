@@ -39,16 +39,14 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
             source_config.SourceType.FORMULA_BASED,
             source_config.SourceType.ZERO,
         ],
-        expected_affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.PSI,
-        ),
+        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
 
   def test_source_value(self):
     source = bootstrap_current_source.BootstrapCurrentSource()
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(j_bootstrap=source),
@@ -59,12 +57,12 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
                 config_slice.build_dynamic_config_slice(config)
             ),
             geo=geo,
-            temp_ion=state.temp_ion,
-            temp_el=state.temp_el,
-            ne=state.ne,
-            ni=state.ni,
-            jtot_face=state.currents.jtot_face,
-            psi=state.psi,
+            temp_ion=core_profiles.temp_ion,
+            temp_el=core_profiles.temp_el,
+            ne=core_profiles.ne,
+            ni=core_profiles.ni,
+            jtot_face=core_profiles.currents.jtot_face,
+            psi=core_profiles.psi,
         )
     )
 
@@ -82,18 +80,18 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
         I_bootstrap=jnp.zeros((1,)),
     )
     np.testing.assert_allclose(
-        source.get_profile_for_affected_state(
+        source.get_source_profile_for_affected_core_profile(
             fake_profile,
-            source_lib.AffectedMeshStateAttribute.PSI.value,
+            source_lib.AffectedCoreProfile.PSI.value,
             geo,
         ),
         jnp.ones(cell),
     )
     # For unrelated states, this should just return all 0s.
     np.testing.assert_allclose(
-        source.get_profile_for_affected_state(
+        source.get_source_profile_for_affected_core_profile(
             fake_profile,
-            source_lib.AffectedMeshStateAttribute.TEMP_ION.value,
+            source_lib.AffectedCoreProfile.TEMP_ION.value,
             geo,
         ),
         jnp.zeros(cell),

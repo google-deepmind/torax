@@ -46,12 +46,12 @@ class SourceProfilesTest(parameterized.TestCase):
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = torax.build_circular_geometry(config)
     sources = source_profiles.Sources()
-    state = initial_states.initial_state(config, geo, sources)
+    core_profiles = initial_states.initial_core_profiles(config, geo, sources)
     _ = source_profiles.build_source_profiles(
-        sources, dynamic_config_slice, geo, state, explicit=True
+        sources, dynamic_config_slice, geo, core_profiles, explicit=True
     )
     _ = source_profiles.build_source_profiles(
-        sources, dynamic_config_slice, geo, state, explicit=False
+        sources, dynamic_config_slice, geo, core_profiles, explicit=False
     )
 
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
@@ -112,9 +112,9 @@ class SourceProfilesTest(parameterized.TestCase):
         name=source_name,
         # Test a fake source that somehow affects both electron temp and
         # electron density.
-        affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.TEMP_EL,
-            source_lib.AffectedMeshStateAttribute.NE,
+        affected_core_profiles=(
+            source_lib.AffectedCoreProfile.TEMP_EL,
+            source_lib.AffectedCoreProfile.NE,
         ),
         supported_types=(source_config.SourceType.FORMULA_BASED,),
         output_shape_getter=lambda _0, geo, _1: (2,)
@@ -145,14 +145,14 @@ class SourceProfilesTest(parameterized.TestCase):
     )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = torax.build_circular_geometry(config)
-    state = initial_states.initial_state(config, geo, sources)
+    core_profiles = initial_states.initial_core_profiles(config, geo, sources)
 
     def compute_and_sum_profiles():
       profiles = source_profiles.build_source_profiles(
           sources=sources,
           dynamic_config_slice=dynamic_config_slice,
           geo=geo,
-          state=state,
+          core_profiles=core_profiles,
           # Configs set sources to implicit by default, so set this to False to
           # calculate the custom source's profile.
           explicit=False,

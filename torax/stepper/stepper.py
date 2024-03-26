@@ -25,7 +25,7 @@ from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import geometry
-from torax import state as state_module
+from torax import state
 from torax import update_state
 from torax.sources import source_profiles
 from torax.transport_model import transport_model as transport_model_lib
@@ -54,44 +54,43 @@ class Stepper(abc.ABC):
 
   def __call__(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[state_module.State, int, calc_coeffs.AuxOutput]:
+  ) -> tuple[state.CoreProfiles, int, calc_coeffs.AuxOutput]:
     """Applies a time step update.
 
     Args:
-      state_t: Sim state at the beginning of the time step.
-      state_t_plus_dt: Sim state which contains all available prescribed
-        quantities at the end of the time step. This includes evolving boundary
-        conditions and prescribed time-dependent profiles that are not being
-        evolved by the PDE system.
+      core_profiles_t: Core plasma profiles at the beginning of the time step.
+      core_profiles_t_plus_dt: Core plasma profiles which contain all available
+        prescribed quantities at the end of the time step. This includes
+        evolving boundary conditions and prescribed time-dependent profiles that
+        are not being evolved by the PDE system.
       geo: Geometry of the torus.
       dynamic_config_slice_t: Runtime configuration for time t (the start time
         of the step). These config params can change from step to step without
         triggering a recompilation.
       dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt,
         used for implicit calculations in the solver.
-      static_config_slice: Input params that cannot change during the compiled
-        lifetime of the joint state stepper, which wraps this stepper. These
-        don't have to be JAX-friendly types and can be used in control-flow
-        logic.
+      static_config_slice: Input params that trigger recompilation when they
+        change. These don't have to be JAX-friendly types and can be used in
+        control-flow logic.
       dt: Time step duration.
       explicit_source_profiles: Source profiles of all explicit sources (as
         configured by the input config). All implicit source's profiles will be
         set to 0 in this object. These explicit source profiles were calculated
-        either based on the original state at the start of the time step or were
-        independent of the state. Because they were calculated outside the
-        possibly-JAX-jitted JointStateStepperCallable, they can be calculated in
-        non-JAX-friendly ways.
+        either based on the original core profiles at the start of the time step
+        or were independent of the core profiles. Because they were calculated
+        outside the possibly-JAX-jitted JointStateStepperCallable, they can be
+        calculated in non-JAX-friendly ways.
 
     Returns:
-      new_state: Updated sim state.
+      new_core_profiles: Updated core profiles.
       error: 0 if step was successful (linear step, or nonlinear step with
         residual or loss under tolerance at exit), or 1 if unsuccessful,
         indicating that a rerun with a smaller timestep is needed
@@ -117,8 +116,8 @@ class Stepper(abc.ABC):
     # Don't call solver functions on an empty list
     if evolving_names:
       x_new, error, aux_output = self._x_new(
-          state_t=state_t,
-          state_t_plus_dt=state_t_plus_dt,
+          core_profiles_t=core_profiles_t,
+          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           evolving_names=evolving_names,
           geo=geo,
           dynamic_config_slice_t=dynamic_config_slice_t,
@@ -132,23 +131,23 @@ class Stepper(abc.ABC):
       error = 0
       aux_output = calc_coeffs.AuxOutput.build_from_geo(geo)
 
-    state_t_plus_dt = update_state.update_state(
-        state_t_plus_dt,
+    core_profiles_t_plus_dt = update_state.update_core_profiles(
+        core_profiles_t_plus_dt,
         x_new,
         evolving_names,
         dynamic_config_slice_t_plus_dt,
     )
 
     return (
-        state_t_plus_dt,
+        core_profiles_t_plus_dt,
         error,
         aux_output,
     )
 
   def _x_new(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
@@ -163,22 +162,21 @@ class Stepper(abc.ABC):
     will work, or implement a different `__call__`.
 
     Args:
-      state_t: The State at time t.
-      state_t_plus_dt: Sim state which contains all available prescribed
-        quantities at the end of the time step. This includes evolving boundary
-        conditions and prescribed time-dependent profiles that are not being
-        evolved by the PDE system.
-      evolving_names: The names of state variables that should evolve.
+      core_profiles_t: Core plasma profiles at the beginning of the time step.
+      core_profiles_t_plus_dt: Core plasma profiles which contain all available
+        prescribed quantities at the end of the time step. This includes
+        evolving boundary conditions and prescribed time-dependent profiles that
+        are not being evolved by the PDE system.
+      evolving_names: The names of core_profiles variables that should evolve.
       geo: Geometry of the torus.
       dynamic_config_slice_t: Runtime configuration for time t (the start time
         of the step). These config params can change from step to step without
         triggering a recompilation.
       dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt,
         used for implicit calculations in the solver.
-      static_config_slice: Input params that cannot change during the compiled
-        lifetime of the joint state stepper, which wraps this stepper. These
-        don't have to be JAX-friendly types and can be used in control-flow
-        logic.
+      static_config_slice: Input params that trigger recompilation when they
+        change. These don't have to be JAX-friendly types and can be used in
+        control-flow logic.
       dt: Time step duration.
       explicit_source_profiles: see the docstring of __call__
 

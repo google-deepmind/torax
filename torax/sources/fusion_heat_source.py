@@ -23,30 +23,30 @@ from jax import numpy as jnp
 from torax import config_slice
 from torax import constants
 from torax import geometry
-from torax import state as state_lib
+from torax import state
 from torax.sources import source
 from torax.sources import source_config
 
 
 def calc_fusion(
     geo: geometry.Geometry,
-    state: state_lib.State,
+    core_profiles: state.CoreProfiles,
     nref: float,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
   """Computes power from ion temperature.
 
-  Assumes that state.ni is a 50-50% DT mix
+  Assumes that core_profiles.ni is a 50-50% DT mix
 
   Args:
     geo: Geometry describing the torus.
-    state: Current simulator state.
+    core_profiles: Core plasma profiles.
     nref: Reference density.
 
   Returns:
     Ptot: fusion power in megawatts.
   """
 
-  t_face = state.temp_ion.face_value()
+  t_face = core_profiles.temp_ion.face_value()
 
   # P [W/m^3] = Efus *1/4 * n^2 * <sigma*v>.
   # <sigma*v> for DT calculated with the Bosch-Hale parameterization NF 1992.
@@ -84,7 +84,7 @@ def calc_fusion(
 
   logPfus = (
       jnp.log(0.25 * Efus)
-      + 2 * jnp.log(state.ni.face_value())
+      + 2 * jnp.log(core_profiles.ni.face_value())
       + logsigmav
       + 2 * jnp.log(nref)
   )
@@ -102,7 +102,7 @@ def calc_fusion(
 
   # Fractional fusion power ions/electrons.
   # From Mikkelsen Nucl. Tech. Fusion 237 4 1983
-  D1 = 88.0 / state.temp_el.value
+  D1 = 88.0 / core_profiles.temp_el.value
   D2 = jnp.sqrt(D1)
   frac_i = (
       2
@@ -123,10 +123,10 @@ def calc_fusion(
 def fusion_heat_model_func(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_lib.State,
+    core_profiles: state.CoreProfiles,
 ) -> jnp.ndarray:
   # pylint: disable=invalid-name
-  _, Pfus_i, Pfus_e = calc_fusion(geo, state, dynamic_config_slice.nref)
+  _, Pfus_i, Pfus_e = calc_fusion(geo, core_profiles, dynamic_config_slice.nref)
   return jnp.stack((Pfus_i, Pfus_e))
   # pylint: enable=invalid-name
 

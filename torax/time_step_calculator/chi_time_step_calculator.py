@@ -60,7 +60,7 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      sim_state: state_module.State,
+      core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
       transport_coeffs: transport_model_lib.TransportCoeffs,
   ) -> tuple[jax.Array, State]:
@@ -73,7 +73,7 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       dynamic_config_slice: Input config parameters that can change without
         triggering a JAX recompilation.
       geo: Geometry for the tokamak being simulated.
-      sim_state: Current state of the tokamak.
+      core_profiles: Current core plasma profiles.
       time_step_calculator_state: None, for compatibility with
         TimeStepCalculator base class.
       transport_coeffs: Used to calculate maximum step size.

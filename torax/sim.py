@@ -42,7 +42,7 @@ from torax import geometry
 from torax import initial_states
 from torax import jax_utils
 from torax import physics
-from torax import state as state_module
+from torax import state
 from torax.sources import source_profiles as source_profiles_lib
 from torax.spectators import spectator as spectator_lib
 from torax.stepper import stepper as stepper_lib
@@ -55,9 +55,9 @@ from torax.transport_model import transport_model_factory
 # TODO standardize order of arguments passed to various functions
 # throghout all of torax
 # e.g. in the physics module, the order is always:
-# config, geo, state, constants
-# (with some subset dropped, including replacing `state` with its fields)
-# but in this module we don't follow that order yet
+# config, geo, core_profiles, constants
+# (with some subset dropped, including replacing `core_profiles` with its
+# fields) but in this module we don't follow that order yet
 
 
 def _log_timestep(t: jax.Array, dt: jax.Array, stepper_iterations: int) -> None:
@@ -75,9 +75,7 @@ class CoeffsCallback:
   """Implements fvm.Block1DCoeffsCallback using calc_coeffs.
 
   Attributes:
-    state_t: The state at the start of the time step. During iterative
-      optimization, the current state is built by changing the values of
-      CellVariables (but not their boundary conditions etc) from this state.
+    core_profiles_t: The core plasma profiles at the start of the time step.
     evolving_names: The names of the evolving variables.
     geo: See the docstring for `stepper.Stepper`.
     static_config_slice: See the docstring for `stepper.Stepper`.
@@ -88,7 +86,7 @@ class CoeffsCallback:
 
   def __init__(
       self,
-      state_t: state_module.State,
+      core_profiles_t: state.CoreProfiles,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       static_config_slice: config_slice.StaticConfigSlice,
@@ -96,7 +94,7 @@ class CoeffsCallback:
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       sources: source_profiles_lib.Sources,
   ):
-    self.state_t = state_t
+    self.core_profiles_t = core_profiles_t
     self.evolving_names = evolving_names
     self.geo = geo
     self.static_config_slice = static_config_slice
@@ -115,18 +113,20 @@ class CoeffsCallback:
   ):
     replace = {k: v for k, v in zip(self.evolving_names, x)}
     # TODO( b/326579003) revisit due to prescribed profiles
-    state = config_lib.recursive_replace(self.state_t, **replace)
-    # update ion density in state if ne is being evolved.
+    core_profiles = config_lib.recursive_replace(
+        self.core_profiles_t, **replace
+    )
+    # update ion density in core_profiles if ne is being evolved.
     # Necessary for consistency in iterative nonlinear solutions
     if 'ne' in self.evolving_names:
       ni = dataclasses.replace(
-          state.ni,
-          value=state.ne.value
+          core_profiles.ni,
+          value=core_profiles.ne.value
           * physics.get_main_ion_dilution_factor(
               dynamic_config_slice.Zimp, dynamic_config_slice.Zeff
           ),
       )
-      state = dataclasses.replace(state, ni=ni)
+      core_profiles = dataclasses.replace(core_profiles, ni=ni)
 
     if allow_pereverzev:
       use_pereverzev = self.static_config_slice.solver.use_pereverzev
@@ -134,7 +134,7 @@ class CoeffsCallback:
       use_pereverzev = False
 
     return calc_coeffs.calc_coeffs(
-        state=state,
+        core_profiles=core_profiles,
         evolving_names=self.evolving_names,
         geo=self.geo,
         dynamic_config_slice=dynamic_config_slice,
@@ -159,7 +159,7 @@ class FrozenCoeffsCallback(CoeffsCallback):
       raise ValueError('dynamic_config_slice must be provided.')
     dynamic_config_slice = kwargs.pop('dynamic_config_slice')
     super().__init__(*args, **kwargs)
-    x = tuple([self.state_t[name] for name in self.evolving_names])
+    x = tuple([self.core_profiles_t[name] for name in self.evolving_names])
     self.frozen_coeffs = super().__call__(
         x, dynamic_config_slice, allow_pereverzev=False, explicit_call=False
     )
@@ -176,10 +176,10 @@ class SimulationStepFn:
 
   Unlike the Stepper class, which updates certain parts of the state, a
   SimulationStepFn takes in the ToraxSimState and outputs the ToraxOutput,
-  which contains not only the State but also extra simulation state useful for
-  stepping as well as extra outputs useful for inspection inside the main run
-  loop in `run_simulation()`. It can wrap calls to Stepper which evolve the mesh
-  state.
+  which contains not only the CoreProfiles but also extra simulation state
+  useful for stepping as well as extra outputs useful for inspection inside the
+  main run loop in `run_simulation()`. It wraps calls to Stepper which evolves
+  the core profiles.
   """
 
   def __init__(
@@ -196,7 +196,7 @@ class SimulationStepFn:
     of the SimulationStepFn and cannot change even with JAX recompiles.
 
     Args:
-      stepper: Evolves the mesh state.
+      stepper: Evolves the core profiles.
       time_step_calculator: Calculates the dt for each time step.
       transport_model: Calculates diffusion and convection coefficients.
     """
@@ -212,17 +212,17 @@ class SimulationStepFn:
 
   def __call__(
       self,
-      input_state: state_module.ToraxSimState,
+      input_state: state.ToraxSimState,
       geo: geometry.Geometry,
       dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
       static_config_slice: config_slice.StaticConfigSlice,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[state_module.ToraxOutput, int]:
+  ) -> tuple[state.ToraxOutput, int]:
     """Advances the simulation state one time step.
 
     Args:
-      input_state: State at the start of the time step, including the mesh state
-        which is being evolved.
+      input_state: State at the start of the time step, including the core
+        profiles which are being evolved.
       geo: The geometry of the torus during this time step of the simulation.
         While the geometry may change, any changes to the grid size can trigger
         recompilation of the stepper (if it is jitted) or an error (assuming it
@@ -234,11 +234,11 @@ class SimulationStepFn:
       static_config_slice: Static parameters that, if they change, should
         trigger a recompilation of the SimulationStepFn.
       explicit_source_profiles: Explicit source profiles computed based on the
-        mesh state at the start of the time step.
+        core profiles at the start of the time step.
 
     Returns:
       ToraxOutput containing:
-        - the mesh state at the end of the time step.
+        - the core profiles at the end of the time step.
         - time and time step calculator state info.
         - extra auxiliary outputs useful for internal inspection.
       stepper_error_state:
@@ -256,14 +256,14 @@ class SimulationStepFn:
     # calculate transport coeffs at delta_t = 0 in only one place, so that we
     # have some flexibility in where to place the jit boundaries.
     transport_coeffs = self._transport_model(
-        dynamic_config_slice_t, geo, input_state.mesh_state
+        dynamic_config_slice_t, geo, input_state.core_profiles
     )
 
     # initialize new dt and reset stepper iterations.
     dt, time_step_calculator_state = self._time_step_calculator.next_dt(
         dynamic_config_slice_t,
         geo,
-        input_state.mesh_state,
+        input_state.core_profiles,
         input_state.time_step_calculator_state,
         transport_coeffs,
     )
@@ -286,22 +286,23 @@ class SimulationStepFn:
         input_state.t + dt,
     )
 
-    state_t = input_state.mesh_state
+    core_profiles_t = input_state.core_profiles
 
-    # Construct the state object for time t+dt with evolving boundary conditions
-    # and time-dependent prescribed profiles not directly solved by PDE system.
+    # Construct the CoreProfiles object for time t+dt with evolving boundary
+    # conditions and time-dependent prescribed profiles not directly solved by
+    # PDE system.
     # TODO( b/326579003)
-    state_t_plus_dt = provide_state_t_plus_dt(
-        state_t, dynamic_config_slice_t_plus_dt, geo
+    core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
+        core_profiles_t, dynamic_config_slice_t_plus_dt, geo
     )
 
     stepper_iterations = 0
 
     # Initial trial for stepper. If did not converge (can happen for nonlinear
     # step with large dt) we apply the adaptive time step routine if requested.
-    mesh_state, stepper_error_state, aux_output = self._stepper_fn(
-        state_t=state_t,
-        state_t_plus_dt=state_t_plus_dt,
+    core_profiles, stepper_error_state, aux_output = self._stepper_fn(
+        core_profiles_t=core_profiles_t,
+        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         geo=geo,
         dynamic_config_slice_t=dynamic_config_slice_t,
         dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
@@ -311,15 +312,15 @@ class SimulationStepFn:
     )
     stepper_iterations += 1
 
-    new_sim_state = state_module.ToraxSimState(
-        t=input_state.t,  # update the time at the end.
+    new_sim_state = state.ToraxSimState(
+        t=input_state.t + dt,
         dt=dt,
         stepper_iterations=stepper_iterations,
-        mesh_state=mesh_state,
+        core_profiles=core_profiles,
         time_step_calculator_state=time_step_calculator_state,
         stepper_error_state=stepper_error_state,
     )
-    aux = state_module.AuxOutput(
+    aux = state.AuxOutput(
         chi_face_ion=aux_output.chi_face_ion,
         chi_face_el=aux_output.chi_face_el,
         source_ion=aux_output.source_ion,
@@ -329,25 +330,26 @@ class SimulationStepFn:
         Pohm=aux_output.Pohm,
         Qei=aux_output.Qei,
     )
-    output_state = state_module.ToraxOutput(
+    output_state = state.ToraxOutput(
         state=new_sim_state,
         aux=aux,
     )
 
     if static_config_slice.adaptive_dt:
       # Check if stepper converged. If not, proceed to body_fun
-      def cond_fun(updated_output: state_module.ToraxOutput) -> bool:
+      def cond_fun(updated_output: state.ToraxOutput) -> bool:
         if updated_output.state.stepper_error_state == 1:
           do_dt_backtrack = True
         else:
           do_dt_backtrack = False
         return do_dt_backtrack
 
-      # Make a new step with a smaller dt, starting from orig_mesh_state
+      # Make a new step with a smaller dt, starting with the original core
+      # profiles.
       # Exit if dt < mindt
       def body_fun(
-          updated_output: state_module.ToraxOutput,
-      ) -> state_module.ToraxOutput:
+          updated_output: state.ToraxOutput,
+      ) -> state.ToraxOutput:
         updated_sim_state = updated_output.state
 
         dt = updated_sim_state.dt / dynamic_config_slice_t.dt_reduction_factor
@@ -357,12 +359,12 @@ class SimulationStepFn:
         dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
             input_state.t + dt,
         )
-        state_t_plus_dt = provide_state_t_plus_dt(
-            state_t, dynamic_config_slice_t_plus_dt, geo
+        core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
+            core_profiles_t, dynamic_config_slice_t_plus_dt, geo
         )
-        mesh_state, stepper_error_state, aux_output = self._stepper_fn(
-            state_t=state_t,
-            state_t_plus_dt=state_t_plus_dt,
+        core_profiles, stepper_error_state, aux_output = self._stepper_fn(
+            core_profiles_t=core_profiles_t,
+            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             geo=geo,
             dynamic_config_slice_t=dynamic_config_slice_t,
             dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
@@ -370,15 +372,15 @@ class SimulationStepFn:
             dt=dt,
             explicit_source_profiles=explicit_source_profiles,
         )
-        new_sim_state = state_module.ToraxSimState(
-            t=updated_sim_state.t,  # update time at the end.
+        new_sim_state = dataclasses.replace(
+            updated_sim_state,
+            t=input_state.t + dt,
             dt=dt,
             stepper_iterations=updated_sim_state.stepper_iterations + 1,
-            mesh_state=mesh_state,
-            time_step_calculator_state=time_step_calculator_state,
+            core_profiles=core_profiles,
             stepper_error_state=stepper_error_state,
         )
-        new_aux = state_module.AuxOutput(
+        new_aux = state.AuxOutput(
             chi_face_ion=aux_output.chi_face_ion,
             chi_face_el=aux_output.chi_face_el,
             source_ion=aux_output.source_ion,
@@ -388,7 +390,7 @@ class SimulationStepFn:
             Pohm=aux_output.Pohm,
             Qei=aux_output.Qei,
         )
-        return state_module.ToraxOutput(
+        return state.ToraxOutput(
             state=new_sim_state,
             aux=new_aux,
         )
@@ -399,31 +401,28 @@ class SimulationStepFn:
     dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
         input_state.t + output_state.state.dt,
     )
-    output_state.state.mesh_state = physics.update_jtot_q_face_s_face(
+    output_state.state.core_profiles = physics.update_jtot_q_face_s_face(
         geo=geo,
-        state=output_state.state.mesh_state,
+        core_profiles=output_state.state.core_profiles,
         Rmaj=dynamic_config_slice_t_plus_dt.Rmaj,
         q_correction_factor=dynamic_config_slice_t_plus_dt.q_correction_factor,
     )
 
-    # Update ohmic and bootstrap current based on new state
-    output_state.state.mesh_state = update_current_distribution(
+    # Update ohmic and bootstrap current based on the new core profiles.
+    output_state.state.core_profiles = update_current_distribution(
         sources=self._stepper_fn.sources,
         dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
-        state=output_state.state.mesh_state,
+        core_profiles=output_state.state.core_profiles,
     )
 
-    # Update psidot based on new state
-    output_state.state.mesh_state = update_psidot(
+    # Update psidot based on the new core profiles
+    output_state.state.core_profiles = update_psidot(
         sources=self._stepper_fn.sources,
         dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
-        state=output_state.state.mesh_state,
+        core_profiles=output_state.state.core_profiles,
     )
-
-    # Update the time based on the final dt that was used.
-    output_state.state.t = output_state.state.t + output_state.state.dt
 
     return output_state, output_state.state.stepper_error_state
 
@@ -433,13 +432,15 @@ def get_initial_state(
     geo: geometry.Geometry,
     time_step_calculator: ts.TimeStepCalculator,
     sources: source_profiles_lib.Sources,
-) -> state_module.ToraxSimState:
+) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
-  initial_mesh_state = initial_states.initial_state(config, geo, sources)
-  return state_module.ToraxSimState(
+  initial_core_profiles = initial_states.initial_core_profiles(
+      config, geo, sources
+  )
+  return state.ToraxSimState(
       t=jnp.array(config.t_initial),
       dt=jnp.zeros(()),
-      mesh_state=initial_mesh_state,
+      core_profiles=initial_core_profiles,
       time_step_calculator_state=time_step_calculator.initial_state(),
       stepper_error_state=0,
       stepper_iterations=0,
@@ -473,7 +474,7 @@ class GeometryProvider(Protocol):
 
   def __call__(
       self,
-      input_state: state_module.ToraxSimState,
+      input_state: state.ToraxSimState,
   ) -> geometry.Geometry:
     """Returns the geometry to use during one time step of the simulation.
 
@@ -501,7 +502,7 @@ class ConstantGeometryProvider(GeometryProvider):
 
   def __call__(
       self,
-      input_state: state_module.ToraxSimState,
+      input_state: state.ToraxSimState,
   ) -> geometry.Geometry:
     # The API includes input_state as an arg even though it is unused in order
     # to match the API of a GeometryProvider.
@@ -524,7 +525,7 @@ class Sim:
   def __init__(
       self,
       time_step_calculator: ts.TimeStepCalculator,
-      initial_state: state_module.ToraxSimState,
+      initial_state: state.ToraxSimState,
       geometry_provider: GeometryProvider,
       dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
       static_config_slice: config_slice.StaticConfigSlice,
@@ -565,7 +566,7 @@ class Sim:
     return self._time_step_calculator
 
   @property
-  def initial_state(self) -> state_module.ToraxSimState:
+  def initial_state(self) -> state.ToraxSimState:
     return self._initial_state
 
   @property
@@ -605,7 +606,7 @@ class Sim:
       self,
       log_timestep_info: bool = False,
       spectator: spectator_lib.Spectator | None = None,
-  ) -> tuple[state_module.ToraxOutput, ...]:
+  ) -> tuple[state.ToraxOutput, ...]:
     """Runs the transport simulation over a prescribed time interval.
 
     See `run_simulation` for details.
@@ -670,7 +671,7 @@ def build_sim_from_config(
     time_step_calculator: The time_step_calculator, if built, otherwise a
       ChiTimeStepCalculator will be built by default.
     sources: All TORAX sources/sinks which provide profiles used as terms in the
-      equations that evolve the mesh states.
+      equations that evolve the core profiless.
 
   Returns:
     sim: The built Sim instance.
@@ -719,7 +720,7 @@ def build_sim_from_config(
 
 
 def run_simulation(
-    initial_state: state_module.ToraxSimState,
+    initial_state: state.ToraxSimState,
     step_fn: SimulationStepFn,
     geometry_provider: GeometryProvider,
     dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
@@ -727,7 +728,7 @@ def run_simulation(
     time_step_calculator: ts.TimeStepCalculator,
     log_timestep_info: bool = False,
     spectator: spectator_lib.Spectator | None = None,
-) -> tuple[state_module.ToraxOutput, ...]:
+) -> tuple[state.ToraxOutput, ...]:
   """Runs the transport simulation over a prescribed time interval.
 
   This is the main entrypoint for running a TORAX simulation.
@@ -800,11 +801,9 @@ def run_simulation(
   # The auxiliary output is not physically realistic, but that will be updated
   # later with the next time step.
   torax_outputs = [
-      state_module.ToraxOutput(
+      state.ToraxOutput(
           state=initial_state,
-          aux=state_module.AuxOutput.zero_output(
-              geo=geometry_provider(initial_state)
-          ),
+          aux=state.AuxOutput.zero_output(geo=geometry_provider(initial_state)),
       )
   ]
   stepper_error_state = 0
@@ -841,7 +840,7 @@ def run_simulation(
         sources=step_fn.stepper.sources,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=sim_state.mesh_state,
+        core_profiles=sim_state.core_profiles,
         explicit=True,
     )
     if spectator is not None:
@@ -899,35 +898,35 @@ def run_simulation(
 
 def _update_spectator(
     spectator: spectator_lib.Spectator,
-    output_state: state_module.ToraxOutput,
+    output_state: state.ToraxOutput,
 ) -> None:
   """Updates the spectator with values from the output state."""
-  spectator.observe(key='q_face', data=output_state.state.mesh_state.q_face)
-  spectator.observe(key='s_face', data=output_state.state.mesh_state.s_face)
-  spectator.observe(key='ne', data=output_state.state.mesh_state.ne.value)
+  spectator.observe(key='q_face', data=output_state.state.core_profiles.q_face)
+  spectator.observe(key='s_face', data=output_state.state.core_profiles.s_face)
+  spectator.observe(key='ne', data=output_state.state.core_profiles.ne.value)
   spectator.observe(
       key='temp_ion',
-      data=output_state.state.mesh_state.temp_ion.value,
+      data=output_state.state.core_profiles.temp_ion.value,
   )
   spectator.observe(
       key='temp_el',
-      data=output_state.state.mesh_state.temp_el.value,
+      data=output_state.state.core_profiles.temp_el.value,
   )
   spectator.observe(
       key='j_bootstrap_face',
-      data=output_state.state.mesh_state.currents.j_bootstrap_face,
+      data=output_state.state.core_profiles.currents.j_bootstrap_face,
   )
   spectator.observe(
       key='johm_face',
-      data=output_state.state.mesh_state.currents.johm_face,
+      data=output_state.state.core_profiles.currents.johm_face,
   )
   spectator.observe(
       key='jext_face',
-      data=output_state.state.mesh_state.currents.jext_face,
+      data=output_state.state.core_profiles.currents.jext_face,
   )
   spectator.observe(
       key='jtot_face',
-      data=output_state.state.mesh_state.currents.jtot_face,
+      data=output_state.state.core_profiles.currents.jtot_face,
   )
   spectator.observe(key='chi_face_ion', data=output_state.aux.chi_face_ion)
   spectator.observe(key='chi_face_el', data=output_state.aux.chi_face_el)
@@ -943,91 +942,97 @@ def update_current_distribution(
     sources: source_profiles_lib.Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
-) -> state_module.State:
-  """Update bootstrap current based on new state."""
+    core_profiles: state.CoreProfiles,
+) -> state.CoreProfiles:
+  """Update bootstrap current based on the new core_profiles."""
 
   bootstrap_profile = sources.j_bootstrap.get_value(
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
-      state=state,
+      core_profiles=core_profiles,
   )
 
   johm = (
-      state.currents.jtot - bootstrap_profile.j_bootstrap - state.currents.jext
+      core_profiles.currents.jtot
+      - bootstrap_profile.j_bootstrap
+      - core_profiles.currents.jext
   )
   johm_face = (
-      state.currents.jtot_face
+      core_profiles.currents.jtot_face
       - bootstrap_profile.j_bootstrap_face
-      - state.currents.jext_face
+      - core_profiles.currents.jext_face
   )
 
   currents = dataclasses.replace(
-      state.currents,
+      core_profiles.currents,
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
       johm=johm,
       johm_face=johm_face,
   )
-  new_state = dataclasses.replace(
-      state,
+  new_core_profiles = dataclasses.replace(
+      core_profiles,
       currents=currents,
   )
-  return new_state
+  return new_core_profiles
 
 
 def update_psidot(
     sources: source_profiles_lib.Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
-) -> state_module.State:
-  """Update psidot based on new state."""
+    core_profiles: state.CoreProfiles,
+) -> state.CoreProfiles:
+  """Update psidot based on new core_profiles."""
 
   psidot = dataclasses.replace(
-      state.psidot,
+      core_profiles.psidot,
       value=source_profiles_lib.calc_psidot(
-          sources, dynamic_config_slice, geo, state
+          sources, dynamic_config_slice, geo, core_profiles
       ),
   )
 
-  new_state = dataclasses.replace(
-      state,
+  new_core_profiles = dataclasses.replace(
+      core_profiles,
       psidot=psidot,
   )
-  return new_state
+  return new_core_profiles
 
 
-def provide_state_t_plus_dt(
-    state_t: state_module.State,
+def provide_core_profiles_t_plus_dt(
+    core_profiles_t: state.CoreProfiles,
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-) -> state_module.State:
+) -> state.CoreProfiles:
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
   updated_boundary_conditions = boundary_conditions.compute_boundary_conditions(
       dynamic_config_slice_t_plus_dt,
       geo,
   )
   temp_ion = dataclasses.replace(
-      state_t.temp_ion,
+      core_profiles_t.temp_ion,
       **updated_boundary_conditions['temp_ion'],
   )
   temp_el = dataclasses.replace(
-      state_t.temp_el,
+      core_profiles_t.temp_el,
       **updated_boundary_conditions['temp_el'],
   )
-  psi = dataclasses.replace(state_t.psi, **updated_boundary_conditions['psi'])
-  ne = dataclasses.replace(state_t.ne, **updated_boundary_conditions['ne'])
+  psi = dataclasses.replace(
+      core_profiles_t.psi, **updated_boundary_conditions['psi']
+  )
+  ne = dataclasses.replace(
+      core_profiles_t.ne, **updated_boundary_conditions['ne']
+  )
   ni = dataclasses.replace(
-      state_t.ni,
+      core_profiles_t.ni,
       value=ne.value
       * physics.get_main_ion_dilution_factor(
           dynamic_config_slice_t_plus_dt.Zimp,
           dynamic_config_slice_t_plus_dt.Zeff,
       ),
   )
-  state_t_plus_dt = dataclasses.replace(
-      state_t, temp_ion=temp_ion, temp_el=temp_el, psi=psi, ne=ne, ni=ni
+  core_profiles_t_plus_dt = dataclasses.replace(
+      core_profiles_t, temp_ion=temp_ion, temp_el=temp_el, psi=psi, ne=ne, ni=ni
   )
-  return state_t_plus_dt
+  return core_profiles_t_plus_dt

@@ -32,7 +32,7 @@ from torax import constants as constants_module
 from torax import geometry
 from torax import jax_utils
 from torax import physics
-from torax import state as state_module
+from torax import state
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
 from torax.transport_model import transport_model
@@ -165,7 +165,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_module.State,
+      core_profiles: state.CoreProfiles,
   ) -> transport_model.TransportCoeffs:
     """Calculates several transport coefficients simultaneously.
 
@@ -173,7 +173,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
       dynamic_config_slice: Input config parameters that can change without
         triggering a JAX recompilation.
       geo: Geometry of the torus.
-      state: Current simulator state.
+      core_profiles: Core plasma profiles.
 
     Returns:
       coeffs: transport coefficients
@@ -195,7 +195,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
         dynamic_config_slice
     )
     try:
-      return self._cached_combined(runtime_config_inputs, geo, state)
+      return self._cached_combined(runtime_config_inputs, geo, core_profiles)
     except TypeError as e:
       if jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True):
         raise
@@ -206,13 +206,13 @@ class QLKNNTransportModel(transport_model.TransportModel):
           f' Original exception {e}.'
       )
 
-    return self._combined(runtime_config_inputs, geo, state)
+    return self._combined(runtime_config_inputs, geo, core_profiles)
 
   def _combined(
       self,
       runtime_config_inputs: _QLKNNRuntimeConfigInputs,
       geo: geometry.Geometry,
-      state: state_module.State,
+      core_profiles: state.CoreProfiles,
   ) -> transport_model.TransportCoeffs:
     """Actual implementation of `__call__`.
 
@@ -222,7 +222,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
       runtime_config_inputs: Input config parameters that can change without
         triggering a JAX recompilation.
       geo: Geometry of the torus.
-      state: Current simulator state.
+      core_profiles: Core plasma profiles.
 
     Returns:
       chi_face_ion: Chi for ion temperature, along faces.
@@ -243,17 +243,17 @@ class QLKNNTransportModel(transport_model.TransportModel):
     rmid = (geo.Rout - geo.Rin) * 0.5
     rmid_face = (geo.Rout_face - geo.Rin_face) * 0.5
 
-    temp_ion_var = state.temp_ion
+    temp_ion_var = core_profiles.temp_ion
     temp_ion_face = temp_ion_var.face_value()
     temp_ion_face_grad = temp_ion_var.face_grad(rmid)
-    temp_el_var = state.temp_el
+    temp_el_var = core_profiles.temp_el
     temp_electron_face = temp_el_var.face_value()
     temp_electron_face_grad = temp_el_var.face_grad(rmid)
     # Careful, these are in n_ref units, not postprocessed to SI units yet
-    raw_ne = state.ne
+    raw_ne = core_profiles.ne
     raw_ne_face = raw_ne.face_value()
     raw_ne_face_grad = raw_ne.face_grad(rmid)
-    raw_ni = state.ni
+    raw_ni = core_profiles.ni
     raw_ni_face = raw_ni.face_value()
     raw_ni_face_grad = raw_ni.face_grad(rmid)
 
@@ -305,8 +305,8 @@ class QLKNNTransportModel(transport_model.TransportModel):
     Ani = jnp.where(jnp.abs(Ani) < constants.eps, constants.eps, Ani)
 
     # Calculate q and s.
-    # Need to recalculate since in the nonlinear solver psi has
-    # intermediate states in the iterative solve.
+    # Need to recalculate since in the nonlinear solver psi has intermediate
+    # states in the iterative solve.
     # To avoid unnecessary complexity for the Jacobian, we still use the
     # old jtot_face in the q calculation. It only modifies the r=0 value
     # of the q-profile. This does not impact qlknn output, which is
@@ -314,14 +314,14 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
     q, _ = physics.calc_q_from_jtot_psi(
         geo,
-        state.currents.jtot_face,
-        state.psi,
+        core_profiles.currents.jtot_face,
+        core_profiles.psi,
         Rmaj,
         runtime_config_inputs.q_correction_factor,
     )
     smag = physics.calc_s_from_psi(
         geo,
-        state.psi,
+        core_profiles.psi,
     )
 
     # local r/Rmin
@@ -342,7 +342,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
     # logarithm of normalized collisionality
     nu_star = physics.calc_nu_star(
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
         nref=runtime_config_inputs.nref,
         Zeff=runtime_config_inputs.Zeff,
         Rmaj=Rmaj,
@@ -422,7 +422,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
     pfe = model_output['pfe_itg'].squeeze() + model_output['pfe_tem'].squeeze()
 
     # conversion to SI units (note that n is normalized here)
-    pfe_SI = pfe * state.ne.face_value() * chiGB / Rmin
+    pfe_SI = pfe * core_profiles.ne.face_value() * chiGB / Rmin
 
     # chi outputs in SI units.
     # chi in GB units is Q[GB]/(a/LT) , Lref=Rmin in Q[GB].
@@ -446,10 +446,10 @@ class QLKNNTransportModel(transport_model.TransportModel):
     # convection. Otherwise pure effective diffusion.
     def DVeff_approach() -> tuple[jnp.ndarray, jnp.ndarray]:
       Deff = -pfe_SI / (
-          state.ne.face_grad() * geo.g1_over_vpr2_face / geo.rmax
+          core_profiles.ne.face_grad() * geo.g1_over_vpr2_face / geo.rmax
           + constants.eps
       )
-      Veff = pfe_SI / (state.ne.face_value() * geo.g0_over_vpr_face)
+      Veff = pfe_SI / (core_profiles.ne.face_value() * geo.g0_over_vpr_face)
       Deff_mask = (((pfe >= 0) & (Ane >= 0)) | ((pfe < 0) & (Ane < 0))) & (
           abs(Ane) >= runtime_config_inputs.transport.An_min
       )
@@ -467,7 +467,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
       chex.assert_rank(pfe, 1)
       d_face_el = jnp.where(jnp.abs(pfe_SI) > 0.0, chi_face_el, 0.0)
       v_face_el = (
-          pfe_SI / state.ne.face_value()
+          pfe_SI / core_profiles.ne.face_value()
           - Ane * d_face_el / Rmaj * geo.g1_over_vpr2_face
       ) / geo.g0_over_vpr_face
       return d_face_el, v_face_el

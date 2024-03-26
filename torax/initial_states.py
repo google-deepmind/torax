@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Physics calculations for the initial states only."""
+"""Physics calculations for the initial states/profiles only."""
 
 import dataclasses
 from typing import Optional
@@ -26,20 +26,21 @@ from torax import geometry
 from torax import jax_utils
 from torax import math_utils
 from torax import physics
-from torax import state as state_module
+from torax import state
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
 from torax.sources import bootstrap_current_source
+from torax.sources import external_current_source
 from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
 
 
-def initial_state(
+def initial_core_profiles(
     config: config_lib.Config,
     geo: Geometry,
     sources: source_profiles_lib.Sources | None = None,
-) -> state_module.State:
-  """Calculates initial state.
+) -> state.CoreProfiles:
+  """Calculates the initial core profiles.
 
   Args:
     config: General configuration parameters.
@@ -47,7 +48,7 @@ def initial_state(
     sources: All TORAX sources/sinks. If not provided, uses the default sources.
 
   Returns:
-    Initial state.
+    Initial core profiles.
   """
   # pylint: disable=invalid-name
 
@@ -240,13 +241,14 @@ def initial_state(
   else:
     raise ValueError(f'Unknown geometry type provided: {geo}')
 
-  # the psidot calculation needs state. So psidot first initialized with zeros
+  # the psidot calculation needs core profiles. So psidot first initialized
+  # with zeros.
   psidot = fvm.CellVariable(
       value=jnp.zeros_like(psi.value),
       dr=geo.dr_norm,
   )
 
-  state = state_module.State(
+  core_profiles = state.CoreProfiles(
       temp_ion=temp_ion,
       temp_el=temp_el,
       ne=ne,
@@ -261,47 +263,59 @@ def initial_state(
   psidot = dataclasses.replace(
       psidot,
       value=source_profiles_lib.calc_psidot(
-          sources, dynamic_config_slice, geo, state
+          sources, dynamic_config_slice, geo, core_profiles
       ),
   )
 
-  state = dataclasses.replace(state, psidot=psidot)
+  core_profiles = dataclasses.replace(core_profiles, psidot=psidot)
 
-  # Our initial_state needs to diverge from the PINT one to compensate for
-  # a difference in logging between PINT and Torax.
-  #
-  # Pseudocode for the logging and update steps:
-  #
-  # PINT:
-  #  init all vars
-  #  main loop:
-  #   update q, s, jtot
-  #   log state
-  #   update other vars
-  #
-  # Torax:
-  #  init all vars
-  #  update q, s, jtot, as extra part of the init
-  #  log state
-  #  main loop:
-  #   update other vars
-  #   update q, s, jtot
-  #   log state
-  #
-  # Torax can't copy PINT's logging strategy because the logging is a
-  # side effect (append to a list) and thus can't go in the middle of
-  # the jit main loop. Instead, we make the lists sync up by doing
-  # a single update to jtot, q, and s here in the initial state.
-
-  state = physics.update_jtot_q_face_s_face(
+  core_profiles = physics.update_jtot_q_face_s_face(
       geo=geo,
-      state=state,
+      core_profiles=core_profiles,
       Rmaj=config.Rmaj,
       q_correction_factor=config.q_correction_factor,
   )
 
   # pylint: enable=invalid-name
-  return state
+  return core_profiles
+
+
+# pylint: disable=invalid-name
+def _get_jtot_hires(
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    geo: Geometry,
+    bootstrap_profile: bootstrap_current_source.BootstrapCurrentProfile,
+    Iohm: jax.Array,
+    jext_source: external_current_source.ExternalCurrentSource,
+) -> jax.Array:
+  """Calculates jtot hires."""
+  assert isinstance(geo, geometry.CircularGeometry)
+  j_bootstrap_hires = jnp.interp(
+      geo.r_hires, geo.r_face, bootstrap_profile.j_bootstrap_face
+  )
+  # calculate high resolution "Ohmic" current profile
+  # form of Ohmic current on cell grid
+  johmform_hires = (1 - geo.r_hires_norm**2) ** dynamic_config_slice.nu
+  denom = _trapz(johmform_hires * geo.spr_hires, geo.r_hires)
+  Cohm_hires = Iohm * 1e6 / denom
+
+  # Ohmic current profile on cell grid
+  johm_hires = Cohm_hires * johmform_hires
+
+  # calculate "External" current profile (e.g. ECCD) on cell grid.
+  # TODO(b/323504363): Replace ad-hoc circular equilibrium
+  # with more accurate analytical equilibrium
+  jext_hires = jext_source.jext_hires(
+      source_type=dynamic_config_slice.sources[jext_source.name].source_type,
+      dynamic_config_slice=dynamic_config_slice,
+      geo=geo,
+  )
+  # jtot on the various grids
+  jtot_hires = johm_hires + jext_hires + j_bootstrap_hires
+  return jtot_hires
+
+
+# pylint: enable=invalid-name
 
 
 # TODO(b/323504363): Clean this up so it is less hacky and with less branches.
@@ -318,7 +332,7 @@ def initial_currents(
     jtot_face: Optional[jax.Array] = None,
     psi: Optional[fvm.CellVariable] = None,
     hires: bool = True,
-) -> state_module.Currents:
+) -> state.Currents:
   """Creates the initial Currents.
 
   Args:
@@ -346,9 +360,6 @@ def initial_currents(
   # pylint: disable=invalid-name
   Ip = dynamic_config_slice.Ip
 
-  # Defining here to make pytype happy.
-  j_bootstrap_hires = None
-  jtot_hires = jnp.zeros(0)
   if bootstrap:
     if any([x is None for x in [temp_ion, temp_el, ne, jtot_face, psi]]):
       raise ValueError('All optional arguments must be specified for bootstrap')
@@ -363,11 +374,6 @@ def initial_currents(
         psi=psi,
     )
     f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
-    if hires:
-      assert isinstance(geo, geometry.CircularGeometry)
-      j_bootstrap_hires = jnp.interp(
-          geo.r_hires, geo.r_face, bootstrap_profile.j_bootstrap_face
-      )
   else:
     # A scalar zero would work here, but we want to make sure out Currents
     # pytree always has exactly the same types and shapes
@@ -381,9 +387,6 @@ def initial_currents(
         I_bootstrap=jnp.zeros(()),
     )
     f_bootstrap = 0.0
-    if hires:
-      assert isinstance(geo, geometry.CircularGeometry)
-      j_bootstrap_hires = jnp.zeros_like(geo.r_hires)
 
   if dynamic_config_slice.use_absolute_jext:
     Iohm = (
@@ -412,33 +415,17 @@ def initial_currents(
       geo=geo,
   )
 
-  if hires:
-    # High resolution version (hires)
-    assert isinstance(geo, geometry.CircularGeometry)
-
-    # calculate high resolution "Ohmic" current profile
-    # form of Ohmic current on cell grid
-    johmform_hires = (1 - geo.r_hires_norm**2) ** dynamic_config_slice.nu
-    denom = _trapz(johmform_hires * geo.spr_hires, geo.r_hires)
-    Cohm_hires = Iohm * 1e6 / denom
-
-    # Ohmic current profile on cell grid
-    johm_hires = Cohm_hires * johmform_hires
-
-    # calculate "External" current profile (e.g. ECCD) on cell grid.
-    # TODO(b/323504363): Replace ad-hoc circular equilibrium
-    # with more accurate analytical equilibrium
-    jext_hires = jext_source.jext_hires(
-        source_type=dynamic_config_slice.sources[jext_source.name].source_type,
-        dynamic_config_slice=dynamic_config_slice,
-        geo=geo,
-    )
-    # jtot on the various grids
-    jtot_hires = johm_hires + jext_hires + j_bootstrap_hires
   jtot_face = johm_face + jext_face + bootstrap_profile.j_bootstrap_face
   jtot = geometry.face_to_cell(jtot_face)
 
-  currents = state_module.Currents(
+  if hires:
+    jtot_hires = _get_jtot_hires(
+        dynamic_config_slice, geo, bootstrap_profile, Iohm, jext_source
+    )
+  else:
+    jtot_hires = jnp.zeros(0)
+
+  currents = state.Currents(
       jtot=jtot,
       jtot_face=jtot_face,
       jtot_hires=jtot_hires,

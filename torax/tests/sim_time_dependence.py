@@ -24,7 +24,7 @@ from torax import config as config_lib
 from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
-from torax import state as state_module
+from torax import state
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import fixed_time_step_calculator
@@ -90,7 +90,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
             sources=sources,
             dynamic_config_slice=initial_dynamic_config_slice,
             geo=geo,
-            state=input_state.mesh_state,
+            core_profiles=input_state.core_profiles,
             explicit=True,
         ),
     )
@@ -133,15 +133,15 @@ class FakeStepper(stepper_lib.Stepper):
 
   def __call__(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[state_module.State, int, calc_coeffs.AuxOutput]:
+  ) -> tuple[state.CoreProfiles, int, calc_coeffs.AuxOutput]:
     combined = getattr(dynamic_config_slice_t, self._param) + getattr(
         dynamic_config_slice_t_plus_dt, self._param
     )
@@ -150,8 +150,8 @@ class FakeStepper(stepper_lib.Stepper):
     aux.Qei = jnp.ones_like(geo.r) * combined
     return jax.lax.cond(
         combined < self._max_value,
-        lambda: (state_t, 0, aux),
-        lambda: (state_t, 1, aux),
+        lambda: (core_profiles_t, 0, aux),
+        lambda: (core_profiles_t, 1, aux),
     )
 
 
@@ -161,7 +161,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_module.State,
+      core_profiles: state.CoreProfiles,
   ) -> transport_model_lib.TransportCoeffs:
     return transport_model_lib.TransportCoeffs(
         chi_face_ion=jnp.zeros_like(geo.r_face),

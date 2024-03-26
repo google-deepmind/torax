@@ -31,9 +31,7 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.NE,
-        ),
+        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
 
@@ -47,9 +45,7 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.NE,
-        ),
+        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
 
@@ -63,9 +59,7 @@ class NBISourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.NE,
-        ),
+        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
 
@@ -79,9 +73,7 @@ class RecombinationDensitySinkTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.NE,
-        ),
+        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
 

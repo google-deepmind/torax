@@ -30,7 +30,7 @@ from torax import constants
 from torax import fvm
 from torax import geometry
 from torax import physics
-from torax import state as state_module
+from torax import state
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
 
@@ -49,15 +49,15 @@ class ExplicitStepper(stepper_lib.Stepper):
 
   def __call__(
       self,
-      state_t: state_module.State,
-      state_t_plus_dt: state_module.State,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       geo: geometry.Geometry,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[state_module.State, int, calc_coeffs.AuxOutput]:
+  ) -> tuple[state.CoreProfiles, int, calc_coeffs.AuxOutput]:
     """Applies a time step update. See Stepper.__call__ docstring."""
 
     # Many variables throughout this function are capitalized based on physics
@@ -74,8 +74,8 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     consts = constants.CONSTANTS
 
-    true_ni = state_t.ni.value * dynamic_config_slice_t.nref
-    true_ni_face = state_t.ni.face_value() * dynamic_config_slice_t.nref
+    true_ni = core_profiles_t.ni.value * dynamic_config_slice_t.nref
+    true_ni_face = core_profiles_t.ni.face_value() * dynamic_config_slice_t.nref
 
     # Transient term coefficient vectors for ion heat equation
     # (has radial dependence through r, n)
@@ -91,7 +91,7 @@ class ExplicitStepper(stepper_lib.Stepper):
     )
 
     c_mat, c = fvm.diffusion_terms.make_diffusion_terms(
-        d_face_ion, state_t.temp_ion
+        d_face_ion, core_profiles_t.temp_ion
     )
 
     # Source term
@@ -100,8 +100,8 @@ class ExplicitStepper(stepper_lib.Stepper):
     )
 
     temp_ion_new = (
-        state_t.temp_ion.value
-        + dt * (jnp.dot(c_mat, state_t.temp_ion.value) + c) / cti
+        core_profiles_t.temp_ion.value
+        + dt * (jnp.dot(c_mat, core_profiles_t.temp_ion.value) + c) / cti
     )
     # Update the potentially time-dependent boundary conditions as well.
     updated_boundary_conditions = (
@@ -111,19 +111,19 @@ class ExplicitStepper(stepper_lib.Stepper):
         )
     )
     temp_ion_new = dataclasses.replace(
-        state_t.temp_ion,
+        core_profiles_t.temp_ion,
         value=temp_ion_new,
         **updated_boundary_conditions['temp_ion'],
     )
 
     q_face, _ = physics.calc_q_from_jtot_psi(
         geo=geo,
-        jtot_face=state_t.currents.jtot,
-        psi=state_t.psi,
+        jtot_face=core_profiles_t.currents.jtot,
+        psi=core_profiles_t.psi,
         Rmaj=dynamic_config_slice_t_plus_dt.Rmaj,
         q_correction_factor=dynamic_config_slice_t_plus_dt.q_correction_factor,
     )
-    s_face = physics.calc_s_from_psi(geo, state_t.psi)
+    s_face = physics.calc_s_from_psi(geo, core_profiles_t.psi)
 
     # error isn't used for timestep adaptation for this method.
     # However, too large a timestep will lead to numerical instabilities.
@@ -132,7 +132,7 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     return (
         dataclasses.replace(
-            state_t,
+            core_profiles_t,
             temp_ion=temp_ion_new,
             q_face=q_face,
             s_face=s_face,

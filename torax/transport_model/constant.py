@@ -20,7 +20,7 @@ A simple model assuming constant transport.
 from jax import numpy as jnp
 from torax import config_slice
 from torax import geometry
-from torax import state as state_module
+from torax import state
 from torax.transport_model import transport_model
 
 
@@ -31,9 +31,9 @@ class ConstantTransportModel(transport_model.TransportModel):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_module.State,
+      core_profiles: state.CoreProfiles,
   ) -> transport_model.TransportCoeffs:
-    del state  # Not needed for this transport model
+    del core_profiles  # Not needed for this transport model
     return transport_model.TransportCoeffs(
         chi_face_ion=dynamic_config_slice.transport.chii_const
         * jnp.ones_like(geo.r_face),

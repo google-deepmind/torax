@@ -27,9 +27,7 @@ from torax.fvm import implicit_solve_block
 
 
 def predictor_corrector_method(
-    init_val: tuple[
-        tuple[fvm.CellVariable, ...], calc_coeffs.AuxOutput
-    ],
+    init_val: tuple[tuple[fvm.CellVariable, ...], calc_coeffs.AuxOutput],
     x_old: tuple[fvm.CellVariable, ...],
     dt: jax.Array,
     coeffs_exp: fvm.block_1d_coeffs.Block1DCoeffs,
@@ -41,7 +39,8 @@ def predictor_corrector_method(
 
   Args:
     init_val: Initial guess for the predictor corrector output.
-    x_old: Tuple of CellVariables correspond to the evolving state at time t.
+    x_old: Tuple of CellVariables correspond to the evolving core profiles at
+      time t.
     dt: current timestep
     coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep
     coeffs_callback: coefficient callback function
@@ -51,7 +50,7 @@ def predictor_corrector_method(
       simulation run, and if changed, would trigger a recompile.
 
   Returns:
-    x_new: Solution of evolving state variables
+    x_new: Solution of evolving core profile state variables
     auxiliary_outputs: Block1DCoeffs containing the PDE coefficients
     corresponding to the last guess of x_new
   """
@@ -62,7 +61,9 @@ def predictor_corrector_method(
     x_new_guess = val[0]
 
     coeffs_new = coeffs_callback(
-        x_new_guess, dynamic_config_slice_t_plus_dt, allow_pereverzev=True,
+        x_new_guess,
+        dynamic_config_slice_t_plus_dt,
+        allow_pereverzev=True,
     )
     aux_output = coeffs_new.auxiliary_outputs
 

@@ -27,7 +27,7 @@ from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import physics
-from torax import state as state_module
+from torax import state
 from torax.fvm import block_1d_coeffs
 from torax.sources import qei_source as qei_source_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -77,15 +77,15 @@ class AuxOutput:
 
 
 def calculate_pereverzev_flux(
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
   """Adds Pereverzev-Corrigan flux to diffusion terms."""
 
   consts = constants.CONSTANTS
-  true_ne_face = state.ne.face_value() * dynamic_config_slice.nref
-  true_ni_face = state.ni.face_value() * dynamic_config_slice.nref
+  true_ne_face = core_profiles.ne.face_value() * dynamic_config_slice.nref
+  true_ni_face = core_profiles.ni.face_value() * dynamic_config_slice.nref
 
   geo_factor = jnp.concatenate(
       [jnp.ones(1), geo.g1_over_vpr_face[1:] / geo.g0_face[1:]]
@@ -109,7 +109,10 @@ def calculate_pereverzev_flux(
 
   d_face_per_el = dynamic_config_slice.solver.d_per / geo.rmax
   v_face_per_el = (
-      state.ne.face_grad() / state.ne.face_value() * d_face_per_el * geo_factor
+      core_profiles.ne.face_grad()
+      / core_profiles.ne.face_value()
+      * d_face_per_el
+      * geo_factor
   )
 
   # remove Pereverzev flux from boundary region if pedestal model is on
@@ -132,12 +135,14 @@ def calculate_pereverzev_flux(
   )
   # set heat convection terms to zero out Pereverzev-Corrigan heat diffusion
   v_heat_face_ion = (
-      state.temp_ion.face_grad()
-      / state.temp_ion.face_value()
+      core_profiles.temp_ion.face_grad()
+      / core_profiles.temp_ion.face_value()
       * chi_face_per_ion
   )
   v_heat_face_el = (
-      state.temp_el.face_grad() / state.temp_el.face_value() * chi_face_per_el
+      core_profiles.temp_el.face_grad()
+      / core_profiles.temp_el.face_value()
+      * chi_face_per_el
   )
 
   d_face_per_el = jnp.where(
@@ -172,7 +177,7 @@ def calculate_pereverzev_flux(
 
 
 def calc_coeffs(
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],
     geo: geometry.Geometry,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
@@ -183,12 +188,13 @@ def calc_coeffs(
     use_pereverzev: bool = False,
     explicit_call: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
-  """Calculates Block1DCoeffs for the time step described by `state`.
+  """Calculates Block1DCoeffs for the time step described by `core_profiles`.
 
   Args:
-    state: Sim state for this time step during this iteration. Depending on the
-      type of stepper being used, this may or may not be equal to the original
-      state at the beginning of the time step.
+    core_profiles: Core plasma profiles for this time step during this iteration
+      of the solver. Depending on the type of stepper being used, this may or
+      may not be equal to the original plasma profiles at the beginning of the
+      time step.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     geo: Geometry describing the torus.
@@ -199,12 +205,12 @@ def calc_coeffs(
       simulation run, and if changed, would trigger a recompile.
     transport_model: A TransportModel subclass, calculates transport coeffs.
     explicit_source_profiles: Precomputed explicit source profiles. These
-      profiles either do not depend on the state or depend on the original state
-      at the start of the time step (orig_state), not the "live" state (state).
-      For sources that are implicit, their explicit profiles are set to all
-      zeros.
+      profiles either do not depend on the core profiles or depend on the
+      original core profiles at the start of the time step, not the "live"
+      updating core profiles. For sources that are implicit, their explicit
+      profiles are set to all zeros.
     sources: All TORAX source/sinks that generate the explicit and implicit
-      source profiles used as terms for the mesh state equations.
+      source profiles used as terms for the core profiles equations.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
     explicit_call: If True, indicates that calc_coeffs is being called for the
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
@@ -219,13 +225,13 @@ def calc_coeffs(
   # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
   if explicit_call and static_config_slice.solver.theta_imp == 1.0:
     return _calc_coeffs_reduced(
-        state,
+        core_profiles,
         evolving_names,
         geo,
     )
   else:
     return _calc_coeffs_full(
-        state,
+        core_profiles,
         evolving_names,
         geo,
         dynamic_config_slice,
@@ -247,7 +253,7 @@ def calc_coeffs(
     ],
 )
 def _calc_coeffs_full(
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],
     geo: geometry.Geometry,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
@@ -257,12 +263,13 @@ def _calc_coeffs_full(
     sources: source_profiles_lib.Sources,
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
-  """Calculates Block1DCoeffs for the time step described by `state`.
+  """Calculates Block1DCoeffs for the time step described by `core_profiles`.
 
   Args:
-    state: Sim state for this time step during this iteration. Depending on the
-      type of stepper being used, this may or may not be equal to the original
-      state at the beginning of the time step.
+    core_profiles: Core plasma profiles for this time step during this iteration
+      of the solver. Depending on the type of stepper being used, this may or
+      may not be equal to the original plasma profiles at the beginning of the
+      time step.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     geo: Geometry describing the torus.
@@ -273,12 +280,12 @@ def _calc_coeffs_full(
       simulation run, and if changed, would trigger a recompile.
     transport_model: A TransportModel subclass, calculates transport coeffs.
     explicit_source_profiles: Precomputed explicit source profiles. These
-      profiles either do not depend on the state or depend on the original state
-      at the start of the time step (orig_state), not the "live" state (state).
-      For sources that are implicit, their explicit profiles are set to all
-      zeros.
+      profiles either do not depend on the core profiles or depend on the
+      original core profiles at the start of the time step, not the "live"
+      updating core profiles. For sources that are implicit, their explicit
+      profiles are set to all zeros.
     sources: All TORAX source/sinks that generate the explicit and implicit
-      source profiles used as terms for the mesh state equations.
+      source profiles used as terms for the core profiles equations.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
 
   Returns:
@@ -302,17 +309,12 @@ def _calc_coeffs_full(
       sources=sources,
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
-      state=state,
+      core_profiles=core_profiles,
       explicit=False,
   )
   # The above call calculates the implicit value for the bootstrap current. Note
   # that this is potentially wasteful in case the source is explicit, but
   # recalculate here to avoid issues with JAX branching in the logic.
-  # TODO( b/314308399): Remove bootstrap current from the state and
-  # simplify this so that we don't treat bootstrap current as a special case and
-  # can avoid this recalculation.
-  # TODO(b/323504363): Make bootstrap implicit by default. Will need to rerun
-  # tests with new baselines.
   # Decide which values to use depending on whether the source is explicit or
   # implicit.
   sigma = jax_utils.select(
@@ -337,22 +339,26 @@ def _calc_coeffs_full(
   )
 
   currents = dataclasses.replace(
-      state.currents,
+      core_profiles.currents,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
-      johm=state.currents.jtot - j_bootstrap - state.currents.jext,
+      johm=core_profiles.currents.jtot
+      - j_bootstrap
+      - core_profiles.currents.jext,
       johm_face=(
-          state.currents.jtot_face - j_bootstrap_face - state.currents.jext_face
+          core_profiles.currents.jtot_face
+          - j_bootstrap_face
+          - core_profiles.currents.jext_face
       ),
       I_bootstrap=I_bootstrap,
       sigma=sigma,
   )
-  state = dataclasses.replace(state, currents=currents)
+  core_profiles = dataclasses.replace(core_profiles, currents=currents)
 
   # psi source terms. Source matrix is zero for all psi sources
   source_mat_psi = jnp.zeros_like(geo.r)
 
-  # fill source vector based on both original and updated state
+  # fill source vector based on both original and updated core profiles
   source_psi = source_profiles_lib.sum_sources_psi(
       sources,
       implicit_source_profiles,
@@ -365,14 +371,14 @@ def _calc_coeffs_full(
       dynamic_config_slice.Rmaj,
   )
 
-  true_ne_face = state.ne.face_value() * dynamic_config_slice.nref
-  true_ni_face = state.ni.face_value() * dynamic_config_slice.nref
+  true_ne_face = core_profiles.ne.face_value() * dynamic_config_slice.nref
+  true_ni_face = core_profiles.ni.face_value() * dynamic_config_slice.nref
 
   # Transient term coefficient vector (has radial dependence through r, n)
   toc_temp_ion = 1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.nref
-  tic_temp_ion = state.ni.value
+  tic_temp_ion = core_profiles.ni.value
   toc_temp_el = 1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.nref
-  tic_temp_el = state.ne.value
+  tic_temp_el = core_profiles.ne.value
   toc_psi = (
       1.0
       / dynamic_config_slice.resistivity_mult
@@ -387,7 +393,7 @@ def _calc_coeffs_full(
   tic_dens_el = jnp.ones_like(geo.vpr)
 
   # Diffusion term coefficients
-  transport_coeffs = transport_model(dynamic_config_slice, geo, state)
+  transport_coeffs = transport_model(dynamic_config_slice, geo, core_profiles)
   chi_face_ion = transport_coeffs.chi_face_ion
   chi_face_el = transport_coeffs.chi_face_el
   d_face_el = transport_coeffs.d_face_el
@@ -520,7 +526,7 @@ def _calc_coeffs_full(
   # density source terms. Initialize source matrix to zero
   source_mat_nn = jnp.zeros_like(geo.r)
 
-  # density source vector based both on original and updated state
+  # density source vector based both on original and updated core profiles
   source_ne = source_profiles_lib.sum_sources_ne(
       sources,
       explicit_source_profiles,
@@ -566,7 +572,9 @@ def _calc_coeffs_full(
       v_face_per_el,
   ) = jax.lax.cond(
       use_pereverzev,
-      lambda: calculate_pereverzev_flux(state, geo, dynamic_config_slice),
+      lambda: calculate_pereverzev_flux(
+          core_profiles, geo, dynamic_config_slice
+      ),
       lambda: tuple([jnp.zeros_like(geo.r_face)] * 6),
   )
 
@@ -576,24 +584,24 @@ def _calc_coeffs_full(
   full_v_face_el += v_face_per_el
 
   # Ion and electron heat sources.
-  # Select which state to use for Qei.
   qei = sources.qei_source.get_qei(
       dynamic_config_slice.sources[sources.qei_source.name].source_type,
       dynamic_config_slice=dynamic_config_slice,
       static_config_slice=static_config_slice,
       geo=geo,
-      # For Qei, always use the current state.
-      # In the linear solver, state is the state at time t (at the start of the
-      # time step) or the updated state in predictor-corrector, and in the
-      # nonlinear solver, calc_coeffs is called at least twice, once with the
-      # state at time t, and again (iteratively) with state at t+dt.
-      state=state,
+      # For Qei, always use the current set of core profiles.
+      # In the linear solver, core_profiles is the set of profiles at time t (at
+      # the start of the time step) or the updated core_profiles in
+      # predictor-corrector, and in the nonlinear solver, calc_coeffs is called
+      # at least twice, once with the core_profiles at time t, and again
+      # (iteratively) with core_profiles at t+dt.
+      core_profiles=core_profiles,
   )
   _populate_aux_outputs_with_ion_el_heat_sources(
       implicit_source_profiles,
       explicit_source_profiles,
       qei,
-      state,
+      core_profiles,
       aux_outputs,
   )
 
@@ -728,15 +736,15 @@ def _calc_coeffs_full(
     ],
 )
 def _calc_coeffs_reduced(
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],
     geo: geometry.Geometry,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """Calculates only the transient_in_cell terms in Block1DCoeffs."""
 
   # Only transient_in_cell is used for explicit terms if theta_imp=1
-  tic_temp_ion = state.ni.value
-  tic_temp_el = state.ne.value
+  tic_temp_ion = core_profiles.ni.value
+  tic_temp_el = core_profiles.ne.value
   tic_psi = jnp.ones_like(geo.vpr)
   tic_dens_el = jnp.ones_like(geo.vpr)
 
@@ -758,7 +766,7 @@ def _populate_aux_outputs_with_ion_el_heat_sources(
     implicit_source_profiles: source_profiles_lib.SourceProfiles,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     qei: qei_source_lib.QeiInfo,
-    qei_state: state_module.State,
+    qei_input_core_profiles: state.CoreProfiles,
     aux_outputs: AuxOutput,
 ) -> None:
   """Observes the values of certain ion and electron heat sources."""
@@ -792,5 +800,6 @@ def _populate_aux_outputs_with_ion_el_heat_sources(
   aux_outputs.Pfus_e = fusion_el
   aux_outputs.Pohm = ohmic
   aux_outputs.Qei = qei.qei_coef * (
-      qei_state.temp_el.value - qei_state.temp_ion.value
+      qei_input_core_profiles.temp_el.value
+      - qei_input_core_profiles.temp_ion.value
   )

@@ -44,23 +44,23 @@ class ArrayTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       self,
       t: Union[float, jax.Array],
       dynamic_config_slice: config_slice.DynamicConfigSlice,
-      time_step_calculator_state: State
+      state: State,
   ) -> Union[jax.Array, bool]:
     """Returns True until the whole array has been visited, then False."""
     del t, dynamic_config_slice  # Unused for this type of TimeStepCalculator.
-    idx = time_step_calculator_state
+    idx = state
     return idx < self.arr.shape[0] - 1
 
   def next_dt(
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      sim_state: state_module.State,
+      core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
       transport_model: transport_model_lib.TransportModel,
   ) -> tuple[jax.Array, State]:
     """Returns the next diff between consecutive array entries."""
-    del dynamic_config_slice, geo, sim_state, transport_model  # Unused.
+    del dynamic_config_slice, geo, core_profiles, transport_model  # Unused.
     idx = time_step_calculator_state
     idx += 1
     return self.arr[idx] - self.arr[idx - 1], idx

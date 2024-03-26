@@ -39,9 +39,9 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         unsupported_types=[
             source_config.SourceType.FORMULA_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_ION,
-            source.AffectedMeshStateAttribute.TEMP_EL,
+        expected_affected_core_profiles=(
+            source.AffectedCoreProfile.TEMP_ION,
+            source.AffectedCoreProfile.TEMP_EL,
         ),
     )
 
@@ -60,7 +60,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     geo = references.geo
     nref = config.nref
 
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config,
         geo,
         sources=source_profiles.Sources(),
@@ -68,15 +68,15 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
 
     fusion_jax, _, _ = fusion_heat_source.calc_fusion(
         geo,
-        state,
+        core_profiles,
         nref,
     )
 
-    def calculate_fusion(config, geo, state):
+    def calculate_fusion(config, geo, core_profiles):
       """Reference implementation from PINT. We still use TORAX state here."""
       # PINT doesn't follow Google style
       # pylint:disable=invalid-name
-      T = state.temp_ion.face_value()
+      T = core_profiles.temp_ion.face_value()
       consts = constants.CONSTANTS
 
       # P [W/m^3] = Efus *1/4 * n^2 * <sigma*v>.
@@ -105,13 +105,16 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
       )  # units of m^3/s
 
       Pfus = (
-          Efus * 0.25 * (state.ni.face_value() * config.nref) ** 2 * sigmav
+          Efus
+          * 0.25
+          * (core_profiles.ni.face_value() * config.nref) ** 2
+          * sigmav
       )  # [W/m^3]
       Ptot = np.trapz(Pfus * geo.vpr_face, geo.r_face) / 1e6  # [MW]
 
       return Ptot
 
-    fusion_pint = calculate_fusion(config, geo, state)
+    fusion_pint = calculate_fusion(config, geo, core_profiles)
 
     np.testing.assert_allclose(fusion_jax, fusion_pint)
 

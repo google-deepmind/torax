@@ -37,9 +37,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.PSI,
-        ),
+        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
 
   def test_source_value(self):
@@ -88,18 +86,18 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     fake_profile = (jnp.ones(cell), jnp.zeros(cell))
     np.testing.assert_allclose(
-        source.get_profile_for_affected_state(
+        source.get_source_profile_for_affected_core_profile(
             fake_profile,
-            source_lib.AffectedMeshStateAttribute.PSI.value,
+            source_lib.AffectedCoreProfile.PSI.value,
             geo,
         ),
         jnp.ones(cell),
     )
     # For unrelated states, this should just return all 0s.
     np.testing.assert_allclose(
-        source.get_profile_for_affected_state(
+        source.get_source_profile_for_affected_core_profile(
             fake_profile,
-            source_lib.AffectedMeshStateAttribute.TEMP_ION.value,
+            source_lib.AffectedCoreProfile.TEMP_ION.value,
             geo,
         ),
         jnp.zeros(cell),

@@ -86,7 +86,7 @@ def log_to_stdout(output: str, color: AnsiColors | None = None) -> None:
 
 def write_simulation_output_to_file(
     output_dir: str,
-    state_history: torax.State,
+    state_history: torax.CoreProfiles,
     aux_history: torax.AuxOutput,
     geo: torax.Geometry,
     t: jnp.ndarray,
@@ -129,21 +129,21 @@ def write_simulation_output_to_file(
 
 
 def _log_single_state(
-    state: torax.State,
+    core_profiles: torax.CoreProfiles,
     t: float | jnp.ndarray,
 ) -> None:
   log_to_stdout('At time t = %.4f\n' % float(t), color=AnsiColors.GREEN)
-  logging.info('temp_ion: %s', state.temp_ion.value)
-  logging.info('temp_el: %s', state.temp_el.value)
-  logging.info('psi: %s', state.psi.value)
-  logging.info('ne: %s', state.ne.value)
-  logging.info('ni: %s', state.ni.value)
-  logging.info('q_face: %s', state.q_face)
-  logging.info('s_face: %s', state.s_face)
+  logging.info('temp_ion: %s', core_profiles.temp_ion.value)
+  logging.info('temp_el: %s', core_profiles.temp_el.value)
+  logging.info('psi: %s', core_profiles.psi.value)
+  logging.info('ne: %s', core_profiles.ne.value)
+  logging.info('ni: %s', core_profiles.ni.value)
+  logging.info('q_face: %s', core_profiles.q_face)
+  logging.info('s_face: %s', core_profiles.s_face)
 
 
 def log_simulation_output_to_stdout(
-    state_history: torax.State,
+    state_history: torax.CoreProfiles,
     geo: torax.Geometry,
     t: jnp.ndarray,
 ) -> None:

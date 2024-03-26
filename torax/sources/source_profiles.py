@@ -25,7 +25,7 @@ from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import physics
-from torax import state as state_module
+from torax import state
 from torax.fvm import diffusion_terms
 from torax.sources import bootstrap_current_source
 from torax.sources import electron_density_sources
@@ -62,7 +62,7 @@ def build_source_profiles(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     explicit: bool,
 ) -> SourceProfiles:
   """Builds explicit or implicit source profiles.
@@ -72,8 +72,9 @@ def build_source_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    core_profiles: Core plasma profiles, either at the start of the time step
+      (if explicit) or the live profiles being evolved during the time step (if
+      implicit).
     explicit: If True, this function should return profiles for all explicit
       sources. All implicit sources should be set to 0. And same vice versa.
 
@@ -88,22 +89,26 @@ def build_source_profiles(
   bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_config_slice,
       geo,
-      state,
+      core_profiles,
       sources.j_bootstrap,
       explicit,
   )
   other_profiles = {}
   other_profiles.update(
-      _build_psi_profiles(dynamic_config_slice, geo, state, sources, explicit)
+      _build_psi_profiles(
+          dynamic_config_slice, geo, core_profiles, sources, explicit
+      )
   )
   other_profiles.update(
-      _build_ne_profiles(dynamic_config_slice, geo, state, sources, explicit)
+      _build_ne_profiles(
+          dynamic_config_slice, geo, core_profiles, sources, explicit
+      )
   )
   other_profiles.update(
       _build_temp_ion_el_profiles(
           dynamic_config_slice,
           geo,
-          state,
+          core_profiles,
           sources,
           explicit,
       )
@@ -117,7 +122,7 @@ def build_source_profiles(
 def _build_bootstrap_profiles(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     j_bootstrap_source: bootstrap_current_source.BootstrapCurrentSource,
     explicit: bool = True,
     calculate_anyway: bool = False,
@@ -128,8 +133,9 @@ def _build_bootstrap_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    core_profiles: Core plasma profiles, either at the start of the time step
+      (if explicit) or the live profiles being evolved during the time step (if
+      implicit).
     j_bootstrap_source: Bootstrap current source used to compute the profile.
     explicit: If True, this function should return the profile for an explicit
       source. If explicit is True and the bootstrap current source is not
@@ -144,7 +150,7 @@ def _build_bootstrap_profiles(
   bootstrap_profile = j_bootstrap_source.get_value(
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
-      state=state,
+      core_profiles=core_profiles,
   )
   sigma = jax_utils.select(
       jnp.logical_or(
@@ -193,7 +199,7 @@ def _build_bootstrap_profiles(
 def _build_psi_profiles(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     sources: Sources,
     explicit: bool = True,
     calculate_anyway: bool = False,
@@ -204,8 +210,9 @@ def _build_psi_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    core_profiles: Core plasma profiles, either at the start of the time step
+      (if explicit) or the live profiles being evolved during the time step (if
+      implicit).
     sources: Collection of all TORAX sources.
     explicit: If True, this function should return the profile for an explicit
       source. If explicit is True and a given source is not explicit, then this
@@ -218,14 +225,14 @@ def _build_psi_profiles(
     dict of psi source profiles.
   """
   psi_profiles = {}
-  # jext is precomputed in the initial state and does not change.
+  # jext is precomputed in the initial core profiles.
   psi_profiles[sources.jext.name] = jax_utils.select(
       jnp.logical_or(
           explicit
           == dynamic_config_slice.sources[sources.jext.name].is_explicit,
           calculate_anyway,
       ),
-      state.currents.jext,
+      core_profiles.currents.jext,
       jnp.zeros_like(geo.r),
   )
   # Iterate through the rest of the sources and compute profiles for the ones
@@ -240,7 +247,7 @@ def _build_psi_profiles(
             dynamic_source_config.source_type,
             dynamic_config_slice,
             geo,
-            state,
+            core_profiles,
         ),
         jnp.zeros_like(geo.r),
     )
@@ -250,7 +257,7 @@ def _build_psi_profiles(
 def _build_ne_profiles(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     sources: Sources,
     explicit: bool,
 ) -> dict[str, jnp.ndarray]:
@@ -260,8 +267,9 @@ def _build_ne_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    core_profiles: Core plasma profiles, either at the start of the time step
+      (if explicit) or the live profiles being evolved during the time step (if
+      implicit).
     sources: Collection of all TORAX sources.
     explicit: If True, this function should return the profile for an explicit
       source. If explicit is True and a given source is not explicit, then this
@@ -283,7 +291,7 @@ def _build_ne_profiles(
             dynamic_source_config.source_type,
             dynamic_config_slice,
             geo,
-            state,
+            core_profiles,
         ),
         jnp.zeros_like(geo.r),
     )
@@ -293,7 +301,7 @@ def _build_ne_profiles(
 def _build_temp_ion_el_profiles(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     sources: Sources,
     explicit: bool,
 ) -> dict[str, jnp.ndarray]:
@@ -303,8 +311,9 @@ def _build_temp_ion_el_profiles(
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
-    state: Mesh state, either at the start of the time step (if explicit) or the
-      live state being evolved during the time step (if implicit).
+    core_profiles: Core plasma profiles, either at the start of the time step
+      (if explicit) or the live profiles being evolved during the time step (if
+      implicit).
     sources: Collection of all TORAX sources.
     explicit: If True, this function should return the profile for an explicit
       source. If explicit is True and a given source is not explicit, then this
@@ -320,7 +329,7 @@ def _build_temp_ion_el_profiles(
   temp_ion_el_sources = sources.temp_ion_sources | sources.temp_el_sources
   for source_name, source in temp_ion_el_sources.items():
     zeros = jnp.zeros(
-        source.output_shape_getter(dynamic_config_slice, geo, state)
+        source.output_shape_getter(dynamic_config_slice, geo, core_profiles)
     )
     dynamic_source_config = dynamic_config_slice.sources[source_name]
     ion_el_profiles[source_name] = jax_utils.select(
@@ -329,7 +338,7 @@ def _build_temp_ion_el_profiles(
             dynamic_source_config.source_type,
             dynamic_config_slice,
             geo,
-            state,
+            core_profiles,
         ),
         zeros,
     )
@@ -348,9 +357,9 @@ def sum_sources_psi(
       + source_profile.profiles[sources.jext.name]
   )
   for source_name, source in sources.psi_sources.items():
-    total += source.get_profile_for_affected_state(
+    total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
-        affected_mesh_state=source_lib.AffectedMeshStateAttribute.PSI.value,
+        affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
         geo=geo,
     )
   denom = 2 * jnp.pi * Rmaj * geo.J**2
@@ -366,9 +375,9 @@ def sum_sources_ne(
   """Computes ne source values for sim.calc_coeffs."""
   total = jnp.zeros_like(geo.r)
   for source_name, source in sources.ne_sources.items():
-    total += source.get_profile_for_affected_state(
+    total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
-        affected_mesh_state=source_lib.AffectedMeshStateAttribute.NE.value,
+        affected_core_profile=source_lib.AffectedCoreProfile.NE.value,
         geo=geo,
     )
   return total * geo.vpr
@@ -382,11 +391,9 @@ def sum_sources_temp_ion(
   """Computes temp_ion source values for sim.calc_coeffs."""
   total = jnp.zeros_like(geo.r)
   for source_name, source in sources.temp_ion_sources.items():
-    total += source.get_profile_for_affected_state(
+    total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
-        affected_mesh_state=(
-            source_lib.AffectedMeshStateAttribute.TEMP_ION.value
-        ),
+        affected_core_profile=(source_lib.AffectedCoreProfile.TEMP_ION.value),
         geo=geo,
     )
   return total * geo.vpr
@@ -400,11 +407,9 @@ def sum_sources_temp_el(
   """Computes temp_el source values for sim.calc_coeffs."""
   total = jnp.zeros_like(geo.r)
   for source_name, source in sources.temp_el_sources.items():
-    total += source.get_profile_for_affected_state(
+    total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
-        affected_mesh_state=(
-            source_lib.AffectedMeshStateAttribute.TEMP_EL.value
-        ),
+        affected_core_profile=(source_lib.AffectedCoreProfile.TEMP_EL.value),
         geo=geo,
     )
   return total * geo.vpr
@@ -414,7 +419,7 @@ def calc_and_sum_sources_psi(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Computes sum of psi sources for psi_dot calculation."""
 
@@ -422,7 +427,7 @@ def calc_and_sum_sources_psi(
   # expensive source functions that might not jittable (like file-based or
   # RPC-based sources).
   psi_profiles = _build_psi_profiles(
-      dynamic_config_slice, geo, state, sources, calculate_anyway=True
+      dynamic_config_slice, geo, core_profiles, sources, calculate_anyway=True
   )
   total = 0
   for key in psi_profiles:
@@ -430,7 +435,7 @@ def calc_and_sum_sources_psi(
   j_bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_config_slice,
       geo,
-      state,
+      core_profiles,
       sources.j_bootstrap,
       calculate_anyway=True,
   )
@@ -451,11 +456,12 @@ def calc_psidot(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
 ) -> jnp.ndarray:
   r"""Calculates psidot (loop voltage). Used for the Ohmic electron heat source.
 
-  psidot is an interesting TORAX output, and is thus also saved in state.
+  psidot is an interesting TORAX output, and is thus also saved in
+  core_profiles.
 
   psidot = \partial psi / \partial t, and is derived from the same components
   that form the psi block in the coupled PDE equations. This, a similar
@@ -465,7 +471,7 @@ def calc_psidot(
     sources: All TORAX source/sinks.
     dynamic_config_slice: Simulation configuration at this timestep
     geo: Torus geometry
-    state: Plasma state r
+    core_profiles: Core plasma profiles.
 
   Returns:
     psidot: on cell grid
@@ -476,7 +482,7 @@ def calc_psidot(
       sources,
       dynamic_config_slice,
       geo,
-      state,
+      core_profiles,
   )
   toc_psi = (
       1.0
@@ -489,10 +495,10 @@ def calc_psidot(
   )
   d_face_psi = geo.G2_face / geo.J_face / geo.rmax**2
 
-  c_mat, c = diffusion_terms.make_diffusion_terms(d_face_psi, state.psi)
+  c_mat, c = diffusion_terms.make_diffusion_terms(d_face_psi, core_profiles.psi)
   c += psi_sources
 
-  psidot = (jnp.dot(c_mat, state.psi.value) + c) / toc_psi
+  psidot = (jnp.dot(c_mat, core_profiles.psi.value) + c) / toc_psi
 
   return psidot
 
@@ -503,16 +509,16 @@ def _ohmic_heat_model(
     sources: Sources,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
 ) -> jnp.ndarray:
   """Returns the Ohmic source for electron heat equation."""
   jtot, _ = physics.calc_jtot_from_psi(
       geo,
-      state.psi,
+      core_profiles.psi,
       dynamic_config_slice.Rmaj,
   )
 
-  psidot = calc_psidot(sources, dynamic_config_slice, geo, state)
+  psidot = calc_psidot(sources, dynamic_config_slice, geo, core_profiles)
 
   pohm = jtot * psidot / (2 * jnp.pi * dynamic_config_slice.Rmaj)
   return pohm
@@ -536,10 +542,10 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
   )
 
   # Freeze these params and do not include them in the __init__.
-  affected_mesh_states: tuple[source_lib.AffectedMeshStateAttribute, ...] = (
+  affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...] = (
       dataclasses.field(
           init=False,
-          default=(source_lib.AffectedMeshStateAttribute.TEMP_EL,),
+          default=(source_lib.AffectedCoreProfile.TEMP_EL,),
       )
   )
   model_func: source_config.SourceProfileFunction | None = dataclasses.field(
@@ -552,13 +558,13 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
     def _model_func(
         dynamic_config_slice: config_slice.DynamicConfigSlice,
         geo: geometry.Geometry,
-        state: state_module.State,
+        core_profiles: state.CoreProfiles,
     ) -> jnp.ndarray:
       return _ohmic_heat_model(
           sources=self.sources,
           dynamic_config_slice=dynamic_config_slice,
           geo=geo,
-          state=state,
+          core_profiles=core_profiles,
       )
 
     # Must use object.__setattr__ instead of simply doing
@@ -595,7 +601,7 @@ class Sources:
           source_config.SourceType.ZERO,
           source_config.SourceType.FORMULA_BASED,
       ),
-      affected_mesh_states=source.AffectedMeshStateAttribute.NE,
+      affected_core_profiles=source.AffectedCoreProfile.NE,
       formula=formulas.Gaussian(my_custom_source_name),
   )
   all_torax_sources = source_profiles.Sources(
@@ -773,24 +779,18 @@ class Sources:
     self._temp_el_sources: dict[str, source_lib.Source] = {}
 
     for source_name, source in self._standard_sources.items():
-      if (
-          source_lib.AffectedMeshStateAttribute.PSI
-          in source.affected_mesh_states
-      ):
+      if source_lib.AffectedCoreProfile.PSI in source.affected_core_profiles:
         self._psi_sources[source_name] = source
-      if (
-          source_lib.AffectedMeshStateAttribute.NE
-          in source.affected_mesh_states
-      ):
+      if source_lib.AffectedCoreProfile.NE in source.affected_core_profiles:
         self._ne_sources[source_name] = source
       if (
-          source_lib.AffectedMeshStateAttribute.TEMP_ION
-          in source.affected_mesh_states
+          source_lib.AffectedCoreProfile.TEMP_ION
+          in source.affected_core_profiles
       ):
         self._temp_ion_sources[source_name] = source
       if (
-          source_lib.AffectedMeshStateAttribute.TEMP_EL
-          in source.affected_mesh_states
+          source_lib.AffectedCoreProfile.TEMP_EL
+          in source.affected_core_profiles
       ):
         self._temp_el_sources[source_name] = source
 

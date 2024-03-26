@@ -18,7 +18,7 @@ from jax import numpy as jnp
 from torax import config_slice
 from torax import constants as constants_module
 from torax import geometry
-from torax import state as state_module
+from torax import state
 from torax.transport_model import transport_model
 
 
@@ -29,7 +29,7 @@ class CriticalGradientModel(transport_model.TransportModel):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_module.State,
+      core_profiles: state.CoreProfiles,
   ) -> transport_model.TransportCoeffs:
     """Calculates transport coefficients using the Critical Gradient Model.
 
@@ -37,7 +37,7 @@ class CriticalGradientModel(transport_model.TransportModel):
       dynamic_config_slice: Input config parameters that can change without
         triggering a JAX recompilation.
       geo: Geometry of the torus.
-      state: Current simulator state.
+      core_profiles: Core plasma profiles.
 
     Returns:
       coeffs: The transport coefficients
@@ -54,8 +54,8 @@ class CriticalGradientModel(transport_model.TransportModel):
     constants = constants_module.CONSTANTS
 
     # set typical values for now. Will include user-defined q and s later
-    s = state.s_face
-    q = state.q_face
+    s = core_profiles.s_face
+    q = core_profiles.q_face
 
     # very basic sawtooth model
     s = jnp.where(q < 1, 0, s)
@@ -65,9 +65,9 @@ class CriticalGradientModel(transport_model.TransportModel):
     # (typical assumption for transport models developed in circular geo)
     rmid = (geo.Rout - geo.Rin) * 0.5
 
-    temp_ion_face = state.temp_ion.face_value()
-    temp_ion_face_grad = state.temp_ion.face_grad(rmid)
-    temp_el_face = state.temp_el.face_value()
+    temp_ion_face = core_profiles.temp_ion.face_value()
+    temp_ion_face_grad = core_profiles.temp_ion.face_grad(rmid)
+    temp_el_face = core_profiles.temp_el.face_value()
 
     # set critical gradient
     rlti_crit = (
@@ -89,9 +89,8 @@ class CriticalGradientModel(transport_model.TransportModel):
     rlti = -dynamic_config_slice.Rmaj * temp_ion_face_grad / temp_ion_face
 
     # set minimum chi for PDE stability
-    chi_ion = (
-        dynamic_config_slice.transport.chimin
-        * jnp.ones_like(geo.mesh.face_centers)
+    chi_ion = dynamic_config_slice.transport.chimin * jnp.ones_like(
+        geo.mesh.face_centers
     )
 
     # built CGM model ion heat transport coefficient

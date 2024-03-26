@@ -25,7 +25,7 @@ from jax import numpy as jnp
 from torax import config_slice
 from torax import constants
 from torax import geometry
-from torax import state as state_module
+from torax import state
 
 
 @chex.dataclass
@@ -70,12 +70,12 @@ class TransportModel(abc.ABC):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_module.State,
+      core_profiles: state.CoreProfiles,
   ) -> TransportCoeffs:
     return self.smooth_coeffs(
         geo,
         dynamic_config_slice,
-        self._call_implementation(dynamic_config_slice, geo, state),
+        self._call_implementation(dynamic_config_slice, geo, core_profiles),
     )
 
   @abc.abstractmethod
@@ -83,7 +83,7 @@ class TransportModel(abc.ABC):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_module.State,
+      core_profiles: state.CoreProfiles,
   ) -> TransportCoeffs:
     pass
 

@@ -32,27 +32,27 @@ from jax import numpy as jnp
 from torax import config_slice
 from torax import geometry
 from torax import jax_utils
-from torax import state as state_lib
+from torax import state
 from torax.sources import source_config
 
 
 def get_cell_profile_shape(
     unused_config: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    unused_state: state_lib.State | None,
+    unused_state: state.CoreProfiles | None,
 ):
   """Returns the shape of a source profile on the cell grid."""
   return ProfileType.CELL.get_profile_shape(geo)
 
 
-# Any callable which takes the dynamic config, geometry, and optional mesh
-# state, and outputs a shape corresponding to the expected output of a source.
-# See how these types of functions are used in the Source class below.
+# Any callable which takes the dynamic config, geometry, and optional core
+# profiles, and outputs a shape corresponding to the expected output of a
+# source. See how these types of functions are used in the Source class below.
 SourceOutputShapeFunction = Callable[
     [  # Arguments
         config_slice.DynamicConfigSlice,
         geometry.Geometry,
-        state_lib.State | None,
+        state.CoreProfiles | None,
     ],
     # Returns shape of the source's output.
     tuple[int, ...],
@@ -60,14 +60,14 @@ SourceOutputShapeFunction = Callable[
 
 
 @enum.unique
-class AffectedMeshStateAttribute(enum.Enum):
-  """Defines which part of the state the source helps evolve.
+class AffectedCoreProfile(enum.IntEnum):
+  """Defines which part of the core profiles the source helps evolve.
 
   The profiles of each source/sink are terms included in equations evolving
-  different parts of the mesh state. This enum maps a source to those equations.
+  different core profiles. This enum maps a source to those equations.
   """
 
-  # Source profile is not used for any mesh state equation
+  # Source profile is not used for any core profile equation
   NONE = 0
   # Current density equation.
   PSI = 1
@@ -93,11 +93,11 @@ class Source:
     name: Name of this source. Used as a key to find this source's configuraiton
       in the DynamicConfigSlice. Also used as a key for the output in the
       SourceProfiles.
-    affected_mesh_states: Mesh state attributes affected by this source's
-      profile(s). This attribute defines which equations the source profiles are
-      terms for. By default, the number of affected mesh states should equal the
-      rank of the output shape returned by output_shape_getter. Subclasses may
-      override this requirement.
+    affected_core_profiles: Core profiles affected by this source's profile(s).
+      This attribute defines which equations the source profiles are terms for.
+      By default, the number of affected core profiles should equal the rank of
+      the output shape returned by output_shape_getter. Subclasses may override
+      this requirement.
     supported_types: Defines how the source computes its profile. Can be set to
       zero, model-based, etc. At runtime, the input runtime config (the Config
       or the DynamicConfigSlice) will specify which supported type the Source is
@@ -109,19 +109,19 @@ class Source:
       "MODEL_BASED". If not provided, then it defaults to returning zeros.
     formula: The prescribed formula used when the runtime type is set to
       "FORMULA_BASED". If not provided, then it defaults to returning zeros.
-    affected_mesh_state_ints: Derived property from the affected_mesh_states.
-      Integer values of those enums.
+    affected_core_profiles_ints: Derived property from the
+      affected_core_profiles. Integer values of those enums.
   """
 
   name: str
 
-  # Defining a default here for the affected mesh states helps allow us to
+  # Defining a default here for the affected_core_profiles helps allow us to
   # freeze the default in subclasses of Source. Without adding a default here,
   # it isn't possible to add a default value in a child class AND hide it from
   # the arguments of the subclasses's __init__ function.
   # Similar logic holds for all the other attributes below.
-  affected_mesh_states: tuple[AffectedMeshStateAttribute, ...] = (
-      AffectedMeshStateAttribute.NONE,
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
+      AffectedCoreProfile.NONE,
   )
 
   supported_types: tuple[source_config.SourceType, ...] = (
@@ -136,8 +136,8 @@ class Source:
   formula: source_config.SourceProfileFunction | None = None
 
   @property
-  def affected_mesh_state_ints(self) -> tuple[int, ...]:
-    return tuple([int(state.value) for state in self.affected_mesh_states])
+  def affected_core_profiles_ints(self) -> tuple[int, ...]:
+    return tuple([int(cp) for cp in self.affected_core_profiles])
 
   def check_source_type(
       self,
@@ -181,7 +181,7 @@ class Source:
       source_type: int,  # value of the source_config.SourceType enum.
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      core_profiles: state.CoreProfiles | None = None,
   ) -> chex.ArrayTree:
     """Returns the profile for this source during one time step.
 
@@ -194,17 +194,20 @@ class Source:
       dynamic_config_slice: Slice of the general TORAX config that can be used
         as input for this time step.
       geo: Geometry of the torus.
-      state: Mesh state of the simulator. May be the state at the start of the
-        time step or a live state being actively updated depending on whether
-        this source is explicit or implicit. Explicit sources get the state at
-        the start of the time step, implicit sources get the "live" state that
-        is updated through the course of the time step as the solver converges.
+      core_profiles: Core plasma profiles. May be the profiles at the start of
+        the time step or a "live" set of core profiles being actively updated
+        depending on whether this source is explicit or implicit. Explicit
+        sources get the core profiles at the start of the time step, implicit
+        sources get the "live" profiles that is updated through the course of
+        the time step as the solver converges.
 
     Returns:
       Array, arrays, or nested dataclass/dict of arrays for the source profile.
     """
     source_type = self.check_source_type(source_type)
-    output_shape = self.output_shape_getter(dynamic_config_slice, geo, state)
+    output_shape = self.output_shape_getter(
+        dynamic_config_slice, geo, core_profiles
+    )
     model_func = (
         (lambda _0, _1, _2: jnp.zeros(output_shape))
         if self.model_func is None
@@ -219,56 +222,56 @@ class Source:
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
         model_func=model_func,
         formula=formula,
         output_shape=output_shape,
     )
 
-  def get_profile_for_affected_state(
+  def get_source_profile_for_affected_core_profile(
       self,
       profile: chex.ArrayTree,
-      affected_mesh_state: int,
+      affected_core_profile: int,
       geo: geometry.Geometry,
   ) -> jnp.ndarray:
-    """Returns the part of the profile to use for the given state.
+    """Returns the part of the profile to use for the given core profile.
 
     A single source can output profiles used as terms in more than one equation
-    while evolving the mesh state (for instance, it can output profiles for both
-    the ion temperature and electron temperature equations).
+    while evolving the core profiles (for instance, it can output profiles for
+    both the ion temperature and electron temperature equations).
 
     Users of this source, though, may need to grab the specific parts of the
-    output (from get_value()) that relate to a specific part of the mesh state.
+    output (from get_value()) that relate to a specific core profile.
 
     This function helps do that. By default, it returns the input profile as is
-    if the requested mesh-state attribute is valid, otherwise returns zeros.
+    if the requested core profile is valid, otherwise returns zeros.
 
     NOTE: This function assumes the ArrayTree returned by get_value() is a JAX
-    array with shape (num affected mesh states, cell grid length) and that the
+    array with shape (num affected core profiles, cell grid length) and that the
     order of the arrays in the output match the order of the
-    affected_mesh_states attribute.
+    affected_core_profile attribute.
 
     Subclasses can override this behavior to fit the type of ArrayTree they
     output.
 
     Args:
       profile: The profile output from get_value().
-      affected_mesh_state: The part of the mesh state we want to pull the
-        profile for. This is the integer value of the enum
-        AffectedMeshStateAttribute because enums are not JAX-friendly as
-        function arguments. If it is not one of the mesh states this source
-        actually affects, this will return zeros.
+      affected_core_profile: The specific core profile we want to pull the
+        profile for. This is the integer value of the enum AffectedCoreProfile
+        because enums are not JAX-friendly as function arguments. If it is not
+        one of the core profiles this source actually affects, this will return
+        zeros.
       geo: Geometry of the torus.
 
-    Returns: The profile on the cell grid for the requested state.
+    Returns: The source profile on the cell grid for the requested core profile.
     """
     # Get a valid index that defaults to 0 if not present.
-    affected_mesh_state_ints = self.affected_mesh_state_ints
+    affected_core_profile_ints = self.affected_core_profiles_ints
     idx = jnp.argmax(
-        jnp.asarray(affected_mesh_state_ints) == affected_mesh_state
+        jnp.asarray(affected_core_profile_ints) == affected_core_profile
     )
     return jnp.where(
-        affected_mesh_state in affected_mesh_state_ints,
+        affected_core_profile in affected_core_profile_ints,
         profile[idx, ...],
         jnp.zeros_like(geo.r),
     )
@@ -292,7 +295,7 @@ class SingleProfileSource(Source):
           source_config.SourceType.ZERO,
           source_config.SourceType.FORMULA_BASED,
       ),
-      affected_mesh_states=source.AffectedMeshStateAttribute.NE,
+      affected_core_profiles=[source.AffectedCoreProfile.NE],
       formula=formulas.Gaussian(my_custom_source_name),
   )
   all_torax_sources = source_profiles.Sources(
@@ -330,7 +333,7 @@ class SingleProfileSource(Source):
 
   ```python
 
-  def _my_foo_model(dynamic_config_slice, geo, state) -> jnp.ndarray:
+  def _my_foo_model(dynamic_config_slice, geo, core_profiles) -> jnp.ndarray:
     # implement your foo model.
 
   class FooSource(SingleProfileSource):
@@ -363,29 +366,31 @@ class SingleProfileSource(Source):
       source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      core_profiles: state.CoreProfiles | None = None,
   ) -> jnp.ndarray:
     """Returns the profile for this source during one time step."""
-    output_shape = self.output_shape_getter(dynamic_config_slice, geo, state)
+    output_shape = self.output_shape_getter(
+        dynamic_config_slice, geo, core_profiles
+    )
     profile = super().get_value(
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
     )
     assert isinstance(profile, jnp.ndarray)
     chex.assert_rank(profile, 1)
     chex.assert_shape(profile, output_shape)
     return profile
 
-  def get_profile_for_affected_state(
+  def get_source_profile_for_affected_core_profile(
       self,
       profile: chex.ArrayTree,
-      affected_mesh_state: int,
+      affected_core_profile: int,
       geo: geometry.Geometry,
   ) -> jnp.ndarray:
     return jnp.where(
-        affected_mesh_state in self.affected_mesh_state_ints,
+        affected_core_profile in self.affected_core_profiles_ints,
         profile,
         jnp.zeros_like(geo.r),
     )
@@ -417,7 +422,7 @@ def get_source_profiles(
     source_type: int | jnp.ndarray,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_lib.State | None,
+    core_profiles: state.CoreProfiles | None,
     model_func: source_config.SourceProfileFunction,
     formula: source_config.SourceProfileFunction,
     output_shape: tuple[int, ...],
@@ -432,7 +437,8 @@ def get_source_profiles(
     dynamic_config_slice: Slice of the general TORAX config that can be used as
       input for this time step.
     geo: Geometry information. Used as input to the source profile functions.
-    state: Simulation state. Used as input to the source profile functions.
+    core_profiles: Core plasma profiles. Used as input to the source profile
+      functions.
     model_func: Model function.
     formula: Formula implementation.
     output_shape: Expected shape of the outut array.
@@ -444,12 +450,12 @@ def get_source_profiles(
   output = jnp.zeros(output_shape)
   output += jnp.where(
       source_type == source_config.SourceType.MODEL_BASED.value,
-      model_func(dynamic_config_slice, geo, state),
+      model_func(dynamic_config_slice, geo, core_profiles),
       zeros,
   )
   output += jnp.where(
       source_type == source_config.SourceType.FORMULA_BASED.value,
-      formula(dynamic_config_slice, geo, state),
+      formula(dynamic_config_slice, geo, core_profiles),
       zeros,
   )
   return output
@@ -462,52 +468,44 @@ def get_source_profiles(
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SingleProfilePsiSource(SingleProfileSource):
 
-  # Don't include affected_mesh_states in the __init__ arguments.
+  # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
-  affected_mesh_states: tuple[AffectedMeshStateAttribute, ...] = (
-      dataclasses.field(
-          init=False,
-          default=(AffectedMeshStateAttribute.PSI,),
-      )
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
+      init=False,
+      default=(AffectedCoreProfile.PSI,),
   )
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SingleProfileNeSource(SingleProfileSource):
 
-  # Don't include affected_mesh_states in the __init__ arguments.
+  # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
-  affected_mesh_states: tuple[AffectedMeshStateAttribute, ...] = (
-      dataclasses.field(
-          init=False,
-          default=(AffectedMeshStateAttribute.NE,),
-      )
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
+      init=False,
+      default=(AffectedCoreProfile.NE,),
   )
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SingleProfileTempIonSource(SingleProfileSource):
 
-  # Don't include affected_mesh_states in the __init__ arguments.
+  # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
-  affected_mesh_states: tuple[AffectedMeshStateAttribute, ...] = (
-      dataclasses.field(
-          init=False,
-          default=(AffectedMeshStateAttribute.TEMP_ION,),
-      )
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
+      init=False,
+      default=(AffectedCoreProfile.TEMP_ION,),
   )
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class SingleProfileTempElSource(SingleProfileSource):
 
-  # Don't include affected_mesh_states in the __init__ arguments.
+  # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
-  affected_mesh_states: tuple[AffectedMeshStateAttribute, ...] = (
-      dataclasses.field(
-          init=False,
-          default=(AffectedMeshStateAttribute.TEMP_EL,),
-      )
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
+      init=False,
+      default=(AffectedCoreProfile.TEMP_EL,),
   )
 
 
@@ -535,16 +533,14 @@ class IonElectronSource(Source):
       source_config.SourceType.ZERO,
   )
 
-  # Don't include affected_mesh_states in the __init__ arguments.
+  # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
-  affected_mesh_states: tuple[AffectedMeshStateAttribute, ...] = (
-      dataclasses.field(
-          init=False,
-          default=(
-              AffectedMeshStateAttribute.TEMP_ION,
-              AffectedMeshStateAttribute.TEMP_EL,
-          ),
-      )
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
+      init=False,
+      default=(
+          AffectedCoreProfile.TEMP_ION,
+          AffectedCoreProfile.TEMP_EL,
+      ),
   )
 
   # Don't include output_shape_getter in the __init__ arguments.
@@ -559,7 +555,7 @@ class IonElectronSource(Source):
       source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      core_profiles: state.CoreProfiles | None = None,
   ) -> jnp.ndarray:
     """Computes the ion and electron values of the source.
 
@@ -570,18 +566,20 @@ class IonElectronSource(Source):
       dynamic_config_slice: Input config which can change from time step to time
         step.
       geo: Geometry of the torus.
-      state: Mesh state to use while calculating this source profile.
+      core_profiles: Core plasma profiles used to compute the source's profiles.
 
     Returns:
       2 stacked arrays, the first for the ion profile and the second for the
       electron profile.
     """
-    output_shape = self.output_shape_getter(dynamic_config_slice, geo, state)
+    output_shape = self.output_shape_getter(
+        dynamic_config_slice, geo, core_profiles
+    )
     profile = super().get_value(
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
     )
     assert isinstance(profile, jnp.ndarray)
     chex.assert_rank(profile, 2)

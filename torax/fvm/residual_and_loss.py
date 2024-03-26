@@ -27,7 +27,7 @@ from torax import calc_coeffs
 from torax import config_slice
 from torax import geometry
 from torax import jax_utils
-from torax import state as state_module
+from torax import state
 from torax import update_state
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
@@ -198,7 +198,7 @@ def theta_method_matrix_equation(
 def theta_method_block_residual(
     x_new_guess_vec: jax.Array,
     x_old: tuple[cell_variable.CellVariable, ...],
-    state_t_plus_dt: state_module.State,
+    core_profiles_t_plus_dt: state.CoreProfiles,
     evolving_names: tuple[str, ...],
     geo: geometry.Geometry,
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
@@ -209,24 +209,25 @@ def theta_method_block_residual(
     sources: source_profiles.Sources,
     explicit_source_profiles: source_profiles.SourceProfiles,
 ) -> tuple[jax.Array, AuxiliaryOutput]:
-  """Residual of theta-method equation for state at next time-step.
+  """Residual of theta-method equation for core profiles at next time-step.
 
   Args:
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
-      state profiles.
+      core profiles.
     x_old: The starting x defined as a tuple of CellVariables.
-    state_t_plus_dt: Sim state which contains all available prescribed
-      quantities at the end of the time step. This includes evolving boundary
-      conditions and prescribed time-dependent profiles that are not being
-      evolved by the PDE system.
-    evolving_names: The names of variables within the state that should evolve.
+    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+      prescribed quantities at the end of the time step. This includes evolving
+      boundary conditions and prescribed time-dependent profiles that are not
+      being evolved by the PDE system.
+    evolving_names: The names of variables within the core profiles that should
+      evolve.
     geo: Geometry object.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
       params will trigger recompilation. A key parameter in static_config slice
-      is theta_imp, a coefficient in [0, 1] determining which solution method
-      to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new)
-      + (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
+      is theta_imp, a coefficient in [0, 1] determining which solution method to
+      use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) +
+      (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
       solution methods: theta_imp = 1: Backward Euler implicit method (default).
       theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
       method.
@@ -241,19 +242,19 @@ def theta_method_block_residual(
     residual: Vector residual between LHS and RHS of the theta method equation.
   """
   x_old_vec = jnp.concatenate([var.value for var in x_old])
-  # Create updated CellVariable instances based on state_plus_dt which has
-  # updated boundary conditions and prescribed profiles.
+  # Create updated CellVariable instances based on core_profiles_t_plus_dt which
+  # has updated boundary conditions and prescribed profiles.
   x_new_guess = fvm_conversions.vec_to_cell_variable_tuple(
-      x_new_guess_vec, state_t_plus_dt, evolving_names
+      x_new_guess_vec, core_profiles_t_plus_dt, evolving_names
   )
-  state_t_plus_dt = update_state.update_state(
-      state_t_plus_dt,
+  core_profiles_t_plus_dt = update_state.update_core_profiles(
+      core_profiles_t_plus_dt,
       x_new_guess,
       evolving_names,
       dynamic_config_slice_t_plus_dt,
   )
   coeffs_new = calc_coeffs.calc_coeffs(
-      state=state_t_plus_dt,
+      core_profiles=core_profiles_t_plus_dt,
       evolving_names=evolving_names,
       geo=geo,
       dynamic_config_slice=dynamic_config_slice_t_plus_dt,
@@ -308,7 +309,7 @@ theta_method_block_jacobian = jax_utils.jit(
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,
     x_old: tuple[cell_variable.CellVariable, ...],
-    state_t_plus_dt: state_module.State,
+    core_profiles_t_plus_dt: state.CoreProfiles,
     evolving_names: tuple[str, ...],
     geo: geometry.Geometry,
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
@@ -323,20 +324,21 @@ def theta_method_block_loss(
 
   Args:
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
-      state profiles.
+      core profiles.
     x_old: The starting x defined as a tuple of CellVariables.
-    state_t_plus_dt: Sim state which contains all available prescribed
-      quantities at the end of the time step. This includes evolving boundary
-      conditions and prescribed time-dependent profiles that are not being
-      evolved by the PDE system.
-    evolving_names: The names of variables within the state that should evolve.
+    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+      prescribed quantities at the end of the time step. This includes evolving
+      boundary conditions and prescribed time-dependent profiles that are not
+      being evolved by the PDE system.
+    evolving_names: The names of variables within the core profiles that should
+      evolve.
     geo: geometry object
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
       params will trigger recompilation. A key parameter in static_config slice
-      is theta_imp, a coefficient in [0, 1] determining which solution method
-      to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new)
-      + (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
+      is theta_imp, a coefficient in [0, 1] determining which solution method to
+      use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) +
+      (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
       solution methods: theta_imp = 1: Backward Euler implicit method (default).
       theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
       method.
@@ -354,7 +356,7 @@ def theta_method_block_loss(
   residual, aux_output = theta_method_block_residual(
       x_new_guess_vec=x_new_guess_vec,
       x_old=x_old,
-      state_t_plus_dt=state_t_plus_dt,
+      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       evolving_names=evolving_names,
       geo=geo,
       dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
@@ -381,7 +383,7 @@ def theta_method_block_loss(
 def jaxopt_solver(
     init_x_new_vec: jax.Array,
     x_old: tuple[cell_variable.CellVariable, ...],
-    state_t_plus_dt: state_module.State,
+    core_profiles_t_plus_dt: state.CoreProfiles,
     evolving_names: tuple[str, ...],
     geo: geometry.Geometry,
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
@@ -398,20 +400,21 @@ def jaxopt_solver(
 
   Args:
     init_x_new_vec: Flattened array of initial guess of x_new for all evolving
-      state profiles.
+      core profiles.
     x_old: The starting x defined as a tuple of CellVariables.
-    state_t_plus_dt: Sim state which contains all available prescribed
-      quantities at the end of the time step. This includes evolving boundary
-      conditions and prescribed time-dependent profiles that are not being
-      evolved by the PDE system.
-    evolving_names: The names of variables within the state that should evolve.
+    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+      prescribed quantities at the end of the time step. This includes evolving
+      boundary conditions and prescribed time-dependent profiles that are not
+      being evolved by the PDE system.
+    evolving_names: The names of variables within the core profiles that should
+      evolve.
     geo: geometry object.
     dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
       params will trigger recompilation. A key parameter in static_config slice
-      is theta_imp, a coefficient in [0, 1] determining which solution method
-      to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new)
-      + (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
+      is theta_imp, a coefficient in [0, 1] determining which solution method to
+      use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) +
+      (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
       solution methods: theta_imp = 1: Backward Euler implicit method (default).
       theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
       method.
@@ -433,7 +436,7 @@ def jaxopt_solver(
       theta_method_block_loss,
       dt=dt,
       x_old=x_old,
-      state_t_plus_dt=state_t_plus_dt,
+      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       geo=geo,
       dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
       static_config_slice=static_config_slice,

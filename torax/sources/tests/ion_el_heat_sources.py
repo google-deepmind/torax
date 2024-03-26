@@ -31,9 +31,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_EL,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
 
 
@@ -47,9 +45,7 @@ class ChargeExchangeHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_ION,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_ION,),
     )
 
 
@@ -63,9 +59,7 @@ class CyclotronRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_EL,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
 
 
@@ -79,9 +73,7 @@ class ECRHHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_EL,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
 
 
@@ -95,9 +87,7 @@ class ICRHHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_ION,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_ION,),
     )
 
 
@@ -111,9 +101,7 @@ class LHHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_EL,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
 
 
@@ -127,9 +115,7 @@ class LineRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_EL,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
 
 
@@ -143,9 +129,7 @@ class NBIElectronHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_EL,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
 
 
@@ -159,9 +143,7 @@ class NBIIonHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_ION,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_ION,),
     )
 
 
@@ -175,9 +157,7 @@ class RecombinationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         unsupported_types=[
             source_config.SourceType.MODEL_BASED,
         ],
-        expected_affected_mesh_states=(
-            source.AffectedMeshStateAttribute.TEMP_EL,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
 
 

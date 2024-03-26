@@ -23,7 +23,7 @@ from jax import numpy as jnp
 from jax.scipy import integrate
 from torax import config_slice
 from torax import geometry
-from torax import state as state_lib
+from torax import state
 from torax.sources import source
 from torax.sources import source_config
 
@@ -108,12 +108,12 @@ class ExternalCurrentSource(source.Source):
       source_config.SourceType.ZERO,
   )
 
-  # Don't include affected_mesh_states in the __init__ arguments.
+  # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
-  affected_mesh_states: tuple[source.AffectedMeshStateAttribute, ...] = (
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       dataclasses.field(
           init=False,
-          default_factory=lambda: (source.AffectedMeshStateAttribute.PSI,),
+          default_factory=lambda: (source.AffectedCoreProfile.PSI,),
       )
   )
 
@@ -122,7 +122,7 @@ class ExternalCurrentSource(source.Source):
       source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      core_profiles: state.CoreProfiles | None = None,
   ) -> tuple[jnp.ndarray, jnp.ndarray]:
     """Return the external current density profile along face and cell grids."""
     source_type = self.check_source_type(source_type)
@@ -130,7 +130,7 @@ class ExternalCurrentSource(source.Source):
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
         # There is no model implementation.
         model_func=(
             lambda _0, _1, _2: source.ProfileType.FACE.get_zero_profile(geo)
@@ -155,7 +155,7 @@ class ExternalCurrentSource(source.Source):
         source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        state=None,
+        core_profiles=None,
         # There is no model for this source.
         model_func=(lambda _0, _1, _2: jnp.zeros_like(geo.r_hires_norm)),
         formula=lambda dcs, g, _: calculate_jext_hires(
@@ -165,14 +165,14 @@ class ExternalCurrentSource(source.Source):
         output_shape=geo.r_hires_norm.shape,
     )
 
-  def get_profile_for_affected_state(
+  def get_source_profile_for_affected_core_profile(
       self,
       profile: chex.ArrayTree,
-      affected_mesh_state: int,
+      affected_core_profile: int,
       geo: geometry.Geometry,
   ) -> jnp.ndarray:
     return jnp.where(
-        affected_mesh_state in self.affected_mesh_state_ints,
+        affected_core_profile in self.affected_core_profiles_ints,
         profile[0],  # the jext profile
         jnp.zeros_like(geo.r),
     )

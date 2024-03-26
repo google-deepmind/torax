@@ -17,13 +17,14 @@
 Functionality for differentiation throughout time, constrained optimization,
 etc.
 """
+
 import chex
 import jax
 from jax import numpy as jnp
 from jax import tree_util
 from torax import fvm
 from torax import jax_utils
-from torax import state as state_module
+from torax import state
 
 
 def interp(augmented_tree: ..., coords: jax.Array, desired_coord: jax.Array):
@@ -120,7 +121,7 @@ def interp(augmented_tree: ..., coords: jax.Array, desired_coord: jax.Array):
       "interpolation failed",
   )
 
-  if isinstance(augmented_tree, (fvm.CellVariable, state_module.State)):
+  if isinstance(augmented_tree, (fvm.CellVariable, state.CoreProfiles)):
     # Need to do this to keep track of whether the CellVariables are in
     # "history" mode.
     interpolated_tree = augmented_tree.project(weights)

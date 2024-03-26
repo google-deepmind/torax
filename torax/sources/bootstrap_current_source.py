@@ -26,7 +26,7 @@ from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import physics
-from torax import state as state_lib
+from torax import state
 from torax.fvm import cell_variable
 from torax.sources import source
 from torax.sources import source_config
@@ -119,7 +119,8 @@ def calc_neoclassical(
       / lnLame
   )
 
-  # We don't store q_cell in the evolving state so we need to recalculate it
+  # We don't store q_cell in the evolving core profiles, so we need to
+  # recalculate it.
   q_face, _ = physics.calc_q_from_jtot_psi(
       geo,
       jtot_face,
@@ -292,7 +293,7 @@ def calc_neoclassical(
 
 
 def _default_output_shapes(
-    unused_config, geo, unused_state
+    unused_config, geo, unused_core_profiles
 ) -> tuple[int, int, int, int]:
   # TODO( b/314308399): When refactoring neoclassical "sources",
   # revisit what we actually need to return here.
@@ -322,12 +323,12 @@ class BootstrapCurrentSource(source.Source):
       source_config.SourceType.MODEL_BASED,
   )
 
-  # Don't include affected_mesh_states in the __init__ arguments.
+  # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
-  affected_mesh_states: tuple[source.AffectedMeshStateAttribute, ...] = (
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       dataclasses.field(
           init=False,
-          default_factory=lambda: (source.AffectedMeshStateAttribute.PSI,),
+          default_factory=lambda: (source.AffectedCoreProfile.PSI,),
       )
   )
 
@@ -335,7 +336,7 @@ class BootstrapCurrentSource(source.Source):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      core_profiles: state.CoreProfiles | None = None,
       temp_ion: cell_variable.CellVariable | None = None,
       temp_el: cell_variable.CellVariable | None = None,
       ne: cell_variable.CellVariable | None = None,
@@ -343,7 +344,7 @@ class BootstrapCurrentSource(source.Source):
       jtot_face: jnp.ndarray | None = None,
       psi: cell_variable.CellVariable | None = None,
   ) -> BootstrapCurrentProfile:
-    if not state and any([
+    if not core_profiles and any([
         not temp_ion,
         not temp_el,
         ne is None,
@@ -352,16 +353,18 @@ class BootstrapCurrentSource(source.Source):
         not psi,
     ]):
       raise ValueError(
-          'If you cannot provide "state", then provide all of temp_ion, '
-          'temp_el, ne, ni, jtot_face, and psi.'
+          'If you cannot provide "core_profiles", then provide all of '
+          'temp_ion, temp_el, ne, ni, jtot_face, and psi.'
       )
     # pytype: disable=attribute-error
-    temp_ion = temp_ion or state.temp_ion
-    temp_el = temp_el or state.temp_el
-    ne = ne if ne is not None else state.ne
-    ni = ni if ni is not None else state.ni
-    jtot_face = jtot_face if jtot_face is not None else state.currents.jtot_face
-    psi = psi or state.psi
+    temp_ion = temp_ion or core_profiles.temp_ion
+    temp_el = temp_el or core_profiles.temp_el
+    ne = ne if ne is not None else core_profiles.ne
+    ni = ni if ni is not None else core_profiles.ni
+    jtot_face = (
+        jtot_face if jtot_face is not None else core_profiles.currents.jtot_face
+    )
+    psi = psi or core_profiles.psi
     # pytype: enable=attribute-error
     return calc_neoclassical(
         dynamic_config_slice,
@@ -374,14 +377,14 @@ class BootstrapCurrentSource(source.Source):
         psi=psi,
     )
 
-  def get_profile_for_affected_state(
+  def get_source_profile_for_affected_core_profile(
       self,
       profile: chex.ArrayTree,
-      affected_mesh_state: int,
+      affected_core_profile: int,
       geo: geometry.Geometry,
   ) -> jnp.ndarray:
     return jnp.where(
-        affected_mesh_state in self.affected_mesh_state_ints,
+        affected_core_profile in self.affected_core_profiles_ints,
         profile['j_bootstrap'],
         jnp.zeros_like(geo.r),
     )

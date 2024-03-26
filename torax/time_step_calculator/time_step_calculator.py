@@ -63,7 +63,7 @@ class TimeStepCalculator(Protocol[State]):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      sim_state: state_module.State,
+      core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
       transport_coeffs: transport_model_lib.TransportCoeffs,
   ) -> tuple[jnp.ndarray, State]:
@@ -73,7 +73,7 @@ class TimeStepCalculator(Protocol[State]):
       dynamic_config_slice: Input config parameters that can change without
         triggering a JAX recompilation.
       geo: Geometry for the Tokamak.
-      sim_state: Main state of the simulator with temp_el, etc.
+      core_profiles: Core plasma profiles in the tokamak.
       time_step_calculator_state: Internal state of the time stepper.
       transport_coeffs: Transport coefficients.
     """

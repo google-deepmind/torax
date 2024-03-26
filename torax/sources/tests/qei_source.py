@@ -37,9 +37,9 @@ class QeiSourceTest(test_lib.SourceTestCase):
         unsupported_types=[
             source_config.SourceType.FORMULA_BASED,
         ],
-        expected_affected_mesh_states=(
-            source_lib.AffectedMeshStateAttribute.TEMP_ION,
-            source_lib.AffectedMeshStateAttribute.TEMP_EL,
+        expected_affected_core_profiles=(
+            source_lib.AffectedCoreProfile.TEMP_ION,
+            source_lib.AffectedCoreProfile.TEMP_EL,
         ),
     )
 
@@ -48,7 +48,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     source = qei_source.QeiSource()
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config,
         geo,
         sources=source_profiles.Sources(qei_source=source),
@@ -61,7 +61,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
         dynamic_slice,
         static_slice,
         geo,
-        state,
+        core_profiles,
     )
     self.assertIsNotNone(qei)
 
@@ -69,7 +69,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     source = qei_source.QeiSource()
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config,
         geo,
         sources=source_profiles.Sources(qei_source=source),
@@ -84,7 +84,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
               dynamic_slice,
               static_slice,
               geo,
-              state,
+              core_profiles,
           )
 
 

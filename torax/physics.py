@@ -26,7 +26,7 @@ from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import math_utils
-from torax import state as state_module
+from torax import state
 from torax.fvm import cell_variable
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
 
@@ -48,40 +48,42 @@ def get_main_ion_dilution_factor(
 @jax_utils.jit
 def update_jtot_q_face_s_face(
     geo: Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     Rmaj: float,
     q_correction_factor: float,
-) -> state_module.State:
+) -> state.CoreProfiles:
   """Updates jtot, jtot_face, q_face, and s_face."""
 
   jtot, jtot_face = calc_jtot_from_psi(
       geo,
-      state.psi,
+      core_profiles.psi,
       Rmaj,
   )
   q_face, _ = calc_q_from_jtot_psi(
       geo,
       jtot_face,
-      state.psi,
+      core_profiles.psi,
       Rmaj,
       q_correction_factor,
   )
   s_face = calc_s_from_psi(
       geo,
-      state.psi,
+      core_profiles.psi,
   )
-  currents = dataclasses.replace(state.currents, jtot=jtot, jtot_face=jtot_face)
-  new_state = dataclasses.replace(
-      state,
+  currents = dataclasses.replace(
+      core_profiles.currents, jtot=jtot, jtot_face=jtot_face
+  )
+  new_core_profiles = dataclasses.replace(
+      core_profiles,
       currents=currents,
       q_face=q_face,
       s_face=s_face,
   )
-  return new_state
+  return new_core_profiles
 
 
 def coll_exchange(
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     nref: float,
     Ai: float,
     Qei_mult: float,
@@ -89,7 +91,7 @@ def coll_exchange(
   """Computes collisional ion-electron heat exchange coefficient.
 
   Args:
-    state: Current simulator state.
+    core_profiles: Core plasma profiles.
     nref: Reference value for normalization
     Ai: amu of main ion (if multiple isotope, make average)
     Qei_mult: multiplier for ion-electron heat exchange term
@@ -100,20 +102,20 @@ def coll_exchange(
   n_scale = nref / 1e20
   lam_ei = (
       15.2
-      - 0.5 * jnp.log(state.ne.value * n_scale)
-      + jnp.log(state.temp_el.value)
+      - 0.5 * jnp.log(core_profiles.ne.value * n_scale)
+      + jnp.log(core_profiles.temp_el.value)
   )
   # collisionality
   log_tau_e = (
-      jnp.log(12 * jnp.pi**1.5 / (state.ne.value * nref * lam_ei))
+      jnp.log(12 * jnp.pi**1.5 / (core_profiles.ne.value * nref * lam_ei))
       - 4 * jnp.log(constants.CONSTANTS.qe)
       + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
       + 2 * jnp.log(constants.CONSTANTS.epsilon0)
-      + 1.5 * jnp.log(state.temp_el.value * constants.CONSTANTS.keV2J)
+      + 1.5 * jnp.log(core_profiles.temp_el.value * constants.CONSTANTS.keV2J)
   )
   # pylint: disable=invalid-name
   log_Qei_coef = (
-      jnp.log(Qei_mult * 1.5 * state.ne.value * nref)
+      jnp.log(Qei_mult * 1.5 * core_profiles.ne.value * nref)
       + jnp.log(constants.CONSTANTS.keV2J / (Ai * constants.CONSTANTS.mp))
       + jnp.log(2 * constants.CONSTANTS.me)
       - log_tau_e
@@ -145,9 +147,9 @@ def calc_q_from_jtot_psi(
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Calculates q given jtot and psi.
 
-  We don't simply pass a `State` instance because this needs to be called
-  before the first `State` is constructed; the output of this function is used
-  to populate the `q_face` field of the first `State`.
+  We don't simply pass a `CoreProfiles` instance because this needs to be called
+  before the first `CoreProfiles` is constructed; the output of this function is
+  used to populate the `q_face` field of the first `CoreProfiles`.
 
   Args:
     geo: Magnetic geometry.
@@ -254,7 +256,7 @@ def calc_s_from_psi(
 
 def calc_nu_star(
     geo: Geometry,
-    state: state_module.State,
+    core_profiles: state.CoreProfiles,
     nref: float,
     Zeff: float,
     Rmaj: float,
@@ -264,7 +266,7 @@ def calc_nu_star(
 
   Args:
     geo: Torus geometry.
-    state: Current simulator state.
+    core_profiles: Core plasma profiles.
     nref: Reference value for normalization
     Zeff: Effective ion charge.
     Rmaj: Major radius (R) in meters
@@ -274,9 +276,9 @@ def calc_nu_star(
     nu_star: on face grid.
   """
 
-  temp_electron_var = state.temp_el
+  temp_electron_var = core_profiles.temp_el
   temp_electron_face = temp_electron_var.face_value()
-  raw_ne_var = state.ne
+  raw_ne_var = core_profiles.ne
   raw_ne_face = raw_ne_var.face_value()
 
   # Coulomb constant and collisionality. Wesson 2nd edition p661-663:
@@ -302,7 +304,7 @@ def calc_nu_star(
   # to avoid divisions by zero
   epsilon = jnp.clip(epsilon, constants.CONSTANTS.eps)
   tau_bounce = (
-      state.q_face
+      core_profiles.q_face
       * Rmaj
       / (
           epsilon**1.5

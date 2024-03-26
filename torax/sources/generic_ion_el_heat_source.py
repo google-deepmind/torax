@@ -22,7 +22,7 @@ import jax
 from jax import numpy as jnp
 from torax import config_slice
 from torax import geometry
-from torax import state as state_lib
+from torax import state
 from torax.sources import source
 from torax.sources import source_config
 
@@ -69,10 +69,10 @@ def calc_generic_heat_source(
 def _default_formula(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    state: state_lib.State,
+    core_profiles: state.CoreProfiles,
 ) -> jnp.ndarray:
   """Returns the default formula-based ion/electron heat source profile."""
-  del state  # Unused.
+  del core_profiles  # Unused.
   ion, el = calc_generic_heat_source(
       geo,
       dynamic_config_slice.rsource,

@@ -21,7 +21,7 @@ from torax import config as config_lib
 from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
-from torax import state as state_module
+from torax import state
 from torax.sources import source_profiles
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import transport_model as transport_model_lib
@@ -55,7 +55,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
     transport_model = FakeTransportModel()
     transport_coeffs = transport_model(
-        dynamic_config_slice, geo, input_state.mesh_state
+        dynamic_config_slice, geo, input_state.core_profiles
     )
     chi_face_ion_orig = np.linspace(0.5, 2, geo.r_face_norm.shape[0])
     chi_face_el_orig = np.linspace(0.25, 1, geo.r_face_norm.shape[0])
@@ -142,11 +142,13 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
     self.assertAlmostEqual(
         transport_coeffs['d_face_el'][inner_patch_idx + test_idx],
-        d_face_el_orig_smoothed_test_r.sum(), places=6
+        d_face_el_orig_smoothed_test_r.sum(),
+        places=6,
     )
     self.assertAlmostEqual(
         transport_coeffs['v_face_el'][inner_patch_idx + test_idx],
-        v_face_el_orig_smoothed_test_r.sum(), places=6
+        v_face_el_orig_smoothed_test_r.sum(),
+        places=6,
     )
 
 
@@ -157,9 +159,9 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_module.State,
+      core_profiles: state.CoreProfiles,
   ) -> transport_model_lib.TransportCoeffs:
-    del dynamic_config_slice, state  # these are unused
+    del dynamic_config_slice, core_profiles  # these are unused
     chi_face_ion = np.linspace(0.5, 2, geo.r_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.r_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geo.r_face_norm.shape[0])

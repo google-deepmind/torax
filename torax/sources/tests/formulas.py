@@ -54,7 +54,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
                     source_config.SourceType.ZERO,
                     source_config.SourceType.FORMULA_BASED,
                 ),
-                affected_mesh_states=(source.AffectedMeshStateAttribute.NE,),
+                affected_core_profiles=(source.AffectedCoreProfile.NE,),
                 formula=formulas.Exponential(custom_source_name),
             )
         ]

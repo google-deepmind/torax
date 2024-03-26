@@ -43,23 +43,21 @@ class SourceTestCase(parameterized.TestCase):
   _source_class: Type[source_lib.Source]
   _config_attr_name: str
   _unsupported_types: Sequence[source_config_lib.SourceType]
-  _expected_affected_mesh_states: tuple[
-      source_lib.AffectedMeshStateAttribute, ...
-  ]
+  _expected_affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...]
 
   @classmethod
   def setUpClass(
       cls,
       source_class: Type[source_lib.Source],
       unsupported_types: Sequence[source_config_lib.SourceType],
-      expected_affected_mesh_states: tuple[
-          source_lib.AffectedMeshStateAttribute, ...
+      expected_affected_core_profiles: tuple[
+          source_lib.AffectedCoreProfile, ...
       ],
   ):
     super().setUpClass()
     cls._source_class = source_class
     cls._unsupported_types = unsupported_types
-    cls._expected_affected_mesh_states = expected_affected_mesh_states
+    cls._expected_affected_core_profiles = expected_affected_core_profiles
 
   def test_expected_mesh_states(self):
     # Most Source subclasses should have default names and be instantiable
@@ -68,8 +66,8 @@ class SourceTestCase(parameterized.TestCase):
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     self.assertSameElements(
-        source.affected_mesh_states,
-        self._expected_affected_mesh_states,
+        source.affected_core_profiles,
+        self._expected_affected_core_profiles,
     )
 
 
@@ -103,7 +101,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     else:
       sources = source_profiles.Sources()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=sources,
@@ -113,7 +111,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
     )
     chex.assert_rank(value, 1)
 
@@ -121,7 +119,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     """Tests that using unsupported types raises an error."""
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(),  # only need default sources here.
@@ -139,7 +137,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
                   config_slice.build_dynamic_config_slice(config)
               ),
               geo=geo,
-              state=state,
+              core_profiles=core_profiles,
           )
 
 
@@ -154,7 +152,7 @@ class IonElSourceTestCase(SourceTestCase):
     self.assertIsInstance(source, source_lib.IonElectronSource)
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(),  # only need default sources here.
@@ -164,7 +162,7 @@ class IonElSourceTestCase(SourceTestCase):
         source_type=source_type,
         dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
         geo=geo,
-        state=state,
+        core_profiles=core_profiles,
     )
     chex.assert_rank(ion_and_el, 2)
 
@@ -172,7 +170,7 @@ class IonElSourceTestCase(SourceTestCase):
     """Tests that using unsupported types raises an error."""
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    state = initial_states.initial_state(
+    core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
         sources=source_profiles.Sources(),  # only need default sources here.
@@ -190,7 +188,7 @@ class IonElSourceTestCase(SourceTestCase):
                   config_slice.build_dynamic_config_slice(config)
               ),
               geo=geo,
-              state=state,
+              core_profiles=core_profiles,
           )
 
   def test_extraction_of_relevant_profile_from_output(self):
@@ -203,26 +201,26 @@ class IonElSourceTestCase(SourceTestCase):
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
     np.testing.assert_allclose(
-        source.get_profile_for_affected_state(
+        source.get_source_profile_for_affected_core_profile(
             fake_profile,
-            source_lib.AffectedMeshStateAttribute.TEMP_ION.value,
+            source_lib.AffectedCoreProfile.TEMP_ION.value,
             geo,
         ),
         jnp.ones(cell),
     )
     np.testing.assert_allclose(
-        source.get_profile_for_affected_state(
+        source.get_source_profile_for_affected_core_profile(
             fake_profile,
-            source_lib.AffectedMeshStateAttribute.TEMP_EL.value,
+            source_lib.AffectedCoreProfile.TEMP_EL.value,
             geo,
         ),
         2 * jnp.ones(cell),
     )
     # For unrelated states, this should just return all 0s.
     np.testing.assert_allclose(
-        source.get_profile_for_affected_state(
+        source.get_source_profile_for_affected_core_profile(
             fake_profile,
-            source_lib.AffectedMeshStateAttribute.NE.value,
+            source_lib.AffectedCoreProfile.NE.value,
             geo,
         ),
         jnp.zeros(cell),

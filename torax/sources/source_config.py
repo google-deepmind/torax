@@ -31,7 +31,7 @@ SourceProfileFunction = Callable[
     [  # Arguments
         Any,  # config.Config
         Any,  # geometry.Geometry
-        Any | None,  # state.State
+        Any | None,  # state.CoreProfiles
     ],
     # Returns a JAX array, tuple of arrays, or mapping of arrays.
     chex.ArrayTree,

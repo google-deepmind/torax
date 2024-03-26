@@ -24,7 +24,7 @@ from jax import numpy as jnp
 from torax import config_slice
 from torax import geometry
 from torax import physics
-from torax import state as state_lib
+from torax import state
 from torax.sources import source
 from torax.sources import source_config
 
@@ -57,15 +57,15 @@ class QeiSource(source.Source):
       source_config.SourceType.ZERO,
   )
 
-  # Don't include affected_mesh_states in the __init__ arguments.
+  # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param. Qei is a special-case source and affects these equations
   # in a slightly different manner than the rest of the sources.
-  affected_mesh_states: tuple[source.AffectedMeshStateAttribute, ...] = (
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       dataclasses.field(
           init=False,
           default_factory=lambda: (
-              source.AffectedMeshStateAttribute.TEMP_ION,
-              source.AffectedMeshStateAttribute.TEMP_EL,
+              source.AffectedCoreProfile.TEMP_ION,
+              source.AffectedCoreProfile.TEMP_EL,
           ),
       )
   )
@@ -76,14 +76,14 @@ class QeiSource(source.Source):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State,
+      core_profiles: state.CoreProfiles,
   ) -> QeiInfo:
     """Computes the value of the source."""
     source_type = self.check_source_type(source_type)
     return jax.lax.cond(
         source_type == source_config.SourceType.MODEL_BASED.value,
         lambda: _model_based_qei(
-            dynamic_config_slice, static_config_slice, geo, state
+            dynamic_config_slice, static_config_slice, geo, core_profiles
         ),
         lambda: _zero_qei(geo),
     )
@@ -93,11 +93,11 @@ class QeiSource(source.Source):
       source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      state: state_lib.State | None = None,
+      core_profiles: state.CoreProfiles | None = None,
   ) -> QeiInfo:
     raise NotImplementedError('Call get_qei() instead.')
 
-  def get_profile_for_affected_state(
+  def get_source_profile_for_affected_core_profile(
       self,
       profile: chex.ArrayTree,
       affected_mesh_state: int,
@@ -110,12 +110,12 @@ def _model_based_qei(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
-    state: state_lib.State,
+    core_profiles: state.CoreProfiles,
 ) -> QeiInfo:
   """Computes Qei via the coll_exchange model."""
   zeros = jnp.zeros_like(geo.r_norm)
   qei_coef = physics.coll_exchange(
-      state=state,
+      core_profiles=core_profiles,
       nref=dynamic_config_slice.nref,
       Ai=dynamic_config_slice.Ai,
       Qei_mult=dynamic_config_slice.Qei_mult,
@@ -130,8 +130,8 @@ def _model_based_qei(
           static_config_slice.el_heat_eq and not static_config_slice.ion_heat_eq
       )
   ):
-    explicit_i = qei_coef * state.temp_el.value
-    explicit_e = qei_coef * state.temp_ion.value
+    explicit_i = qei_coef * core_profiles.temp_el.value
+    explicit_e = qei_coef * core_profiles.temp_ion.value
     implicit_ie = zeros
     implicit_ei = zeros
   else:

@@ -20,7 +20,7 @@ from jax import numpy as jnp
 from torax import config_slice
 from torax import geometry
 from torax import jax_utils
-from torax import state as state_lib
+from torax import state
 
 
 # Many variables throughout this function are capitalized based on physics
@@ -124,7 +124,7 @@ class Exponential:
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      unused_state: state_lib.State | None,
+      unused_state: state.CoreProfiles | None,
   ) -> jnp.ndarray:
     exp_config = dynamic_config_slice.sources[
         self.source_name
@@ -156,7 +156,7 @@ class Gaussian:
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
-      unused_state: state_lib.State | None,
+      unused_state: state.CoreProfiles | None,
   ) -> jnp.ndarray:
     gaussian_config = dynamic_config_slice.sources[
         self.source_name
