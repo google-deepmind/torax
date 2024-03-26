@@ -400,13 +400,16 @@ def _calc_coeffs_full(
           f'{type(transport_model)} does not support the density equation.'
       )
 
-  # Apply inner and outer patch constant transport coefficients.
+  # Apply inner and outer patch constant transport coefficients. rho_inner and
+  # rho_outer are shifted by consts.eps (1e-7) to avoid ambiguities if their
+  # values are close to and geo.r_face_norm values.
   # Note that Pereverzev-Corrigan terms will still be included in constant
   # transport regions, to avoid transient discontinuities
   chi_face_ion = jnp.where(
       jnp.logical_and(
           dynamic_config_slice.transport.apply_inner_patch,
-          geo.r_face_norm < dynamic_config_slice.transport.rho_inner,
+          geo.r_face_norm
+          < dynamic_config_slice.transport.rho_inner + consts.eps,
       ),
       dynamic_config_slice.transport.chii_inner,
       chi_face_ion,
@@ -414,7 +417,8 @@ def _calc_coeffs_full(
   chi_face_el = jnp.where(
       jnp.logical_and(
           dynamic_config_slice.transport.apply_inner_patch,
-          geo.r_face_norm < dynamic_config_slice.transport.rho_inner,
+          geo.r_face_norm
+          < dynamic_config_slice.transport.rho_inner + consts.eps,
       ),
       dynamic_config_slice.transport.chie_inner,
       chi_face_el,
@@ -422,7 +426,8 @@ def _calc_coeffs_full(
   d_face_el = jnp.where(
       jnp.logical_and(
           dynamic_config_slice.transport.apply_inner_patch,
-          geo.r_face_norm < dynamic_config_slice.transport.rho_inner,
+          geo.r_face_norm
+          < dynamic_config_slice.transport.rho_inner + consts.eps,
       ),
       dynamic_config_slice.transport.De_inner,
       d_face_el,
@@ -430,7 +435,8 @@ def _calc_coeffs_full(
   v_face_el = jnp.where(
       jnp.logical_and(
           dynamic_config_slice.transport.apply_inner_patch,
-          geo.r_face_norm < dynamic_config_slice.transport.rho_inner,
+          geo.r_face_norm
+          < dynamic_config_slice.transport.rho_inner + consts.eps,
       ),
       dynamic_config_slice.transport.Ve_inner,
       v_face_el,
@@ -445,7 +451,8 @@ def _calc_coeffs_full(
               dynamic_config_slice.transport.apply_outer_patch,
               jnp.logical_not(dynamic_config_slice.set_pedestal),
           ),
-          geo.r_face_norm > dynamic_config_slice.transport.rho_outer,
+          geo.r_face_norm
+          > dynamic_config_slice.transport.rho_outer - consts.eps,
       ),
       dynamic_config_slice.transport.chii_outer,
       chi_face_ion,
@@ -456,7 +463,8 @@ def _calc_coeffs_full(
               dynamic_config_slice.transport.apply_outer_patch,
               jnp.logical_not(dynamic_config_slice.set_pedestal),
           ),
-          geo.r_face_norm > dynamic_config_slice.transport.rho_outer,
+          geo.r_face_norm
+          > dynamic_config_slice.transport.rho_outer - consts.eps,
       ),
       dynamic_config_slice.transport.chie_outer,
       chi_face_el,
@@ -467,7 +475,8 @@ def _calc_coeffs_full(
               dynamic_config_slice.transport.apply_outer_patch,
               jnp.logical_not(dynamic_config_slice.set_pedestal),
           ),
-          geo.r_face_norm > dynamic_config_slice.transport.rho_outer,
+          geo.r_face_norm
+          > dynamic_config_slice.transport.rho_outer - consts.eps,
       ),
       dynamic_config_slice.transport.De_outer,
       d_face_el,
@@ -478,7 +487,8 @@ def _calc_coeffs_full(
               dynamic_config_slice.transport.apply_outer_patch,
               jnp.logical_not(dynamic_config_slice.set_pedestal),
           ),
-          geo.r_face_norm > dynamic_config_slice.transport.rho_outer,
+          geo.r_face_norm
+          > dynamic_config_slice.transport.rho_outer - consts.eps,
       ),
       dynamic_config_slice.transport.Ve_outer,
       v_face_el,

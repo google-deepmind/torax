@@ -23,6 +23,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import config_slice
+from torax import constants
 from torax import geometry
 from torax import state as state_module
 
@@ -120,13 +121,15 @@ def build_smoothing_matrix(
   # To reduce the range of the convolution, weights under lower_cutoff are
   # clipped to zero
   lower_cutoff = 0.01
-  eps = 1e-7  # small number to avoid divisions by zero for sigma = 0
+
+  # used for eps, small number to avoid divisions by zero for sigma = 0
+  consts = constants.CONSTANTS
 
   # 1. Kernel matrix
   kernel = jnp.exp(
       -jnp.log(2)
       * (geo.r_face_norm[:, jnp.newaxis] - geo.r_face_norm) ** 2
-      / (dynamic_config_slice.transport.smoothing_sigma**2 + eps)
+      / (dynamic_config_slice.transport.smoothing_sigma**2 + consts.eps)
   )
 
   # 2. Masking: we do not want transport coefficients calculated in pedestal
@@ -134,7 +137,7 @@ def build_smoothing_matrix(
   # transport_model calculated coefficients
   mask_outer_edge = jax.lax.cond(
       dynamic_config_slice.set_pedestal,
-      lambda: dynamic_config_slice.Ped_top,
+      lambda: dynamic_config_slice.Ped_top - consts.eps,
       lambda: 1.0,
   )
 
@@ -143,19 +146,19 @@ def build_smoothing_matrix(
           jnp.logical_not(dynamic_config_slice.set_pedestal),
           dynamic_config_slice.transport.apply_outer_patch,
       ),
-      lambda: dynamic_config_slice.transport.rho_outer,
+      lambda: dynamic_config_slice.transport.rho_outer - consts.eps,
       lambda: mask_outer_edge,
   )
 
   mask_inner_edge = jax.lax.cond(
       dynamic_config_slice.transport.apply_inner_patch,
-      lambda: dynamic_config_slice.transport.rho_inner,
+      lambda: dynamic_config_slice.transport.rho_inner + consts.eps,
       lambda: 0.0,
   )
 
   mask = jnp.where(
       jnp.logical_and(
-          geo.r_face_norm >= mask_inner_edge, geo.r_face_norm <= mask_outer_edge
+          geo.r_face_norm > mask_inner_edge, geo.r_face_norm < mask_outer_edge
       ),
       1.0,
       0.0,
