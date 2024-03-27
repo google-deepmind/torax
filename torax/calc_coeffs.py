@@ -547,9 +547,25 @@ def _calc_coeffs_full(
         0.0,
         full_v_face_el,
     )
+
+  # calculate neped
+  # pylint: disable=invalid-name
+  nGW = (
+      dynamic_config_slice.Ip
+      / (jnp.pi * dynamic_config_slice.Rmin**2)
+      * 1e20
+      / dynamic_config_slice.nref
+  )
+  # pylint: enable=invalid-name
+  neped_unnorm = jnp.where(
+      dynamic_config_slice.neped_is_fGW,
+      dynamic_config_slice.neped * nGW,
+      dynamic_config_slice.neped,
+  )
+
   source_ne += jnp.where(
       dynamic_config_slice.set_pedestal,
-      mask * dynamic_config_slice.largeValue_n * dynamic_config_slice.neped,
+      mask * dynamic_config_slice.largeValue_n * neped_unnorm,
       0.0,
   )
   source_mat_nn += jnp.where(

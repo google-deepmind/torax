@@ -214,15 +214,13 @@ class Config:
   # density profile info
   # Reference value for normalization
   nref: float = 1e20
-  # line averaged density (not used if f_GW = True)
-  # in units of reference density
-  nbar: float = 1.0
-  # set initial condition density according to Greenwald fraction.
-  # Otherwise from nbar
-  set_fGW: bool = True
-  # Initial condition Greenwald fraction (nGW = Ip/(pi*a^2))
-  # with a in m, nGW in 10^20 m-3, Ip in MA
-  fGW: float = 0.85
+  # Initial line averaged density.
+  # In units of reference density if nbar_is_fGW = False.
+  # In Greenwald fraction if nbar_is_fGW = True.
+  # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
+  nbar: float = 0.85
+  # Toggle units of nbar
+  nbar_is_fGW: bool = True
   # Peaking factor of density profile
   npeak: float = 1.5
 
@@ -236,7 +234,10 @@ class Config:
   # boundary condition electron temperature for r=Rmin
   Te_bound_right: TimeDependentField = 1.0
   # density boundary condition for r=Rmin, units of nref
+  # In units of reference density if ne_bound_right_is_fGW = False.
+  # In Greenwald fraction if ne_bound_right_is_fGW = True.
   ne_bound_right: TimeDependentField = 0.5
+  ne_bound_right_is_fGW: bool = False
 
   # external heat source parameters
   w: TimeDependentField = 0.25  # Gaussian width in normalized radial coordinate
@@ -329,8 +330,11 @@ class Config:
   Tiped: TimeDependentField = 5.0
   # electron pedestal top temperature in keV for Ti and Te
   Teped: TimeDependentField = 5.0
-  # pedestal top electron density in units of nref
+  # pedestal top electron density
+  # In units of reference density if neped_is_fGW = False.
+  # In Greenwald fraction if neped_is_fGW = True.
   neped: TimeDependentField = 0.7
+  neped_is_fGW: bool = False
   # Set ped top location.
   Ped_top: TimeDependentField = 0.91
   # effective source to dominate PDE in internal boundary condtion location

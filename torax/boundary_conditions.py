@@ -49,7 +49,21 @@ def compute_boundary_conditions(
   Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
       dynamic_config_slice.Te_bound_right, 'Te_bound_right'
   )
-  ne_bound_right = dynamic_config_slice.ne_bound_right
+
+  # calculate ne_bound_right
+  # pylint: disable=invalid-name
+  nGW = (
+      dynamic_config_slice.Ip
+      / (jnp.pi * dynamic_config_slice.Rmin**2)
+      * 1e20
+      / dynamic_config_slice.nref
+  )
+  # pylint: enable=invalid-name
+  ne_bound_right = jnp.where(
+      dynamic_config_slice.ne_bound_right_is_fGW,
+      dynamic_config_slice.ne_bound_right * nGW,
+      dynamic_config_slice.ne_bound_right,
+  )
   # define ion profile based on (flat) Zeff and single assumed impurity
   # with Zimp. main ion limited to hydrogenic species for now.
   # Assume isotopic balance for DT fusion power. Solve for ni based on:

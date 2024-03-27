@@ -27,7 +27,8 @@ from torax.stepper import linear_theta_method
 def get_config() -> config_lib.Config:
   return config_lib.Config(
       set_pedestal=False,
-      fGW=0.5,
+      nbar_is_fGW=True,
+      nbar=0.5,
       t_final=1,
       bootstrap_mult=0,  # remove bootstrap current
       w=0.18202270915319393,

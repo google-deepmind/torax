@@ -95,7 +95,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         resistivity_mult=100,
         bootstrap_mult=1,
         nu=0,
-        fGW=0.85,
+        nbar=0.85,
         S_pellet_tot=2.0e22,
         S_puff_tot=1.0e22,
         S_nbi_tot=0.0,

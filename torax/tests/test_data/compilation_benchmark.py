@@ -40,7 +40,7 @@ def get_config() -> config_lib.Config:
       resistivity_mult=100,  # to shorten current diffusion time for the test
       bootstrap_mult=1,  # remove bootstrap current
       nu=0,
-      fGW=0.85,  # initial density (Greenwald fraction)
+      nbar=0.85,  # initial density (Greenwald fraction units)
       S_pellet_tot=1.0e22,
       S_puff_tot=0.5e22,
       S_nbi_tot=0.3e22,

@@ -98,6 +98,13 @@ class DynamicConfigSlice:
   # density profile info
   # Reference value for normalization
   nref: float
+  # Line averaged density.
+  # In units of reference density if nbar_is_fGW = False.
+  # In Greenwald fraction if nbar_is_fGW = True.
+  # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
+  nbar: float
+  # Toggle units of nbar
+  nbar_is_fGW: bool
 
   # temperature boundary conditions
   # boundary condition ion temperature for r=Rmin
@@ -105,7 +112,10 @@ class DynamicConfigSlice:
   # boundary condition electron temperature for r=Rmin
   Te_bound_right: float
   # density boundary condition for r=Rmin, units of nref
+  # In units of reference density if ne_bound_right_is_fGW = False.
+  # In Greenwald fraction if ne_bound_right_is_fGW = True.
   ne_bound_right: float
+  ne_bound_right_is_fGW: bool
 
   # external heat source parameters
   w: float  # Gaussian width
@@ -191,7 +201,11 @@ class DynamicConfigSlice:
   set_pedestal: bool
   Tiped: float  # ion pedestal top temperature in keV for Ti and Te
   Teped: float  # electron pedestal top temperature in keV for Ti and Te
-  neped: float  # pedestal top electron density in units of nref
+  # pedestal top electron density
+  # In units of reference density if neped_is_fGW = False.
+  # In Greenwald fraction if neped_is_fGW = True.
+  neped: float
+  neped_is_fGW: bool
   # Set ped top location.
   Ped_top: float
   # effective source to dominate PDE in internal boundary condtion location
@@ -390,6 +404,7 @@ class StaticConfigSlice:
 @chex.dataclass(frozen=True)
 class StaticSolverConfigSlice:
   """Static params for the solver."""
+
   # Theta for theta-method. 0 is fully explicit, 1 is fully implicit.
   theta_imp: float
   # See `fvm.convection_terms` docstring, `dirichlet_mode` argument
@@ -487,6 +502,19 @@ def build_static_config_slice(config: config_lib.Config) -> StaticConfigSlice:
   )
 
 
+def _input_is_a_float(
+    field_name: str, input_config_fields_to_types: dict[str, Any]
+) -> bool:
+  try:
+    return field_name in input_config_fields_to_types and issubclass(
+        input_config_fields_to_types[field_name], float
+    )
+  except:  # pylint: disable=bare-except
+    # issubclass does not play nicely with generics, but if a type is a
+    # generic at this stage, it is not a float.
+    return False
+
+
 def _input_is_an_interpolated_param(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
@@ -565,6 +593,8 @@ def _get_init_kwargs(
       if t is None:
         raise ValueError('t must be specified for interpolated params')
       config_val = _interpolate_param(config_val, t)
+    elif _input_is_a_float(field.name, input_config_fields_to_types):
+      config_val = float(config_val)
     kwargs[field.name] = config_val
   return kwargs
 

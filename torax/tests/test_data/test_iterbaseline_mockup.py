@@ -45,8 +45,8 @@ def get_config() -> config_lib.Config:
       ne_bound_right=0.437,  # boundary condition density for r=Rmin
       # set initial condition density according to Greenwald fraction. Otherwise
       # from nbar
-      set_fGW=True,
-      fGW=0.77,  # original simulation goes up to ~0.92
+      nbar_is_fGW=True,
+      nbar=0.77,  # original simulation goes up to ~0.92
       npeak=1.5,  # Peaking factor of density profile
       # external heat source parameters
       w=0.07280908366127758,  # Gaussian width in normalized radial coordinate

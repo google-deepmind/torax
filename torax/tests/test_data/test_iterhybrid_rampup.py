@@ -51,11 +51,11 @@ def get_config() -> config_lib.Config:
       Ti_bound_right=0.1,  # boundary condition ion temperature for r=Rmin
       Te_bound_left=6,  # initial condition electron temperature for r=0
       Te_bound_right=0.1,  # boundary condition electron temperature for r=Rmin
-      ne_bound_right=0.2,  # boundary condition density for r=Rmin
+      ne_bound_right_is_fGW=True,
+      ne_bound_right={0: 0.1, 80: 0.3},  # boundary condition density for r=Rmin
       # set initial condition density according to Greenwald fraction.
-      # Otherwise from nbar
-      set_fGW=True,
-      fGW=1,
+      nbar_is_fGW=True,
+      nbar=1,
       npeak=1.5,  # Initial peaking factor of density profile
       # external heat source parameters
       w=0.07280908366127758,  # Gaussian width in normalized radial coordinate
@@ -111,7 +111,8 @@ def get_config() -> config_lib.Config:
       set_pedestal=True,
       Tiped=1.0,  # ion pedestal top temperature in keV for Ti and Te
       Teped=1.0,  # electron pedestal top temperature in keV for Ti and Te
-      neped={0: 0.2, 80: 0.5},  # pedestal top electron density in units of nref
+      neped_is_fGW=True,
+      neped={0: 0.3, 80: 0.7},  # pedestal top electron density in units of nref
       Ped_top=0.9,  # set ped top location in normalized radius
       # effective source to dominate PDE in internal boundary condtion location
       # if T != Tped
@@ -127,8 +128,8 @@ def get_config() -> config_lib.Config:
           apply_inner_patch=True,
           De_inner=0.25,
           Ve_inner=0.0,
-          chii_inner=1.0,
-          chie_inner=1.0,
+          chii_inner=1.5,
+          chie_inner=1.5,
           rho_inner=0.3,  # radius below which patch transport is applied
           # set outer core transport coefficients (L-mode near edge region)
           apply_outer_patch=True,

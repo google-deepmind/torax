@@ -39,7 +39,7 @@ def get_config() -> config_lib.Config:
       # set flat Ohmic current to provide larger range of current evolution for
       # test
       nu=0,
-      fGW=0.85,  # initial density (Greenwald fraction)
+      nbar=0.85,  # initial density (in Greenwald fraction units)
       S_pellet_tot=1.0e22,
       S_puff_tot=0.5e22,
       S_nbi_tot=0.3e22,

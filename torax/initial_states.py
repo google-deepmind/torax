@@ -105,13 +105,24 @@ def initial_core_profiles(
   )
 
   # set up density profile
-  if config.set_fGW:
-    # set nbar to desired fraction of Greenwald density
-    # Use normalized nbar
-    nGW = Ip / (jnp.pi * dynamic_config_slice.Rmin**2) * 1e20 / config.nref
-    nbar = config.fGW * nGW  # normalized nbar
-  else:
-    nbar = config.nbar
+  # pylint: disable=invalid-name
+  nGW = (
+      dynamic_config_slice.Ip
+      / (jnp.pi * dynamic_config_slice.Rmin**2)
+      * 1e20
+      / dynamic_config_slice.nref
+  )
+  nbar_unnorm = jnp.where(
+      dynamic_config_slice.nbar_is_fGW,
+      dynamic_config_slice.nbar * nGW,
+      dynamic_config_slice.nbar,
+  )
+  # calculate ne_bound_right
+  ne_bound_right = jnp.where(
+      dynamic_config_slice.ne_bound_right_is_fGW,
+      dynamic_config_slice.ne_bound_right * nGW,
+      dynamic_config_slice.ne_bound_right,
+  )
 
   # set peaking (limited to linear profile)
   nshape_face = jnp.linspace(config.npeak, 1, config.nr + 1)
@@ -120,11 +131,13 @@ def initial_core_profiles(
   # find normalization factor such that desired line-averaged n is set
   # Assumes line-averaged central chord on outer midplane
   Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
-  C = nbar / (_trapz(nshape_face, geo.Rout_face) / Rmin_out)
+  C = nbar_unnorm / (_trapz(nshape_face, geo.Rout_face) / Rmin_out)
 
   # set flat electron density profile
+
+  # pylint: enable=invalid-name
+
   ne_value = C * nshape
-  ne_bound_right = dynamic_config_slice.ne_bound_right
   ne = fvm.CellVariable(
       value=ne_value,
       dr=geo.dr_norm,

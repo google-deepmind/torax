@@ -27,7 +27,7 @@ from torax.stepper import linear_theta_method
 def get_config() -> config_lib.Config:
   return config_lib.Config(
       set_pedestal=False,
-      fGW=0.5,
+      nbar=0.5,  # Initial density in Greenwald fraction units
       t_final=1,
       transport=config_lib.TransportConfig(
           transport_model="constant",
