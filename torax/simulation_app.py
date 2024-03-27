@@ -45,6 +45,7 @@ import enum
 import os
 import sys
 from typing import Callable
+import xarray as xr
 
 from absl import logging
 import chex
@@ -83,6 +84,34 @@ def log_to_stdout(output: str, color: AnsiColors | None = None) -> None:
   else:
     logging.info('%s%s%s', color.value, output, _ANSI_END)
 
+def simulation_output_to_xr(
+    core_profile_history: torax.CoreProfiles,
+    core_transport_history: torax.CoreTransport,
+    aux_history: torax.AuxOutput,
+    geo: torax.Geometry,
+    t: jnp.ndarray,
+) -> xr.Dataset:
+  time = xr.DataArray(t, dims=['time'], name='time')
+  r_face = xr.DataArray(geo.r_norm, dims=['rho'], name='r_cell_norm')
+  data_vars = {
+      'temp_ion': xr.DataArray(core_profile_history.temp_ion.value, dims=['time', 'rho']),
+      "temp_el": xr.DataArray(core_profile_history.temp_el.value, dims=['time', 'rho']),
+      "psi": xr.DataArray(core_profile_history.psi.value, dims=['time', 'rho']),
+      "ne": xr.DataArray(core_profile_history.ne.value, dims=['time', 'rho']),
+      "ni": xr.DataArray(core_profile_history.ni.value, dims=['time', 'rho']),
+      'jtot': xr.DataArray(core_profile_history.currents.jtot, dims=['time', 'rho']),
+      'johm': xr.DataArray(core_profile_history.currents.johm, dims=['time', 'rho']),
+      'jext': xr.DataArray(core_profile_history.currents.jext, dims=['time', 'rho']),
+      'j_bootstrap': xr.DataArray(core_profile_history.currents.j_bootstrap, dims=['time', 'rho']),
+      'sigma': xr.DataArray(core_profile_history.currents.sigma, dims=['time', 'rho']),
+      'source_ion': xr.DataArray(aux_history.source_ion, dims=['time', 'rho']),
+      'source_el': xr.DataArray(aux_history.source_el, dims=['time', 'rho']),
+      'Pfus_i': xr.DataArray(aux_history.Pfus_i, dims=['time', 'rho']),
+      'Pfus_e': xr.DataArray(aux_history.Pfus_e, dims=['time', 'rho']),
+      'Pohm': xr.DataArray(aux_history.Pohm, dims=['time', 'rho']),
+      'Qei': xr.DataArray(aux_history.Qei, dims=['time', 'rho']),
+  }
+  return xr.Dataset(data_vars, coords={'time': time, 'rho': r_face})
 
 def write_simulation_output_to_file(
     output_dir: str,
@@ -225,6 +254,7 @@ def main(
     log_sim_progress: bool = False,
     log_sim_output: bool = False,
     plot_sim_progress: bool = False,
+    return_xr: bool = False,
 ) -> None:
   """Runs a simulation obtained via `get_sim`.
 
@@ -283,6 +313,15 @@ def main(
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
 
   chex.assert_rank(t, 1)
+
+  if return_xr:
+    return simulation_output_to_xr(
+        core_profile_history,
+        core_transport_history,
+        aux_history,
+        geo,
+        t,
+    )
 
   if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
