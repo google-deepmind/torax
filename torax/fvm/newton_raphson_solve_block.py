@@ -42,6 +42,7 @@ AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 InitialGuessMode = fvm.InitialGuessMode
 
+# TODO( b/330172917)
 INITIAL_GUESS_MODE = InitialGuessMode.LINEAR
 MAXITER = 30
 TOL = 1e-5
