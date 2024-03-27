@@ -25,7 +25,6 @@ from torax import config_slice
 from torax import geometry
 from torax import state as state_module
 from torax.time_step_calculator import time_step_calculator
-from torax.transport_model import transport_model as transport_model_lib
 
 # Dummy state and type for compatibility with time_step_calculator base class
 STATE = None
@@ -57,7 +56,7 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
-      transport_model: transport_model_lib.TransportModel,
+      core_transport: state_module.CoreTransport,
   ) -> tuple[jax.Array, State]:
     """Calculates the next time step duration.
 
@@ -68,8 +67,7 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       core_profiles: Current core plasma profiles.
       time_step_calculator_state: None, for compatibility with
         TimeStepCalculator base class.
-      transport_model: Used to calculate chi, which determines maximum step
-        size.
+      core_transport: Used to calculate chi, which determines maximum step size.
 
     Returns:
       dt: Scalar time step duration.

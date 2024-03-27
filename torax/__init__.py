@@ -36,6 +36,7 @@ from torax.sim import run_simulation
 from torax.sim import Sim
 from torax.state import AuxOutput
 from torax.state import CoreProfiles
+from torax.state import CoreTransport
 from torax.stepper.stepper import Stepper
 from torax.time_step_calculator.chi_time_step_calculator import ChiTimeStepCalculator
 from torax.time_step_calculator.fixed_time_step_calculator import FixedTimeStepCalculator

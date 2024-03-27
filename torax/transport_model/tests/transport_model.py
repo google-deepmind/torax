@@ -160,13 +160,13 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> transport_model_lib.TransportCoeffs:
+  ) -> state.CoreTransport:
     del dynamic_config_slice, core_profiles  # these are unused
     chi_face_ion = np.linspace(0.5, 2, geo.r_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.r_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geo.r_face_norm.shape[0])
     v_face_el = np.linspace(-0.2, -2, geo.r_face_norm.shape[0])
-    return transport_model_lib.TransportCoeffs(
+    return state.CoreTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

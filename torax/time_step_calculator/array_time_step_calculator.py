@@ -25,7 +25,6 @@ from torax import config_slice
 from torax import geometry
 from torax import state as state_module
 from torax.time_step_calculator import time_step_calculator
-from torax.transport_model import transport_model as transport_model_lib
 
 State = int
 
@@ -57,10 +56,10 @@ class ArrayTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
-      transport_model: transport_model_lib.TransportModel,
+      core_transport: state_module.CoreTransport,
   ) -> tuple[jax.Array, State]:
     """Returns the next diff between consecutive array entries."""
-    del dynamic_config_slice, geo, core_profiles, transport_model  # Unused.
+    del dynamic_config_slice, geo, core_profiles, core_transport  # Unused.
     idx = time_step_calculator_state
     idx += 1
     return self.arr[idx] - self.arr[idx - 1], idx

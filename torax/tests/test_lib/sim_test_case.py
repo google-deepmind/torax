@@ -277,8 +277,8 @@ class SimTestCase(parameterized.TestCase):
       )
 
     torax_outputs = sim.run()
-    state_history, _ = state_lib.build_history_from_outputs(torax_outputs)
-    t = state_lib.build_time_history_from_outputs(torax_outputs)
+    state_history, _, _ = state_lib.build_history_from_states(torax_outputs)
+    t = state_lib.build_time_history_from_states(torax_outputs)
 
     self._check_profiles_vs_expected(
         state_history=state_history,

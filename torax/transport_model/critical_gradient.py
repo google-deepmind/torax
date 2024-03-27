@@ -30,7 +30,7 @@ class CriticalGradientModel(transport_model.TransportModel):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> transport_model.TransportCoeffs:
+  ) -> state.CoreTransport:
     """Calculates transport coefficients using the Critical Gradient Model.
 
     Args:
@@ -131,7 +131,7 @@ class CriticalGradientModel(transport_model.TransportModel):
     # (Not a realistic model for particle transport anyway).
     v_face_el = jnp.zeros_like(d_face_el)
 
-    return transport_model.TransportCoeffs(
+    return state.CoreTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

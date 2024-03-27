@@ -14,12 +14,13 @@
 
 """Tests torax.sim for handling time dependent input config params."""
 
+import dataclasses
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import calc_coeffs
 from torax import config as config_lib
 from torax import config_slice
 from torax import geometry
@@ -81,7 +82,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     initial_dynamic_config_slice = dynamic_config_slice_provider(
         config.t_initial
     )
-    output_state, _ = sim_step_fn(
+    output_state = sim_step_fn(
         input_state=input_state,
         geo=geo,
         dynamic_config_slice_provider=dynamic_config_slice_provider,
@@ -98,12 +99,12 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     # steps to get under the Ti_bound_right threshold set above if adaptive_dt
     # was set to True.
     self.assertEqual(
-        output_state.state.stepper_iterations, expected_stepper_iterations
+        output_state.stepper_iterations, expected_stepper_iterations
     )
-    self.assertEqual(
-        output_state.state.stepper_error_state, expected_error_state
+    self.assertEqual(output_state.stepper_error_state, expected_error_state)
+    np.testing.assert_allclose(
+        output_state.aux_output.Qei, expected_combined_value
     )
-    np.testing.assert_allclose(output_state.aux.Qei, expected_combined_value)
 
 
 class FakeStepper(stepper_lib.Stepper):
@@ -141,17 +142,20 @@ class FakeStepper(stepper_lib.Stepper):
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[state.CoreProfiles, int, calc_coeffs.AuxOutput]:
+  ) -> tuple[state.CoreProfiles, state.CoreTransport, state.AuxOutput, int]:
     combined = getattr(dynamic_config_slice_t, self._param) + getattr(
         dynamic_config_slice_t_plus_dt, self._param
     )
+    transport = self.transport_model(
+        dynamic_config_slice_t, geo, core_profiles_t
+    )
     # Use Qei as a hacky way to extract what the combined value was.
-    aux = calc_coeffs.AuxOutput.build_from_geo(geo)
-    aux.Qei = jnp.ones_like(geo.r) * combined
+    aux = state.AuxOutput.zeros(geo)
+    aux = dataclasses.replace(aux, Qei=jnp.ones_like(geo.r) * combined)
     return jax.lax.cond(
         combined < self._max_value,
-        lambda: (core_profiles_t, 0, aux),
-        lambda: (core_profiles_t, 1, aux),
+        lambda: (core_profiles_t, transport, aux, 0),
+        lambda: (core_profiles_t, transport, aux, 1),
     )
 
 
@@ -162,13 +166,8 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> transport_model_lib.TransportCoeffs:
-    return transport_model_lib.TransportCoeffs(
-        chi_face_ion=jnp.zeros_like(geo.r_face),
-        chi_face_el=jnp.zeros_like(geo.r_face),
-        d_face_el=jnp.zeros_like(geo.r_face),
-        v_face_el=jnp.zeros_like(geo.r_face),
-    )
+  ) -> state.CoreTransport:
+    return state.CoreTransport.zeros(geo)
 
 
 if __name__ == '__main__':

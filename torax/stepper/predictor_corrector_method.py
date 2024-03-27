@@ -18,8 +18,9 @@ Picard iterations to approximate the nonlinear solution. If
 static_config_slice.solver.predictor_corrector is False, reverts to a
 standard linear solution.
 """
+from typing import Any
+import chex
 import jax
-from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import jax_utils
@@ -27,14 +28,16 @@ from torax.fvm import implicit_solve_block
 
 
 def predictor_corrector_method(
-    init_val: tuple[tuple[fvm.CellVariable, ...], calc_coeffs.AuxOutput],
+    init_val: tuple[
+        tuple[fvm.CellVariable, ...], chex.ArrayTree
+    ],
     x_old: tuple[fvm.CellVariable, ...],
     dt: jax.Array,
     coeffs_exp: fvm.block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: fvm.block_1d_coeffs.Block1DCoeffsCallback,
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
-) -> tuple[tuple[fvm.CellVariable, ...], calc_coeffs.AuxOutput]:
+) -> tuple[tuple[fvm.CellVariable, ...], Any]:
   """Predictor-corrector method.
 
   Args:
@@ -51,8 +54,8 @@ def predictor_corrector_method(
 
   Returns:
     x_new: Solution of evolving core profile state variables
-    auxiliary_outputs: Block1DCoeffs containing the PDE coefficients
-    corresponding to the last guess of x_new
+    auxiliary_outputs: Extra outputs containing auxiliary information from the
+      coeffs_callback computed based on x_new.
   """
 
   # predictor-corrector loop. Will only be traversed once if not in
@@ -65,7 +68,6 @@ def predictor_corrector_method(
         dynamic_config_slice_t_plus_dt,
         allow_pereverzev=True,
     )
-    aux_output = coeffs_new.auxiliary_outputs
 
     x_new = implicit_solve_block.implicit_solve_block(
         x_old=x_old,
@@ -82,7 +84,7 @@ def predictor_corrector_method(
         ),
     )
 
-    return (x_new, aux_output)
+    return (x_new, coeffs_new.auxiliary_outputs)
 
   # jax.lax.fori_loop jits the function by default. Need to explicitly avoid
   # compilation and revert to a standard for loop if

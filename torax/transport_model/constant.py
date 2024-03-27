@@ -32,9 +32,9 @@ class ConstantTransportModel(transport_model.TransportModel):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> transport_model.TransportCoeffs:
+  ) -> state.CoreTransport:
     del core_profiles  # Not needed for this transport model
-    return transport_model.TransportCoeffs(
+    return state.CoreTransport(
         chi_face_ion=dynamic_config_slice.transport.chii_const
         * jnp.ones_like(geo.r_face),
         chi_face_el=dynamic_config_slice.transport.chie_const

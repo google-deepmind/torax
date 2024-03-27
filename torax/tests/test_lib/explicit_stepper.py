@@ -24,7 +24,6 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import boundary_conditions
-from torax import calc_coeffs
 from torax import config_slice
 from torax import constants
 from torax import fvm
@@ -57,7 +56,7 @@ class ExplicitStepper(stepper_lib.Stepper):
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[state.CoreProfiles, int, calc_coeffs.AuxOutput]:
+  ) -> tuple[state.CoreProfiles, state.CoreTransport, state.AuxOutput, int]:
     """Applies a time step update. See Stepper.__call__ docstring."""
 
     # Many variables throughout this function are capitalized based on physics
@@ -137,6 +136,7 @@ class ExplicitStepper(stepper_lib.Stepper):
             q_face=q_face,
             s_face=s_face,
         ),
+        state.CoreTransport.zeros(geo),
+        state.AuxOutput.zeros(geo),
         error,
-        calc_coeffs.AuxOutput.build_from_geo(geo),
     )

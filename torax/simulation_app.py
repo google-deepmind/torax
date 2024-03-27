@@ -86,7 +86,8 @@ def log_to_stdout(output: str, color: AnsiColors | None = None) -> None:
 
 def write_simulation_output_to_file(
     output_dir: str,
-    state_history: torax.CoreProfiles,
+    core_profile_history: torax.CoreProfiles,
+    core_transport_history: torax.CoreTransport,
     aux_history: torax.AuxOutput,
     geo: torax.Geometry,
     t: jnp.ndarray,
@@ -100,25 +101,37 @@ def write_simulation_output_to_file(
     h5_file.create_dataset('r_cell_norm', data=geo.r_norm.tolist())
     h5_file.create_dataset('r_face_norm', data=geo.r_face_norm.tolist())
     h5_file.create_dataset(
-        'temp_ion', data=state_history.temp_ion.value.tolist()
+        'temp_ion', data=core_profile_history.temp_ion.value.tolist()
     )
-    h5_file.create_dataset('temp_el', data=state_history.temp_el.value.tolist())
-    h5_file.create_dataset('psi', data=state_history.psi.value.tolist())
-    h5_file.create_dataset('ne', data=state_history.ne.value.tolist())
-    h5_file.create_dataset('ni', data=state_history.ni.value.tolist())
-    h5_file.create_dataset('q_face', data=state_history.q_face.tolist())
-    h5_file.create_dataset('s_face', data=state_history.s_face.tolist())
-    h5_file.create_dataset('jtot', data=state_history.currents.jtot.tolist())
-    h5_file.create_dataset('johm', data=state_history.currents.johm.tolist())
-    h5_file.create_dataset('jext', data=state_history.currents.jext.tolist())
     h5_file.create_dataset(
-        'j_bootstrap', data=state_history.currents.j_bootstrap.tolist()
+        'temp_el', data=core_profile_history.temp_el.value.tolist()
     )
-    h5_file.create_dataset('sigma', data=state_history.currents.sigma.tolist())
+    h5_file.create_dataset('psi', data=core_profile_history.psi.value.tolist())
+    h5_file.create_dataset('ne', data=core_profile_history.ne.value.tolist())
+    h5_file.create_dataset('ni', data=core_profile_history.ni.value.tolist())
+    h5_file.create_dataset('q_face', data=core_profile_history.q_face.tolist())
+    h5_file.create_dataset('s_face', data=core_profile_history.s_face.tolist())
     h5_file.create_dataset(
-        'chi_face_ion', data=aux_history.chi_face_ion.tolist()
+        'jtot', data=core_profile_history.currents.jtot.tolist()
     )
-    h5_file.create_dataset('chi_face_el', data=aux_history.chi_face_el.tolist())
+    h5_file.create_dataset(
+        'johm', data=core_profile_history.currents.johm.tolist()
+    )
+    h5_file.create_dataset(
+        'jext', data=core_profile_history.currents.jext.tolist()
+    )
+    h5_file.create_dataset(
+        'j_bootstrap', data=core_profile_history.currents.j_bootstrap.tolist()
+    )
+    h5_file.create_dataset(
+        'sigma', data=core_profile_history.currents.sigma.tolist()
+    )
+    h5_file.create_dataset(
+        'chi_face_ion', data=core_transport_history.chi_face_ion.tolist()
+    )
+    h5_file.create_dataset(
+        'chi_face_el', data=core_transport_history.chi_face_el.tolist()
+    )
     h5_file.create_dataset('source_ion', data=aux_history.source_ion.tolist())
     h5_file.create_dataset('source_el', data=aux_history.source_el.tolist())
     h5_file.create_dataset('Pfus_i', data=aux_history.Pfus_i.tolist())
@@ -143,14 +156,14 @@ def _log_single_state(
 
 
 def log_simulation_output_to_stdout(
-    state_history: torax.CoreProfiles,
+    core_profile_history: torax.CoreProfiles,
     geo: torax.Geometry,
     t: jnp.ndarray,
 ) -> None:
   del geo
-  _log_single_state(state_history.index(0), t[0])
+  _log_single_state(core_profile_history.index(0), t[0])
   logging.info('\n')
-  _log_single_state(state_history.index(-1), t[-1])
+  _log_single_state(core_profile_history.index(-1), t[-1])
 
 
 def _get_output_dir(
@@ -262,10 +275,10 @@ def main(
       log_timestep_info=log_sim_progress,
       spectator=spectator,
   )
-  state_history, aux_history = state_lib.build_history_from_outputs(
-      torax_outputs
+  core_profile_history, core_transport_history, aux_history = (
+      state_lib.build_history_from_states(torax_outputs)
   )
-  t = state_lib.build_time_history_from_outputs(torax_outputs)
+  t = state_lib.build_time_history_from_states(torax_outputs)
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
 
   chex.assert_rank(t, 1)
@@ -274,11 +287,16 @@ def main(
     shutil.rmtree(output_dir)
   os.makedirs(output_dir)
   write_simulation_output_to_file(
-      output_dir, state_history, aux_history, geo, t
+      output_dir,
+      core_profile_history,
+      core_transport_history,
+      aux_history,
+      geo,
+      t,
   )
   # TODO(b/323504363): Add back functionality to write configs to file after
   # running to help with keeping track of simulation runs. This may need to
   # happen after we move to Fiddle.
 
   if log_sim_output:
-    log_simulation_output_to_stdout(state_history, geo, t)
+    log_simulation_output_to_stdout(core_profile_history, geo, t)

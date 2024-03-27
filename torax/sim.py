@@ -175,11 +175,12 @@ class SimulationStepFn:
   """Advances the TORAX simulation one time step.
 
   Unlike the Stepper class, which updates certain parts of the state, a
-  SimulationStepFn takes in the ToraxSimState and outputs the ToraxOutput,
-  which contains not only the CoreProfiles but also extra simulation state
-  useful for stepping as well as extra outputs useful for inspection inside the
-  main run loop in `run_simulation()`. It wraps calls to Stepper which evolves
-  the core profiles.
+  SimulationStepFn takes in the ToraxSimState and outputs the updated
+  ToraxSimState, which contains not only the CoreProfiles but also extra
+  simulation state useful for stepping as well as extra outputs useful for
+  inspection inside the main run loop in `run_simulation()`. It wraps calls to
+  Stepper with useful features to increase robustness for convergence, like
+  dt-backtracking.
   """
 
   def __init__(
@@ -217,7 +218,7 @@ class SimulationStepFn:
       dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
       static_config_slice: config_slice.StaticConfigSlice,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[state.ToraxOutput, int]:
+  ) -> state.ToraxSimState:
     """Advances the simulation state one time step.
 
     Args:
@@ -237,15 +238,15 @@ class SimulationStepFn:
         core profiles at the start of the time step.
 
     Returns:
-      ToraxOutput containing:
+      ToraxSimState containing:
         - the core profiles at the end of the time step.
         - time and time step calculator state info.
         - extra auxiliary outputs useful for internal inspection.
-      stepper_error_state:
-         0 if solver converged with fine tolerance for this step
-         1 if solver did not converge for this step (was above coarse tolerance)
-         2 if solver converged within coarse tolerance. Allowed to pass with a
-            warning. Occasional error=2 has low impact on final simulation state
+        - stepper_error_state:
+           0 if solver converged with fine tolerance for this step
+           1 if solver did not converge for this step (was above coarse tol)
+           2 if solver converged within coarse tolerance. Allowed to pass with a
+             warning. Occasional error=2 has low impact on final sim state.
     """
     dynamic_config_slice_t = dynamic_config_slice_provider(input_state.t)
     # TODO(b/323504363): We call the transport model both here and in the the
@@ -300,69 +301,8 @@ class SimulationStepFn:
 
     # Initial trial for stepper. If did not converge (can happen for nonlinear
     # step with large dt) we apply the adaptive time step routine if requested.
-    core_profiles, stepper_error_state, aux_output = self._stepper_fn(
-        core_profiles_t=core_profiles_t,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        geo=geo,
-        dynamic_config_slice_t=dynamic_config_slice_t,
-        dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-        static_config_slice=static_config_slice,
-        dt=dt,
-        explicit_source_profiles=explicit_source_profiles,
-    )
-    stepper_iterations += 1
-
-    new_sim_state = state.ToraxSimState(
-        t=input_state.t + dt,
-        dt=dt,
-        stepper_iterations=stepper_iterations,
-        core_profiles=core_profiles,
-        time_step_calculator_state=time_step_calculator_state,
-        stepper_error_state=stepper_error_state,
-    )
-    aux = state.AuxOutput(
-        chi_face_ion=aux_output.chi_face_ion,
-        chi_face_el=aux_output.chi_face_el,
-        source_ion=aux_output.source_ion,
-        source_el=aux_output.source_el,
-        Pfus_i=aux_output.Pfus_i,
-        Pfus_e=aux_output.Pfus_e,
-        Pohm=aux_output.Pohm,
-        Qei=aux_output.Qei,
-    )
-    output_state = state.ToraxOutput(
-        state=new_sim_state,
-        aux=aux,
-    )
-
-    if static_config_slice.adaptive_dt:
-      # Check if stepper converged. If not, proceed to body_fun
-      def cond_fun(updated_output: state.ToraxOutput) -> bool:
-        if updated_output.state.stepper_error_state == 1:
-          do_dt_backtrack = True
-        else:
-          do_dt_backtrack = False
-        return do_dt_backtrack
-
-      # Make a new step with a smaller dt, starting with the original core
-      # profiles.
-      # Exit if dt < mindt
-      def body_fun(
-          updated_output: state.ToraxOutput,
-      ) -> state.ToraxOutput:
-        updated_sim_state = updated_output.state
-
-        dt = updated_sim_state.dt / dynamic_config_slice_t.dt_reduction_factor
-        if dt < dynamic_config_slice_t.mindt:
-          raise ValueError('dt below minimum timestep following adaptation')
-
-        dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
-            input_state.t + dt,
-        )
-        core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
-            core_profiles_t, dynamic_config_slice_t_plus_dt, geo
-        )
-        core_profiles, stepper_error_state, aux_output = self._stepper_fn(
+    core_profiles, core_transport, aux_output, stepper_error_state = (
+        self._stepper_fn(
             core_profiles_t=core_profiles_t,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             geo=geo,
@@ -372,59 +312,99 @@ class SimulationStepFn:
             dt=dt,
             explicit_source_profiles=explicit_source_profiles,
         )
-        new_sim_state = dataclasses.replace(
-            updated_sim_state,
+    )
+    stepper_iterations += 1
+
+    output_state = state.ToraxSimState(
+        t=input_state.t + dt,
+        dt=dt,
+        core_profiles=core_profiles,
+        core_transport=core_transport,
+        aux_output=aux_output,
+        stepper_iterations=stepper_iterations,
+        time_step_calculator_state=time_step_calculator_state,
+        stepper_error_state=stepper_error_state,
+    )
+
+    if static_config_slice.adaptive_dt:
+      # Check if stepper converged. If not, proceed to body_fun
+      def cond_fun(updated_output: state.ToraxSimState) -> bool:
+        if updated_output.stepper_error_state == 1:
+          do_dt_backtrack = True
+        else:
+          do_dt_backtrack = False
+        return do_dt_backtrack
+
+      # Make a new step with a smaller dt, starting with the original core
+      # profiles.
+      # Exit if dt < mindt
+      def body_fun(
+          updated_output: state.ToraxSimState,
+      ) -> state.ToraxSimState:
+
+        dt = updated_output.dt / dynamic_config_slice_t.dt_reduction_factor
+        if dt < dynamic_config_slice_t.mindt:
+          raise ValueError('dt below minimum timestep following adaptation')
+
+        dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
+            input_state.t + dt,
+        )
+        core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
+            core_profiles_t, dynamic_config_slice_t_plus_dt, geo
+        )
+        core_profiles, core_transport, aux_output, stepper_error_state = (
+            self._stepper_fn(
+                core_profiles_t=core_profiles_t,
+                core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+                geo=geo,
+                dynamic_config_slice_t=dynamic_config_slice_t,
+                dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+                static_config_slice=static_config_slice,
+                dt=dt,
+                explicit_source_profiles=explicit_source_profiles,
+            )
+        )
+        return dataclasses.replace(
+            updated_output,
             t=input_state.t + dt,
             dt=dt,
-            stepper_iterations=updated_sim_state.stepper_iterations + 1,
+            stepper_iterations=updated_output.stepper_iterations + 1,
             core_profiles=core_profiles,
+            core_transport=core_transport,
+            aux_output=aux_output,
             stepper_error_state=stepper_error_state,
-        )
-        new_aux = state.AuxOutput(
-            chi_face_ion=aux_output.chi_face_ion,
-            chi_face_el=aux_output.chi_face_el,
-            source_ion=aux_output.source_ion,
-            source_el=aux_output.source_el,
-            Pfus_i=aux_output.Pfus_i,
-            Pfus_e=aux_output.Pfus_e,
-            Pohm=aux_output.Pohm,
-            Qei=aux_output.Qei,
-        )
-        return state.ToraxOutput(
-            state=new_sim_state,
-            aux=new_aux,
         )
 
       output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
 
     # Update total current, q, and s profiles based on new psi
     dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
-        input_state.t + output_state.state.dt,
+        input_state.t + output_state.dt,
     )
-    output_state.state.core_profiles = physics.update_jtot_q_face_s_face(
+    output_state.core_profiles = physics.update_jtot_q_face_s_face(
         geo=geo,
-        core_profiles=output_state.state.core_profiles,
+        core_profiles=output_state.core_profiles,
         Rmaj=dynamic_config_slice_t_plus_dt.Rmaj,
         q_correction_factor=dynamic_config_slice_t_plus_dt.q_correction_factor,
     )
 
     # Update ohmic and bootstrap current based on the new core profiles.
-    output_state.state.core_profiles = update_current_distribution(
+    output_state.core_profiles = update_current_distribution(
         sources=self._stepper_fn.sources,
         dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
-        core_profiles=output_state.state.core_profiles,
+        core_profiles=output_state.core_profiles,
     )
 
     # Update psidot based on the new core profiles
-    output_state.state.core_profiles = update_psidot(
+    output_state.core_profiles = update_psidot(
         sources=self._stepper_fn.sources,
         dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
-        core_profiles=output_state.state.core_profiles,
+        core_profiles=output_state.core_profiles,
     )
 
-    return output_state, output_state.state.stepper_error_state
+    return output_state
 
 
 def get_initial_state(
@@ -441,6 +421,8 @@ def get_initial_state(
       t=jnp.array(config.t_initial),
       dt=jnp.zeros(()),
       core_profiles=initial_core_profiles,
+      core_transport=state.CoreTransport.zeros(geo),
+      aux_output=state.AuxOutput.zeros(geo),
       time_step_calculator_state=time_step_calculator.initial_state(),
       stepper_error_state=0,
       stepper_iterations=0,
@@ -606,7 +588,7 @@ class Sim:
       self,
       log_timestep_info: bool = False,
       spectator: spectator_lib.Spectator | None = None,
-  ) -> tuple[state.ToraxOutput, ...]:
+  ) -> tuple[state.ToraxSimState, ...]:
     """Runs the transport simulation over a prescribed time interval.
 
     See `run_simulation` for details.
@@ -622,8 +604,8 @@ class Sim:
         must build a new Sim object.
 
     Returns:
-      Tuple of all ToraxOutputs, one per time step and an additional one at the
-      beginning for the starting state.
+      Tuple of all ToraxSimStates, one per time step and an additional one at
+      the beginning for the starting state.
     """
     if self._step_fn is None:
       # Build a new SimulationStepFn
@@ -728,7 +710,7 @@ def run_simulation(
     time_step_calculator: ts.TimeStepCalculator,
     log_timestep_info: bool = False,
     spectator: spectator_lib.Spectator | None = None,
-) -> tuple[state.ToraxOutput, ...]:
+) -> tuple[state.ToraxSimState, ...]:
   """Runs the transport simulation over a prescribed time interval.
 
   This is the main entrypoint for running a TORAX simulation.
@@ -748,10 +730,10 @@ def run_simulation(
     initial_state: The starting state of the simulation. This includes both the
       state variables which the stepper.Stepper will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
-    step_fn: Callable which takes in ToraxSimState and outputs the ToraxOutput
+    step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
       after one timestep. Note that step_fn determines dt (how long the timestep
       is). The state_history that run_simulation() outputs comes from these
-      ToraxOutput objects.
+      ToraxSimState objects.
     geometry_provider: Provides the geometry of the torus for each time step
       based on the ToraxSimState at the start of the time step. The geometry may
       change from time step to time step, so the sim needs a function to provide
@@ -778,9 +760,9 @@ def run_simulation(
       the Spectator class docstring for more details.
 
   Returns:
-    tuple of ToraxOutput objects, one for each time step. There are N+1
-    ToraxOutput objects returned, where N is the number of simulation steps
-    taken. The first object in the tuple is for the initial state.
+    tuple of ToraxSimState objects, one for each time step. There are N+1
+    objects returned, where N is the number of simulation steps taken. The first
+    object in the tuple is for the initial state.
   """
 
   # Provide logging information on precision setting
@@ -797,14 +779,8 @@ def run_simulation(
 
   running_main_loop_start_time = time.time()
   wall_clock_step_times = []
-  # Initialize with the starting state and all zeros for the aux output.
-  # The auxiliary output is not physically realistic, but that will be updated
-  # later with the next time step.
   torax_outputs = [
-      state.ToraxOutput(
-          state=initial_state,
-          aux=state.AuxOutput.zero_output(geo=geometry_provider(initial_state)),
-      )
+      initial_state,
   ]
   stepper_error_state = 0
   dynamic_config_slice = dynamic_config_slice_provider(initial_state.t)
@@ -845,20 +821,20 @@ def run_simulation(
     )
     if spectator is not None:
       spectator.before_step()
-    torax_output, stepper_error_state = step_fn(
+    sim_state = step_fn(
         sim_state,
         geo,
         dynamic_config_slice_provider,
         static_config_slice,
         explicit_source_profiles,
     )
+    stepper_error_state = sim_state.stepper_error_state
     if spectator is not None:
-      _update_spectator(spectator, torax_output)
+      _update_spectator(spectator, sim_state)
       spectator.after_step()
-    # Update the input state for the next iteration.
-    sim_state = torax_output.state
+    # Update the runtime config for the next iteration.
     dynamic_config_slice = dynamic_config_slice_provider(sim_state.t)
-    torax_outputs.append(torax_output)
+    torax_outputs.append(sim_state)
     wall_clock_step_times.append(time.time() - step_start_time)
   # Log final timestep
   if log_timestep_info:
@@ -884,7 +860,7 @@ def run_simulation(
     long_first_step = False
 
   wall_clock_time_elapsed = time.time() - running_main_loop_start_time
-  simulation_time = torax_outputs[-1].state.t - torax_outputs[0].state.t
+  simulation_time = torax_outputs[-1].t - torax_outputs[0].t
   if long_first_step:
     # Don't include the long first step in the total time logged.
     wall_clock_time_elapsed -= wall_clock_step_times[0]
@@ -898,44 +874,48 @@ def run_simulation(
 
 def _update_spectator(
     spectator: spectator_lib.Spectator,
-    output_state: state.ToraxOutput,
+    output_state: state.ToraxSimState,
 ) -> None:
   """Updates the spectator with values from the output state."""
-  spectator.observe(key='q_face', data=output_state.state.core_profiles.q_face)
-  spectator.observe(key='s_face', data=output_state.state.core_profiles.s_face)
-  spectator.observe(key='ne', data=output_state.state.core_profiles.ne.value)
+  spectator.observe(key='q_face', data=output_state.core_profiles.q_face)
+  spectator.observe(key='s_face', data=output_state.core_profiles.s_face)
+  spectator.observe(key='ne', data=output_state.core_profiles.ne.value)
   spectator.observe(
       key='temp_ion',
-      data=output_state.state.core_profiles.temp_ion.value,
+      data=output_state.core_profiles.temp_ion.value,
   )
   spectator.observe(
       key='temp_el',
-      data=output_state.state.core_profiles.temp_el.value,
+      data=output_state.core_profiles.temp_el.value,
   )
   spectator.observe(
       key='j_bootstrap_face',
-      data=output_state.state.core_profiles.currents.j_bootstrap_face,
+      data=output_state.core_profiles.currents.j_bootstrap_face,
   )
   spectator.observe(
       key='johm_face',
-      data=output_state.state.core_profiles.currents.johm_face,
+      data=output_state.core_profiles.currents.johm_face,
   )
   spectator.observe(
       key='jext_face',
-      data=output_state.state.core_profiles.currents.jext_face,
+      data=output_state.core_profiles.currents.jext_face,
   )
   spectator.observe(
       key='jtot_face',
-      data=output_state.state.core_profiles.currents.jtot_face,
+      data=output_state.core_profiles.currents.jtot_face,
   )
-  spectator.observe(key='chi_face_ion', data=output_state.aux.chi_face_ion)
-  spectator.observe(key='chi_face_el', data=output_state.aux.chi_face_el)
-  spectator.observe(key='source_ion', data=output_state.aux.source_ion)
-  spectator.observe(key='source_el', data=output_state.aux.source_el)
-  spectator.observe(key='Pfus_i', data=output_state.aux.Pfus_i)
-  spectator.observe(key='Pfus_e', data=output_state.aux.Pfus_e)
-  spectator.observe(key='Pohm', data=output_state.aux.Pohm)
-  spectator.observe(key='Qei', data=output_state.aux.Qei)
+  spectator.observe(
+      key='chi_face_ion', data=output_state.core_transport.chi_face_ion
+  )
+  spectator.observe(
+      key='chi_face_el', data=output_state.core_transport.chi_face_el
+  )
+  spectator.observe(key='source_ion', data=output_state.aux_output.source_ion)
+  spectator.observe(key='source_el', data=output_state.aux_output.source_el)
+  spectator.observe(key='Pfus_i', data=output_state.aux_output.Pfus_i)
+  spectator.observe(key='Pfus_e', data=output_state.aux_output.Pfus_e)
+  spectator.observe(key='Pohm', data=output_state.aux_output.Pohm)
+  spectator.observe(key='Qei', data=output_state.aux_output.Qei)
 
 
 def update_current_distribution(

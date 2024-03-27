@@ -21,7 +21,6 @@ import abc
 from typing import Callable
 
 import jax
-from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import geometry
@@ -62,7 +61,7 @@ class Stepper(abc.ABC):
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[state.CoreProfiles, int, calc_coeffs.AuxOutput]:
+  ) -> tuple[state.CoreProfiles, state.CoreTransport, state.AuxOutput, int]:
     """Applies a time step update.
 
     Args:
@@ -91,11 +90,12 @@ class Stepper(abc.ABC):
 
     Returns:
       new_core_profiles: Updated core profiles.
+      core_transport: Transport coefficients for time t+dt.
+      aux_output: Extra outputs useful to inspect other values while the
+        coeffs are computed.
       error: 0 if step was successful (linear step, or nonlinear step with
         residual or loss under tolerance at exit), or 1 if unsuccessful,
         indicating that a rerun with a smaller timestep is needed
-      aux_output: Extra outputs useful to inspect other values while the
-        coeffs are computed.
     """
 
     # This base class method can be completely overriden by a subclass, but
@@ -115,7 +115,7 @@ class Stepper(abc.ABC):
 
     # Don't call solver functions on an empty list
     if evolving_names:
-      x_new, error, aux_output = self._x_new(
+      x_new, core_transport, aux_output, error = self._x_new(
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           evolving_names=evolving_names,
@@ -128,8 +128,9 @@ class Stepper(abc.ABC):
       )
     else:
       x_new = tuple()
+      core_transport = state.CoreTransport.zeros(geo)
+      aux_output = state.AuxOutput.zeros(geo)
       error = 0
-      aux_output = calc_coeffs.AuxOutput.build_from_geo(geo)
 
     core_profiles_t_plus_dt = update_state.update_core_profiles(
         core_profiles_t_plus_dt,
@@ -140,8 +141,9 @@ class Stepper(abc.ABC):
 
     return (
         core_profiles_t_plus_dt,
-        error,
+        core_transport,
         aux_output,
+        error,
     )
 
   def _x_new(
@@ -155,7 +157,12 @@ class Stepper(abc.ABC):
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
+  ) -> tuple[
+      tuple[fvm.CellVariable, ...],
+      state.CoreTransport,
+      state.AuxOutput,
+      int,
+  ]:
     """Calculates new values of the changing variables.
 
     Subclasses must either implement `_x_new` so that `Stepper.__call__`
@@ -182,9 +189,12 @@ class Stepper(abc.ABC):
 
     Returns:
       x_new: The values of the evolving variables at time t + dt.
-      error: 0 if step was successful, 1 if residual or loss under tolerance
+      core_transport: Transport coefficients for time t+dt.
       aux_output: Extra outputs useful to inspect other values while the
         coeffs are computed.
+      error: 0 if step was successful (linear step, or nonlinear step with
+        residual or loss under tolerance at exit), or 1 if unsuccessful,
+        indicating that a rerun with a smaller timestep is needed
     """
 
     raise NotImplementedError(

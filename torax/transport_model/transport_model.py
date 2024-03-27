@@ -18,49 +18,12 @@ The transport model calculates various coefficients related to particle
 transport.
 """
 import abc
-from typing import Optional
-import chex
 import jax
 from jax import numpy as jnp
 from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import state
-
-
-@chex.dataclass
-class TransportCoeffs:
-  """Transport coefficients.
-
-  Attributes:
-    chi_face_ion: chi for ion temperature, on faces.
-    chi_face_el: chi for electron temperature, on faces.
-    d_face_el: Diffusivity of electron density, on faces.
-    v_face_el: Convection strength of electron density, on faces.
-  """
-
-  chi_face_ion: Optional[jax.Array]
-  chi_face_el: Optional[jax.Array]
-  d_face_el: Optional[jax.Array]
-  v_face_el: Optional[jax.Array]
-
-  def chi_max(
-      self,
-      geo: geometry.Geometry,
-  ) -> jnp.ndarray:
-    """Calculates the maximum value of chi.
-
-    Args:
-      geo: Geometry of the torus.
-
-    Returns:
-      chi_max: Maximum value of chi.
-    """
-
-    return jnp.maximum(
-        jnp.max(self.chi_face_ion * geo.g1_over_vpr2_face),
-        jnp.max(self.chi_face_el * geo.g1_over_vpr2_face),
-    )
 
 
 class TransportModel(abc.ABC):
@@ -71,7 +34,7 @@ class TransportModel(abc.ABC):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> TransportCoeffs:
+  ) -> state.CoreTransport:
     return self.smooth_coeffs(
         geo,
         dynamic_config_slice,
@@ -84,21 +47,22 @@ class TransportModel(abc.ABC):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> TransportCoeffs:
+  ) -> state.CoreTransport:
     pass
 
   def smooth_coeffs(
       self,
       geo: geometry.Geometry,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
-      transport_coeffs: TransportCoeffs,
-  ) -> TransportCoeffs:
+      transport_coeffs: state.CoreTransport,
+  ) -> state.CoreTransport:
     """Gaussian smoothing of transport coefficients."""
     smoothing_matrix = build_smoothing_matrix(geo, dynamic_config_slice)
+    smoothed_coeffs = {}
     for coeff in transport_coeffs:
       smoothed_coeff = jnp.dot(smoothing_matrix, transport_coeffs[coeff])
-      setattr(transport_coeffs, coeff, smoothed_coeff)
-    return transport_coeffs
+      smoothed_coeffs[coeff] = smoothed_coeff
+    return state.CoreTransport(**smoothed_coeffs)
 
 
 def build_smoothing_matrix(

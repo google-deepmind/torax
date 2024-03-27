@@ -24,7 +24,6 @@ from absl import logging
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import geometry
@@ -205,7 +204,12 @@ def newton_raphson_solve_block(
       )
       init_val = (
           x_new_init,
-          calc_coeffs.AuxOutput.build_from_geo(geo),
+          # Initialized here with correct shapes to help with tracing in case
+          # this is jitted.
+          (
+              state_module.CoreTransport.zeros(geo),
+              state_module.AuxOutput.zeros(geo),
+          ),
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
           init_val=init_val,

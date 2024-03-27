@@ -18,7 +18,6 @@ import abc
 from typing import Type
 
 import jax
-from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import geometry
@@ -66,7 +65,12 @@ class NonlinearThetaMethod(stepper.Stepper):
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
+  ) -> tuple[
+      tuple[fvm.CellVariable, ...],
+      state.CoreTransport,
+      state.AuxOutput,
+      int,
+  ]:
     """See Stepper._x_new docstring."""
 
     coeffs_callback = self.callback_class(
@@ -78,7 +82,7 @@ class NonlinearThetaMethod(stepper.Stepper):
         explicit_source_profiles=explicit_source_profiles,
         sources=self.sources,
     )
-    x_new, error, aux_output = self._x_new_helper(
+    x_new, core_transport, aux_output, error = self._x_new_helper(
         dynamic_config_slice_t=dynamic_config_slice_t,
         dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
         static_config_slice=static_config_slice,
@@ -91,7 +95,7 @@ class NonlinearThetaMethod(stepper.Stepper):
         coeffs_callback=coeffs_callback,
     )
 
-    return x_new, error, aux_output
+    return x_new, core_transport, aux_output, error
 
   @abc.abstractmethod
   def _x_new_helper(
@@ -106,7 +110,12 @@ class NonlinearThetaMethod(stepper.Stepper):
       explicit_source_profiles: source_profiles.SourceProfiles,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
-  ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
+  ) -> tuple[
+      tuple[fvm.CellVariable, ...],
+      state.CoreTransport,
+      state.AuxOutput,
+      int,
+  ]:
     """Final implementation of x_new after callback has been created etc."""
     ...
 
@@ -154,25 +163,34 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       explicit_source_profiles: source_profiles.SourceProfiles,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
-  ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
+  ) -> tuple[
+      tuple[fvm.CellVariable, ...],
+      state.CoreTransport,
+      state.AuxOutput,
+      int,
+  ]:
     """Final implementation of x_new after callback has been created etc."""
-    return optimizer_solve_block.optimizer_solve_block(
-        x_old=tuple([core_profiles_t[name] for name in evolving_names]),
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        evolving_names=evolving_names,
-        dt=dt,
-        coeffs_callback=coeffs_callback,
-        dynamic_config_slice_t=dynamic_config_slice_t,
-        dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-        static_config_slice=static_config_slice,
-        geo=geo,
-        transport_model=self.transport_model,
-        sources=self.sources,
-        explicit_source_profiles=explicit_source_profiles,
-        initial_guess_mode=self.initial_guess_mode,
-        maxiter=self.maxiter,
-        tol=self.tol,
+    # Unpack the outputs of the optimizer_solve_block.
+    x_new, error, (core_transport, aux_outputs) = (
+        optimizer_solve_block.optimizer_solve_block(
+            x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+            evolving_names=evolving_names,
+            dt=dt,
+            coeffs_callback=coeffs_callback,
+            dynamic_config_slice_t=dynamic_config_slice_t,
+            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+            static_config_slice=static_config_slice,
+            geo=geo,
+            transport_model=self.transport_model,
+            sources=self.sources,
+            explicit_source_profiles=explicit_source_profiles,
+            initial_guess_mode=self.initial_guess_mode,
+            maxiter=self.maxiter,
+            tol=self.tol,
+        )
     )
+    return x_new, core_transport, aux_outputs, error
 
   def _artificially_linear(self) -> bool:
     """If True, the Stepper has been hacked to be linear in practice."""
@@ -227,31 +245,40 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       explicit_source_profiles: source_profiles.SourceProfiles,
       dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
-  ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
+  ) -> tuple[
+      tuple[fvm.CellVariable, ...],
+      state.CoreTransport,
+      state.AuxOutput,
+      int,
+  ]:
     """Final implementation of x_new after callback has been created etc."""
     # disable error checking in residual, since Newton-Raphson routine has
     # error checking based on result of each linear step
 
-    return newton_raphson_solve_block.newton_raphson_solve_block(
-        x_old=tuple([core_profiles_t[name] for name in evolving_names]),
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        evolving_names=evolving_names,
-        dt=dt,
-        coeffs_callback=coeffs_callback,
-        dynamic_config_slice_t=dynamic_config_slice_t,
-        dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-        static_config_slice=static_config_slice,
-        geo=geo,
-        transport_model=self.transport_model,
-        sources=self.sources,
-        explicit_source_profiles=explicit_source_profiles,
-        log_iterations=dynamic_config_slice_t.solver.log_iterations,
-        initial_guess_mode=self.initial_guess_mode,
-        maxiter=self.maxiter,
-        tol=self.tol,
-        coarse_tol=self.coarse_tol,
-        delta_reduction_factor=self.delta_reduction_factor,
+    # Unpack the outputs of the optimizer_solve_block.
+    x_new, error, (core_transport, aux_outputs) = (
+        newton_raphson_solve_block.newton_raphson_solve_block(
+            x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+            evolving_names=evolving_names,
+            dt=dt,
+            coeffs_callback=coeffs_callback,
+            dynamic_config_slice_t=dynamic_config_slice_t,
+            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+            static_config_slice=static_config_slice,
+            geo=geo,
+            transport_model=self.transport_model,
+            sources=self.sources,
+            explicit_source_profiles=explicit_source_profiles,
+            log_iterations=dynamic_config_slice_t.solver.log_iterations,
+            initial_guess_mode=self.initial_guess_mode,
+            maxiter=self.maxiter,
+            tol=self.tol,
+            coarse_tol=self.coarse_tol,
+            delta_reduction_factor=self.delta_reduction_factor,
+        )
     )
+    return x_new, core_transport, aux_outputs, error
 
   def _artificially_linear(self) -> bool:
     """If True, the Stepper has been hacked to be linear in practice."""

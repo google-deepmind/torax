@@ -145,6 +145,57 @@ class CoreProfiles:
     return id(self)
 
 
+@chex.dataclass(frozen=True, eq=False)
+class CoreTransport:
+  """Coefficients for the plasma transport.
+
+  These coefficients are computed by TORAX transport models. See the
+  transport_model/ folder for more info.
+
+  NOTE: The naming of this class is inspired by the IMAS `core_transport` IDS,
+  but it's schema is not a 1:1 mapping to that IDS.
+
+  Attributes:
+    chi_face_ion: Ion heat conductivity, on the face grid.
+    chi_face_el: Electron heat conductivity, on the face grid.
+    d_face_el: Diffusivity of electron density, on the face grid.
+    v_face_el: Convection strength of electron density, on the face grid.
+  """
+
+  chi_face_ion: jax.Array
+  chi_face_el: jax.Array
+  d_face_el: jax.Array
+  v_face_el: jax.Array
+
+  def chi_max(
+      self,
+      geo: geometry.Geometry,
+  ) -> jnp.ndarray:
+    """Calculates the maximum value of chi.
+
+    Args:
+      geo: Geometry of the torus.
+
+    Returns:
+      chi_max: Maximum value of chi.
+    """
+
+    return jnp.maximum(
+        jnp.max(self.chi_face_ion * geo.g1_over_vpr2_face),
+        jnp.max(self.chi_face_el * geo.g1_over_vpr2_face),
+    )
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> CoreTransport:
+    """Returns a CoreTransport with all zeros. Useful for initializing."""
+    return cls(
+        chi_face_ion=jnp.zeros(geo.r_face.shape),
+        chi_face_el=jnp.zeros(geo.r_face.shape),
+        d_face_el=jnp.zeros(geo.r_face.shape),
+        v_face_el=jnp.zeros(geo.r_face.shape),
+    )
+
+
 @chex.dataclass
 class ToraxSimState:
   """Full simulator state.
@@ -158,19 +209,29 @@ class ToraxSimState:
   Attributes:
     t: time coordinate
     dt: timestep interval
+    core_profiles: Core plasma profiles at time t.
+    core_transport: Core plasma transport coefficients computed at time t.
+    aux_output: Other outputs based on the state at time t.
     stepper_iterations: number of stepper iterations carried out in previous
       step, i.e. the number of times dt was reduced when using the adaptive dt
       method.
-    core_profiles: Core plasma profiles at time t.
     time_step_calculator_state: the state of the TimeStepper
     stepper_error_state: 0 for successful convergence of the PDE stepper, 1 for
       unsuccessful convergence, leading to recalculation at reduced timestep
   """
 
+  # Time variables.
   t: jax.Array
   dt: jax.Array
-  stepper_iterations: int
+
+  # Profiles evolved or calculated by the simulation.
   core_profiles: CoreProfiles
+  core_transport: CoreTransport
+  aux_output: AuxOutput
+
+  # Other "side" states used for logging and feeding to other components of
+  # TORAX.
+  stepper_iterations: int
   time_step_calculator_state: Any
   stepper_error_state: int
 
@@ -180,8 +241,6 @@ class AuxOutput:
   """Auxiliary output for each simulation step.
 
   Attributes:
-    chi_face_ion: Extra output for inspecting the ion chi on the face grid.
-    chi_face_el: Extra output for inspecting the electron chi on the face grid.
     source_ion: Extra output for inspecting the generic external ion source on
       the cell grid.
     source_el: Extra output for inspecting the generic external electron source
@@ -196,8 +255,6 @@ class AuxOutput:
   """
 
   # pylint: disable=invalid-name
-  chi_face_ion: jax.Array
-  chi_face_el: jax.Array
   source_ion: jax.Array
   source_el: jax.Array
   Pfus_i: jax.Array
@@ -207,11 +264,9 @@ class AuxOutput:
   # pylint: enable=invalid-name
 
   @classmethod
-  def zero_output(cls, geo: geometry.Geometry) -> "AuxOutput":
+  def zeros(cls, geo: geometry.Geometry) -> AuxOutput:
     """Returns an AuxOutput with all zeros. Useful for initializing."""
     return cls(
-        chi_face_ion=jnp.zeros(geo.r_face.shape),
-        chi_face_el=jnp.zeros(geo.r_face.shape),
         source_ion=jnp.zeros(geo.r.shape),
         source_el=jnp.zeros(geo.r.shape),
         Pfus_i=jnp.zeros(geo.r.shape),
@@ -221,41 +276,22 @@ class AuxOutput:
     )
 
 
-@chex.dataclass
-class ToraxOutput:
-  """Full simulator output state.
-
-  The simulation stepping in sim.py evolves the "mesh state" which includes all
-  the attributes the simulation is advancing. But beyond those attributes, there
-  are stateful elements which need to be tracked and outputted each step.
-  This class includes both the mesh state and these additional elements.
-
-  Attributes:
-    state: Full simulator state for this time step.
-    aux: Auxiliary outputs for this time step.
-  """
-
-  # TODO( b/320292127): Rename and rebundle state variables.
-
-  state: ToraxSimState
-  aux: AuxOutput
-
-
-def build_history_from_outputs(
-    torax_outputs: tuple[ToraxOutput, ...],
-) -> tuple[CoreProfiles, AuxOutput]:
-  core_profiles = [
-      out.state.core_profiles.history_elem() for out in torax_outputs
-  ]
-  aux = [out.aux for out in torax_outputs]
+def build_history_from_states(
+    states: tuple[ToraxSimState, ...],
+) -> tuple[CoreProfiles, CoreTransport, AuxOutput]:
+  core_profiles = [state.core_profiles.history_elem() for state in states]
+  transport = [state.core_transport for state in states]
+  aux = [state.aux_output for state in states]
   stack = lambda *ys: jnp.stack(ys)
-  return jax.tree_util.tree_map(stack, *core_profiles), jax.tree_util.tree_map(
-      stack, *aux
+  return (
+      jax.tree_util.tree_map(stack, *core_profiles),
+      jax.tree_util.tree_map(stack, *transport),
+      jax.tree_util.tree_map(stack, *aux),
   )
 
 
-def build_time_history_from_outputs(
-    torax_outputs: tuple[ToraxOutput, ...],
+def build_time_history_from_states(
+    states: tuple[ToraxSimState, ...],
 ) -> jnp.ndarray:
-  times = [out.state.t for out in torax_outputs]
+  times = [state.t for state in states]
   return jnp.array(times)

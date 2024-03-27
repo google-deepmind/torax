@@ -19,7 +19,6 @@ from __future__ import annotations
 import dataclasses
 import functools
 
-import chex
 import jax
 import jax.numpy as jnp
 from torax import config_slice
@@ -32,48 +31,6 @@ from torax.fvm import block_1d_coeffs
 from torax.sources import qei_source as qei_source_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
-
-
-def _default_side_output(shape: tuple[int, ...]):
-  return jnp.zeros(shape)
-
-
-@chex.dataclass
-class AuxOutput:
-  """Auxiliary outputs while calculating Block1DCoeffs.
-
-  During each simulation step (and potentially multiple times per simulation
-  step), the coeffs will be calculated by calc_coeffs(). While that function's
-  main output is the Block1DCoeffs, calc_coeffs() also outputs this object,
-  which provides a hook to include any extra auxiliary outputs useful for
-  inspecting any interim values while the coeffs are calculated.
-
-  If extending TORAX, feel free to add more attributes to this class.
-  """
-
-  # pylint: disable=invalid-name
-  chi_face_ion: jax.Array
-  chi_face_el: jax.Array
-  source_ion: jax.Array
-  source_el: jax.Array
-  Pfus_i: jax.Array
-  Pfus_e: jax.Array
-  Pohm: jax.Array
-  Qei: jax.Array
-  # pylint: enable=invalid-name
-
-  @classmethod
-  def build_from_geo(cls, geo: geometry.Geometry) -> 'AuxOutput':
-    return cls(
-        chi_face_ion=_default_side_output(geo.r_face.shape),
-        chi_face_el=_default_side_output(geo.r_face.shape),
-        source_ion=_default_side_output(geo.r.shape),
-        source_el=_default_side_output(geo.r.shape),
-        Pfus_i=_default_side_output(geo.r.shape),
-        Pfus_e=_default_side_output(geo.r.shape),
-        Pohm=_default_side_output(geo.r.shape),
-        Qei=_default_side_output(geo.r.shape),
-    )
 
 
 def calculate_pereverzev_flux(
@@ -294,7 +251,7 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
   #  Initialize AuxOutput object with array sizes taken from geo
-  aux_outputs = AuxOutput.build_from_geo(geo)
+  aux_outputs = state.AuxOutput.zeros(geo)
 
   # Boolean mask for enforcing internal temperature boundary conditions to
   # model the pedestal.
@@ -500,8 +457,16 @@ def _calc_coeffs_full(
       v_face_el,
   )
 
-  aux_outputs.chi_face_ion = chi_face_ion
-  aux_outputs.chi_face_el = chi_face_el
+  # Update the transport coeffs with the new profiles.
+  # This version of the core transport is returned to the caller to help with
+  # inspection.
+  transport_coeffs = dataclasses.replace(
+      transport_coeffs,
+      chi_face_ion=chi_face_ion,
+      chi_face_el=chi_face_el,
+      d_face_el=d_face_el,
+      v_face_el=v_face_el,
+  )
 
   # entire coefficient preceding dT/dr in heat transport equations
   full_chi_face_ion = (
@@ -739,7 +704,7 @@ def _calc_coeffs_full(
       v_face=v_face,
       source_mat_cell=source_mat_cell,
       source_cell=source_cell,
-      auxiliary_outputs=aux_outputs,
+      auxiliary_outputs=(transport_coeffs, aux_outputs),
   )
 
   return coeffs
@@ -783,7 +748,7 @@ def _populate_aux_outputs_with_ion_el_heat_sources(
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     qei: qei_source_lib.QeiInfo,
     qei_input_core_profiles: state.CoreProfiles,
-    aux_outputs: AuxOutput,
+    aux_outputs: state.AuxOutput,
 ) -> None:
   """Observes the values of certain ion and electron heat sources."""
   # For generic and fusion, only one of the implicit or explicit will be

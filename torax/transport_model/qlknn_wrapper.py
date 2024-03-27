@@ -166,7 +166,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> transport_model.TransportCoeffs:
+  ) -> state.CoreTransport:
     """Calculates several transport coefficients simultaneously.
 
     Args:
@@ -213,7 +213,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
       runtime_config_inputs: _QLKNNRuntimeConfigInputs,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> transport_model.TransportCoeffs:
+  ) -> state.CoreTransport:
     """Actual implementation of `__call__`.
 
     `__call__` itself is just a cache dispatch wrapper.
@@ -517,7 +517,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
     # pylint: enable=invalid-name
 
-    return transport_model.TransportCoeffs(
+    return state.CoreTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,
         d_face_el=d_face_el,

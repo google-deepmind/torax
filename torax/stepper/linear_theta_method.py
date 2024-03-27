@@ -16,7 +16,6 @@
 
 from typing import Type
 import jax
-from torax import calc_coeffs
 from torax import config_slice
 from torax import fvm
 from torax import geometry
@@ -51,7 +50,12 @@ class LinearThetaMethod(stepper_lib.Stepper):
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[tuple[fvm.CellVariable, ...], int, calc_coeffs.AuxOutput]:
+  ) -> tuple[
+      tuple[fvm.CellVariable, ...],
+      state.CoreTransport,
+      state.AuxOutput,
+      int,
+  ]:
     """See Stepper._x_new docstring."""
 
     x_old = tuple([core_profiles_t[name] for name in evolving_names])
@@ -81,14 +85,17 @@ class LinearThetaMethod(stepper_lib.Stepper):
     # init_val is the initialization for the predictor_corrector loop.
     # Neither value impacts the final result, but needs to be the correct
     # type. x_new initialization (index 0) input is x_old for correct typing.
-    # auxiliary_outputs (index 1) is an AuxOutput dataclass with correct array
-    # sizes for tracing
+    # auxiliary_outputs (index 1) is a tuple of dataclasses with correct array
+    # sizes for tracing.
     init_val = (
         x_new_init,
-        calc_coeffs.AuxOutput.build_from_geo(geo),
+        (
+            state.CoreTransport.zeros(geo),
+            state.AuxOutput.zeros(geo),
+        ),
     )
 
-    x_new, auxiliary_outputs = (
+    x_new, (core_transport, auxiliary_outputs) = (
         predictor_corrector_method.predictor_corrector_method(
             init_val=init_val,
             x_old=x_old,
@@ -102,4 +109,4 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
     error = 0  # linear method always works
 
-    return x_new, error, auxiliary_outputs
+    return x_new, core_transport, auxiliary_outputs, error

@@ -25,7 +25,6 @@ from jax import numpy as jnp
 from torax import config_slice
 from torax import geometry
 from torax import state as state_module
-from torax.transport_model import transport_model as transport_model_lib
 
 # Subclasses override with their own state type
 State = TypeVar('State')
@@ -65,7 +64,7 @@ class TimeStepCalculator(Protocol[State]):
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
-      transport_coeffs: transport_model_lib.TransportCoeffs,
+      core_transport: state_module.CoreTransport,
   ) -> tuple[jnp.ndarray, State]:
     """Returns the next time step duration and internal time stepper state.
 
@@ -75,5 +74,5 @@ class TimeStepCalculator(Protocol[State]):
       geo: Geometry for the Tokamak.
       core_profiles: Core plasma profiles in the tokamak.
       time_step_calculator_state: Internal state of the time stepper.
-      transport_coeffs: Transport coefficients.
+      core_transport: Transport coefficients.
     """
