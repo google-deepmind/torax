@@ -49,10 +49,8 @@ import xarray as xr
 
 from absl import logging
 import chex
-import h5py
 import jax
 from jax import numpy as jnp
-import equinox as eqx
 from matplotlib import pyplot as plt
 import torax
 from torax import config_slice
