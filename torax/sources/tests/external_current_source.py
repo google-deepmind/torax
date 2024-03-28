@@ -48,7 +48,6 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
     # Must be circular for jext_hires call.
     geo = geometry.build_circular_geometry(config)
-    assert isinstance(geo, geometry.CircularGeometry)
     self.assertIsNotNone(
         source.get_value(
             source_type=dynamic_slice.sources[source.name].source_type,

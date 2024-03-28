@@ -49,8 +49,9 @@ class QeiSourceTest(test_lib.SourceTestCase):
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
-        config,
-        geo,
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=config_slice.build_static_config_slice(config),
+        geo=geo,
         source_models=source_models_lib.SourceModels(qei_source=source),
     )
     assert isinstance(source, qei_source.QeiSource)  # required for pytype.
@@ -70,8 +71,9 @@ class QeiSourceTest(test_lib.SourceTestCase):
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
-        config,
-        geo,
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=config_slice.build_static_config_slice(config),
+        geo=geo,
         source_models=source_models_lib.SourceModels(qei_source=source),
     )
     dynamic_slice = config_slice.build_dynamic_config_slice(config)

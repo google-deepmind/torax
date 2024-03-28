@@ -46,9 +46,11 @@ class TransportSmoothingTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry(config)
     source_models = source_models_lib.SourceModels()
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    static_config_slice = config_slice.build_static_config_slice(config)
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     input_state = sim_lib.get_initial_state(
-        config=config,
+        dynamic_config_slice=dynamic_config_slice,
+        static_config_slice=static_config_slice,
         geo=geo,
         time_step_calculator=time_calculator,
         source_models=source_models,

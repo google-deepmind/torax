@@ -71,17 +71,18 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         time_calculator,
         transport_model=FakeTransportModel(),
     )
-    input_state = sim_lib.get_initial_state(
-        config=config,
-        geo=geo,
-        time_step_calculator=time_calculator,
-        source_models=source_models,
-    )
     dynamic_config_slice_provider = (
         config_slice.TimeDependentDynamicConfigSliceProvider(config)
     )
     initial_dynamic_config_slice = dynamic_config_slice_provider(
         config.t_initial
+    )
+    input_state = sim_lib.get_initial_state(
+        dynamic_config_slice=initial_dynamic_config_slice,
+        static_config_slice=config_slice.build_static_config_slice(config),
+        geo=geo,
+        time_step_calculator=time_calculator,
+        source_models=source_models,
     )
     output_state = sim_step_fn(
         input_state=input_state,

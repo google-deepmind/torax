@@ -37,7 +37,10 @@ class QlknnWrapperTest(parameterized.TestCase):
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
-    core_profiles = initial_states.initial_core_profiles(config, geo)
+    static_config_slice = config_slice.build_static_config_slice(config)
+    core_profiles = initial_states.initial_core_profiles(
+        dynamic_config_slice, static_config_slice, geo
+    )
     qlknn_jitted(dynamic_config_slice, geo, core_profiles)
     # The call should be cached. If there was an error, the cache size would be
     # 0.

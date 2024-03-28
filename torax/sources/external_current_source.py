@@ -70,7 +70,7 @@ def calculate_jext_face(
 
 
 def calculate_jext_hires(
-    geo: geometry.CircularGeometry,
+    geo: geometry.Geometry,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
 ) -> jnp.ndarray:
   """Calculates the external current density profile along the hires grid.
@@ -147,7 +147,7 @@ class ExternalCurrentSource(source.Source):
       self,
       source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
-      geo: geometry.CircularGeometry,
+      geo: geometry.Geometry,
   ) -> jnp.ndarray:
     """Return the external current density profile along the hires cell grid."""
     source_type = self.check_source_type(source_type)

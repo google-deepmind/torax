@@ -155,9 +155,9 @@ def calc_q_from_jtot_psi(
     geo: Magnetic geometry.
     jtot_face: Total toroidal current density on face grid.
     psi: Poloidal flux.
-    Rmaj: Major radius (R) in meters.
-    q_correction_factor: correction factor such that q(r=a) = 3 for standard
-      ITER parameters (ad-hoc fix for non-physical circular geometry model)
+    Rmaj: major radius (R) in meters.
+    q_correction_factor: ad-hoc fix for non-physical circular geometry model
+      such that q(r=a) = 3 for standard ITER parameters;
 
   Returns:
     q_face: q at faces.

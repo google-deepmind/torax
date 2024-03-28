@@ -19,6 +19,7 @@ from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax import config_slice
 from torax import constants
 from torax import initial_states
 from torax.sources import fusion_heat_source
@@ -61,8 +62,9 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     nref = config.nref
 
     core_profiles = initial_states.initial_core_profiles(
-        config,
-        geo,
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=config_slice.build_static_config_slice(config),
+        geo=geo,
         source_models=source_models_lib.SourceModels(),
     )
 

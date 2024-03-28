@@ -43,6 +43,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     config = references.config
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = references.geo
 
     # Dummy value for jtot for unit testing purposes.
@@ -52,8 +53,8 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         geo,
         jtot,
         references.psi,
-        config.Rmaj,
-        config.q_correction_factor,
+        dynamic_config_slice.Rmaj,
+        dynamic_config_slice.q_correction_factor,
     )
 
     # Make ground truth
@@ -94,28 +95,31 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
       dict(references_getter=torax_refs.chease_references_Ip_from_config),
   ])
-  def test_initial_psi(
+  def test_update_psi_from_j(
       self, references_getter: Callable[[], torax_refs.References]
   ):
-    """Compare `initial_psi` function to a reference implementation."""
+    """Compare `update_psi_from_j` function to a reference implementation."""
     references = references_getter()
 
     config = references.config
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = references.geo
 
+    # pylint: disable=protected-access
     if isinstance(geo, geometry.CircularGeometry):
-      currents = initial_states.initial_currents(
+      currents = initial_states._prescribe_currents_no_bootstrap(
           dynamic_config_slice,
           geo,
-          bootstrap=False,
           source_models=source_models_lib.SourceModels(),
       )
-      psi = initial_states.initial_psi(config, geo, currents.jtot_hires)
+      psi = initial_states._update_psi_from_j(
+          dynamic_config_slice, geo, currents
+      ).value
     elif isinstance(geo, geometry.CHEASEGeometry):
       psi = geo.psi_from_chease_Ip
     else:
       raise ValueError(f'Unknown geometry type: {geo.geometry_type}')
+    # pylint: enable=protected-access
 
     np.testing.assert_allclose(psi, references.psi.value)
 

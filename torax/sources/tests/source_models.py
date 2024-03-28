@@ -47,7 +47,10 @@ class SourceProfilesTest(parameterized.TestCase):
     geo = torax.build_circular_geometry(config)
     source_models = source_models_lib.SourceModels()
     core_profiles = initial_states.initial_core_profiles(
-        config, geo, source_models
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=config_slice.build_static_config_slice(config),
+        geo=geo,
+        source_models=source_models,
     )
     _ = source_models_lib.build_source_profiles(
         source_models, dynamic_config_slice, geo, core_profiles, explicit=True
@@ -148,7 +151,10 @@ class SourceProfilesTest(parameterized.TestCase):
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = torax.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
-        config, geo, source_models
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=config_slice.build_static_config_slice(config),
+        geo=geo,
+        source_models=source_models,
     )
 
     def compute_and_sum_profiles():

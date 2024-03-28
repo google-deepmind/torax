@@ -105,12 +105,16 @@ class DynamicConfigSlice:
   nbar: float
   # Toggle units of nbar
   nbar_is_fGW: bool
+  # Peaking factor of density profile.
+  # If density evolves with PDE (dens_eq=True), then is initial condition
+  npeak: float
 
-  # temperature boundary conditions
-  # boundary condition ion temperature for r=Rmin
+  # Temperature boundary conditions at r=Rmin
   Ti_bound_right: float
-  # boundary condition electron temperature for r=Rmin
   Te_bound_right: float
+  # Prescribed values for r=0. When evolving, then is initial condition.
+  Te_bound_left: float
+  Ti_bound_left: float
   # density boundary condition for r=Rmin, units of nref
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
@@ -154,6 +158,9 @@ class DynamicConfigSlice:
   # peaking factor of prescribed (initial) "Ohmic" current:
   # johm = j0*(1 - r^2/a^2)^nu
   nu: float
+  # toggles if "Ohmic" current is treated as total current upon initialization,
+  # or if non-inductive current should be included in initial jtot calculation
+  initial_j_is_total_current: bool
   # toggles if external current is provided absolutely or as a fraction of Ip
   use_absolute_jext: bool
   # total "external" current in MA. Used if use_absolute_jext=True.

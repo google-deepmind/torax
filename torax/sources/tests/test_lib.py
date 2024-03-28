@@ -104,7 +104,8 @@ class SingleProfileSourceTestCase(SourceTestCase):
       source_models = source_models_lib.SourceModels()
     geo = geometry.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
-        config=config,
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
         source_models=source_models,
     )
@@ -122,7 +123,8 @@ class SingleProfileSourceTestCase(SourceTestCase):
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
-        config=config,
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
         # only need default sources here.
         source_models=source_models_lib.SourceModels(),
@@ -156,7 +158,8 @@ class IonElSourceTestCase(SourceTestCase):
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
-        config=config,
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
         # only need default sources here.
         source_models=source_models_lib.SourceModels(),
@@ -175,7 +178,8 @@ class IonElSourceTestCase(SourceTestCase):
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
-        config=config,
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
         # only need default sources here.
         source_models=source_models_lib.SourceModels(),

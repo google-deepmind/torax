@@ -195,7 +195,8 @@ def update_sim(
   # the SimulationStepFn.
   static_config_slice = config_slice.build_static_config_slice(config)
   initial_state = sim_lib.get_initial_state(
-      config=config,
+      dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+      static_config_slice=static_config_slice,
       geo=geo,
       time_step_calculator=sim.time_step_calculator,
       source_models=sim.source_models,

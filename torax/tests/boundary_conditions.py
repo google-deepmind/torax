@@ -43,7 +43,13 @@ class BoundaryConditionsTest(absltest.TestCase):
     )
 
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(config, geo)
+    static_config_slice = config_slice.build_static_config_slice(config)
+    initial_dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config
+    )
+    core_profiles = initial_states.initial_core_profiles(
+        initial_dynamic_config_slice, static_config_slice, geo
+    )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config, 0.5)
 
     bc = boundary_conditions.compute_boundary_conditions(

@@ -221,19 +221,18 @@ class Config:
   nbar: float = 0.85
   # Toggle units of nbar
   nbar_is_fGW: bool = True
-  # Peaking factor of density profile
-  npeak: float = 1.5
+  # Peaking factor of density profile.
+  # If density evolves with PDE (dens_eq=True), then is initial condition
+  npeak: TimeDependentField = 1.5
 
-  # temperature boundary conditions
-  # initial condition ion temperature for r=0
-  Ti_bound_left: float = 15.0
-  # boundary condition ion temperature for r=Rmin
+  # Temperature boundary conditions at r=Rmin
   Ti_bound_right: TimeDependentField = 1.0
-  # initial condition electron temperature for r=0
-  Te_bound_left: float = 15.0
-  # boundary condition electron temperature for r=Rmin
   Te_bound_right: TimeDependentField = 1.0
-  # density boundary condition for r=Rmin, units of nref
+  # Prescribed values for r=0. When evolving, then is initial condition.
+  Te_bound_left: TimeDependentField = 15.0
+  Ti_bound_left: TimeDependentField = 15.0
+
+  # Density boundary condition for r=Rmin, units of nref
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
   ne_bound_right: TimeDependentField = 0.5
@@ -275,6 +274,9 @@ class Config:
   # current profiles (broad "Ohmic" + localized "external" currents)
   # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
   nu: float = 3.0
+  # toggles if "Ohmic" current is treated as total current upon initialization,
+  # or if non-inductive current should be included in initial jtot calculation
+  initial_j_is_total_current: bool = False
   # toggles if external current is provided absolutely or as a fraction of Ip
   use_absolute_jext: bool = False
   # total "external" current in MA. Used if use_absolute_jext=True.

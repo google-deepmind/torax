@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import config as config_lib
+from torax import config_slice
 from torax import geometry
 from torax import initial_states
 from torax import state
@@ -42,7 +43,11 @@ class StateTest(torax_refs.ReferenceValueTest):
       initial_counter = jnp.array(0)
 
       def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
-        core_profiles = initial_states.initial_core_profiles(config, geo)
+        core_profiles = initial_states.initial_core_profiles(
+            config_slice.build_dynamic_config_slice(config),
+            config_slice.build_static_config_slice(config),
+            geo,
+        )
         # Make one variable in the history track the value of the counter
         value = jnp.ones_like(core_profiles.temp_ion.value) * counter
         core_profiles = config_lib.recursive_replace(
@@ -77,7 +82,8 @@ class StateTest(torax_refs.ReferenceValueTest):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
     basic_core_profiles = initial_states.initial_core_profiles(
-        references.config,
+        config_slice.build_dynamic_config_slice(references.config),
+        config_slice.build_static_config_slice(references.config),
         references.geo,
     )
     basic_core_profiles.sanity_check()
@@ -142,7 +148,9 @@ class InitialStatesTest(parameterized.TestCase):
         ),
     )
     core_profiles = initial_states.initial_core_profiles(
-        config, geometry.build_circular_geometry(config)
+        config_slice.build_dynamic_config_slice(config),
+        config_slice.build_static_config_slice(config),
+        geometry.build_circular_geometry(config),
     )
     np.testing.assert_allclose(
         core_profiles.temp_ion.right_face_constraint, 27.7

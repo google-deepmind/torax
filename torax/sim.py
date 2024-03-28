@@ -409,17 +409,18 @@ class SimulationStepFn:
 
 
 def get_initial_state(
-    config: config_lib.Config,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
     time_step_calculator: ts.TimeStepCalculator,
     source_models: source_models_lib.SourceModels,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = initial_states.initial_core_profiles(
-      config, geo, source_models
+      dynamic_config_slice, static_config_slice, geo, source_models
   )
   return state.ToraxSimState(
-      t=jnp.array(config.t_initial),
+      t=jnp.array(dynamic_config_slice.t_initial),
       dt=jnp.zeros(()),
       core_profiles=initial_core_profiles,
       core_transport=state.CoreTransport.zeros(geo),
@@ -688,8 +689,11 @@ def build_sim_from_config(
     # including d_face_el in max, but should be checked later.
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
 
+  # build dynamic_config_slice at t_initial for initial conditions
+  dynamic_config_slice = dynamic_config_slice_provider(config.t_initial)
   initial_state = get_initial_state(
-      config=config,
+      dynamic_config_slice=dynamic_config_slice,
+      static_config_slice=static_config_slice,
       geo=geo,
       time_step_calculator=time_step_calculator,
       source_models=stepper.source_models,
