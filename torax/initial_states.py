@@ -28,8 +28,8 @@ from torax import math_utils
 from torax import physics
 from torax import state
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
-from torax.sources import bootstrap_current_source
 from torax.sources import external_current_source
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -38,21 +38,26 @@ _trapz = jax.scipy.integrate.trapezoid
 def initial_core_profiles(
     config: config_lib.Config,
     geo: Geometry,
-    sources: source_profiles_lib.Sources | None = None,
+    source_models: source_models_lib.SourceModels | None = None,
 ) -> state.CoreProfiles:
   """Calculates the initial core profiles.
 
   Args:
     config: General configuration parameters.
     geo: Torus geometry.
-    sources: All TORAX sources/sinks. If not provided, uses the default sources.
+    source_models: All TORAX source/sink functions. If not provided, uses the
+      default sources.
 
   Returns:
     Initial core profiles.
   """
   # pylint: disable=invalid-name
 
-  sources = source_profiles_lib.Sources() if sources is None else sources
+  source_models = (
+      source_models_lib.SourceModels()
+      if source_models is None
+      else source_models
+  )
 
   # To set initial values and compute the boundary conditions, we need to handle
   # potentially time-varying inputs from the users.
@@ -170,7 +175,7 @@ def initial_core_profiles(
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         bootstrap=False,
-        sources=sources,
+        source_models=source_models,
     )
 
     psi_constraint = (
@@ -191,7 +196,7 @@ def initial_core_profiles(
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         bootstrap=True,
-        sources=sources,
+        source_models=source_models,
         temp_ion=temp_ion,
         temp_el=temp_el,
         ne=ne,
@@ -242,7 +247,7 @@ def initial_core_profiles(
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         bootstrap=True,
-        sources=sources,
+        source_models=source_models,
         temp_ion=temp_ion,
         temp_el=temp_el,
         ne=ne,
@@ -275,8 +280,8 @@ def initial_core_profiles(
 
   psidot = dataclasses.replace(
       psidot,
-      value=source_profiles_lib.calc_psidot(
-          sources, dynamic_config_slice, geo, core_profiles
+      value=source_models_lib.calc_psidot(
+          source_models, dynamic_config_slice, geo, core_profiles
       ),
   )
 
@@ -297,7 +302,7 @@ def initial_core_profiles(
 def _get_jtot_hires(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
-    bootstrap_profile: bootstrap_current_source.BootstrapCurrentProfile,
+    bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
     Iohm: jax.Array,
     jext_source: external_current_source.ExternalCurrentSource,
 ) -> jax.Array:
@@ -337,7 +342,7 @@ def initial_currents(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
     bootstrap: bool,
-    sources: source_profiles_lib.Sources,
+    source_models: source_models_lib.SourceModels,
     temp_ion: Optional[fvm.CellVariable] = None,
     temp_el: Optional[fvm.CellVariable] = None,
     ne: Optional[fvm.CellVariable] = None,
@@ -352,7 +357,8 @@ def initial_currents(
     dynamic_config_slice: General configuration parameters at t_initial.
     geo: Geometry of the tokamak.
     bootstrap: Whether to include bootstrap current.
-    sources: All TORAX sources/sinks used to compute the initial currents.
+    source_models: All TORAX source/sink functions. If not provided, uses the
+      default sources.
     temp_ion: Ion temperature. Needed only `if bootstrap`. We don't just use a
       `State`, because `initial_currents` must be called to make the Currents
       for the first `State`.
@@ -376,7 +382,7 @@ def initial_currents(
   if bootstrap:
     if any([x is None for x in [temp_ion, temp_el, ne, jtot_face, psi]]):
       raise ValueError('All optional arguments must be specified for bootstrap')
-    bootstrap_profile = sources.j_bootstrap.get_value(
+    bootstrap_profile = source_models.j_bootstrap.get_value(
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         temp_ion=temp_ion,
@@ -393,7 +399,7 @@ def initial_currents(
     # sigma=0 is unphysical, but will be overwritten in subsequent call.
     # TODO(b/323504363): cleanup through separating first call with circular
     # geometry to dedicated method
-    bootstrap_profile = bootstrap_current_source.BootstrapCurrentProfile(
+    bootstrap_profile = source_profiles_lib.BootstrapCurrentProfile(
         sigma=jnp.zeros_like(geo.r),
         j_bootstrap=jnp.zeros_like(geo.r),
         j_bootstrap_face=jnp.zeros_like(geo.r_face),
@@ -421,7 +427,7 @@ def initial_currents(
   # form of external current on face grid
 
   # form of external current on face grid
-  jext_source = sources.jext
+  jext_source = source_models.jext
   jext_face, jext = jext_source.get_value(
       source_type=dynamic_config_slice.sources[jext_source.name].source_type,
       dynamic_config_slice=dynamic_config_slice,

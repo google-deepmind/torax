@@ -31,7 +31,7 @@ from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import array_time_step_calculator
@@ -292,7 +292,7 @@ class SimTestCase(parameterized.TestCase):
 
 def make_frozen_optimizer_stepper(
     transport_model: transport_model_lib.TransportModel,
-    sources: source_profiles.Sources,
+    source_models: source_models_lib.SourceModels,
     config: config_lib.Config,
 ) -> stepper_lib.Stepper:
   """Makes an optimizer stepper with frozen coefficients.
@@ -302,8 +302,8 @@ def make_frozen_optimizer_stepper(
 
   Args:
     transport_model: Transport model.
-    sources: TORAX sources/sinks used to compute profile terms in the state
-      evolution equations.
+    source_models: TORAX sources/sinks used to compute profile terms in the
+      state evolution equations.
     config: General TORAX config.
 
   Returns:
@@ -317,14 +317,14 @@ def make_frozen_optimizer_stepper(
   )
   return nonlinear_theta_method.OptimizerThetaMethod(
       transport_model,
-      sources=sources,
+      source_models=source_models,
       callback_class=callback_builder,  # pytype: disable=wrong-arg-types
   )
 
 
 def make_frozen_newton_raphson_stepper(
     transport_model: transport_model_lib.TransportModel,
-    sources: source_profiles.Sources,
+    source_models: source_models_lib.SourceModels,
     config: config_lib.Config,
 ) -> stepper_lib.Stepper:
   """Makes a Newton Raphson stepper with frozen coefficients.
@@ -335,8 +335,8 @@ def make_frozen_newton_raphson_stepper(
 
   Args:
     transport_model: Transport model.
-    sources: TORAX sources/sinks used to compute profile terms in the state
-      evolution equations.
+    source_models: TORAX sources/sinks used to compute profile terms in the
+      state evolution equations.
     config: General TORAX config.
 
   Returns:
@@ -351,6 +351,6 @@ def make_frozen_newton_raphson_stepper(
   functools.partial(sim_lib.FrozenCoeffsCallback, config=config)
   return nonlinear_theta_method.NewtonRaphsonThetaMethod(
       transport_model,
-      sources=sources,
+      source_models=source_models,
       callback_class=callback_builder,  # pytype: disable=wrong-arg-types
   )

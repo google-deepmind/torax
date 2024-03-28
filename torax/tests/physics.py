@@ -24,7 +24,7 @@ from torax import constants
 from torax import geometry
 from torax import initial_states
 from torax import physics
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
 
 
@@ -109,7 +109,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
           dynamic_config_slice,
           geo,
           bootstrap=False,
-          sources=source_profiles.Sources(),
+          source_models=source_models_lib.SourceModels(),
       )
       psi = initial_states.initial_psi(config, geo, currents.jtot_hires)
     elif isinstance(geo, geometry.CHEASEGeometry):

@@ -24,7 +24,7 @@ from torax import initial_states
 from torax.sources import fusion_heat_source
 from torax.sources import source
 from torax.sources import source_config
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 from torax.tests.test_lib import torax_refs
 
@@ -63,7 +63,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     core_profiles = initial_states.initial_core_profiles(
         config,
         geo,
-        sources=source_profiles.Sources(),
+        source_models=source_models_lib.SourceModels(),
     )
 
     fusion_jax, _, _ = fusion_heat_source.calc_fusion(

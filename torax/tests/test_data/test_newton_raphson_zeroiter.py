@@ -30,7 +30,7 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax.fvm import enums
 from torax.sources import source_config
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -38,7 +38,7 @@ from torax.transport_model import transport_model as transport_model_lib
 
 def make_linear_newton_raphson_stepper(
     transport_model: transport_model_lib.TransportModel,
-    sources: source_profiles.Sources,
+    source_models: source_models_lib.SourceModels,
 ) -> stepper_lib.Stepper:
   """Makes a Newton Raphson stepper that behaves linearly.
 
@@ -50,15 +50,15 @@ def make_linear_newton_raphson_stepper(
 
   Args:
     transport_model: Transport model.
-    sources: TORAX sources/sinks used to compute profile terms in the state
-      evolution equations.
+    source_models: TORAX sources/sinks used to compute profile terms in the
+      state evolution equations.
 
   Returns:
     Stepper: the stepper.
   """
   return nonlinear_theta_method.NewtonRaphsonThetaMethod(
       transport_model,
-      sources=sources,
+      source_models=source_models,
       initial_guess_mode=enums.InitialGuessMode.LINEAR,
       maxiter=0,
   )

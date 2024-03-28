@@ -22,7 +22,7 @@ from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -44,14 +44,14 @@ class TransportSmoothingTest(parameterized.TestCase):
         ),
     )
     geo = geometry.build_circular_geometry(config)
-    sources = source_profiles.Sources()
+    source_models = source_models_lib.SourceModels()
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     input_state = sim_lib.get_initial_state(
         config=config,
         geo=geo,
         time_step_calculator=time_calculator,
-        sources=sources,
+        source_models=source_models,
     )
     transport_model = FakeTransportModel()
     transport_coeffs = transport_model(

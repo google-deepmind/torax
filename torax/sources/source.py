@@ -298,7 +298,7 @@ class SingleProfileSource(Source):
       affected_core_profiles=[source.AffectedCoreProfile.NE],
       formula=formulas.Gaussian(my_custom_source_name),
   )
-  all_torax_sources = source_profiles.Sources(
+  all_torax_sources = source_models_lib.SourceModels(
       additional_sources=[
           my_custom_source,
       ]

@@ -26,6 +26,7 @@ from torax import fvm
 from torax import geometry
 from torax import state
 from torax import update_state
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -35,21 +36,21 @@ class Stepper(abc.ABC):
 
   Attributes:
     transport_model: A TransportModel subclass, calculates transport coeffs.
-    sources: All TORAX sources used to compute both the explicit and implicit
-      source profiles used for each time step as terms in the state evolution
-      equations. Though the explicit profiles are computed outside the call to
-      Stepper, the same sources should be used to compute those. The Sources are
-      exposed here to provide a single source of truth for which sources are
-      used during a run.
+    source_models: All TORAX sources used to compute both the explicit and
+      implicit source profiles used for each time step as terms in the state
+      evolution equations. Though the explicit profiles are computed outside the
+      call to Stepper, the same sources should be used to compute those. The
+      Sources are exposed here to provide a single source of truth for which
+      sources are used during a run.
   """
 
   def __init__(
       self,
       transport_model: transport_model_lib.TransportModel,
-      sources: source_profiles.Sources,
+      source_models: source_models_lib.SourceModels,
   ):
     self.transport_model = transport_model
-    self.sources = sources
+    self.source_models = source_models
 
   def __call__(
       self,
@@ -207,7 +208,7 @@ class Stepper(abc.ABC):
 StepperBuilder = Callable[
     [  # Arguments
         transport_model_lib.TransportModel,
-        source_profiles.Sources,
+        source_models_lib.SourceModels,
     ],
     Stepper,  # Returns a Stepper.
 ]

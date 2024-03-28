@@ -33,6 +33,7 @@ from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import discrete_system
 from torax.fvm import fvm_conversions
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -192,7 +193,7 @@ def theta_method_matrix_equation(
         'static_config_slice',
         'evolving_names',
         'transport_model',
-        'sources',
+        'source_models',
     ],
 )
 def theta_method_block_residual(
@@ -206,7 +207,7 @@ def theta_method_block_residual(
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
     transport_model: transport_model_lib.TransportModel,
-    sources: source_profiles.Sources,
+    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles.SourceProfiles,
 ) -> tuple[jax.Array, AuxiliaryOutput]:
   """Residual of theta-method equation for core profiles at next time-step.
@@ -234,7 +235,8 @@ def theta_method_block_residual(
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old.
     transport_model: Turbulent transport model callable.
-    sources: Collection of source callables to generate source PDE coefficients
+    source_models: Collection of source callables to generate source PDE
+      coefficients.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
 
@@ -261,7 +263,7 @@ def theta_method_block_residual(
       static_config_slice=static_config_slice,
       transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
-      sources=sources,
+      source_models=source_models,
       use_pereverzev=False,
   )
 
@@ -292,7 +294,7 @@ theta_method_block_jacobian = jax_utils.jit(
         'static_config_slice',
         'evolving_names',
         'transport_model',
-        'sources',
+        'source_models',
     ],
 )
 
@@ -303,7 +305,7 @@ theta_method_block_jacobian = jax_utils.jit(
         'static_config_slice',
         'evolving_names',
         'transport_model',
-        'sources',
+        'source_models',
     ],
 )
 def theta_method_block_loss(
@@ -317,7 +319,7 @@ def theta_method_block_loss(
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
     transport_model: transport_model_lib.TransportModel,
-    sources: source_profiles.Sources,
+    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles.SourceProfiles,
 ) -> tuple[jax.Array, AuxiliaryOutput]:
   """Loss for the optimizer method of nonlinear solution.
@@ -345,7 +347,8 @@ def theta_method_block_loss(
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old.
     transport_model: turbulent transport model callable
-    sources: collection of source callables to generate source PDE coefficients
+    source_models: Collection of source callables to generate source PDE
+      coefficients.
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE
 
@@ -364,7 +367,7 @@ def theta_method_block_loss(
       dt=dt,
       coeffs_old=coeffs_old,
       transport_model=transport_model,
-      sources=sources,
+      source_models=source_models,
       explicit_source_profiles=explicit_source_profiles,
   )
   loss = jnp.mean(jnp.square(residual))
@@ -377,7 +380,7 @@ def theta_method_block_loss(
         'static_config_slice',
         'evolving_names',
         'transport_model',
-        'sources',
+        'source_models',
     ],
 )
 def jaxopt_solver(
@@ -391,7 +394,7 @@ def jaxopt_solver(
     dt: jax.Array,
     coeffs_old: Block1DCoeffs,
     transport_model: transport_model_lib.TransportModel,
-    sources: source_profiles.Sources,
+    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles.SourceProfiles,
     maxiter: int,
     tol: float,
@@ -421,7 +424,8 @@ def jaxopt_solver(
     dt: Time step duration.
     coeffs_old: The coefficients calculated at x_old.
     transport_model: turbulent transport model callable.
-    sources: collection of source callables to generate source PDE coefficients
+    source_models: Collection of source callables to generate source PDE
+      coefficients.
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE.
     maxiter: maximum number of iterations of jaxopt solver.
@@ -443,7 +447,7 @@ def jaxopt_solver(
       evolving_names=evolving_names,
       coeffs_old=coeffs_old,
       transport_model=transport_model,
-      sources=sources,
+      source_models=source_models,
       explicit_source_profiles=explicit_source_profiles,
   )
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, has_aux=True)

@@ -25,6 +25,7 @@ from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import fvm_conversions
 from torax.fvm import residual_and_loss
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
 from torax.transport_model import transport_model as transport_model_lib
@@ -53,7 +54,7 @@ def optimizer_solve_block(
     static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
     transport_model: transport_model_lib.TransportModel,
-    sources: source_profiles.Sources,
+    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles.SourceProfiles,
     initial_guess_mode: InitialGuessMode = INITIAL_GUESS_MODE,
     maxiter=MAXITER,
@@ -95,7 +96,8 @@ def optimizer_solve_block(
       method.
     geo: Geometry object used to initialize auxiliary outputs.
     transport_model: Turbulent transport model callable.
-    sources: Collection of source callables to generate source PDE coefficients
+    source_models: Collection of source callables to generate source PDE
+      coefficients.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
     initial_guess_mode: Chooses the initial_guess for the iterative method,
@@ -172,7 +174,7 @@ def optimizer_solve_block(
       evolving_names=evolving_names,
       coeffs_old=coeffs_old,
       transport_model=transport_model,
-      sources=sources,
+      source_models=source_models,
       explicit_source_profiles=explicit_source_profiles,
       maxiter=maxiter,
       tol=tol,

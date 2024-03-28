@@ -21,6 +21,7 @@ from torax import fvm
 from torax import geometry
 from torax import sim
 from torax import state
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
 from torax.stepper import stepper as stepper_lib
@@ -33,10 +34,10 @@ class LinearThetaMethod(stepper_lib.Stepper):
   def __init__(
       self,
       transport_model: transport_model_lib.TransportModel,
-      sources: source_profiles.Sources,
+      source_models: source_models_lib.SourceModels,
       callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
   ):
-    super().__init__(transport_model, sources)
+    super().__init__(transport_model, source_models)
     self.callback_class = callback_class
 
   def _x_new(
@@ -71,7 +72,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
         static_config_slice=static_config_slice,
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
-        sources=self.sources,
+        source_models=self.source_models,
     )
 
     # Compute the explicit coeffs based on the core profiles at time t and all

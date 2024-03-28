@@ -198,7 +198,7 @@ def update_sim(
       config=config,
       geo=geo,
       time_step_calculator=sim.time_step_calculator,
-      sources=sim.sources,
+      source_models=sim.source_models,
   )
   return sim_lib.Sim(
       time_step_calculator=sim.time_step_calculator,

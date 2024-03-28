@@ -29,6 +29,7 @@ from torax import physics
 from torax import state
 from torax.fvm import block_1d_coeffs
 from torax.sources import qei_source as qei_source_lib
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -141,7 +142,7 @@ def calc_coeffs(
     static_config_slice: config_slice.StaticConfigSlice,
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    sources: source_profiles_lib.Sources,
+    source_models: source_models_lib.SourceModels,
     use_pereverzev: bool = False,
     explicit_call: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
@@ -166,8 +167,9 @@ def calc_coeffs(
       original core profiles at the start of the time step, not the "live"
       updating core profiles. For sources that are implicit, their explicit
       profiles are set to all zeros.
-    sources: All TORAX source/sinks that generate the explicit and implicit
-      source profiles used as terms for the core profiles equations.
+    source_models: All TORAX source/sink functions that generate the explicit
+      and implicit source profiles used as terms for the core profiles
+      equations.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
     explicit_call: If True, indicates that calc_coeffs is being called for the
       explicit component of the PDE. Then calculates a reduced Block1DCoeffs if
@@ -195,7 +197,7 @@ def calc_coeffs(
         static_config_slice,
         transport_model,
         explicit_source_profiles,
-        sources,
+        source_models,
         use_pereverzev,
     )
 
@@ -206,7 +208,7 @@ def calc_coeffs(
         'transport_model',
         'static_config_slice',
         'evolving_names',
-        'sources',
+        'source_models',
     ],
 )
 def _calc_coeffs_full(
@@ -217,7 +219,7 @@ def _calc_coeffs_full(
     static_config_slice: config_slice.StaticConfigSlice,
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    sources: source_profiles_lib.Sources,
+    source_models: source_models_lib.SourceModels,
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
   """Calculates Block1DCoeffs for the time step described by `core_profiles`.
@@ -241,8 +243,9 @@ def _calc_coeffs_full(
       original core profiles at the start of the time step, not the "live"
       updating core profiles. For sources that are implicit, their explicit
       profiles are set to all zeros.
-    sources: All TORAX source/sinks that generate the explicit and implicit
-      source profiles used as terms for the core profiles equations.
+    source_models: All TORAX source/sink functions that generate the explicit
+      and implicit source profiles used as terms for the core profiles
+      equations.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
 
   Returns:
@@ -262,8 +265,8 @@ def _calc_coeffs_full(
   # This only calculates sources set to implicit in the config. All other
   # sources are set to 0 (and should have their profiles already calculated in
   # explicit_source_profiles).
-  implicit_source_profiles = source_profiles_lib.build_source_profiles(
-      sources=sources,
+  implicit_source_profiles = source_models_lib.build_source_profiles(
+      source_models=source_models,
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
       core_profiles=core_profiles,
@@ -275,22 +278,22 @@ def _calc_coeffs_full(
   # Decide which values to use depending on whether the source is explicit or
   # implicit.
   sigma = jax_utils.select(
-      dynamic_config_slice.sources[sources.j_bootstrap.name].is_explicit,
+      dynamic_config_slice.sources[source_models.j_bootstrap.name].is_explicit,
       explicit_source_profiles.j_bootstrap.sigma,
       implicit_source_profiles.j_bootstrap.sigma,
   )
   j_bootstrap = jax_utils.select(
-      dynamic_config_slice.sources[sources.j_bootstrap.name].is_explicit,
+      dynamic_config_slice.sources[source_models.j_bootstrap.name].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap,
       implicit_source_profiles.j_bootstrap.j_bootstrap,
   )
   j_bootstrap_face = jax_utils.select(
-      dynamic_config_slice.sources[sources.j_bootstrap.name].is_explicit,
+      dynamic_config_slice.sources[source_models.j_bootstrap.name].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap_face,
       implicit_source_profiles.j_bootstrap.j_bootstrap_face,
   )
   I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
-      dynamic_config_slice.sources[sources.j_bootstrap.name].is_explicit,
+      dynamic_config_slice.sources[source_models.j_bootstrap.name].is_explicit,
       explicit_source_profiles.j_bootstrap.I_bootstrap,
       implicit_source_profiles.j_bootstrap.I_bootstrap,
   )
@@ -316,13 +319,13 @@ def _calc_coeffs_full(
   source_mat_psi = jnp.zeros_like(geo.r)
 
   # fill source vector based on both original and updated core profiles
-  source_psi = source_profiles_lib.sum_sources_psi(
-      sources,
+  source_psi = source_models_lib.sum_sources_psi(
+      source_models,
       implicit_source_profiles,
       geo,
       dynamic_config_slice.Rmaj,
-  ) + source_profiles_lib.sum_sources_psi(
-      sources,
+  ) + source_models_lib.sum_sources_psi(
+      source_models,
       explicit_source_profiles,
       geo,
       dynamic_config_slice.Rmaj,
@@ -492,12 +495,12 @@ def _calc_coeffs_full(
   source_mat_nn = jnp.zeros_like(geo.r)
 
   # density source vector based both on original and updated core profiles
-  source_ne = source_profiles_lib.sum_sources_ne(
-      sources,
+  source_ne = source_models_lib.sum_sources_ne(
+      source_models,
       explicit_source_profiles,
       geo,
-  ) + source_profiles_lib.sum_sources_ne(
-      sources,
+  ) + source_models_lib.sum_sources_ne(
+      source_models,
       implicit_source_profiles,
       geo,
   )
@@ -565,8 +568,8 @@ def _calc_coeffs_full(
   full_v_face_el += v_face_per_el
 
   # Ion and electron heat sources.
-  qei = sources.qei_source.get_qei(
-      dynamic_config_slice.sources[sources.qei_source.name].source_type,
+  qei = source_models.qei_source.get_qei(
+      dynamic_config_slice.sources[source_models.qei_source.name].source_type,
       dynamic_config_slice=dynamic_config_slice,
       static_config_slice=static_config_slice,
       geo=geo,
@@ -591,22 +594,22 @@ def _calc_coeffs_full(
   source_mat_ii = jnp.zeros_like(geo.r)
   source_mat_ee = jnp.zeros_like(geo.r)
 
-  source_i = source_profiles_lib.sum_sources_temp_ion(
-      sources,
+  source_i = source_models_lib.sum_sources_temp_ion(
+      source_models,
       explicit_source_profiles,
       geo,
-  ) + source_profiles_lib.sum_sources_temp_ion(
-      sources,
+  ) + source_models_lib.sum_sources_temp_ion(
+      source_models,
       implicit_source_profiles,
       geo,
   )
 
-  source_e = source_profiles_lib.sum_sources_temp_el(
-      sources,
+  source_e = source_models_lib.sum_sources_temp_el(
+      source_models,
       explicit_source_profiles,
       geo,
-  ) + source_profiles_lib.sum_sources_temp_el(
-      sources,
+  ) + source_models_lib.sum_sources_temp_el(
+      source_models,
       implicit_source_profiles,
       geo,
   )

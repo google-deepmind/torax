@@ -24,6 +24,7 @@ from torax import initial_states
 from torax.sources import bootstrap_current_source
 from torax.sources import source as source_lib
 from torax.sources import source_config
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.sources.tests import test_lib
 
@@ -49,7 +50,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(j_bootstrap=source),
+        source_models=source_models_lib.SourceModels(j_bootstrap=source),
     )
     self.assertIsNotNone(
         source.get_value(
@@ -73,7 +74,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     geo = geometry.build_circular_geometry(config)
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     face = source_lib.ProfileType.FACE.get_profile_shape(geo)
-    fake_profile = bootstrap_current_source.BootstrapCurrentProfile(
+    fake_profile = source_profiles.BootstrapCurrentProfile(
         sigma=jnp.zeros(cell),
         j_bootstrap=jnp.ones(cell),
         j_bootstrap_face=jnp.zeros(face),

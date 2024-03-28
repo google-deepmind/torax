@@ -27,7 +27,7 @@ from torax import geometry
 from torax import initial_states
 from torax.sources import source as source_lib
 from torax.sources import source_config as source_config_lib
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 
 
 # Most of the checks and computations in TORAX require float64.
@@ -97,14 +97,16 @@ class SingleProfileSourceTestCase(SourceTestCase):
               )
           }
       )
-      sources = source_profiles.Sources(additional_sources=[source])
+      source_models = source_models_lib.SourceModels(
+          additional_sources=[source]
+      )
     else:
-      sources = source_profiles.Sources()
+      source_models = source_models_lib.SourceModels()
     geo = geometry.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=sources,
+        source_models=source_models,
     )
     source_type = config.sources[source.name].source_type.value
     value = source.get_value(
@@ -122,7 +124,8 @@ class SingleProfileSourceTestCase(SourceTestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(),  # only need default sources here.
+        # only need default sources here.
+        source_models=source_models_lib.SourceModels(),
     )
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
@@ -155,7 +158,8 @@ class IonElSourceTestCase(SourceTestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(),  # only need default sources here.
+        # only need default sources here.
+        source_models=source_models_lib.SourceModels(),
     )
     source_type = config.sources[source.name].source_type.value
     ion_and_el = source.get_value(
@@ -173,7 +177,8 @@ class IonElSourceTestCase(SourceTestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(),  # only need default sources here.
+        # only need default sources here.
+        source_models=source_models_lib.SourceModels(),
     )
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter

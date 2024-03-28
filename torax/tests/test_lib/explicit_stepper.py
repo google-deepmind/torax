@@ -30,6 +30,7 @@ from torax import fvm
 from torax import geometry
 from torax import physics
 from torax import state
+from torax.sources import source_models
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
 
@@ -94,8 +95,8 @@ class ExplicitStepper(stepper_lib.Stepper):
     )
 
     # Source term
-    c += source_profiles.sum_sources_temp_ion(
-        self.sources, explicit_source_profiles, geo
+    c += source_models.sum_sources_temp_ion(
+        self.source_models, explicit_source_profiles, geo
     )
 
     temp_ion_new = (

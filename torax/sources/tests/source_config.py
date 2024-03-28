@@ -18,7 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from torax import config as config_lib
 from torax.sources import source_config
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 
 
 class SourceConfigTest(parameterized.TestCase):
@@ -27,8 +27,10 @@ class SourceConfigTest(parameterized.TestCase):
   def test_source_config_keys_match_default_sources(self):
     """Makes sure the source configs always have the default sources."""
     config = config_lib.Config()
-    sources = source_profiles.Sources()
-    self.assertSameElements(config.sources.keys(), sources.all_sources.keys())
+    source_models = source_models_lib.SourceModels()
+    self.assertSameElements(
+        config.sources.keys(), source_models.all_sources.keys()
+    )
 
     # Try overriding some elements.
     config = config_lib.Config(
@@ -43,7 +45,9 @@ class SourceConfigTest(parameterized.TestCase):
     )
     # Still should have all the same keys because Config should add back the
     # defaults.
-    self.assertSameElements(config.sources.keys(), sources.all_sources.keys())
+    self.assertSameElements(
+        config.sources.keys(), source_models.all_sources.keys()
+    )
 
 
 if __name__ == '__main__':

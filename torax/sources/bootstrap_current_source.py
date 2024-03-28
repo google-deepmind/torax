@@ -30,24 +30,7 @@ from torax import state
 from torax.fvm import cell_variable
 from torax.sources import source
 from torax.sources import source_config
-
-
-@chex.dataclass(frozen=True)
-class BootstrapCurrentProfile:
-  """Bootstrap current profile.
-
-  Attributes:
-    sigma: plasma conductivity with neoclassical corrections on cell grid.
-    j_bootstrap: Bootstrap current density (Amps / m^2)
-    j_bootstrap_face: Bootstrap current density (Amps / m^2) on face grid
-    I_bootstrap: Total bootstrap current. Used primarily for diagnostic
-      purposes.
-  """
-
-  sigma: jnp.ndarray
-  j_bootstrap: jnp.ndarray
-  j_bootstrap_face: jnp.ndarray
-  I_bootstrap: jnp.ndarray  # pylint: disable=invalid-name
+from torax.sources import source_profiles
 
 
 @jax_utils.jit
@@ -60,7 +43,7 @@ def calc_neoclassical(
     ni: cell_variable.CellVariable,
     jtot_face: jnp.ndarray,
     psi: cell_variable.CellVariable,
-) -> BootstrapCurrentProfile:
+) -> source_profiles.BootstrapCurrentProfile:
   """Calculates sigmaneo, j_bootstrap, and I_bootstrap.
 
   Args:
@@ -280,7 +263,7 @@ def calc_neoclassical(
       geo.r_face,
   )
 
-  return BootstrapCurrentProfile(
+  return source_profiles.BootstrapCurrentProfile(
       sigma=sigmaneo,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
@@ -343,7 +326,7 @@ class BootstrapCurrentSource(source.Source):
       ni: cell_variable.CellVariable | None = None,
       jtot_face: jnp.ndarray | None = None,
       psi: cell_variable.CellVariable | None = None,
-  ) -> BootstrapCurrentProfile:
+  ) -> source_profiles.BootstrapCurrentProfile:
     if not core_profiles and any([
         not temp_ion,
         not temp_el,

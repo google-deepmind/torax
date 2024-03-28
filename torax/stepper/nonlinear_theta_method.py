@@ -25,6 +25,7 @@ from torax import sim
 from torax import state
 from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import stepper
 from torax.transport_model import transport_model as transport_model_lib
@@ -35,12 +36,12 @@ class NonlinearThetaMethod(stepper.Stepper):
 
   Attributes:
     transport_model: A TransportModel subclass, calculates transport coeffs.
-    sources: All TORAX sources used to compute both the explicit and implicit
-      source profiles used for each time step as terms in the state evolution
-      equations. Though the explicit profiles are computed outside the call to
-      Stepper, the same sources should be used to compute those. The Sources are
-      exposed here to provide a single source of truth for which sources are
-      used during a run.
+    source_models: All TORAX sources used to compute both the explicit and
+      implicit source profiles used for each time step as terms in the state
+      evolution equations. Though the explicit profiles are computed outside the
+      call to Stepper, the same sources should be used to compute those. The
+      Sources are exposed here to provide a single source of truth for which
+      sources are used during a run.
     callback_class: Which class should be used to calculate the PDE coefficients
       for the linear and predictor-corrector initial guess routines.
   """
@@ -48,10 +49,10 @@ class NonlinearThetaMethod(stepper.Stepper):
   def __init__(
       self,
       transport_model: transport_model_lib.TransportModel,
-      sources: source_profiles.Sources,
+      source_models: source_models_lib.SourceModels,
       callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
   ):
-    super().__init__(transport_model, sources)
+    super().__init__(transport_model, source_models)
     self.callback_class = callback_class
 
   def _x_new(
@@ -80,7 +81,7 @@ class NonlinearThetaMethod(stepper.Stepper):
         static_config_slice=static_config_slice,
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
-        sources=self.sources,
+        source_models=self.source_models,
     )
     x_new, core_transport, aux_output, error = self._x_new_helper(
         dynamic_config_slice_t=dynamic_config_slice_t,
@@ -140,7 +141,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
   def __init__(
       self,
       transport_model: transport_model_lib.TransportModel,
-      sources: source_profiles.Sources,
+      source_models: source_models_lib.SourceModels,
       callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
       initial_guess_mode: fvm.InitialGuessMode = optimizer_solve_block.INITIAL_GUESS_MODE,
       maxiter: int = optimizer_solve_block.MAXITER,
@@ -149,7 +150,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     self.maxiter = maxiter
     self.tol = tol
     self.initial_guess_mode = initial_guess_mode
-    super().__init__(transport_model, sources, callback_class)
+    super().__init__(transport_model, source_models, callback_class)
 
   def _x_new_helper(
       self,
@@ -183,7 +184,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
             static_config_slice=static_config_slice,
             geo=geo,
             transport_model=self.transport_model,
-            sources=self.sources,
+            source_models=self.source_models,
             explicit_source_profiles=explicit_source_profiles,
             initial_guess_mode=self.initial_guess_mode,
             maxiter=self.maxiter,
@@ -216,7 +217,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
   def __init__(
       self,
       transport_model: transport_model_lib.TransportModel,
-      sources: source_profiles.Sources,
+      source_models: source_models_lib.SourceModels,
       callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
       initial_guess_mode: fvm.InitialGuessMode = newton_raphson_solve_block.INITIAL_GUESS_MODE,
       maxiter: int = newton_raphson_solve_block.MAXITER,
@@ -231,7 +232,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     self.coarse_tol = coarse_tol
     self.delta_reduction_factor = delta_reduction_factor
     self.tau_min = tau_min
-    super().__init__(transport_model, sources, callback_class)
+    super().__init__(transport_model, source_models, callback_class)
 
   def _x_new_helper(
       self,
@@ -268,7 +269,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             static_config_slice=static_config_slice,
             geo=geo,
             transport_model=self.transport_model,
-            sources=self.sources,
+            source_models=self.source_models,
             explicit_source_profiles=explicit_source_profiles,
             log_iterations=dynamic_config_slice_t.solver.log_iterations,
             initial_guess_mode=self.initial_guess_mode,

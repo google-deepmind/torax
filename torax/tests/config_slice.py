@@ -22,7 +22,7 @@ from torax import config as config_lib
 from torax import config_slice as config_slice_lib
 from torax.sources import formula_config
 from torax.sources import source_config
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 
 
 class ConfigSliceTest(parameterized.TestCase):
@@ -40,11 +40,11 @@ class ConfigSliceTest(parameterized.TestCase):
 
   def test_dynamic_sources_config_contains_all_sources(self):
     """Tests that all the Sources attributes are covered by SourcesConfig."""
-    sources = source_profiles.Sources().all_sources.keys()
+    source_models = source_models_lib.SourceModels().all_sources.keys()
     sources_config_fields = config_slice_lib.build_dynamic_config_slice(
         config_lib.Config()
     ).sources.keys()
-    self.assertSameElements(sources, sources_config_fields)
+    self.assertSameElements(source_models, sources_config_fields)
 
   def test_time_dependent_provider_is_time_dependent(self):
     config = config_lib.Config(

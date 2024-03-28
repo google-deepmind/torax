@@ -25,7 +25,7 @@ from torax import geometry
 from torax import initial_states
 from torax.sources import source as source_lib
 from torax.sources import source_config
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 
 
 class SourceTest(parameterized.TestCase):
@@ -45,7 +45,9 @@ class SourceTest(parameterized.TestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(additional_sources=[source]),
+        source_models=source_models_lib.SourceModels(
+            additional_sources=[source]
+        ),
     )
     source_type = source_config.SourceType.ZERO.value
     profile = source.get_value(
@@ -77,7 +79,9 @@ class SourceTest(parameterized.TestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(additional_sources=[source]),
+        source_models=source_models_lib.SourceModels(
+            additional_sources=[source]
+        ),
     )
     # But calling requesting ZERO shouldn't work.
     with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
@@ -109,7 +113,9 @@ class SourceTest(parameterized.TestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(additional_sources=[source]),
+        source_models=source_models_lib.SourceModels(
+            additional_sources=[source]
+        ),
     )
     with self.subTest('model_based'):
       source_type = source_config.SourceType.MODEL_BASED.value
@@ -160,7 +166,9 @@ class SourceTest(parameterized.TestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(additional_sources=[source]),
+        source_models=source_models_lib.SourceModels(
+            additional_sources=[source]
+        ),
     )
     source_type = source_config.SourceType.FORMULA_BASED.value
     profile = source.get_value(
@@ -192,7 +200,9 @@ class SourceTest(parameterized.TestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(additional_sources=[source]),
+        source_models=source_models_lib.SourceModels(
+            additional_sources=[source]
+        ),
     )
     source_type = source_config.SourceType.MODEL_BASED.value
     profile = source.get_value(
@@ -253,7 +263,8 @@ class SingleProfileSourceTest(parameterized.TestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(),  # defaults are enough for this.
+        # defaults are enough for this.
+        source_models=source_models_lib.SourceModels(),
     )
     expected_output = jnp.ones(5)  # 5 matches config.nr.
     source = source_lib.SingleProfileSource(
@@ -280,7 +291,8 @@ class SingleProfileSourceTest(parameterized.TestCase):
     core_profiles = initial_states.initial_core_profiles(
         config=config,
         geo=geo,
-        sources=source_profiles.Sources(),  # defaults are enough for this.
+        # defaults are enough for this.
+        source_models=source_models_lib.SourceModels(),
     )
     source = source_lib.SingleProfileSource(
         name='foo',

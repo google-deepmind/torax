@@ -26,6 +26,7 @@ from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import fixed_time_step_calculator
@@ -55,14 +56,14 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     )
     geo = geometry.build_circular_geometry(config)
     transport = FakeTransportModel()
-    sources = source_profiles.Sources()
+    source_models = source_models_lib.SourceModels()
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
     stepper = FakeStepper(
         param='Ti_bound_right',
         max_value=2.5,
         transport_model=transport,
-        sources=sources,
+        source_models=source_models,
     )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     sim_step_fn = sim_lib.SimulationStepFn(
@@ -74,7 +75,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         config=config,
         geo=geo,
         time_step_calculator=time_calculator,
-        sources=sources,
+        source_models=source_models,
     )
     dynamic_config_slice_provider = (
         config_slice.TimeDependentDynamicConfigSliceProvider(config)
@@ -87,8 +88,8 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         geo=geo,
         dynamic_config_slice_provider=dynamic_config_slice_provider,
         static_config_slice=config_slice.build_static_config_slice(config),
-        explicit_source_profiles=source_profiles.build_source_profiles(
-            sources=sources,
+        explicit_source_profiles=source_models_lib.build_source_profiles(
+            source_models=source_models,
             dynamic_config_slice=initial_dynamic_config_slice,
             geo=geo,
             core_profiles=input_state.core_profiles,
@@ -125,10 +126,10 @@ class FakeStepper(stepper_lib.Stepper):
       param: str,
       max_value: float,
       transport_model: transport_model_lib.TransportModel,
-      sources: source_profiles.Sources,
+      source_models: source_models_lib.SourceModels,
   ):
     self.transport_model = transport_model
-    self.sources = sources
+    self.source_models = source_models
     self._param = param
     self._max_value = max_value
 

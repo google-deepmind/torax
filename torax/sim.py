@@ -43,6 +43,7 @@ from torax import initial_states
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.spectators import spectator as spectator_lib
 from torax.stepper import stepper as stepper_lib
@@ -81,7 +82,7 @@ class CoeffsCallback:
     static_config_slice: See the docstring for `stepper.Stepper`.
     transport_model: See the docstring for `stepper.Stepper`.
     explicit_source_profiles: See the docstring for `stepper.Stepper`.
-    sources: See the docstring for `stepper.Stepper`.
+    source_models: See the docstring for `stepper.Stepper`.
   """
 
   def __init__(
@@ -92,7 +93,7 @@ class CoeffsCallback:
       static_config_slice: config_slice.StaticConfigSlice,
       transport_model: transport_model_lib.TransportModel,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-      sources: source_profiles_lib.Sources,
+      source_models: source_models_lib.SourceModels,
   ):
     self.core_profiles_t = core_profiles_t
     self.evolving_names = evolving_names
@@ -100,7 +101,7 @@ class CoeffsCallback:
     self.static_config_slice = static_config_slice
     self.transport_model = transport_model
     self.explicit_source_profiles = explicit_source_profiles
-    self.sources = sources
+    self.source_models = source_models
 
   def __call__(
       self,
@@ -141,7 +142,7 @@ class CoeffsCallback:
         static_config_slice=self.static_config_slice,
         transport_model=self.transport_model,
         explicit_source_profiles=self.explicit_source_profiles,
-        sources=self.sources,
+        source_models=self.source_models,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
     )
@@ -390,7 +391,7 @@ class SimulationStepFn:
 
     # Update ohmic and bootstrap current based on the new core profiles.
     output_state.core_profiles = update_current_distribution(
-        sources=self._stepper_fn.sources,
+        source_models=self._stepper_fn.source_models,
         dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
         core_profiles=output_state.core_profiles,
@@ -398,7 +399,7 @@ class SimulationStepFn:
 
     # Update psidot based on the new core profiles
     output_state.core_profiles = update_psidot(
-        sources=self._stepper_fn.sources,
+        source_models=self._stepper_fn.source_models,
         dynamic_config_slice=dynamic_config_slice_t_plus_dt,
         geo=geo,
         core_profiles=output_state.core_profiles,
@@ -411,11 +412,11 @@ def get_initial_state(
     config: config_lib.Config,
     geo: geometry.Geometry,
     time_step_calculator: ts.TimeStepCalculator,
-    sources: source_profiles_lib.Sources,
+    source_models: source_models_lib.SourceModels,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = initial_states.initial_core_profiles(
-      config, geo, sources
+      config, geo, source_models
   )
   return state.ToraxSimState(
       t=jnp.array(config.t_initial),
@@ -578,11 +579,11 @@ class Sim:
     return self._transport_model
 
   @property
-  def sources(self) -> source_profiles_lib.Sources:
+  def source_models(self) -> source_models_lib.SourceModels:
     if self._step_fn is None:
       assert self._stepper is not None
-      return self._stepper.sources
-    return self._step_fn.stepper.sources
+      return self._stepper.source_models
+    return self._step_fn.stepper.source_models
 
   def run(
       self,
@@ -636,7 +637,7 @@ def build_sim_from_config(
     geo: geometry.Geometry,
     stepper_builder: stepper_lib.StepperBuilder,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
-    sources: source_profiles_lib.Sources | None = None,
+    source_models: source_models_lib.SourceModels | None = None,
 ) -> Sim:
   """Builds a Sim object from a Config file.
 
@@ -652,8 +653,8 @@ def build_sim_from_config(
       been factored out of the config.
     time_step_calculator: The time_step_calculator, if built, otherwise a
       ChiTimeStepCalculator will be built by default.
-    sources: All TORAX sources/sinks which provide profiles used as terms in the
-      equations that evolve the core profiless.
+    source_models: All TORAX sources/sink functions which provide profiles used
+      as terms in the equations that evolve the core profiless.
 
   Returns:
     sim: The built Sim instance.
@@ -661,14 +662,18 @@ def build_sim_from_config(
   transport_model = transport_model_factory.construct(
       config,
   )
-  sources = source_profiles_lib.Sources() if sources is None else sources
+  source_models = (
+      source_models_lib.SourceModels()
+      if source_models is None
+      else source_models
+  )
 
   # Make sure the sources and the config (which contains the runtime configs for
   # all the sources) have matching keys.
-  if set(sources.all_sources.keys()) != set(config.sources.keys()):
+  if set(source_models.all_sources.keys()) != set(config.sources.keys()):
     raise ValueError(
-        'Sources and config.sources must have the same keys. Mismatch found.\n'
-        f'sources: {list(sources.all_sources.keys())}.\n'
+        'SourceModels and config.sources must have the same keys. Mismatch '
+        f'found.\nsource_models: {list(source_models.all_sources.keys())}.\n'
         f'config.sources: {config.sources.keys()}'
     )
 
@@ -676,7 +681,7 @@ def build_sim_from_config(
   dynamic_config_slice_provider = (
       config_slice.TimeDependentDynamicConfigSliceProvider(config)
   )
-  stepper = stepper_builder(transport_model, sources)
+  stepper = stepper_builder(transport_model, source_models)
 
   if time_step_calculator is None:
     # TODO(b/323504363): Likely safe to calculate dt using max chi and not
@@ -687,7 +692,7 @@ def build_sim_from_config(
       config=config,
       geo=geo,
       time_step_calculator=time_step_calculator,
-      sources=stepper.sources,
+      source_models=stepper.source_models,
   )
 
   return Sim(
@@ -812,8 +817,8 @@ def run_simulation(
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
     # set to 0.
-    explicit_source_profiles = source_profiles_lib.build_source_profiles(
-        sources=step_fn.stepper.sources,
+    explicit_source_profiles = source_models_lib.build_source_profiles(
+        source_models=step_fn.stepper.source_models,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=sim_state.core_profiles,
@@ -919,14 +924,14 @@ def _update_spectator(
 
 
 def update_current_distribution(
-    sources: source_profiles_lib.Sources,
+    source_models: source_models_lib.SourceModels,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> state.CoreProfiles:
   """Update bootstrap current based on the new core_profiles."""
 
-  bootstrap_profile = sources.j_bootstrap.get_value(
+  bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
       core_profiles=core_profiles,
@@ -959,7 +964,7 @@ def update_current_distribution(
 
 
 def update_psidot(
-    sources: source_profiles_lib.Sources,
+    source_models: source_models_lib.SourceModels,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -968,8 +973,8 @@ def update_psidot(
 
   psidot = dataclasses.replace(
       core_profiles.psidot,
-      value=source_profiles_lib.calc_psidot(
-          sources, dynamic_config_slice, geo, core_profiles
+      value=source_models_lib.calc_psidot(
+          source_models, dynamic_config_slice, geo, core_profiles
       ),
   )
 

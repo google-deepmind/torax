@@ -25,7 +25,7 @@ from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import source
 from torax.sources import source_config
-from torax.sources import source_profiles
+from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.tests.test_lib import sim_test_case
 
@@ -46,7 +46,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # For this test, use test_particle_sources_constant with the linear stepper.
     custom_source_name = 'custom_exponential_source'
 
-    sources = source_profiles.Sources(
+    source_models = source_models_lib.SourceModels(
         additional_sources=[
             source.SingleProfileSource(
                 name=custom_source_name,
@@ -122,7 +122,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         config=test_particle_sources_constant_config,
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethod,
-        sources=sources,
+        source_models=source_models,
     )
 
     # Make sure the config copied here works with these references.

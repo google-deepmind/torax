@@ -30,7 +30,7 @@ from torax import initial_states
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
 from torax.sources import source_config
-from torax.sources import source_profiles as source_profiles_lib
+from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
 from torax.transport_model import transport_model_factory
 
@@ -375,11 +375,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
     geo = geometry.build_circular_geometry(config)
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     static_config_slice = config_slice.build_static_config_slice(config)
-    sources = source_profiles_lib.Sources()
-    core_profiles = initial_states.initial_core_profiles(config, geo, sources)
+    source_models = source_models_lib.SourceModels()
+    core_profiles = initial_states.initial_core_profiles(
+        config, geo, source_models
+    )
     evolving_names = tuple(['temp_ion'])
-    explicit_source_profiles = source_profiles_lib.build_source_profiles(
-        sources=source_profiles_lib.Sources(),
+    explicit_source_profiles = source_models_lib.build_source_profiles(
+        source_models=source_models_lib.SourceModels(),
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=core_profiles,
@@ -394,7 +396,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         static_config_slice=static_config_slice,
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
-        sources=sources,
+        source_models=source_models,
         use_pereverzev=False,
     )
     # dt well under the explicit stability limit for dx=1 and chi=1
@@ -428,7 +430,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           dt=dt,
           coeffs_old=coeffs,
           transport_model=transport_model,
-          sources=sources,
+          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
       )
 
@@ -443,7 +445,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           dt=dt,
           coeffs_old=coeffs,
           transport_model=transport_model,
-          sources=sources,
+          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
       )
 
@@ -485,12 +487,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
     transport_model = transport_model_factory.construct(
         config,
     )
-    sources = source_profiles_lib.Sources()
+    source_models = source_models_lib.SourceModels()
     initial_core_profiles = initial_states.initial_core_profiles(
-        config, geo, sources
+        config, geo, source_models
     )
-    explicit_source_profiles = source_profiles_lib.build_source_profiles(
-        sources=sources,
+    explicit_source_profiles = source_models_lib.build_source_profiles(
+        source_models=source_models,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
@@ -508,7 +510,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         static_config_slice=static_config_slice,
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
-        sources=sources,
+        source_models=source_models,
         use_pereverzev=False,
     )
     initial_right_boundary = jnp.array(0.0)
@@ -605,12 +607,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
     transport_model = transport_model_factory.construct(
         config,
     )
-    sources = source_profiles_lib.Sources()
+    source_models = source_models_lib.SourceModels()
     initial_core_profiles = initial_states.initial_core_profiles(
-        config, geo, sources
+        config, geo, source_models
     )
-    explicit_source_profiles = source_profiles_lib.build_source_profiles(
-        sources=sources,
+    explicit_source_profiles = source_models_lib.build_source_profiles(
+        source_models=source_models,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
@@ -628,7 +630,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         static_config_slice=static_config_slice_theta05,
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
-        sources=sources,
+        source_models=source_models,
         use_pereverzev=False,
     )
 
@@ -660,7 +662,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           dt=dt,
           coeffs_old=coeffs_old,
           transport_model=transport_model,
-          sources=sources,
+          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
       )
       np.testing.assert_allclose(residual, 0.0)
@@ -685,7 +687,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           dt=dt,
           coeffs_old=coeffs_old,
           transport_model=transport_model,
-          sources=sources,
+          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
       )
       np.testing.assert_allclose(residual, 0.0)
@@ -706,7 +708,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           static_config_slice=static_config_slice_theta05,
           coeffs_old=coeffs_old,
           transport_model=transport_model,
-          sources=sources,
+          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
