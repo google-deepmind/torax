@@ -50,7 +50,9 @@ import xarray as xr
 from absl import logging
 import chex
 import h5py
+import jax
 from jax import numpy as jnp
+import equinox as eqx
 from matplotlib import pyplot as plt
 import torax
 from torax import config_slice
@@ -91,82 +93,59 @@ def simulation_output_to_xr(
     geo: torax.Geometry,
     t: jnp.ndarray,
 ) -> xr.Dataset:
+  """Build an xr.Dataset of the simulation output."""
+  # Get the coordinate variables for dimensions ("time", "rho_face", "rho_cell")
   time = xr.DataArray(t, dims=['time'], name='time')
-  r_face = xr.DataArray(geo.r_norm, dims=['rho'], name='r_cell_norm')
-  data_vars = {
-      'temp_ion': xr.DataArray(core_profile_history.temp_ion.value, dims=['time', 'rho']),
-      "temp_el": xr.DataArray(core_profile_history.temp_el.value, dims=['time', 'rho']),
-      "psi": xr.DataArray(core_profile_history.psi.value, dims=['time', 'rho']),
-      "ne": xr.DataArray(core_profile_history.ne.value, dims=['time', 'rho']),
-      "ni": xr.DataArray(core_profile_history.ni.value, dims=['time', 'rho']),
-      'jtot': xr.DataArray(core_profile_history.currents.jtot, dims=['time', 'rho']),
-      'johm': xr.DataArray(core_profile_history.currents.johm, dims=['time', 'rho']),
-      'jext': xr.DataArray(core_profile_history.currents.jext, dims=['time', 'rho']),
-      'j_bootstrap': xr.DataArray(core_profile_history.currents.j_bootstrap, dims=['time', 'rho']),
-      'sigma': xr.DataArray(core_profile_history.currents.sigma, dims=['time', 'rho']),
-      'source_ion': xr.DataArray(aux_history.source_ion, dims=['time', 'rho']),
-      'source_el': xr.DataArray(aux_history.source_el, dims=['time', 'rho']),
-      'Pfus_i': xr.DataArray(aux_history.Pfus_i, dims=['time', 'rho']),
-      'Pfus_e': xr.DataArray(aux_history.Pfus_e, dims=['time', 'rho']),
-      'Pohm': xr.DataArray(aux_history.Pohm, dims=['time', 'rho']),
-      'Qei': xr.DataArray(aux_history.Qei, dims=['time', 'rho']),
-  }
-  return xr.Dataset(data_vars, coords={'time': time, 'rho': r_face})
+  r_face_norm = xr.DataArray(geo.r_face_norm, dims=['rho_face'], name='r_face_norm')
+  r_cell_norm = xr.DataArray(geo.r_norm, dims=['rho_cell'], name='r_cell_norm')
+  r_face = xr.DataArray(geo.r_face, dims=['rho_face'], name='r_face')
+  r_cell = xr.DataArray(geo.r, dims=['rho_cell'], name='r_cell')
+
+  # Build a PyTree of variables we will want to log.
+  tree = (core_profile_history, core_transport_history, aux_history)
+
+  # Only try to log arrays.
+  leaves_with_path = jax.tree_util.tree_leaves_with_path(tree, is_leaf=lambda x: isinstance(x, jax.Array))
+
+  # Functions to check if a leaf is a face or cell variable
+  # Assume that all arrays with shape (time, rho_face) are face variables
+  # and all arrays with shape (time, rho_cell) are cell variables
+  is_face_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.r_face))
+  is_cell_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.r))
+
+  def translate_leaf_with_path(path, leaf):
+    # Assume name is the last part of the path, unless the name is "value"
+    # in which case we use the second to last part of the path.
+    name = path[-1].name if path[-1].name != 'value' else path[-2].name
+    if is_face_var(leaf):
+      return name, xr.DataArray(leaf, dims=['time', 'rho_face'], name=name)
+    elif is_cell_var(leaf):
+      return name, xr.DataArray(leaf, dims=['time', 'rho_cell'], name=name)
+    else:
+      return name, None
+
+  xr_dict = {}
+  for path, leaf in leaves_with_path:
+      name, da = translate_leaf_with_path(path, leaf)
+      if da is not None:
+          xr_dict[name] = da
+  ds = xr.Dataset(xr_dict,
+                  coords={
+                      'time': time,
+                      'r_face_norm': r_face_norm,
+                      'r_cell_norm': r_cell_norm,
+                      'r_face': r_face,
+                      'r_cell': r_cell,
+                  })
+  return ds
 
 def write_simulation_output_to_file(
     output_dir: str,
-    core_profile_history: torax.CoreProfiles,
-    core_transport_history: torax.CoreTransport,
-    aux_history: torax.AuxOutput,
-    geo: torax.Geometry,
-    t: jnp.ndarray,
+    ds: xr.Dataset
 ) -> None:
   """Writes the state history and some geometry information to an HDF5 file."""
   output_file = os.path.join(output_dir, _STATE_HISTORY_FILENAME)
-  with h5py.File(output_file, 'w') as h5_file:
-    h5_file.create_dataset('t', data=t.tolist())
-    h5_file.create_dataset('r_cell', data=geo.r.tolist())
-    h5_file.create_dataset('r_face', data=geo.r_face.tolist())
-    h5_file.create_dataset('r_cell_norm', data=geo.r_norm.tolist())
-    h5_file.create_dataset('r_face_norm', data=geo.r_face_norm.tolist())
-    h5_file.create_dataset(
-        'temp_ion', data=core_profile_history.temp_ion.value.tolist()
-    )
-    h5_file.create_dataset(
-        'temp_el', data=core_profile_history.temp_el.value.tolist()
-    )
-    h5_file.create_dataset('psi', data=core_profile_history.psi.value.tolist())
-    h5_file.create_dataset('ne', data=core_profile_history.ne.value.tolist())
-    h5_file.create_dataset('ni', data=core_profile_history.ni.value.tolist())
-    h5_file.create_dataset('q_face', data=core_profile_history.q_face.tolist())
-    h5_file.create_dataset('s_face', data=core_profile_history.s_face.tolist())
-    h5_file.create_dataset(
-        'jtot', data=core_profile_history.currents.jtot.tolist()
-    )
-    h5_file.create_dataset(
-        'johm', data=core_profile_history.currents.johm.tolist()
-    )
-    h5_file.create_dataset(
-        'jext', data=core_profile_history.currents.jext.tolist()
-    )
-    h5_file.create_dataset(
-        'j_bootstrap', data=core_profile_history.currents.j_bootstrap.tolist()
-    )
-    h5_file.create_dataset(
-        'sigma', data=core_profile_history.currents.sigma.tolist()
-    )
-    h5_file.create_dataset(
-        'chi_face_ion', data=core_transport_history.chi_face_ion.tolist()
-    )
-    h5_file.create_dataset(
-        'chi_face_el', data=core_transport_history.chi_face_el.tolist()
-    )
-    h5_file.create_dataset('source_ion', data=aux_history.source_ion.tolist())
-    h5_file.create_dataset('source_el', data=aux_history.source_el.tolist())
-    h5_file.create_dataset('Pfus_i', data=aux_history.Pfus_i.tolist())
-    h5_file.create_dataset('Pfus_e', data=aux_history.Pfus_e.tolist())
-    h5_file.create_dataset('Pohm', data=aux_history.Pohm.tolist())
-    h5_file.create_dataset('Qei', data=aux_history.Qei.tolist())
+  ds.to_netcdf(output_file)
   log_to_stdout(f'Wrote simulation output to {output_file}', AnsiColors.GREEN)
 
 
@@ -254,7 +233,6 @@ def main(
     log_sim_progress: bool = False,
     log_sim_output: bool = False,
     plot_sim_progress: bool = False,
-    return_xr: bool = False,
 ) -> None:
   """Runs a simulation obtained via `get_sim`.
 
@@ -314,8 +292,7 @@ def main(
 
   chex.assert_rank(t, 1)
 
-  if return_xr:
-    return simulation_output_to_xr(
+  ds = simulation_output_to_xr(
         core_profile_history,
         core_transport_history,
         aux_history,
@@ -326,17 +303,12 @@ def main(
   if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
   os.makedirs(output_dir)
-  write_simulation_output_to_file(
-      output_dir,
-      core_profile_history,
-      core_transport_history,
-      aux_history,
-      geo,
-      t,
-  )
+  write_simulation_output_to_file(output_dir, ds)
   # TODO(b/323504363): Add back functionality to write configs to file after
   # running to help with keeping track of simulation runs. This may need to
   # happen after we move to Fiddle.
 
   if log_sim_output:
     log_simulation_output_to_stdout(core_profile_history, geo, t)
+
+  return ds
