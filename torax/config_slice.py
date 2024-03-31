@@ -161,6 +161,10 @@ class DynamicConfigSlice:
   # toggles if "Ohmic" current is treated as total current upon initialization,
   # or if non-inductive current should be included in initial jtot calculation
   initial_j_is_total_current: bool
+  # toggles if the initial psi calculation is based on the "nu" current formula,
+  # or from the psi available in the numerical geometry file. This setting is
+  # ignored for the ad-hoc circular geometry, which has no numerical geometry.
+  initial_psi_from_j: bool
   # toggles if external current is provided absolutely or as a fraction of Ip
   use_absolute_jext: bool
   # total "external" current in MA. Used if use_absolute_jext=True.

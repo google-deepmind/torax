@@ -252,6 +252,22 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests CHEASE geometry with psi initialized from prescribed jtot.
+      (
+          'test_psichease_prescribed_jtot',
+          'test_psichease_prescribed_jtot.py',
+          'test_psichease_prescribed_jtot',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Tests CHEASE geometry with psi initialized from prescribed johm.
+      (
+          'test_psichease_prescribed_johm',
+          'test_psichease_prescribed_johm.py',
+          'test_psichease_prescribed_johm',
+          _ALL_PROFILES,
+          0,
+      ),
       # Tests time-dependent pedestal, Ptot, Ip. CHEASE geometry. QLKNN.
       (
           'test_timedependence',

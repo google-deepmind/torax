@@ -27,6 +27,7 @@ from torax import config_slice
 from torax import geometry
 from torax import initial_states
 from torax import state
+from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
 
 
@@ -159,6 +160,146 @@ class InitialStatesTest(parameterized.TestCase):
         core_profiles.temp_el.right_face_constraint, 42.0
     )
     np.testing.assert_allclose(core_profiles.ne.right_face_constraint, 0.1)
+
+  @parameterized.parameters([
+      dict(geo_builder=geometry.build_circular_geometry),
+      dict(geo_builder=geometry.build_chease_geometry),
+  ])
+  def test_initial_psi_from_j(
+      self, geo_builder: Callable[[config_lib.Config], geometry.Geometry]
+  ):
+    """Tests expected behaviour of initial psi and current options."""
+    config1 = config_lib.Config(
+        initial_j_is_total_current=True,
+        initial_psi_from_j=True,
+        nu=2,
+        bootstrap_mult=0,
+    )
+    config2 = config_lib.Config(
+        initial_j_is_total_current=False,
+        initial_psi_from_j=True,
+        nu=2,
+        bootstrap_mult=0,
+    )
+    config3 = config_lib.Config(
+        initial_j_is_total_current=False,
+        initial_psi_from_j=True,
+        nu=2,
+        fext=0.0,
+        bootstrap_mult=1,
+    )
+    # Needed to generate psi for bootstrap calculation
+    config3_helper = config_lib.Config(
+        initial_j_is_total_current=True,
+        initial_psi_from_j=True,
+        nu=2,
+        fext=0.0,
+        bootstrap_mult=0,
+    )
+    geo = geo_builder(config1)
+    core_profiles1 = initial_states.initial_core_profiles(
+        config_slice.build_dynamic_config_slice(config1),
+        config_slice.build_static_config_slice(config1),
+        geo=geo,
+    )
+    core_profiles2 = initial_states.initial_core_profiles(
+        config_slice.build_dynamic_config_slice(config2),
+        config_slice.build_static_config_slice(config2),
+        geo=geo,
+    )
+    core_profiles3 = initial_states.initial_core_profiles(
+        config_slice.build_dynamic_config_slice(config3),
+        config_slice.build_static_config_slice(config3),
+        geo=geo,
+    )
+    core_profiles3_helper = initial_states.initial_core_profiles(
+        config_slice.build_dynamic_config_slice(config3_helper),
+        config_slice.build_static_config_slice(config3_helper),
+        geo=geo,
+    )
+
+    # calculate total and Ohmic current profiles arising from nu=2
+    jformula_face = (1 - geo.r_face_norm**2) ** 2
+    denom = jax.scipy.integrate.trapezoid(
+        jformula_face * geo.spr_face, geo.r_face
+    )
+    ctot = config1.Ip * 1e6 / denom
+    jtot_formula_face = jformula_face * ctot
+    johm_formula_face = jtot_formula_face * (1 - config1.fext)
+
+    # Calculate bootstrap current for config3 which doesn't zero it out
+    source_models = source_models_lib.SourceModels()
+    bootstrap_profile = source_models.j_bootstrap.get_value(
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config3),
+        geo=geo,
+        temp_ion=core_profiles3.temp_ion,
+        temp_el=core_profiles3.temp_el,
+        ne=core_profiles3.ne,
+        ni=core_profiles3.ni,
+        jtot_face=core_profiles3_helper.currents.jtot_face,
+        psi=core_profiles3_helper.psi,
+    )
+    f_bootstrap = bootstrap_profile.I_bootstrap / (config3.Ip * 1e6)
+
+    np.testing.assert_raises(
+        AssertionError,
+        np.testing.assert_allclose,
+        core_profiles1.currents.jtot,
+        core_profiles2.currents.jtot,
+    )
+
+    np.testing.assert_allclose(
+        core_profiles1.currents.jext_face + core_profiles1.currents.johm_face,
+        jtot_formula_face,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    np.testing.assert_raises(
+        AssertionError,
+        np.testing.assert_allclose,
+        core_profiles1.currents.johm_face,
+        johm_formula_face,
+    )
+    np.testing.assert_allclose(
+        core_profiles2.currents.johm_face,
+        johm_formula_face,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    np.testing.assert_raises(
+        AssertionError,
+        np.testing.assert_allclose,
+        core_profiles2.currents.jtot_face,
+        jtot_formula_face,
+    )
+    np.testing.assert_allclose(
+        core_profiles3.currents.johm_face,
+        jtot_formula_face * (1 - f_bootstrap),
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+  def test_initial_psi_from_geo_noop_circular(self):
+    """Tests expected behaviour of initial psi and current options."""
+    config1 = config_lib.Config(
+        initial_psi_from_j=False,
+    )
+    config2 = config_lib.Config(
+        initial_psi_from_j=True,
+    )
+    core_profiles1 = initial_states.initial_core_profiles(
+        config_slice.build_dynamic_config_slice(config1),
+        config_slice.build_static_config_slice(config1),
+        geometry.build_circular_geometry(config1),
+    )
+    core_profiles2 = initial_states.initial_core_profiles(
+        config_slice.build_dynamic_config_slice(config2),
+        config_slice.build_static_config_slice(config2),
+        geometry.build_circular_geometry(config2),
+    )
+    np.testing.assert_allclose(
+        core_profiles1.currents.jtot, core_profiles2.currents.jtot
+    )
 
 
 if __name__ == '__main__':

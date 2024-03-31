@@ -185,10 +185,8 @@ def _prescribe_currents_no_bootstrap(
     Iext = dynamic_config_slice.Iext
   else:
     Iext = Ip * dynamic_config_slice.fext
-  if dynamic_config_slice.initial_j_is_total_current:
-    Iohm = Ip
-  else:
-    Iohm = Ip - Iext
+  # Total Ohmic current
+  Iohm = Ip - Iext
 
   # Set zero bootstrap current
   bootstrap_profile = source_profiles_lib.BootstrapCurrentProfile.zero_profile(
@@ -204,15 +202,21 @@ def _prescribe_currents_no_bootstrap(
       geo=geo,
   )
 
-  # calculate "Ohmic" current profile
-  # form of Ohmic current on face grid
-  johmform_face = (1 - geo.r_face_norm**2) ** dynamic_config_slice.nu
-  Cohm = Iohm * 1e6 / _trapz(johmform_face * geo.spr_face, geo.r_face)
-  johm_face = Cohm * johmform_face  # ohmic current profile on face grid
-  johm = geometry.face_to_cell(johm_face)
+  # construct prescribed current formula on grid.
+  jformula_face = (1 - geo.r_face_norm**2) ** dynamic_config_slice.nu
+  # calculate total and Ohmic current profiles
+  denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
+  if dynamic_config_slice.initial_j_is_total_current:
+    Ctot = Ip * 1e6 / denom
+    jtot_face = jformula_face * Ctot
+    johm_face = jtot_face - jext_face
+  else:
+    Cohm = Iohm * 1e6 / denom
+    johm_face = jformula_face * Cohm
+    jtot_face = johm_face + jext_face
 
-  jtot_face = johm_face + jext_face
   jtot = geometry.face_to_cell(jtot_face)
+  johm = geometry.face_to_cell(johm_face)
 
   jtot_hires = _get_jtot_hires(
       dynamic_config_slice, geo, bootstrap_profile, Iohm, jext_source
@@ -286,17 +290,7 @@ def _prescribe_currents_with_bootstrap(
     Iext = dynamic_config_slice.Iext
   else:
     Iext = Ip * dynamic_config_slice.fext
-  if dynamic_config_slice.initial_j_is_total_current:
-    Iohm = Ip
-  else:
-    Iohm = Ip - Iext - f_bootstrap * Ip
-
-  # calculate "Ohmic" current profile
-  # form of Ohmic current on face grid
-  johmform_face = (1 - geo.r_face_norm**2) ** dynamic_config_slice.nu
-  Cohm = Iohm * 1e6 / _trapz(johmform_face * geo.spr_face, geo.r_face)
-  johm_face = Cohm * johmform_face  # ohmic current profile on face grid
-  johm = geometry.face_to_cell(johm_face)
+  Iohm = Ip - Iext - f_bootstrap * Ip
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
@@ -307,8 +301,21 @@ def _prescribe_currents_with_bootstrap(
       geo=geo,
   )
 
-  jtot_face = johm_face + jext_face + bootstrap_profile.j_bootstrap_face
+  # construct prescribed current formula on grid.
+  jformula_face = (1 - geo.r_face_norm**2) ** dynamic_config_slice.nu
+  denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
+  # calculate total and Ohmic current profiles
+  if dynamic_config_slice.initial_j_is_total_current:
+    Ctot = Ip * 1e6 / denom
+    jtot_face = jformula_face * Ctot
+    johm_face = jtot_face - jext_face - bootstrap_profile.j_bootstrap_face
+  else:
+    Cohm = Iohm * 1e6 / denom
+    johm_face = jformula_face * Cohm
+    jtot_face = johm_face + jext_face + bootstrap_profile.j_bootstrap_face
+
   jtot = geometry.face_to_cell(jtot_face)
+  johm = geometry.face_to_cell(johm_face)
 
   jtot_hires = _get_jtot_hires(
       dynamic_config_slice, geo, bootstrap_profile, Iohm, jext_source
@@ -515,7 +522,10 @@ def initial_core_profiles(
   ne, ni = _update_dens(dynamic_config_slice, static_config_slice, geo)
 
   # set up initial psi profile based on current profile
-  if isinstance(geo, geometry.CircularGeometry):
+  if (
+      isinstance(geo, geometry.CircularGeometry)
+      or dynamic_config_slice.initial_psi_from_j
+  ):
     # set up initial current profile without bootstrap current, to get
     # q-profile approximation (needed for bootstrap)
     currents_no_bootstrap = _prescribe_currents_no_bootstrap(
@@ -558,7 +568,10 @@ def initial_core_profiles(
     )
     s_face = physics.calc_s_from_psi(geo, psi)
 
-  elif isinstance(geo, geometry.CHEASEGeometry):
+  elif (
+      isinstance(geo, geometry.CHEASEGeometry)
+      and not dynamic_config_slice.initial_psi_from_j
+  ):
     # psi is already provided from the CHEASE equilibrium, so no need to first
     # calculate currents. However, non-inductive currents are still calculated
     # and used in current diffusion equation.
@@ -625,6 +638,7 @@ def initial_core_profiles(
 
   core_profiles = dataclasses.replace(core_profiles, psidot=psidot)
 
+  # Set psi as source of truth and recalculate jtot, q, s
   core_profiles = physics.update_jtot_q_face_s_face(
       geo=geo,
       core_profiles=core_profiles,
@@ -648,24 +662,23 @@ def _get_jtot_hires(
   j_bootstrap_hires = jnp.interp(
       geo.r_hires, geo.r_face, bootstrap_profile.j_bootstrap_face
   )
-  # calculate high resolution "Ohmic" current profile
-  # form of Ohmic current on cell grid
-  johmform_hires = (1 - geo.r_hires_norm**2) ** dynamic_config_slice.nu
-  denom = _trapz(johmform_hires * geo.spr_hires, geo.r_hires)
-  Cohm_hires = Iohm * 1e6 / denom
 
-  # Ohmic current profile on cell grid
-  johm_hires = Cohm_hires * johmform_hires
-
-  # calculate "External" current profile (e.g. ECCD) on cell grid.
+  # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
   jext_hires = jext_source.jext_hires(
       source_type=dynamic_config_slice.sources[jext_source.name].source_type,
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
   )
-  # jtot on the various grids
-  jtot_hires = johm_hires + jext_hires + j_bootstrap_hires
+
+  # calculate high resolution jtot and Ohmic current profile
+  jformula_hires = (1 - geo.r_hires_norm**2) ** dynamic_config_slice.nu
+  denom = _trapz(jformula_hires * geo.spr_hires, geo.r_hires)
+  if dynamic_config_slice.initial_j_is_total_current:
+    Ctot_hires = dynamic_config_slice.Ip * 1e6 / denom
+    jtot_hires = jformula_hires * Ctot_hires
+  else:
+    Cohm_hires = Iohm * 1e6 / denom
+    johm_hires = jformula_hires * Cohm_hires
+    jtot_hires = johm_hires + jext_hires + j_bootstrap_hires
   return jtot_hires
-
-
 # pylint: enable=invalid-name
