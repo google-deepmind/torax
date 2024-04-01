@@ -196,7 +196,7 @@ class SimTestCase(parameterized.TestCase):
             'Pos\tActual\tExpected\tAbs Err\tMatch',
         ]
         for i in range(actual.shape[0]):
-          match = np.allclose(actual[i], ref[i], rtol=rtol)
+          match = np.allclose(actual[i], ref[i], rtol=rtol, atol=atol)
           abse = np.abs(actual[i] - ref[i])
           msg.append(f'{names[i]}\t{actual[i]}\t{ref[i]}\t{abse:e}\t{match}')
         msg = '\n'.join(msg)

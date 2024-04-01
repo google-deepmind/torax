@@ -20,6 +20,7 @@ Residual functions are for use with e.g. the Newton-Raphson method
 while loss functions can be minimized using any optimization method.
 """
 import functools
+import chex
 import jax
 from jax import numpy as jnp
 import jaxopt
@@ -136,6 +137,9 @@ def theta_method_matrix_equation(
   tc_in_old = jnp.concatenate(coeffs_old.transient_in_cell)
   tc_out_new = jnp.concatenate(coeffs_new.transient_out_cell)
   tc_in_new = jnp.concatenate(coeffs_new.transient_in_cell)
+  chex.assert_rank(tc_in_old, 1)
+  chex.assert_rank(tc_out_new, 1)
+  chex.assert_rank(tc_in_new, 1)
 
   eps = 1e-7
   # adding sanity checks for values in denominators
@@ -158,9 +162,9 @@ def theta_method_matrix_equation(
       convection_neumann_mode,
   )
 
-  lhs_mat = left_transient - dt * theta_imp * jnp.dot(
-      jnp.diag(1 / (tc_out_new * tc_in_new)), c_mat_new
-  )
+  broadcasted = jnp.expand_dims(1 / (tc_out_new * tc_in_new), 1)
+
+  lhs_mat = left_transient - dt * theta_imp * broadcasted * c_mat_new
   lhs_vec = -theta_imp * dt * (1 / (tc_out_new * tc_in_new)) * c_new
 
   if theta_exp > 0.0:
@@ -176,9 +180,8 @@ def theta_method_matrix_equation(
         convection_dirichlet_mode,
         convection_neumann_mode,
     )
-    rhs_mat = right_transient + dt * theta_exp * jnp.dot(
-        jnp.diag(1 / (tc_out_old * tc_in_new)), c_mat_old
-    )
+    broadcasted = jnp.expand_dims(1 / (tc_out_old * tc_in_new), 1)
+    rhs_mat = right_transient + dt * theta_exp * broadcasted * c_mat_old
     rhs_vec = dt * theta_exp * (1 / (tc_out_old * tc_in_new)) * c_old
   else:
     rhs_mat = right_transient
