@@ -231,7 +231,7 @@ def main(
     log_sim_progress: bool = False,
     log_sim_output: bool = False,
     plot_sim_progress: bool = False,
-) -> None:
+) -> xr.Dataset:
   """Runs a simulation obtained via `get_sim`.
 
   This function will always write files to a directory containing the
@@ -254,6 +254,9 @@ def main(
       end of the run. If False, nothing happens.
     plot_sim_progress: If True, then a plotting spectator will be attached to
       the sim.
+
+  Returns:
+    An xarray Dataset containing the simulated output.
   """
   output_dir = _get_output_dir(output_dir)
 
