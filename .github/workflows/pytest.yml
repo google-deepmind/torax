@@ -3,6 +3,10 @@ name: Unittests
 # Allow to trigger the workflow manually (e.g. when deps changes)
 on: [push, workflow_dispatch]
 
+# Set the correct env variables for all the unit tests
+env:
+  TORAX_ERRORS_ENABLED: 1
+
 jobs:
   pytest-job:
     runs-on: ubuntu-latest
@@ -22,7 +26,6 @@ jobs:
 
     - run: git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
     - run: echo "TORAX_QLKNN_MODEL_PATH=$PWD/qlknn-hyper" >> "$GITHUB_ENV"
-    - run: echo "TORAX_ERRORS_ENABLED=True" >> "$GITHUB_ENV"
 
     - run: pip --version
     - run: pip install -e .[dev]
