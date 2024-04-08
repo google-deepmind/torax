@@ -22,6 +22,7 @@ import os
 import chex
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax import config as config_lib
 from torax import config_slice
 from torax import constants
@@ -480,6 +481,55 @@ def build_chease_geometry(
       volume=chease_data['VOLUMEprofile'],
       area=chease_data['areaprofile'],
       nr=config.nr,
+      hires_fac=hires_fac,
+  )
+  if updated_Ip is not None:
+    # TODO( b/326406367): Do not rely on writing back to the config to
+    # make this work. We should not rely on the geometry being computed for the
+    # config to have the correct Ip.
+    config.Ip = updated_Ip
+  return geo
+
+
+def build_chease_geometry_from_meq(
+    config: config_lib.Config,
+    equilibrium_profiles_1d: dict[str, np.ndarray],
+    Ip_from_parameters: bool = True,
+    hires_fac: int = 4,
+) -> CHEASEGeometry:
+  dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+
+  # psi is  offset (-1 factor)
+  psi = equilibrium_profiles_1d["psi"][:-1]
+  psi += -psi[0]
+
+  geo, updated_Ip = _build_chease_geometry(
+      Rmaj=dynamic_config_slice.Rmaj,
+      B=dynamic_config_slice.B0,
+      psi=psi,
+      # TODO temp hack bc no Ip profile in IMAS
+      # IP seems to be different
+      Ip=equilibrium_profiles_1d["j_parallel"][:-1] * -1,
+      rho=equilibrium_profiles_1d["rho_tor"][:-1] / (2*np.pi),
+      rhon=equilibrium_profiles_1d["rho_tor_norm"][:-1],
+      Rin=equilibrium_profiles_1d["r_inboard"][:-1],
+      Rout=equilibrium_profiles_1d["r_outboard"][:-1],
+      J=equilibrium_profiles_1d["f"][:-1],  # TODO - is this the correct mapping?
+      int_Jdchi=equilibrium_profiles_1d["dvolume_dpsi"][:-1],
+      flux_norm_1_over_R2=equilibrium_profiles_1d["gm1"][:-1],
+      # TODO temp hack bc no field in IMAS for <|grad psi|**2 / R**2> this is in gm2 here
+      # gm 3 is filled with <|grad psi|**2>
+      flux_norm_Bp2=(equilibrium_profiles_1d["gm2"] / (4 * np.pi * 2))[:-1],
+      flux_norm_dpsi=np.sqrt(equilibrium_profiles_1d["gm3"])[:-1] / 2 * np.pi,
+      flux_norm_dpsi2=equilibrium_profiles_1d["gm3"][:-1] / ((2 * np.pi) ** 2),
+      # TODO - fix these delta faces. Where do these come from in the
+      # equilibrium profiles.
+      delta_upper_face=equilibrium_profiles_1d["delta_upper"],
+      delta_lower_face=equilibrium_profiles_1d["delta_lower"],
+      volume=equilibrium_profiles_1d["volume"][:-1],
+      area=equilibrium_profiles_1d["surface"][:-1],
+      nr=config.nr,
+      config_Ip=dynamic_config_slice.Ip if Ip_from_parameters else None,
       hires_fac=hires_fac,
   )
   if updated_Ip is not None:
