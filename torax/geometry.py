@@ -160,6 +160,7 @@ class CircularGeometry(Geometry):
   kappa_hires: jnp.ndarray
 
 
+# TODO(akhilraju): Rename this class.
 @chex.dataclass(frozen=True)
 class CHEASEGeometry(Geometry):
   g2: jnp.ndarray
@@ -458,28 +459,79 @@ def build_chease_geometry(
   # toroidal field flux function
   J_chease = chease_data['T=RBphi']
 
-  # delta (triangularity). On face grid since only used in bootstrap current
-  delta_upper_face_chease = chease_data['delta_upper']
-  delta_lower_face_chease = chease_data['delta_bottom']
+  geo, updated_Ip = _build_chease_geometry(
+      Rmaj=dynamic_config_slice.Rmaj,
+      B=dynamic_config_slice.B0,
+      psi=psi_chease,
+      Ip=Ip_chease,
+      rho=rho,
+      rhon=rhon,
+      Rin=Rin_chease,
+      Rout=Rout_chease,
+      J=J_chease,
+      int_Jdchi=chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'],
+      flux_norm_1_over_R2=chease_data['<1/R**2>'],
+      flux_norm_Bp2=chease_data['<Bp**2>'],
+      flux_norm_dpsi=chease_data['<|grad(psi)|>'],
+      flux_norm_dpsi2=chease_data['<|grad(psi)|**2>'],
+      delta_upper_face=chease_data['delta_upper'],
+      delta_lower_face=chease_data['delta_bottom'],
+      config_Ip=dynamic_config_slice.Ip if Ip_from_parameters else None,
+      volume=chease_data['VOLUMEprofile'],
+      area=chease_data['areaprofile'],
+      nr=config.nr,
+      hires_fac=hires_fac,
+  )
+  if updated_Ip is not None:
+    # TODO( b/326406367): Do not rely on writing back to the config to
+    # make this work. We should not rely on the geometry being computed for the
+    # config to have the correct Ip.
+    config.Ip = updated_Ip
+  return geo
 
+
+def _build_chease_geometry(
+    Rmaj: float,
+    B: float,
+    psi: jnp.ndarray,
+    Ip: jnp.ndarray,
+    rho: jnp.ndarray,
+    rhon: jnp.ndarray,
+    Rin: jnp.ndarray,
+    Rout: jnp.ndarray,
+    J: jnp.ndarray,
+    int_Jdchi: jnp.ndarray,
+    flux_norm_1_over_R2: jnp.ndarray,
+    flux_norm_Bp2: jnp.ndarray,
+    flux_norm_dpsi: jnp.ndarray,
+    flux_norm_dpsi2: jnp.ndarray,
+    delta_upper_face: jnp.ndarray,
+    delta_lower_face: jnp.ndarray,
+    config_Ip: float | None,
+    volume: jnp.ndarray,
+    area: jnp.ndarray,
+    nr: int,
+    hires_fac: int,
+) -> tuple[CHEASEGeometry, jnp.ndarray | None]:
+  """Returns a new CHEASEGeometry based on the inputs."""
   # flux surface integrals of various geometry quantities
-  C1 = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * config.Rmaj / B0
-  C2 = chease_data['<1/R**2>'] * C1 / config.Rmaj**2
-  C3 = chease_data['<Bp**2>'] * C1 * B0**2
-  C4 = chease_data['<|grad(psi)|**2>'] * C1 * (B0 * config.Rmaj) ** 2
+  C1 = int_Jdchi * Rmaj / B
+  C2 = flux_norm_1_over_R2 * C1 / Rmaj**2
+  C3 = flux_norm_Bp2 * C1 * B**2
+  C4 = flux_norm_dpsi2 * C1 * (B * Rmaj) ** 2
 
   # derived quantities for transport equations and transformations
 
   # <\nabla V>
-  g0_chease = 2 * jnp.pi * chease_data['<|grad(psi)|>'] * B0 * config.Rmaj * C1
+  g0_chease = 2 * jnp.pi * flux_norm_dpsi * B * Rmaj * C1
   g1_chease = 4 * jnp.pi**2 * C1 * C4  # <(\nabla V)**2>
   g2_chease = 4 * jnp.pi**2 * C1 * C3  # <(\nabla V)**2 / R**2>
   g3_chease = C2[1:] / C1[1:]  # <1/R**2>
-  g3_chease = jnp.concatenate((jnp.array([1 / Rin_chease[0] ** 2]), g3_chease))
+  g3_chease = jnp.concatenate((jnp.array([1 / Rin[0] ** 2]), g3_chease))
   G2_chease = (
-      config.Rmaj
+      Rmaj
       / (16 * jnp.pi**4)
-      * J_chease[1:]
+      * J[1:]
       * g2_chease[1:]
       * g3_chease[1:]
       / rho[1:]
@@ -488,9 +540,9 @@ def build_chease_geometry(
 
   # make an alternative initial psi, self-consistent with CHEASE Ip profile
   # needed because CHEASE psi profile has noisy second derivatives
-  dpsidrho = Ip_chease[1:] * constants.CONSTANTS.mu0 / G2_chease[1:]
+  dpsidrho = Ip[1:] * constants.CONSTANTS.mu0 / G2_chease[1:]
   dpsidrho = jnp.concatenate((jnp.zeros(1), dpsidrho))
-  psi_from_chease_Ip = jnp.zeros(len(psi_chease))
+  psi_from_chease_Ip = jnp.zeros(len(psi))
   for i in range(1, len(psi_from_chease_Ip) + 1):
     psi_from_chease_Ip = psi_from_chease_Ip.at[i - 1].set(
         jax.scipy.integrate.trapezoid(dpsidrho[:i], rho[:i])
@@ -500,27 +552,28 @@ def build_chease_geometry(
   psi_from_chease_Ip = psi_from_chease_Ip.at[-1].set(
       psi_from_chease_Ip[-2]
       + constants.CONSTANTS.mu0
-      * Ip_chease[-1]
+      * Ip[-1]
       / G2_chease[-1]
       * (rho[-1] - rho[-2])
   )
 
   # if Ip from parameter file, renormalize psi to match desired current
-  if Ip_from_parameters:
-    Ip_scale_factor = dynamic_config_slice.Ip * 1e6 / Ip_chease[-1]
+  if config_Ip is not None:
+    Ip_scale_factor = config_Ip * 1e6 / Ip[-1]
     psi_from_chease_Ip *= Ip_scale_factor
+    updated_config_Ip = None
   else:
     # This overwrites the config.Ip, even if it's time dependent, to be
     # consistent with the geometry file being processed
     # TODO( b/326406367): Do not rely on writing back to the config to
     # make this work. We should not rely on the geometry being computed for the
     # config to have the correct Ip.
-    config.Ip = Ip_chease[-1] / 1e6
+    updated_config_Ip = Ip[-1] / 1e6
     Ip_scale_factor = 1
 
   # volume, area, and dV/drho, dS/drho
-  volume_chease = chease_data['VOLUMEprofile'] * config.Rmaj**3
-  area_chease = chease_data['areaprofile'] * config.Rmaj**2
+  volume_chease = volume * Rmaj**3
+  area_chease = area * Rmaj**2
   vpr_chease = math_utils.gradient(volume_chease, rho)
   spr_chease = math_utils.gradient(area_chease, rho)
   # gradient boundary approximation not appropriate here
@@ -531,16 +584,16 @@ def build_chease_geometry(
   jtot_chease = (
       2
       * jnp.pi
-      * config.Rmaj
-      * math_utils.gradient(Ip_chease, volume_chease)
+      * Rmaj
+      * math_utils.gradient(Ip, volume_chease)
       * Ip_scale_factor
   )
 
   # fill geometry structure
   # r_norm coordinate is rho_tor_norm
-  dr_norm = jnp.array(1) / config.nr
+  dr_norm = jnp.array(1) / nr
   # normalized grid
-  mesh = Grid1D.construct(nx=config.nr, dx=dr_norm)
+  mesh = Grid1D.construct(nx=nr, dx=dr_norm)
   rmax = rho[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   r_face_norm = mesh.face_centers
@@ -552,7 +605,7 @@ def build_chease_geometry(
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  r_hires_norm = jnp.linspace(0, 1, config.nr * hires_fac)
+  r_hires_norm = jnp.linspace(0, 1, nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
   interp_func = lambda x: jnp.interp(x, rhon, vpr_chease)
@@ -570,9 +623,9 @@ def build_chease_geometry(
   spr_hires = interp_func(r_hires_norm)
 
   # triangularity on cell grid
-  interp_func = lambda x: jnp.interp(x, rhon, delta_upper_face_chease)
+  interp_func = lambda x: jnp.interp(x, rhon, delta_upper_face)
   delta_upper_face = interp_func(r_face_norm)
-  interp_func = lambda x: jnp.interp(x, rhon, delta_lower_face_chease)
+  interp_func = lambda x: jnp.interp(x, rhon, delta_lower_face)
   delta_lower_face = interp_func(r_face_norm)
 
   # average triangularity
@@ -583,15 +636,15 @@ def build_chease_geometry(
   G2_hires = interp_func(r_hires_norm)
   G2 = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, J_chease)
+  interp_func = lambda x: jnp.interp(x, rhon, J)
   J_face = interp_func(r_face_norm)
   J = interp_func(r_norm)
   # simplified (constant) version of the F=B*R function
-  F = J * config.Rmaj * B0
+  F = J * Rmaj * B
   # simplified (constant) version of the F=B*R function
-  F_face = J_face * config.Rmaj * B0
+  F_face = J_face * Rmaj * B
 
-  interp_func = lambda x: jnp.interp(x, rhon, psi_chease)
+  interp_func = lambda x: jnp.interp(x, rhon, psi)
   psi_chease = interp_func(r_norm)
 
   interp_func = lambda x: jnp.interp(x, rhon, psi_from_chease_Ip)
@@ -601,11 +654,11 @@ def build_chease_geometry(
   jtot_face = interp_func(r_face_norm)
   jtot = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, Rin_chease)
+  interp_func = lambda x: jnp.interp(x, rhon, Rin)
   Rin_face = interp_func(r_face_norm)
   Rin = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, Rout_chease)
+  interp_func = lambda x: jnp.interp(x, rhon, Rout)
   Rout_face = interp_func(r_face_norm)
   Rout = interp_func(r_norm)
 
@@ -650,61 +703,64 @@ def build_chease_geometry(
       jnp.ones(1),  # correct value is unity on-axis
       g1_face[1:] / vpr_face[1:] ** 2,  # avoid div by zero on-axis
   ))
-  return CHEASEGeometry(
-      geometry_type=GeometryType.CHEASE.value,
-      dr_norm=dr_norm,
-      dr=dr,
-      mesh=mesh,
-      rmax=rmax,
-      r_face_norm=r_face_norm,
-      r_norm=r_norm,
-      r_face=r_face,
-      r=r,
-      B0=B0,
-      volume=volume,
-      volume_face=volume_face,
-      area=area,
-      area_face=area_face,
-      vpr=vpr,
-      vpr_face=vpr_face,
-      spr_cell=spr_cell,
-      spr_face=spr_face,
-      delta_face=delta_face,
-      G2=G2,
-      G2_face=G2_face,
-      g0=g0,
-      g0_face=g0_face,
-      g1=g1,
-      g1_face=g1_face,
-      g0_over_vpr_face=g0_over_vpr_face,
-      g1_over_vpr=g1_over_vpr,
-      g1_over_vpr_face=g1_over_vpr_face,
-      g1_over_vpr2=g1_over_vpr2,
-      g1_over_vpr2_face=g1_over_vpr2_face,
-      J=J,
-      J_face=J_face,
-      F=F,
-      F_face=F_face,
-      Rin=Rin,
-      Rin_face=Rin_face,
-      Rout=Rout,
-      Rout_face=Rout_face,
-      # Set the CHEASE geometry-specific parameters.
-      g2=g2,
-      g3=g3,
-      psi_chease=psi_chease,
-      psi_from_chease_Ip=psi_from_chease_Ip,
-      jtot=jtot,
-      jtot_face=jtot_face,
-      delta_upper_face=delta_upper_face,
-      delta_lower_face=delta_lower_face,
-      volume_hires=volume_hires,
-      area_hires=area_hires,
-      G2_hires=G2_hires,
-      spr_hires=spr_hires,
-      r_hires_norm=r_hires_norm,
-      r_hires=r_hires,
-      vpr_hires=vpr_hires,
+  return (
+      CHEASEGeometry(
+          geometry_type=GeometryType.CHEASE.value,
+          dr_norm=dr_norm,
+          dr=dr,
+          mesh=mesh,
+          rmax=rmax,
+          r_face_norm=r_face_norm,
+          r_norm=r_norm,
+          r_face=r_face,
+          r=r,
+          B0=B,
+          volume=volume,
+          volume_face=volume_face,
+          area=area,
+          area_face=area_face,
+          vpr=vpr,
+          vpr_face=vpr_face,
+          spr_cell=spr_cell,
+          spr_face=spr_face,
+          delta_face=delta_face,
+          G2=G2,
+          G2_face=G2_face,
+          g0=g0,
+          g0_face=g0_face,
+          g1=g1,
+          g1_face=g1_face,
+          g0_over_vpr_face=g0_over_vpr_face,
+          g1_over_vpr=g1_over_vpr,
+          g1_over_vpr_face=g1_over_vpr_face,
+          g1_over_vpr2=g1_over_vpr2,
+          g1_over_vpr2_face=g1_over_vpr2_face,
+          J=J,
+          J_face=J_face,
+          F=F,
+          F_face=F_face,
+          Rin=Rin,
+          Rin_face=Rin_face,
+          Rout=Rout,
+          Rout_face=Rout_face,
+          # Set the CHEASE geometry-specific parameters.
+          g2=g2,
+          g3=g3,
+          psi_chease=psi_chease,
+          psi_from_chease_Ip=psi_from_chease_Ip,
+          jtot=jtot,
+          jtot_face=jtot_face,
+          delta_upper_face=delta_upper_face,
+          delta_lower_face=delta_lower_face,
+          volume_hires=volume_hires,
+          area_hires=area_hires,
+          G2_hires=G2_hires,
+          spr_hires=spr_hires,
+          r_hires_norm=r_hires_norm,
+          r_hires=r_hires,
+          vpr_hires=vpr_hires,
+      ),
+      updated_config_Ip,
   )
 
 
