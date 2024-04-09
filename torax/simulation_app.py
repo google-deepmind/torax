@@ -45,7 +45,6 @@ import enum
 import os
 import sys
 from typing import Callable
-import xarray as xr
 
 from absl import logging
 import chex
@@ -58,6 +57,7 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
 from torax.spectators import plotting
+import xarray as xr
 
 import shutil
 
@@ -84,6 +84,7 @@ def log_to_stdout(output: str, color: AnsiColors | None = None) -> None:
   else:
     logging.info('%s%s%s', color.value, output, _ANSI_END)
 
+
 def simulation_output_to_xr(
     core_profile_history: torax.CoreProfiles,
     core_transport_history: torax.CoreTransport,
@@ -94,7 +95,9 @@ def simulation_output_to_xr(
   """Build an xr.Dataset of the simulation output."""
   # Get the coordinate variables for dimensions ("time", "rho_face", "rho_cell")
   time = xr.DataArray(t, dims=['time'], name='time')
-  r_face_norm = xr.DataArray(geo.r_face_norm, dims=['rho_face'], name='r_face_norm')
+  r_face_norm = xr.DataArray(
+      geo.r_face_norm, dims=['rho_face'], name='r_face_norm'
+  )
   r_cell_norm = xr.DataArray(geo.r_norm, dims=['rho_cell'], name='r_cell_norm')
   r_face = xr.DataArray(geo.r_face, dims=['rho_face'], name='r_face')
   r_cell = xr.DataArray(geo.r, dims=['rho_cell'], name='r_cell')
@@ -103,12 +106,17 @@ def simulation_output_to_xr(
   tree = (core_profile_history, core_transport_history, aux_history)
 
   # Only try to log arrays.
-  leaves_with_path = jax.tree_util.tree_leaves_with_path(tree, is_leaf=lambda x: isinstance(x, jax.Array))
+  leaves_with_path = jax.tree_util.tree_leaves_with_path(
+      tree, is_leaf=lambda x: isinstance(x, jax.Array)
+  )
 
   # Functions to check if a leaf is a face or cell variable
   # Assume that all arrays with shape (time, rho_face) are face variables
   # and all arrays with shape (time, rho_cell) are cell variables
-  is_face_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.r_face))
+  is_face_var = lambda x: x.ndim == 2 and x.shape == (
+      len(time),
+      len(geo.r_face),
+  )
   is_cell_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.r))
 
   def translate_leaf_with_path(path, leaf):
@@ -124,23 +132,23 @@ def simulation_output_to_xr(
 
   xr_dict = {}
   for path, leaf in leaves_with_path:
-      name, da = translate_leaf_with_path(path, leaf)
-      if da is not None:
-          xr_dict[name] = da
-  ds = xr.Dataset(xr_dict,
-                  coords={
-                      'time': time,
-                      'r_face_norm': r_face_norm,
-                      'r_cell_norm': r_cell_norm,
-                      'r_face': r_face,
-                      'r_cell': r_cell,
-                  })
+    name, da = translate_leaf_with_path(path, leaf)
+    if da is not None:
+      xr_dict[name] = da
+  ds = xr.Dataset(
+      xr_dict,
+      coords={
+          'time': time,
+          'r_face_norm': r_face_norm,
+          'r_cell_norm': r_cell_norm,
+          'r_face': r_face,
+          'r_cell': r_cell,
+      },
+  )
   return ds
 
-def write_simulation_output_to_file(
-    output_dir: str,
-    ds: xr.Dataset
-) -> None:
+
+def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> None:
   """Writes the state history and some geometry information to an HDF5 file."""
   output_file = os.path.join(output_dir, _STATE_HISTORY_FILENAME)
   ds.to_netcdf(output_file)
@@ -294,12 +302,12 @@ def main(
   chex.assert_rank(t, 1)
 
   ds = simulation_output_to_xr(
-        core_profile_history,
-        core_transport_history,
-        aux_history,
-        geo,
-        t,
-    )
+      core_profile_history,
+      core_transport_history,
+      aux_history,
+      geo,
+      t,
+  )
 
   if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
