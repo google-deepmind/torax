@@ -451,7 +451,7 @@ def build_chease_geometry(
 
   # toroidal flux coordinate
   #TODO Do we need the 2 * pi division here?
-  rho = chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * Rmaj * 2 * jnp.pi
+  rho = chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * Rmaj
   rhon = chease_data['RHO_TOR_NORM']
   # midplane radii
   Rin_chease = chease_data['R_INBOARD'] * Rmaj
@@ -592,7 +592,7 @@ def _build_chease_geometry(
   g3_chease = jnp.concatenate((jnp.array([1 / Rin[0] ** 2]), g3_chease))
   G2_chease = (
       1
-      / (8 * jnp.pi**3)
+      / (16 * jnp.pi**4)
       / B
       * J[1:]
       * g2_chease[1:]
@@ -608,7 +608,7 @@ def _build_chease_geometry(
   psi_from_chease_Ip = jnp.zeros(len(psi))
   for i in range(1, len(psi_from_chease_Ip) + 1):
     psi_from_chease_Ip = psi_from_chease_Ip.at[i - 1].set(
-        jax.scipy.integrate.trapezoid(dpsidrho[:i], rho[:i] / (2*jnp.pi) )
+        jax.scipy.integrate.trapezoid(dpsidrho[:i], rho[:i])
     )
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
@@ -618,7 +618,6 @@ def _build_chease_geometry(
       * Ip[-1]
       / G2_chease[-1]
       * (rho[-1] - rho[-2])
-      / (2*jnp.pi)
   )
 
   # if Ip from parameter file, renormalize psi to match desired current
@@ -638,8 +637,8 @@ def _build_chease_geometry(
   # volume, area, and dV/drho, dS/drho
   volume_chease = volume
   area_chease = area
-  vpr_chease = math_utils.gradient(volume_chease, rho / 2 / jnp.pi)
-  spr_chease = math_utils.gradient(area_chease, rho / 2 / jnp.pi)
+  vpr_chease = math_utils.gradient(volume_chease, rho)
+  spr_chease = math_utils.gradient(area_chease, rho)
   # gradient boundary approximation not appropriate here
   vpr_chease = vpr_chease.at[0].set(0)
   spr_chease = spr_chease.at[0].set(0)
@@ -658,7 +657,7 @@ def _build_chease_geometry(
   dr_norm = jnp.array(rhon[-1]) / nr
   # normalized grid
   mesh = Grid1D.construct(nx=nr, dx=dr_norm)
-  rmax = rho[-1] / (2 * jnp.pi) # radius denormalization constant
+  rmax = rho[-1] # radius denormalization constant
   # helper variables for mesh cells and faces
   r_face_norm = mesh.face_centers
   r_norm = mesh.cell_centers
