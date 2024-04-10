@@ -281,6 +281,8 @@ class SimulationStepFn:
         dynamic_config_slice_t.t_final - input_state.t,
         dt,
     )
+    if jnp.any(jnp.isnan(dt)):
+      raise ValueError('dt is NaN.')
 
     # The stepper needs the dynamic_config_slice at time t + dt for implicit
     # computations in the solver.
@@ -344,6 +346,8 @@ class SimulationStepFn:
       ) -> state.ToraxSimState:
 
         dt = updated_output.dt / dynamic_config_slice_t.dt_reduction_factor
+        if jnp.any(jnp.isnan(dt)):
+          raise ValueError('dt is NaN.')
         if dt < dynamic_config_slice_t.mindt:
           raise ValueError('dt below minimum timestep following adaptation')
 
