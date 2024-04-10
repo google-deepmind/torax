@@ -472,7 +472,7 @@ def build_chease_geometry(
   volume = chease_data['VOLUMEprofile'] * Rmaj**3
   area = chease_data['areaprofile'] * Rmaj**2
 
-  geo, updated_Ip = _build_chease_geometry(
+  geo, updated_Ip = _build_geometry(
       Rmaj=dynamic_config_slice.Rmaj,
       B=dynamic_config_slice.B0,
       psi=psi_chease,
@@ -481,7 +481,7 @@ def build_chease_geometry(
       rhon=rhon,
       Rin=Rin_chease,
       Rout=Rout_chease,
-      J=RBphi,
+      RBPhi=RBphi,
       int_Jdchi=int_Jdchi,
       flux_norm_1_over_R2=flux_norm_1_over_R2,
       flux_norm_Bp2=flux_norm_Bp2,
@@ -503,43 +503,55 @@ def build_chease_geometry(
   return geo
 
 
-def build_chease_geometry_from_meq(
+def build_geometry(
     config: config_lib.Config,
-    equilibrium_profiles_1d: dict[str, np.ndarray],
+    psi: jnp.ndarray,
+    Ip: jnp.ndarray,
+    rho: jnp.ndarray,
+    rhon: jnp.ndarray,
+    Rin: jnp.ndarray,
+    Rout: jnp.ndarray,
+    RBPhi: jnp.ndarray,
+    int_Jdchi: jnp.ndarray,
+    flux_norm_1_over_R2: jnp.ndarray,
+    flux_norm_Bp2: jnp.ndarray,
+    flux_norm_dpsi: jnp.ndarray,
+    flux_norm_dpsi2: jnp.ndarray,
+    delta_upper_face: jnp.ndarray,
+    delta_lower_face: jnp.ndarray,
+    volume: jnp.ndarray,
+    area: jnp.ndarray,
     Ip_from_parameters: bool = True,
     hires_fac: int = 4,
 ) -> CHEASEGeometry:
+  """Build geometry object based on set of profiles from an EQ solution.
+
+  Expects the quantities to adhere to COCOS=??. All inputs are 1D profiles vs normalized rho toroidal (rhon).
+
+  Returns:
+      geometry object.
+  """
   dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
 
-  # psi is  offset (-1 factor)
-  psi = equilibrium_profiles_1d["psi"][:-1]
-  psi += -psi[0]
-
-  geo, updated_Ip = _build_chease_geometry(
+  geo, updated_Ip = _build_geometry(
       Rmaj=dynamic_config_slice.Rmaj,
       B=dynamic_config_slice.B0,
       psi=psi,
-      # TODO temp hack bc no Ip profile in IMAS
-      # IP seems to be different
-      Ip=equilibrium_profiles_1d["j_parallel"][:-1] * -1,
-      rho=equilibrium_profiles_1d["rho_tor"][:-1],
-      rhon=equilibrium_profiles_1d["rho_tor_norm"][:-1],
-      Rin=equilibrium_profiles_1d["r_inboard"][:-1],
-      Rout=equilibrium_profiles_1d["r_outboard"][:-1],
-      J=equilibrium_profiles_1d["f"][:-1],  # TODO - is this the correct mapping?
-      int_Jdchi=equilibrium_profiles_1d["dvolume_dpsi"][:-1],
-      flux_norm_1_over_R2=equilibrium_profiles_1d["gm1"][:-1],
-      # TODO temp hack bc no field in IMAS for <|grad psi|**2 / R**2> this is in gm2 here
-      # gm 3 is filled with <|grad psi|**2>
-      flux_norm_Bp2=equilibrium_profiles_1d["gm2"][:-1],
-      flux_norm_dpsi=np.sqrt(equilibrium_profiles_1d["gm3"])[:-1],
-      flux_norm_dpsi2=equilibrium_profiles_1d["gm3"][:-1] ,
-      # TODO - fix these delta faces. Where do these come from in the
-      # equilibrium profiles.
-      delta_upper_face=equilibrium_profiles_1d["triangularity_upper"][:-1],
-      delta_lower_face=equilibrium_profiles_1d["triangularity_lower"][:-1],
-      volume=equilibrium_profiles_1d["volume"][:-1],
-      area=equilibrium_profiles_1d["surface"][:-1],
+      Ip=Ip,
+      rho=rho,
+      rhon=rhon,
+      Rin=Rin,
+      Rout=Rout,
+      RBPhi=RBPhi,
+      int_Jdchi=int_Jdchi,
+      flux_norm_1_over_R2=flux_norm_1_over_R2,
+      flux_norm_Bp2=flux_norm_Bp2,
+      flux_norm_dpsi=flux_norm_dpsi,
+      flux_norm_dpsi2=flux_norm_dpsi2,
+      delta_upper_face=delta_upper_face,
+      delta_lower_face=delta_lower_face,
+      volume=volume,
+      area=area,
       nr=config.nr,
       config_Ip=dynamic_config_slice.Ip if Ip_from_parameters else None,
       hires_fac=hires_fac,
@@ -552,7 +564,7 @@ def build_chease_geometry_from_meq(
   return geo
 
 
-def _build_chease_geometry(
+def _build_geometry(
     Rmaj: float,
     B: float,
     psi: jnp.ndarray,
@@ -561,7 +573,7 @@ def _build_chease_geometry(
     rhon: jnp.ndarray,
     Rin: jnp.ndarray,
     Rout: jnp.ndarray,
-    J: jnp.ndarray,
+    RBPhi: jnp.ndarray,
     int_Jdchi: jnp.ndarray,
     flux_norm_1_over_R2: jnp.ndarray,
     flux_norm_Bp2: jnp.ndarray,
@@ -594,7 +606,7 @@ def _build_chease_geometry(
       1
       / (16 * jnp.pi**4)
       / B
-      * J[1:]
+      * RBPhi[1:]
       * g2_chease[1:]
       * g3_chease[1:]
       / rho[1:]
@@ -699,7 +711,7 @@ def _build_chease_geometry(
   G2_hires = interp_func(r_hires_norm)
   G2 = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, J)
+  interp_func = lambda x: jnp.interp(x, rhon, RBPhi)
   F_face = interp_func(r_face_norm) 
   F = interp_func(r_norm)
   # simplified (constant) version of the F=B*R function
