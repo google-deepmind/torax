@@ -72,7 +72,10 @@ class SourceProfilesTest(parameterized.TestCase):
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo))
     profiles = source_profiles_lib.SourceProfiles(
-        j_bootstrap=_zero_bootstrap_profile(geo),
+        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+            geo
+        ),
+        qei=source_profiles_lib.QeiInfo.zeros(geo),
         profiles={
             'generic_ion_el_heat_source': jnp.stack([ones, ones * 2]),
             'fusion_heat_source': jnp.stack([ones * 3, ones * 4]),
@@ -188,20 +191,6 @@ class SourceProfilesTest(parameterized.TestCase):
       (ne, temp_el) = jitted_compute_and_sum()
       np.testing.assert_allclose(ne, expected_ne)
       np.testing.assert_allclose(temp_el, expected_temp_el)
-
-
-def _zero_bootstrap_profile(
-    geo: torax.Geometry,
-) -> source_profiles_lib.BootstrapCurrentProfile:
-  """Returns a dummy boostrap current profile with everything set to zero."""
-  cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
-  face = source_lib.ProfileType.FACE.get_profile_shape(geo)
-  return source_profiles_lib.BootstrapCurrentProfile(
-      sigma=jnp.zeros(cell),
-      j_bootstrap=jnp.zeros(cell),
-      j_bootstrap_face=jnp.zeros(face),
-      I_bootstrap=jnp.zeros((1,)),
-  )
 
 
 if __name__ == '__main__':

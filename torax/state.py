@@ -25,6 +25,7 @@ from jax import numpy as jnp
 from torax import config
 from torax import geometry
 from torax.fvm import cell_variable
+from torax.sources import source_profiles
 
 
 @chex.dataclass(frozen=True)
@@ -210,8 +211,17 @@ class ToraxSimState:
     t: time coordinate
     dt: timestep interval
     core_profiles: Core plasma profiles at time t.
+    core_sources: Profiles for all sources/sinks. For any state-dependent source
+      models, the profiles in this dataclass are computed based on the core
+      profiles at time t, almost. When running `sim.run_simulation()`, any
+      profile from an "explicit" state-dependent source will be computed with
+      the core profiles at time t. Any profile from an "implicit"
+      state-dependent source will be computed with an intermediate state from
+      the previous time step's solver. This should be close to the core profiles
+      at time t, but is not guaranteed to be. In case exact source profiles are
+      required for each time step, they must be recomputed manually after
+      running `run_simulation()`.
     core_transport: Core plasma transport coefficients computed at time t.
-    aux_output: Other outputs based on the state at time t.
     stepper_iterations: number of stepper iterations carried out in previous
       step, i.e. the number of times dt was reduced when using the adaptive dt
       method.
@@ -226,8 +236,8 @@ class ToraxSimState:
 
   # Profiles evolved or calculated by the simulation.
   core_profiles: CoreProfiles
+  core_sources: source_profiles.SourceProfiles
   core_transport: CoreTransport
-  aux_output: AuxOutput
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.
@@ -236,57 +246,17 @@ class ToraxSimState:
   stepper_error_state: int
 
 
-@chex.dataclass
-class AuxOutput:
-  """Auxiliary output for each simulation step.
-
-  Attributes:
-    source_ion: Extra output for inspecting the generic external ion source on
-      the cell grid.
-    source_el: Extra output for inspecting the generic external electron source
-      on the cell grid.
-    Pfus_i: Extra output for inspecting the fusion power source for heating ions
-      on the cell grid.
-    Pfus_e: Extra output for inspecting the fusion power source for heating
-      electrons on the cell grid.
-    Pohm: Extra output for inspecting Extra output for inspecting the ohmic
-      heating on the cell grid.
-    Qei: Extra output for inspecting the ion-el collisional heating source.
-  """
-
-  # pylint: disable=invalid-name
-  source_ion: jax.Array
-  source_el: jax.Array
-  Pfus_i: jax.Array
-  Pfus_e: jax.Array
-  Pohm: jax.Array
-  Qei: jax.Array
-  # pylint: enable=invalid-name
-
-  @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> AuxOutput:
-    """Returns an AuxOutput with all zeros. Useful for initializing."""
-    return cls(
-        source_ion=jnp.zeros(geo.r.shape),
-        source_el=jnp.zeros(geo.r.shape),
-        Pfus_i=jnp.zeros(geo.r.shape),
-        Pfus_e=jnp.zeros(geo.r.shape),
-        Pohm=jnp.zeros(geo.r.shape),
-        Qei=jnp.zeros(geo.r.shape),
-    )
-
-
 def build_history_from_states(
     states: tuple[ToraxSimState, ...],
-) -> tuple[CoreProfiles, CoreTransport, AuxOutput]:
+) -> tuple[CoreProfiles, source_profiles.SourceProfiles, CoreTransport]:
   core_profiles = [state.core_profiles.history_elem() for state in states]
+  core_sources = [state.core_sources for state in states]
   transport = [state.core_transport for state in states]
-  aux = [state.aux_output for state in states]
   stack = lambda *ys: jnp.stack(ys)
   return (
       jax.tree_util.tree_map(stack, *core_profiles),
+      jax.tree_util.tree_map(stack, *core_sources),
       jax.tree_util.tree_map(stack, *transport),
-      jax.tree_util.tree_map(stack, *aux),
   )
 
 

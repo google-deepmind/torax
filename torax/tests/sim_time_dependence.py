@@ -105,7 +105,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     )
     self.assertEqual(output_state.stepper_error_state, expected_error_state)
     np.testing.assert_allclose(
-        output_state.aux_output.Qei, expected_combined_value
+        output_state.core_sources.qei.qei_coef, expected_combined_value
     )
 
 
@@ -144,7 +144,12 @@ class FakeStepper(stepper_lib.Stepper):
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[state.CoreProfiles, state.CoreTransport, state.AuxOutput, int]:
+  ) -> tuple[
+      state.CoreProfiles,
+      source_profiles.SourceProfiles,
+      state.CoreTransport,
+      int,
+  ]:
     combined = getattr(dynamic_config_slice_t, self._param) + getattr(
         dynamic_config_slice_t_plus_dt, self._param
     )
@@ -152,12 +157,21 @@ class FakeStepper(stepper_lib.Stepper):
         dynamic_config_slice_t, geo, core_profiles_t
     )
     # Use Qei as a hacky way to extract what the combined value was.
-    aux = state.AuxOutput.zeros(geo)
-    aux = dataclasses.replace(aux, Qei=jnp.ones_like(geo.r) * combined)
+    core_sources = source_models_lib.build_all_zero_profiles(
+        source_models=self.source_models,
+        dynamic_config_slice=dynamic_config_slice_t,
+        geo=geo,
+    )
+    core_sources = dataclasses.replace(
+        core_sources,
+        qei=dataclasses.replace(
+            core_sources.qei, qei_coef=jnp.ones_like(geo.r) * combined
+        ),
+    )
     return jax.lax.cond(
         combined < self._max_value,
-        lambda: (core_profiles_t, transport, aux, 0),
-        lambda: (core_profiles_t, transport, aux, 1),
+        lambda: (core_profiles_t, core_sources, transport, 0),
+        lambda: (core_profiles_t, core_sources, transport, 1),
     )
 
 

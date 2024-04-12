@@ -100,8 +100,11 @@ def build_source_profiles(
       )
   )
   return source_profiles.SourceProfiles(
-      j_bootstrap=bootstrap_profiles,
       profiles=other_profiles,
+      j_bootstrap=bootstrap_profiles,
+      # Qei is computed within calc_coeffs and will replace this value. This is
+      # here as a placeholder with correct shapes.
+      qei=source_profiles.QeiInfo.zeros(geo),
   )
 
 
@@ -824,6 +827,19 @@ class SourceModels:
     return self._temp_el_sources
 
   @property
+  def ion_el_sources(self) -> dict[str, source_lib.Source]:
+    """Returns all source models which output both ion and el temp profiles."""
+    return {
+        name: source
+        for name, source in self.standard_sources.items()
+        if source.affected_core_profiles
+        == (
+            source_lib.AffectedCoreProfile.TEMP_ION,
+            source_lib.AffectedCoreProfile.TEMP_EL,
+        )
+    }
+
+  @property
   def standard_sources(self) -> dict[str, source_lib.Source]:
     """Returns all sources that are not used in special cases.
 
@@ -835,3 +851,23 @@ class SourceModels:
   @property
   def all_sources(self) -> dict[str, source_lib.Source]:
     return self._all_sources
+
+
+def build_all_zero_profiles(
+    source_models: SourceModels,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    geo: geometry.Geometry,
+) -> source_profiles.SourceProfiles:
+  """Returns a SourceProfiles object with all zero profiles."""
+  profiles = {
+      source_name: jnp.zeros(
+          source_model.output_shape_getter(dynamic_config_slice, geo, None)
+      )
+      for source_name, source_model in source_models.standard_sources.items()
+  }
+  profiles[source_models.jext.name] = jnp.zeros_like(geo.r)
+  return source_profiles.SourceProfiles(
+      profiles=profiles,
+      j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
+      qei=source_profiles.QeiInfo.zeros(geo),
+  )

@@ -53,8 +53,8 @@ class LinearThetaMethod(stepper_lib.Stepper):
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[fvm.CellVariable, ...],
+      source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.AuxOutput,
       int,
   ]:
     """See Stepper._x_new docstring."""
@@ -91,12 +91,14 @@ class LinearThetaMethod(stepper_lib.Stepper):
     init_val = (
         x_new_init,
         (
+            source_models_lib.build_all_zero_profiles(
+                self.source_models, dynamic_config_slice_t, geo
+            ),
             state.CoreTransport.zeros(geo),
-            state.AuxOutput.zeros(geo),
         ),
     )
 
-    x_new, (core_transport, auxiliary_outputs) = (
+    x_new, (core_sources, core_transport) = (
         predictor_corrector_method.predictor_corrector_method(
             init_val=init_val,
             x_old=x_old,
@@ -110,4 +112,4 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
     error = 0  # linear method always works
 
-    return x_new, core_transport, auxiliary_outputs, error
+    return x_new, core_sources, core_transport, error

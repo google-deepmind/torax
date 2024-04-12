@@ -141,8 +141,10 @@ def optimizer_solve_block(
           # Initialized here with correct shapes to help with tracing in case
           # this is jitted.
           (
+              source_models_lib.build_all_zero_profiles(
+                  source_models, dynamic_config_slice_t, geo
+              ),
               state.CoreTransport.zeros(geo),
-              state.AuxOutput.zeros(geo),
           ),
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(

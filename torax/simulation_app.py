@@ -90,7 +90,7 @@ def simulation_output_to_xr(
     geo: torax.Geometry,
 ) -> xr.Dataset:
   """Build an xr.Dataset of the simulation output."""
-  core_profile_history, core_transport_history, aux_history = (
+  core_profile_history, core_transport_history, core_sources_history = (
       state_lib.build_history_from_states(torax_outputs)
   )
   t = state_lib.build_time_history_from_states(torax_outputs)
@@ -106,7 +106,7 @@ def simulation_output_to_xr(
   r_cell = xr.DataArray(geo.r, dims=['rho_cell'], name='r_cell')
 
   # Build a PyTree of variables we will want to log.
-  tree = (core_profile_history, core_transport_history, aux_history)
+  tree = (core_profile_history, core_transport_history, core_sources_history)
 
   # Only try to log arrays.
   leaves_with_path = jax.tree_util.tree_leaves_with_path(
@@ -125,7 +125,10 @@ def simulation_output_to_xr(
   def translate_leaf_with_path(path, leaf):
     # Assume name is the last part of the path, unless the name is "value"
     # in which case we use the second to last part of the path.
-    name = path[-1].name if path[-1].name != 'value' else path[-2].name
+    if isinstance(path[-1], jax.tree_util.DictKey):
+      name = path[-1].key
+    else:
+      name = path[-1].name if path[-1].name != 'value' else path[-2].name
     if is_face_var(leaf):
       return name, xr.DataArray(leaf, dims=['time', 'rho_face'], name=name)
     elif is_cell_var(leaf):

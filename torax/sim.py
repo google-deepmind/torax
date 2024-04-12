@@ -304,7 +304,7 @@ class SimulationStepFn:
 
     # Initial trial for stepper. If did not converge (can happen for nonlinear
     # step with large dt) we apply the adaptive time step routine if requested.
-    core_profiles, core_transport, aux_output, stepper_error_state = (
+    core_profiles, core_sources, core_transport, stepper_error_state = (
         self._stepper_fn(
             core_profiles_t=core_profiles_t,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -322,8 +322,8 @@ class SimulationStepFn:
         t=input_state.t + dt,
         dt=dt,
         core_profiles=core_profiles,
+        core_sources=core_sources,
         core_transport=core_transport,
-        aux_output=aux_output,
         stepper_iterations=stepper_iterations,
         time_step_calculator_state=time_step_calculator_state,
         stepper_error_state=stepper_error_state,
@@ -357,7 +357,7 @@ class SimulationStepFn:
         core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
             core_profiles_t, dynamic_config_slice_t_plus_dt, geo
         )
-        core_profiles, core_transport, aux_output, stepper_error_state = (
+        core_profiles, core_sources, core_transport, stepper_error_state = (
             self._stepper_fn(
                 core_profiles_t=core_profiles_t,
                 core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -375,8 +375,8 @@ class SimulationStepFn:
             dt=dt,
             stepper_iterations=updated_output.stepper_iterations + 1,
             core_profiles=core_profiles,
+            core_sources=core_sources,
             core_transport=core_transport,
-            aux_output=aux_output,
             stepper_error_state=stepper_error_state,
         )
 
@@ -427,8 +427,17 @@ def get_initial_state(
       t=jnp.array(dynamic_config_slice.t_initial),
       dt=jnp.zeros(()),
       core_profiles=initial_core_profiles,
+      # This will be overridden within run_simulation().
+      core_sources=source_profiles_lib.SourceProfiles(
+          profiles={},
+          # TODO( b/326588413): Move sigmaneo out of the source
+          # profiles and into the core_profiles to match IMAS.
+          j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+              geo
+          ),
+          qei=source_profiles_lib.QeiInfo.zeros(geo),
+      ),
       core_transport=state.CoreTransport.zeros(geo),
-      aux_output=state.AuxOutput.zeros(geo),
       time_step_calculator_state=time_step_calculator.initial_state(),
       stepper_error_state=0,
       stepper_iterations=0,
@@ -797,6 +806,23 @@ def run_simulation(
   ]
   stepper_error_state = 0
   dynamic_config_slice = dynamic_config_slice_provider(initial_state.t)
+  geo = geometry_provider(initial_state)
+
+  # Populate the starting state with source profiles from the implicit sources
+  # before starting the run-loop. The explicit source profiles will be computed
+  # inside the loop and will be merged with these implicit source profiles.
+  initial_state.core_sources = _get_initial_source_profiles(
+      source_models=step_fn.stepper.source_models,
+      static_config_slice=static_config_slice,
+      dynamic_config_slice=dynamic_config_slice,
+      geo=geo,
+      core_profiles=initial_state.core_profiles,
+  )
+  if spectator is not None:
+    # Because of the updates we apply to the core sources during the next
+    # iteration, we need to start the spectator before step here.
+    spectator.before_step()
+
   sim_state = initial_state
   # Keep advancing the simulation until the time_step_calculator tells us we are
   # done.
@@ -821,7 +847,6 @@ def run_simulation(
               'Solver converged only within coarse tolerance in previous step.'
           )
 
-    geo = geometry_provider(sim_state)
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
     # set to 0.
@@ -832,7 +857,24 @@ def run_simulation(
         core_profiles=sim_state.core_profiles,
         explicit=True,
     )
+
+    # The previous time step's state has an incomplete set of source profiles
+    # which was computed based on the previous time step's "guess" of the core
+    # profiles at this time step's t. We can merge those "implicit" source
+    # profiles with the explicit ones computed here.
+    sim_state.core_sources = _merge_source_profiles(
+        source_models=step_fn.stepper.source_models,
+        explicit_source_profiles=explicit_source_profiles,
+        implicit_source_profiles=sim_state.core_sources,
+        qei_core_profiles=sim_state.core_profiles,
+    )
+    # Make sure to "spectate" the state after the source profiles  have been
+    # merged and updated in the output sim_state.
     if spectator is not None:
+      _update_spectator(spectator, sim_state)
+      # This is after the previous time step's step_fn() call.
+      spectator.after_step()
+      # Now prep the spectator for the following time step.
       spectator.before_step()
     sim_state = step_fn(
         sim_state,
@@ -842,17 +884,36 @@ def run_simulation(
         explicit_source_profiles,
     )
     stepper_error_state = sim_state.stepper_error_state
-    if spectator is not None:
-      _update_spectator(spectator, sim_state)
-      spectator.after_step()
     # Update the runtime config for the next iteration.
     dynamic_config_slice = dynamic_config_slice_provider(sim_state.t)
     torax_outputs.append(sim_state)
+    geo = geometry_provider(sim_state)
     wall_clock_step_times.append(time.time() - step_start_time)
   # Log final timestep
   if log_timestep_info:
     # The "sim_state" here has been updated by the loop above.
     _log_timestep(sim_state.t, sim_state.dt, sim_state.stepper_iterations)
+
+  # Update the final time step's source profiles based on the explicit source
+  # profiles computed based on the final state.
+  logging.info("Updating last step's source profiles.")
+  explicit_source_profiles = source_models_lib.build_source_profiles(
+      source_models=step_fn.stepper.source_models,
+      dynamic_config_slice=dynamic_config_slice,
+      geo=geo,
+      core_profiles=sim_state.core_profiles,
+      explicit=True,
+  )
+  sim_state.core_sources = _merge_source_profiles(
+      source_models=step_fn.stepper.source_models,
+      explicit_source_profiles=explicit_source_profiles,
+      implicit_source_profiles=sim_state.core_sources,
+      qei_core_profiles=sim_state.core_profiles,
+  )
+  if spectator is not None:
+    # Complete the last time step.
+    _update_spectator(spectator, sim_state)
+    spectator.after_step()
 
   # If the first step of the simulation was very long, call it out. It might
   # have to do with tracing the jitted step_fn.
@@ -923,12 +984,30 @@ def _update_spectator(
   spectator.observe(
       key='chi_face_el', data=output_state.core_transport.chi_face_el
   )
-  spectator.observe(key='source_ion', data=output_state.aux_output.source_ion)
-  spectator.observe(key='source_el', data=output_state.aux_output.source_el)
-  spectator.observe(key='Pfus_i', data=output_state.aux_output.Pfus_i)
-  spectator.observe(key='Pfus_e', data=output_state.aux_output.Pfus_e)
-  spectator.observe(key='Pohm', data=output_state.aux_output.Pohm)
-  spectator.observe(key='Qei', data=output_state.aux_output.Qei)
+  # TODO( b/326588413): Make this more flexible to different source
+  # names. Potentially spectate all sources?
+  spectator.observe(
+      key='source_ion',
+      data=output_state.core_sources.profiles['generic_ion_el_heat_source_ion'],
+  )
+  spectator.observe(
+      key='source_el',
+      data=output_state.core_sources.profiles['generic_ion_el_heat_source_el'],
+  )
+  spectator.observe(
+      key='Pfus_i',
+      data=output_state.core_sources.profiles['fusion_heat_source_ion'],
+  )
+  spectator.observe(
+      key='Pfus_e',
+      data=output_state.core_sources.profiles['fusion_heat_source_el'],
+  )
+  spectator.observe(
+      key='Pohm', data=output_state.core_sources.profiles['ohmic_heat_source']
+  )
+  spectator.observe(
+      key='Qei', data=output_state.core_sources.profiles['qei_source']
+  )
 
 
 def update_current_distribution(
@@ -1029,3 +1108,140 @@ def provide_core_profiles_t_plus_dt(
       core_profiles_t, temp_ion=temp_ion, temp_el=temp_el, psi=psi, ne=ne, ni=ni
   )
   return core_profiles_t_plus_dt
+
+
+def _get_initial_source_profiles(
+    source_models: source_models_lib.SourceModels,
+    static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+) -> source_profiles_lib.SourceProfiles:
+  """Returns the "implicit" profiles for the initial state in run_simulation().
+
+  The source profiles returned as part of each time step's state in
+  run_simulation() is computed based on the core profiles at that time step.
+  However, for the first time step, only the explicit sources are computed.
+  The
+  implicit profiles are computed based on the "live" state that is evolving,
+  "which depending on the stepper used is either consistent (within tolerance)
+  with the state at the next timestep (nonlinear solver), or an approximation
+  thereof (linear stepper or predictor-corrector)." So for the first time step,
+  we need to prepopulate the state with the implicit profiles for the starting
+  core profiles.
+
+  Args:
+    source_models: Source models used to compute core source profiles.
+    static_config_slice: Config parameters which, when they change, trigger
+      recompilations. They should not change within a single run of the sim.
+    dynamic_config_slice: Runtime parameters which may change from time step to
+      time step without triggering recompilations.
+    geo: The geometry of the torus during this time step of the simulation.
+    core_profiles: Core profiles that may evolve throughout the course of a
+      simulation. These values here are, of course, only the original states.
+
+  Returns:
+    SourceProfiles from implicit source models based on the core profiles from
+    the starting state.
+  """
+  implicit_profiles = source_models_lib.build_source_profiles(
+      source_models=source_models,
+      dynamic_config_slice=dynamic_config_slice,
+      geo=geo,
+      core_profiles=core_profiles,
+      explicit=False,
+  )
+  qei = source_models.qei_source.get_qei(
+      dynamic_config_slice.sources[source_models.qei_source.name].source_type,
+      dynamic_config_slice=dynamic_config_slice,
+      static_config_slice=static_config_slice,
+      geo=geo,
+      core_profiles=core_profiles,
+  )
+  implicit_profiles = dataclasses.replace(implicit_profiles, qei=qei)
+  return implicit_profiles
+
+
+# This function can be jitted if source_models is a static argument. However,
+# in our tests, jitting this function actually slightly slows down runs, so this
+# is left as pure python.
+def _merge_source_profiles(
+    source_models: source_models_lib.SourceModels,
+    explicit_source_profiles: source_profiles_lib.SourceProfiles,
+    implicit_source_profiles: source_profiles_lib.SourceProfiles,
+    qei_core_profiles: state.CoreProfiles,
+) -> source_profiles_lib.SourceProfiles:
+  """Returns a SourceProfiles that merges the input profiles.
+
+  Sources can either be explicit or implicit. The explicit_source_profiles
+  contain the profiles for all source models that are set to explicit, and it
+  contains profiles with all zeros for any implicit source. The opposite holds
+  for the implicit_source_profiles.
+
+  This function adds the two dictionaries of profiles and returns a single
+  SourceProfiles that includes both.
+
+  Args:
+    source_models: Source models used to compute the profiles given.
+    explicit_source_profiles: Profiles from explicit source models. This
+      SourceProfiles dict will include keys for both the explicit and implicit
+      sources, but only the explicit sources will have non-zero profiles. See
+      source.py and source_config.py for more info on explicit vs. implicit.
+    implicit_source_profiles: Profiles from implicit source models. This
+      SourceProfiles dict will include keys for both the explicit and implicit
+      sources, but only the implicit sources will have non-zero profiles. See
+      source.py and source_config.py for more info on explicit vs. implicit.
+    qei_core_profiles: The core profiles used to compute the Qei source.
+
+  Returns:
+    A SourceProfiles with non-zero profiles for all sources, both explicit and
+    implicit (assuming the source model outputted a non-zero profile).
+  """
+  sum_profiles = lambda a, b: a + b
+  summed_bootstrap_profile = jax.tree_util.tree_map(
+      sum_profiles,
+      explicit_source_profiles.j_bootstrap,
+      implicit_source_profiles.j_bootstrap,
+  )
+  summed_qei_info = jax.tree_util.tree_map(
+      sum_profiles, explicit_source_profiles.qei, implicit_source_profiles.qei
+  )
+  summed_other_profiles = jax.tree_util.tree_map(
+      sum_profiles,
+      explicit_source_profiles.profiles,
+      implicit_source_profiles.profiles,
+  )
+  # For ease of comprehension, we convert the units of the Qei source and add it
+  # to the list of other profiles before returning it.
+  summed_other_profiles[source_models.qei_source.name] = (
+      summed_qei_info.qei_coef
+      * (qei_core_profiles.temp_el.value - qei_core_profiles.temp_ion.value)
+  )
+  # Also for better comprehension of the outputs, any known source model output
+  # profiles that contain both the ion and electron heat profiles (i.e. they are
+  # 2D with the separate profiles stacked) are unstacked here.
+  for source_name in source_models.ion_el_sources:
+    if source_name in summed_other_profiles:
+      # The profile in summed_other_profiles is 2D. We want to split it up.
+      if (
+          f'{source_name}_ion' in summed_other_profiles
+          or f'{source_name}_el' in summed_other_profiles
+      ):
+        raise ValueError(
+            'Source model names are too close. Trying to save the output from '
+            f'the source {source_name} in 2 components: {source_name}_ion and '
+            f'{source_name}_el, but there is already a source output with that '
+            'name. Rename your sources to avoid this collision.'
+        )
+      summed_other_profiles[f'{source_name}_ion'] = summed_other_profiles[
+          source_name
+      ][0, ...]
+      summed_other_profiles[f'{source_name}_el'] = summed_other_profiles[
+          source_name
+      ][1, ...]
+      del summed_other_profiles[source_name]
+  return source_profiles_lib.SourceProfiles(
+      profiles=summed_other_profiles,
+      j_bootstrap=summed_bootstrap_profile,
+      qei=summed_qei_info,
+  )

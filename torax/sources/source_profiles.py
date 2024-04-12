@@ -32,12 +32,13 @@ class SourceProfiles:
   to compute them.
 
   This dataclass is inspired by the IMAS `core_sources` IDS. It is not a 1:1
-  mapping to that schema, but it contains similar 1D profiles as you'd expect in
+  mapping to that schema, but it contains similar profiles as you'd expect in
   that IDS.
   """
 
-  j_bootstrap: BootstrapCurrentProfile
   profiles: dict[str, jnp.ndarray]
+  j_bootstrap: BootstrapCurrentProfile
+  qei: QeiInfo
 
 
 @chex.dataclass(frozen=True)
@@ -64,4 +65,29 @@ class BootstrapCurrentProfile:
         j_bootstrap=jnp.zeros_like(geo.r),
         j_bootstrap_face=jnp.zeros_like(geo.r_face),
         I_bootstrap=jnp.zeros(()),
+    )
+
+
+@chex.dataclass(frozen=True)
+class QeiInfo:
+  """Represents the source values coming from a QeiSource."""
+
+  qei_coef: jnp.ndarray
+  implicit_ii: jnp.ndarray
+  explicit_i: jnp.ndarray
+  implicit_ee: jnp.ndarray
+  explicit_e: jnp.ndarray
+  implicit_ie: jnp.ndarray
+  implicit_ei: jnp.ndarray
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> QeiInfo:
+    return QeiInfo(
+        qei_coef=jnp.zeros_like(geo.r),
+        implicit_ii=jnp.zeros_like(geo.r),
+        explicit_i=jnp.zeros_like(geo.r),
+        implicit_ee=jnp.zeros_like(geo.r),
+        explicit_e=jnp.zeros_like(geo.r),
+        implicit_ie=jnp.zeros_like(geo.r),
+        implicit_ei=jnp.zeros_like(geo.r),
     )

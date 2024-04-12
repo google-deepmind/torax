@@ -57,7 +57,12 @@ class ExplicitStepper(stepper_lib.Stepper):
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[state.CoreProfiles, state.CoreTransport, state.AuxOutput, int]:
+  ) -> tuple[
+      state.CoreProfiles,
+      source_profiles.SourceProfiles,
+      state.CoreTransport,
+      int,
+  ]:
     """Applies a time step update. See Stepper.__call__ docstring."""
 
     # Many variables throughout this function are capitalized based on physics
@@ -137,7 +142,11 @@ class ExplicitStepper(stepper_lib.Stepper):
             q_face=q_face,
             s_face=s_face,
         ),
+        source_models.build_all_zero_profiles(
+            source_models=self.source_models,
+            dynamic_config_slice=dynamic_config_slice_t,
+            geo=geo,
+        ),
         state.CoreTransport.zeros(geo),
-        state.AuxOutput.zeros(geo),
         error,
     )

@@ -62,7 +62,12 @@ class Stepper(abc.ABC):
       static_config_slice: config_slice.StaticConfigSlice,
       dt: jax.Array,
       explicit_source_profiles: source_profiles.SourceProfiles,
-  ) -> tuple[state.CoreProfiles, state.CoreTransport, state.AuxOutput, int]:
+  ) -> tuple[
+      state.CoreProfiles,
+      source_profiles.SourceProfiles,
+      state.CoreTransport,
+      int,
+  ]:
     """Applies a time step update.
 
     Args:
@@ -91,9 +96,12 @@ class Stepper(abc.ABC):
 
     Returns:
       new_core_profiles: Updated core profiles.
+      core_sources: Source profiles of the implicit sources, computed at the
+        most recent guess for time t+dt. Any state-dependent source profiles
+        will not be computed based on the exact state of the core profiles at
+        time t+dt, but rather they will be computed based on the final guess the
+        solver used while calculating coeffs in the solver.
       core_transport: Transport coefficients for time t+dt.
-      aux_output: Extra outputs useful to inspect other values while the
-        coeffs are computed.
       error: 0 if step was successful (linear step, or nonlinear step with
         residual or loss under tolerance at exit), or 1 if unsuccessful,
         indicating that a rerun with a smaller timestep is needed
@@ -116,7 +124,7 @@ class Stepper(abc.ABC):
 
     # Don't call solver functions on an empty list
     if evolving_names:
-      x_new, core_transport, aux_output, error = self._x_new(
+      x_new, core_sources, core_transport, error = self._x_new(
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           evolving_names=evolving_names,
@@ -129,8 +137,12 @@ class Stepper(abc.ABC):
       )
     else:
       x_new = tuple()
+      core_sources = source_models_lib.build_all_zero_profiles(
+          source_models=self.source_models,
+          dynamic_config_slice=dynamic_config_slice_t,
+          geo=geo,
+      )
       core_transport = state.CoreTransport.zeros(geo)
-      aux_output = state.AuxOutput.zeros(geo)
       error = 0
 
     core_profiles_t_plus_dt = update_state.update_core_profiles(
@@ -142,8 +154,8 @@ class Stepper(abc.ABC):
 
     return (
         core_profiles_t_plus_dt,
+        core_sources,
         core_transport,
-        aux_output,
         error,
     )
 
@@ -160,8 +172,8 @@ class Stepper(abc.ABC):
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       tuple[fvm.CellVariable, ...],
+      source_profiles.SourceProfiles,
       state.CoreTransport,
-      state.AuxOutput,
       int,
   ]:
     """Calculates new values of the changing variables.
@@ -190,9 +202,8 @@ class Stepper(abc.ABC):
 
     Returns:
       x_new: The values of the evolving variables at time t + dt.
+      core_sources: see the docstring of __call__
       core_transport: Transport coefficients for time t+dt.
-      aux_output: Extra outputs useful to inspect other values while the
-        coeffs are computed.
       error: 0 if step was successful (linear step, or nonlinear step with
         residual or loss under tolerance at exit), or 1 if unsuccessful,
         indicating that a rerun with a smaller timestep is needed

@@ -34,7 +34,7 @@ from torax.physics import internal_boundary
 from torax.sim import build_sim_from_config
 from torax.sim import run_simulation
 from torax.sim import Sim
-from torax.state import AuxOutput
+from torax.sources.source_profiles import SourceProfiles
 from torax.state import CoreProfiles
 from torax.state import CoreTransport
 from torax.stepper.stepper import Stepper

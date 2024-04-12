@@ -28,7 +28,6 @@ from torax import jax_utils
 from torax import physics
 from torax import state
 from torax.fvm import block_1d_coeffs
-from torax.sources import qei_source as qei_source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -253,8 +252,6 @@ def _calc_coeffs_full(
   """
 
   consts = constants.CONSTANTS
-  #  Initialize AuxOutput object with array sizes taken from geo
-  aux_outputs = state.AuxOutput.zeros(geo)
 
   # Boolean mask for enforcing internal temperature boundary conditions to
   # model the pedestal.
@@ -581,12 +578,10 @@ def _calc_coeffs_full(
       # (iteratively) with core_profiles at t+dt.
       core_profiles=core_profiles,
   )
-  _populate_aux_outputs_with_ion_el_heat_sources(
+  # Update the implicit profiles with the qei info.
+  implicit_source_profiles = dataclasses.replace(
       implicit_source_profiles,
-      explicit_source_profiles,
-      qei,
-      core_profiles,
-      aux_outputs,
+      qei=qei,
   )
 
   # Fill heat transport equation sources. Initialize source matrices to zero
@@ -707,7 +702,7 @@ def _calc_coeffs_full(
       v_face=v_face,
       source_mat_cell=source_mat_cell,
       source_cell=source_cell,
-      auxiliary_outputs=(transport_coeffs, aux_outputs),
+      auxiliary_outputs=(implicit_source_profiles, transport_coeffs),
   )
 
   return coeffs
@@ -744,46 +739,3 @@ def _calc_coeffs_reduced(
       transient_in_cell=transient_in_cell,
   )
   return coeffs
-
-
-def _populate_aux_outputs_with_ion_el_heat_sources(
-    implicit_source_profiles: source_profiles_lib.SourceProfiles,
-    explicit_source_profiles: source_profiles_lib.SourceProfiles,
-    qei: qei_source_lib.QeiInfo,
-    qei_input_core_profiles: state.CoreProfiles,
-    aux_outputs: state.AuxOutput,
-) -> None:
-  """Observes the values of certain ion and electron heat sources."""
-  # For generic and fusion, only one of the implicit or explicit will be
-  # non-zero, so it's ok to sum them.
-  # The following makes the assumption that the generic and fusion heat sources
-  # are included in the TORAX sources, even if they are set to 0.
-  generic_ion = (
-      implicit_source_profiles.profiles['generic_ion_el_heat_source'][0, ...]
-      + explicit_source_profiles.profiles['generic_ion_el_heat_source'][0, ...]
-  )
-  generic_el = (
-      implicit_source_profiles.profiles['generic_ion_el_heat_source'][1, ...]
-      + explicit_source_profiles.profiles['generic_ion_el_heat_source'][1, ...]
-  )
-  fusion_ion = (
-      implicit_source_profiles.profiles['fusion_heat_source'][0, ...]
-      + explicit_source_profiles.profiles['fusion_heat_source'][0, ...]
-  )
-  fusion_el = (
-      implicit_source_profiles.profiles['fusion_heat_source'][1, ...]
-      + explicit_source_profiles.profiles['fusion_heat_source'][1, ...]
-  )
-  ohmic = (
-      implicit_source_profiles.profiles['ohmic_heat_source']
-      + explicit_source_profiles.profiles['ohmic_heat_source']
-  )
-  aux_outputs.source_ion = generic_ion
-  aux_outputs.source_el = generic_el
-  aux_outputs.Pfus_i = fusion_ion
-  aux_outputs.Pfus_e = fusion_el
-  aux_outputs.Pohm = ohmic
-  aux_outputs.Qei = qei.qei_coef * (
-      qei_input_core_profiles.temp_el.value
-      - qei_input_core_profiles.temp_ion.value
-  )

@@ -27,19 +27,7 @@ from torax import physics
 from torax import state
 from torax.sources import source
 from torax.sources import source_config
-
-
-@chex.dataclass(frozen=True)
-class QeiInfo:
-  """Represents the source values coming from a QeiSource."""
-
-  qei_coef: jnp.ndarray
-  implicit_ii: jnp.ndarray
-  explicit_i: jnp.ndarray
-  implicit_ee: jnp.ndarray
-  explicit_e: jnp.ndarray
-  implicit_ie: jnp.ndarray
-  implicit_ei: jnp.ndarray
+from torax.sources import source_profiles
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -77,7 +65,7 @@ class QeiSource(source.Source):
       static_config_slice: config_slice.StaticConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> QeiInfo:
+  ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
     source_type = self.check_source_type(source_type)
     return jax.lax.cond(
@@ -85,7 +73,7 @@ class QeiSource(source.Source):
         lambda: _model_based_qei(
             dynamic_config_slice, static_config_slice, geo, core_profiles
         ),
-        lambda: _zero_qei(geo),
+        lambda: source_profiles.QeiInfo.zeros(geo),
     )
 
   def get_value(
@@ -94,7 +82,7 @@ class QeiSource(source.Source):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
-  ) -> QeiInfo:
+  ) -> source_profiles.QeiInfo:
     raise NotImplementedError('Call get_qei() instead.')
 
   def get_source_profile_for_affected_core_profile(
@@ -111,7 +99,7 @@ def _model_based_qei(
     static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> QeiInfo:
+) -> source_profiles.QeiInfo:
   """Computes Qei via the coll_exchange model."""
   zeros = jnp.zeros_like(geo.r_norm)
   qei_coef = physics.coll_exchange(
@@ -139,7 +127,7 @@ def _model_based_qei(
     explicit_e = zeros
     implicit_ie = qei_coef
     implicit_ei = qei_coef
-  return QeiInfo(
+  return source_profiles.QeiInfo(
       qei_coef=qei_coef,
       implicit_ii=implicit_ii,
       explicit_i=explicit_i,
@@ -149,17 +137,3 @@ def _model_based_qei(
       implicit_ei=implicit_ei,
   )
 
-
-def _zero_qei(
-    geo: geometry.Geometry,
-) -> QeiInfo:
-  zeros = jnp.zeros_like(geo.r_norm)
-  return QeiInfo(
-      qei_coef=zeros,
-      implicit_ii=zeros,
-      explicit_i=zeros,
-      implicit_ee=zeros,
-      explicit_e=zeros,
-      implicit_ie=zeros,
-      implicit_ei=zeros,
-  )
