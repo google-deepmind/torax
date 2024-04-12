@@ -30,7 +30,7 @@ jobs:
       num-shards: ${{ steps.create-vars.outputs.num-shards }}
       shard-ids: ${{ steps.create-vars.outputs.shard-ids }}
 
-  pytest-job-shards:
+  pytest-job:
     needs: shards-job
 
     name: '[${{ matrix.os-version }}][Python ${{ matrix.python-version }}][${{ matrix.shard-id }}/${{ matrix.num-shards }}] Core TORAX tests'
@@ -113,11 +113,3 @@ jobs:
     # # TODO(b/323504363): fix UnparsedFlagAccessError, parallelize, and run under pytest
     # - name: "Run torax/tests/sim.py"
     #   run: python torax/tests/sim.py
-
-  pytest-job:
-    # Dummy job to enable smooth transition of Copybara configs.
-    # TODO(b/323504363): remove once Copybara configs are updated.
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-    - run: echo OK
