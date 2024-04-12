@@ -86,13 +86,16 @@ def log_to_stdout(output: str, color: AnsiColors | None = None) -> None:
 
 
 def simulation_output_to_xr(
-    core_profile_history: torax.CoreProfiles,
-    core_transport_history: torax.CoreTransport,
-    aux_history: torax.AuxOutput,
+    torax_outputs: tuple[state_lib.ToraxSimState, ...],
     geo: torax.Geometry,
-    t: jnp.ndarray,
 ) -> xr.Dataset:
   """Build an xr.Dataset of the simulation output."""
+  core_profile_history, core_transport_history, aux_history = (
+      state_lib.build_history_from_states(torax_outputs)
+  )
+  t = state_lib.build_time_history_from_states(torax_outputs)
+  chex.assert_rank(t, 1)
+
   # Get the coordinate variables for dimensions ("time", "rho_face", "rho_cell")
   time = xr.DataArray(t, dims=['time'], name='time')
   r_face_norm = xr.DataArray(
@@ -150,6 +153,9 @@ def simulation_output_to_xr(
 
 def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> None:
   """Writes the state history and some geometry information to an HDF5 file."""
+  if os.path.exists(output_dir):
+    shutil.rmtree(output_dir)
+  os.makedirs(output_dir)
   output_file = os.path.join(output_dir, _STATE_HISTORY_FILENAME)
   ds.to_netcdf(output_file)
   log_to_stdout(f'Wrote simulation output to {output_file}', AnsiColors.GREEN)
@@ -293,31 +299,20 @@ def main(
       log_timestep_info=log_sim_progress,
       spectator=spectator,
   )
-  core_profile_history, core_transport_history, aux_history = (
-      state_lib.build_history_from_states(torax_outputs)
-  )
-  t = state_lib.build_time_history_from_states(torax_outputs)
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
 
-  chex.assert_rank(t, 1)
+  ds = simulation_output_to_xr(torax_outputs, geo)
 
-  ds = simulation_output_to_xr(
-      core_profile_history,
-      core_transport_history,
-      aux_history,
-      geo,
-      t,
-  )
-
-  if os.path.exists(output_dir):
-    shutil.rmtree(output_dir)
-  os.makedirs(output_dir)
   write_simulation_output_to_file(output_dir, ds)
   # TODO(b/323504363): Add back functionality to write configs to file after
   # running to help with keeping track of simulation runs. This may need to
   # happen after we move to Fiddle.
 
   if log_sim_output:
+    core_profile_history, _, _ = (
+        state_lib.build_history_from_states(torax_outputs)
+    )
+    t = state_lib.build_time_history_from_states(torax_outputs)
     log_simulation_output_to_stdout(core_profile_history, geo, t)
 
   return ds
