@@ -193,10 +193,6 @@ class Config:
   """Configuration parameters for the `torax` module."""
 
   # physical inputs
-  # major radius (R) in meters
-  Rmaj: TimeDependentField = 6.2
-  # minor radius (a) in meters
-  Rmin: TimeDependentField = 2.0
   # amu of main ion (if multiple isotope, make average)
   Ai: float = 2.5
   # charge of main ion
@@ -205,8 +201,6 @@ class Config:
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data
   Ip: TimeDependentField = 15.0
-  # Toroidal magnetic field on axis [T]
-  B0: TimeDependentField = 5.3
   # needed for qlknn and fusion power
   Zeff: TimeDependentField = 1.0
   Zimp: TimeDependentField = 10.0  # impurity charge state assumed for dilution

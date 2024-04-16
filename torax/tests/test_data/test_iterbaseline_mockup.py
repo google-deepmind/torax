@@ -30,10 +30,7 @@ def get_config() -> config_lib.Config:
       resistivity_mult=200,
       Ip=15,  # total plasma current in MA
       # physical inputs
-      Rmaj=6.2,  # major radius (R) in meters
-      Rmin=2.0,  # minor radius (a) in meters
       Ai=2.5,  # amu of main ion (if multiple isotope, make average)
-      B0=5.3,  # Toroidal magnetic field on axis [T]
       Zeff=1.74,  # needed for qlknn and fusion power
       # effective impurity charge state assumed for matching dilution=0.862
       Zimp=6.3623,
@@ -159,6 +156,9 @@ def get_geometry(config: config_lib.Config) -> geometry.Geometry:
       config,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
       Ip_from_parameters=True,
+      Rmaj=6.2,  # major radius (R) in meters
+      Rmin=2.0,  # minor radius (a) in meters
+      B0=5.3,  # Toroidal magnetic field on axis [T]
   )
 
 

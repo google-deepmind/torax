@@ -52,10 +52,7 @@ def circular_references() -> References:
       config,
       **{
           'nr': 25,
-          'Rmaj': 6.2,
-          'Rmin': 2.0,
           'Ip': 15,
-          'B0': 5.3,
           'q_correction_factor': 1.0,
           'nu': 3,
           'fext': 0.2,
@@ -67,6 +64,9 @@ def circular_references() -> References:
       config=config,
       kappa=1.72,
       hires_fac=4,
+      Rmaj=6.2,
+      Rmin=2.0,
+      B0=5.3,
   )
   # ground truth values copied from example executions using
   # array.astype(str),which allows fully lossless reloading
@@ -203,10 +203,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       config,
       **{
           'nr': 25,
-          'Rmaj': 6.2,
-          'Rmin': 2.0,
           'Ip': 15,
-          'B0': 5.3,
           'q_correction_factor': 1.0,
           'nu': 3,
           'fext': 0.2,
@@ -219,6 +216,9 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
       Ip_from_parameters=False,
+      Rmaj=6.2,
+      Rmin=2.0,
+      B0=5.3,
   )
   # ground truth values copied from an example PINT execution using
   # array.astype(str),which allows fully lossless reloading
@@ -355,10 +355,7 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
       config,
       **{
           'nr': 25,
-          'Rmaj': 6.2,
-          'Rmin': 2.0,
           'Ip': 15,
-          'B0': 5.3,
           'q_correction_factor': 1.0,
           'nu': 3,
           'fext': 0.2,
@@ -371,6 +368,9 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
       Ip_from_parameters=True,
+      Rmaj=6.2,
+      Rmin=2.0,
+      B0=5.3,
   )
   # ground truth values copied from an example executions using
   # array.astype(str),which allows fully lossless reloading

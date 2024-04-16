@@ -108,13 +108,12 @@ def calc_neoclassical(
       geo,
       jtot_face,
       psi,
-      dynamic_config_slice.Rmaj,
       dynamic_config_slice.q_correction_factor,
   )
   nuestar = (
       6.921e-18
       * q_face
-      * dynamic_config_slice.Rmaj
+      * geo.Rmaj
       * true_ne_face
       * dynamic_config_slice.Zeff
       * lnLame
@@ -126,7 +125,7 @@ def calc_neoclassical(
   nuistar = (
       4.9e-18
       * q_face
-      * dynamic_config_slice.Rmaj
+      * geo.Rmaj
       * true_ni_face
       * dynamic_config_slice.Zeff**4
       * lnLami

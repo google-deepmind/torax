@@ -79,18 +79,12 @@ class DynamicConfigSlice:
   sources: Mapping[str, DynamicSourceConfigSlice]
 
   # physical inputs
-  # major radius (R) in meters
-  Rmaj: float
-  # minor radius (a) in meters
-  Rmin: float
   # amu of main ion (if multiple isotope, make average)
   Ai: float
   # charge of main ion
   Zi: float
   # total plasma current in MA
   Ip: float
-  # Toroidal magnetic field on axis [T]
-  B0: float
   # needed for qlknn and fusion power
   Zeff: float
   Zimp: float  # impurity charge state assumed for dilution

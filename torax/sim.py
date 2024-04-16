@@ -389,7 +389,6 @@ class SimulationStepFn:
     output_state.core_profiles = physics.update_jtot_q_face_s_face(
         geo=geo,
         core_profiles=output_state.core_profiles,
-        Rmaj=dynamic_config_slice_t_plus_dt.Rmaj,
         q_correction_factor=dynamic_config_slice_t_plus_dt.q_correction_factor,
     )
 

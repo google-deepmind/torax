@@ -99,8 +99,6 @@ class _QLKNNRuntimeConfigInputs:
   """
 
   # pylint: disable=invalid-name
-  Rmin: float
-  Rmaj: float
   nref: float
   Ai: float
   Zeff: float
@@ -115,8 +113,6 @@ class _QLKNNRuntimeConfigInputs:
       dynamic_config_slice: config_slice.DynamicConfigSlice,
   ) -> '_QLKNNRuntimeConfigInputs':
     return _QLKNNRuntimeConfigInputs(
-        Rmin=dynamic_config_slice.Rmin,
-        Rmaj=dynamic_config_slice.Rmaj,
         nref=dynamic_config_slice.nref,
         Ai=dynamic_config_slice.Ai,
         Zeff=dynamic_config_slice.Zeff,
@@ -235,8 +231,8 @@ class QLKNNTransportModel(transport_model.TransportModel):
     model = _get_model()
 
     # pylint: disable=invalid-name
-    Rmin = runtime_config_inputs.Rmin
-    Rmaj = runtime_config_inputs.Rmaj
+    Rmin = geo.Rmin
+    Rmaj = geo.Rmaj
 
     # define radial coordinate as midplane average r
     # (typical assumption for transport models developed in circular geo)
@@ -316,7 +312,6 @@ class QLKNNTransportModel(transport_model.TransportModel):
         geo,
         core_profiles.currents.jtot_face,
         core_profiles.psi,
-        Rmaj,
         runtime_config_inputs.q_correction_factor,
     )
     smag = physics.calc_s_from_psi(
@@ -345,7 +340,6 @@ class QLKNNTransportModel(transport_model.TransportModel):
         core_profiles=core_profiles,
         nref=runtime_config_inputs.nref,
         Zeff=runtime_config_inputs.Zeff,
-        Rmaj=Rmaj,
         coll_mult=runtime_config_inputs.transport.coll_mult,
     )
     log_nu_star_face = jnp.log10(nu_star)

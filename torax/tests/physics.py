@@ -53,7 +53,6 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         geo,
         jtot,
         references.psi,
-        dynamic_config_slice.Rmaj,
         dynamic_config_slice.q_correction_factor,
     )
 
@@ -73,7 +72,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
       q[1:] = 1 / iota[1:]
       # Change from PINT: we don't read jtot from `geo`
       q[0] = (
-          2 * geo.B0 / (consts.mu0 * jtot[0] * config.Rmaj)
+          2 * geo.B0 / (consts.mu0 * jtot[0] * geo.Rmaj)
       )  # use on-axis definition of q (Wesson 2004, Eq 3.48)
       q *= config.q_correction_factor
 
@@ -137,7 +136,6 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     j, _ = physics.calc_jtot_from_psi(
         references.geo,
         references.psi,
-        references.config.Rmaj,
     )
 
     np.testing.assert_allclose(j, references.jtot)

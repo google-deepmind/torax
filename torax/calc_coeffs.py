@@ -320,12 +320,10 @@ def _calc_coeffs_full(
       source_models,
       implicit_source_profiles,
       geo,
-      dynamic_config_slice.Rmaj,
   ) + source_models_lib.sum_sources_psi(
       source_models,
       explicit_source_profiles,
       geo,
-      dynamic_config_slice.Rmaj,
   )
 
   true_ne_face = core_profiles.ne.face_value() * dynamic_config_slice.nref
@@ -343,7 +341,7 @@ def _calc_coeffs_full(
       * sigma
       * consts.mu0
       / geo.J**2
-      / dynamic_config_slice.Rmaj
+      / geo.Rmaj
   )
   tic_psi = jnp.ones_like(toc_psi)
   toc_dens_el = geo.vpr
@@ -517,7 +515,7 @@ def _calc_coeffs_full(
   # pylint: disable=invalid-name
   nGW = (
       dynamic_config_slice.Ip
-      / (jnp.pi * dynamic_config_slice.Rmin**2)
+      / (jnp.pi * geo.Rmin**2)
       * 1e20
       / dynamic_config_slice.nref
   )

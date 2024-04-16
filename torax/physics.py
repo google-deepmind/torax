@@ -49,7 +49,6 @@ def get_main_ion_dilution_factor(
 def update_jtot_q_face_s_face(
     geo: Geometry,
     core_profiles: state.CoreProfiles,
-    Rmaj: float,
     q_correction_factor: float,
 ) -> state.CoreProfiles:
   """Updates jtot, jtot_face, q_face, and s_face."""
@@ -57,13 +56,11 @@ def update_jtot_q_face_s_face(
   jtot, jtot_face = calc_jtot_from_psi(
       geo,
       core_profiles.psi,
-      Rmaj,
   )
   q_face, _ = calc_q_from_jtot_psi(
       geo,
       jtot_face,
       core_profiles.psi,
-      Rmaj,
       q_correction_factor,
   )
   s_face = calc_s_from_psi(
@@ -142,7 +139,6 @@ def calc_q_from_jtot_psi(
     geo: Geometry,
     jtot_face: jax.Array,
     psi: cell_variable.CellVariable,
-    Rmaj: float,
     q_correction_factor: float,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Calculates q given jtot and psi.
@@ -155,7 +151,6 @@ def calc_q_from_jtot_psi(
     geo: Magnetic geometry.
     jtot_face: Total toroidal current density on face grid.
     psi: Poloidal flux.
-    Rmaj: major radius (R) in meters.
     q_correction_factor: ad-hoc fix for non-physical circular geometry model
       such that q(r=a) = 3 for standard ITER parameters;
 
@@ -170,7 +165,7 @@ def calc_q_from_jtot_psi(
   denom = jnp.abs(psi.face_grad()[1:] / geo.rmax)
   inv_iota = (2 * jnp.pi * geo.B0 * geo.r_face[1:]) / denom
   # use on-axis definition of q (Wesson 2004, Eq 3.48)
-  q0 = 2 * geo.B0 / (constants.CONSTANTS.mu0 * jtot_face[0] * Rmaj)
+  q0 = 2 * geo.B0 / (constants.CONSTANTS.mu0 * jtot_face[0] * geo.Rmaj)
   q0 = jnp.expand_dims(q0, 0)
   q_face = jnp.concatenate([q0, inv_iota])
   q_face *= jnp.where(
@@ -186,14 +181,12 @@ def calc_q_from_jtot_psi(
 def calc_jtot_from_psi(
     geo: Geometry,
     psi: cell_variable.CellVariable,
-    Rmaj: float,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Calculates j from psi.
 
   Args:
     geo: Torus geometry.
     psi: Poloidal flux.
-    Rmaj: Major radius (R) in meters.
 
   Returns:
     jtot: total current density (Amps / m^2) on cell grid
@@ -210,7 +203,9 @@ def calc_jtot_from_psi(
   # TODO flag to JAX team that jnp.gradient is not up-to-date,
   # and should allow for non-uniform grid differentiation
 
-  jtot_face = 2 * jnp.pi * Rmaj * math_utils.gradient(I_tot, geo.volume_face)
+  jtot_face = (
+      2 * jnp.pi * geo.Rmaj * math_utils.gradient(I_tot, geo.volume_face)
+  )
 
   jtot = geometry.face_to_cell(jtot_face)
 
@@ -259,7 +254,6 @@ def calc_nu_star(
     core_profiles: state.CoreProfiles,
     nref: float,
     Zeff: float,
-    Rmaj: float,
     coll_mult: float,
 ) -> jnp.ndarray:
   """Calculates nu star.
@@ -269,7 +263,6 @@ def calc_nu_star(
     core_profiles: Core plasma profiles.
     nref: Reference value for normalization
     Zeff: Effective ion charge.
-    Rmaj: Major radius (R) in meters
     coll_mult: Collisionality multiplier in QLKNN for sensitivity testing.
 
   Returns:
@@ -300,12 +293,12 @@ def calc_nu_star(
   )
 
   # calculate bounce time
-  epsilon = geo.r_face / Rmaj
+  epsilon = geo.r_face / geo.Rmaj
   # to avoid divisions by zero
   epsilon = jnp.clip(epsilon, constants.CONSTANTS.eps)
   tau_bounce = (
       core_profiles.q_face
-      * Rmaj
+      * geo.Rmaj
       / (
           epsilon**1.5
           * jnp.sqrt(

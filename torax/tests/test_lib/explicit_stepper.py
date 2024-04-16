@@ -125,7 +125,6 @@ class ExplicitStepper(stepper_lib.Stepper):
         geo=geo,
         jtot_face=core_profiles_t.currents.jtot,
         psi=core_profiles_t.psi,
-        Rmaj=dynamic_config_slice_t.Rmaj,
         q_correction_factor=dynamic_config_slice_t.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, core_profiles_t.psi)

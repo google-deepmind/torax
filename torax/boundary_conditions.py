@@ -54,7 +54,7 @@ def compute_boundary_conditions(
   # pylint: disable=invalid-name
   nGW = (
       dynamic_config_slice.Ip
-      / (jnp.pi * dynamic_config_slice.Rmin**2)
+      / (jnp.pi * geo.Rmin**2)
       * 1e20
       / dynamic_config_slice.nref
   )

@@ -104,7 +104,7 @@ def _update_dens(
   # pylint: disable=invalid-name
   nGW = (
       dynamic_config_slice.Ip
-      / (jnp.pi * dynamic_config_slice.Rmin**2)
+      / (jnp.pi * geo.Rmin**2)
       * 1e20
       / dynamic_config_slice.nref
   )
@@ -373,7 +373,6 @@ def _calculate_currents_from_psi(
   jtot, jtot_face = physics.calc_jtot_from_psi(
       geo,
       psi,
-      dynamic_config_slice.Rmaj,
   )
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
@@ -465,7 +464,7 @@ def _update_psi_from_j(
   scale = jnp.concatenate((
       jnp.zeros((1,)),
       constants.CONSTANTS.mu0
-      / (2 * jnp.pi * dynamic_config_slice.Rmaj * geo.G2_hires[1:]),
+      / (2 * jnp.pi * geo.Rmaj * geo.G2_hires[1:]),
   ))
   # dpsi_dr on the cell grid
   dpsi_dr_hires = scale * integrated
@@ -563,7 +562,6 @@ def initial_core_profiles(
         geo=geo,
         jtot_face=currents.jtot_face,
         psi=psi,
-        Rmaj=dynamic_config_slice.Rmaj,
         q_correction_factor=dynamic_config_slice.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, psi)
@@ -591,7 +589,6 @@ def initial_core_profiles(
         geo=geo,
         jtot_face=geo.jtot_face,
         psi=psi,
-        Rmaj=dynamic_config_slice.Rmaj,
         q_correction_factor=dynamic_config_slice.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, psi)
@@ -642,7 +639,6 @@ def initial_core_profiles(
   core_profiles = physics.update_jtot_q_face_s_face(
       geo=geo,
       core_profiles=core_profiles,
-      Rmaj=dynamic_config_slice.Rmaj,
       q_correction_factor=dynamic_config_slice.q_correction_factor,
   )
 

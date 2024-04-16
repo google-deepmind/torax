@@ -82,11 +82,11 @@ class CriticalGradientModel(transport_model.TransportModel):
         (dynamic_config_slice.Ai * constants.mp) ** 0.5
         / (constants.qe * geo.B0) ** 2
         * (temp_ion_face * constants.keV2J) ** 1.5
-        / dynamic_config_slice.Rmaj
+        / geo.Rmaj
     )
 
     # R/LTi profile from current timestep temp_ion
-    rlti = -dynamic_config_slice.Rmaj * temp_ion_face_grad / temp_ion_face
+    rlti = -geo.Rmaj * temp_ion_face_grad / temp_ion_face
 
     # set minimum chi for PDE stability
     chi_ion = dynamic_config_slice.transport.chimin * jnp.ones_like(

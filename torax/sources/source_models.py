@@ -340,7 +340,6 @@ def sum_sources_psi(
     source_models: SourceModels,
     source_profile: source_profiles.SourceProfiles,
     geo: geometry.Geometry,
-    Rmaj: float,  # pylint: disable=invalid-name
 ) -> jnp.ndarray:
   """Computes psi source values for sim.calc_coeffs."""
   total = (
@@ -353,7 +352,7 @@ def sum_sources_psi(
         affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
         geo=geo,
     )
-  denom = 2 * jnp.pi * Rmaj * geo.J**2
+  denom = 2 * jnp.pi * geo.Rmaj * geo.J**2
   scale_source = lambda src: -geo.vpr * src * constants.CONSTANTS.mu0 / denom
   return scale_source(total)
 
@@ -435,7 +434,7 @@ def calc_and_sum_sources_psi(
       calculate_anyway=True,
   )
   total += j_bootstrap_profiles.j_bootstrap
-  denom = 2 * jnp.pi * dynamic_config_slice.Rmaj * geo.J**2
+  denom = 2 * jnp.pi * geo.Rmaj * geo.J**2
   scale_source = lambda src: -geo.vpr * src * constants.CONSTANTS.mu0 / denom
 
   return scale_source(total), j_bootstrap_profiles.sigma
@@ -486,7 +485,7 @@ def calc_psidot(
       * sigma
       * consts.mu0
       / geo.J**2
-      / dynamic_config_slice.Rmaj
+      / geo.Rmaj
   )
   d_face_psi = geo.G2_face / geo.J_face / geo.rmax**2
 
@@ -510,12 +509,11 @@ def _ohmic_heat_model(
   jtot, _ = physics.calc_jtot_from_psi(
       geo,
       core_profiles.psi,
-      dynamic_config_slice.Rmaj,
   )
 
   psidot = calc_psidot(source_models, dynamic_config_slice, geo, core_profiles)
 
-  pohm = jtot * psidot / (2 * jnp.pi * dynamic_config_slice.Rmaj)
+  pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
   return pohm
 
 

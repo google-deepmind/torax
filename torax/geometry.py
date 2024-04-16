@@ -115,6 +115,8 @@ class Geometry:
   r_norm: jnp.ndarray
   r_face: jnp.ndarray
   r: jnp.ndarray
+  Rmaj: jnp.ndarray
+  Rmin: jnp.ndarray
   B0: jnp.ndarray
   volume: jnp.ndarray
   volume_face: jnp.ndarray
@@ -172,12 +174,12 @@ class CHEASEGeometry(Geometry):
   delta_lower_face: jnp.ndarray
 
 
-# pylint: enable=invalid-name
-
-
 def build_circular_geometry(
     config: config_lib.Config,
     kappa: float = 1.72,
+    Rmaj: float = 6.2,
+    Rmin: float = 2.0,
+    B0: float = 5.3,
     hires_fac: int = 4,
 ) -> CircularGeometry:
   """Constructs a CircularGeometry.
@@ -192,6 +194,9 @@ def build_circular_geometry(
     config: General TORAX config.
     kappa: Elogination. Defaults to 1.72 for the ITER elongation, to
       approximately correct volume and area integral Jacobians.
+    Rmaj: major radius (R) in meters
+    Rmin: minor radius (a) in meters
+    B0: Toroidal magnetic field on axis [T]
     hires_fac: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
 
@@ -204,7 +209,7 @@ def build_circular_geometry(
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
   dr_norm = jnp.array(1) / config.nr
   mesh = Grid1D.construct(nx=config.nr, dx=dr_norm)
-  rmax = jnp.array(config.Rmin)
+  rmax = jnp.array(Rmin)
   # helper variables for mesh cells and faces
   # r coordinate of faces
   r_face_norm = mesh.face_centers
@@ -214,7 +219,8 @@ def build_circular_geometry(
   dr = dr_norm * rmax
   r_face = r_face_norm * rmax
   r = r_norm * rmax
-  B0 = jnp.array(config.B0)  # pylint: disable=invalid-name
+  Rmaj = jnp.array(Rmaj)
+  B0 = jnp.array(B0)
 
   # assumed elongation profile on cell grid
   kappa_param = kappa
@@ -222,18 +228,18 @@ def build_circular_geometry(
   # assumed elongation profile on cell grid
   kappa_face = 1 + r_face_norm * (kappa_param - 1)
 
-  volume = 2 * jnp.pi**2 * config.Rmaj * r**2 * kappa
-  volume_face = 2 * jnp.pi**2 * config.Rmaj * r_face**2 * kappa_face
+  volume = 2 * jnp.pi**2 * Rmaj * r**2 * kappa
+  volume_face = 2 * jnp.pi**2 * Rmaj * r_face**2 * kappa_face
   area = jnp.pi * r**2 * kappa
   area_face = jnp.pi * r_face**2 * kappa_face
 
   # V' for volume integrations
   vpr = (
-      4 * jnp.pi**2 * config.Rmaj * r * kappa
+      4 * jnp.pi**2 * Rmaj * r * kappa
       + volume / kappa * (kappa_param - 1) / rmax
   )
   vpr_face = (
-      4 * jnp.pi**2 * config.Rmaj * r_face * kappa_face
+      4 * jnp.pi**2 * Rmaj * r_face * kappa_face
       + volume_face / kappa_face * (kappa_param - 1) / rmax
   )
   # pylint: disable=invalid-name
@@ -248,15 +254,15 @@ def build_circular_geometry(
 
   # uses <1/R^2> with circular geometry
   G2 = vpr / (
-      4 * jnp.pi**2 * config.Rmaj**2 * jnp.sqrt(1 - (r / config.Rmaj) ** 2)
+      4 * jnp.pi**2 * Rmaj**2 * jnp.sqrt(1 - (r / Rmaj) ** 2)
   )
 
   # generate G2_face by hand
   G2_outer_face = vpr_face[-1] / (
       4
       * jnp.pi**2
-      * config.Rmaj**2
-      * jnp.sqrt(1 - (r_face[-1] / config.Rmaj) ** 2)
+      * Rmaj**2
+      * jnp.sqrt(1 - (r_face[-1] / Rmaj) ** 2)
   )
   G2_outer_face = jnp.expand_dims(G2_outer_face, 0)
   G2_face = jnp.concatenate(
@@ -279,8 +285,8 @@ def build_circular_geometry(
   J = jnp.ones(len(r))
   J_face = jnp.ones(len(r_face))
   # simplified (constant) version of the F=B*R function
-  F = jnp.ones(len(r)) * config.Rmaj * B0
-  F_face = jnp.ones(len(r_face)) * config.Rmaj * B0
+  F = jnp.ones(len(r)) * Rmaj * B0
+  F_face = jnp.ones(len(r_face)) * Rmaj * B0
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
@@ -288,21 +294,21 @@ def build_circular_geometry(
   r_hires_norm = jnp.linspace(0, 1, config.nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
-  Rout = config.Rmaj + r
-  Rout_face = config.Rmaj + r_face
+  Rout = Rmaj + r
+  Rout_face = Rmaj + r_face
 
-  Rin = config.Rmaj - r
-  Rin_face = config.Rmaj - r_face
+  Rin = Rmaj - r
+  Rin_face = Rmaj - r_face
 
   # assumed elongation profile on hires grid
   kappa_hires = 1 + r_hires_norm * (kappa_param - 1)
 
-  volume_hires = 2 * jnp.pi**2 * config.Rmaj * r_hires**2 * kappa_hires
+  volume_hires = 2 * jnp.pi**2 * Rmaj * r_hires**2 * kappa_hires
   area_hires = jnp.pi * r_hires**2 * kappa_hires
 
   # V' for volume integrations on hires grid
   vpr_hires = (
-      4 * jnp.pi**2 * config.Rmaj * r_hires * kappa_hires
+      4 * jnp.pi**2 * Rmaj * r_hires * kappa_hires
       + volume_hires / kappa_hires * (kappa_param - 1) / rmax
   )
   # S' for area integrals on hires grid
@@ -315,8 +321,8 @@ def build_circular_geometry(
   denom = (
       4
       * jnp.pi**2
-      * config.Rmaj**2
-      * jnp.sqrt(1 - (r_hires / config.Rmaj) ** 2)
+      * Rmaj**2
+      * jnp.sqrt(1 - (r_hires / Rmaj) ** 2)
   )
   G2_hires = vpr_hires / denom
 
@@ -345,6 +351,8 @@ def build_circular_geometry(
       r_norm=r_norm,
       r_face=r_face,
       r=r,
+      Rmaj=Rmaj,
+      Rmin=rmax,
       B0=B0,
       volume=volume,
       volume_face=volume_face,
@@ -395,6 +403,9 @@ def build_chease_geometry(
     config: config_lib.Config,
     geometry_dir: str | None = None,
     geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+    Rmaj: float = 6.2,
+    Rmin: float = 2.0,
+    B0: float = 5.3,
     hires_fac: int = 4,
     Ip_from_parameters: bool = True,
 ):
@@ -414,6 +425,10 @@ def build_chease_geometry(
       geometry_dir is not provided, then it defaults to another dir. See
       implementation.
     geometry_file: CHEASE file name.
+    Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
+      is used as an unnormalization factor.
+    Rmin: minor radius (a) in meters
+    B0: Toroidal magnetic field on axis [T].
     hires_fac: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
     Ip_from_parameters: If True, take Ip from parameter file and rescale psi.
@@ -442,19 +457,20 @@ def build_chease_geometry(
   # grid. CHEASE variables are normalized. Need to unnormalize them with
   # reference values poloidal flux and CHEASE-internal-calculated plasma
   # current.
-  B0 = jnp.array(config.B0)  # pylint: disable=invalid-name
-  psiunnormfactor = (config.Rmaj**2 * B0) * 2 * jnp.pi
+  Rmaj = jnp.array(Rmaj)
+  B0 = jnp.array(B0)
+  psiunnormfactor = (Rmaj**2 * B0) * 2 * jnp.pi
   psi_chease = chease_data['PSIchease=psi/2pi'] * psiunnormfactor
   Ip_chease = (
-      chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * config.Rmaj * B0
+      chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * Rmaj * B0
   )
 
   # toroidal flux coordinate
-  rho = chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * config.Rmaj
+  rho = chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * Rmaj
   rhon = chease_data['RHO_TOR_NORM']
   # midplane radii
-  Rin_chease = chease_data['R_INBOARD'] * config.Rmaj
-  Rout_chease = chease_data['R_OUTBOARD'] * config.Rmaj
+  Rin_chease = chease_data['R_INBOARD'] * Rmaj
+  Rout_chease = chease_data['R_OUTBOARD'] * Rmaj
   # toroidal field flux function
   J_chease = chease_data['T=RBphi']
 
@@ -463,21 +479,21 @@ def build_chease_geometry(
   delta_lower_face_chease = chease_data['delta_bottom']
 
   # flux surface integrals of various geometry quantities
-  C1 = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * config.Rmaj / B0
-  C2 = chease_data['<1/R**2>'] * C1 / config.Rmaj**2
+  C1 = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
+  C2 = chease_data['<1/R**2>'] * C1 / Rmaj**2
   C3 = chease_data['<Bp**2>'] * C1 * B0**2
-  C4 = chease_data['<|grad(psi)|**2>'] * C1 * (B0 * config.Rmaj) ** 2
+  C4 = chease_data['<|grad(psi)|**2>'] * C1 * (B0 * Rmaj) ** 2
 
   # derived quantities for transport equations and transformations
 
   # <\nabla V>
-  g0_chease = 2 * jnp.pi * chease_data['<|grad(psi)|>'] * B0 * config.Rmaj * C1
+  g0_chease = 2 * jnp.pi * chease_data['<|grad(psi)|>'] * B0 * Rmaj * C1
   g1_chease = 4 * jnp.pi**2 * C1 * C4  # <(\nabla V)**2>
   g2_chease = 4 * jnp.pi**2 * C1 * C3  # <(\nabla V)**2 / R**2>
   g3_chease = C2[1:] / C1[1:]  # <1/R**2>
   g3_chease = jnp.concatenate((jnp.array([1 / Rin_chease[0] ** 2]), g3_chease))
   G2_chease = (
-      config.Rmaj
+      Rmaj
       / (16 * jnp.pi**4)
       * J_chease[1:]
       * g2_chease[1:]
@@ -519,8 +535,8 @@ def build_chease_geometry(
     Ip_scale_factor = 1
 
   # volume, area, and dV/drho, dS/drho
-  volume_chease = chease_data['VOLUMEprofile'] * config.Rmaj**3
-  area_chease = chease_data['areaprofile'] * config.Rmaj**2
+  volume_chease = chease_data['VOLUMEprofile'] * Rmaj**3
+  area_chease = chease_data['areaprofile'] * Rmaj**2
   vpr_chease = math_utils.gradient(volume_chease, rho)
   spr_chease = math_utils.gradient(area_chease, rho)
   # gradient boundary approximation not appropriate here
@@ -531,7 +547,7 @@ def build_chease_geometry(
   jtot_chease = (
       2
       * jnp.pi
-      * config.Rmaj
+      * Rmaj
       * math_utils.gradient(Ip_chease, volume_chease)
       * Ip_scale_factor
   )
@@ -587,9 +603,9 @@ def build_chease_geometry(
   J_face = interp_func(r_face_norm)
   J = interp_func(r_norm)
   # simplified (constant) version of the F=B*R function
-  F = J * config.Rmaj * B0
+  F = J * Rmaj * B0
   # simplified (constant) version of the F=B*R function
-  F_face = J_face * config.Rmaj * B0
+  F_face = J_face * Rmaj * B0
 
   interp_func = lambda x: jnp.interp(x, rhon, psi_chease)
   psi_chease = interp_func(r_norm)
@@ -660,6 +676,8 @@ def build_chease_geometry(
       r_norm=r_norm,
       r_face=r_face,
       r=r,
+      Rmaj=Rmaj,
+      Rmin=jnp.array(Rmin),
       B0=B0,
       volume=volume,
       volume_face=volume_face,
