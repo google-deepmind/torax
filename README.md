@@ -199,7 +199,7 @@ python3 run_simulation_main.py \
 
 ### Post-simulation
 
-Once complete, the time history of a simulation state and derived quantities is written to `state_history.h5`. The output path is written to stdout
+Once complete, the time history of a simulation state and derived quantities is written to `state_history.nc`. The output path is written to stdout
 
 To take advantage of the in-memory (non-persistent) cache, the process does not end upon simulation termination. It is possible to modify the config, toggle the `log_progress` and `plot_progress` flags, and rerun the simulation. Only the following modifications will then trigger a recompilation:
 
@@ -219,21 +219,3 @@ deactivate
 # Simulation tutorials
 
 Under construction
-
-# FAQ
-
-* On MacOS, you may get the error: .. ERROR:: Could not find a local HDF5
-  installation.:
-* Solution: You need to tell the OS where HDF5 is, try
-
-```shell
-brew install hdf5
-```
-
-```shell
-export HDF5_DIR="$(brew --prefix hdf5)"
-```
-
-```shell
-pip install --no-binary=h5py h5py
-```

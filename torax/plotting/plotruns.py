@@ -14,7 +14,7 @@
 
 """Basic post-run plotting tool. Plot a single run or comparison of two runs.
 
-Includes a time slider. Reads output h5 files,
+Includes a time slider. Reads output files with xarray data or legacy h5 data.
 
 Plots:
 (1) chi_i, chi_e (transport coefficients)
@@ -27,11 +27,11 @@ Plots:
 
 import argparse
 import dataclasses
-import h5py
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider  # pylint: disable=g-importing-member
 import numpy as np
+import xarray as xr
 
 matplotlib.use('TkAgg')
 
@@ -77,7 +77,7 @@ parser.add_argument(
     '--outfile',
     nargs='*',
     help=(
-        'Relative location of output h5 files (if two are provided, a'
+        'Relative location of output files (if two are provided, a'
         ' comparison is done)'
     ),
 )
@@ -94,42 +94,50 @@ else:
 if not args.outfile:
   raise ValueError('No output file provided')
 
-with h5py.File(args.outfile[0] + '.h5', 'r') as hf:
-  plotdata1 = PlotData(
-      ti=hf['temp_ion'][:],
-      te=hf['temp_el'][:],
-      ne=hf['ne'][:],
-      j=hf['jtot'][:],
-      johm=hf['johm'][:],
-      j_bootstrap=hf['j_bootstrap'][:],
-      jext=hf['jext'][:],
-      q=hf['q_face'][:],
-      s=hf['s_face'][:],
-      chi_i=hf['chi_face_ion'][:],
-      chi_e=hf['chi_face_el'][:],
-      t=hf['t'][:],
-      rcell_coord=hf['r_cell_norm'][:],
-      rface_coord=hf['r_face_norm'][:],
-  )
+ds1 = xr.open_dataset(args.outfile[0])
+if 'time' in ds1:
+  t = ds1['time'].to_numpy()
+else:
+  t = ds1['t'].to_numpy()
+plotdata1 = PlotData(
+    ti=ds1['temp_ion'].to_numpy(),
+    te=ds1['temp_el'].to_numpy(),
+    ne=ds1['ne'].to_numpy(),
+    j=ds1['jtot'].to_numpy(),
+    johm=ds1['johm'].to_numpy(),
+    j_bootstrap=ds1['j_bootstrap'].to_numpy(),
+    jext=ds1['jext'].to_numpy(),
+    q=ds1['q_face'].to_numpy(),
+    s=ds1['s_face'].to_numpy(),
+    chi_i=ds1['chi_face_ion'].to_numpy(),
+    chi_e=ds1['chi_face_el'].to_numpy(),
+    rcell_coord=ds1['r_cell_norm'].to_numpy(),
+    rface_coord=ds1['r_face_norm'].to_numpy(),
+    t=t,
+)
 
 if comp_plot:
-  with h5py.File(args.outfile[1] + '.h5', 'r') as hf:
-    plotdata2 = PlotData(
-        ti=hf['temp_ion'][:],
-        te=hf['temp_el'][:],
-        ne=hf['ne'][:],
-        j=hf['jtot'][:],
-        johm=hf['johm'][:],
-        j_bootstrap=hf['j_bootstrap'][:],
-        jext=hf['jext'][:],
-        q=hf['q_face'][:],
-        s=hf['s_face'][:],
-        chi_i=hf['chi_face_ion'][:],
-        chi_e=hf['chi_face_el'][:],
-        t=hf['t'][:],
-        rcell_coord=hf['r_cell_norm'][:],
-        rface_coord=hf['r_face_norm'][:],
-    )
+  ds2 = xr.open_dataset(args.outfile[1])
+  if 'time' in ds2:
+    t = ds2['time'].to_numpy()
+  else:
+    t = ds2['t'].to_numpy()
+  plotdata2 = PlotData(
+      ti=ds2['temp_ion'].to_numpy(),
+      te=ds2['temp_el'].to_numpy(),
+      ne=ds2['ne'].to_numpy(),
+      j=ds2['jtot'].to_numpy(),
+      johm=ds2['johm'].to_numpy(),
+      j_bootstrap=ds2['j_bootstrap'].to_numpy(),
+      jext=ds2['jext'].to_numpy(),
+      q=ds2['q_face'].to_numpy(),
+      s=ds2['s_face'].to_numpy(),
+      chi_i=ds2['chi_face_ion'].to_numpy(),
+      chi_e=ds2['chi_face_el'].to_numpy(),
+      rcell_coord=ds2['r_cell_norm'].to_numpy(),
+      rface_coord=ds2['r_face_norm'].to_numpy(),
+      t=t,
+  )
 
 fig = plt.figure(figsize=(15, 10))
 ax1 = fig.add_subplot(231)

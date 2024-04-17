@@ -22,7 +22,6 @@ from typing import Optional, Sequence
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
-import h5py
 import jax.numpy as jnp
 import numpy as np
 import torax
@@ -36,17 +35,7 @@ from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import array_time_step_calculator
 from torax.transport_model import transport_model as transport_model_lib
-
-
-_TORAX_TO_PINT = {
-    'temp_ion': 'Ti',
-    'temp_el': 'Te',
-    'psi': 'psi',
-    's_face': 's',
-    'q_face': 'q',
-    'ne': 'ne',
-}
-
+import xarray as xr
 
 _PYTHON_MODULE_PREFIX = '.tests.test_data.'
 _PYTHON_CONFIG_PACKAGE = 'torax'
@@ -116,19 +105,15 @@ class SimTestCase(parameterized.TestCase):
     """Gets reference values for the requested state profiles."""
     expected_results_path = self._expected_results_path(ref_name)
     self.assertTrue(os.path.exists(expected_results_path))
-
-    with open(expected_results_path, mode='rb') as f:
-      with h5py.File(f, 'r') as hf:
-        self.assertNotEmpty(profiles)
-        if 'Ti' in hf.keys():  # Determine if h5 file is PINT output
-          ref_profiles = {
-              profile: hf[_TORAX_TO_PINT[profile]][:] for profile in profiles
-          }
-        else:
-          ref_profiles = {profile: hf[profile][:] for profile in profiles}
-        ref_time = jnp.array(hf['t'])
-        self.assertEqual(ref_time.shape[0], ref_profiles[profiles[0]].shape[0])
-        return ref_profiles, ref_time
+    ds = xr.open_dataset(expected_results_path)
+    self.assertNotEmpty(profiles)
+    ref_profiles = {profile: ds[profile].to_numpy() for profile in profiles}
+    if 'time' in ds:
+      ref_time = ds['time'].to_numpy()
+    else:
+      ref_time = ds['t'].to_numpy()
+    self.assertEqual(ref_time.shape[0], ref_profiles[profiles[0]].shape[0])
+    return ref_profiles, ref_time
 
   def _check_profiles_vs_expected(
       self,

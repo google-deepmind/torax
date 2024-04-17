@@ -75,7 +75,7 @@ class AnsiColors(enum.Enum):
 _ANSI_END = '\033[0m'
 
 _DEFAULT_OUTPUT_DIR_PREFIX = '/tmp/torax_results_'
-_STATE_HISTORY_FILENAME = 'state_history.h5'
+_STATE_HISTORY_FILENAME = 'state_history.nc'
 
 
 def log_to_stdout(output: str, color: AnsiColors | None = None) -> None:

@@ -11,6 +11,5 @@ setuptools;python_version>="3.10"
 chex>=0.1.85
 fancyflags>=1.2
 equinox @ git+https://github.com/patrick-kidger/equinox@1e601672d38d2c4d483535070a3572d8e8508a20
-h5py>=3.10.0
 PyYAML>=6.0.1
 xarray>=2023.12.0
