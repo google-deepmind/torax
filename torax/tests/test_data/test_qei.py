@@ -26,16 +26,20 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      set_pedestal=False,
-      nbar=0.5,  # Initial density in Greenwald fraction units
-      t_final=1,
+      profile_conditions=config_lib.ProfileConditions(
+          set_pedestal=False,
+          nbar=0.5,  # Initial density in Greenwald fraction units
+      ),
+      numerics=config_lib.Numerics(
+          t_final=1,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       transport=config_lib.TransportConfig(
           transport_model="constant",
       ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
       ),
-      bootstrap_mult=0,  # remove bootstrap current
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,

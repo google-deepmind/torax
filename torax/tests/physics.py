@@ -47,21 +47,21 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     geo = references.geo
 
     # Dummy value for jtot for unit testing purposes.
-    jtot = jnp.ones(config.nr)
+    jtot = jnp.ones(config.numerics.nr)
 
     q_face_jax, q_cell_jax = physics.calc_q_from_jtot_psi(
         geo,
         jtot,
         references.psi,
-        dynamic_config_slice.q_correction_factor,
+        dynamic_config_slice.numerics.q_correction_factor,
     )
 
     # Make ground truth
     def calc_q_from_psi(config, geo):
       """Reference implementation from PINT."""
       consts = constants.CONSTANTS
-      iota = np.zeros(config.nr + 1)  # on face grid
-      q = np.zeros(config.nr + 1)  # on face grid
+      iota = np.zeros(config.numerics.nr + 1)  # on face grid
+      q = np.zeros(config.numerics.nr + 1)  # on face grid
       # We use the reference value of psi here because the original code
       # for calculating psi depends on FiPy, and we don't want to install that
       iota[1:] = np.abs(
@@ -74,10 +74,10 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
       q[0] = (
           2 * geo.B0 / (consts.mu0 * jtot[0] * geo.Rmaj)
       )  # use on-axis definition of q (Wesson 2004, Eq 3.48)
-      q *= config.q_correction_factor
+      q *= config.numerics.q_correction_factor
 
       def face_to_cell(config, face):
-        cell = np.zeros(config.nr)
+        cell = np.zeros(config.numerics.nr)
         cell[:] = 0.5 * (face[1:] + face[:-1])
         return cell
 

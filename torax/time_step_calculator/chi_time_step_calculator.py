@@ -51,8 +51,8 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       state: State,
   ) -> Union[bool, jax.Array]:
-    """Returns True if iteration not done (t < config.t_final)."""
-    return t < dynamic_config_slice.t_final
+    """Returns True if iteration not done (t < config.numerics.t_final)."""
+    return t < dynamic_config_slice.numerics.t_final
 
   @functools.partial(jax_utils.jit, static_argnames=['self'])
   def next_dt(
@@ -86,8 +86,8 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
     basic_dt = (3.0 / 4.0) * (geo.dr_norm**2) / chi_max * geo.rmax**2
 
     dt = jnp.minimum(
-        dynamic_config_slice.dtmult * basic_dt,
-        dynamic_config_slice.maxdt,
+        dynamic_config_slice.numerics.dtmult * basic_dt,
+        dynamic_config_slice.numerics.maxdt,
     )
 
     return dt, STATE

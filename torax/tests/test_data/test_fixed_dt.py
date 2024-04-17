@@ -26,10 +26,12 @@ def get_config() -> config_lib.Config:
   # This config based approach is deprecated.
   # Over time more will be built with pure Python constructors in `get_sim`.
   return config_lib.Config(
-      t_final=2,
-      use_fixed_dt=True,
-      fixed_dt=2e-2,
-      bootstrap_mult=0,  # remove bootstrap current
+      numerics=config_lib.Numerics(
+          t_final=2,
+          use_fixed_dt=True,
+          fixed_dt=2e-2,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       # Do not use the fusion heat source.
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
@@ -57,7 +59,7 @@ def get_sim() -> sim_lib.Sim:
   # config taking place via constructor args in this function.
   sim_config = get_config()
   geo = get_geometry(sim_config)
-  if sim_config.use_fixed_dt:
+  if sim_config.numerics.use_fixed_dt:
     time_step_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
   else:
     time_step_calculator = None

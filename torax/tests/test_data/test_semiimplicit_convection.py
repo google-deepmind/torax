@@ -32,8 +32,13 @@ def get_config() -> config_lib.Config:
       # to exercise the convection term at the boundary. This causes FiPy to
       # explode. The time was reduced compared to test_cgm_heat to avoid test
       # time bottlenecks
-      set_pedestal=False,
-      t_final=0.5,
+      profile_conditions=config_lib.ProfileConditions(
+          set_pedestal=False,
+      ),
+      numerics=config_lib.Numerics(
+          t_final=0.5,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       transport=config_lib.TransportConfig(
           transport_model='CGM',
       ),
@@ -45,7 +50,6 @@ def get_config() -> config_lib.Config:
           convection_neumann_mode='semi-implicit',
           use_pereverzev=True,
       ),
-      bootstrap_mult=0,  # remove bootstrap current
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,

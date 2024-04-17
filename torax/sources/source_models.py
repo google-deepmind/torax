@@ -480,7 +480,7 @@ def calc_psidot(
   )
   toc_psi = (
       1.0
-      / dynamic_config_slice.resistivity_mult
+      / dynamic_config_slice.numerics.resistivity_mult
       * geo.r
       * sigma
       * consts.mu0

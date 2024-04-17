@@ -68,21 +68,25 @@ def get_config() -> config_lib.Config:
   # This config based approach is deprecated.
   # Over time more will be built with pure Python constructors in `get_sim`.
   return config_lib.Config(
-      Ti_bound_left=8,
-      Te_bound_left=8,
-      current_eq=True,
-      adaptive_dt=False,
-      # to shorten current diffusion time for the test
-      resistivity_mult=100,
+      profile_conditions=config_lib.ProfileConditions(
+          Ti_bound_left=8,
+          Te_bound_left=8,
+      ),
+      numerics=config_lib.Numerics(
+          current_eq=True,
+          adaptive_dt=False,
+          # to shorten current diffusion time for the test
+          resistivity_mult=100,
+          t_final=2,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       # set flat Ohmic current to provide larger range of current evolution for
       # test
       nu=0,
-      t_final=2,
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
       ),
-      bootstrap_mult=0,  # remove bootstrap current
       transport=config_lib.TransportConfig(
           transport_model="qlknn",
       ),

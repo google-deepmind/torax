@@ -100,14 +100,14 @@ def build_smoothing_matrix(
   # region or in inner and outer transport patch regions, to impact
   # transport_model calculated coefficients
   mask_outer_edge = jax.lax.cond(
-      dynamic_config_slice.set_pedestal,
-      lambda: dynamic_config_slice.Ped_top - consts.eps,
+      dynamic_config_slice.profile_conditions.set_pedestal,
+      lambda: dynamic_config_slice.profile_conditions.Ped_top - consts.eps,
       lambda: 1.0,
   )
 
   mask_outer_edge = jax.lax.cond(
       jnp.logical_and(
-          jnp.logical_not(dynamic_config_slice.set_pedestal),
+          jnp.logical_not(dynamic_config_slice.profile_conditions.set_pedestal),
           dynamic_config_slice.transport.apply_outer_patch,
       ),
       lambda: dynamic_config_slice.transport.rho_outer - consts.eps,

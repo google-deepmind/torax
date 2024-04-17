@@ -114,12 +114,12 @@ class _QLKNNRuntimeConfigInputs:
   ) -> '_QLKNNRuntimeConfigInputs':
     return _QLKNNRuntimeConfigInputs(
         nref=dynamic_config_slice.nref,
-        Ai=dynamic_config_slice.Ai,
-        Zeff=dynamic_config_slice.Zeff,
+        Ai=dynamic_config_slice.plasma_composition.Ai,
+        Zeff=dynamic_config_slice.plasma_composition.Zeff,
         transport=dynamic_config_slice.transport,
-        Ped_top=dynamic_config_slice.Ped_top,
-        set_pedestal=dynamic_config_slice.set_pedestal,
-        q_correction_factor=dynamic_config_slice.q_correction_factor,
+        Ped_top=dynamic_config_slice.profile_conditions.Ped_top,
+        set_pedestal=dynamic_config_slice.profile_conditions.set_pedestal,
+        q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
     )
 
 
@@ -486,7 +486,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
     # set low transport in pedestal region to facilitate PDE solver
     # (more consistency between desired profile and transport coefficients)
-    # if config.set_pedestal:
+    # if config.profile_conditions.set_pedestal:
     mask = geo.r_face_norm >= runtime_config_inputs.Ped_top
     chi_face_ion = jnp.where(
         jnp.logical_and(runtime_config_inputs.set_pedestal, mask),

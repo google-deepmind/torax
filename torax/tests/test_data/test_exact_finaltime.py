@@ -23,15 +23,20 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      Ti_bound_left=8,
-      Te_bound_left=8,
-      current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
+      profile_conditions=config_lib.ProfileConditions(
+          Ti_bound_left=8,
+          Te_bound_left=8,
+      ),
+      numerics=config_lib.Numerics(
+          current_eq=True,
+          resistivity_mult=100,  # to shorten current diffusion time
+          t_final=2,
+          exact_t_final=True,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       # set flat Ohmic current to provide larger range of current evolution for
       # test
       nu=0,
-      t_final=2,
-      exact_t_final=True,
       transport=config_lib.TransportConfig(
           transport_model="qlknn",
       ),
@@ -39,7 +44,6 @@ def get_config() -> config_lib.Config:
           predictor_corrector=False,
           use_pereverzev=True,
       ),
-      bootstrap_mult=0,  # remove bootstrap current
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,

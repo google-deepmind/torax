@@ -47,63 +47,82 @@ class ConfigSliceTest(parameterized.TestCase):
     self.assertSameElements(source_models, sources_config_fields)
 
   def test_time_dependent_provider_is_time_dependent(self):
+    """Tests that the config slice provider is time dependent."""
     config = config_lib.Config(
-        Ti_bound_right={0.0: 2.0, 4.0: 4.0},
+        profile_conditions=config_lib.ProfileConditions(
+            Ti_bound_right={0.0: 2.0, 4.0: 4.0},
+        ),
     )
     provider = config_slice_lib.TimeDependentDynamicConfigSliceProvider(config)
     dynamic_config_slice = provider(t=1.0)
-    np.testing.assert_allclose(dynamic_config_slice.Ti_bound_right, 2.5)
+    np.testing.assert_allclose(
+        dynamic_config_slice.profile_conditions.Ti_bound_right, 2.5
+    )
     dynamic_config_slice = provider(t=2.0)
-    np.testing.assert_allclose(dynamic_config_slice.Ti_bound_right, 3.0)
+    np.testing.assert_allclose(
+        dynamic_config_slice.profile_conditions.Ti_bound_right, 3.0
+    )
 
   def test_boundary_conditions_are_time_dependent(self):
     """Tests that the boundary conditions are time dependent params."""
     # All of the following parameters are time-dependent fields, but they can
     # be initialized in different ways.
     config = config_lib.Config(
-        Ti_bound_right={0.0: 2.0, 4.0: 4.0},
-        Te_bound_right=4.5,  # not time-dependent.
-        ne_bound_right=config_lib.InterpolationParam(
-            {5.0: 6.0, 7.0: 8.0},
-            interpolation_mode=config_lib.InterpolationMode.STEP,
+        profile_conditions=config_lib.ProfileConditions(
+            Ti_bound_right={0.0: 2.0, 4.0: 4.0},
+            Te_bound_right=4.5,  # not time-dependent.
+            ne_bound_right=config_lib.InterpolationParam(
+                {5.0: 6.0, 7.0: 8.0},
+                interpolation_mode=config_lib.InterpolationMode.STEP,
+            ),
         ),
     )
     np.testing.assert_allclose(
-        config_slice_lib.build_dynamic_config_slice(config, 2.0).Ti_bound_right,
+        config_slice_lib.build_dynamic_config_slice(
+            config, 2.0
+        ).profile_conditions.Ti_bound_right,
         3.0,
     )
     np.testing.assert_allclose(
-        config_slice_lib.build_dynamic_config_slice(config, 4.0).Te_bound_right,
+        config_slice_lib.build_dynamic_config_slice(
+            config, 4.0
+        ).profile_conditions.Te_bound_right,
         4.5,
     )
     np.testing.assert_allclose(
-        config_slice_lib.build_dynamic_config_slice(config, 6.0).ne_bound_right,
+        config_slice_lib.build_dynamic_config_slice(
+            config, 6.0
+        ).profile_conditions.ne_bound_right,
         6.0,
     )
 
   def test_pedestal_is_time_dependent(self):
     """Tests that the pedestal config params are time dependent."""
     config = config_lib.Config(
-        set_pedestal={0.0: True, 1.0: False},
-        Tiped={0.0: 0.0, 1.0: 1.0},
-        Teped={0.0: 1.0, 1.0: 2.0},
-        neped={0.0: 2.0, 1.0: 3.0},
-        Ped_top={0.0: 3.0, 1.0: 5.0},
+        profile_conditions=config_lib.ProfileConditions(
+            set_pedestal={0.0: True, 1.0: False},
+            Tiped={0.0: 0.0, 1.0: 1.0},
+            Teped={0.0: 1.0, 1.0: 2.0},
+            neped={0.0: 2.0, 1.0: 3.0},
+            Ped_top={0.0: 3.0, 1.0: 5.0},
+        ),
     )
     # Check at time 0.
     dcs = config_slice_lib.build_dynamic_config_slice(config, 0.0)
-    np.testing.assert_allclose(dcs.set_pedestal, True)
-    np.testing.assert_allclose(dcs.Tiped, 0.0)
-    np.testing.assert_allclose(dcs.Teped, 1.0)
-    np.testing.assert_allclose(dcs.neped, 2.0)
-    np.testing.assert_allclose(dcs.Ped_top, 3.0)
+    profile_conditions = dcs.profile_conditions
+    np.testing.assert_allclose(profile_conditions.set_pedestal, True)
+    np.testing.assert_allclose(profile_conditions.Tiped, 0.0)
+    np.testing.assert_allclose(profile_conditions.Teped, 1.0)
+    np.testing.assert_allclose(profile_conditions.neped, 2.0)
+    np.testing.assert_allclose(profile_conditions.Ped_top, 3.0)
     # And check after the time limit.
     dcs = config_slice_lib.build_dynamic_config_slice(config, 1.0)
-    np.testing.assert_allclose(dcs.set_pedestal, False)
-    np.testing.assert_allclose(dcs.Tiped, 1.0)
-    np.testing.assert_allclose(dcs.Teped, 2.0)
-    np.testing.assert_allclose(dcs.neped, 3.0)
-    np.testing.assert_allclose(dcs.Ped_top, 5.0)
+    profile_conditions = dcs.profile_conditions
+    np.testing.assert_allclose(profile_conditions.set_pedestal, False)
+    np.testing.assert_allclose(profile_conditions.Tiped, 1.0)
+    np.testing.assert_allclose(profile_conditions.Teped, 2.0)
+    np.testing.assert_allclose(profile_conditions.neped, 3.0)
+    np.testing.assert_allclose(profile_conditions.Ped_top, 5.0)
 
   def test_source_formula_config_has_time_dependent_params(self):
     """Tests that the source formula config params are time-dependent."""

@@ -51,9 +51,13 @@ def circular_references() -> References:
   config = config_lib.recursive_replace(
       config,
       **{
-          'nr': 25,
-          'Ip': 15,
-          'q_correction_factor': 1.0,
+          'profile_conditions': {
+              'Ip': 15,
+          },
+          'numerics': {
+              'nr': 25,
+              'q_correction_factor': 1.0,
+          },
           'nu': 3,
           'fext': 0.2,
           'wext': 0.05,
@@ -202,9 +206,13 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
   config = config_lib.recursive_replace(
       config,
       **{
-          'nr': 25,
-          'Ip': 15,
-          'q_correction_factor': 1.0,
+          'profile_conditions': {
+              'Ip': 15,
+          },
+          'numerics': {
+              'nr': 25,
+              'q_correction_factor': 1.0,
+          },
           'nu': 3,
           'fext': 0.2,
           'wext': 0.05,
@@ -354,9 +362,13 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
   config = config_lib.recursive_replace(
       config,
       **{
-          'nr': 25,
-          'Ip': 15,
-          'q_correction_factor': 1.0,
+          'profile_conditions': {
+              'Ip': 15,
+          },
+          'numerics': {
+              'nr': 25,
+              'q_correction_factor': 1.0,
+          },
           'nu': 3,
           'fext': 0.2,
           'wext': 0.05,

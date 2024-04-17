@@ -25,14 +25,18 @@ def get_config() -> config_lib.Config:
   # This config based approach is deprecated.
   # Over time more will be built with pure Python constructors in `get_sim`.
   return config_lib.Config(
-      set_pedestal=False,
-      dtmult=0.9,
+      profile_conditions=config_lib.ProfileConditions(
+          set_pedestal=False,
+      ),
+      numerics=config_lib.Numerics(
+          dtmult=0.9,
+          Qei_mult=0,
+          t_final=0.1,
+          bootstrap_mult=0,  # remove bootstrap current
+          ion_heat_eq=True,
+          el_heat_eq=False,
+      ),
       Ptot=200.0e6,
-      Qei_mult=0,
-      t_final=0.1,
-      bootstrap_mult=0,  # remove bootstrap current
-      ion_heat_eq=True,
-      el_heat_eq=False,
       # Do not use the fusion heat source.
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(

@@ -25,14 +25,18 @@ from torax.tests.test_lib import sim_test_case
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      set_pedestal=False,
-      Qei_mult=0,
-      t_final=1,
+      profile_conditions=config_lib.ProfileConditions(
+          set_pedestal=False,
+      ),
+      numerics=config_lib.Numerics(
+          Qei_mult=0,
+          t_final=1,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           theta_imp=1.0,
       ),
-      bootstrap_mult=0,  # remove bootstrap current
       transport=config_lib.TransportConfig(
           transport_model="constant",
       ),

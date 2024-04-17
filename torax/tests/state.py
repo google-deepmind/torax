@@ -141,11 +141,13 @@ class InitialStatesTest(parameterized.TestCase):
     # Boundary conditions can be time-dependent, but when creating the initial
     # core profiles, we want to grab the boundary condition params at time 0.
     config = config_lib.Config(
-        Ti_bound_right=27.7,
-        Te_bound_right={0.0: 42.0, 1.0: 0.0},
-        ne_bound_right=config_lib.InterpolationParam(
-            {0.0: 0.1, 1.0: 2.0},
-            interpolation_mode=config_lib.InterpolationMode.STEP,
+        profile_conditions=config_lib.ProfileConditions(
+            Ti_bound_right=27.7,
+            Te_bound_right={0.0: 42.0, 1.0: 0.0},
+            ne_bound_right=config_lib.InterpolationParam(
+                {0.0: 0.1, 1.0: 2.0},
+                interpolation_mode=config_lib.InterpolationMode.STEP,
+            ),
         ),
     )
     core_profiles = initial_states.initial_core_profiles(
@@ -173,20 +175,26 @@ class InitialStatesTest(parameterized.TestCase):
         initial_j_is_total_current=True,
         initial_psi_from_j=True,
         nu=2,
-        bootstrap_mult=0,
+        numerics=config_lib.Numerics(
+            bootstrap_mult=0,
+        ),
     )
     config2 = config_lib.Config(
         initial_j_is_total_current=False,
         initial_psi_from_j=True,
         nu=2,
-        bootstrap_mult=0,
+        numerics=config_lib.Numerics(
+            bootstrap_mult=0,
+        ),
     )
     config3 = config_lib.Config(
         initial_j_is_total_current=False,
         initial_psi_from_j=True,
         nu=2,
         fext=0.0,
-        bootstrap_mult=1,
+        numerics=config_lib.Numerics(
+            bootstrap_mult=1,
+        ),
     )
     # Needed to generate psi for bootstrap calculation
     config3_helper = config_lib.Config(
@@ -194,7 +202,9 @@ class InitialStatesTest(parameterized.TestCase):
         initial_psi_from_j=True,
         nu=2,
         fext=0.0,
-        bootstrap_mult=0,
+        numerics=config_lib.Numerics(
+            bootstrap_mult=0,
+        ),
     )
     geo = geo_builder(config1)
     core_profiles1 = initial_states.initial_core_profiles(
@@ -223,7 +233,7 @@ class InitialStatesTest(parameterized.TestCase):
     denom = jax.scipy.integrate.trapezoid(
         jformula_face * geo.spr_face, geo.r_face
     )
-    ctot = config1.Ip * 1e6 / denom
+    ctot = config1.profile_conditions.Ip * 1e6 / denom
     jtot_formula_face = jformula_face * ctot
     johm_formula_face = jtot_formula_face * (1 - config1.fext)
 
@@ -239,7 +249,9 @@ class InitialStatesTest(parameterized.TestCase):
         jtot_face=core_profiles3_helper.currents.jtot_face,
         psi=core_profiles3_helper.psi,
     )
-    f_bootstrap = bootstrap_profile.I_bootstrap / (config3.Ip * 1e6)
+    f_bootstrap = bootstrap_profile.I_bootstrap / (
+        config3.profile_conditions.Ip * 1e6
+    )
 
     np.testing.assert_raises(
         AssertionError,

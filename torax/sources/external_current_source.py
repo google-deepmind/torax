@@ -38,7 +38,9 @@ def calculate_Iext(  # pylint: disable=invalid-name
   if dynamic_config_slice.use_absolute_jext:
     return dynamic_config_slice.Iext
   else:
-    return dynamic_config_slice.Ip * dynamic_config_slice.fext
+    return (
+        dynamic_config_slice.profile_conditions.Ip * dynamic_config_slice.fext
+    )
 
 
 def calculate_jext_face(

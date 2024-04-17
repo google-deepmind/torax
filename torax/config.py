@@ -187,37 +187,25 @@ class TransportConfig:
     )
 
 
-# NOMUTANTS -- It's expected for the tests to pass with different defaults.
 @chex.dataclass
-class Config:
-  """Configuration parameters for the `torax` module."""
-
-  # physical inputs
+class PlasmaComposition:
   # amu of main ion (if multiple isotope, make average)
   Ai: float = 2.5
   # charge of main ion
   Zi: float = 1.0
-  # total plasma current in MA
-  # Note that if Ip_from_parameters=False in geometry, then this Ip will be
-  # overwritten by values from the geometry data
-  Ip: TimeDependentField = 15.0
   # needed for qlknn and fusion power
   Zeff: TimeDependentField = 1.0
   Zimp: TimeDependentField = 10.0  # impurity charge state assumed for dilution
 
-  # density profile info
-  # Reference value for normalization
-  nref: float = 1e20
-  # Initial line averaged density.
-  # In units of reference density if nbar_is_fGW = False.
-  # In Greenwald fraction if nbar_is_fGW = True.
-  # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: float = 0.85
-  # Toggle units of nbar
-  nbar_is_fGW: bool = True
-  # Peaking factor of density profile.
-  # If density evolves with PDE (dens_eq=True), then is initial condition
-  npeak: TimeDependentField = 1.5
+
+@chex.dataclass
+class ProfileConditions:
+  """Perscribed values and boundary conditions for the core profiles."""
+
+  # total plasma current in MA
+  # Note that if Ip_from_parameters=False in geometry, then this Ip will be
+  # overwritten by values from the geometry data
+  Ip: TimeDependentField = 15.0
 
   # Temperature boundary conditions at r=Rmin
   Ti_bound_right: TimeDependentField = 1.0
@@ -226,11 +214,119 @@ class Config:
   Te_bound_left: TimeDependentField = 15.0
   Ti_bound_left: TimeDependentField = 15.0
 
+  # Peaking factor of density profile.
+  # If density evolves with PDE (dens_eq=True), then is initial condition
+  npeak: TimeDependentField = 1.5
+
+  # Initial line averaged density.
+  # In units of reference density if nbar_is_fGW = False.
+  # In Greenwald fraction if nbar_is_fGW = True.
+  # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
+  nbar: float = 0.85
+  # Toggle units of nbar
+  nbar_is_fGW: bool = True
+
   # Density boundary condition for r=Rmin, units of nref
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
   ne_bound_right: TimeDependentField = 0.5
   ne_bound_right_is_fGW: bool = False
+
+  # Internal boundary condition (pedestal)
+  # Do not set internal boundary condition if this is False
+  set_pedestal: TimeDependentField = True
+  # ion pedestal top temperature in keV for Ti and Te
+  Tiped: TimeDependentField = 5.0
+  # electron pedestal top temperature in keV for Ti and Te
+  Teped: TimeDependentField = 5.0
+  # pedestal top electron density
+  # In units of reference density if neped_is_fGW = False.
+  # In Greenwald fraction if neped_is_fGW = True.
+  neped: TimeDependentField = 0.7
+  neped_is_fGW: bool = False
+  # Set ped top location.
+  Ped_top: TimeDependentField = 0.91
+
+
+@chex.dataclass
+class Numerics:
+  """Generic numeric parameters for the simulation."""
+
+  # simulation control
+  # start of simulation, in seconds
+  t_initial: float = 0.0
+  # end of simulation, in seconds
+  t_final: float = 5.0
+  # If True, ensures that if the simulation runs long enough, one step
+  # occurs exactly at `t_final`.
+  exact_t_final: bool = False
+
+  # maximum and minimum timesteps allowed in simulation
+  maxdt: float = 1e-1  #  only used with chi_time_step_calculator
+  mindt: float = 1e-8  #  if adaptive timestep is True, error raised if dt<mindt
+
+  # prefactor in front of chi_timestep_calculator base timestep dt=dx^2/(2*chi).
+  # In most use-cases can be increased further above this conservative default
+  dtmult: float = 0.9 * 10
+
+  use_fixed_dt: bool = False  # use fixed_time_step_calculator
+  fixed_dt: float = 1e-2  # timestep used for fixed_time_step_calculator
+
+  # Iterative reduction of dt if nonlinear step does not converge,
+  # If nonlinear step does not converge, then the step is redone
+  # iteratively at successively lower dt until convergence is reached
+  adaptive_dt: bool = True
+  dt_reduction_factor: float = 3
+
+  # Solve the ion heat equation (ion temperature evolves over time)
+  ion_heat_eq: bool = True
+  # Solve the electron heat equation (electron temperature evolves over time)
+  el_heat_eq: bool = True
+  # Solve the current equation (psi evolves over time driven by the solver;
+  # q and s evolve over time as a function of psi)
+  current_eq: bool = False
+  # Solve the density equation (n evolves over time)
+  dens_eq: bool = False
+
+  # q-profile correction factor. Used only in ad-hoc circular geometry model
+  q_correction_factor: float = 1.38
+  # 1/multiplication factor for sigma (conductivity) to reduce current
+  # diffusion timescale to be closer to heat diffusion timescale
+  resistivity_mult: TimeDependentField = 100.0
+  # Multiplication factor for bootstrap current
+  bootstrap_mult: float = 1.0
+  # multiplier for ion-electron heat exchange term for sensitivity testing
+  Qei_mult: float = 1.0
+
+  # numerical (e.g. no. of grid points, other info needed by solver)
+  # radial grid points (num cells)
+  nr: int = 25  # TODO( b/330172917): Move this to geometry.
+  # effective source to dominate PDE in internal boundary condtion location
+  # if T != Tped
+  largeValue_T: float = 1.0e10
+  # effective source to dominate density PDE in internal boundary condtion
+  # location if n != neped
+  largeValue_n: float = 1.0e8
+
+
+# NOMUTANTS -- It's expected for the tests to pass with different defaults.
+@chex.dataclass
+class Config:
+  """Configuration parameters for the `torax` module."""
+
+  plasma_composition: PlasmaComposition = dataclasses.field(
+      default_factory=PlasmaComposition
+  )
+  profile_conditions: ProfileConditions = dataclasses.field(
+      default_factory=ProfileConditions
+  )
+  numerics: Numerics = dataclasses.field(default_factory=Numerics)
+
+  # TODO( b/330172917): Move the source parameters into `sources`.
+
+  # density profile info
+  # Reference value for normalization
+  nref: float = 1e20
 
   # external heat source parameters
   w: TimeDependentField = 0.25  # Gaussian width in normalized radial coordinate
@@ -238,8 +334,6 @@ class Config:
   rsource: TimeDependentField = 0.0
   Ptot: TimeDependentField = 120e6  # total heating
   el_heat_fraction: TimeDependentField = 0.66666  # electron heating fraction
-  # multiplier for ion-electron heat exchange term for sensitivity testing
-  Qei_mult: float = 1.0
 
   # particle source parameters
   # Gaussian width of pellet deposition [normalized radial coord],
@@ -285,77 +379,9 @@ class Config:
   wext: TimeDependentField = 0.05
   # normalized radius of "external" Gaussian current profile
   rext: TimeDependentField = 0.4
-  # q-profile correction factor. Used only in ad-hoc circular geometry model
-  q_correction_factor: float = 1.38
-  # 1/multiplication factor for sigma (conductivity) to reduce current
-  # diffusion timescale to be closer to heat diffusion timescale
-  resistivity_mult: TimeDependentField = 100.0
-  # Multiplication factor for bootstrap current
-  bootstrap_mult: float = 1.0
-
-  # numerical (e.g. no. of grid points, other info needed by solver)
-  # radial grid points (num cells)
-  nr: int = 25
-
-  # maximum and minimum timesteps allowed in simulation
-  maxdt: float = 1e-1  #  only used with chi_time_step_calculator
-  mindt: float = 1e-8  #  if adaptive timestep is True, error raised if dt<mindt
-
-  # prefactor in front of chi_timestep_calculator base timestep dt=dx^2/(2*chi).
-  # In most use-cases can be increased further above this conservative default
-  dtmult: float = 0.9 * 10
-
-  use_fixed_dt: bool = False  # use fixed_time_step_calculator
-  fixed_dt: float = 1e-2  # timestep used for fixed_time_step_calculator
-
-  # Iterative reduction of dt if nonlinear step does not converge,
-  # If nonlinear step does not converge, then the step is redone
-  # iteratively at successively lower dt until convergence is reached
-  adaptive_dt: bool = True
-  dt_reduction_factor: float = 3
-
-  # simulation control
-  # start of simulation, in seconds
-  t_initial: float = 0.0
-  # end of simulation, in seconds
-  t_final: float = 5.0
-  # If True, ensures that if the simulation runs long enough, one step
-  # occurs exactly at `t_final`.
-  exact_t_final: bool = False
-
-  # Internal boundary condition (pedestal)
-  # Do not set internal boundary condition if this is False
-  set_pedestal: TimeDependentField = True
-  # ion pedestal top temperature in keV for Ti and Te
-  Tiped: TimeDependentField = 5.0
-  # electron pedestal top temperature in keV for Ti and Te
-  Teped: TimeDependentField = 5.0
-  # pedestal top electron density
-  # In units of reference density if neped_is_fGW = False.
-  # In Greenwald fraction if neped_is_fGW = True.
-  neped: TimeDependentField = 0.7
-  neped_is_fGW: bool = False
-  # Set ped top location.
-  Ped_top: TimeDependentField = 0.91
-  # effective source to dominate PDE in internal boundary condtion location
-  # if T != Tped
-  largeValue_T: float = 1.0e10
-  # effective source to dominate density PDE in internal boundary condtion
-  # location if n != neped
-  largeValue_n: float = 1.0e8
 
   # solver parameters
   solver: SolverConfig = dataclasses.field(default_factory=SolverConfig)
-
-  # Solve the ion heat equation (ion temperature evolves over time)
-  ion_heat_eq: bool = True
-  # Solve the electron heat equation (electron temperature evolves over time)
-  el_heat_eq: bool = True
-  # Solve the current equation (psi evolves over time driven by the solver;
-  # q and s evolve over time as a function of psi)
-  current_eq: bool = False
-  # Solve the density equation (n evolves over time)
-  dens_eq: bool = False
 
   # 'File directory where the simulation outputs will be saved. If not '
   # 'provided, this will default to /tmp/torax_results_<YYYYMMDD_HHMMSS>/.',
@@ -380,11 +406,13 @@ class Config:
     # TODO do more extensive config parameter sanity checking
 
     # These are floats, not jax types, so we can use direct asserts.
-    assert self.dtmult > 0.0
+    assert self.numerics.dtmult > 0.0
     assert isinstance(self.transport, TransportConfig)
     assert isinstance(self.solver, SolverConfig)
+    assert isinstance(self.plasma_composition, PlasmaComposition)
+    assert isinstance(self.numerics, Numerics)
     if (
-        not self.set_pedestal
+        not self.profile_conditions.set_pedestal
         and self.transport.apply_outer_patch
         and self.solver.convection_neumann_mode != 'ghost'
         and self.solver.convection_dirichlet_mode != 'ghost'

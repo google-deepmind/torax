@@ -26,34 +26,67 @@ def get_config() -> config_lib.Config:
   # parts of this config will be built with pure Python constructors in
   # `get_sim()`.
   return config_lib.Config(
-      # simulation control
-      t_final=5,  # length of simulation time in seconds
-      # 1/multiplication factor for sigma (conductivity) to reduce current
-      # diffusion timescale to be closer to heat diffusion timescale.
-      resistivity_mult=200,
-      Ip=10.5,  # total plasma current in MA
-      # physical inputs
-      Ai=2.5,  # amu of main ion (if multiple isotope, make average)
-      Zeff=1.6,  # needed for qlknn and fusion power
-      # effective impurity charge state assumed for matching dilution=0.862.
-      Zimp=10,
-      # boundary + initial conditions for T and n
-      Ti_bound_left=15,  # initial condition ion temperature for r=0
-      Ti_bound_right=0.2,  # boundary condition ion temperature for r=Rmin
-      Te_bound_left=15,  # initial condition electron temperature for r=0
-      Te_bound_right=0.2,  # boundary condition electron temperature for r=Rmin
-      ne_bound_right=0.25,  # boundary condition density for r=Rmin
-      # set initial condition density according to Greenwald fraction.
-      nbar_is_fGW=True,
-      nbar=0.8,
-      npeak=1.5,  # Peaking factor of density profile
+      plasma_composition=config_lib.PlasmaComposition(
+          # physical inputs
+          Ai=2.5,  # amu of main ion (if multiple isotope, make average)
+          Zeff=1.6,  # needed for qlknn and fusion power
+          # effective impurity charge state assumed for matching dilution=0.862.
+          Zimp=10,
+      ),
+      profile_conditions=config_lib.ProfileConditions(
+          Ip=10.5,  # total plasma current in MA
+          # boundary + initial conditions for T and n
+          Ti_bound_left=15,  # initial condition ion temperature for r=0
+          Ti_bound_right=0.2,  # boundary condition ion temperature for r=Rmin
+          Te_bound_left=15,  # initial condition electron temperature for r=0
+          Te_bound_right=0.2,  # boundary condition electron temp for r=Rmin
+          ne_bound_right=0.25,  # boundary condition density for r=Rmin
+          # set initial condition density according to Greenwald fraction.
+          nbar_is_fGW=True,
+          nbar=0.8,
+          npeak=1.5,  # Peaking factor of density profile
+          # internal boundary condition (pedestal)
+          # do not set internal boundary condition if this is False
+          set_pedestal=True,
+          Tiped=4.5,  # ion pedestal top temperature in keV for Ti and Te
+          Teped=4.5,  # electron pedestal top temperature in keV for Ti and Te
+          neped=0.62,  # pedestal top electron density in units of nref
+          Ped_top=0.9,  # set ped top location in normalized radius
+      ),
+      numerics=config_lib.Numerics(
+          # simulation control
+          t_final=5,  # length of simulation time in seconds
+          # 1/multiplication factor for sigma (conductivity) to reduce current
+          # diffusion timescale to be closer to heat diffusion timescale.
+          resistivity_mult=200,
+          # multiplier for ion-electron heat exchange term for sensitivity
+          Qei_mult=1,
+          # Multiplication factor for bootstrap current (note fbs~0.3 in
+          # original simu)
+          bootstrap_mult=1,
+          # numerical (e.g. no. of grid points, other info needed by solver)
+          nr=25,  # radial grid points
+          ion_heat_eq=True,
+          el_heat_eq=True,
+          current_eq=True,
+          dens_eq=True,
+          maxdt=0.5,
+          # multiplier in front of the base timestep dt=dx^2/(2*chi). Can likely
+          # be increased further beyond this default.
+          dtmult=50,
+          dt_reduction_factor=3,
+          # effective source to dominate PDE in internal boundary condtion
+          # location if T != Tped
+          largeValue_T=1.0e10,
+          # effective source to dominate density PDE in internal boundary
+          # condtion location if n != neped
+          largeValue_n=1.0e8,
+      ),
       # external heat source parameters
       w=0.07280908366127758,  # Gaussian width in normalized radial coordinate
       rsource=0.12741589640723575,  # Source Gauss peak in normalized r
       Ptot=51.0e6,  # total heating (including accounting for radiation)
       el_heat_fraction=0.68,  # electron heating fraction
-      # multiplier for ion-electron heat exchange term for sensitivity
-      Qei_mult=1,
       # particle source parameters
       # pellets behave like a gas puff for this simulation with exponential
       # decay therefore use the "puff" structure for pellets
@@ -83,33 +116,6 @@ def get_config() -> config_lib.Config:
       # radius of "external" Gaussian current profile (normalized radial
       # coordinate)
       rext=0.36,
-      # Multiplication factor for bootstrap current (note fbs~0.3 in original
-      # simu)
-      bootstrap_mult=1,
-      # numerical (e.g. no. of grid points, other info needed by solver)
-      nr=25,  # radial grid points
-      ion_heat_eq=True,
-      el_heat_eq=True,
-      current_eq=True,
-      dens_eq=True,
-      maxdt=0.5,
-      # multiplier in front of the base timestep dt=dx^2/(2*chi). Can likely be
-      # increased further beyond this default.
-      dtmult=50,
-      dt_reduction_factor=3,
-      # internal boundary condition (pedestal)
-      # do not set internal boundary condition if this is False
-      set_pedestal=True,
-      Tiped=4.5,  # ion pedestal top temperature in keV for Ti and Te
-      Teped=4.5,  # electron pedestal top temperature in keV for Ti and Te
-      neped=0.62,  # pedestal top electron density in units of nref
-      Ped_top=0.9,  # set ped top location in normalized radius
-      # effective source to dominate PDE in internal boundary condtion location
-      # if T != Tped
-      largeValue_T=1.0e10,
-      # effective source to dominate density PDE in internal boundary condtion
-      # location if n != neped
-      largeValue_n=1.0e8,
       transport=config_lib.TransportConfig(
           transport_model='qlknn',
           DVeff=True,

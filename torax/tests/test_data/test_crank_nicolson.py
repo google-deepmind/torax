@@ -29,9 +29,14 @@ def get_config() -> config_lib.Config:
   # This config based approach is deprecated.
   # Over time more will be built with pure Python constructors in `get_sim`.
   return config_lib.Config(
-      set_pedestal=False,
-      Qei_mult=0,
-      t_final=1,
+      profile_conditions=config_lib.ProfileConditions(
+          set_pedestal=False,
+      ),
+      numerics=config_lib.Numerics(
+          Qei_mult=0,
+          t_final=1,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       transport=config_lib.TransportConfig(
           transport_model="constant",
       ),
@@ -39,7 +44,6 @@ def get_config() -> config_lib.Config:
           predictor_corrector=False,
           theta_imp=0.5,
       ),
-      bootstrap_mult=0,  # remove bootstrap current
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,

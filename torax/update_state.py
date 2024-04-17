@@ -51,8 +51,8 @@ def update_core_profiles(
       core_profiles.ni,
       value=ne.value
       * physics.get_main_ion_dilution_factor(
-          dynamic_config_slice.Zimp,
-          dynamic_config_slice.Zeff,
+          dynamic_config_slice.plasma_composition.Zimp,
+          dynamic_config_slice.plasma_composition.Zeff,
       ),
   )
 

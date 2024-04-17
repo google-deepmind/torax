@@ -234,7 +234,7 @@ class SourceTest(parameterized.TestCase):
     )
     config = config_lib.Config(
         sources={source.name: source_config.SourceConfig()},
-        nr=4,
+        numerics=config_lib.Numerics(nr=4),
     )
     geo = geometry.build_circular_geometry(config)
     psi_profile = source.get_source_profile_for_affected_core_profile(
@@ -262,7 +262,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     """The user-specified formula should override the default formula."""
     config = config_lib.Config(
         sources={'foo': source_config.SourceConfig()},
-        nr=5,
+        numerics=config_lib.Numerics(nr=5),
     )
     geo = geometry.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
@@ -272,7 +272,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         # defaults are enough for this.
         source_models=source_models_lib.SourceModels(),
     )
-    expected_output = jnp.ones(5)  # 5 matches config.nr.
+    expected_output = jnp.ones(5)  # 5 matches config.numerics.nr.
     source = source_lib.SingleProfileSource(
         name='foo',
         formula=lambda _0, _1, _2: expected_output,
@@ -291,7 +291,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     """A formula which outputs the wrong shape will raise an error."""
     config = config_lib.Config(
         sources={'foo': source_config.SourceConfig()},
-        nr=5,
+        numerics=config_lib.Numerics(nr=5),
     )
     geo = geometry.build_circular_geometry(config)
     core_profiles = initial_states.initial_core_profiles(
@@ -331,7 +331,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     )
     config = config_lib.Config(
         sources={source.name: source_config.SourceConfig()},
-        nr=4,
+        numerics=config_lib.Numerics(nr=4),
     )
     geo = geometry.build_circular_geometry(config)
     psi_profile = source.get_source_profile_for_affected_core_profile(

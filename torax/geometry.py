@@ -207,8 +207,8 @@ def build_circular_geometry(
   # r_norm coordinate is r/Rmin in circular, and rho_norm in standard
   # geometry (CHEASE/EQDSK)
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  dr_norm = jnp.array(1) / config.nr
-  mesh = Grid1D.construct(nx=config.nr, dx=dr_norm)
+  dr_norm = jnp.array(1) / config.numerics.nr
+  mesh = Grid1D.construct(nx=config.numerics.nr, dx=dr_norm)
   rmax = jnp.array(Rmin)
   # helper variables for mesh cells and faces
   # r coordinate of faces
@@ -291,7 +291,7 @@ def build_circular_geometry(
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
   # the only option for ad-hoc circular geometry.
-  r_hires_norm = jnp.linspace(0, 1, config.nr * hires_fac)
+  r_hires_norm = jnp.linspace(0, 1, config.numerics.nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
   Rout = Rmaj + r
@@ -523,15 +523,17 @@ def build_chease_geometry(
 
   # if Ip from parameter file, renormalize psi to match desired current
   if Ip_from_parameters:
-    Ip_scale_factor = dynamic_config_slice.Ip * 1e6 / Ip_chease[-1]
+    Ip_scale_factor = (
+        dynamic_config_slice.profile_conditions.Ip * 1e6 / Ip_chease[-1]
+    )
     psi_from_chease_Ip *= Ip_scale_factor
   else:
-    # This overwrites the config.Ip, even if it's time dependent, to be
-    # consistent with the geometry file being processed
+    # This overwrites the config.profile_conditions.Ip, even if it's time
+    # dependent, to be consistent with the geometry file being processed.
     # TODO( b/326406367): Do not rely on writing back to the config to
     # make this work. We should not rely on the geometry being computed for the
     # config to have the correct Ip.
-    config.Ip = Ip_chease[-1] / 1e6
+    config.profile_conditions.Ip = Ip_chease[-1] / 1e6
     Ip_scale_factor = 1
 
   # volume, area, and dV/drho, dS/drho
@@ -554,9 +556,9 @@ def build_chease_geometry(
 
   # fill geometry structure
   # r_norm coordinate is rho_tor_norm
-  dr_norm = jnp.array(1) / config.nr
+  dr_norm = jnp.array(1) / config.numerics.nr
   # normalized grid
-  mesh = Grid1D.construct(nx=config.nr, dx=dr_norm)
+  mesh = Grid1D.construct(nx=config.numerics.nr, dx=dr_norm)
   rmax = rho[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   r_face_norm = mesh.face_centers
@@ -568,7 +570,7 @@ def build_chease_geometry(
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  r_hires_norm = jnp.linspace(0, 1, config.nr * hires_fac)
+  r_hires_norm = jnp.linspace(0, 1, config.numerics.nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
   interp_func = lambda x: jnp.interp(x, rhon, vpr_chease)

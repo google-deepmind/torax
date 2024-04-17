@@ -76,52 +76,20 @@ class DynamicConfigSlice:
 
   transport: DynamicTransportConfigSlice
   solver: DynamicSolverConfigSlice
+  plasma_composition: DynamicPlasmaComposition
+  profile_conditions: DynamicProfileConditions
+  numerics: DynamicNumerics
   sources: Mapping[str, DynamicSourceConfigSlice]
-
-  # physical inputs
-  # amu of main ion (if multiple isotope, make average)
-  Ai: float
-  # charge of main ion
-  Zi: float
-  # total plasma current in MA
-  Ip: float
-  # needed for qlknn and fusion power
-  Zeff: float
-  Zimp: float  # impurity charge state assumed for dilution
 
   # density profile info
   # Reference value for normalization
   nref: float
-  # Line averaged density.
-  # In units of reference density if nbar_is_fGW = False.
-  # In Greenwald fraction if nbar_is_fGW = True.
-  # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: float
-  # Toggle units of nbar
-  nbar_is_fGW: bool
-  # Peaking factor of density profile.
-  # If density evolves with PDE (dens_eq=True), then is initial condition
-  npeak: float
-
-  # Temperature boundary conditions at r=Rmin
-  Ti_bound_right: float
-  Te_bound_right: float
-  # Prescribed values for r=0. When evolving, then is initial condition.
-  Te_bound_left: float
-  Ti_bound_left: float
-  # density boundary condition for r=Rmin, units of nref
-  # In units of reference density if ne_bound_right_is_fGW = False.
-  # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: float
-  ne_bound_right_is_fGW: bool
 
   # external heat source parameters
   w: float  # Gaussian width
   rsource: float  # Source Gaussian central location
   Ptot: float  # total heating
   el_heat_fraction: float  # fraction of heating to electrons (rest are to ions)
-  # multiplier for ion-electron heat exchange term for sensitivity testing
-  Qei_mult: float
 
   # particle source parameters
   # Gaussian width of pellet deposition [normalized radial coord],
@@ -169,56 +137,6 @@ class DynamicConfigSlice:
   wext: float
   # normalized radius of "external" Gaussian current profile
   rext: float
-  # correction factor such that q(r=a) for standard ITER parameters (ad-hoc
-  # fix for non-physical circular geometry model)
-  q_correction_factor: float
-  # 1/multiplication factor for sigma (conductivity) to reduce current
-  # diffusion timescale to be closer to heat diffusion timescale
-  resistivity_mult: float
-  bootstrap_mult: float  # Multiplication factor for bootstrap current
-
-  # maximum and minimum timesteps allowed in simulation
-  maxdt: float  #  only used with chi_time_step_calculator
-  mindt: float  #  if adaptive timestep is True, error raised if dt<mindt
-
-  # prefactor in front of chi_timestep_calculator base timestep dt=dx^2/(2*chi).
-  # In most use-cases can be increased further above this conservative default
-  dtmult: float
-
-  fixed_dt: float  # timestep used for fixed_time_step_calculator
-
-  # Iterative reduction of dt if nonlinear step does not converge,
-  # If nonlinear step does not converge, then the step is redone
-  # iteratively at successively lower dt until convergence is reached
-  dt_reduction_factor: float
-
-  # simulation control
-  # start of simulation, in seconds
-  t_initial: float
-  # end of simulation, in seconds
-  t_final: float
-  # If True, ensures that if the simulation runs long enough, one step
-  # occurs exactly at `t_final`.
-  exact_t_final: bool
-
-  # Internal boundary condition (pedestal)
-  # Do not set internal boundary condition if this is False
-  set_pedestal: bool
-  Tiped: float  # ion pedestal top temperature in keV for Ti and Te
-  Teped: float  # electron pedestal top temperature in keV for Ti and Te
-  # pedestal top electron density
-  # In units of reference density if neped_is_fGW = False.
-  # In Greenwald fraction if neped_is_fGW = True.
-  neped: float
-  neped_is_fGW: bool
-  # Set ped top location.
-  Ped_top: float
-  # effective source to dominate PDE in internal boundary condtion location
-  # if T != Tped
-  largeValue_T: float
-  # effective source to dominate density PDE in internal boundary condtion
-  # location if n != neped
-  largeValue_n: float
 
   def sanity_check(self):
     """Checks that all parameters are valid."""
@@ -315,6 +233,111 @@ class DynamicSolverConfigSlice:
   corrector_steps: int
   # log internal iterations in Newton-Raphson solver
   log_iterations: bool
+
+
+@chex.dataclass
+class DynamicPlasmaComposition:
+  # amu of main ion (if multiple isotope, make average)
+  Ai: float
+  # charge of main ion
+  Zi: float
+  # needed for qlknn and fusion power
+  Zeff: float
+  Zimp: float  # impurity charge state assumed for dilution
+
+
+@chex.dataclass
+class DynamicProfileConditions:
+  """Perscribed values and boundary conditions for the core profiles."""
+
+  # total plasma current in MA
+  # Note that if Ip_from_parameters=False in geometry, then this Ip will be
+  # overwritten by values from the geometry data
+  Ip: float
+
+  # Temperature boundary conditions at r=Rmin
+  Ti_bound_right: float
+  Te_bound_right: float
+  # Prescribed values for r=0. When evolving, then is initial condition.
+  Te_bound_left: float
+  Ti_bound_left: float
+
+  # Peaking factor of density profile.
+  # If density evolves with PDE (dens_eq=True), then is initial condition
+  npeak: float
+
+  # Initial line averaged density.
+  # In units of reference density if nbar_is_fGW = False.
+  # In Greenwald fraction if nbar_is_fGW = True.
+  # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
+  nbar: float
+  # Toggle units of nbar
+  nbar_is_fGW: bool
+
+  # Density boundary condition for r=Rmin, units of nref
+  # In units of reference density if ne_bound_right_is_fGW = False.
+  # In Greenwald fraction if ne_bound_right_is_fGW = True.
+  ne_bound_right: float
+  ne_bound_right_is_fGW: bool
+
+  # Internal boundary condition (pedestal)
+  # Do not set internal boundary condition if this is False
+  set_pedestal: bool
+  # ion pedestal top temperature in keV for Ti and Te
+  Tiped: float
+  # electron pedestal top temperature in keV for Ti and Te
+  Teped: float
+  # pedestal top electron density
+  # In units of reference density if neped_is_fGW = False.
+  # In Greenwald fraction if neped_is_fGW = True.
+  neped: float
+  neped_is_fGW: bool
+  # Set ped top location.
+  Ped_top: float
+
+
+@chex.dataclass
+class DynamicNumerics:
+  """Generic numeric parameters for the simulation."""
+
+  # simulation control
+  # start of simulation, in seconds
+  t_initial: float
+  # end of simulation, in seconds
+  t_final: float
+  # If True, ensures that if the simulation runs long enough, one step
+  # occurs exactly at `t_final`.
+  exact_t_final: bool
+
+  # maximum and minimum timesteps allowed in simulation
+  maxdt: float  #  only used with chi_time_step_calculator
+  mindt: float  #  if adaptive timestep is True, error raised if dt<mindt
+
+  # prefactor in front of chi_timestep_calculator base timestep dt=dx^2/(2*chi).
+  # In most use-cases can be increased further above this conservative default
+  dtmult: float
+
+  use_fixed_dt: bool  # use fixed_time_step_calculator
+  fixed_dt: float  # timestep used for fixed_time_step_calculator
+  dt_reduction_factor: float
+
+  # q-profile correction factor. Used only in ad-hoc circular geometry model
+  q_correction_factor: float
+  # 1/multiplication factor for sigma (conductivity) to reduce current
+  # diffusion timescale to be closer to heat diffusion timescale
+  resistivity_mult: float
+  # Multiplication factor for bootstrap current
+  bootstrap_mult: float
+  # multiplier for ion-electron heat exchange term for sensitivity testing
+  Qei_mult: float
+
+  # numerical (e.g. no. of grid points, other info needed by solver)
+  # effective source to dominate PDE in internal boundary condtion location
+  # if T != Tped
+  largeValue_T: float
+  # effective source to dominate density PDE in internal boundary condtion
+  # location if n != neped
+  largeValue_n: float
 
 
 @chex.dataclass(frozen=True)
@@ -432,7 +455,7 @@ def build_dynamic_config_slice(
     t: chex.Numeric | None = None,
 ) -> DynamicConfigSlice:
   """Builds a DynamicConfigSlice based on the input config."""
-  t = config.t_initial if t is None else t
+  t = config.numerics.t_initial if t is None else t
   # For each dataclass attribute under DynamicConfigSlice, build those objects
   # explicitly, and then for all scalar attributes, fetch their values directly
   # from the input config using _get_init_kwargs.
@@ -452,11 +475,39 @@ def build_dynamic_config_slice(
           )
       ),
       sources=_build_dynamic_sources(config, t),
+      plasma_composition=DynamicPlasmaComposition(
+          **_get_init_kwargs(
+              input_config=config.plasma_composition,
+              output_type=DynamicPlasmaComposition,
+              t=t,
+          )
+      ),
+      profile_conditions=DynamicProfileConditions(
+          **_get_init_kwargs(
+              input_config=config.profile_conditions,
+              output_type=DynamicProfileConditions,
+              t=t,
+          )
+      ),
+      numerics=DynamicNumerics(
+          **_get_init_kwargs(
+              input_config=config.numerics,
+              output_type=DynamicNumerics,
+              t=t,
+          )
+      ),
       **_get_init_kwargs(
           input_config=config,
           output_type=DynamicConfigSlice,
           t=t,
-          skip=('transport', 'solver', 'sources'),
+          skip=(
+              'transport',
+              'solver',
+              'sources',
+              'plasma_composition',
+              'profile_conditions',
+              'numerics',
+          ),
       ),
   )
 
@@ -503,7 +554,12 @@ def build_static_config_slice(config: config_lib.Config) -> StaticConfigSlice:
       solver=StaticSolverConfigSlice(
           **_get_init_kwargs(config.solver, StaticSolverConfigSlice, t=None)
       ),
-      **_get_init_kwargs(config, StaticConfigSlice, t=None, skip=('solver',)),
+      nr=config.numerics.nr,
+      ion_heat_eq=config.numerics.ion_heat_eq,
+      el_heat_eq=config.numerics.el_heat_eq,
+      current_eq=config.numerics.current_eq,
+      dens_eq=config.numerics.dens_eq,
+      adaptive_dt=config.numerics.adaptive_dt,
   )
 
 

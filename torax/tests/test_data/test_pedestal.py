@@ -26,11 +26,13 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      t_final=1,
+      numerics=config_lib.Numerics(
+          t_final=1,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
       ),
-      bootstrap_mult=0,  # remove bootstrap current
       transport=config_lib.TransportConfig(
           transport_model="constant",
       ),

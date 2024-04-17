@@ -31,22 +31,26 @@ def get_config() -> config_lib.Config:
   # This config based approach is deprecated.
   # Over time more will be built with pure Python constructors in `get_sim`.
   return config_lib.Config(
-      set_pedestal=True,
-      Qei_mult=1,
-      ion_heat_eq=True,
-      el_heat_eq=True,
-      dens_eq=True,
-      current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
-      bootstrap_mult=1,  # remove bootstrap current
+      profile_conditions=config_lib.ProfileConditions(
+          set_pedestal=True,
+          nbar=0.85,  # initial density (Greenwald fraction units)
+          ne_bound_right=0.2,
+          neped=1.0,
+      ),
+      numerics=config_lib.Numerics(
+          Qei_mult=1,
+          ion_heat_eq=True,
+          el_heat_eq=True,
+          dens_eq=True,
+          current_eq=True,
+          resistivity_mult=100,  # to shorten current diffusion time
+          bootstrap_mult=1,  # remove bootstrap current
+          t_final=0.0007944 * 2,
+      ),
       nu=0,
-      nbar=0.85,  # initial density (Greenwald fraction units)
       S_pellet_tot=1.0e22,
       S_puff_tot=0.5e22,
       S_nbi_tot=0.3e22,
-      ne_bound_right=0.2,
-      neped=1.0,
-      t_final=0.0007944 * 2,
       Ptot=53.0e6,  # total external heating
       transport=config_lib.TransportConfig(
           DVeff=False,

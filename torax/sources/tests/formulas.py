@@ -63,20 +63,24 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # Copy the test_particle_sources_constant config in here for clarity.
     # These are the common kwargs without any of the sources.
     test_particle_sources_constant_config_kwargs = dict(
-        set_pedestal=True,
-        Qei_mult=1,
-        ion_heat_eq=True,
-        el_heat_eq=True,
-        dens_eq=True,  # This is important to be True to test the ne sources.
-        current_eq=True,
-        resistivity_mult=100,
-        bootstrap_mult=1,
+        profile_conditions=config_lib.ProfileConditions(
+            set_pedestal=True,
+            nbar=0.85,
+        ),
+        numerics=config_lib.Numerics(
+            Qei_mult=1,
+            ion_heat_eq=True,
+            el_heat_eq=True,
+            dens_eq=True,  # This is important to be True to test ne sources.
+            current_eq=True,
+            resistivity_mult=100,
+            bootstrap_mult=1,
+            t_final=2,
+        ),
         nu=0,
-        nbar=0.85,
         S_pellet_tot=2.0e22,
         S_puff_tot=1.0e22,
         S_nbi_tot=0.0,
-        t_final=2,
         transport=config_lib.TransportConfig(
             transport_model='constant',
             De_const=0.5,

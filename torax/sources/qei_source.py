@@ -105,8 +105,8 @@ def _model_based_qei(
   qei_coef = physics.coll_exchange(
       core_profiles=core_profiles,
       nref=dynamic_config_slice.nref,
-      Ai=dynamic_config_slice.Ai,
-      Qei_mult=dynamic_config_slice.Qei_mult,
+      Ai=dynamic_config_slice.plasma_composition.Ai,
+      Qei_mult=dynamic_config_slice.numerics.Qei_mult,
   )
   implicit_ii = -qei_coef
   implicit_ee = -qei_coef
@@ -136,4 +136,3 @@ def _model_based_qei(
       implicit_ie=implicit_ie,
       implicit_ei=implicit_ei,
   )
-

@@ -79,7 +79,7 @@ class CriticalGradientModel(transport_model.TransportModel):
 
     # gyrobohm diffusivity
     chiGB = (
-        (dynamic_config_slice.Ai * constants.mp) ** 0.5
+        (dynamic_config_slice.plasma_composition.Ai * constants.mp) ** 0.5
         / (constants.qe * geo.B0) ** 2
         * (temp_ion_face * constants.keV2J) ** 1.5
         / geo.Rmaj
@@ -114,8 +114,8 @@ class CriticalGradientModel(transport_model.TransportModel):
     # (more consistency between desired profile and transport coefficients)
     chi_face_ion = jnp.where(
         jnp.logical_and(
-            dynamic_config_slice.set_pedestal,
-            geo.r_face_norm >= dynamic_config_slice.Ped_top,
+            dynamic_config_slice.profile_conditions.set_pedestal,
+            geo.r_face_norm >= dynamic_config_slice.profile_conditions.Ped_top,
         ),
         dynamic_config_slice.transport.chimin,
         chi_ion,

@@ -47,8 +47,8 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       dynamic_config_slice: config_slice.DynamicConfigSlice,
       state: State,
   ) -> Union[bool, jax.Array]:
-    """Returns True if iteration not done (t < config.t_final)."""
-    return t < dynamic_config_slice.t_final
+    """Returns True if iteration not done (t < config.numerics.t_final)."""
+    return t < dynamic_config_slice.numerics.t_final
 
   def next_dt(
       self,
@@ -73,6 +73,6 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
       dt: Scalar time step duration.
     """
 
-    dt = jnp.array(dynamic_config_slice.fixed_dt)
+    dt = jnp.array(dynamic_config_slice.numerics.fixed_dt)
 
     return dt, STATE

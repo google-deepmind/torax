@@ -392,11 +392,13 @@ class SimTest(sim_test_case.SimTestCase):
     """Tests that running the stepper with all equations off is a no-op."""
 
     config = torax.config.Config(
-        t_final=0.1,
+        numerics=torax.config.Numerics(
+            t_final=0.1,
+            ion_heat_eq=False,
+            el_heat_eq=False,
+            current_eq=False,
+        ),
     )
-    config.ion_heat_eq = False
-    config.el_heat_eq = False
-    config.current_eq = False
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     geo = torax.build_circular_geometry(config)
@@ -412,7 +414,7 @@ class SimTest(sim_test_case.SimTestCase):
     chex.assert_rank(t, 1)
     history_length = state_history.temp_ion.value.shape[0]
     self.assertEqual(history_length, t.shape[0])
-    self.assertGreater(t[-1], config.t_final)
+    self.assertGreater(t[-1], config.numerics.t_final)
 
     for torax_profile in _ALL_PROFILES:
       profile_history = state_history[torax_profile]

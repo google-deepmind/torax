@@ -42,27 +42,27 @@ def compute_boundary_conditions(
     each CellVariable in the state. This dict can in theory recursively replace
     values in a State object.
   """
-  Ip = dynamic_config_slice.Ip  # pylint: disable=invalid-name
+  Ip = dynamic_config_slice.profile_conditions.Ip  # pylint: disable=invalid-name
   Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-      dynamic_config_slice.Ti_bound_right, 'Ti_bound_right'
+      dynamic_config_slice.profile_conditions.Ti_bound_right, 'Ti_bound_right'
   )
   Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-      dynamic_config_slice.Te_bound_right, 'Te_bound_right'
+      dynamic_config_slice.profile_conditions.Te_bound_right, 'Te_bound_right'
   )
 
   # calculate ne_bound_right
   # pylint: disable=invalid-name
   nGW = (
-      dynamic_config_slice.Ip
+      dynamic_config_slice.profile_conditions.Ip
       / (jnp.pi * geo.Rmin**2)
       * 1e20
       / dynamic_config_slice.nref
   )
   # pylint: enable=invalid-name
   ne_bound_right = jnp.where(
-      dynamic_config_slice.ne_bound_right_is_fGW,
-      dynamic_config_slice.ne_bound_right * nGW,
-      dynamic_config_slice.ne_bound_right,
+      dynamic_config_slice.profile_conditions.ne_bound_right_is_fGW,
+      dynamic_config_slice.profile_conditions.ne_bound_right * nGW,
+      dynamic_config_slice.profile_conditions.ne_bound_right,
   )
   # define ion profile based on (flat) Zeff and single assumed impurity
   # with Zimp. main ion limited to hydrogenic species for now.
@@ -70,7 +70,8 @@ def compute_boundary_conditions(
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
 
   dilution_factor = physics.get_main_ion_dilution_factor(
-      dynamic_config_slice.Zimp, dynamic_config_slice.Zeff
+      dynamic_config_slice.plasma_composition.Zimp,
+      dynamic_config_slice.plasma_composition.Zeff,
   )
   return {
       'temp_ion': dict(

@@ -76,16 +76,16 @@ def calculate_pereverzev_flux(
   # (for PDE stability)
   chi_face_per_ion = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.set_pedestal,
-          geo.r_face_norm > dynamic_config_slice.Ped_top,
+          dynamic_config_slice.profile_conditions.set_pedestal,
+          geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
       ),
       0.0,
       chi_face_per_ion,
   )
   chi_face_per_el = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.set_pedestal,
-          geo.r_face_norm > dynamic_config_slice.Ped_top,
+          dynamic_config_slice.profile_conditions.set_pedestal,
+          geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
       ),
       0.0,
       chi_face_per_el,
@@ -104,8 +104,8 @@ def calculate_pereverzev_flux(
 
   d_face_per_el = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.set_pedestal,
-          geo.r_face_norm > dynamic_config_slice.Ped_top,
+          dynamic_config_slice.profile_conditions.set_pedestal,
+          geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
       ),
       0.0,
       d_face_per_el * geo.g1_over_vpr_face / geo.rmax,
@@ -113,8 +113,8 @@ def calculate_pereverzev_flux(
 
   v_face_per_el = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.set_pedestal,
-          geo.r_face_norm > dynamic_config_slice.Ped_top,
+          dynamic_config_slice.profile_conditions.set_pedestal,
+          geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
       ),
       0.0,
       v_face_per_el * geo.g0_face / geo.rmax,
@@ -256,7 +256,9 @@ def _calc_coeffs_full(
   # Boolean mask for enforcing internal temperature boundary conditions to
   # model the pedestal.
   mask = physics.internal_boundary(
-      geo, dynamic_config_slice.Ped_top, dynamic_config_slice.set_pedestal
+      geo,
+      dynamic_config_slice.profile_conditions.Ped_top,
+      dynamic_config_slice.profile_conditions.set_pedestal,
   )
 
   # This only calculates sources set to implicit in the config. All other
@@ -336,7 +338,7 @@ def _calc_coeffs_full(
   tic_temp_el = core_profiles.ne.value
   toc_psi = (
       1.0
-      / dynamic_config_slice.resistivity_mult
+      / dynamic_config_slice.numerics.resistivity_mult
       * geo.r
       * sigma
       * consts.mu0
@@ -410,7 +412,9 @@ def _calc_coeffs_full(
       jnp.logical_and(
           jnp.logical_and(
               dynamic_config_slice.transport.apply_outer_patch,
-              jnp.logical_not(dynamic_config_slice.set_pedestal),
+              jnp.logical_not(
+                  dynamic_config_slice.profile_conditions.set_pedestal
+              ),
           ),
           geo.r_face_norm
           > dynamic_config_slice.transport.rho_outer - consts.eps,
@@ -422,7 +426,9 @@ def _calc_coeffs_full(
       jnp.logical_and(
           jnp.logical_and(
               dynamic_config_slice.transport.apply_outer_patch,
-              jnp.logical_not(dynamic_config_slice.set_pedestal),
+              jnp.logical_not(
+                  dynamic_config_slice.profile_conditions.set_pedestal
+              ),
           ),
           geo.r_face_norm
           > dynamic_config_slice.transport.rho_outer - consts.eps,
@@ -434,7 +440,9 @@ def _calc_coeffs_full(
       jnp.logical_and(
           jnp.logical_and(
               dynamic_config_slice.transport.apply_outer_patch,
-              jnp.logical_not(dynamic_config_slice.set_pedestal),
+              jnp.logical_not(
+                  dynamic_config_slice.profile_conditions.set_pedestal
+              ),
           ),
           geo.r_face_norm
           > dynamic_config_slice.transport.rho_outer - consts.eps,
@@ -446,7 +454,9 @@ def _calc_coeffs_full(
       jnp.logical_and(
           jnp.logical_and(
               dynamic_config_slice.transport.apply_outer_patch,
-              jnp.logical_not(dynamic_config_slice.set_pedestal),
+              jnp.logical_not(
+                  dynamic_config_slice.profile_conditions.set_pedestal
+              ),
           ),
           geo.r_face_norm
           > dynamic_config_slice.transport.rho_outer - consts.eps,
@@ -504,8 +514,8 @@ def _calc_coeffs_full(
     # TODO(b/323504363): Move this masking to the constant transport model.
     full_v_face_el = jnp.where(
         jnp.logical_and(
-            dynamic_config_slice.set_pedestal,
-            geo.r_face_norm > dynamic_config_slice.Ped_top,
+            dynamic_config_slice.profile_conditions.set_pedestal,
+            geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
         ),
         0.0,
         full_v_face_el,
@@ -514,26 +524,26 @@ def _calc_coeffs_full(
   # calculate neped
   # pylint: disable=invalid-name
   nGW = (
-      dynamic_config_slice.Ip
+      dynamic_config_slice.profile_conditions.Ip
       / (jnp.pi * geo.Rmin**2)
       * 1e20
       / dynamic_config_slice.nref
   )
   # pylint: enable=invalid-name
   neped_unnorm = jnp.where(
-      dynamic_config_slice.neped_is_fGW,
-      dynamic_config_slice.neped * nGW,
-      dynamic_config_slice.neped,
+      dynamic_config_slice.profile_conditions.neped_is_fGW,
+      dynamic_config_slice.profile_conditions.neped * nGW,
+      dynamic_config_slice.profile_conditions.neped,
   )
 
   source_ne += jnp.where(
-      dynamic_config_slice.set_pedestal,
-      mask * dynamic_config_slice.largeValue_n * neped_unnorm,
+      dynamic_config_slice.profile_conditions.set_pedestal,
+      mask * dynamic_config_slice.numerics.largeValue_n * neped_unnorm,
       0.0,
   )
   source_mat_nn += jnp.where(
-      dynamic_config_slice.set_pedestal,
-      -(mask * dynamic_config_slice.largeValue_n),
+      dynamic_config_slice.profile_conditions.set_pedestal,
+      -(mask * dynamic_config_slice.numerics.largeValue_n),
       0.0,
   )
 
@@ -617,24 +627,28 @@ def _calc_coeffs_full(
 
   # Pedestal
   source_i += jnp.where(
-      dynamic_config_slice.set_pedestal,
-      mask * dynamic_config_slice.largeValue_T * dynamic_config_slice.Tiped,
+      dynamic_config_slice.profile_conditions.set_pedestal,
+      mask
+      * dynamic_config_slice.numerics.largeValue_T
+      * dynamic_config_slice.profile_conditions.Tiped,
       0.0,
   )
   source_e += jnp.where(
-      dynamic_config_slice.set_pedestal,
-      mask * dynamic_config_slice.largeValue_T * dynamic_config_slice.Teped,
+      dynamic_config_slice.profile_conditions.set_pedestal,
+      mask
+      * dynamic_config_slice.numerics.largeValue_T
+      * dynamic_config_slice.profile_conditions.Teped,
       0.0,
   )
 
   source_mat_ii -= jnp.where(
-      dynamic_config_slice.set_pedestal,
-      mask * dynamic_config_slice.largeValue_T,
+      dynamic_config_slice.profile_conditions.set_pedestal,
+      mask * dynamic_config_slice.numerics.largeValue_T,
       0.0,
   )
   source_mat_ee -= jnp.where(
-      dynamic_config_slice.set_pedestal,
-      mask * dynamic_config_slice.largeValue_T,
+      dynamic_config_slice.profile_conditions.set_pedestal,
+      mask * dynamic_config_slice.numerics.largeValue_T,
       0.0,
   )
 

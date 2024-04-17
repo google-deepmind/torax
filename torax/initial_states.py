@@ -41,10 +41,10 @@ def _update_ti(
   """Update ion temp. Used upon initialization and if temp_ion=False."""
   # pylint: disable=invalid-name
   Ti_bound_left = jax_utils.error_if_not_positive(
-      dynamic_config_slice.Ti_bound_left, 'Ti_bound_left'
+      dynamic_config_slice.profile_conditions.Ti_bound_left, 'Ti_bound_left'
   )
   Ti_bound_right = jax_utils.error_if_not_positive(
-      dynamic_config_slice.Ti_bound_right,
+      dynamic_config_slice.profile_conditions.Ti_bound_right,
       'Ti_bound_right',
   )
   temp_ion_face = jnp.linspace(
@@ -72,10 +72,10 @@ def _update_te(
   """Update electron temp. Used upon initialization and if temp_el=False."""
   # pylint: disable=invalid-name
   Te_bound_left = jax_utils.error_if_not_positive(
-      dynamic_config_slice.Te_bound_left, 'Te_bound_left'
+      dynamic_config_slice.profile_conditions.Te_bound_left, 'Te_bound_left'
   )
   Te_bound_right = jax_utils.error_if_not_positive(
-      dynamic_config_slice.Te_bound_right,
+      dynamic_config_slice.profile_conditions.Te_bound_right,
       'Te_bound_right',
   )
   temp_el_face = jnp.linspace(
@@ -103,26 +103,28 @@ def _update_dens(
   """Update particle density. Used upon initialization and if dens_eq=False."""
   # pylint: disable=invalid-name
   nGW = (
-      dynamic_config_slice.Ip
+      dynamic_config_slice.profile_conditions.Ip
       / (jnp.pi * geo.Rmin**2)
       * 1e20
       / dynamic_config_slice.nref
   )
   nbar_unnorm = jnp.where(
-      dynamic_config_slice.nbar_is_fGW,
-      dynamic_config_slice.nbar * nGW,
-      dynamic_config_slice.nbar,
+      dynamic_config_slice.profile_conditions.nbar_is_fGW,
+      dynamic_config_slice.profile_conditions.nbar * nGW,
+      dynamic_config_slice.profile_conditions.nbar,
   )
   # calculate ne_bound_right
   ne_bound_right = jnp.where(
-      dynamic_config_slice.ne_bound_right_is_fGW,
-      dynamic_config_slice.ne_bound_right * nGW,
-      dynamic_config_slice.ne_bound_right,
+      dynamic_config_slice.profile_conditions.ne_bound_right_is_fGW,
+      dynamic_config_slice.profile_conditions.ne_bound_right * nGW,
+      dynamic_config_slice.profile_conditions.ne_bound_right,
   )
 
   # set peaking (limited to linear profile)
   nshape_face = jnp.linspace(
-      dynamic_config_slice.npeak, 1, static_config_slice.nr + 1
+      dynamic_config_slice.profile_conditions.npeak,
+      1,
+      static_config_slice.nr + 1,
   )
   nshape = geometry.face_to_cell(nshape_face)
 
@@ -146,7 +148,8 @@ def _update_dens(
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
 
   dilution_factor = physics.get_main_ion_dilution_factor(
-      dynamic_config_slice.Zimp, dynamic_config_slice.Zeff
+      dynamic_config_slice.plasma_composition.Zimp,
+      dynamic_config_slice.plasma_composition.Zeff,
   )
 
   ni = fvm.CellVariable(
@@ -179,7 +182,7 @@ def _prescribe_currents_no_bootstrap(
   # pylint: disable=invalid-name
 
   # Calculate splitting of currents depending on config
-  Ip = dynamic_config_slice.Ip
+  Ip = dynamic_config_slice.profile_conditions.Ip
 
   if dynamic_config_slice.use_absolute_jext:
     Iext = dynamic_config_slice.Iext
@@ -271,7 +274,7 @@ def _prescribe_currents_with_bootstrap(
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
-  Ip = dynamic_config_slice.Ip
+  Ip = dynamic_config_slice.profile_conditions.Ip
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_config_slice=dynamic_config_slice,
@@ -368,7 +371,7 @@ def _calculate_currents_from_psi(
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
-  Ip = dynamic_config_slice.Ip
+  Ip = dynamic_config_slice.profile_conditions.Ip
 
   jtot, jtot_face = physics.calc_jtot_from_psi(
       geo,
@@ -448,7 +451,7 @@ def _update_psi_from_j(
   """
 
   psi_constraint = (
-      dynamic_config_slice.Ip
+      dynamic_config_slice.profile_conditions.Ip
       * 1e6
       * constants.CONSTANTS.mu0
       / geo.G2_face[-1]
@@ -562,7 +565,7 @@ def initial_core_profiles(
         geo=geo,
         jtot_face=currents.jtot_face,
         psi=psi,
-        q_correction_factor=dynamic_config_slice.q_correction_factor,
+        q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, psi)
 
@@ -574,7 +577,7 @@ def initial_core_profiles(
     # calculate currents. However, non-inductive currents are still calculated
     # and used in current diffusion equation.
     psi_constraint = (
-        dynamic_config_slice.Ip
+        dynamic_config_slice.profile_conditions.Ip
         * 1e6
         * constants.CONSTANTS.mu0
         / geo.G2_face[-1]
@@ -589,7 +592,7 @@ def initial_core_profiles(
         geo=geo,
         jtot_face=geo.jtot_face,
         psi=psi,
-        q_correction_factor=dynamic_config_slice.q_correction_factor,
+        q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, psi)
 
@@ -639,7 +642,7 @@ def initial_core_profiles(
   core_profiles = physics.update_jtot_q_face_s_face(
       geo=geo,
       core_profiles=core_profiles,
-      q_correction_factor=dynamic_config_slice.q_correction_factor,
+      q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
   )
 
   # pylint: enable=invalid-name
@@ -670,11 +673,13 @@ def _get_jtot_hires(
   jformula_hires = (1 - geo.r_hires_norm**2) ** dynamic_config_slice.nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.r_hires)
   if dynamic_config_slice.initial_j_is_total_current:
-    Ctot_hires = dynamic_config_slice.Ip * 1e6 / denom
+    Ctot_hires = dynamic_config_slice.profile_conditions.Ip * 1e6 / denom
     jtot_hires = jformula_hires * Ctot_hires
   else:
     Cohm_hires = Iohm * 1e6 / denom
     johm_hires = jformula_hires * Cohm_hires
     jtot_hires = johm_hires + jext_hires + j_bootstrap_hires
   return jtot_hires
+
+
 # pylint: enable=invalid-name

@@ -34,7 +34,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     """Tests that smoothing works as expected."""
     # Set up default config and geo
     config = config_lib.Config(
-        set_pedestal=False,
+        profile_conditions=config_lib.ProfileConditions(set_pedestal=False),
         transport=config_lib.TransportConfig(
             apply_inner_patch=True,
             apply_outer_patch=True,

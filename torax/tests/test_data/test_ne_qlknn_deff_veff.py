@@ -28,25 +28,29 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      set_pedestal=True,
-      Qei_mult=1,
-      ion_heat_eq=True,
-      el_heat_eq=True,
-      dens_eq=True,
-      current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
-      bootstrap_mult=1,  # remove bootstrap current
+      profile_conditions=config_lib.ProfileConditions(
+          set_pedestal=True,
+          nbar=0.85,  # initial density (in Greenwald fraction units)
+          ne_bound_right=0.2,
+          neped=1.0,
+      ),
+      numerics=config_lib.Numerics(
+          Qei_mult=1,
+          ion_heat_eq=True,
+          el_heat_eq=True,
+          dens_eq=True,
+          current_eq=True,
+          resistivity_mult=100,  # to shorten current diffusion time
+          bootstrap_mult=1,  # remove bootstrap current
+          t_final=2,
+      ),
       # set flat Ohmic current to provide larger range of current evolution for
       # test
       nu=0,
-      nbar=0.85,  # initial density (in Greenwald fraction units)
       w=0.18202270915319393,
       S_pellet_tot=1.0e22,
       S_puff_tot=0.5e22,
       S_nbi_tot=0.3e22,
-      ne_bound_right=0.2,
-      neped=1.0,
-      t_final=2,
       transport=config_lib.TransportConfig(
           transport_model="qlknn",
           DVeff=True,

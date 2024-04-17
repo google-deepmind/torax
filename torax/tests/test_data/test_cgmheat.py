@@ -27,7 +27,10 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      t_final=1,
+      numerics=config_lib.Numerics(
+          t_final=1,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       transport=config_lib.TransportConfig(
           transport_model="CGM",
       ),
@@ -35,7 +38,6 @@ def get_config() -> config_lib.Config:
           predictor_corrector=False,
           use_pereverzev=True,
       ),
-      bootstrap_mult=0,  # remove bootstrap current
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,

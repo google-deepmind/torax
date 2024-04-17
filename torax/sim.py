@@ -124,7 +124,8 @@ class CoeffsCallback:
           core_profiles.ni,
           value=core_profiles.ne.value
           * physics.get_main_ion_dilution_factor(
-              dynamic_config_slice.Zimp, dynamic_config_slice.Zeff
+              dynamic_config_slice.plasma_composition.Zimp,
+              dynamic_config_slice.plasma_composition.Zeff,
           ),
       )
       core_profiles = dataclasses.replace(core_profiles, ni=ni)
@@ -270,15 +271,17 @@ class SimulationStepFn:
         transport_coeffs,
     )
 
-    crosses_t_final = (input_state.t < dynamic_config_slice_t.t_final) * (
-        input_state.t + input_state.dt > dynamic_config_slice_t.t_final
+    crosses_t_final = (
+        input_state.t < dynamic_config_slice_t.numerics.t_final
+    ) * (
+        input_state.t + input_state.dt > dynamic_config_slice_t.numerics.t_final
     )
     dt = jnp.where(
         jnp.logical_and(
-            dynamic_config_slice_t.exact_t_final,
+            dynamic_config_slice_t.numerics.exact_t_final,
             crosses_t_final,
         ),
-        dynamic_config_slice_t.t_final - input_state.t,
+        dynamic_config_slice_t.numerics.t_final - input_state.t,
         dt,
     )
     if jnp.any(jnp.isnan(dt)):
@@ -345,10 +348,13 @@ class SimulationStepFn:
           updated_output: state.ToraxSimState,
       ) -> state.ToraxSimState:
 
-        dt = updated_output.dt / dynamic_config_slice_t.dt_reduction_factor
+        dt = (
+            updated_output.dt
+            / dynamic_config_slice_t.numerics.dt_reduction_factor
+        )
         if jnp.any(jnp.isnan(dt)):
           raise ValueError('dt is NaN.')
-        if dt < dynamic_config_slice_t.mindt:
+        if dt < dynamic_config_slice_t.numerics.mindt:
           raise ValueError('dt below minimum timestep following adaptation')
 
         dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
@@ -386,10 +392,11 @@ class SimulationStepFn:
     dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
         input_state.t + output_state.dt,
     )
+    q_corr = dynamic_config_slice_t_plus_dt.numerics.q_correction_factor
     output_state.core_profiles = physics.update_jtot_q_face_s_face(
         geo=geo,
         core_profiles=output_state.core_profiles,
-        q_correction_factor=dynamic_config_slice_t_plus_dt.q_correction_factor,
+        q_correction_factor=q_corr,
     )
 
     # Update ohmic and bootstrap current based on the new core profiles.
@@ -423,7 +430,7 @@ def get_initial_state(
       dynamic_config_slice, static_config_slice, geo, source_models
   )
   return state.ToraxSimState(
-      t=jnp.array(dynamic_config_slice.t_initial),
+      t=jnp.array(dynamic_config_slice.numerics.t_initial),
       dt=jnp.zeros(()),
       core_profiles=initial_core_profiles,
       # This will be overridden within run_simulation().
@@ -702,7 +709,9 @@ def build_sim_from_config(
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
 
   # build dynamic_config_slice at t_initial for initial conditions
-  dynamic_config_slice = dynamic_config_slice_provider(config.t_initial)
+  dynamic_config_slice = dynamic_config_slice_provider(
+      config.numerics.t_initial
+  )
   initial_state = get_initial_state(
       dynamic_config_slice=dynamic_config_slice,
       static_config_slice=static_config_slice,
@@ -1099,8 +1108,8 @@ def provide_core_profiles_t_plus_dt(
       core_profiles_t.ni,
       value=ne.value
       * physics.get_main_ion_dilution_factor(
-          dynamic_config_slice_t_plus_dt.Zimp,
-          dynamic_config_slice_t_plus_dt.Zeff,
+          dynamic_config_slice_t_plus_dt.plasma_composition.Zimp,
+          dynamic_config_slice_t_plus_dt.plasma_composition.Zeff,
       ),
   )
   core_profiles_t_plus_dt = dataclasses.replace(

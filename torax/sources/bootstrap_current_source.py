@@ -80,7 +80,7 @@ def calc_neoclassical(
   ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
 
   # Spitzer conductivity
-  NZ = 0.58 + 0.74 / (0.76 + dynamic_config_slice.Zeff)
+  NZ = 0.58 + 0.74 / (0.76 + dynamic_config_slice.plasma_composition.Zeff)
   # TODO(b/323504363): should we expand the log to get rid of the exponentiation,
   # sqrt, etc? ne.value * dynamic_config_slice.nref is large, it might be
   # advantages to avoid calculating it explicitly.
@@ -89,7 +89,7 @@ def calc_neoclassical(
   lnLame = 31.3 - jnp.log(jnp.sqrt(true_ne_face) / (temp_el.face_value() * 1e3))
   # note for later: ni
   lnLami = 30 - jnp.log(
-      dynamic_config_slice.Zi**3
+      dynamic_config_slice.plasma_composition.Zi**3
       * jnp.sqrt(true_ne_face)
       / ((temp_ion.face_value() * 1e3) ** 1.5)
   )
@@ -97,7 +97,7 @@ def calc_neoclassical(
   sigsptz = (
       1.9012e04
       * (temp_el.face_value() * 1e3) ** 1.5
-      / dynamic_config_slice.Zeff
+      / dynamic_config_slice.plasma_composition.Zeff
       / NZ
       / lnLame
   )
@@ -108,14 +108,14 @@ def calc_neoclassical(
       geo,
       jtot_face,
       psi,
-      dynamic_config_slice.q_correction_factor,
+      dynamic_config_slice.numerics.q_correction_factor,
   )
   nuestar = (
       6.921e-18
       * q_face
       * geo.Rmaj
       * true_ne_face
-      * dynamic_config_slice.Zeff
+      * dynamic_config_slice.plasma_composition.Zeff
       * lnLame
       / (
           ((temp_el.face_value() * 1e3) ** 2)
@@ -127,7 +127,7 @@ def calc_neoclassical(
       * q_face
       * geo.Rmaj
       * true_ni_face
-      * dynamic_config_slice.Zeff**4
+      * dynamic_config_slice.plasma_composition.Zeff**4
       * lnLami
       / (
           ((temp_ion.face_value() * 1e3) ** 2)
@@ -139,15 +139,18 @@ def calc_neoclassical(
   ft33 = ftrap / (
       1.0
       + (0.55 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.45 * (1.0 - ftrap) * nuestar / (dynamic_config_slice.Zeff**1.5)
+      + 0.45
+      * (1.0 - ftrap)
+      * nuestar
+      / (dynamic_config_slice.plasma_composition.Zeff**1.5)
   )
   signeo_face = 1.0 - ft33 * (
       1.0
-      + 0.36 / dynamic_config_slice.Zeff
+      + 0.36 / dynamic_config_slice.plasma_composition.Zeff
       - ft33
       * (
-          0.59 / dynamic_config_slice.Zeff
-          - 0.23 / dynamic_config_slice.Zeff * ft33
+          0.59 / dynamic_config_slice.plasma_composition.Zeff
+          - 0.23 / dynamic_config_slice.plasma_composition.Zeff * ft33
       )
   )
   sigmaneo = sigsptz * signeo_face
@@ -156,7 +159,10 @@ def calc_neoclassical(
   denom = (
       1.0
       + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5 * (1.0 - ftrap) * nuestar / dynamic_config_slice.Zeff
+      + 0.5
+      * (1.0 - ftrap)
+      * nuestar
+      / dynamic_config_slice.plasma_composition.Zeff
   )
   ft31 = ftrap / denom
   ft32ee = ftrap / (
@@ -165,52 +171,68 @@ def calc_neoclassical(
       + 0.18
       * (1 - 0.37 * ftrap)
       * nuestar
-      / jnp.sqrt(dynamic_config_slice.Zeff)
+      / jnp.sqrt(dynamic_config_slice.plasma_composition.Zeff)
   )
   ft32ei = ftrap / (
       1
       + (1 + 0.6 * ftrap) * jnp.sqrt(nuestar)
-      + 0.85 * (1 - 0.37 * ftrap) * nuestar * (1 + dynamic_config_slice.Zeff)
+      + 0.85
+      * (1 - 0.37 * ftrap)
+      * nuestar
+      * (1 + dynamic_config_slice.plasma_composition.Zeff)
   )
   ft34 = ftrap / (
       1.0
       + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5 * (1.0 - 0.5 * ftrap) * nuestar / dynamic_config_slice.Zeff
+      + 0.5
+      * (1.0 - 0.5 * ftrap)
+      * nuestar
+      / dynamic_config_slice.plasma_composition.Zeff
   )
 
   F32ee = (
-      (0.05 + 0.62 * dynamic_config_slice.Zeff)
-      / (dynamic_config_slice.Zeff * (1 + 0.44 * dynamic_config_slice.Zeff))
+      (0.05 + 0.62 * dynamic_config_slice.plasma_composition.Zeff)
+      / (
+          dynamic_config_slice.plasma_composition.Zeff
+          * (1 + 0.44 * dynamic_config_slice.plasma_composition.Zeff)
+      )
       * (ft32ee - ft32ee**4)
       + 1
-      / (1 + 0.22 * dynamic_config_slice.Zeff)
+      / (1 + 0.22 * dynamic_config_slice.plasma_composition.Zeff)
       * (ft32ee**2 - ft32ee**4 - 1.2 * (ft32ee**3 - ft32ee**4))
-      + 1.2 / (1 + 0.5 * dynamic_config_slice.Zeff) * ft32ee**4
+      + 1.2
+      / (1 + 0.5 * dynamic_config_slice.plasma_composition.Zeff)
+      * ft32ee**4
   )
 
   F32ei = (
-      -(0.56 + 1.93 * dynamic_config_slice.Zeff)
-      / (dynamic_config_slice.Zeff * (1 + 0.44 * dynamic_config_slice.Zeff))
+      -(0.56 + 1.93 * dynamic_config_slice.plasma_composition.Zeff)
+      / (
+          dynamic_config_slice.plasma_composition.Zeff
+          * (1 + 0.44 * dynamic_config_slice.plasma_composition.Zeff)
+      )
       * (ft32ei - ft32ei**4)
       + 4.95
-      / (1 + 2.48 * dynamic_config_slice.Zeff)
+      / (1 + 2.48 * dynamic_config_slice.plasma_composition.Zeff)
       * (ft32ei**2 - ft32ei**4 - 0.55 * (ft32ei**3 - ft32ei**4))
-      - 1.2 / (1 + 0.5 * dynamic_config_slice.Zeff) * ft32ei**4
+      - 1.2
+      / (1 + 0.5 * dynamic_config_slice.plasma_composition.Zeff)
+      * ft32ei**4
   )
 
-  term_0 = (1 + 1.4 / (dynamic_config_slice.Zeff + 1)) * ft31
-  term_1 = -1.9 / (dynamic_config_slice.Zeff + 1) * ft31**2
-  term_2 = 0.3 / (dynamic_config_slice.Zeff + 1) * ft31**3
-  term_3 = 0.2 / (dynamic_config_slice.Zeff + 1) * ft31**4
+  term_0 = (1 + 1.4 / (dynamic_config_slice.plasma_composition.Zeff + 1)) * ft31
+  term_1 = -1.9 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft31**2
+  term_2 = 0.3 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft31**3
+  term_3 = 0.2 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft31**4
   L31 = term_0 + term_1 + term_2 + term_3
 
   L32 = F32ee + F32ei
 
   L34 = (
-      (1 + 1.4 / (dynamic_config_slice.Zeff + 1)) * ft34
-      - 1.9 / (dynamic_config_slice.Zeff + 1) * ft34**2
-      + 0.3 / (dynamic_config_slice.Zeff + 1) * ft34**3
-      + 0.2 / (dynamic_config_slice.Zeff + 1) * ft34**4
+      (1 + 1.4 / (dynamic_config_slice.plasma_composition.Zeff + 1)) * ft34
+      - 1.9 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft34**2
+      + 0.3 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft34**3
+      + 0.2 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft34**4
   )
 
   alpha0 = -1.17 * (1 - ftrap) / (1 - 0.22 * ftrap - 0.19 * ftrap**2)
@@ -225,7 +247,11 @@ def calc_neoclassical(
 
   # calculate bootstrap current
   prefactor = (
-      -geo.F_face * dynamic_config_slice.bootstrap_mult * 2 * jnp.pi / geo.B0
+      -geo.F_face
+      * dynamic_config_slice.numerics.bootstrap_mult
+      * 2
+      * jnp.pi
+      / geo.B0
   )
 
   pe = true_ne_face * (temp_el.face_value()) * 1e3 * 1.6e-19

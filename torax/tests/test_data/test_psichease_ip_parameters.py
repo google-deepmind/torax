@@ -26,14 +26,18 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      set_pedestal=False,
-      Qei_mult=0,
-      ion_heat_eq=False,
-      el_heat_eq=False,
-      current_eq=True,
-      resistivity_mult=100,  # to shorten current diffusion time for the test
-      bootstrap_mult=0,  # remove bootstrap current
-      t_final=3,
+      profile_conditions=config_lib.ProfileConditions(
+          set_pedestal=False,
+      ),
+      numerics=config_lib.Numerics(
+          Qei_mult=0,
+          ion_heat_eq=False,
+          el_heat_eq=False,
+          current_eq=True,
+          resistivity_mult=100,  # to shorten current diffusion time
+          bootstrap_mult=0,  # remove bootstrap current
+          t_final=3,
+      ),
       w=0.18202270915319393,
       S_pellet_tot=0,
       S_puff_tot=0,

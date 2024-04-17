@@ -26,11 +26,15 @@ from torax.stepper import linear_theta_method
 
 def get_config() -> config_lib.Config:
   return config_lib.Config(
-      set_pedestal=False,
-      nbar_is_fGW=True,
-      nbar=0.5,
-      t_final=1,
-      bootstrap_mult=0,  # remove bootstrap current
+      profile_conditions=config_lib.ProfileConditions(
+          set_pedestal=False,
+          nbar_is_fGW=True,
+          nbar=0.5,
+      ),
+      numerics=config_lib.Numerics(
+          t_final=1,
+          bootstrap_mult=0,  # remove bootstrap current
+      ),
       w=0.18202270915319393,
       S_pellet_tot=0,
       S_puff_tot=0,

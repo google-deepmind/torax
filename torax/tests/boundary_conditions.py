@@ -33,13 +33,15 @@ class BoundaryConditionsTest(absltest.TestCase):
     # Boundary conditions can be time-dependent, but when creating the initial
     # state, we want to grab the boundary condition params at time 0.
     config = config_lib.Config(
-        Ti_bound_right=27.7,
-        Te_bound_right={0.0: 42.0, 1.0: 0.0},
-        ne_bound_right=config_lib.InterpolationParam(
-            {0.0: 0.1, 0.1: 2.0},
-            interpolation_mode=config_lib.InterpolationMode.STEP,
+        profile_conditions=config_lib.ProfileConditions(
+            Ti_bound_right=27.7,
+            Te_bound_right={0.0: 42.0, 1.0: 0.0},
+            ne_bound_right=config_lib.InterpolationParam(
+                {0.0: 0.1, 0.1: 2.0},
+                interpolation_mode=config_lib.InterpolationMode.STEP,
+            ),
+            Ip={0.0: 5, 1.0: 7},
         ),
-        Ip={0.0: 5, 1.0: 7},
     )
 
     geo = geometry.build_circular_geometry(config)

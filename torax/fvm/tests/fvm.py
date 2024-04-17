@@ -67,7 +67,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.config.nr)
+    value = jnp.zeros(references.config.numerics.nr)
     cell_variable = fvm.CellVariable(value=value, dr=references.geo.dr)
     # Underconstrain the left
     with self.assertRaises(AssertionError):
@@ -97,7 +97,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.config.nr)
+    value = jnp.zeros(references.config.numerics.nr)
     cell_variable = fvm.CellVariable(value=value, dr=references.geo.dr)
     # Overconstrain the left
     with self.assertRaises(AssertionError):
@@ -131,7 +131,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    dim = references.config.nr
+    dim = references.config.numerics.nr
     value = jnp.zeros(dim)
 
     rng_state = jax.random.PRNGKey(seed)
@@ -349,11 +349,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
   ):
     """Tests that the linear solution for a linear problem yields zero residual and loss."""
     config = config_lib.Config(
-        nr=num_cells,
-        Qei_mult=0,
+        profile_conditions=config_lib.ProfileConditions(
+            set_pedestal=False,
+        ),
+        numerics=config_lib.Numerics(
+            nr=num_cells,
+            Qei_mult=0,
+            el_heat_eq=False,
+        ),
         Ptot=0,
-        el_heat_eq=False,
-        set_pedestal=False,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
             theta_imp=theta_imp,
@@ -457,11 +461,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # flat, x_new should remain zero unless boundary conditions change.
     num_cells = 2
     config = config_lib.Config(
-        nr=num_cells,
-        Qei_mult=0,
+        profile_conditions=config_lib.ProfileConditions(
+            set_pedestal=False,
+        ),
+        numerics=config_lib.Numerics(
+            nr=num_cells,
+            Qei_mult=0,
+            el_heat_eq=False,
+        ),
         Ptot=0,
-        el_heat_eq=False,
-        set_pedestal=False,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
             theta_imp=1.0,
@@ -570,11 +578,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # flat, residual should remain zero unless boundary conditions change.
     num_cells = 2
     config = config_lib.Config(
-        nr=num_cells,
-        Qei_mult=0,
+        profile_conditions=config_lib.ProfileConditions(
+            set_pedestal=False,
+        ),
+        numerics=config_lib.Numerics(
+            nr=num_cells,
+            Qei_mult=0,
+            el_heat_eq=False,
+        ),
         Ptot=0,
-        el_heat_eq=False,
-        set_pedestal=False,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
             theta_imp=0.0,

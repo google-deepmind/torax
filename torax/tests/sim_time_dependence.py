@@ -49,10 +49,14 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
   ):
     """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
     config = config_lib.Config(
-        Ti_bound_right={0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
-        adaptive_dt=adaptive_dt,
-        fixed_dt=1.0,  # 1 time step in, the Ti_bound_right will be 2.0
-        dt_reduction_factor=1.5,
+        profile_conditions=config_lib.ProfileConditions(
+            Ti_bound_right={0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
+        ),
+        numerics=config_lib.Numerics(
+            adaptive_dt=adaptive_dt,
+            fixed_dt=1.0,  # 1 time step in, the Ti_bound_right will be 2.0
+            dt_reduction_factor=1.5,
+        ),
     )
     geo = geometry.build_circular_geometry(config)
     transport = FakeTransportModel()
@@ -75,7 +79,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         config_slice.TimeDependentDynamicConfigSliceProvider(config)
     )
     initial_dynamic_config_slice = dynamic_config_slice_provider(
-        config.t_initial
+        config.numerics.t_initial
     )
     input_state = sim_lib.get_initial_state(
         dynamic_config_slice=initial_dynamic_config_slice,
@@ -150,9 +154,9 @@ class FakeStepper(stepper_lib.Stepper):
       state.CoreTransport,
       int,
   ]:
-    combined = getattr(dynamic_config_slice_t, self._param) + getattr(
-        dynamic_config_slice_t_plus_dt, self._param
-    )
+    combined = getattr(
+        dynamic_config_slice_t.profile_conditions, self._param
+    ) + getattr(dynamic_config_slice_t_plus_dt.profile_conditions, self._param)
     transport = self.transport_model(
         dynamic_config_slice_t, geo, core_profiles_t
     )
