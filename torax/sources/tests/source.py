@@ -21,8 +21,8 @@ from jax import numpy as jnp
 import numpy as np
 from torax import config as config_lib
 from torax import config_slice
+from torax import core_profile_setters
 from torax import geometry
-from torax import initial_states
 from torax.sources import source as source_lib
 from torax.sources import source_config
 from torax.sources import source_models as source_models_lib
@@ -42,7 +42,7 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -77,7 +77,7 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -112,7 +112,7 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -166,7 +166,7 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -201,7 +201,7 @@ class SourceTest(parameterized.TestCase):
         sources={source.name: source_config.SourceConfig()}
     )
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -265,7 +265,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         numerics=config_lib.Numerics(nr=5),
     )
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -294,7 +294,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         numerics=config_lib.Numerics(nr=5),
     )
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,

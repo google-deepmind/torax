@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Physics calculations for the initial states/profiles only."""
+"""Initialization and update routines for core_profiles.
+
+Set of routines that initializes core_profiles, updates time-dependent boundary
+conditions, and updates time-dependent prescribed core_profiles that are not
+evolved by the PDE system.
+"""
 
 import dataclasses
 import jax
@@ -33,12 +38,12 @@ from torax.sources import source_profiles as source_profiles_lib
 _trapz = jax.scipy.integrate.trapezoid
 
 
-def _update_ti(
+def _updated_ti(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
     geo: Geometry,
 ) -> fvm.CellVariable:
-  """Update ion temp. Used upon initialization and if temp_ion=False."""
+  """Updated ion temp. Used upon initialization and if temp_ion=False."""
   # pylint: disable=invalid-name
   Ti_bound_left = jax_utils.error_if_not_positive(
       dynamic_config_slice.profile_conditions.Ti_bound_left, 'Ti_bound_left'
@@ -64,12 +69,12 @@ def _update_ti(
   return temp_ion
 
 
-def _update_te(
+def _updated_te(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
     geo: Geometry,
 ) -> fvm.CellVariable:
-  """Update electron temp. Used upon initialization and if temp_el=False."""
+  """Updated electron temp. Used upon initialization and if temp_el=False."""
   # pylint: disable=invalid-name
   Te_bound_left = jax_utils.error_if_not_positive(
       dynamic_config_slice.profile_conditions.Te_bound_left, 'Te_bound_left'
@@ -95,12 +100,12 @@ def _update_te(
   return temp_el
 
 
-def _update_dens(
+def _updated_dens(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
     geo: Geometry,
 ) -> tuple[fvm.CellVariable, fvm.CellVariable]:
-  """Update particle density. Used upon initialization and if dens_eq=False."""
+  """Updated particle density. Used upon initialization and if dens_eq=False."""
   # pylint: disable=invalid-name
   nGW = (
       dynamic_config_slice.profile_conditions.Ip
@@ -466,8 +471,7 @@ def _update_psi_from_j(
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
-      constants.CONSTANTS.mu0
-      / (2 * jnp.pi * geo.Rmaj * geo.G2_hires[1:]),
+      constants.CONSTANTS.mu0 / (2 * jnp.pi * geo.Rmaj * geo.G2_hires[1:]),
   ))
   # dpsi_dr on the cell grid
   dpsi_dr_hires = scale * integrated
@@ -519,9 +523,9 @@ def initial_core_profiles(
   # To set initial values and compute the boundary conditions, we need to handle
   # potentially time-varying inputs from the users.
   # The default time in build_dynamic_config_slice is t_initial
-  temp_ion = _update_ti(dynamic_config_slice, static_config_slice, geo)
-  temp_el = _update_te(dynamic_config_slice, static_config_slice, geo)
-  ne, ni = _update_dens(dynamic_config_slice, static_config_slice, geo)
+  temp_ion = _updated_ti(dynamic_config_slice, static_config_slice, geo)
+  temp_el = _updated_te(dynamic_config_slice, static_config_slice, geo)
+  ne, ni = _updated_dens(dynamic_config_slice, static_config_slice, geo)
 
   # set up initial psi profile based on current profile
   if (
@@ -647,6 +651,178 @@ def initial_core_profiles(
 
   # pylint: enable=invalid-name
   return core_profiles
+
+
+def updated_prescribed_core_profiles(
+    core_profiles: state.CoreProfiles,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_config_slice: config_slice.StaticConfigSlice,
+    geo: Geometry,
+) -> dict[str, jax.Array]:
+  """Updates core profiles which are not being evolved by PDE.
+
+  Uses same functions as for profile initialization.
+
+  Args:
+    core_profiles: Core profiles dataclass to be updated
+    dynamic_config_slice: Dynamic configuration parameters at t=t_initial.
+    static_config_slice: Static simulation configuration parameters.
+    geo: Torus geometry.
+
+  Returns:
+    Updated core profiles.
+  """
+  # pylint: disable=invalid-name
+
+  # If profiles are not evolved, they can still potential be time-evolving,
+  # depending on the config. If so, they are updated below.
+  if (
+      not static_config_slice.ion_heat_eq
+      and dynamic_config_slice.numerics.enable_prescribed_profile_evolution
+  ):
+    temp_ion = _updated_ti(dynamic_config_slice, static_config_slice, geo).value
+  else:
+    temp_ion = core_profiles.temp_ion.value
+  if (
+      not static_config_slice.el_heat_eq
+      and dynamic_config_slice.numerics.enable_prescribed_profile_evolution
+  ):
+    temp_el = _updated_te(dynamic_config_slice, static_config_slice, geo).value
+  else:
+    temp_el = core_profiles.temp_el.value
+  if (
+      not static_config_slice.dens_eq
+      and dynamic_config_slice.numerics.enable_prescribed_profile_evolution
+  ):
+    ne, _ = _updated_dens(dynamic_config_slice, static_config_slice, geo)
+    ne = ne.value
+  else:
+    ne = core_profiles.ne.value
+
+  return {'temp_ion': temp_ion, 'temp_el': temp_el, 'ne': ne}
+
+
+def update_evolving_core_profiles(
+    core_profiles: state.CoreProfiles,
+    x_new: tuple[fvm.cell_variable.CellVariable, ...],
+    evolving_names: tuple[str, ...],
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
+) -> state.CoreProfiles:
+  """Returns the new core profiles after updating the evolving variables.
+
+  Args:
+    core_profiles: The old set of core plasma profiles.
+    x_new: The new values of the evolving variables.
+    evolving_names: The names of the evolving variables.
+    dynamic_config_slice: The dynamic config slice.
+  """
+
+  def get_update(x_new, var):
+    """Returns the new value of `var`."""
+    if var in evolving_names:
+      return x_new[evolving_names.index(var)]
+    # `var` is not evolving, so its new value is just its old value
+    return getattr(core_profiles, var)
+
+  temp_ion = get_update(x_new, 'temp_ion')
+  temp_el = get_update(x_new, 'temp_el')
+  psi = get_update(x_new, 'psi')
+  ne = get_update(x_new, 'ne')
+  ni = dataclasses.replace(
+      core_profiles.ni,
+      value=ne.value
+      * physics.get_main_ion_dilution_factor(
+          dynamic_config_slice.plasma_composition.Zimp,
+          dynamic_config_slice.plasma_composition.Zeff,
+      ),
+  )
+
+  return dataclasses.replace(
+      core_profiles,
+      temp_ion=temp_ion,
+      temp_el=temp_el,
+      psi=psi,
+      ne=ne,
+      ni=ni,
+  )
+
+
+def compute_boundary_conditions(
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    geo: geometry.Geometry,
+) -> dict[str, dict[str, jax.Array | None]]:
+  """Computes boundary conditions for time t and returns updates to State.
+
+  Args:
+    dynamic_config_slice: Runtime configuration at time t.
+    geo: Geometry object
+
+  Returns:
+    Mapping from State attribute names to dictionaries updating attributes of
+    each CellVariable in the state. This dict can in theory recursively replace
+    values in a State object.
+  """
+  Ip = dynamic_config_slice.profile_conditions.Ip  # pylint: disable=invalid-name
+  Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
+      dynamic_config_slice.profile_conditions.Ti_bound_right, 'Ti_bound_right'
+  )
+  Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
+      dynamic_config_slice.profile_conditions.Te_bound_right, 'Te_bound_right'
+  )
+
+  # calculate ne_bound_right
+  # pylint: disable=invalid-name
+  nGW = (
+      dynamic_config_slice.profile_conditions.Ip
+      / (jnp.pi * geo.Rmin**2)
+      * 1e20
+      / dynamic_config_slice.nref
+  )
+  # pylint: enable=invalid-name
+  ne_bound_right = jnp.where(
+      dynamic_config_slice.profile_conditions.ne_bound_right_is_fGW,
+      dynamic_config_slice.profile_conditions.ne_bound_right * nGW,
+      dynamic_config_slice.profile_conditions.ne_bound_right,
+  )
+  # define ion profile based on (flat) Zeff and single assumed impurity
+  # with Zimp. main ion limited to hydrogenic species for now.
+  # Assume isotopic balance for DT fusion power. Solve for ni based on:
+  # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
+
+  dilution_factor = physics.get_main_ion_dilution_factor(
+      dynamic_config_slice.plasma_composition.Zimp,
+      dynamic_config_slice.plasma_composition.Zeff,
+  )
+  return {
+      'temp_ion': dict(
+          left_face_grad_constraint=jnp.zeros(()),
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(Ti_bound_right),
+      ),
+      'temp_el': dict(
+          left_face_grad_constraint=jnp.zeros(()),
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(Te_bound_right),
+      ),
+      'ne': dict(
+          left_face_grad_constraint=jnp.zeros(()),
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(ne_bound_right),
+      ),
+      'ni': dict(
+          left_face_grad_constraint=jnp.zeros(()),
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
+      ),
+      'psi': dict(
+          right_face_grad_constraint=Ip
+          * 1e6
+          * constants.CONSTANTS.mu0
+          / geo.G2_face[-1]
+          * geo.rmax,
+          right_face_constraint=None,
+      ),
+  }
 
 
 # pylint: disable=invalid-name

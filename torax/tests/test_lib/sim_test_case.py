@@ -59,7 +59,7 @@ class SimTestCase(parameterized.TestCase):
     self.test_data_dir = os.path.join(src_dir, torax_dir, 'tests/test_data')
 
   def _expected_results_path(self, test_name: str) -> str:
-    return os.path.join(self.test_data_dir, f'{test_name}.h5')
+    return os.path.join(self.test_data_dir, f'{test_name}')
 
   def _get_config_module(
       self,
@@ -228,8 +228,7 @@ class SimTestCase(parameterized.TestCase):
     Args:
       config_name: Name of py config to load. (Leave off dir path, include
         ".py")
-      ref_name: Name of h5 reference solution to load. (Leave off dir path,
-        ".h5")
+      ref_name: Name of reference filename to load. (Leave off dir path)
       profiles: List of names of variables to check.
       rtol: Optional float, to override the class level rtol.
       atol: Optional float, to override the class level atol.

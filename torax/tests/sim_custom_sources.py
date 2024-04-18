@@ -126,7 +126,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 
     # Load reference profiles
     ref_profiles, ref_time = self._get_refs(
-        'test_particle_sources_constant', _ALL_PROFILES
+        'test_particle_sources_constant.h5', _ALL_PROFILES
     )
 
     # Set up the sim with the original config. We set up the sim only once and

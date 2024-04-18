@@ -32,7 +32,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_implicit_optimizer_no_compile',
           'test_implicit_short_optimizer.py',
-          'test_implicit_short',
+          'test_implicit_short.h5',
           _ALL_PROFILES,
           1e-5,
           None,
@@ -43,7 +43,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_qlknnheat',
           'test_qlknnheat.py',
-          'test_qlknnheat',
+          'test_qlknnheat.h5',
           _ALL_PROFILES,
           0,
           1e-11,

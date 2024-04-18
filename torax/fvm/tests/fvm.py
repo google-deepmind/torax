@@ -24,9 +24,9 @@ import numpy as np
 from torax import calc_coeffs
 from torax import config as config_lib
 from torax import config_slice
+from torax import core_profile_setters
 from torax import fvm
 from torax import geometry
-from torax import initial_states
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
 from torax.sources import source_config
@@ -380,8 +380,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     static_config_slice = config_slice.build_static_config_slice(config)
     source_models = source_models_lib.SourceModels()
-    core_profiles = initial_states.initial_core_profiles(
-        dynamic_config_slice, static_config_slice, geo, source_models)
+    core_profiles = core_profile_setters.initial_core_profiles(
+        dynamic_config_slice, static_config_slice, geo, source_models
+    )
     evolving_names = tuple(['temp_ion'])
     explicit_source_profiles = source_models_lib.build_source_profiles(
         source_models=source_models_lib.SourceModels(),
@@ -495,7 +496,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         config,
     )
     source_models = source_models_lib.SourceModels()
-    initial_core_profiles = initial_states.initial_core_profiles(
+    initial_core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice, static_config_slice, geo, source_models
     )
     explicit_source_profiles = source_models_lib.build_source_profiles(
@@ -619,7 +620,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         config,
     )
     source_models = source_models_lib.SourceModels()
-    initial_core_profiles = initial_states.initial_core_profiles(
+    initial_core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice, static_config_slice_theta0, geo, source_models
     )
     explicit_source_profiles = source_models_lib.build_source_profiles(
@@ -652,7 +653,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_grad_constraint=None,
         right_face_constraint=initial_right_boundary,
     )
-    core_profiles_t_plus_dt = initial_states.initial_core_profiles(
+    core_profiles_t_plus_dt = core_profile_setters.initial_core_profiles(
         dynamic_config_slice, static_config_slice_theta0, geo
     )
     core_profiles_t_plus_dt = dataclasses.replace(

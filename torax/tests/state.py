@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.state and torax.initial_states."""
+"""Unit tests for torax.state and torax.core_profile_setters."""
 
 import functools
 from typing import Callable
@@ -24,8 +24,8 @@ from jax import numpy as jnp
 import numpy as np
 from torax import config as config_lib
 from torax import config_slice
+from torax import core_profile_setters
 from torax import geometry
-from torax import initial_states
 from torax import state
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
@@ -44,7 +44,7 @@ class StateTest(torax_refs.ReferenceValueTest):
       initial_counter = jnp.array(0)
 
       def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
-        core_profiles = initial_states.initial_core_profiles(
+        core_profiles = core_profile_setters.initial_core_profiles(
             config_slice.build_dynamic_config_slice(config),
             config_slice.build_static_config_slice(config),
             geo,
@@ -82,7 +82,7 @@ class StateTest(torax_refs.ReferenceValueTest):
   ):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
-    basic_core_profiles = initial_states.initial_core_profiles(
+    basic_core_profiles = core_profile_setters.initial_core_profiles(
         config_slice.build_dynamic_config_slice(references.config),
         config_slice.build_static_config_slice(references.config),
         references.geo,
@@ -134,7 +134,7 @@ class StateTest(torax_refs.ReferenceValueTest):
 
 
 class InitialStatesTest(parameterized.TestCase):
-  """Unit tests for the `torax.initial_states` module."""
+  """Unit tests for the `torax.core_profile_setters` module."""
 
   def test_initial_boundary_condition_from_time_dependent_params(self):
     """Tests that the initial boundary conditions are set from the config."""
@@ -150,7 +150,7 @@ class InitialStatesTest(parameterized.TestCase):
             ),
         ),
     )
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         config_slice.build_dynamic_config_slice(config),
         config_slice.build_static_config_slice(config),
         geometry.build_circular_geometry(config),
@@ -207,22 +207,22 @@ class InitialStatesTest(parameterized.TestCase):
         ),
     )
     geo = geo_builder(config1)
-    core_profiles1 = initial_states.initial_core_profiles(
+    core_profiles1 = core_profile_setters.initial_core_profiles(
         config_slice.build_dynamic_config_slice(config1),
         config_slice.build_static_config_slice(config1),
         geo=geo,
     )
-    core_profiles2 = initial_states.initial_core_profiles(
+    core_profiles2 = core_profile_setters.initial_core_profiles(
         config_slice.build_dynamic_config_slice(config2),
         config_slice.build_static_config_slice(config2),
         geo=geo,
     )
-    core_profiles3 = initial_states.initial_core_profiles(
+    core_profiles3 = core_profile_setters.initial_core_profiles(
         config_slice.build_dynamic_config_slice(config3),
         config_slice.build_static_config_slice(config3),
         geo=geo,
     )
-    core_profiles3_helper = initial_states.initial_core_profiles(
+    core_profiles3_helper = core_profile_setters.initial_core_profiles(
         config_slice.build_dynamic_config_slice(config3_helper),
         config_slice.build_static_config_slice(config3_helper),
         geo=geo,
@@ -299,12 +299,12 @@ class InitialStatesTest(parameterized.TestCase):
     config2 = config_lib.Config(
         initial_psi_from_j=True,
     )
-    core_profiles1 = initial_states.initial_core_profiles(
+    core_profiles1 = core_profile_setters.initial_core_profiles(
         config_slice.build_dynamic_config_slice(config1),
         config_slice.build_static_config_slice(config1),
         geometry.build_circular_geometry(config1),
     )
-    core_profiles2 = initial_states.initial_core_profiles(
+    core_profiles2 = core_profile_setters.initial_core_profiles(
         config_slice.build_dynamic_config_slice(config2),
         config_slice.build_static_config_slice(config2),
         geometry.build_circular_geometry(config2),

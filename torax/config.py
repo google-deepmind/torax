@@ -287,6 +287,11 @@ class Numerics:
   current_eq: bool = False
   # Solve the density equation (n evolves over time)
   dens_eq: bool = False
+  # Enable time-dependent prescribed profiles.
+  # This option is provided to allow initialization of density profiles scaled
+  # to a Greenwald fraction, and freeze this density even if the current is time
+  # evolving. Otherwise the density will evolve to always maintain that GW frac.
+  enable_prescribed_profile_evolution: bool = True
 
   # q-profile correction factor. Used only in ad-hoc circular geometry model
   q_correction_factor: float = 1.38

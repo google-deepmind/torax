@@ -19,8 +19,8 @@ from absl.testing import parameterized
 import jax
 from torax import config as config_lib
 from torax import config_slice
+from torax import core_profile_setters
 from torax import geometry
-from torax import initial_states
 from torax.transport_model import qlknn_wrapper
 
 
@@ -38,7 +38,7 @@ class QlknnWrapperTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry(config)
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     static_config_slice = config_slice.build_static_config_slice(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice, static_config_slice, geo
     )
     qlknn_jitted(dynamic_config_slice, geo, core_profiles)

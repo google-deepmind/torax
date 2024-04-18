@@ -21,8 +21,8 @@ import jax.numpy as jnp
 import numpy as np
 import torax  # useful for setting up jax properly.
 from torax import config_slice
+from torax import core_profile_setters
 from torax import geometry
-from torax import initial_states
 from torax.sources import source as source_lib
 from torax.sources import source_config
 from torax.sources import source_models as source_models_lib
@@ -46,7 +46,7 @@ class SourceProfilesTest(parameterized.TestCase):
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = torax.build_circular_geometry(config)
     source_models = source_models_lib.SourceModels()
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -153,7 +153,7 @@ class SourceProfilesTest(parameterized.TestCase):
     )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = torax.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,

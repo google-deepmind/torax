@@ -33,13 +33,12 @@ from typing import Optional, Protocol
 from absl import logging
 import jax
 import jax.numpy as jnp
-from torax import boundary_conditions
 from torax import calc_coeffs
 from torax import config as config_lib
 from torax import config_slice
+from torax import core_profile_setters
 from torax import fvm
 from torax import geometry
-from torax import initial_states
 from torax import jax_utils
 from torax import physics
 from torax import state
@@ -77,6 +76,7 @@ class CoeffsCallback:
 
   Attributes:
     core_profiles_t: The core plasma profiles at the start of the time step.
+    core_profiles_t_plus_dt: Core plasma profiles at the end of the time step.
     evolving_names: The names of the evolving variables.
     geo: See the docstring for `stepper.Stepper`.
     static_config_slice: See the docstring for `stepper.Stepper`.
@@ -88,6 +88,7 @@ class CoeffsCallback:
   def __init__(
       self,
       core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       evolving_names: tuple[str, ...],
       geo: geometry.Geometry,
       static_config_slice: config_slice.StaticConfigSlice,
@@ -96,6 +97,7 @@ class CoeffsCallback:
       source_models: source_models_lib.SourceModels,
   ):
     self.core_profiles_t = core_profiles_t
+    self.core_profiles_t_plus_dt = core_profiles_t_plus_dt
     self.evolving_names = evolving_names
     self.geo = geo
     self.static_config_slice = static_config_slice
@@ -113,10 +115,14 @@ class CoeffsCallback:
       explicit_call: bool = False,
   ):
     replace = {k: v for k, v in zip(self.evolving_names, x)}
-    # TODO( b/326579003) revisit due to prescribed profiles
-    core_profiles = config_lib.recursive_replace(
-        self.core_profiles_t, **replace
-    )
+    if explicit_call:
+      core_profiles = config_lib.recursive_replace(
+          self.core_profiles_t, **replace
+      )
+    else:
+      core_profiles = config_lib.recursive_replace(
+          self.core_profiles_t_plus_dt, **replace
+      )
     # update ion density in core_profiles if ne is being evolved.
     # Necessary for consistency in iterative nonlinear solutions
     if 'ne' in self.evolving_names:
@@ -300,7 +306,10 @@ class SimulationStepFn:
     # PDE system.
     # TODO( b/326579003)
     core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
-        core_profiles_t, dynamic_config_slice_t_plus_dt, geo
+        core_profiles_t=core_profiles_t,
+        dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+        static_config_slice=static_config_slice,
+        geo=geo,
     )
 
     stepper_iterations = 0
@@ -361,7 +370,10 @@ class SimulationStepFn:
             input_state.t + dt,
         )
         core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
-            core_profiles_t, dynamic_config_slice_t_plus_dt, geo
+            core_profiles_t=core_profiles_t,
+            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+            static_config_slice=static_config_slice,
+            geo=geo,
         )
         core_profiles, core_sources, core_transport, stepper_error_state = (
             self._stepper_fn(
@@ -426,7 +438,7 @@ def get_initial_state(
     source_models: source_models_lib.SourceModels,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
-  initial_core_profiles = initial_states.initial_core_profiles(
+  initial_core_profiles = core_profile_setters.initial_core_profiles(
       dynamic_config_slice, static_config_slice, geo, source_models
   )
   return state.ToraxSimState(
@@ -1083,26 +1095,39 @@ def update_psidot(
 def provide_core_profiles_t_plus_dt(
     core_profiles_t: state.CoreProfiles,
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
 ) -> state.CoreProfiles:
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
-  updated_boundary_conditions = boundary_conditions.compute_boundary_conditions(
-      dynamic_config_slice_t_plus_dt,
-      geo,
+  updated_boundary_conditions = (
+      core_profile_setters.compute_boundary_conditions(
+          dynamic_config_slice_t_plus_dt,
+          geo,
+      )
+  )
+  updated_values = core_profile_setters.updated_prescribed_core_profiles(
+      core_profiles=core_profiles_t,
+      dynamic_config_slice=dynamic_config_slice_t_plus_dt,
+      static_config_slice=static_config_slice,
+      geo=geo,
   )
   temp_ion = dataclasses.replace(
       core_profiles_t.temp_ion,
+      value=updated_values['temp_ion'],
       **updated_boundary_conditions['temp_ion'],
   )
   temp_el = dataclasses.replace(
       core_profiles_t.temp_el,
+      value=updated_values['temp_el'],
       **updated_boundary_conditions['temp_el'],
   )
   psi = dataclasses.replace(
       core_profiles_t.psi, **updated_boundary_conditions['psi']
   )
   ne = dataclasses.replace(
-      core_profiles_t.ne, **updated_boundary_conditions['ne']
+      core_profiles_t.ne,
+      value=updated_values['ne'],
+      **updated_boundary_conditions['ne'],
   )
   ni = dataclasses.replace(
       core_profiles_t.ni,

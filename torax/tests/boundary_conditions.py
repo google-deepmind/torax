@@ -17,12 +17,11 @@
 
 from absl.testing import absltest
 import numpy as np
-from torax import boundary_conditions
 from torax import config as config_lib
 from torax import config_slice
 from torax import constants
+from torax import core_profile_setters
 from torax import geometry
-from torax import initial_states
 
 
 class BoundaryConditionsTest(absltest.TestCase):
@@ -49,12 +48,12 @@ class BoundaryConditionsTest(absltest.TestCase):
     initial_dynamic_config_slice = config_slice.build_dynamic_config_slice(
         config
     )
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         initial_dynamic_config_slice, static_config_slice, geo
     )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config, 0.5)
 
-    bc = boundary_conditions.compute_boundary_conditions(
+    bc = core_profile_setters.compute_boundary_conditions(
         dynamic_config_slice,
         geo,
     )

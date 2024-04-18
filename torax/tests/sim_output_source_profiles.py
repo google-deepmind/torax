@@ -25,8 +25,8 @@ from jax import numpy as jnp
 import numpy as np
 from torax import config as config_lib
 from torax import config_slice
+from torax import core_profile_setters
 from torax import geometry
-from torax import initial_states
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.fvm import cell_variable
@@ -72,7 +72,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         source_models=source_models,
         value=2.0,
     )
-    qei_core_profiles = initial_states.initial_core_profiles(
+    qei_core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=dynamic_config_slice,
         static_config_slice=static_config_slice,
         geo=geo,

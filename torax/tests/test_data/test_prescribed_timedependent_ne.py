@@ -42,7 +42,7 @@ def get_config() -> config_lib.Config:
           dtmult=150,
           maxdt=0.5,
           t_final=10,
-          enable_prescribed_profile_evolution=False,
+          enable_prescribed_profile_evolution=True,
       ),
       w=0.18202270915319393,
       S_pellet_tot=0,

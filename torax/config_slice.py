@@ -339,6 +339,12 @@ class DynamicNumerics:
   # location if n != neped
   largeValue_n: float
 
+  # Enable time-dependent prescribed profiles.
+  # This option is provided to allow initialization of density profiles scaled
+  # to a Greenwald fraction, and freeze this density even if the current is time
+  # evolving. Otherwise the density will evolve to always maintain that GW frac.
+  enable_prescribed_profile_evolution: bool
+
 
 @chex.dataclass(frozen=True)
 class DynamicExponentialFormulaConfigSlice:

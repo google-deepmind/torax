@@ -23,8 +23,8 @@ import jax.numpy as jnp
 import numpy as np
 from torax import config as config_lib
 from torax import config_slice
+from torax import core_profile_setters
 from torax import geometry
-from torax import initial_states
 from torax.sources import source as source_lib
 from torax.sources import source_config as source_config_lib
 from torax.sources import source_models as source_models_lib
@@ -103,7 +103,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     else:
       source_models = source_models_lib.SourceModels()
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -122,7 +122,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     """Tests that using unsupported types raises an error."""
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -157,7 +157,7 @@ class IonElSourceTestCase(SourceTestCase):
     self.assertIsInstance(source, source_lib.IonElectronSource)
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,
@@ -177,7 +177,7 @@ class IonElSourceTestCase(SourceTestCase):
     """Tests that using unsupported types raises an error."""
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,

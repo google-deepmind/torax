@@ -22,10 +22,10 @@ from typing import Callable
 
 import jax
 from torax import config_slice
+from torax import core_profile_setters
 from torax import fvm
 from torax import geometry
 from torax import state
-from torax import update_state
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.transport_model import transport_model as transport_model_lib
@@ -145,11 +145,13 @@ class Stepper(abc.ABC):
       core_transport = state.CoreTransport.zeros(geo)
       error = 0
 
-    core_profiles_t_plus_dt = update_state.update_core_profiles(
-        core_profiles_t_plus_dt,
-        x_new,
-        evolving_names,
-        dynamic_config_slice_t_plus_dt,
+    core_profiles_t_plus_dt = (
+        core_profile_setters.update_evolving_core_profiles(
+            core_profiles_t_plus_dt,
+            x_new,
+            evolving_names,
+            dynamic_config_slice_t_plus_dt,
+        )
     )
 
     return (

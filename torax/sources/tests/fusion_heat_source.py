@@ -21,7 +21,7 @@ from absl.testing import parameterized
 import numpy as np
 from torax import config_slice
 from torax import constants
-from torax import initial_states
+from torax import core_profile_setters
 from torax.sources import fusion_heat_source
 from torax.sources import source
 from torax.sources import source_config
@@ -61,7 +61,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     geo = references.geo
     nref = config.nref
 
-    core_profiles = initial_states.initial_core_profiles(
+    core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
         geo=geo,

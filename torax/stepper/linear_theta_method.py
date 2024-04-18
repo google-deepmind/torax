@@ -67,6 +67,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
     # Instantiate coeffs_callback class
     coeffs_callback = self.callback_class(
         core_profiles_t=core_profiles_t,
+        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         evolving_names=evolving_names,
         geo=geo,
         static_config_slice=static_config_slice,

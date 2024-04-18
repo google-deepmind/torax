@@ -21,8 +21,8 @@ from jax import numpy as jnp
 import numpy as np
 from torax import config_slice
 from torax import constants
+from torax import core_profile_setters
 from torax import geometry
-from torax import initial_states
 from torax import physics
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
@@ -106,12 +106,12 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
 
     # pylint: disable=protected-access
     if isinstance(geo, geometry.CircularGeometry):
-      currents = initial_states._prescribe_currents_no_bootstrap(
+      currents = core_profile_setters._prescribe_currents_no_bootstrap(
           dynamic_config_slice,
           geo,
           source_models=source_models_lib.SourceModels(),
       )
-      psi = initial_states._update_psi_from_j(
+      psi = core_profile_setters._update_psi_from_j(
           dynamic_config_slice, geo, currents
       ).value
     elif isinstance(geo, geometry.CHEASEGeometry):
