@@ -200,9 +200,6 @@ def calc_jtot_from_psi(
   # pylint: disable=invalid-name
   I_tot = dpsi_dr * geo.G2_face / constants.CONSTANTS.mu0
 
-  # TODO flag to JAX team that jnp.gradient is not up-to-date,
-  # and should allow for non-uniform grid differentiation
-
   jtot_face = (
       2 * jnp.pi * geo.Rmaj * math_utils.gradient(I_tot, geo.volume_face)
   )

@@ -511,7 +511,7 @@ def _calc_coeffs_full(
   )
 
   if full_v_face_el is not None:
-    # TODO(b/323504363): Move this masking to the constant transport model.
+    # TODO(b/335593209): Move this masking to the constant transport model.
     full_v_face_el = jnp.where(
         jnp.logical_and(
             dynamic_config_slice.profile_conditions.set_pedestal,
@@ -549,7 +549,7 @@ def _calc_coeffs_full(
 
   # Pereverzev-Corrigan correction for heat and particle transport
   # (deals with stiff nonlinearity of transport coefficients)
-  # TODO( b/311653933) this forces us to include value 0
+  # TODO(b/311653933) this forces us to include value 0
   # convection terms in discrete system, slowing compilation down by ~10%.
   # See if can improve with a different pattern.
   (

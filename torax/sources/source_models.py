@@ -70,7 +70,7 @@ def build_source_profiles(
   """
   # Bootstrap current is a special-case source with multiple outputs, so handle
   # it here.
-  # TODO( b/314308399): Add a new neoclassical directory with
+  # TODO(b/314308399): Add a new neoclassical directory with
   # different ways to compute sigma and bootstrap current.
   bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_config_slice,
@@ -413,7 +413,7 @@ def calc_and_sum_sources_psi(
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Computes sum of psi sources for psi_dot calculation."""
 
-  # TODO(b/323504363): Revisit how to calculate this once we enable more
+  # TODO(b/335597108): Revisit how to calculate this once we enable more
   # expensive source functions that might not jittable (like file-based or
   # RPC-based sources).
   psi_profiles = _build_psi_profiles(

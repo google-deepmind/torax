@@ -270,7 +270,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
     # transport coefficients from the qlknn-hyper-10D model
     # (K.L. van de Plassche PoP 2020)
 
-    # TODO(b/323504363): make a unit test that tests this function directly
+    # TODO(b/335581689): make a unit test that tests this function directly
     # with set_pedestal = False. Currently this is tested only via
     # sim test7, which has set_pedestal=True. With set_pedestal=True,
     # mutants of Ati[-1], Ate[-1], An[-1] all affect only chi[-1], but

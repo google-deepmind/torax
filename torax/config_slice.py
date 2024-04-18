@@ -99,13 +99,13 @@ class DynamicConfigSlice:
   # (continuous pellet model)
   pellet_deposition_location: float
   # total pellet particles/s (continuous pellet model)
-  # TODO(b/323504363): improve numerical strategy, avoid these large numbers
+  # TODO(b/326578331): improve numerical strategy, avoid these large numbers
   S_pellet_tot: float
 
   # exponential decay length of gas puff ionization [normalized radial coord]
   puff_decay_length: float
   # total gas puff particles/s
-  # TODO(b/323504363): improve numerical strategy, avoid these large numbers
+  # TODO(b/326578331): improve numerical strategy, avoid these large numbers
   S_puff_tot: float
 
   # NBI particle source Gaussian width in normalized radial coord
@@ -412,7 +412,7 @@ class StaticConfigSlice:
   that can also trigger a recompile. This is just to note that this list is not
   an exhaustive list of what can cause recompilations.
 
-  TODO( b/312726008): Add function to help users detect whether their
+  TODO(b/335596447): Add function to help users detect whether their
   change in config will trigger a recompile.
   """
 

@@ -66,6 +66,7 @@ def cumulative_trapezoid(
   return out
 
 
+# TODO(b/335681410) extend jnp.gradient itself
 def gradient(y: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
   """Make effective jnp.gradient function, 2nd order like numpy.
 

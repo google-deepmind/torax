@@ -210,10 +210,10 @@ def update_sim(
   #  - transport model
   #  - spectator
   #  - time step calculator
-  # TODO(b/323504363): Add checks to make sure the SimulationStepFn can be reused
+  # TODO(b/335596447): Add checks to ensure that SimulationStepFn can be reused
   # correctly given the new config. If any of the attributes above change, then
   # ether raise an error or build a new SimulationStepFn (and notify the user).
-  # TODO(b/323504363): If the static slice is updated, add checks or logs
+  # TODO(b/335596447): If the static slice is updated, add checks or logs
   # notifying the user that using this new config will result in recompiling
   # the SimulationStepFn.
   static_config_slice = config_slice.build_static_config_slice(config)
@@ -237,7 +237,7 @@ def update_sim(
 
 
 def can_plot() -> bool:
-  # TODO(b/323504363): Find way to detect displays that works on all OS's.
+  # TODO(b/335596567): Find way to detect displays that works on all OS's.
   return True
 
 
@@ -307,9 +307,8 @@ def main(
   ds = simulation_output_to_xr(torax_outputs, geo)
 
   write_simulation_output_to_file(output_dir, ds)
-  # TODO(b/323504363): Add back functionality to write configs to file after
-  # running to help with keeping track of simulation runs. This may need to
-  # happen after we move to Fiddle.
+  # TODO(b/335596701): Add back functionality to write configs to file after
+  # running to help with keeping track of simulation runs.
 
   if log_sim_output:
     core_profile_history, _, _ = (

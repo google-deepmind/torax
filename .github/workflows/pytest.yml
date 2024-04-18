@@ -59,12 +59,12 @@ jobs:
 
     - run: pip --version
     - run: pip install -e .[dev]
-    # TODO(b/323504363): [dev] should install these
+    # TODO(b/326579500): [dev] should install these
     - run: pip install pytest pytest-xdist pytest-shard
     - run: pip freeze
 
     # Run tests (in parallel)
-    # TODO(b/323504363): tests should be discovered automatically
+    # TODO(b/326579500): tests should be discovered automatically
     - name: Run core tests
       run: |
         pytest \
@@ -98,18 +98,18 @@ jobs:
           -vv -n auto \
           --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
 
-    # # TODO(b/323504363): fix UnparsedFlagAccessError and run under pytest
+    # # TODO(b/326579500): fix UnparsedFlagAccessError and run under pytest
     # - name: "Run torax/tests/sim_custom_sources.py"
     #   run: python torax/tests/sim_custom_sources.py
 
-    # # TODO(b/323504363): fix UnparsedFlagAccessError and run under pytest
+    # # TODO(b/326579500): fix UnparsedFlagAccessError and run under pytest
     # - name: "Run torax/sources/tests/formulas.py"
     #   run: python torax/sources/tests/formulas.py
 
-    # # TODO(b/323504363): fix UnparsedFlagAccessError, pass env variable, and run under pytest
+    # # TODO(b/326579500): fix UnparsedFlagAccessError, pass env variable, and run under pytest
     # - name: "Run torax/tests/sim_no_compile.py"
     #   run: TORAX_COMPILATION_ENABLED=False python torax/tests/sim_no_compile.py
 
-    # # TODO(b/323504363): fix UnparsedFlagAccessError, parallelize, and run under pytest
+    # # TODO(b/326579500): fix UnparsedFlagAccessError, parallelize, and run under pytest
     # - name: "Run torax/tests/sim.py"
     #   run: python torax/tests/sim.py

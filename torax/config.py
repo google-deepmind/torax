@@ -305,7 +305,7 @@ class Numerics:
 
   # numerical (e.g. no. of grid points, other info needed by solver)
   # radial grid points (num cells)
-  nr: int = 25  # TODO( b/330172917): Move this to geometry.
+  nr: int = 25  # TODO(b/330172917): Move this to geometry.
   # effective source to dominate PDE in internal boundary condtion location
   # if T != Tped
   largeValue_T: float = 1.0e10
@@ -327,7 +327,7 @@ class Config:
   )
   numerics: Numerics = dataclasses.field(default_factory=Numerics)
 
-  # TODO( b/330172917): Move the source parameters into `sources`.
+  # TODO(b/330172917): Move the source parameters into `sources`.
 
   # density profile info
   # Reference value for normalization
@@ -348,13 +348,13 @@ class Config:
   # (continuous pellet model)
   pellet_deposition_location: TimeDependentField = 0.85
   # total pellet particles/s (continuous pellet model)
-  # TODO(b/323504363): improve numerical strategy, avoid these large numbers
+  # TODO(b/326578331): improve numerical strategy, avoid these large numbers
   S_pellet_tot: TimeDependentField = 2e22
 
   # exponential decay length of gas puff ionization [normalized radial coord]
   puff_decay_length: TimeDependentField = 0.05
   # total gas puff particles/s
-  # TODO(b/323504363): improve numerical strategy, avoid these large numbers
+  # TODO(b/326578331): improve numerical strategy, avoid these large numbers
   S_puff_tot: TimeDependentField = 1e22
 
   # NBI particle source Gaussian width in normalized radial coord
@@ -408,7 +408,7 @@ class Config:
 
   def sanity_check(self) -> None:
     """Checks that various configuration parameters are valid."""
-    # TODO do more extensive config parameter sanity checking
+    # TODO(b/330172917) do more extensive config parameter sanity checking
 
     # These are floats, not jax types, so we can use direct asserts.
     assert self.numerics.dtmult > 0.0

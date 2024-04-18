@@ -52,7 +52,7 @@ from torax.transport_model import transport_model as transport_model_lib
 from torax.transport_model import transport_model_factory
 
 
-# TODO standardize order of arguments passed to various functions
+# TODO(b/335598322) standardize order of arguments passed to various functions
 # throghout all of torax
 # e.g. in the physics module, the order is always:
 # config, geo, core_profiles, constants
@@ -257,7 +257,7 @@ class SimulationStepFn:
              warning. Occasional error=2 has low impact on final sim state.
     """
     dynamic_config_slice_t = dynamic_config_slice_provider(input_state.t)
-    # TODO(b/323504363): We call the transport model both here and in the the
+    # TODO(b/335598388): We call the transport model both here and in the the
     # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
     # calls fall within the same jit scope* because can use
     # functools.lru_cache to avoid building duplicate expressions for the same
@@ -304,7 +304,6 @@ class SimulationStepFn:
     # Construct the CoreProfiles object for time t+dt with evolving boundary
     # conditions and time-dependent prescribed profiles not directly solved by
     # PDE system.
-    # TODO( b/326579003)
     core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
         core_profiles_t=core_profiles_t,
         dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
@@ -448,7 +447,7 @@ def get_initial_state(
       # This will be overridden within run_simulation().
       core_sources=source_profiles_lib.SourceProfiles(
           profiles={},
-          # TODO( b/326588413): Move sigmaneo out of the source
+          # TODO(b/326588413): Move sigmaneo out of the source
           # profiles and into the core_profiles to match IMAS.
           j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
               geo
@@ -716,8 +715,6 @@ def build_sim_from_config(
   stepper = stepper_builder(transport_model, source_models)
 
   if time_step_calculator is None:
-    # TODO(b/323504363): Likely safe to calculate dt using max chi and not
-    # including d_face_el in max, but should be checked later.
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
 
   # build dynamic_config_slice at t_initial for initial conditions
@@ -855,8 +852,8 @@ def run_simulation(
     step_start_time = time.time()
     if log_timestep_info:
       _log_timestep(sim_state.t, sim_state.dt, sim_state.stepper_iterations)
-      # TODO(b/323504363): once tol and coarse_tol are configurable in the config,
-      # also log the value of tol and coarse_tol below
+      # TODO(b/330172917): once tol and coarse_tol are configurable in the
+      # config, also log the value of tol and coarse_tol below
       match stepper_error_state:
         case 0:
           pass
@@ -1004,7 +1001,7 @@ def _update_spectator(
   spectator.observe(
       key='chi_face_el', data=output_state.core_transport.chi_face_el
   )
-  # TODO( b/326588413): Make this more flexible to different source
+  # TODO(b/326588413): Make this more flexible to different source
   # names. Potentially spectate all sources?
   spectator.observe(
       key='source_ion',

@@ -42,7 +42,7 @@ AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 InitialGuessMode = fvm.InitialGuessMode
 
-# TODO( b/330172917)
+# TODO(b/330172917) allow these variables to be set in config
 INITIAL_GUESS_MODE = InitialGuessMode.LINEAR
 MAXITER = 30
 TOL = 1e-5
@@ -417,7 +417,7 @@ def delta_cond(
   residual_scalar_x_old = residual_scalar(residual_vec_x_old)
   # Avoid sanity checking inside residual, since we directly
   # afterwards check sanity on the output (NaN checking)
-  # // TODO(b/323504363): b/312453092 - consider instead sanity-checking x_new
+  # TODO(b/312453092) consider instead sanity-checking x_new
   with jax_utils.enable_errors(False):
     residual_vec_x_new, _ = residual_fun(x_new)
     residual_scalar_x_new = residual_scalar(residual_vec_x_new)

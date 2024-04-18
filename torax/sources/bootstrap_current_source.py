@@ -81,13 +81,10 @@ def calc_neoclassical(
 
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + dynamic_config_slice.plasma_composition.Zeff)
-  # TODO(b/323504363): should we expand the log to get rid of the exponentiation,
-  # sqrt, etc? ne.value * dynamic_config_slice.nref is large, it might be
-  # advantages to avoid calculating it explicitly.
-  #
-  # note for later: ne
+  # TODO(b/335599537): expand the log to get rid of the exponentiation,
+  # sqrt, etc.
   lnLame = 31.3 - jnp.log(jnp.sqrt(true_ne_face) / (temp_el.face_value() * 1e3))
-  # note for later: ni
+  # TODO(b/335599537) use ni instead of ne
   lnLami = 30 - jnp.log(
       dynamic_config_slice.plasma_composition.Zi**3
       * jnp.sqrt(true_ne_face)
@@ -296,14 +293,14 @@ def calc_neoclassical(
   )
 
 
-# TODO( b/314308399): Remove this as a source and create a
+# TODO(b/314308399): Remove this as a source and create a
 # Neoclassical class which will compute sigmaneo, j_bootstrap, etc.
 
 
 def _default_output_shapes(
     unused_config, geo, unused_core_profiles
 ) -> tuple[int, int, int, int]:
-  # TODO( b/314308399): When refactoring neoclassical "sources",
+  # TODO(b/314308399): When refactoring neoclassical "sources",
   # revisit what we actually need to return here.
   return (
       source.ProfileType.CELL.get_profile_shape(geo)  # sigmaneo

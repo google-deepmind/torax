@@ -449,7 +449,7 @@ def build_chease_geometry(
       file_path=os.path.join(geometry_dir, geometry_file)
   )
 
-  # TODO( b/326406367): incorporate time dependent geometry
+  # TODO(b/326406367): incorporate time dependent geometry
   # build t_initial config_slice
   dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
 
@@ -530,7 +530,7 @@ def build_chease_geometry(
   else:
     # This overwrites the config.profile_conditions.Ip, even if it's time
     # dependent, to be consistent with the geometry file being processed.
-    # TODO( b/326406367): Do not rely on writing back to the config to
+    # TODO(b/326406367): Do not rely on writing back to the config to
     # make this work. We should not rely on the geometry being computed for the
     # config to have the correct Ip.
     config.profile_conditions.Ip = Ip_chease[-1] / 1e6
