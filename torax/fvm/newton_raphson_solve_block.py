@@ -333,7 +333,10 @@ def residual_scalar(x):
 
 
 def cond(
-    state: dict[str, jax.Array], tol: float, tau_min: float, maxiter: int
+    state: dict[str, jax.Array],
+    tau_min: float,
+    maxiter: int,
+    tol: float,
 ) -> bool:
   """Check if exit condition reached for Newton-Raphson iterations."""
   iteration = state['iterations'][...]
