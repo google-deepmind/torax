@@ -201,16 +201,18 @@ class CoreTransport:
 class ToraxSimState:
   """Full simulator state.
 
-  The simulation stepping in sim.py evolves the "mesh state" which includes all
+  The simulation stepping in sim.py evolves core_profiles which includes all
   the attributes the simulation is advancing. But beyond those, there are
-  additional stateful elements which evolve on each simulation step.
+  additional stateful elements which may evolve on each simulation step, such
+  as sources and transport.
 
-  This class includes both the mesh state and these additional elements.
+  This class includes both core_profiles and these additional elements.
 
   Attributes:
     t: time coordinate
     dt: timestep interval
     core_profiles: Core plasma profiles at time t.
+    core_transport: Core plasma transport coefficients computed at time t.
     core_sources: Profiles for all sources/sinks. For any state-dependent source
       models, the profiles in this dataclass are computed based on the core
       profiles at time t, almost. When running `sim.run_simulation()`, any
@@ -221,7 +223,6 @@ class ToraxSimState:
       at time t, but is not guaranteed to be. In case exact source profiles are
       required for each time step, they must be recomputed manually after
       running `run_simulation()`.
-    core_transport: Core plasma transport coefficients computed at time t.
     stepper_iterations: number of stepper iterations carried out in previous
       step, i.e. the number of times dt was reduced when using the adaptive dt
       method.
@@ -236,8 +237,8 @@ class ToraxSimState:
 
   # Profiles evolved or calculated by the simulation.
   core_profiles: CoreProfiles
-  core_sources: source_profiles.SourceProfiles
   core_transport: CoreTransport
+  core_sources: source_profiles.SourceProfiles
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.

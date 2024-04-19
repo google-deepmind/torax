@@ -58,10 +58,10 @@ def update_jtot_q_face_s_face(
       core_profiles.psi,
   )
   q_face, _ = calc_q_from_jtot_psi(
-      geo,
-      jtot_face,
-      core_profiles.psi,
-      q_correction_factor,
+      geo=geo,
+      psi=core_profiles.psi,
+      jtot_face=jtot_face,
+      q_correction_factor=q_correction_factor,
   )
   s_face = calc_s_from_psi(
       geo,
@@ -137,8 +137,8 @@ def internal_boundary(
 
 def calc_q_from_jtot_psi(
     geo: Geometry,
-    jtot_face: jax.Array,
     psi: cell_variable.CellVariable,
+    jtot_face: jax.Array,
     q_correction_factor: float,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Calculates q given jtot and psi.
@@ -149,8 +149,8 @@ def calc_q_from_jtot_psi(
 
   Args:
     geo: Magnetic geometry.
-    jtot_face: Total toroidal current density on face grid.
     psi: Poloidal flux.
+    jtot_face: Total toroidal current density on face grid.
     q_correction_factor: ad-hoc fix for non-physical circular geometry model
       such that q(r=a) = 3 for standard ITER parameters;
 

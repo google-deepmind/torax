@@ -49,8 +49,8 @@ class QeiSourceTest(test_lib.SourceTestCase):
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         geo=geo,
         source_models=source_models_lib.SourceModels(qei_source=source),
     )
@@ -59,8 +59,8 @@ class QeiSourceTest(test_lib.SourceTestCase):
     static_slice = config_slice.build_static_config_slice(config)
     qei = source.get_qei(
         dynamic_slice.sources[source.name].source_type,
-        dynamic_slice,
         static_slice,
+        dynamic_slice,
         geo,
         core_profiles,
     )
@@ -71,8 +71,8 @@ class QeiSourceTest(test_lib.SourceTestCase):
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         geo=geo,
         source_models=source_models_lib.SourceModels(qei_source=source),
     )
@@ -83,8 +83,8 @@ class QeiSourceTest(test_lib.SourceTestCase):
         with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
           source.get_qei(
               unsupported_type.value,
-              dynamic_slice,
               static_slice,
+              dynamic_slice,
               geo,
               core_profiles,
           )

@@ -198,14 +198,14 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
   ):
     """Runs sim with new dynamic config and checks the profiles vs. expected."""
     torax_outputs = sim_lib.run_simulation(
-        initial_state=sim.initial_state,
-        step_fn=sim.step_fn,
-        geometry_provider=sim.geometry_provider,
+        static_config_slice=sim.static_config_slice,
         dynamic_config_slice_provider=(
             config_slice.TimeDependentDynamicConfigSliceProvider(config)
         ),
-        static_config_slice=sim.static_config_slice,
+        geometry_provider=sim.geometry_provider,
+        initial_state=sim.initial_state,
         time_step_calculator=sim.time_step_calculator,
+        step_fn=sim.step_fn,
     )
     state_history, _, _ = state_lib.build_history_from_states(torax_outputs)
     t = state_lib.build_time_history_from_states(torax_outputs)

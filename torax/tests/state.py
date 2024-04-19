@@ -45,8 +45,8 @@ class StateTest(torax_refs.ReferenceValueTest):
 
       def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
         core_profiles = core_profile_setters.initial_core_profiles(
-            config_slice.build_dynamic_config_slice(config),
             config_slice.build_static_config_slice(config),
+            config_slice.build_dynamic_config_slice(config),
             geo,
         )
         # Make one variable in the history track the value of the counter
@@ -83,8 +83,8 @@ class StateTest(torax_refs.ReferenceValueTest):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
     basic_core_profiles = core_profile_setters.initial_core_profiles(
-        config_slice.build_dynamic_config_slice(references.config),
         config_slice.build_static_config_slice(references.config),
+        config_slice.build_dynamic_config_slice(references.config),
         references.geo,
     )
     basic_core_profiles.sanity_check()
@@ -151,8 +151,8 @@ class InitialStatesTest(parameterized.TestCase):
         ),
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        config_slice.build_dynamic_config_slice(config),
         config_slice.build_static_config_slice(config),
+        config_slice.build_dynamic_config_slice(config),
         geometry.build_circular_geometry(config),
     )
     np.testing.assert_allclose(
@@ -208,23 +208,23 @@ class InitialStatesTest(parameterized.TestCase):
     )
     geo = geo_builder(config1)
     core_profiles1 = core_profile_setters.initial_core_profiles(
-        config_slice.build_dynamic_config_slice(config1),
         config_slice.build_static_config_slice(config1),
+        config_slice.build_dynamic_config_slice(config1),
         geo=geo,
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
-        config_slice.build_dynamic_config_slice(config2),
         config_slice.build_static_config_slice(config2),
+        config_slice.build_dynamic_config_slice(config2),
         geo=geo,
     )
     core_profiles3 = core_profile_setters.initial_core_profiles(
-        config_slice.build_dynamic_config_slice(config3),
         config_slice.build_static_config_slice(config3),
+        config_slice.build_dynamic_config_slice(config3),
         geo=geo,
     )
     core_profiles3_helper = core_profile_setters.initial_core_profiles(
-        config_slice.build_dynamic_config_slice(config3_helper),
         config_slice.build_static_config_slice(config3_helper),
+        config_slice.build_dynamic_config_slice(config3_helper),
         geo=geo,
     )
 
@@ -300,13 +300,13 @@ class InitialStatesTest(parameterized.TestCase):
         initial_psi_from_j=True,
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
-        config_slice.build_dynamic_config_slice(config1),
         config_slice.build_static_config_slice(config1),
+        config_slice.build_dynamic_config_slice(config1),
         geometry.build_circular_geometry(config1),
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
-        config_slice.build_dynamic_config_slice(config2),
         config_slice.build_static_config_slice(config2),
+        config_slice.build_dynamic_config_slice(config2),
         geometry.build_circular_geometry(config2),
     )
     np.testing.assert_allclose(

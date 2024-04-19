@@ -54,13 +54,13 @@ class Stepper(abc.ABC):
 
   def __call__(
       self,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
-      geo: geometry.Geometry,
+      dt: jax.Array,
+      static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dt: jax.Array,
+      geo: geometry.Geometry,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       state.CoreProfiles,
@@ -71,21 +71,21 @@ class Stepper(abc.ABC):
     """Applies a time step update.
 
     Args:
-      core_profiles_t: Core plasma profiles at the beginning of the time step.
-      core_profiles_t_plus_dt: Core plasma profiles which contain all available
-        prescribed quantities at the end of the time step. This includes
-        evolving boundary conditions and prescribed time-dependent profiles that
-        are not being evolved by the PDE system.
-      geo: Geometry of the torus.
+      dt: Time step duration.
+      static_config_slice: Input params that trigger recompilation when they
+        change. These don't have to be JAX-friendly types and can be used in
+        control-flow logic.
       dynamic_config_slice_t: Runtime configuration for time t (the start time
         of the step). These config params can change from step to step without
         triggering a recompilation.
       dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt,
         used for implicit calculations in the solver.
-      static_config_slice: Input params that trigger recompilation when they
-        change. These don't have to be JAX-friendly types and can be used in
-        control-flow logic.
-      dt: Time step duration.
+      geo: Geometry of the torus.
+      core_profiles_t: Core plasma profiles at the beginning of the time step.
+      core_profiles_t_plus_dt: Core plasma profiles which contain all available
+        prescribed quantities at the end of the time step. This includes
+        evolving boundary conditions and prescribed time-dependent profiles that
+        are not being evolved by the PDE system.
       explicit_source_profiles: Source profiles of all explicit sources (as
         configured by the input config). All implicit source's profiles will be
         set to 0 in this object. These explicit source profiles were calculated
@@ -125,15 +125,15 @@ class Stepper(abc.ABC):
     # Don't call solver functions on an empty list
     if evolving_names:
       x_new, core_sources, core_transport, error = self._x_new(
-          core_profiles_t=core_profiles_t,
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          evolving_names=evolving_names,
-          geo=geo,
+          dt=dt,
+          static_config_slice=static_config_slice,
           dynamic_config_slice_t=dynamic_config_slice_t,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-          static_config_slice=static_config_slice,
-          dt=dt,
+          geo=geo,
+          core_profiles_t=core_profiles_t,
+          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
+          evolving_names=evolving_names,
       )
     else:
       x_new = tuple()
@@ -147,10 +147,10 @@ class Stepper(abc.ABC):
 
     core_profiles_t_plus_dt = (
         core_profile_setters.update_evolving_core_profiles(
-            core_profiles_t_plus_dt,
             x_new,
-            evolving_names,
             dynamic_config_slice_t_plus_dt,
+            core_profiles_t_plus_dt,
+            evolving_names,
         )
     )
 
@@ -163,15 +163,15 @@ class Stepper(abc.ABC):
 
   def _x_new(
       self,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
-      evolving_names: tuple[str, ...],
-      geo: geometry.Geometry,
+      dt: jax.Array,
+      static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dt: jax.Array,
+      geo: geometry.Geometry,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[fvm.CellVariable, ...],
       source_profiles.SourceProfiles,
@@ -184,23 +184,23 @@ class Stepper(abc.ABC):
     will work, or implement a different `__call__`.
 
     Args:
-      core_profiles_t: Core plasma profiles at the beginning of the time step.
-      core_profiles_t_plus_dt: Core plasma profiles which contain all available
-        prescribed quantities at the end of the time step. This includes
-        evolving boundary conditions and prescribed time-dependent profiles that
-        are not being evolved by the PDE system.
-      evolving_names: The names of core_profiles variables that should evolve.
-      geo: Geometry of the torus.
+      dt: Time step duration.
+      static_config_slice: Input params that trigger recompilation when they
+        change. These don't have to be JAX-friendly types and can be used in
+        control-flow logic.
       dynamic_config_slice_t: Runtime configuration for time t (the start time
         of the step). These config params can change from step to step without
         triggering a recompilation.
       dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt,
         used for implicit calculations in the solver.
-      static_config_slice: Input params that trigger recompilation when they
-        change. These don't have to be JAX-friendly types and can be used in
-        control-flow logic.
-      dt: Time step duration.
+      geo: Geometry of the torus.
+      core_profiles_t: Core plasma profiles at the beginning of the time step.
+      core_profiles_t_plus_dt: Core plasma profiles which contain all available
+        prescribed quantities at the end of the time step. This includes
+        evolving boundary conditions and prescribed time-dependent profiles that
+        are not being evolved by the PDE system.
       explicit_source_profiles: see the docstring of __call__
+      evolving_names: The names of core_profiles variables that should evolve.
 
     Returns:
       x_new: The values of the evolving variables at time t + dt.

@@ -49,13 +49,13 @@ class ExplicitStepper(stepper_lib.Stepper):
 
   def __call__(
       self,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
-      geo: geometry.Geometry,
+      dt: jax.Array,
+      static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dt: jax.Array,
+      geo: geometry.Geometry,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       state.CoreProfiles,
@@ -101,7 +101,9 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     # Source term
     c += source_models.sum_sources_temp_ion(
-        self.source_models, explicit_source_profiles, geo
+        geo,
+        explicit_source_profiles,
+        self.source_models,
     )
 
     temp_ion_new = (
@@ -123,8 +125,8 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     q_face, _ = physics.calc_q_from_jtot_psi(
         geo=geo,
-        jtot_face=core_profiles_t.currents.jtot,
         psi=core_profiles_t.psi,
+        jtot_face=core_profiles_t.currents.jtot,
         q_correction_factor=dynamic_config_slice_t.numerics.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, core_profiles_t.psi)
@@ -142,9 +144,9 @@ class ExplicitStepper(stepper_lib.Stepper):
             s_face=s_face,
         ),
         source_models.build_all_zero_profiles(
-            source_models=self.source_models,
             dynamic_config_slice=dynamic_config_slice_t,
             geo=geo,
+            source_models=self.source_models,
         ),
         state.CoreTransport.zeros(geo),
         error,

@@ -82,17 +82,17 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         config.numerics.t_initial
     )
     input_state = sim_lib.get_initial_state(
-        dynamic_config_slice=initial_dynamic_config_slice,
         static_config_slice=config_slice.build_static_config_slice(config),
+        dynamic_config_slice=initial_dynamic_config_slice,
         geo=geo,
         time_step_calculator=time_calculator,
         source_models=source_models,
     )
     output_state = sim_step_fn(
-        input_state=input_state,
-        geo=geo,
-        dynamic_config_slice_provider=dynamic_config_slice_provider,
         static_config_slice=config_slice.build_static_config_slice(config),
+        dynamic_config_slice_provider=dynamic_config_slice_provider,
+        geo=geo,
+        input_state=input_state,
         explicit_source_profiles=source_models_lib.build_source_profiles(
             source_models=source_models,
             dynamic_config_slice=initial_dynamic_config_slice,
@@ -140,13 +140,13 @@ class FakeStepper(stepper_lib.Stepper):
 
   def __call__(
       self,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
-      geo: geometry.Geometry,
+      dt: jax.Array,
+      static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dt: jax.Array,
+      geo: geometry.Geometry,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
   ) -> tuple[
       state.CoreProfiles,
@@ -162,9 +162,9 @@ class FakeStepper(stepper_lib.Stepper):
     )
     # Use Qei as a hacky way to extract what the combined value was.
     core_sources = source_models_lib.build_all_zero_profiles(
-        source_models=self.source_models,
         dynamic_config_slice=dynamic_config_slice_t,
         geo=geo,
+        source_models=self.source_models,
     )
     core_sources = dataclasses.replace(
         core_sources,

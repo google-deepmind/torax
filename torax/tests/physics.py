@@ -51,8 +51,8 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
 
     q_face_jax, q_cell_jax = physics.calc_q_from_jtot_psi(
         geo,
-        jtot,
         references.psi,
+        jtot,
         dynamic_config_slice.numerics.q_correction_factor,
     )
 

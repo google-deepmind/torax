@@ -166,8 +166,8 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
     sim_states = sim_lib.run_simulation(
         initial_state=sim_lib.get_initial_state(
-            dynamic_config_slice=initial_dcs,
             static_config_slice=static_config_slice,
+            dynamic_config_slice=initial_dcs,
             geo=geo,
             time_step_calculator=time_stepper,
             source_models=source_models,
@@ -275,10 +275,10 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
 
   def __call__(
       self,
-      input_state: state_module.ToraxSimState,
-      geo: geometry.Geometry,
-      dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
       static_config_slice: config_slice.StaticConfigSlice,
+      dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
+      geo: geometry.Geometry,
+      input_state: state_module.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state_module.ToraxSimState:
     dt, ts_state = self._time_step_calculator.next_dt(
@@ -296,10 +296,10 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
         time_step_calculator_state=ts_state,
         # The returned source profiles include only the implicit sources.
         core_sources=source_models_lib.build_source_profiles(
-            source_models=self.stepper.source_models,
             dynamic_config_slice=dynamic_config_slice_provider(new_t),
             geo=geo,
             core_profiles=input_state.core_profiles,  # no state evolution.
+            source_models=self.stepper.source_models,
             explicit=False,
         ),
     )

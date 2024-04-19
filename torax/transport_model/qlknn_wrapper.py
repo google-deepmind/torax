@@ -309,10 +309,10 @@ class QLKNNTransportModel(transport_model.TransportModel):
     # always stable at r=0 due to the zero gradient boundary conditions.
 
     q, _ = physics.calc_q_from_jtot_psi(
-        geo,
-        core_profiles.currents.jtot_face,
-        core_profiles.psi,
-        runtime_config_inputs.q_correction_factor,
+        geo=geo,
+        psi=core_profiles.psi,
+        jtot_face=core_profiles.currents.jtot_face,
+        q_correction_factor=runtime_config_inputs.q_correction_factor,
     )
     smag = physics.calc_s_from_psi(
         geo,

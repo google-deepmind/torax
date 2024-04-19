@@ -39,8 +39,8 @@ Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 
 
 def calc_c(
-    coeffs: Block1DCoeffs,
     x: tuple[cell_variable.CellVariable, ...],
+    coeffs: Block1DCoeffs,
     convection_dirichlet_mode: str = 'ghost',
     convection_neumann_mode: str = 'ghost',
 ) -> tuple[jax.Array, jax.Array]:
@@ -50,9 +50,9 @@ def calc_c(
   more detail.
 
   Args:
-    coeffs: Coefficients defining the differential equation.
     x: Tuple containing CellVariables for each channel. This function uses only
       their shape and their boundary conditions, not their values.
+    coeffs: Coefficients defining the differential equation.
     convection_dirichlet_mode: See docstring of the `convection_terms` function,
       `dirichlet_mode` argument.
     convection_neumann_mode: See docstring of the `convection_terms` function,

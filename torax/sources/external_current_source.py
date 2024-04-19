@@ -44,14 +44,14 @@ def calculate_Iext(  # pylint: disable=invalid-name
 
 
 def calculate_jext_face(
-    geo: geometry.Geometry,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
+    geo: geometry.Geometry,
 ) -> jnp.ndarray:
   """Calculates the external current density profiles.
 
   Args:
+    dynamic_config_slice: Parameter configuration at present timestep.
     geo: Tokamak geometry.
-    dynamic_config_slice: Parameter configuration at present timesteap.
 
   Returns:
     External current density profile along the face grid.
@@ -72,14 +72,14 @@ def calculate_jext_face(
 
 
 def calculate_jext_hires(
-    geo: geometry.Geometry,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
+    geo: geometry.Geometry,
 ) -> jnp.ndarray:
   """Calculates the external current density profile along the hires grid.
 
   Args:
+    dynamic_config_slice: Parameter configuration at present timestep.
     geo: Tokamak geometry.
-    dynamic_config_slice: Parameter configuration at present timesteap.
 
   Returns:
     External current density profile along the hires cell grid.
@@ -138,8 +138,8 @@ class ExternalCurrentSource(source.Source):
             lambda _0, _1, _2: source.ProfileType.FACE.get_zero_profile(geo)
         ),
         formula=lambda dcs, g, _: calculate_jext_face(
-            g,
             dcs,
+            g,
         ),
         output_shape=source.ProfileType.FACE.get_profile_shape(geo),
     )
@@ -161,8 +161,8 @@ class ExternalCurrentSource(source.Source):
         # There is no model for this source.
         model_func=(lambda _0, _1, _2: jnp.zeros_like(geo.r_hires_norm)),
         formula=lambda dcs, g, _: calculate_jext_hires(
-            g,
             dcs,
+            g,
         ),
         output_shape=geo.r_hires_norm.shape,
     )

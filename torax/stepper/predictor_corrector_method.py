@@ -28,29 +28,29 @@ from torax.fvm import implicit_solve_block
 
 
 def predictor_corrector_method(
+    dt: jax.Array,
+    static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    x_old: tuple[fvm.CellVariable, ...],
     init_val: tuple[
         tuple[fvm.CellVariable, ...], chex.ArrayTree
     ],
-    x_old: tuple[fvm.CellVariable, ...],
-    dt: jax.Array,
     coeffs_exp: fvm.block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: fvm.block_1d_coeffs.Block1DCoeffsCallback,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-    static_config_slice: config_slice.StaticConfigSlice,
 ) -> tuple[tuple[fvm.CellVariable, ...], Any]:
   """Predictor-corrector method.
 
   Args:
-    init_val: Initial guess for the predictor corrector output.
-    x_old: Tuple of CellVariables correspond to the evolving core profiles at
-      time t.
     dt: current timestep
-    coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep
-    coeffs_callback: coefficient callback function
-    dynamic_config_slice_t_plus_dt: Dynamic config parameters corresponding to
-      the next time step, needed for the implicit PDE coefficients
     static_config_slice: General input parameters which are fixed through a
       simulation run, and if changed, would trigger a recompile.
+    dynamic_config_slice_t_plus_dt: Dynamic config parameters corresponding to
+      the next time step, needed for the implicit PDE coefficients
+    x_old: Tuple of CellVariables correspond to the evolving core profiles at
+      time t.
+    init_val: Initial guess for the predictor corrector output.
+    coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep
+    coeffs_callback: coefficient callback function
 
   Returns:
     x_new: Solution of evolving core profile state variables
@@ -64,15 +64,15 @@ def predictor_corrector_method(
     x_new_guess = val[0]
 
     coeffs_new = coeffs_callback(
-        x_new_guess,
         dynamic_config_slice_t_plus_dt,
+        x_new_guess,
         allow_pereverzev=True,
     )
 
     x_new = implicit_solve_block.implicit_solve_block(
+        dt=dt,
         x_old=x_old,
         x_new_guess=x_new_guess,
-        dt=dt,
         coeffs_old=coeffs_exp,
         coeffs_new=coeffs_new,
         theta_imp=static_config_slice.solver.theta_imp,

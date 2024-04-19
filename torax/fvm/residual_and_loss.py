@@ -52,9 +52,9 @@ Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
     ],
 )
 def theta_method_matrix_equation(
-    x_new_guess: tuple[cell_variable.CellVariable, ...],
-    x_old: tuple[cell_variable.CellVariable, ...],
     dt: jax.Array,
+    x_old: tuple[cell_variable.CellVariable, ...],
+    x_new_guess: tuple[cell_variable.CellVariable, ...],
     coeffs_old: Block1DCoeffs,
     coeffs_new: Block1DCoeffs,
     theta_imp: float = 1.0,
@@ -110,9 +110,9 @@ def theta_method_matrix_equation(
   ```
 
   Args:
-    x_new_guess: Current guess of x_new defined as a tuple of CellVariables.
-    x_old: The starting x defined as a tuple of CellVariables.
     dt: Time step duration.
+    x_old: The starting x defined as a tuple of CellVariables.
+    x_new_guess: Current guess of x_new defined as a tuple of CellVariables.
     coeffs_old: The coefficients calculated at x_old.
     coeffs_new: The coefficients calculated at x_new.
     theta_imp: Coefficient on implicit term of theta method.
@@ -156,8 +156,8 @@ def theta_method_matrix_equation(
   right_transient = jnp.diag(jnp.squeeze(tc_in_old / tc_in_new))
 
   c_mat_new, c_new = discrete_system.calc_c(
-      coeffs_new,
       x_new_guess,
+      coeffs_new,
       convection_dirichlet_mode,
       convection_neumann_mode,
   )
@@ -175,8 +175,8 @@ def theta_method_matrix_equation(
         msg='tc_out_old*tc_in_new unexpectedly < eps',
     )
     c_mat_old, c_old = discrete_system.calc_c(
-        coeffs_old,
         x_old,
+        coeffs_old,
         convection_dirichlet_mode,
         convection_neumann_mode,
     )
@@ -194,39 +194,31 @@ def theta_method_matrix_equation(
     jax_utils.jit,
     static_argnames=[
         'static_config_slice',
-        'evolving_names',
         'transport_model',
         'source_models',
+        'evolving_names',
     ],
 )
 def theta_method_block_residual(
     x_new_guess_vec: jax.Array,
+    dt: jax.Array,
+    static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    geo: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
-    evolving_names: tuple[str, ...],
-    geo: geometry.Geometry,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-    static_config_slice: config_slice.StaticConfigSlice,
-    dt: jax.Array,
-    coeffs_old: Block1DCoeffs,
     transport_model: transport_model_lib.TransportModel,
-    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    source_models: source_models_lib.SourceModels,
+    coeffs_old: Block1DCoeffs,
+    evolving_names: tuple[str, ...],
 ) -> tuple[jax.Array, AuxiliaryOutput]:
   """Residual of theta-method equation for core profiles at next time-step.
 
   Args:
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
-    x_old: The starting x defined as a tuple of CellVariables.
-    core_profiles_t_plus_dt: Core plasma profiles which contain all available
-      prescribed quantities at the end of the time step. This includes evolving
-      boundary conditions and prescribed time-dependent profiles that are not
-      being evolved by the PDE system.
-    evolving_names: The names of variables within the core profiles that should
-      evolve.
-    geo: Geometry object.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    dt: Time step duration.
     static_config_slice: Static runtime configuration. Changes to these config
       params will trigger recompilation. A key parameter in static_config slice
       is theta_imp, a coefficient in [0, 1] determining which solution method to
@@ -235,13 +227,21 @@ def theta_method_block_residual(
       solution methods: theta_imp = 1: Backward Euler implicit method (default).
       theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
       method.
-    dt: Time step duration.
-    coeffs_old: The coefficients calculated at x_old.
+    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    geo: Geometry object.
+    x_old: The starting x defined as a tuple of CellVariables.
+    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+      prescribed quantities at the end of the time step. This includes evolving
+      boundary conditions and prescribed time-dependent profiles that are not
+      being evolved by the PDE system.
     transport_model: Turbulent transport model callable.
-    source_models: Collection of source callables to generate source PDE
-      coefficients.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
+    source_models: Collection of source callables to generate source PDE
+      coefficients.
+    coeffs_old: The coefficients calculated at x_old.
+    evolving_names: The names of variables within the core profiles that should
+      evolve.
 
   Returns:
     residual: Vector residual between LHS and RHS of the theta method equation.
@@ -253,27 +253,27 @@ def theta_method_block_residual(
       x_new_guess_vec, core_profiles_t_plus_dt, evolving_names
   )
   core_profiles_t_plus_dt = core_profile_setters.update_evolving_core_profiles(
-      core_profiles_t_plus_dt,
       x_new_guess,
-      evolving_names,
       dynamic_config_slice_t_plus_dt,
+      core_profiles_t_plus_dt,
+      evolving_names,
   )
   coeffs_new = calc_coeffs.calc_coeffs(
-      core_profiles=core_profiles_t_plus_dt,
-      evolving_names=evolving_names,
-      geo=geo,
-      dynamic_config_slice=dynamic_config_slice_t_plus_dt,
       static_config_slice=static_config_slice,
+      dynamic_config_slice=dynamic_config_slice_t_plus_dt,
+      geo=geo,
+      core_profiles=core_profiles_t_plus_dt,
       transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
       source_models=source_models,
+      evolving_names=evolving_names,
       use_pereverzev=False,
   )
 
   lhs_mat, lhs_vec, rhs_mat, rhs_vec = theta_method_matrix_equation(
-      x_new_guess=x_new_guess,
-      x_old=x_old,
       dt=dt,
+      x_old=x_old,
+      x_new_guess=x_new_guess,
       coeffs_old=coeffs_old,
       coeffs_new=coeffs_new,
       theta_imp=static_config_slice.solver.theta_imp,
@@ -295,9 +295,9 @@ theta_method_block_jacobian = jax_utils.jit(
     theta_method_block_jacobian,
     static_argnames=[
         'static_config_slice',
-        'evolving_names',
         'transport_model',
         'source_models',
+        'evolving_names',
     ],
 )
 
@@ -306,39 +306,31 @@ theta_method_block_jacobian = jax_utils.jit(
     jax_utils.jit,
     static_argnames=[
         'static_config_slice',
-        'evolving_names',
         'transport_model',
         'source_models',
+        'evolving_names',
     ],
 )
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,
+    dt: jax.Array,
+    static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    geo: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
-    evolving_names: tuple[str, ...],
-    geo: geometry.Geometry,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-    static_config_slice: config_slice.StaticConfigSlice,
-    dt: jax.Array,
-    coeffs_old: Block1DCoeffs,
     transport_model: transport_model_lib.TransportModel,
-    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    source_models: source_models_lib.SourceModels,
+    coeffs_old: Block1DCoeffs,
+    evolving_names: tuple[str, ...],
 ) -> tuple[jax.Array, AuxiliaryOutput]:
   """Loss for the optimizer method of nonlinear solution.
 
   Args:
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
-    x_old: The starting x defined as a tuple of CellVariables.
-    core_profiles_t_plus_dt: Core plasma profiles which contain all available
-      prescribed quantities at the end of the time step. This includes evolving
-      boundary conditions and prescribed time-dependent profiles that are not
-      being evolved by the PDE system.
-    evolving_names: The names of variables within the core profiles that should
-      evolve.
-    geo: geometry object
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    dt: Time step duration.
     static_config_slice: Static runtime configuration. Changes to these config
       params will trigger recompilation. A key parameter in static_config slice
       is theta_imp, a coefficient in [0, 1] determining which solution method to
@@ -347,31 +339,39 @@ def theta_method_block_loss(
       solution methods: theta_imp = 1: Backward Euler implicit method (default).
       theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
       method.
-    dt: Time step duration.
-    coeffs_old: The coefficients calculated at x_old.
+    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    geo: geometry object
+    x_old: The starting x defined as a tuple of CellVariables.
+    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+      prescribed quantities at the end of the time step. This includes evolving
+      boundary conditions and prescribed time-dependent profiles that are not
+      being evolved by the PDE system.
     transport_model: turbulent transport model callable
-    source_models: Collection of source callables to generate source PDE
-      coefficients.
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE
+    source_models: Collection of source callables to generate source PDE
+      coefficients.
+    coeffs_old: The coefficients calculated at x_old.
+    evolving_names: The names of variables within the core profiles that should
+      evolve.
 
   Returns:
     loss: mean squared loss of theta method residual.
   """
 
   residual, aux_output = theta_method_block_residual(
-      x_new_guess_vec=x_new_guess_vec,
-      x_old=x_old,
-      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      evolving_names=evolving_names,
-      geo=geo,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-      static_config_slice=static_config_slice,
       dt=dt,
-      coeffs_old=coeffs_old,
+      static_config_slice=static_config_slice,
+      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      geo=geo,
+      x_old=x_old,
+      x_new_guess_vec=x_new_guess_vec,
+      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       transport_model=transport_model,
-      source_models=source_models,
       explicit_source_profiles=explicit_source_profiles,
+      source_models=source_models,
+      coeffs_old=coeffs_old,
+      evolving_names=evolving_names,
   )
   loss = jnp.mean(jnp.square(residual))
   return loss, aux_output
@@ -381,41 +381,31 @@ def theta_method_block_loss(
     jax_utils.jit,
     static_argnames=[
         'static_config_slice',
-        'evolving_names',
         'transport_model',
         'source_models',
+        'evolving_names',
     ],
 )
 def jaxopt_solver(
-    init_x_new_vec: jax.Array,
-    x_old: tuple[cell_variable.CellVariable, ...],
-    core_profiles_t_plus_dt: state.CoreProfiles,
-    evolving_names: tuple[str, ...],
-    geo: geometry.Geometry,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-    static_config_slice: config_slice.StaticConfigSlice,
     dt: jax.Array,
-    coeffs_old: Block1DCoeffs,
+    static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    geo: geometry.Geometry,
+    x_old: tuple[cell_variable.CellVariable, ...],
+    init_x_new_vec: jax.Array,
+    core_profiles_t_plus_dt: state.CoreProfiles,
     transport_model: transport_model_lib.TransportModel,
-    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    source_models: source_models_lib.SourceModels,
+    coeffs_old: Block1DCoeffs,
+    evolving_names: tuple[str, ...],
     maxiter: int,
     tol: float,
 ) -> tuple[jax.Array, float, AuxiliaryOutput]:
   """Advances jaxopt solver by one timestep.
 
   Args:
-    init_x_new_vec: Flattened array of initial guess of x_new for all evolving
-      core profiles.
-    x_old: The starting x defined as a tuple of CellVariables.
-    core_profiles_t_plus_dt: Core plasma profiles which contain all available
-      prescribed quantities at the end of the time step. This includes evolving
-      boundary conditions and prescribed time-dependent profiles that are not
-      being evolved by the PDE system.
-    evolving_names: The names of variables within the core profiles that should
-      evolve.
-    geo: geometry object.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    dt: Time step duration.
     static_config_slice: Static runtime configuration. Changes to these config
       params will trigger recompilation. A key parameter in static_config slice
       is theta_imp, a coefficient in [0, 1] determining which solution method to
@@ -424,13 +414,23 @@ def jaxopt_solver(
       solution methods: theta_imp = 1: Backward Euler implicit method (default).
       theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
       method.
-    dt: Time step duration.
-    coeffs_old: The coefficients calculated at x_old.
+    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    geo: geometry object.
+    x_old: The starting x defined as a tuple of CellVariables.
+    init_x_new_vec: Flattened array of initial guess of x_new for all evolving
+      core profiles.
+    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+      prescribed quantities at the end of the time step. This includes evolving
+      boundary conditions and prescribed time-dependent profiles that are not
+      being evolved by the PDE system.
     transport_model: turbulent transport model callable.
-    source_models: Collection of source callables to generate source PDE
-      coefficients.
     explicit_source_profiles: pre-calculated sources implemented as explicit
       sources in the PDE.
+    source_models: Collection of source callables to generate source PDE
+      coefficients.
+    coeffs_old: The coefficients calculated at x_old.
+    evolving_names: The names of variables within the core profiles that should
+      evolve.
     maxiter: maximum number of iterations of jaxopt solver.
     tol: tolerance for jaxopt solver convergence.
 
@@ -442,16 +442,16 @@ def jaxopt_solver(
   loss = functools.partial(
       theta_method_block_loss,
       dt=dt,
+      static_config_slice=static_config_slice,
+      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      geo=geo,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      geo=geo,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-      static_config_slice=static_config_slice,
-      evolving_names=evolving_names,
-      coeffs_old=coeffs_old,
       transport_model=transport_model,
-      source_models=source_models,
       explicit_source_profiles=explicit_source_profiles,
+      source_models=source_models,
+      coeffs_old=coeffs_old,
+      evolving_names=evolving_names,
   )
   solver = jaxopt.LBFGS(fun=loss, maxiter=maxiter, tol=tol, has_aux=True)
   solver_output = solver.run(init_x_new_vec)

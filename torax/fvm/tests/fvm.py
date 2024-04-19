@@ -215,9 +215,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     for _ in range(time_steps):
       x = implicit_solve_block.implicit_solve_block(
+          dt=dt,
           x_old=x,
           x_new_guess=x,
-          dt=dt,
           coeffs_old=coeffs,
           # Assume no time-dependent params.
           coeffs_new=coeffs,
@@ -381,7 +381,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     static_config_slice = config_slice.build_static_config_slice(config)
     source_models = source_models_lib.SourceModels()
     core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice, static_config_slice, geo, source_models
+        static_config_slice, dynamic_config_slice, geo, source_models
     )
     evolving_names = tuple(['temp_ion'])
     explicit_source_profiles = source_models_lib.build_source_profiles(
@@ -393,14 +393,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     transport_model = transport_model_factory.construct(config)
     coeffs = calc_coeffs.calc_coeffs(
-        core_profiles=core_profiles,
-        evolving_names=evolving_names,
-        geo=geo,
-        dynamic_config_slice=dynamic_config_slice,
         static_config_slice=static_config_slice,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        core_profiles=core_profiles,
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        evolving_names=evolving_names,
         use_pereverzev=False,
     )
     # dt well under the explicit stability limit for dx=1 and chi=1
@@ -410,12 +410,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
     for _ in range(time_steps):
       x_old = copy.deepcopy(x_new)
       x_new = implicit_solve_block.implicit_solve_block(
+          dt=dt,
           x_old=x_old,
           x_new_guess=x_new,
           coeffs_old=coeffs,
           # Assume no time-dependent params.
           coeffs_new=coeffs,
-          dt=dt,
           theta_imp=theta_imp,
       )
 
@@ -424,33 +424,33 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # solution as the minimum with approximately zero residual
       # core_profiles_t_plus_dt is not updated since coeffs stay constant here
       loss, _ = residual_and_loss.theta_method_block_loss(
-          x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
-          x_old=x_old,
-          core_profiles_t_plus_dt=core_profiles,
-          evolving_names=evolving_names,
-          geo=geo,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
-          static_config_slice=config_slice.build_static_config_slice(config),
           dt=dt,
-          coeffs_old=coeffs,
+          static_config_slice=config_slice.build_static_config_slice(config),
+          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          geo=geo,
+          x_old=x_old,
+          x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
+          core_profiles_t_plus_dt=core_profiles,
           transport_model=transport_model,
-          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
+          source_models=source_models,
+          coeffs_old=coeffs,
+          evolving_names=evolving_names,
       )
 
       residual, _ = residual_and_loss.theta_method_block_residual(
+          dt=dt,
+          static_config_slice=config_slice.build_static_config_slice(config),
+          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          geo=geo,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
           x_old=x_old,
           core_profiles_t_plus_dt=core_profiles,
-          evolving_names=evolving_names,
-          geo=geo,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
-          static_config_slice=config_slice.build_static_config_slice(config),
-          dt=dt,
-          coeffs_old=coeffs,
           transport_model=transport_model,
-          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
+          source_models=source_models,
+          coeffs_old=coeffs,
+          evolving_names=evolving_names,
       )
 
       np.testing.assert_allclose(loss, 0.0, atol=1e-7)
@@ -489,21 +489,21 @@ class FVMTest(torax_refs.ReferenceValueTest):
             ),
         ),
     )
-    geo = geometry.build_circular_geometry(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     static_config_slice = config_slice.build_static_config_slice(config)
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    geo = geometry.build_circular_geometry(config)
     transport_model = transport_model_factory.construct(
         config,
     )
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice, static_config_slice, geo, source_models
+        static_config_slice, dynamic_config_slice, geo, source_models
     )
     explicit_source_profiles = source_models_lib.build_source_profiles(
-        source_models=source_models,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
+        source_models=source_models,
         explicit=True,
     )
 
@@ -511,14 +511,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
     evolving_names = tuple(['temp_ion'])
 
     coeffs = calc_coeffs.calc_coeffs(
-        core_profiles=initial_core_profiles,
-        evolving_names=evolving_names,
-        geo=geo,
-        dynamic_config_slice=dynamic_config_slice,
         static_config_slice=static_config_slice,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        core_profiles=initial_core_profiles,
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        evolving_names=evolving_names,
         use_pereverzev=False,
     )
     initial_right_boundary = jnp.array(0.0)
@@ -531,12 +531,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # Run with different theta_imp values.
     for theta_imp in [0.0, 0.5, 1.0]:
       x_new = implicit_solve_block.implicit_solve_block(
+          dt=dt,
           x_old=(x_0,),
           x_new_guess=(x_0,),
           coeffs_old=coeffs,
           # Assume no time-dependent params.
           coeffs_new=coeffs,
-          dt=dt,
           theta_imp=theta_imp,
       )
       # No matter what theta_imp is used, the x_new will be all 0s because there
@@ -549,12 +549,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
     x_1 = dataclasses.replace(x_0, right_face_constraint=final_right_boundary)
     # However, the explicit terms (when theta_imp = 0), should still be all 0.
     x_new = implicit_solve_block.implicit_solve_block(
+        dt=dt,
         x_old=(x_0,),
         x_new_guess=(x_1,),
         coeffs_old=coeffs,
         # Assume no time-dependent params.
         coeffs_new=coeffs,
-        dt=dt,
         theta_imp=0.0,
     )
     np.testing.assert_allclose(x_new[0].value, 0.0)
@@ -564,12 +564,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     # And when theta_imp is > 0, the values should be > 0.
     x_new = implicit_solve_block.implicit_solve_block(
+        dt=dt,
         x_old=(x_0,),
         x_new_guess=(x_1,),
         coeffs_old=coeffs,
         # Assume no time-dependent params.
         coeffs_new=coeffs,
-        dt=dt,
         theta_imp=0.5,
     )
     self.assertGreater(x_new[0].value.min(), 0.0)
@@ -621,13 +621,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice, static_config_slice_theta0, geo, source_models
+        static_config_slice_theta0, dynamic_config_slice, geo, source_models
     )
     explicit_source_profiles = source_models_lib.build_source_profiles(
-        source_models=source_models,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
+        source_models=source_models,
         explicit=True,
     )
 
@@ -635,14 +635,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
     evolving_names = tuple(['temp_ion'])
 
     coeffs_old = calc_coeffs.calc_coeffs(
-        core_profiles=initial_core_profiles,
-        evolving_names=evolving_names,
-        geo=geo,
-        dynamic_config_slice=dynamic_config_slice,
         static_config_slice=static_config_slice_theta05,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        core_profiles=initial_core_profiles,
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        evolving_names=evolving_names,
         use_pereverzev=False,
     )
 
@@ -654,7 +654,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_constraint=initial_right_boundary,
     )
     core_profiles_t_plus_dt = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice, static_config_slice_theta0, geo
+        static_config_slice_theta0, dynamic_config_slice, geo
     )
     core_profiles_t_plus_dt = dataclasses.replace(
         core_profiles_t_plus_dt,
@@ -666,18 +666,18 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # with diffusive transport and zero transport, then the state will stay
       # at all 0, and the residual should be 0.
       residual, _ = residual_and_loss.theta_method_block_residual(
-          x_new_guess_vec=x_0.value,
-          x_old=(x_0,),
-          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          evolving_names=evolving_names,
-          geo=geo,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
-          static_config_slice=static_config_slice_theta05,
           dt=dt,
-          coeffs_old=coeffs_old,
+          static_config_slice=static_config_slice_theta05,
+          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          geo=geo,
+          x_old=(x_0,),
+          x_new_guess_vec=x_0.value,
+          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           transport_model=transport_model,
-          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
+          source_models=source_models,
+          coeffs_old=coeffs_old,
+          evolving_names=evolving_names,
       )
       np.testing.assert_allclose(residual, 0.0)
     with self.subTest('updated_boundary_conditions'):
@@ -686,8 +686,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # residual would still be 0.
       final_right_boundary = jnp.array(1.0)
       residual, _ = residual_and_loss.theta_method_block_residual(
-          x_new_guess_vec=x_0.value,
+          dt=dt,
+          static_config_slice=static_config_slice_theta0,
+          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          geo=geo,
           x_old=(x_0,),
+          x_new_guess_vec=x_0.value,
           core_profiles_t_plus_dt=dataclasses.replace(
               core_profiles_t_plus_dt,
               temp_ion=dataclasses.replace(
@@ -695,19 +699,18 @@ class FVMTest(torax_refs.ReferenceValueTest):
               ),
           ),
           evolving_names=evolving_names,
-          geo=geo,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
-          static_config_slice=static_config_slice_theta0,
-          dt=dt,
-          coeffs_old=coeffs_old,
           transport_model=transport_model,
-          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
+          source_models=source_models,
+          coeffs_old=coeffs_old,
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_imp > 0, the residual should be non-zero.
       residual, _ = residual_and_loss.theta_method_block_residual(
-          x_new_guess_vec=x_0.value,
+          dt=dt,
+          static_config_slice=static_config_slice_theta05,
+          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          geo=geo,
           x_old=(x_0,),
           core_profiles_t_plus_dt=dataclasses.replace(
               core_profiles_t_plus_dt,
@@ -715,15 +718,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
                   x_0, right_face_constraint=final_right_boundary
               ),
           ),
-          evolving_names=evolving_names,
-          dt=dt,
-          geo=geo,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
-          static_config_slice=static_config_slice_theta05,
-          coeffs_old=coeffs_old,
+          x_new_guess_vec=x_0.value,
           transport_model=transport_model,
-          source_models=source_models,
           explicit_source_profiles=explicit_source_profiles,
+          source_models=source_models,
+          coeffs_old=coeffs_old,
+          evolving_names=evolving_names,
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
 

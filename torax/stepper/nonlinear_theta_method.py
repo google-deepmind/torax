@@ -57,15 +57,15 @@ class NonlinearThetaMethod(stepper.Stepper):
 
   def _x_new(
       self,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
-      evolving_names: tuple[str, ...],
-      geo: geometry.Geometry,
+      dt: jax.Array,
+      static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dt: jax.Array,
+      geo: geometry.Geometry,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[fvm.CellVariable, ...],
       source_profiles.SourceProfiles,
@@ -75,26 +75,26 @@ class NonlinearThetaMethod(stepper.Stepper):
     """See Stepper._x_new docstring."""
 
     coeffs_callback = self.callback_class(
+        static_config_slice=static_config_slice,
+        geo=geo,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        evolving_names=evolving_names,
-        geo=geo,
-        static_config_slice=static_config_slice,
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        evolving_names=evolving_names,
     )
     x_new, core_sources, core_transport, error = self._x_new_helper(
+        dt=dt,
+        static_config_slice=static_config_slice,
         dynamic_config_slice_t=dynamic_config_slice_t,
         dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-        static_config_slice=static_config_slice,
+        geo=geo,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        evolving_names=evolving_names,
-        geo=geo,
         explicit_source_profiles=explicit_source_profiles,
-        dt=dt,
         coeffs_callback=coeffs_callback,
+        evolving_names=evolving_names,
     )
 
     return x_new, core_sources, core_transport, error
@@ -102,16 +102,16 @@ class NonlinearThetaMethod(stepper.Stepper):
   @abc.abstractmethod
   def _x_new_helper(
       self,
+      dt: jax.Array,
+      static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-      static_config_slice: config_slice.StaticConfigSlice,
+      geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      evolving_names: tuple[str, ...],
-      geo: geometry.Geometry,
       explicit_source_profiles: source_profiles.SourceProfiles,
-      dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
+      evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[fvm.CellVariable, ...],
       source_profiles.SourceProfiles,
@@ -155,16 +155,16 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
 
   def _x_new_helper(
       self,
+      dt: jax.Array,
+      static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-      static_config_slice: config_slice.StaticConfigSlice,
+      geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      evolving_names: tuple[str, ...],
-      geo: geometry.Geometry,
       explicit_source_profiles: source_profiles.SourceProfiles,
-      dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
+      evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[fvm.CellVariable, ...],
       source_profiles.SourceProfiles,
@@ -175,18 +175,18 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     # Unpack the outputs of the optimizer_solve_block.
     x_new, error, (core_sources, core_transport) = (
         optimizer_solve_block.optimizer_solve_block(
-            x_old=tuple([core_profiles_t[name] for name in evolving_names]),
-            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            evolving_names=evolving_names,
             dt=dt,
-            coeffs_callback=coeffs_callback,
+            static_config_slice=static_config_slice,
             dynamic_config_slice_t=dynamic_config_slice_t,
             dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-            static_config_slice=static_config_slice,
             geo=geo,
+            x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             transport_model=self.transport_model,
-            source_models=self.source_models,
             explicit_source_profiles=explicit_source_profiles,
+            source_models=self.source_models,
+            coeffs_callback=coeffs_callback,
+            evolving_names=evolving_names,
             initial_guess_mode=self.initial_guess_mode,
             maxiter=self.maxiter,
             tol=self.tol,
@@ -237,16 +237,16 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
 
   def _x_new_helper(
       self,
+      dt: jax.Array,
+      static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-      static_config_slice: config_slice.StaticConfigSlice,
+      geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      evolving_names: tuple[str, ...],
-      geo: geometry.Geometry,
       explicit_source_profiles: source_profiles.SourceProfiles,
-      dt: jax.Array,
       coeffs_callback: sim.CoeffsCallback,
+      evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[fvm.CellVariable, ...],
       source_profiles.SourceProfiles,
@@ -260,18 +260,18 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     # Unpack the outputs of the optimizer_solve_block.
     x_new, error, (core_sources, core_transport) = (
         newton_raphson_solve_block.newton_raphson_solve_block(
-            x_old=tuple([core_profiles_t[name] for name in evolving_names]),
-            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            evolving_names=evolving_names,
             dt=dt,
-            coeffs_callback=coeffs_callback,
+            static_config_slice=static_config_slice,
             dynamic_config_slice_t=dynamic_config_slice_t,
             dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-            static_config_slice=static_config_slice,
             geo=geo,
+            x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             transport_model=self.transport_model,
-            source_models=self.source_models,
             explicit_source_profiles=explicit_source_profiles,
+            source_models=self.source_models,
+            coeffs_callback=coeffs_callback,
+            evolving_names=evolving_names,
             log_iterations=dynamic_config_slice_t.solver.log_iterations,
             initial_guess_mode=self.initial_guess_mode,
             maxiter=self.maxiter,

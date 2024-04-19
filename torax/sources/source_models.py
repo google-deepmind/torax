@@ -45,22 +45,22 @@ from torax.sources import source_profiles
     ],
 )
 def build_source_profiles(
-    source_models: SourceModels,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    source_models: SourceModels,
     explicit: bool,
 ) -> source_profiles.SourceProfiles:
   """Builds explicit or implicit source profiles.
 
   Args:
-    source_models: Functions computing profiles for all TORAX sources/sinks.
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
       implicit).
+    source_models: Functions computing profiles for all TORAX sources/sinks.
     explicit: If True, this function should return profiles for all explicit
       sources. All implicit sources should be set to 0. And same vice versa.
 
@@ -337,9 +337,9 @@ def _build_temp_ion_el_profiles(
 
 
 def sum_sources_psi(
+    geo: geometry.Geometry,
     source_models: SourceModels,
     source_profile: source_profiles.SourceProfiles,
-    geo: geometry.Geometry,
 ) -> jnp.ndarray:
   """Computes psi source values for sim.calc_coeffs."""
   total = (
@@ -358,9 +358,9 @@ def sum_sources_psi(
 
 
 def sum_sources_ne(
-    source_models: SourceModels,
-    source_profile: source_profiles.SourceProfiles,
     geo: geometry.Geometry,
+    source_profile: source_profiles.SourceProfiles,
+    source_models: SourceModels,
 ) -> jnp.ndarray:
   """Computes ne source values for sim.calc_coeffs."""
   total = jnp.zeros_like(geo.r)
@@ -374,9 +374,9 @@ def sum_sources_ne(
 
 
 def sum_sources_temp_ion(
-    source_models: SourceModels,
-    source_profile: source_profiles.SourceProfiles,
     geo: geometry.Geometry,
+    source_profile: source_profiles.SourceProfiles,
+    source_models: SourceModels,
 ) -> jnp.ndarray:
   """Computes temp_ion source values for sim.calc_coeffs."""
   total = jnp.zeros_like(geo.r)
@@ -390,9 +390,9 @@ def sum_sources_temp_ion(
 
 
 def sum_sources_temp_el(
-    source_models: SourceModels,
-    source_profile: source_profiles.SourceProfiles,
     geo: geometry.Geometry,
+    source_profile: source_profiles.SourceProfiles,
+    source_models: SourceModels,
 ) -> jnp.ndarray:
   """Computes temp_el source values for sim.calc_coeffs."""
   total = jnp.zeros_like(geo.r)
@@ -406,10 +406,10 @@ def sum_sources_temp_el(
 
 
 def calc_and_sum_sources_psi(
-    source_models: SourceModels,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    source_models: SourceModels,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Computes sum of psi sources for psi_dot calculation."""
 
@@ -447,10 +447,10 @@ def calc_and_sum_sources_psi(
     ],
 )
 def calc_psidot(
-    source_models: SourceModels,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    source_models: SourceModels,
 ) -> jnp.ndarray:
   r"""Calculates psidot (loop voltage). Used for the Ohmic electron heat source.
 
@@ -462,10 +462,10 @@ def calc_psidot(
   (but abridged) formulation as in sim.calc_coeffs and fvm._calc_c is used here
 
   Args:
-    source_models: All TORAX source/sinks.
     dynamic_config_slice: Simulation configuration at this timestep
     geo: Torus geometry
     core_profiles: Core plasma profiles.
+    source_models: All TORAX source/sinks.
 
   Returns:
     psidot: on cell grid
@@ -473,10 +473,10 @@ def calc_psidot(
   consts = constants.CONSTANTS
 
   psi_sources, sigma = calc_and_sum_sources_psi(
-      source_models,
       dynamic_config_slice,
       geo,
       core_profiles,
+      source_models,
   )
   toc_psi = (
       1.0
@@ -500,10 +500,10 @@ def calc_psidot(
 #  OhmicHeatSource is a special case and defined here to avoid circular
 #  dependencies, since it depends on the psi sources
 def _ohmic_heat_model(
-    source_models: SourceModels,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    source_models: SourceModels,
 ) -> jnp.ndarray:
   """Returns the Ohmic source for electron heat equation."""
   jtot, _ = physics.calc_jtot_from_psi(
@@ -511,7 +511,12 @@ def _ohmic_heat_model(
       core_profiles.psi,
   )
 
-  psidot = calc_psidot(source_models, dynamic_config_slice, geo, core_profiles)
+  psidot = calc_psidot(
+      dynamic_config_slice,
+      geo,
+      core_profiles,
+      source_models,
+  )
 
   pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
   return pohm
@@ -554,10 +559,10 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
         core_profiles: state.CoreProfiles,
     ) -> jnp.ndarray:
       return _ohmic_heat_model(
-          source_models=self.source_models,
           dynamic_config_slice=dynamic_config_slice,
           geo=geo,
           core_profiles=core_profiles,
+          source_models=self.source_models,
       )
 
     # Must use object.__setattr__ instead of simply doing
@@ -852,9 +857,9 @@ class SourceModels:
 
 
 def build_all_zero_profiles(
-    source_models: SourceModels,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
+    source_models: SourceModels,
 ) -> source_profiles.SourceProfiles:
   """Returns a SourceProfiles object with all zero profiles."""
   profiles = {

@@ -47,16 +47,16 @@ class SourceProfilesTest(parameterized.TestCase):
     geo = torax.build_circular_geometry(config)
     source_models = source_models_lib.SourceModels()
     core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         geo=geo,
         source_models=source_models,
     )
     _ = source_models_lib.build_source_profiles(
-        source_models, dynamic_config_slice, geo, core_profiles, explicit=True
+        dynamic_config_slice, geo, core_profiles, source_models, explicit=True
     )
     _ = source_models_lib.build_source_profiles(
-        source_models, dynamic_config_slice, geo, core_profiles, explicit=False
+        dynamic_config_slice, geo, core_profiles, source_models, explicit=False
     )
 
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
@@ -84,11 +84,11 @@ class SourceProfilesTest(parameterized.TestCase):
     )
     with self.subTest('without_jit'):
       summed_temp_ion = source_models_lib.sum_sources_temp_ion(
-          source_models, profiles, geo
+          geo, profiles, source_models
       )
       np.testing.assert_allclose(summed_temp_ion, ones * 4 * geo.vpr)
       summed_temp_el = source_models_lib.sum_sources_temp_el(
-          source_models, profiles, geo
+          geo, profiles, source_models
       )
       np.testing.assert_allclose(summed_temp_el, ones * 11 * geo.vpr)
 
@@ -97,13 +97,13 @@ class SourceProfilesTest(parameterized.TestCase):
           source_models_lib.sum_sources_temp_ion,
           static_argnames=['source_models'],
       )
-      jitted_temp_ion = sum_temp_ion(source_models, profiles, geo)
+      jitted_temp_ion = sum_temp_ion(geo, profiles, source_models)
       np.testing.assert_allclose(jitted_temp_ion, ones * 4 * geo.vpr)
       sum_temp_el = jax.jit(
           source_models_lib.sum_sources_temp_el,
           static_argnames=['source_models'],
       )
-      jitted_temp_el = sum_temp_el(source_models, profiles, geo)
+      jitted_temp_el = sum_temp_el(geo, profiles, source_models)
       np.testing.assert_allclose(jitted_temp_el, ones * 11 * geo.vpr)
 
   def test_custom_source_profiles_dont_change_when_jitted(self):
@@ -162,17 +162,17 @@ class SourceProfilesTest(parameterized.TestCase):
 
     def compute_and_sum_profiles():
       profiles = source_models_lib.build_source_profiles(
-          source_models=source_models,
           dynamic_config_slice=dynamic_config_slice,
           geo=geo,
           core_profiles=core_profiles,
+          source_models=source_models,
           # Configs set sources to implicit by default, so set this to False to
           # calculate the custom source's profile.
           explicit=False,
       )
-      ne = source_models_lib.sum_sources_ne(source_models, profiles, geo)
+      ne = source_models_lib.sum_sources_ne(geo, profiles, source_models)
       temp_el = source_models_lib.sum_sources_temp_el(
-          source_models, profiles, geo
+          geo, profiles, source_models
       )
       return (ne, temp_el)
 

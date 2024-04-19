@@ -44,18 +44,18 @@ TOL = 1e-12
 
 
 def optimizer_solve_block(
-    x_old: tuple[cell_variable.CellVariable, ...],
-    core_profiles_t_plus_dt: state.CoreProfiles,
-    evolving_names: tuple[str, ...],
     dt: jax.Array,
-    coeffs_callback: Block1DCoeffsCallback,
+    static_config_slice: config_slice.StaticConfigSlice,
     dynamic_config_slice_t: config_slice.DynamicConfigSlice,
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-    static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
+    x_old: tuple[cell_variable.CellVariable, ...],
+    core_profiles_t_plus_dt: state.CoreProfiles,
     transport_model: transport_model_lib.TransportModel,
-    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    source_models: source_models_lib.SourceModels,
+    coeffs_callback: Block1DCoeffsCallback,
+    evolving_names: tuple[str, ...],
     initial_guess_mode: InitialGuessMode = INITIAL_GUESS_MODE,
     maxiter=MAXITER,
     tol=TOL,
@@ -71,21 +71,7 @@ def optimizer_solve_block(
   between two sides of the equation describing a theta method update.
 
   Args:
-    x_old: Tuple containing CellVariables for each channel with their values at
-      the start of the time step.
-    core_profiles_t_plus_dt: Core plasma profiles which contain all available
-      prescribed quantities at the end of the time step. This includes evolving
-      boundary conditions and prescribed time-dependent profiles that are not
-      being evolved by the PDE system.
-    evolving_names: The names of variables within the core profiles that should
-      evolve.
     dt: Discrete time step.
-    coeffs_callback: Calculates diffusion, convection etc. coefficients given a
-      core_profiles. Repeatedly called by the iterative optimizer.
-    dynamic_config_slice_t: Runtime configuration for time t (the start time of
-      the step). These config params can change from step to step without
-      triggering a recompilation.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     static_config_slice: Static runtime configuration. Changes to these config
       params will trigger recompilation. A key parameter in static_config slice
       is theta_imp, a coefficient in [0, 1] determining which solution method to
@@ -94,12 +80,26 @@ def optimizer_solve_block(
       solution methods: theta_imp = 1: Backward Euler implicit method (default).
       theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
       method.
+    dynamic_config_slice_t: Runtime configuration for time t (the start time of
+      the step). These config params can change from step to step without
+      triggering a recompilation.
+    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
     geo: Geometry object used to initialize auxiliary outputs.
+    x_old: Tuple containing CellVariables for each channel with their values at
+      the start of the time step.
+    core_profiles_t_plus_dt: Core plasma profiles which contain all available
+      prescribed quantities at the end of the time step. This includes evolving
+      boundary conditions and prescribed time-dependent profiles that are not
+      being evolved by the PDE system.
     transport_model: Turbulent transport model callable.
-    source_models: Collection of source callables to generate source PDE
-      coefficients.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
+    source_models: Collection of source callables to generate source PDE
+      coefficients.
+    coeffs_callback: Calculates diffusion, convection etc. coefficients given a
+      core_profiles. Repeatedly called by the iterative optimizer.
+    evolving_names: The names of variables within the core profiles that should
+      evolve.
     initial_guess_mode: Chooses the initial_guess for the iterative method,
       either x_old or linear step. When taking the linear step, it is also
       recommended to use Pereverzev-Corrigan terms if the transport use
@@ -116,7 +116,7 @@ def optimizer_solve_block(
   # pyformat: enable
 
   coeffs_old = coeffs_callback(
-      x_old, dynamic_config_slice_t, explicit_call=True
+      dynamic_config_slice_t, x_old, explicit_call=True
   )
 
   match initial_guess_mode:
@@ -127,8 +127,8 @@ def optimizer_solve_block(
       # if set by config, needed if stiff transport models (e.g. qlknn)
       # are used.
       coeffs_exp_linear = coeffs_callback(
-          x_old,
           dynamic_config_slice_t,
+          x_old,
           allow_pereverzev=True,
           explicit_call=True,
       )
@@ -142,19 +142,21 @@ def optimizer_solve_block(
           # this is jitted.
           (
               source_models_lib.build_all_zero_profiles(
-                  source_models, dynamic_config_slice_t, geo
+                  dynamic_config_slice_t,
+                  geo,
+                  source_models,
               ),
               state.CoreTransport.zeros(geo),
           ),
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
+          dt=dt,
+          static_config_slice=static_config_slice,
+          dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
           init_val=init_val,
           x_old=x_old,
-          dt=dt,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-          static_config_slice=static_config_slice,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case InitialGuessMode.X_OLD:
@@ -166,18 +168,18 @@ def optimizer_solve_block(
 
   # Advance jaxopt_solver by one timestep
   x_new_vec, final_loss, aux_output = residual_and_loss.jaxopt_solver(
-      init_x_new_vec=init_x_new_vec,
-      x_old=x_old,
-      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      geo=geo,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-      static_config_slice=static_config_slice,
       dt=dt,
-      evolving_names=evolving_names,
-      coeffs_old=coeffs_old,
+      static_config_slice=static_config_slice,
+      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      geo=geo,
+      x_old=x_old,
+      init_x_new_vec=init_x_new_vec,
+      core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       transport_model=transport_model,
-      source_models=source_models,
       explicit_source_profiles=explicit_source_profiles,
+      source_models=source_models,
+      coeffs_old=coeffs_old,
+      evolving_names=evolving_names,
       maxiter=maxiter,
       tol=tol,
   )

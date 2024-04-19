@@ -39,8 +39,8 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def _updated_ti(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
 ) -> fvm.CellVariable:
   """Updated ion temp. Used upon initialization and if temp_ion=False."""
@@ -70,8 +70,8 @@ def _updated_ti(
 
 
 def _updated_te(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
 ) -> fvm.CellVariable:
   """Updated electron temp. Used upon initialization and if temp_el=False."""
@@ -101,8 +101,8 @@ def _updated_te(
 
 
 def _updated_dens(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
 ) -> tuple[fvm.CellVariable, fvm.CellVariable]:
   """Updated particle density. Used upon initialization and if dens_eq=False."""
@@ -250,27 +250,27 @@ def _prescribe_currents_no_bootstrap(
 def _prescribe_currents_with_bootstrap(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
-    source_models: source_models_lib.SourceModels,
     temp_ion: fvm.CellVariable,
     temp_el: fvm.CellVariable,
     ne: fvm.CellVariable,
     ni: fvm.CellVariable,
     jtot_face: jax.Array,
     psi: fvm.CellVariable,
+    source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
   """Creates the initial Currents.
 
   Args:
     dynamic_config_slice: General configuration parameters at t_initial.
     geo: Geometry of the tokamak.
-    source_models: All TORAX source/sink functions. If not provided, uses the
-      default sources.
     temp_ion: Ion temperature.
     temp_el: Electron temperature.
     ne: Electron density.
     ni: Main ion density.
     jtot_face: Total current density on face grid.
     psi: Poloidal flux.
+    source_models: All TORAX source/sink functions. If not provided, uses the
+      default sources.
 
   Returns:
     currents: Plasma currents
@@ -304,9 +304,9 @@ def _prescribe_currents_with_bootstrap(
   # form of external current on face grid
   jext_source = source_models.jext
   jext_face, jext = jext_source.get_value(
-      source_type=dynamic_config_slice.sources[jext_source.name].source_type,
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
+      source_type=dynamic_config_slice.sources[jext_source.name].source_type,
   )
 
   # construct prescribed current formula on grid.
@@ -349,25 +349,25 @@ def _prescribe_currents_with_bootstrap(
 def _calculate_currents_from_psi(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
-    source_models: source_models_lib.SourceModels,
     temp_ion: fvm.CellVariable,
     temp_el: fvm.CellVariable,
     ne: fvm.CellVariable,
     ni: fvm.CellVariable,
     psi: fvm.CellVariable,
+    source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
   """Creates the initial Currents using psi to calculate jtot.
 
   Args:
     dynamic_config_slice: General configuration parameters at t_initial.
     geo: Geometry of the tokamak.
-    source_models: All TORAX source/sink functions. If not provided, uses the
-      default sources.
     temp_ion: Ion temperature.
     temp_el: Electron temperature.
     ne: Electron density.
     ni: Main ion density.
     psi: Poloidal flux.
+    source_models: All TORAX source/sink functions. If not provided, uses the
+      default sources.
 
   Returns:
     currents: Plasma currents
@@ -406,9 +406,9 @@ def _calculate_currents_from_psi(
   # form of external current on face grid
   jext_source = source_models.jext
   jext_face, jext = jext_source.get_value(
-      source_type=dynamic_config_slice.sources[jext_source.name].source_type,
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
+      source_type=dynamic_config_slice.sources[jext_source.name].source_type,
   )
 
   johm = jtot - jext - bootstrap_profile.j_bootstrap
@@ -495,16 +495,16 @@ def _update_psi_from_j(
 
 
 def initial_core_profiles(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
     source_models: source_models_lib.SourceModels | None = None,
 ) -> state.CoreProfiles:
   """Calculates the initial core profiles.
 
   Args:
-    dynamic_config_slice: Dynamic configuration parameters at t=t_initial.
     static_config_slice: Static simulation configuration parameters.
+    dynamic_config_slice: Dynamic configuration parameters at t=t_initial.
     geo: Torus geometry.
     source_models: All models for TORAX sources/sinks. If not provided, uses the
       default source_models.
@@ -523,9 +523,9 @@ def initial_core_profiles(
   # To set initial values and compute the boundary conditions, we need to handle
   # potentially time-varying inputs from the users.
   # The default time in build_dynamic_config_slice is t_initial
-  temp_ion = _updated_ti(dynamic_config_slice, static_config_slice, geo)
-  temp_el = _updated_te(dynamic_config_slice, static_config_slice, geo)
-  ne, ni = _updated_dens(dynamic_config_slice, static_config_slice, geo)
+  temp_ion = _updated_ti(static_config_slice, dynamic_config_slice, geo)
+  temp_el = _updated_te(static_config_slice, dynamic_config_slice, geo)
+  ne, ni = _updated_dens(static_config_slice, dynamic_config_slice, geo)
 
   # set up initial psi profile based on current profile
   if (
@@ -550,13 +550,13 @@ def initial_core_profiles(
     currents = _prescribe_currents_with_bootstrap(
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        source_models=source_models,
         temp_ion=temp_ion,
         temp_el=temp_el,
         ne=ne,
         ni=ni,
         jtot_face=currents_no_bootstrap.jtot_face,
         psi=psi_no_bootstrap,
+        source_models=source_models,
     )
 
     psi = _update_psi_from_j(
@@ -567,8 +567,8 @@ def initial_core_profiles(
 
     q_face, _ = physics.calc_q_from_jtot_psi(
         geo=geo,
-        jtot_face=currents.jtot_face,
         psi=psi,
+        jtot_face=currents.jtot_face,
         q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, psi)
@@ -594,8 +594,8 @@ def initial_core_profiles(
     )
     q_face, _ = physics.calc_q_from_jtot_psi(
         geo=geo,
-        jtot_face=geo.jtot_face,
         psi=psi,
+        jtot_face=geo.jtot_face,
         q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, psi)
@@ -636,7 +636,7 @@ def initial_core_profiles(
   psidot = dataclasses.replace(
       psidot,
       value=source_models_lib.calc_psidot(
-          source_models, dynamic_config_slice, geo, core_profiles
+          dynamic_config_slice, geo, core_profiles, source_models,
       ),
   )
 
@@ -654,20 +654,20 @@ def initial_core_profiles(
 
 
 def updated_prescribed_core_profiles(
-    core_profiles: state.CoreProfiles,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
+    core_profiles: state.CoreProfiles,
 ) -> dict[str, jax.Array]:
   """Updates core profiles which are not being evolved by PDE.
 
   Uses same functions as for profile initialization.
 
   Args:
-    core_profiles: Core profiles dataclass to be updated
-    dynamic_config_slice: Dynamic configuration parameters at t=t_initial.
     static_config_slice: Static simulation configuration parameters.
+    dynamic_config_slice: Dynamic configuration parameters at t=t_initial.
     geo: Torus geometry.
+    core_profiles: Core profiles dataclass to be updated
 
   Returns:
     Updated core profiles.
@@ -680,21 +680,21 @@ def updated_prescribed_core_profiles(
       not static_config_slice.ion_heat_eq
       and dynamic_config_slice.numerics.enable_prescribed_profile_evolution
   ):
-    temp_ion = _updated_ti(dynamic_config_slice, static_config_slice, geo).value
+    temp_ion = _updated_ti(static_config_slice, dynamic_config_slice, geo).value
   else:
     temp_ion = core_profiles.temp_ion.value
   if (
       not static_config_slice.el_heat_eq
       and dynamic_config_slice.numerics.enable_prescribed_profile_evolution
   ):
-    temp_el = _updated_te(dynamic_config_slice, static_config_slice, geo).value
+    temp_el = _updated_te(static_config_slice, dynamic_config_slice, geo).value
   else:
     temp_el = core_profiles.temp_el.value
   if (
       not static_config_slice.dens_eq
       and dynamic_config_slice.numerics.enable_prescribed_profile_evolution
   ):
-    ne, _ = _updated_dens(dynamic_config_slice, static_config_slice, geo)
+    ne, _ = _updated_dens(static_config_slice, dynamic_config_slice, geo)
     ne = ne.value
   else:
     ne = core_profiles.ne.value
@@ -703,18 +703,18 @@ def updated_prescribed_core_profiles(
 
 
 def update_evolving_core_profiles(
-    core_profiles: state.CoreProfiles,
     x_new: tuple[fvm.cell_variable.CellVariable, ...],
-    evolving_names: tuple[str, ...],
     dynamic_config_slice: config_slice.DynamicConfigSlice,
+    core_profiles: state.CoreProfiles,
+    evolving_names: tuple[str, ...],
 ) -> state.CoreProfiles:
   """Returns the new core profiles after updating the evolving variables.
 
   Args:
-    core_profiles: The old set of core plasma profiles.
     x_new: The new values of the evolving variables.
-    evolving_names: The names of the evolving variables.
     dynamic_config_slice: The dynamic config slice.
+    core_profiles: The old set of core plasma profiles.
+    evolving_names: The names of the evolving variables.
   """
 
   def get_update(x_new, var):

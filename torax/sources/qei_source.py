@@ -61,8 +61,8 @@ class QeiSource(source.Source):
   def get_qei(
       self,
       source_type: int,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
       static_config_slice: config_slice.StaticConfigSlice,
+      dynamic_config_slice: config_slice.DynamicConfigSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
@@ -71,7 +71,7 @@ class QeiSource(source.Source):
     return jax.lax.cond(
         source_type == source_config.SourceType.MODEL_BASED.value,
         lambda: _model_based_qei(
-            dynamic_config_slice, static_config_slice, geo, core_profiles
+            static_config_slice, dynamic_config_slice, geo, core_profiles
         ),
         lambda: source_profiles.QeiInfo.zeros(geo),
     )
@@ -95,8 +95,8 @@ class QeiSource(source.Source):
 
 
 def _model_based_qei(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> source_profiles.QeiInfo:

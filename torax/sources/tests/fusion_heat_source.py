@@ -62,8 +62,8 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     nref = config.nref
 
     core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
+        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         geo=geo,
         source_models=source_models_lib.SourceModels(),
     )

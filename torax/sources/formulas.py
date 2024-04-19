@@ -29,10 +29,10 @@ from torax import state
 
 
 def exponential_profile(
+    geo: geometry.Geometry,
     c1: float,
     c2: float,
     total: float,
-    geo: geometry.Geometry,
     use_normalized_r: bool = False,
 ) -> jnp.ndarray:
   """Returns an exponential profile on the cell grid.
@@ -45,10 +45,10 @@ def exponential_profile(
   The formula can use the normalized r and r_face if specified.
 
   Args:
+    geo: Geometry constants of torus.
     c1: Constant. See description above.
     c2: Constant. See description above.
     total: Constant. See description above.
-    geo: Geometry constants of torus.
     use_normalized_r: If True, uses r_norm and r_face_norm to calculate the
       profile.
 
@@ -65,10 +65,10 @@ def exponential_profile(
 
 
 def gaussian_profile(
+    geo: geometry.Geometry,
     c1: float,
     c2: float,
     total: float,
-    geo: geometry.Geometry,
     use_normalized_r: bool = False,
 ) -> jnp.ndarray:
   """Returns a gaussian profile on the cell grid.
@@ -81,10 +81,10 @@ def gaussian_profile(
   The formula can use the normalized r and r_face if specified.
 
   Args:
+    geo: Geometry constants of torus.
     c1: Constant. See description above.
     c2: Constant. See description above.
     total: Constant. See description above.
-    geo: Geometry constants of torus.
     use_normalized_r: If True, uses r_norm and r_face_norm to calculate the
       profile.
 

@@ -219,10 +219,10 @@ class Source:
         else self.formula
     )
     return get_source_profiles(
-        source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=core_profiles,
+        source_type=source_type,
         model_func=model_func,
         formula=formula,
         output_shape=output_shape,
@@ -373,10 +373,10 @@ class SingleProfileSource(Source):
         dynamic_config_slice, geo, core_profiles
     )
     profile = super().get_value(
-        source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=core_profiles,
+        source_type=source_type,
     )
     assert isinstance(profile, jnp.ndarray)
     chex.assert_rank(profile, 1)

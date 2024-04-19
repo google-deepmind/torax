@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Functionality for running the heat + density simulation.
+"""Functionality for running simulations.
 
 This includes the `run_simulation` main loop, logging functionality,
 and functionality for translating between our particular physics
@@ -22,6 +22,29 @@ Use the TORAX_COMPILATION_ENABLED environment variable to turn
 jax compilation off and on. Compilation is on by default. Turning
 compilation off can sometimes help with debugging (e.g. by making
 it easier to print error messages in context).
+
+Throughout TORAX, we maintain the following canonical argument order passed to
+the various functions. For each individual case only a subset of these are
+passed, but the order should be maintained. Individual elements in
+CANONICAL_ORDER are substrings of full argument names which may appear in
+practice, e.g. "dynamic_config_slice_t_plus_dt", "coeffs_callback".
+
+CANONICAL_ORDER = [
+  "dt"
+  "source_type",
+  "static_config_slice",
+  "dynamic_config_slice",
+  "geo",
+  "x_old",
+  "state",
+  "core_profiles",
+  "step",
+  "transport_model",
+  "source_profiles",
+  "source_models",
+  "coeffs",
+  "evolving_names",
+]
 """
 
 from __future__ import annotations
@@ -75,40 +98,40 @@ class CoeffsCallback:
   """Implements fvm.Block1DCoeffsCallback using calc_coeffs.
 
   Attributes:
+    static_config_slice: See the docstring for `stepper.Stepper`.
+    geo: See the docstring for `stepper.Stepper`.
     core_profiles_t: The core plasma profiles at the start of the time step.
     core_profiles_t_plus_dt: Core plasma profiles at the end of the time step.
-    evolving_names: The names of the evolving variables.
-    geo: See the docstring for `stepper.Stepper`.
-    static_config_slice: See the docstring for `stepper.Stepper`.
     transport_model: See the docstring for `stepper.Stepper`.
     explicit_source_profiles: See the docstring for `stepper.Stepper`.
     source_models: See the docstring for `stepper.Stepper`.
+    evolving_names: The names of the evolving variables.
   """
 
   def __init__(
       self,
+      static_config_slice: config_slice.StaticConfigSlice,
+      geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
-      evolving_names: tuple[str, ...],
-      geo: geometry.Geometry,
-      static_config_slice: config_slice.StaticConfigSlice,
       transport_model: transport_model_lib.TransportModel,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       source_models: source_models_lib.SourceModels,
+      evolving_names: tuple[str, ...],
   ):
+    self.static_config_slice = static_config_slice
+    self.geo = geo
     self.core_profiles_t = core_profiles_t
     self.core_profiles_t_plus_dt = core_profiles_t_plus_dt
-    self.evolving_names = evolving_names
-    self.geo = geo
-    self.static_config_slice = static_config_slice
     self.transport_model = transport_model
     self.explicit_source_profiles = explicit_source_profiles
     self.source_models = source_models
+    self.evolving_names = evolving_names
 
   def __call__(
       self,
-      x: tuple[fvm.CellVariable, ...],
       dynamic_config_slice: config_slice.DynamicConfigSlice,
+      x: tuple[fvm.CellVariable, ...],
       allow_pereverzev: bool = False,
       # Checks if reduced calc_coeffs for explicit terms when theta_imp=1
       # should be called
@@ -142,14 +165,14 @@ class CoeffsCallback:
       use_pereverzev = False
 
     return calc_coeffs.calc_coeffs(
-        core_profiles=core_profiles,
-        evolving_names=self.evolving_names,
-        geo=self.geo,
-        dynamic_config_slice=dynamic_config_slice,
         static_config_slice=self.static_config_slice,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=self.geo,
+        core_profiles=core_profiles,
         transport_model=self.transport_model,
         explicit_source_profiles=self.explicit_source_profiles,
         source_models=self.source_models,
+        evolving_names=self.evolving_names,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
     )
@@ -169,11 +192,11 @@ class FrozenCoeffsCallback(CoeffsCallback):
     super().__init__(*args, **kwargs)
     x = tuple([self.core_profiles_t[name] for name in self.evolving_names])
     self.frozen_coeffs = super().__call__(
-        x, dynamic_config_slice, allow_pereverzev=False, explicit_call=False
+        dynamic_config_slice, x, allow_pereverzev=False, explicit_call=False
     )
 
   def __call__(
-      self, x, dynamic_config_slice, allow_pereverzev=False, explicit_call=False
+      self, dynamic_config_slice, x, allow_pereverzev=False, explicit_call=False
   ):
 
     return self.frozen_coeffs
@@ -221,27 +244,27 @@ class SimulationStepFn:
 
   def __call__(
       self,
-      input_state: state.ToraxSimState,
-      geo: geometry.Geometry,
-      dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
       static_config_slice: config_slice.StaticConfigSlice,
+      dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
+      geo: geometry.Geometry,
+      input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state.ToraxSimState:
     """Advances the simulation state one time step.
 
     Args:
-      input_state: State at the start of the time step, including the core
-        profiles which are being evolved.
-      geo: The geometry of the torus during this time step of the simulation.
-        While the geometry may change, any changes to the grid size can trigger
-        recompilation of the stepper (if it is jitted) or an error (assuming it
-        is JAX-compiled and lowered).
+      static_config_slice: Static parameters that, if they change, should
+        trigger a recompilation of the SimulationStepFn.
       dynamic_config_slice_provider: Object that returns a set of runtime
         parameters which may change from time step to time step or simulation
         run to run. If these config parameters change, it does NOT trigger a JAX
         recompilation.
-      static_config_slice: Static parameters that, if they change, should
-        trigger a recompilation of the SimulationStepFn.
+      geo: The geometry of the torus during this time step of the simulation.
+        While the geometry may change, any changes to the grid size can trigger
+        recompilation of the stepper (if it is jitted) or an error (assuming it
+        is JAX-compiled and lowered).
+      input_state: State at the start of the time step, including the core
+        profiles which are being evolved.
       explicit_source_profiles: Explicit source profiles computed based on the
         core profiles at the start of the time step.
 
@@ -249,7 +272,7 @@ class SimulationStepFn:
       ToraxSimState containing:
         - the core profiles at the end of the time step.
         - time and time step calculator state info.
-        - extra auxiliary outputs useful for internal inspection.
+        - core_sources and core_transport at the end of the time step.
         - stepper_error_state:
            0 if solver converged with fine tolerance for this step
            1 if solver did not converge for this step (was above coarse tol)
@@ -305,10 +328,10 @@ class SimulationStepFn:
     # conditions and time-dependent prescribed profiles not directly solved by
     # PDE system.
     core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
-        core_profiles_t=core_profiles_t,
-        dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
         static_config_slice=static_config_slice,
+        dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
         geo=geo,
+        core_profiles_t=core_profiles_t,
     )
 
     stepper_iterations = 0
@@ -317,13 +340,13 @@ class SimulationStepFn:
     # step with large dt) we apply the adaptive time step routine if requested.
     core_profiles, core_sources, core_transport, stepper_error_state = (
         self._stepper_fn(
-            core_profiles_t=core_profiles_t,
-            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            geo=geo,
+            dt=dt,
+            static_config_slice=static_config_slice,
             dynamic_config_slice_t=dynamic_config_slice_t,
             dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-            static_config_slice=static_config_slice,
-            dt=dt,
+            geo=geo,
+            core_profiles_t=core_profiles_t,
+            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             explicit_source_profiles=explicit_source_profiles,
         )
     )
@@ -333,8 +356,8 @@ class SimulationStepFn:
         t=input_state.t + dt,
         dt=dt,
         core_profiles=core_profiles,
-        core_sources=core_sources,
         core_transport=core_transport,
+        core_sources=core_sources,
         stepper_iterations=stepper_iterations,
         time_step_calculator_state=time_step_calculator_state,
         stepper_error_state=stepper_error_state,
@@ -376,13 +399,13 @@ class SimulationStepFn:
         )
         core_profiles, core_sources, core_transport, stepper_error_state = (
             self._stepper_fn(
-                core_profiles_t=core_profiles_t,
-                core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-                geo=geo,
+                dt=dt,
+                static_config_slice=static_config_slice,
                 dynamic_config_slice_t=dynamic_config_slice_t,
                 dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-                static_config_slice=static_config_slice,
-                dt=dt,
+                geo=geo,
+                core_profiles_t=core_profiles_t,
+                core_profiles_t_plus_dt=core_profiles_t_plus_dt,
                 explicit_source_profiles=explicit_source_profiles,
             )
         )
@@ -392,8 +415,8 @@ class SimulationStepFn:
             dt=dt,
             stepper_iterations=updated_output.stepper_iterations + 1,
             core_profiles=core_profiles,
-            core_sources=core_sources,
             core_transport=core_transport,
+            core_sources=core_sources,
             stepper_error_state=stepper_error_state,
         )
 
@@ -430,15 +453,15 @@ class SimulationStepFn:
 
 
 def get_initial_state(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    time_step_calculator: ts.TimeStepCalculator,
     source_models: source_models_lib.SourceModels,
+    time_step_calculator: ts.TimeStepCalculator,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = core_profile_setters.initial_core_profiles(
-      dynamic_config_slice, static_config_slice, geo, source_models
+      static_config_slice, dynamic_config_slice, geo, source_models
   )
   return state.ToraxSimState(
       t=jnp.array(dynamic_config_slice.numerics.t_initial),
@@ -538,20 +561,20 @@ class Sim:
 
   def __init__(
       self,
-      time_step_calculator: ts.TimeStepCalculator,
-      initial_state: state.ToraxSimState,
-      geometry_provider: GeometryProvider,
-      dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
       static_config_slice: config_slice.StaticConfigSlice,
-      stepper: stepper_lib.Stepper | None = None,
+      dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
+      geometry_provider: GeometryProvider,
+      initial_state: state.ToraxSimState,
+      time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel | None = None,
+      stepper: stepper_lib.Stepper | None = None,
       step_fn: SimulationStepFn | None = None,
   ):
-    self._time_step_calculator = time_step_calculator
-    self._initial_state = initial_state
-    self._geometry_provider = geometry_provider
-    self._dynamic_config_slice_provider = dynamic_config_slice_provider
     self._static_config_slice = static_config_slice
+    self._dynamic_config_slice_provider = dynamic_config_slice_provider
+    self._geometry_provider = geometry_provider
+    self._initial_state = initial_state
+    self._time_step_calculator = time_step_calculator
     if step_fn is None:
       if stepper is None or transport_model is None:
         raise ValueError(
@@ -652,12 +675,12 @@ class Sim:
     if spectator is not None:
       spectator.reset()
     return run_simulation(
-        initial_state=self.initial_state,
-        step_fn=self.step_fn,
-        geometry_provider=self.geometry_provider,
-        dynamic_config_slice_provider=self.dynamic_config_slice_provider,
         static_config_slice=self.static_config_slice,
+        dynamic_config_slice_provider=self.dynamic_config_slice_provider,
+        geometry_provider=self.geometry_provider,
+        initial_state=self.initial_state,
         time_step_calculator=self.time_step_calculator,
+        step_fn=self.step_fn,
         log_timestep_info=log_timestep_info,
         spectator=spectator,
     )
@@ -722,31 +745,31 @@ def build_sim_from_config(
       config.numerics.t_initial
   )
   initial_state = get_initial_state(
-      dynamic_config_slice=dynamic_config_slice,
       static_config_slice=static_config_slice,
+      dynamic_config_slice=dynamic_config_slice,
       geo=geo,
-      time_step_calculator=time_step_calculator,
       source_models=stepper.source_models,
+      time_step_calculator=time_step_calculator,
   )
 
   return Sim(
-      time_step_calculator=time_step_calculator,
-      initial_state=initial_state,
-      geometry_provider=ConstantGeometryProvider(geo),
-      dynamic_config_slice_provider=dynamic_config_slice_provider,
       static_config_slice=static_config_slice,
-      stepper=stepper,
+      dynamic_config_slice_provider=dynamic_config_slice_provider,
+      geometry_provider=ConstantGeometryProvider(geo),
+      initial_state=initial_state,
+      time_step_calculator=time_step_calculator,
       transport_model=transport_model,
+      stepper=stepper,
   )
 
 
 def run_simulation(
-    initial_state: state.ToraxSimState,
-    step_fn: SimulationStepFn,
-    geometry_provider: GeometryProvider,
-    dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
     static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
+    geometry_provider: GeometryProvider,
+    initial_state: state.ToraxSimState,
     time_step_calculator: ts.TimeStepCalculator,
+    step_fn: SimulationStepFn,
     log_timestep_info: bool = False,
     spectator: spectator_lib.Spectator | None = None,
 ) -> tuple[state.ToraxSimState, ...]:
@@ -766,13 +789,16 @@ def run_simulation(
   history.
 
   Args:
-    initial_state: The starting state of the simulation. This includes both the
-      state variables which the stepper.Stepper will evolve (like ion temp, psi,
-      etc.) as well as other states that need to be be tracked, like time.
-    step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
-      after one timestep. Note that step_fn determines dt (how long the timestep
-      is). The state_history that run_simulation() outputs comes from these
-      ToraxSimState objects.
+    static_config_slice: A static set of arguments to provide to the step_fn. If
+      step_fn is JAX-compiled, then these params are "compile-time constant"
+      meaning that they are considered static to the compiled function. If they
+      change (i.e. the same step_fn is called again with a different
+      static_config_slice), then the step_fn will be recompiled. JAX determines
+      if recompilation is necessary via the hash of the static_config_slice.
+    dynamic_config_slice_provider: Provides a DynamicConfigSlice to use as input
+      for each time step. See static_config_slice and the config_slice module
+      docstring for config_slice to understand why we need the dynamic and
+      static config slices and what they control.
     geometry_provider: Provides the geometry of the torus for each time step
       based on the ToraxSimState at the start of the time step. The geometry may
       change from time step to time step, so the sim needs a function to provide
@@ -781,18 +807,15 @@ def run_simulation(
       a time step and returns the Geometry for that time step. For most use
       cases, only the time will be relevant from the ToraxSimState (in order to
       support time-dependent geometries).
-    dynamic_config_slice_provider: Provides a DynamicConfigSlice to use as input
-      for each time step. See static_config_slice and the config_slice module
-      docstring for config_slice to understand why we need the dynamic and
-      static config slices and what they control.
-    static_config_slice: A static set of arguments to provide to the step_fn. If
-      step_fn is JAX-compiled, then these params are "compile-time constant"
-      meaning that they are considered static to the compiled function. If they
-      change (i.e. the same step_fn is called again with a different
-      static_config_slice), then the step_fn will be recompiled. JAX determines
-      if recompilation is necessary via the hash of the static_config_slice.
+    initial_state: The starting state of the simulation. This includes both the
+      state variables which the stepper.Stepper will evolve (like ion temp, psi,
+      etc.) as well as other states that need to be be tracked, like time.
     time_step_calculator: TimeStepCalculator determining policy for stepping
       through time.
+    step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
+      after one timestep. Note that step_fn determines dt (how long the timestep
+      is). The state_history that run_simulation() outputs comes from these
+      ToraxSimState objects.
     log_timestep_info: If True, logs basic timestep info, like time, dt, on
       every step.
     spectator: Object which can "spectate" values as the simulation runs. See
@@ -829,11 +852,11 @@ def run_simulation(
   # before starting the run-loop. The explicit source profiles will be computed
   # inside the loop and will be merged with these implicit source profiles.
   initial_state.core_sources = _get_initial_source_profiles(
-      source_models=step_fn.stepper.source_models,
       static_config_slice=static_config_slice,
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
       core_profiles=initial_state.core_profiles,
+      source_models=step_fn.stepper.source_models,
   )
   if spectator is not None:
     # Because of the updates we apply to the core sources during the next
@@ -868,10 +891,10 @@ def run_simulation(
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
     # set to 0.
     explicit_source_profiles = source_models_lib.build_source_profiles(
-        source_models=step_fn.stepper.source_models,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=sim_state.core_profiles,
+        source_models=step_fn.stepper.source_models,
         explicit=True,
     )
 
@@ -880,9 +903,9 @@ def run_simulation(
     # profiles at this time step's t. We can merge those "implicit" source
     # profiles with the explicit ones computed here.
     sim_state.core_sources = _merge_source_profiles(
-        source_models=step_fn.stepper.source_models,
         explicit_source_profiles=explicit_source_profiles,
         implicit_source_profiles=sim_state.core_sources,
+        source_models=step_fn.stepper.source_models,
         qei_core_profiles=sim_state.core_profiles,
     )
     # Make sure to "spectate" the state after the source profiles  have been
@@ -894,10 +917,10 @@ def run_simulation(
       # Now prep the spectator for the following time step.
       spectator.before_step()
     sim_state = step_fn(
-        sim_state,
-        geo,
-        dynamic_config_slice_provider,
         static_config_slice,
+        dynamic_config_slice_provider,
+        geo,
+        sim_state,
         explicit_source_profiles,
     )
     stepper_error_state = sim_state.stepper_error_state
@@ -915,16 +938,16 @@ def run_simulation(
   # profiles computed based on the final state.
   logging.info("Updating last step's source profiles.")
   explicit_source_profiles = source_models_lib.build_source_profiles(
-      source_models=step_fn.stepper.source_models,
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
       core_profiles=sim_state.core_profiles,
+      source_models=step_fn.stepper.source_models,
       explicit=True,
   )
   sim_state.core_sources = _merge_source_profiles(
-      source_models=step_fn.stepper.source_models,
       explicit_source_profiles=explicit_source_profiles,
       implicit_source_profiles=sim_state.core_sources,
+      source_models=step_fn.stepper.source_models,
       qei_core_profiles=sim_state.core_profiles,
   )
   if spectator is not None:
@@ -1028,10 +1051,10 @@ def _update_spectator(
 
 
 def update_current_distribution(
-    source_models: source_models_lib.SourceModels,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    source_models: source_models_lib.SourceModels,
 ) -> state.CoreProfiles:
   """Update bootstrap current based on the new core_profiles."""
 
@@ -1068,17 +1091,20 @@ def update_current_distribution(
 
 
 def update_psidot(
-    source_models: source_models_lib.SourceModels,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    source_models: source_models_lib.SourceModels,
 ) -> state.CoreProfiles:
   """Update psidot based on new core_profiles."""
 
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=source_models_lib.calc_psidot(
-          source_models, dynamic_config_slice, geo, core_profiles
+          dynamic_config_slice,
+          geo,
+          core_profiles,
+          source_models,
       ),
   )
 
@@ -1090,10 +1116,10 @@ def update_psidot(
 
 
 def provide_core_profiles_t_plus_dt(
-    core_profiles_t: state.CoreProfiles,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
     static_config_slice: config_slice.StaticConfigSlice,
+    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
+    core_profiles_t: state.CoreProfiles,
 ) -> state.CoreProfiles:
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
   updated_boundary_conditions = (
@@ -1103,10 +1129,10 @@ def provide_core_profiles_t_plus_dt(
       )
   )
   updated_values = core_profile_setters.updated_prescribed_core_profiles(
-      core_profiles=core_profiles_t,
-      dynamic_config_slice=dynamic_config_slice_t_plus_dt,
       static_config_slice=static_config_slice,
+      dynamic_config_slice=dynamic_config_slice_t_plus_dt,
       geo=geo,
+      core_profiles=core_profiles_t,
   )
   temp_ion = dataclasses.replace(
       core_profiles_t.temp_ion,
@@ -1141,11 +1167,11 @@ def provide_core_profiles_t_plus_dt(
 
 
 def _get_initial_source_profiles(
-    source_models: source_models_lib.SourceModels,
     static_config_slice: config_slice.StaticConfigSlice,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    source_models: source_models_lib.SourceModels,
 ) -> source_profiles_lib.SourceProfiles:
   """Returns the "implicit" profiles for the initial state in run_simulation().
 
@@ -1161,7 +1187,6 @@ def _get_initial_source_profiles(
   core profiles.
 
   Args:
-    source_models: Source models used to compute core source profiles.
     static_config_slice: Config parameters which, when they change, trigger
       recompilations. They should not change within a single run of the sim.
     dynamic_config_slice: Runtime parameters which may change from time step to
@@ -1169,22 +1194,25 @@ def _get_initial_source_profiles(
     geo: The geometry of the torus during this time step of the simulation.
     core_profiles: Core profiles that may evolve throughout the course of a
       simulation. These values here are, of course, only the original states.
+    source_models: Source models used to compute core source profiles.
 
   Returns:
     SourceProfiles from implicit source models based on the core profiles from
     the starting state.
   """
   implicit_profiles = source_models_lib.build_source_profiles(
-      source_models=source_models,
       dynamic_config_slice=dynamic_config_slice,
       geo=geo,
       core_profiles=core_profiles,
+      source_models=source_models,
       explicit=False,
   )
   qei = source_models.qei_source.get_qei(
-      dynamic_config_slice.sources[source_models.qei_source.name].source_type,
-      dynamic_config_slice=dynamic_config_slice,
       static_config_slice=static_config_slice,
+      source_type=dynamic_config_slice.sources[
+          source_models.qei_source.name
+      ].source_type,
+      dynamic_config_slice=dynamic_config_slice,
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -1196,9 +1224,9 @@ def _get_initial_source_profiles(
 # in our tests, jitting this function actually slightly slows down runs, so this
 # is left as pure python.
 def _merge_source_profiles(
-    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     implicit_source_profiles: source_profiles_lib.SourceProfiles,
+    source_models: source_models_lib.SourceModels,
     qei_core_profiles: state.CoreProfiles,
 ) -> source_profiles_lib.SourceProfiles:
   """Returns a SourceProfiles that merges the input profiles.
@@ -1212,7 +1240,6 @@ def _merge_source_profiles(
   SourceProfiles that includes both.
 
   Args:
-    source_models: Source models used to compute the profiles given.
     explicit_source_profiles: Profiles from explicit source models. This
       SourceProfiles dict will include keys for both the explicit and implicit
       sources, but only the explicit sources will have non-zero profiles. See
@@ -1221,6 +1248,7 @@ def _merge_source_profiles(
       SourceProfiles dict will include keys for both the explicit and implicit
       sources, but only the implicit sources will have non-zero profiles. See
       source.py and source_config.py for more info on explicit vs. implicit.
+    source_models: Source models used to compute the profiles given.
     qei_core_profiles: The core profiles used to compute the Qei source.
 
   Returns:

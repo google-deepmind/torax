@@ -102,10 +102,10 @@ def calc_neoclassical(
   # We don't store q_cell in the evolving core profiles, so we need to
   # recalculate it.
   q_face, _ = physics.calc_q_from_jtot_psi(
-      geo,
-      jtot_face,
-      psi,
-      dynamic_config_slice.numerics.q_correction_factor,
+      geo=geo,
+      psi=psi,
+      jtot_face=jtot_face,
+      q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
   )
   nuestar = (
       6.921e-18

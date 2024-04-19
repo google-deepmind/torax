@@ -36,9 +36,9 @@ from torax.fvm import residual_and_loss
     ],
 )
 def implicit_solve_block(
+    dt: jax.Array,
     x_old: tuple[cell_variable.CellVariable, ...],
     x_new_guess: tuple[cell_variable.CellVariable, ...],
-    dt: jax.Array,
     coeffs_old: block_1d_coeffs.Block1DCoeffs,
     coeffs_new: block_1d_coeffs.Block1DCoeffs,
     theta_imp: float = 1.0,
@@ -53,9 +53,9 @@ def implicit_solve_block(
   to obtain the coefficients for a particular problem.
 
   Args:
+    dt: Discrete time step.
     x_old: Tuple containing CellVariables for each channel with their values at
     x_new_guess: Tuple containing initial guess for x_new.
-    dt: Discrete time step.
     coeffs_old: Coefficients defining the equation, computed for time t.
     coeffs_new: Coefficients defining the equation, computed for time t+dt.
     theta_imp: Coefficient in [0, 1] determining which solution method to use.
@@ -86,9 +86,9 @@ def implicit_solve_block(
 
   lhs_mat, lhs_vec, rhs_mat, rhs_vec = (
       residual_and_loss.theta_method_matrix_equation(
-          x_new_guess=x_new_guess,
-          x_old=x_old,
           dt=dt,
+          x_old=x_old,
+          x_new_guess=x_new_guess,
           coeffs_old=coeffs_old,
           coeffs_new=coeffs_new,
           theta_imp=theta_imp,

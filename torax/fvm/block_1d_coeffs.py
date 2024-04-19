@@ -103,8 +103,8 @@ class Block1DCoeffsCallback(Protocol):
 
   def __call__(
       self,
-      x: tuple[cell_variable.CellVariable, ...],
       dynamic_config_slice: config_slice.DynamicConfigSlice,
+      x: tuple[cell_variable.CellVariable, ...],
       allow_pereverzev: bool = False,
       explicit_call: bool = False,
   ) -> Block1DCoeffs:
@@ -124,10 +124,10 @@ class Block1DCoeffsCallback(Protocol):
     final output x_new.
 
     Args:
-      x: The state.
       dynamic_config_slice: Runtime configuration parameters. These values are
         potentially time-dependent and should correspond to the time step of the
         state x.
+      x: The state.
       allow_pereverzev: If True, then the coeffs are being called for an initial
         guess based on a linear step as opposed to just passing the iniitial
         state. This is a special case which may lead to the pereverzev-corrigan

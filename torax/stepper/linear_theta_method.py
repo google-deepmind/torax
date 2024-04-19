@@ -42,15 +42,15 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
   def _x_new(
       self,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
-      evolving_names: tuple[str, ...],
-      geo: geometry.Geometry,
+      dt: jax.Array,
+      static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice_t: config_slice.DynamicConfigSlice,
       dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dt: jax.Array,
+      geo: geometry.Geometry,
+      core_profiles_t: state.CoreProfiles,
+      core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
+      evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[fvm.CellVariable, ...],
       source_profiles.SourceProfiles,
@@ -66,20 +66,20 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
     # Instantiate coeffs_callback class
     coeffs_callback = self.callback_class(
+        static_config_slice=static_config_slice,
+        geo=geo,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-        evolving_names=evolving_names,
-        geo=geo,
-        static_config_slice=static_config_slice,
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        evolving_names=evolving_names,
     )
 
     # Compute the explicit coeffs based on the core profiles at time t and all
     # runtime parameters at time t.
     coeffs_exp = coeffs_callback(
-        x_old, dynamic_config_slice_t, allow_pereverzev=True, explicit_call=True
+        dynamic_config_slice_t, x_old, allow_pereverzev=True, explicit_call=True
     )
 
     # Calculate x_new with the predictor corrector method. Reverts to a
@@ -93,7 +93,9 @@ class LinearThetaMethod(stepper_lib.Stepper):
         x_new_init,
         (
             source_models_lib.build_all_zero_profiles(
-                self.source_models, dynamic_config_slice_t, geo
+                dynamic_config_slice_t,
+                geo,
+                self.source_models,
             ),
             state.CoreTransport.zeros(geo),
         ),
@@ -101,13 +103,13 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
     x_new, (core_sources, core_transport) = (
         predictor_corrector_method.predictor_corrector_method(
-            init_val=init_val,
-            x_old=x_old,
             dt=dt,
+            static_config_slice=static_config_slice,
+            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+            x_old=x_old,
+            init_val=init_val,
             coeffs_exp=coeffs_exp,
             coeffs_callback=coeffs_callback,
-            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-            static_config_slice=static_config_slice,
         )
     )
 

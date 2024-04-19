@@ -89,18 +89,18 @@ def _log_iterations(
 
 
 def newton_raphson_solve_block(
-    x_old: tuple[cell_variable.CellVariable, ...],
-    core_profiles_t_plus_dt: state_module.CoreProfiles,
-    evolving_names: tuple[str, ...],
     dt: jax.Array,
-    coeffs_callback: Block1DCoeffsCallback,
+    static_config_slice: config_slice.StaticConfigSlice,
     dynamic_config_slice_t: config_slice.DynamicConfigSlice,
     dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
-    static_config_slice: config_slice.StaticConfigSlice,
     geo: geometry.Geometry,
+    x_old: tuple[cell_variable.CellVariable, ...],
+    core_profiles_t_plus_dt: state_module.CoreProfiles,
     transport_model: transport_model_lib.TransportModel,
-    source_models: source_models_lib.SourceModels,
     explicit_source_profiles: source_profiles.SourceProfiles,
+    source_models: source_models_lib.SourceModels,
+    coeffs_callback: Block1DCoeffsCallback,
+    evolving_names: tuple[str, ...],
     log_iterations: bool = False,
     initial_guess_mode: InitialGuessMode = INITIAL_GUESS_MODE,
     maxiter: int = MAXITER,
@@ -133,29 +133,29 @@ def newton_raphson_solve_block(
   either a warning or recalculation with a lower dt.
 
   Args:
+    dt: Discrete time step.
+    static_config_slice: Static runtime configuration. Changes to these config
+      params will trigger recompilation.
+    dynamic_config_slice_t: Runtime configuration for time t (the start time of
+      the step). These config params can change from step to step without
+      triggering a recompilation.
+    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    geo: Geometry object.
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
       being evolved by the PDE system.
-    evolving_names: The names of variables within the core profiles that should
-      evolve.
-    dt: Discrete time step.
-    coeffs_callback: Calculates diffusion, convection etc. coefficients given a
-      core_profiles. Repeatedly called by the iterative optimizer.
-    dynamic_config_slice_t: Runtime configuration for time t (the start time of
-      the step). These config params can change from step to step without
-      triggering a recompilation.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
-    static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation.
-    geo: Geometry object.
     transport_model: Turbulent transport model callable.
-    source_models: Collection of source callables to generate source PDE
-      coefficients.
     explicit_source_profiles: Pre-calculated sources implemented as explicit
       sources in the PDE.
+    source_models: Collection of source callables to generate source PDE
+      coefficients.
+    coeffs_callback: Calculates diffusion, convection etc. coefficients given a
+      core_profiles. Repeatedly called by the iterative optimizer.
+    evolving_names: The names of variables within the core profiles that should
+      evolve.
     log_iterations: If true, output diagnostic information from within iteration
       loop.
     initial_guess_mode: chooses the initial_guess for the iterative method,
@@ -183,7 +183,7 @@ def newton_raphson_solve_block(
   # pyformat: enable
 
   coeffs_old = coeffs_callback(
-      x_old, dynamic_config_slice_t, explicit_call=True
+      dynamic_config_slice_t, x_old, explicit_call=True
   )
 
   match initial_guess_mode:
@@ -194,8 +194,8 @@ def newton_raphson_solve_block(
       # if set by config, needed if stiff transport models (e.g. qlknn)
       # are used.
       coeffs_exp_linear = coeffs_callback(
-          x_old,
           dynamic_config_slice_t,
+          x_old,
           allow_pereverzev=True,
           explicit_call=True,
       )
@@ -210,19 +210,21 @@ def newton_raphson_solve_block(
           # this is jitted.
           (
               source_models_lib.build_all_zero_profiles(
-                  source_models, dynamic_config_slice_t, geo
+                  dynamic_config_slice_t,
+                  geo,
+                  source_models,
               ),
               state_module.CoreTransport.zeros(geo),
           ),
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
-          init_val=init_val,
-          x_old=x_old,
           dt=dt,
+          static_config_slice=static_config_slice,
+          dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+          x_old=x_old,
+          init_val=init_val,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-          static_config_slice=static_config_slice,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
     case InitialGuessMode.X_OLD:
@@ -239,30 +241,30 @@ def newton_raphson_solve_block(
   residual_fun = functools.partial(
       residual_and_loss.theta_method_block_residual,
       dt=dt,
+      static_config_slice=static_config_slice,
+      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      geo=geo,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      geo=geo,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-      static_config_slice=static_config_slice,
-      evolving_names=evolving_names,
-      coeffs_old=coeffs_old,
       transport_model=transport_model,
-      source_models=source_models,
       explicit_source_profiles=explicit_source_profiles,
+      source_models=source_models,
+      coeffs_old=coeffs_old,
+      evolving_names=evolving_names,
   )
   jacobian_fun = functools.partial(
       residual_and_loss.theta_method_block_jacobian,
       dt=dt,
+      static_config_slice=static_config_slice,
+      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      geo=geo,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-      geo=geo,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-      static_config_slice=static_config_slice,
       evolving_names=evolving_names,
-      coeffs_old=coeffs_old,
       transport_model=transport_model,
-      source_models=source_models,
       explicit_source_profiles=explicit_source_profiles,
+      source_models=source_models,
+      coeffs_old=coeffs_old,
   )
 
   cond_fun = functools.partial(cond, tol=tol, tau_min=tau_min, maxiter=maxiter)
