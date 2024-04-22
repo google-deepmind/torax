@@ -338,8 +338,8 @@ def _build_temp_ion_el_profiles(
 
 def sum_sources_psi(
     geo: geometry.Geometry,
-    source_models: SourceModels,
     source_profile: source_profiles.SourceProfiles,
+    source_models: SourceModels,
 ) -> jnp.ndarray:
   """Computes psi source values for sim.calc_coeffs."""
   total = (

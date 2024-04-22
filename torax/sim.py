@@ -23,28 +23,6 @@ jax compilation off and on. Compilation is on by default. Turning
 compilation off can sometimes help with debugging (e.g. by making
 it easier to print error messages in context).
 
-Throughout TORAX, we maintain the following canonical argument order passed to
-the various functions. For each individual case only a subset of these are
-passed, but the order should be maintained. Individual elements in
-CANONICAL_ORDER are substrings of full argument names which may appear in
-practice, e.g. "dynamic_config_slice_t_plus_dt", "coeffs_callback".
-
-CANONICAL_ORDER = [
-  "dt"
-  "source_type",
-  "static_config_slice",
-  "dynamic_config_slice",
-  "geo",
-  "x_old",
-  "state",
-  "core_profiles",
-  "step",
-  "transport_model",
-  "source_profiles",
-  "source_models",
-  "coeffs",
-  "evolving_names",
-]
 """
 
 from __future__ import annotations
@@ -73,14 +51,6 @@ from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
 from torax.transport_model import transport_model_factory
-
-
-# TODO(b/335598322) standardize order of arguments passed to various functions
-# throghout all of torax
-# e.g. in the physics module, the order is always:
-# config, geo, core_profiles, constants
-# (with some subset dropped, including replacing `core_profiles` with its
-# fields) but in this module we don't follow that order yet
 
 
 def _log_timestep(t: jax.Array, dt: jax.Array, stepper_iterations: int) -> None:
@@ -456,8 +426,8 @@ def get_initial_state(
     static_config_slice: config_slice.StaticConfigSlice,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    source_models: source_models_lib.SourceModels,
     time_step_calculator: ts.TimeStepCalculator,
+    source_models: source_models_lib.SourceModels,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = core_profile_setters.initial_core_profiles(

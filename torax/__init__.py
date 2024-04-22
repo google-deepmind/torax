@@ -60,3 +60,37 @@ if precision == 'f64':
   jax.config.update('jax_enable_x64', True)
 
 CellVariable = fvm.CellVariable
+
+# Throughout TORAX, we maintain the following canonical argument order for
+# common argument names passed to many functions. This is a stylistic
+# convention that helps to remember the order of arguments for a function.
+# For each individual function only a subset of these are
+# passed, but the order should be maintained.
+CANONICAL_ORDER = [
+    'dt',
+    'source_type',
+    'static_config_slice',
+    'dynamic_config_slice',
+    'dynamic_config_slice_t',
+    'dynamic_config_slice_t_plus_dt',
+    'unused_config',
+    'geo',
+    'time_step_calculator',
+    'x_old',
+    'state',
+    'unused_state',
+    'core_profiles',
+    'psi',
+    'transport_model',
+    'source_profiles',
+    'source_profile',
+    'explicit_source_profiles',
+    'source_models',
+    'coeffs_callback',
+    'evolving_names',
+    'spectator',
+    'explicit',
+    'maxiter',
+    'tol',
+    'delta_reduction_factor',
+]
