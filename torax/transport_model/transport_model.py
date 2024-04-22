@@ -26,6 +26,11 @@ from torax import geometry
 from torax import state
 
 
+# TODO(b/335593209) all clipping of of transport coefficients to minimum or
+# maximum values, along with setting minimum chi and D and V=0 for r>Ped_top,
+# can be done via a TransportModel class method instead of within each child
+# class. Note: this will slightly change some of the reference results, e.g.
+# there is presently no pedestal region clipping for the constant chi model.
 class TransportModel(abc.ABC):
   """Calculates various coefficients related to heat and particle transport."""
 

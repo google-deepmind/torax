@@ -510,17 +510,6 @@ def _calc_coeffs_full(
       source_models,
   )
 
-  if full_v_face_el is not None:
-    # TODO(b/335593209): Move this masking to the constant transport model.
-    full_v_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_config_slice.profile_conditions.set_pedestal,
-            geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
-        ),
-        0.0,
-        full_v_face_el,
-    )
-
   # calculate neped
   # pylint: disable=invalid-name
   nGW = (

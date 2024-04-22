@@ -34,13 +34,28 @@ class ConstantTransportModel(transport_model.TransportModel):
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
     del core_profiles  # Not needed for this transport model
+
+    chi_face_ion = dynamic_config_slice.transport.chii_const * jnp.ones_like(
+        geo.r_face
+    )
+    chi_face_el = dynamic_config_slice.transport.chie_const * jnp.ones_like(
+        geo.r_face
+    )
+    d_face_el = dynamic_config_slice.transport.De_const * jnp.ones_like(
+        geo.r_face
+    )
+    v_face_el = jnp.where(
+        jnp.logical_and(
+            dynamic_config_slice.profile_conditions.set_pedestal,
+            geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
+        ),
+        0,
+        dynamic_config_slice.transport.Ve_const,
+    )
+
     return state.CoreTransport(
-        chi_face_ion=dynamic_config_slice.transport.chii_const
-        * jnp.ones_like(geo.r_face),
-        chi_face_el=dynamic_config_slice.transport.chie_const
-        * jnp.ones_like(geo.r_face),
-        d_face_el=dynamic_config_slice.transport.De_const
-        * jnp.ones_like(geo.r_face),
-        v_face_el=dynamic_config_slice.transport.Ve_const
-        * jnp.ones_like(geo.r_face),
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
     )
