@@ -320,12 +320,12 @@ def _calc_coeffs_full(
   # fill source vector based on both original and updated core profiles
   source_psi = source_models_lib.sum_sources_psi(
       geo,
-      source_models,
       implicit_source_profiles,
+      source_models,
   ) + source_models_lib.sum_sources_psi(
       geo,
-      source_models,
       explicit_source_profiles,
+      source_models,
   )
 
   true_ne_face = core_profiles.ne.face_value() * dynamic_config_slice.nref
