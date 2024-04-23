@@ -579,7 +579,7 @@ class SourceModels:
 
   Each source/sink (all called sources as the difference is only a sign change)
   can be explicit or implicit and signal to our solver on how to handle these
-  terms. Their values are provided via model, file, perscribed function, etc.
+  terms. Their values are provided via model, file, prescribed function, etc.
   The specific approach used depends on how the source is initialized and what
   runtime configuration inputs are provided.
 

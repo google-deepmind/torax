@@ -200,7 +200,7 @@ class PlasmaComposition:
 
 @chex.dataclass
 class ProfileConditions:
-  """Perscribed values and boundary conditions for the core profiles."""
+  """Prescribed values and boundary conditions for the core profiles."""
 
   # total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
@@ -226,7 +226,7 @@ class ProfileConditions:
   # Toggle units of nbar
   nbar_is_fGW: bool = True
 
-  # Density boundary condition for r=Rmin, units of nref
+  # Density boundary condition for r=Rmin.
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
   ne_bound_right: TimeDependentField = 0.5
@@ -235,9 +235,9 @@ class ProfileConditions:
   # Internal boundary condition (pedestal)
   # Do not set internal boundary condition if this is False
   set_pedestal: TimeDependentField = True
-  # ion pedestal top temperature in keV for Ti and Te
+  # ion pedestal top temperature in keV
   Tiped: TimeDependentField = 5.0
-  # electron pedestal top temperature in keV for Ti and Te
+  # electron pedestal top temperature in keV
   Teped: TimeDependentField = 5.0
   # pedestal top electron density
   # In units of reference density if neped_is_fGW = False.

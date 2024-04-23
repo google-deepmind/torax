@@ -248,7 +248,7 @@ class DynamicPlasmaComposition:
 
 @chex.dataclass
 class DynamicProfileConditions:
-  """Perscribed values and boundary conditions for the core profiles."""
+  """Prescribed values and boundary conditions for the core profiles."""
 
   # total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
