@@ -106,22 +106,24 @@ class TransportConfig:
   Vemax: float = 50.0  # minimum electron density convection
 
   # set inner core transport coefficients (ad-hoc MHD/EM transport)
-  apply_inner_patch: bool = False
-  De_inner: float = 0.2
-  Ve_inner: float = 0.0
-  chii_inner: float = 1.0
-  chie_inner: float = 1.0
-  rho_inner: float = 0.3  # normalized radius below which patch is applied
+  apply_inner_patch: TimeDependentField = False
+  De_inner: TimeDependentField = 0.2
+  Ve_inner: TimeDependentField = 0.0
+  chii_inner: TimeDependentField = 1.0
+  chie_inner: TimeDependentField = 1.0
+  # normalized radius below which patch is applied
+  rho_inner: TimeDependentField = 0.3
 
   # set outer core transport coefficients.
   # Useful for L-mode near-edge region where QLKNN10D is not applicable.
   # Only used when set_pedestal = False
-  apply_outer_patch: bool = False
-  De_outer: float = 0.2
-  Ve_outer: float = 0.0
-  chii_outer: float = 1.0
-  chie_outer: float = 1.0
-  rho_outer: float = 0.9  # normalized radius above which patch is applied
+  apply_outer_patch: TimeDependentField = False
+  De_outer: TimeDependentField = 0.2
+  Ve_outer: TimeDependentField = 0.0
+  chii_outer: TimeDependentField = 1.0
+  chie_outer: TimeDependentField = 1.0
+  # normalized radius above which patch is applied
+  rho_outer: TimeDependentField = 0.9
 
   # For Critical Gradient Model (CGM)
   # Exponent of chi power law: chi \propto (R/LTi - R/LTi_crit)^alpha
@@ -158,13 +160,13 @@ class TransportConfig:
 
   # for constant chi model
   # coefficient in ion heat equation diffusion term in m^2/s
-  chii_const: float = 1.0
+  chii_const: TimeDependentField = 1.0
   # coefficient in electron heat equation diffusion term in m^2/s
-  chie_const: float = 1.0
+  chie_const: TimeDependentField = 1.0
   # diffusion coefficient in electron density equation in m^2/s
-  De_const: float = 1.0
+  De_const: TimeDependentField = 1.0
   # convection coefficient in electron density equation in m^2/s
-  Ve_const: float = -0.33
+  Ve_const: TimeDependentField = -0.33
 
   def __post_init__(self):
     assert self.De_const >= 0.0
@@ -222,7 +224,7 @@ class ProfileConditions:
   # In units of reference density if nbar_is_fGW = False.
   # In Greenwald fraction if nbar_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: float = 0.85
+  nbar: TimeDependentField = 0.85
   # Toggle units of nbar
   nbar_is_fGW: bool = True
 
