@@ -64,7 +64,6 @@ extensions = [
     'sphinx_autodoc_typehints',
     'sphinx_remove_toctrees',
     'sphinx_copybutton',
-    'jax_extensions',
     'sphinx_design'
 ]
 

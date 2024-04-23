@@ -23,3 +23,6 @@ poetry.lock
 
 # PyCharm
 .idea
+
+# Sphinx
+_build
