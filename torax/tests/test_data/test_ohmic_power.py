@@ -33,6 +33,7 @@ def get_config() -> config_lib.Config:
       ),
       numerics=config_lib.Numerics(
           t_final=1,
+          resistivity_mult=100,
           bootstrap_mult=0,  # remove bootstrap current
       ),
       w=0.18202270915319393,

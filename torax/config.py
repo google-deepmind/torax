@@ -299,7 +299,7 @@ class Numerics:
   q_correction_factor: float = 1.38
   # 1/multiplication factor for sigma (conductivity) to reduce current
   # diffusion timescale to be closer to heat diffusion timescale
-  resistivity_mult: TimeDependentField = 100.0
+  resistivity_mult: TimeDependentField = 1.0
   # Multiplication factor for bootstrap current
   bootstrap_mult: float = 1.0
   # multiplier for ion-electron heat exchange term for sensitivity testing
