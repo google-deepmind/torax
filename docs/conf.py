@@ -123,28 +123,19 @@ napolean_use_rtype = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_book_theme'
+html_theme = 'sphinx_rtd_theme'
 
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-html_theme_options = {
-    'show_toc_level': 2,
-    'repository_url': 'https://github.com/google/jax',
-    'use_repository_button': True,     # add a "link to repository" button
-    'navigation_with_keys': False,
-}
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = '_static/torax_logo_250px.png'
+html_logo = 'images/torax_logo_250px.png'
 
-html_favicon = '_static/favicon.png'
+html_favicon = 'images/favicon.png'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = []
 
 html_css_files = [
     'style.css',
