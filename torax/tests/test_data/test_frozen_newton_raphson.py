@@ -24,6 +24,7 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax.sources import source_config
 from torax.tests.test_lib import sim_test_case
+from torax.transport_model import constant as constant_transport_model
 
 
 def get_config() -> config_lib.Config:
@@ -39,9 +40,6 @@ def get_config() -> config_lib.Config:
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           theta_imp=1.0,
-      ),
-      transport=config_lib.TransportConfig(
-          transport_model="constant",
       ),
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
@@ -65,10 +63,11 @@ def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
-      config,
-      geo,
-      functools.partial(
+      config=config,
+      geo=geo,
+      stepper_builder=functools.partial(
           sim_test_case.make_frozen_newton_raphson_stepper,
           config=config,
       ),
+      transport_model=constant_transport_model.ConstantTransportModel(),
   )

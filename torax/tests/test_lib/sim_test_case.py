@@ -34,6 +34,7 @@ from torax.sources import source_models as source_models_lib
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import array_time_step_calculator
+from torax.transport_model import runtime_params as transport_params_lib
 from torax.transport_model import transport_model as transport_model_lib
 import xarray as xr
 
@@ -278,6 +279,7 @@ def make_frozen_optimizer_stepper(
     transport_model: transport_model_lib.TransportModel,
     source_models: source_models_lib.SourceModels,
     config: config_lib.Config,
+    transport_params: transport_params_lib.RuntimeParams,
 ) -> stepper_lib.Stepper:
   """Makes an optimizer stepper with frozen coefficients.
 
@@ -289,12 +291,16 @@ def make_frozen_optimizer_stepper(
     source_models: TORAX sources/sinks used to compute profile terms in the
       state evolution equations.
     config: General TORAX config.
+    transport_params: Runtime params for the transport model.
 
   Returns:
     Stepper: the stepper.
   """
   # Get the dynamic config for the start of the simulation.
-  dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+  dynamic_config_slice = config_slice.build_dynamic_config_slice(
+      config=config,
+      transport=transport_params,
+  )
   callback_builder = functools.partial(
       sim_lib.FrozenCoeffsCallback,
       dynamic_config_slice=dynamic_config_slice,

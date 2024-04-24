@@ -26,6 +26,7 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax.sources import source_config
 from torax.stepper import linear_theta_method
+from torax.transport_model import qlknn_wrapper
 
 
 def get_config() -> config_lib.Config:
@@ -46,9 +47,6 @@ def get_config() -> config_lib.Config:
       use_absolute_jext=True,
       fext=0.0,
       Iext=3.0,
-      transport=config_lib.TransportConfig(
-          transport_model="qlknn",
-      ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
@@ -68,6 +66,10 @@ def get_geometry(config: config_lib.Config) -> geometry.Geometry:
   return geometry.build_circular_geometry(config)
 
 
+def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
+  return qlknn_wrapper.QLKNNTransportModel()
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -75,5 +77,8 @@ def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
-      config, geo, linear_theta_method.LinearThetaMethod
+      config=config,
+      geo=geo,
+      stepper_builder=linear_theta_method.LinearThetaMethod,
+      transport_model=get_transport_model(),
   )

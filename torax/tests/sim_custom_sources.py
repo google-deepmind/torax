@@ -27,6 +27,7 @@ from torax.sources import source_config
 from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.tests.test_lib import sim_test_case
+from torax.transport_model import constant as constant_transport_model
 
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
@@ -104,11 +105,6 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         S_pellet_tot=2.0e22,
         S_puff_tot=1.0e22,
         S_nbi_tot=0.0,
-        transport=config_lib.TransportConfig(
-            transport_model='constant',
-            De_const=0.5,
-            Ve_const=-0.2,
-        ),
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
         ),
@@ -149,6 +145,12 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         config=test_particle_sources_constant_config,
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethod,
+        transport_model=constant_transport_model.ConstantTransportModel(
+            runtime_params=constant_transport_model.RuntimeParams(
+                De_const=0.5,
+                Ve_const=-0.2,
+            ),
+        ),
         source_models=source_models,
     )
 
@@ -228,7 +230,10 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         step_fn=sim.step_fn,
         geometry_provider=sim.geometry_provider,
         dynamic_config_slice_provider=(
-            config_slice.TimeDependentDynamicConfigSliceProvider(config)
+            config_slice.DynamicConfigSliceProvider(
+                config=config,
+                transport_getter=lambda: sim.transport_model.runtime_params,
+            )
         ),
         static_config_slice=sim.static_config_slice,
         time_step_calculator=sim.time_step_calculator,

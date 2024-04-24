@@ -33,6 +33,7 @@ from torax import state
 from torax.sources import source_models
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
+from torax.transport_model import constant as constant_transport_model
 
 
 class ExplicitStepper(stepper_lib.Stepper):
@@ -87,6 +88,10 @@ class ExplicitStepper(stepper_lib.Stepper):
     cti = 1.5 * geo.vpr * true_ni * consts.keV2J
 
     # Diffusion term coefficient
+    assert isinstance(
+        dynamic_config_slice_t.transport,
+        constant_transport_model.DynamicRuntimeParams,
+    )
     d_face_ion = (
         geo.g1_over_vpr_face
         * true_ni_face

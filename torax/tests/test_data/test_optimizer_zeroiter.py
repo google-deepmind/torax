@@ -27,6 +27,7 @@ from torax.sources import source_config
 from torax.sources import source_models as source_models_lib
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
+from torax.transport_model import qlknn_wrapper
 from torax.transport_model import transport_model as transport_model_lib
 
 
@@ -80,9 +81,6 @@ def get_config() -> config_lib.Config:
           predictor_corrector=False,
           use_pereverzev=True,
       ),
-      transport=config_lib.TransportConfig(
-          transport_model="qlknn",
-      ),
       sources=dict(
           fusion_heat_source=source_config.SourceConfig(
               source_type=source_config.SourceType.ZERO,
@@ -98,6 +96,10 @@ def get_geometry(config: config_lib.Config) -> geometry.Geometry:
   return geometry.build_circular_geometry(config)
 
 
+def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
+  return qlknn_wrapper.QLKNNTransportModel()
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -105,5 +107,8 @@ def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
-      config, geo, make_linear_optimizer_stepper
+      config=config,
+      geo=geo,
+      stepper_builder=make_linear_optimizer_stepper,
+      transport_model=get_transport_model(),
   )

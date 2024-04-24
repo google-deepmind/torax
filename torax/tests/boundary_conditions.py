@@ -53,7 +53,10 @@ class BoundaryConditionsTest(absltest.TestCase):
         initial_dynamic_config_slice,
         geo,
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config, 0.5)
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config,
+        t=0.5,
+    )
 
     bc = core_profile_setters.compute_boundary_conditions(
         dynamic_config_slice,

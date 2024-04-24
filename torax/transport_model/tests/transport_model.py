@@ -24,6 +24,7 @@ from torax import sim as sim_lib
 from torax import state
 from torax.sources import source_models as source_models_lib
 from torax.time_step_calculator import fixed_time_step_calculator
+from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model as transport_model_lib
 
 
@@ -35,16 +36,18 @@ class TransportSmoothingTest(parameterized.TestCase):
     # Set up default config and geo
     config = config_lib.Config(
         profile_conditions=config_lib.ProfileConditions(set_pedestal=False),
-        transport=config_lib.TransportConfig(
+    )
+    geo = geometry.build_circular_geometry(config)
+    source_models = source_models_lib.SourceModels()
+    transport_model = FakeTransportModel(
+        runtime_params=runtime_params_lib.RuntimeParams(
             apply_inner_patch=True,
             apply_outer_patch=True,
             rho_inner=0.3,
             rho_outer=0.8,
             smoothing_sigma=0.05,
-        ),
+        )
     )
-    geo = geometry.build_circular_geometry(config)
-    source_models = source_models_lib.SourceModels()
     dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     static_config_slice = config_slice.build_static_config_slice(config)
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
@@ -55,7 +58,6 @@ class TransportSmoothingTest(parameterized.TestCase):
         time_step_calculator=time_calculator,
         source_models=source_models,
     )
-    transport_model = FakeTransportModel()
     transport_coeffs = transport_model(
         dynamic_config_slice, geo, input_state.core_profiles
     )
@@ -156,6 +158,21 @@ class TransportSmoothingTest(parameterized.TestCase):
 
 class FakeTransportModel(transport_model_lib.TransportModel):
   """Fake TransportModel for testing purposes."""
+
+  def __init__(self, runtime_params: runtime_params_lib.RuntimeParams):
+    self._runtime_params = runtime_params
+
+  @property
+  def runtime_params(self) -> runtime_params_lib.RuntimeParams:
+    """Returns the runtime parameters for this model."""
+    return self._runtime_params
+
+  @runtime_params.setter
+  def runtime_params(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> None:
+    self._runtime_params = runtime_params
 
   def _call_implementation(
       self,

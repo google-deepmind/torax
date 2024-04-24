@@ -86,8 +86,8 @@ def enable_errors(value: bool):
 
 
 def error_if(
-    var: jax.Array,
-    cond: jax.Array,
+    var: jax.Array | float,
+    cond: jax.Array | bool,
     msg: str,
 ) -> jax.Array:
   """Raises error if cond is true, and `errors_enabled` is True.
@@ -103,6 +103,7 @@ def error_if(
     var: Identity wrapper that must be used for the check to be included.
   """
   var = jnp.array(var)
+  cond = jnp.array(cond)
   if not _errors_enabled:
     return var
   return eqx.error_if(var, cond, msg)
@@ -318,4 +319,6 @@ def py_cond(
     return true_fun()
   else:
     return false_fun()
+
+
 # pylint: enable=g-bare-generic

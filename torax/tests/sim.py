@@ -32,6 +32,7 @@ from torax.stepper import linear_theta_method
 from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
+from torax.transport_model import constant as constant_transport_model
 
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
@@ -412,7 +413,11 @@ class SimTest(sim_test_case.SimTestCase):
     geo = torax.build_circular_geometry(config)
 
     sim = sim_lib.build_sim_from_config(
-        config, geo, linear_theta_method.LinearThetaMethod, time_step_calculator
+        config=config,
+        geo=geo,
+        stepper_builder=linear_theta_method.LinearThetaMethod,
+        transport_model=constant_transport_model.ConstantTransportModel(),
+        time_step_calculator=time_step_calculator,
     )
 
     torax_outputs = sim.run()
@@ -469,7 +474,11 @@ class SimTest(sim_test_case.SimTestCase):
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     spectator = spectator_lib.InMemoryJaxArraySpectator()
     sim = sim_lib.build_sim_from_config(
-        config, geo, stepper, time_step_calculator
+        config=config,
+        geo=geo,
+        stepper_builder=stepper,
+        transport_model=config_module.get_transport_model(),
+        time_step_calculator=time_step_calculator,
     )
     sim.run(
         spectator=spectator,

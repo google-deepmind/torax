@@ -25,6 +25,7 @@ from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
 from torax.stepper import nonlinear_theta_method
+from torax.transport_model import qlknn_wrapper
 
 
 def get_config() -> config_lib.Config:
@@ -52,10 +53,6 @@ def get_config() -> config_lib.Config:
       S_puff_tot=0.5e22,
       S_nbi_tot=0.3e22,
       Ptot=53.0e6,  # total external heating
-      transport=config_lib.TransportConfig(
-          DVeff=False,
-          transport_model='qlknn',
-      ),
       solver=config_lib.SolverConfig(
           use_pereverzev=False,
       ),
@@ -66,13 +63,22 @@ def get_geometry(config: config_lib.Config) -> geometry.Geometry:
   return geometry.build_circular_geometry(config)
 
 
+def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
+  return qlknn_wrapper.QLKNNTransportModel(
+      runtime_params=qlknn_wrapper.RuntimeParams(
+          DVeff=False,
+      ),
+  )
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
   # config taking place via constructor args in this function.
   config = get_config()
   return sim_lib.build_sim_from_config(
-      config,
-      get_geometry(config),
-      nonlinear_theta_method.NewtonRaphsonThetaMethod,
+      config=config,
+      geo=get_geometry(config),
+      stepper_builder=nonlinear_theta_method.NewtonRaphsonThetaMethod,
+      transport_model=get_transport_model(),
   )

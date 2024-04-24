@@ -24,6 +24,7 @@ from torax import sim as sim_lib
 from torax.sources import source_config
 from torax.stepper import nonlinear_theta_method
 from torax.time_step_calculator import fixed_time_step_calculator
+from torax.transport_model import qlknn_wrapper
 
 
 def get_config() -> config_lib.Config:
@@ -125,8 +126,43 @@ def get_config() -> config_lib.Config:
       # radius of "external" Gaussian current profile (normalized radial
       # coordinate)
       rext=0.36,
-      transport=config_lib.TransportConfig(
-          transport_model='qlknn',
+      solver=config_lib.SolverConfig(
+          predictor_corrector=True,
+          corrector_steps=10,
+          # (deliberately) large heat conductivity for Pereverzev rule
+          chi_per=30,
+          # (deliberately) large particle diffusion for Pereverzev rule
+          d_per=15,
+          # use_pereverzev is only used for the linear solver
+          use_pereverzev=True,
+          log_iterations=True,
+      ),
+      sources=dict(
+          fusion_heat_source=source_config.SourceConfig(
+              # incorporate fusion heating source in calculation.
+              source_type=source_config.SourceType.MODEL_BASED,
+          ),
+          ohmic_heat_source=source_config.SourceConfig(
+              source_type=source_config.SourceType.ZERO,
+          ),
+      ),
+  )
+
+
+def get_geometry(config: config_lib.Config) -> geometry.Geometry:
+  return geometry.build_chease_geometry(
+      config,
+      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      Ip_from_parameters=True,
+      Rmaj=6.2,  # major radius (R) in meters
+      Rmin=2.0,  # minor radius (a) in meters
+      B0=5.3,  # Toroidal magnetic field on axis [T]
+  )
+
+
+def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
+  return qlknn_wrapper.QLKNNTransportModel(
+      runtime_params=qlknn_wrapper.RuntimeParams(
           DVeff=True,
           coll_mult=0.25,
           # set inner core transport coefficients (ad-hoc MHD/EM transport)
@@ -163,37 +199,6 @@ def get_config() -> config_lib.Config:
           Vemax=10,  # minimum electron convection
           smoothing_sigma=0.1,
       ),
-      solver=config_lib.SolverConfig(
-          predictor_corrector=True,
-          corrector_steps=10,
-          # (deliberately) large heat conductivity for Pereverzev rule
-          chi_per=30,
-          # (deliberately) large particle diffusion for Pereverzev rule
-          d_per=15,
-          # use_pereverzev is only used for the linear solver
-          use_pereverzev=True,
-          log_iterations=True,
-      ),
-      sources=dict(
-          fusion_heat_source=source_config.SourceConfig(
-              # incorporate fusion heating source in calculation.
-              source_type=source_config.SourceType.MODEL_BASED,
-          ),
-          ohmic_heat_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.ZERO,
-          ),
-      ),
-  )
-
-
-def get_geometry(config: config_lib.Config) -> geometry.Geometry:
-  return geometry.build_chease_geometry(
-      config,
-      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-      Ip_from_parameters=True,
-      Rmaj=6.2,  # major radius (R) in meters
-      Rmin=2.0,  # minor radius (a) in meters
-      B0=5.3,  # Toroidal magnetic field on axis [T]
   )
 
 
@@ -204,5 +209,6 @@ def get_sim() -> sim_lib.Sim:
       config=config,
       geo=geo,
       stepper_builder=nonlinear_theta_method.NewtonRaphsonThetaMethod,
+      transport_model=get_transport_model(),
       time_step_calculator=fixed_time_step_calculator.FixedTimeStepCalculator(),
   )

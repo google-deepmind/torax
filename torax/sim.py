@@ -50,7 +50,6 @@ from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
-from torax.transport_model import transport_model_factory
 
 
 def _log_timestep(t: jax.Array, dt: jax.Array, stepper_iterations: int) -> None:
@@ -204,13 +203,18 @@ class SimulationStepFn:
     """
     self._stepper_fn = stepper
     self._time_step_calculator = time_step_calculator
-    self._transport_model = jax_utils.jit(
+    self._transport_model = transport_model
+    self._jitted_transport_model = jax_utils.jit(
         transport_model.__call__,
     )
 
   @property
   def stepper(self) -> stepper_lib.Stepper:
     return self._stepper_fn
+
+  @property
+  def transport_model(self) -> transport_model_lib.TransportModel:
+    return self._transport_model
 
   def __call__(
       self,
@@ -257,7 +261,7 @@ class SimulationStepFn:
     # transport coeffs. We should still refactor the design to more explicitly
     # calculate transport coeffs at delta_t = 0 in only one place, so that we
     # have some flexibility in where to place the jit boundaries.
-    transport_coeffs = self._transport_model(
+    transport_coeffs = self._jitted_transport_model(
         dynamic_config_slice_t, geo, input_state.core_profiles
     )
 
@@ -550,6 +554,8 @@ class Sim:
         raise ValueError(
             'If step_fn is None, must provide both stepper and transport_model.'
         )
+      self._stepper = stepper
+      self._transport_model = transport_model
     else:
       ignored_params = [
           name
@@ -564,8 +570,8 @@ class Sim:
             'step_fn is not None, so the following parameters are ignored: %s',
             ignored_params,
         )
-    self._stepper = stepper
-    self._transport_model = transport_model
+      self._stepper = step_fn.stepper
+      self._transport_model = step_fn.transport_model
     self._step_fn = step_fn
 
   @property
@@ -595,11 +601,11 @@ class Sim:
     return self._step_fn
 
   @property
-  def stepper(self) -> stepper_lib.Stepper | None:
+  def stepper(self) -> stepper_lib.Stepper:
     return self._stepper
 
   @property
-  def transport_model(self) -> transport_model_lib.TransportModel | None:
+  def transport_model(self) -> transport_model_lib.TransportModel:
     return self._transport_model
 
   @property
@@ -633,9 +639,6 @@ class Sim:
       the beginning for the starting state.
     """
     if self._step_fn is None:
-      # Build a new SimulationStepFn
-      assert self._stepper is not None
-      assert self._transport_model is not None
       self._step_fn = SimulationStepFn(
           stepper=self._stepper,
           time_step_calculator=self.time_step_calculator,
@@ -660,6 +663,7 @@ def build_sim_from_config(
     config: config_lib.Config,
     geo: geometry.Geometry,
     stepper_builder: stepper_lib.StepperBuilder,
+    transport_model: transport_model_lib.TransportModel,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
     source_models: source_models_lib.SourceModels | None = None,
 ) -> Sim:
@@ -675,6 +679,7 @@ def build_sim_from_config(
     geo: Describes the magnetic geometry.
     stepper_builder: A callable to build the stepper. The stepper has already
       been factored out of the config.
+    transport_model: Calculates diffusion and convection coefficients.
     time_step_calculator: The time_step_calculator, if built, otherwise a
       ChiTimeStepCalculator will be built by default.
     source_models: All TORAX sources/sink functions which provide profiles used
@@ -683,9 +688,6 @@ def build_sim_from_config(
   Returns:
     sim: The built Sim instance.
   """
-  transport_model = transport_model_factory.construct(
-      config,
-  )
   source_models = (
       source_models_lib.SourceModels()
       if source_models is None
@@ -703,7 +705,10 @@ def build_sim_from_config(
 
   static_config_slice = config_slice.build_static_config_slice(config)
   dynamic_config_slice_provider = (
-      config_slice.TimeDependentDynamicConfigSliceProvider(config)
+      config_slice.DynamicConfigSliceProvider(
+          config=config,
+          transport_getter=lambda: transport_model.runtime_params,
+      )
   )
   stepper = stepper_builder(transport_model, source_models)
 

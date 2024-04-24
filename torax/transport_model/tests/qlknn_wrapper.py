@@ -36,7 +36,10 @@ class QlknnWrapperTest(parameterized.TestCase):
     qlknn_jitted = jax.jit(qlknn)
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config=config,
+        transport=qlknn.runtime_params,
+    )
     static_config_slice = config_slice.build_static_config_slice(config)
     core_profiles = core_profile_setters.initial_core_profiles(
         static_config_slice, dynamic_config_slice, geo

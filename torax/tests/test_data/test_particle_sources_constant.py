@@ -22,6 +22,7 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax.sources import source_config
 from torax.stepper import linear_theta_method
+from torax.transport_model import constant as constant_transport_model
 
 
 def get_config() -> config_lib.Config:
@@ -47,13 +48,6 @@ def get_config() -> config_lib.Config:
       S_pellet_tot=2.0e22,
       S_puff_tot=1.0e22,
       S_nbi_tot=0.0,
-      transport=config_lib.TransportConfig(
-          transport_model="constant",
-          # diffusion coefficient in electron density equation in m^2/s
-          De_const=0.5,
-          # convection coefficient in electron density equation in m^2/s
-          Ve_const=-0.2,
-      ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
       ),
@@ -72,6 +66,17 @@ def get_geometry(config: config_lib.Config) -> geometry.Geometry:
   return geometry.build_circular_geometry(config)
 
 
+def get_transport_model() -> constant_transport_model.ConstantTransportModel:
+  return constant_transport_model.ConstantTransportModel(
+      runtime_params=constant_transport_model.RuntimeParams(
+          # diffusion coefficient in electron density equation in m^2/s
+          De_const=0.5,
+          # convection coefficient in electron density equation in m^2/s
+          Ve_const=-0.2,
+      ),
+  )
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -79,5 +84,8 @@ def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
-      config, geo, linear_theta_method.LinearThetaMethod
+      config=config,
+      geo=geo,
+      stepper_builder=linear_theta_method.LinearThetaMethod,
+      transport_model=get_transport_model(),
   )

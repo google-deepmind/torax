@@ -22,6 +22,7 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax.sources import source_config
 from torax.stepper import linear_theta_method
+from torax.transport_model import critical_gradient as cgm_transport_model
 
 
 def get_config() -> config_lib.Config:
@@ -48,11 +49,6 @@ def get_config() -> config_lib.Config:
       S_pellet_tot=1.0e22,
       S_puff_tot=0.5e22,
       S_nbi_tot=0.3e22,
-      transport=config_lib.TransportConfig(
-          transport_model="CGM",
-          # CGM model ratio of ion heat conductivity to particle diffusion
-          CGM_D_ratio=8,
-      ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
@@ -73,6 +69,15 @@ def get_geometry(config: config_lib.Config) -> geometry.Geometry:
   return geometry.build_circular_geometry(config)
 
 
+def get_transport_model() -> cgm_transport_model.CriticalGradientModel:
+  return cgm_transport_model.CriticalGradientModel(
+      runtime_params=cgm_transport_model.RuntimeParams(
+          # CGM model ratio of ion heat conductivity to particle diffusion
+          CGM_D_ratio=8,
+      )
+  )
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -80,5 +85,8 @@ def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
-      config, geo, linear_theta_method.LinearThetaMethod
+      config=config,
+      geo=geo,
+      stepper_builder=linear_theta_method.LinearThetaMethod,
+      transport_model=get_transport_model(),
   )

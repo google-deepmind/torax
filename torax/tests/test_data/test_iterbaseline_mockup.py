@@ -19,6 +19,7 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax.sources import source_config
 from torax.stepper import linear_theta_method
+from torax.transport_model import qlknn_wrapper
 
 
 def get_config() -> config_lib.Config:
@@ -115,32 +116,6 @@ def get_config() -> config_lib.Config:
       # radius of "external" Gaussian current profile (normalized radial
       # coordinate)
       rext=0.35,
-      transport=config_lib.TransportConfig(
-          transport_model='qlknn',
-          DVeff=True,
-          coll_mult=0.25,
-          # set inner core transport coefficients (ad-hoc MHD/EM transport)
-          apply_inner_patch=True,
-          De_inner=0.25,
-          chii_inner=0.5,
-          chie_inner=0.25,
-          rho_inner=0.2,  # radius below which patch transport is applied
-          # For QLKNN model
-          include_ITG=True,  # to toggle ITG modes on or off
-          include_TEM=True,  # to toggle ITG modes on or off
-          include_ETG=True,  # to toggle ITG modes on or off
-          # ensure that smag - alpha > -0.2 always, to compensate for no slab
-          # modes
-          avoid_big_negative_s=True,
-          # minimum |R/Lne| below which effective V is used instead of effective
-          # D
-          An_min=0.05,
-          ITG_flux_ratio_correction=1,
-          # allowed chi and diffusivity bounds
-          chimin=0.05,  # minimum chi
-          chimax=100,  # maximum chi (can be helpful for stability)
-          Demin=0.05,  # minimum electron diffusivity
-      ),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
@@ -169,6 +144,36 @@ def get_geometry(config: config_lib.Config) -> geometry.Geometry:
   )
 
 
+def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
+  return qlknn_wrapper.QLKNNTransportModel(
+      runtime_params=qlknn_wrapper.RuntimeParams(
+          DVeff=True,
+          coll_mult=0.25,
+          # set inner core transport coefficients (ad-hoc MHD/EM transport)
+          apply_inner_patch=True,
+          De_inner=0.25,
+          chii_inner=0.5,
+          chie_inner=0.25,
+          rho_inner=0.2,  # radius below which patch transport is applied
+          # For QLKNN model
+          include_ITG=True,  # to toggle ITG modes on or off
+          include_TEM=True,  # to toggle ITG modes on or off
+          include_ETG=True,  # to toggle ITG modes on or off
+          # ensure that smag - alpha > -0.2 always, to compensate for no slab
+          # modes
+          avoid_big_negative_s=True,
+          # minimum |R/Lne| below which effective V is used instead of effective
+          # D
+          An_min=0.05,
+          ITG_flux_ratio_correction=1,
+          # allowed chi and diffusivity bounds
+          chimin=0.05,  # minimum chi
+          chimax=100,  # maximum chi (can be helpful for stability)
+          Demin=0.05,  # minimum electron diffusivity
+      ),
+  )
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -176,5 +181,8 @@ def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
-      config, geo, linear_theta_method.LinearThetaMethod
+      config=config,
+      geo=geo,
+      stepper_builder=linear_theta_method.LinearThetaMethod,
+      transport_model=get_transport_model(),
   )

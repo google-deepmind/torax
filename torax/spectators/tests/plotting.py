@@ -23,6 +23,7 @@ from torax.spectators import plotting
 from torax.spectators import spectator
 from torax.stepper import linear_theta_method
 from torax.time_step_calculator import chi_time_step_calculator
+from torax.transport_model import constant as constant_transport_model
 
 
 class PlottingTest(parameterized.TestCase):
@@ -56,10 +57,11 @@ def _run_sim(
     observer: spectator.Spectator,
 ):
   torax.build_sim_from_config(
-      config,
-      geo,
-      linear_theta_method.LinearThetaMethod,
-      chi_time_step_calculator.ChiTimeStepCalculator(),
+      config=config,
+      geo=geo,
+      stepper_builder=linear_theta_method.LinearThetaMethod,
+      transport_model=constant_transport_model.ConstantTransportModel(),
+      time_step_calculator=chi_time_step_calculator.ChiTimeStepCalculator(),
   ).run(
       spectator=observer,
   )

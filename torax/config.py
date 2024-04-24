@@ -51,6 +51,7 @@ def _check_config_param_in_set(
 @chex.dataclass
 class SolverConfig:
   """Configuration parameters for the differential equation solver."""
+
   # theta value in the theta method.
   # 0 = explicit, 1 = fully implicit, 0.5 = Crank-Nicolson
   theta_imp: float = 1.0
@@ -91,102 +92,6 @@ class SolverConfig:
 
 
 # pylint: disable=invalid-name
-@chex.dataclass
-class TransportConfig:
-  """Configuration parameters for the turbulent transport model."""
-
-  transport_model: str = 'constant'  # 'constant', 'CGM', or 'qlknn'
-
-  # Allowed chi and diffusivity bounds
-  chimin: float = 0.05  # minimum chi
-  chimax: float = 100.0  # maximum chi (can be helpful for stability)
-  Demin: float = 0.05  # minimum electron density diffusivity
-  Demax: float = 100.0  # maximum electron density diffusivity
-  Vemin: float = -50.0  # minimum electron density convection
-  Vemax: float = 50.0  # minimum electron density convection
-
-  # set inner core transport coefficients (ad-hoc MHD/EM transport)
-  apply_inner_patch: TimeDependentField = False
-  De_inner: TimeDependentField = 0.2
-  Ve_inner: TimeDependentField = 0.0
-  chii_inner: TimeDependentField = 1.0
-  chie_inner: TimeDependentField = 1.0
-  # normalized radius below which patch is applied
-  rho_inner: TimeDependentField = 0.3
-
-  # set outer core transport coefficients.
-  # Useful for L-mode near-edge region where QLKNN10D is not applicable.
-  # Only used when set_pedestal = False
-  apply_outer_patch: TimeDependentField = False
-  De_outer: TimeDependentField = 0.2
-  Ve_outer: TimeDependentField = 0.0
-  chii_outer: TimeDependentField = 1.0
-  chie_outer: TimeDependentField = 1.0
-  # normalized radius above which patch is applied
-  rho_outer: TimeDependentField = 0.9
-
-  # For Critical Gradient Model (CGM)
-  # Exponent of chi power law: chi \propto (R/LTi - R/LTi_crit)^alpha
-  CGMalpha: float = 2.0
-  # Stiffness parameter
-  CGMchistiff: float = 2.0
-  # Ratio of electron to ion transport coefficient (ion higher: ITG)
-  CGMchiei_ratio: float = 2.0
-  CGM_D_ratio: float = 5.0
-
-  # QLKNN model configuration
-  # Collisionality multiplier in QLKNN for sensitivity testing.
-  # Default is 0.25 (correction factor to a more recent QLK collision operator)
-  coll_mult: float = 0.25
-  include_ITG: bool = True  # to toggle ITG modes on or off
-  include_TEM: bool = True  # to toggle TEM modes on or off
-  include_ETG: bool = True  # to toggle ETG modes on or off
-  # The QLK version this specific QLKNN was trained on tends to underpredict
-  # ITG electron heat flux in shaped, high-beta scenarios.
-  # This is a correction factor
-  ITG_flux_ratio_correction: float = 2.0
-  # effective D / effective V approach for particle transport
-  DVeff: bool = False
-  # minimum |R/Lne| below which effective V is used instead of effective D
-  An_min: float = 0.05
-  # ensure that smag - alpha > -0.2 always, to compensate for no slab modes
-  avoid_big_negative_s: bool = True
-  # reduce magnetic shear by 0.5*alpha to capture main impact of alpha
-  smag_alpha_correction: bool = True
-  # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
-  q_sawtooth_proxy: bool = True
-  # Width of HWHM Gaussian smoothing kernel operating on transport model outputs
-  smoothing_sigma: float = 0.0
-
-  # for constant chi model
-  # coefficient in ion heat equation diffusion term in m^2/s
-  chii_const: TimeDependentField = 1.0
-  # coefficient in electron heat equation diffusion term in m^2/s
-  chie_const: TimeDependentField = 1.0
-  # diffusion coefficient in electron density equation in m^2/s
-  De_const: TimeDependentField = 1.0
-  # convection coefficient in electron density equation in m^2/s
-  Ve_const: TimeDependentField = -0.33
-
-  def __post_init__(self):
-    assert self.De_const >= 0.0
-    assert self.chii_const >= 0.0
-    assert self.chie_const >= 0.0
-    assert self.CGM_D_ratio >= 0.0
-    assert self.chimin >= 0.0
-    assert self.chimax >= 0.0 and self.chimax > self.chimin
-    assert self.Demin >= 0.0 and self.Demax > self.Demin
-    assert self.Vemax > self.Vemin
-    assert self.De_inner >= 0.0
-    assert self.De_inner >= 0.0
-    assert self.chii_inner >= 0.0
-    assert self.chie_inner >= 0.0
-    assert self.rho_inner >= 0.0 and self.rho_inner <= 1.0
-    assert self.rho_outer >= 0.0 and self.rho_outer <= 1.0
-    assert self.rho_outer > self.rho_inner
-    _check_config_param_in_set(
-        'transport_model', self.transport_model, ['qlknn', 'CGM', 'constant']
-    )
 
 
 @chex.dataclass
@@ -396,11 +301,6 @@ class Config:
 
   # pylint: enable=invalid-name
 
-  # Transport parameters.
-  transport: TransportConfig = dataclasses.field(
-      default_factory=TransportConfig
-  )
-
   # Runtime configs for all source/sink terms.
   # Note that the sources field is overridden in the __post_init__. See impl for
   # details on how this field is updated.
@@ -414,19 +314,9 @@ class Config:
 
     # These are floats, not jax types, so we can use direct asserts.
     assert self.numerics.dtmult > 0.0
-    assert isinstance(self.transport, TransportConfig)
     assert isinstance(self.solver, SolverConfig)
     assert isinstance(self.plasma_composition, PlasmaComposition)
     assert isinstance(self.numerics, Numerics)
-    if (
-        not self.profile_conditions.set_pedestal
-        and self.transport.apply_outer_patch
-        and self.solver.convection_neumann_mode != 'ghost'
-        and self.solver.convection_dirichlet_mode != 'ghost'
-    ):
-      raise ValueError(
-          'To avoid numerical instability use ghost convection modes'
-      )
 
   def __post_init__(self):
     # The sources config should have the default values from

@@ -30,6 +30,7 @@ from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import fixed_time_step_calculator
+from torax.transport_model import runtime_params as transport_runtime_params
 from torax.transport_model import transport_model as transport_model_lib
 
 
@@ -73,10 +74,11 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     sim_step_fn = sim_lib.SimulationStepFn(
         stepper,
         time_calculator,
-        transport_model=FakeTransportModel(),
+        transport_model=transport,
     )
-    dynamic_config_slice_provider = (
-        config_slice.TimeDependentDynamicConfigSliceProvider(config)
+    dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
+        config=config,
+        transport_getter=lambda: transport.runtime_params,
     )
     initial_dynamic_config_slice = dynamic_config_slice_provider(
         config.numerics.t_initial
@@ -180,6 +182,17 @@ class FakeStepper(stepper_lib.Stepper):
 
 
 class FakeTransportModel(transport_model_lib.TransportModel):
+  """Dummy transport model that always returns zeros."""
+
+  @property
+  def runtime_params(self) -> transport_runtime_params.RuntimeParams:
+    return transport_runtime_params.RuntimeParams()
+
+  @runtime_params.setter
+  def runtime_params(
+      self, runtime_params: transport_runtime_params.RuntimeParams
+  ):
+    pass
 
   def _call_implementation(
       self,

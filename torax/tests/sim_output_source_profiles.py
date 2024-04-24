@@ -159,7 +159,10 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     time_stepper = _FakeTimeStepCalculator()
     step_fn = _FakeSimulationStepFn(time_stepper, source_models)
     dynamic_config_slice_provider = (
-        config_slice.TimeDependentDynamicConfigSliceProvider(config)
+        config_slice.DynamicConfigSliceProvider(
+            config=config,
+            transport_getter=constant_transport_model.RuntimeParams,
+        )
     )
     initial_dcs = dynamic_config_slice_provider(0.0)
     static_config_slice = config_slice.build_static_config_slice(config)

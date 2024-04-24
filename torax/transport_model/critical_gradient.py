@@ -14,16 +14,85 @@
 
 """The CriticalGradientModel class."""
 
+from __future__ import annotations
+
+import chex
 from jax import numpy as jnp
 from torax import config_slice
 from torax import constants as constants_module
 from torax import geometry
+from torax import jax_utils
 from torax import state
+from torax.runtime_params import config_slice_args
+from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
+
+
+# pylint: disable=invalid-name
+@chex.dataclass
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  """Extends the base runtime params with additional params for this model.
+
+  See base class runtime_params.RuntimeParams docstring for more info.
+  """
+
+  # Exponent of chi power law: chi \propto (R/LTi - R/LTi_crit)^alpha
+  CGMalpha: float = 2.0
+  # Stiffness parameter
+  CGMchistiff: float = 2.0
+  # Ratio of electron to ion transport coefficient (ion higher: ITG)
+  CGMchiei_ratio: float = 2.0
+  CGM_D_ratio: float = 5.0
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicRuntimeParams,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  """Dynamic runtime params for the CGM transport model."""
+
+  CGMalpha: float
+  CGMchistiff: float
+  CGMchiei_ratio: float
+  CGM_D_ratio: float
+
+  def sanity_check(self):
+    runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
+    # Using the object.__setattr__ call to get around the fact that this
+    # dataclass is frozen.
+    object.__setattr__(
+        self,
+        'CGM_D_ratio',
+        jax_utils.error_if_negative(self.CGM_D_ratio, 'CGM_D_ratio'),
+    )
+
+  def __post_init__(self):
+    self.sanity_check()
 
 
 class CriticalGradientModel(transport_model.TransportModel):
   """Calculates various coefficients related to particle transport."""
+
+  def __init__(
+      self,
+      runtime_params: RuntimeParams | None = None,
+  ):
+    self._runtime_params = runtime_params or RuntimeParams()
+
+  @property
+  def runtime_params(self) -> RuntimeParams:
+    return self._runtime_params
+
+  @runtime_params.setter
+  def runtime_params(self, runtime_params: RuntimeParams) -> None:
+    self._runtime_params = runtime_params
 
   def _call_implementation(
       self,
@@ -52,6 +121,7 @@ class CriticalGradientModel(transport_model.TransportModel):
     #  R/LTi_crit)*(R/LTi - R/LTi_crit)^alpha
 
     constants = constants_module.CONSTANTS
+    assert isinstance(dynamic_config_slice.transport, DynamicRuntimeParams)
 
     # set typical values for now. Will include user-defined q and s later
     s = core_profiles.s_face

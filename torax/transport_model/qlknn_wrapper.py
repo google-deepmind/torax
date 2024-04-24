@@ -19,6 +19,8 @@ diffusion. The role of the wrapper is send JAX tracers through the
 network.
 """
 
+from __future__ import annotations
+
 import functools
 import os
 import warnings
@@ -33,9 +35,65 @@ from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax.runtime_params import config_slice_args
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
+from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
+
+
+# pylint: disable=invalid-name
+@chex.dataclass
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  """Extends the base runtime params with additional params for this model.
+
+  See base class runtime_params.RuntimeParams docstring for more info.
+  """
+
+  # QLKNN model configuration
+  # Collisionality multiplier in QLKNN for sensitivity testing.
+  # Default is 0.25 (correction factor to a more recent QLK collision operator)
+  coll_mult: float = 0.25
+  include_ITG: bool = True  # to toggle ITG modes on or off
+  include_TEM: bool = True  # to toggle TEM modes on or off
+  include_ETG: bool = True  # to toggle ETG modes on or off
+  # The QLK version this specific QLKNN was trained on tends to underpredict
+  # ITG electron heat flux in shaped, high-beta scenarios.
+  # This is a correction factor
+  ITG_flux_ratio_correction: float = 2.0
+  # effective D / effective V approach for particle transport
+  DVeff: bool = False
+  # minimum |R/Lne| below which effective V is used instead of effective D
+  An_min: float = 0.05
+  # ensure that smag - alpha > -0.2 always, to compensate for no slab modes
+  avoid_big_negative_s: bool = True
+  # reduce magnetic shear by 0.5*alpha to capture main impact of alpha
+  smag_alpha_correction: bool = True
+  # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
+  q_sawtooth_proxy: bool = True
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicRuntimeParams,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  coll_mult: float
+  include_ITG: bool
+  include_TEM: bool
+  include_ETG: bool
+  ITG_flux_ratio_correction: float
+  DVeff: bool
+  An_min: float
+  avoid_big_negative_s: bool
+  smag_alpha_correction: bool
+  q_sawtooth_proxy: bool
 
 
 # Env variable name. See _MODEL_PATH description for how this is used.
@@ -102,7 +160,7 @@ class _QLKNNRuntimeConfigInputs:
   nref: float
   Ai: float
   Zeff: float
-  transport: config_slice.DynamicTransportConfigSlice
+  transport: DynamicRuntimeParams
   Ped_top: float
   set_pedestal: bool
   q_correction_factor: float
@@ -112,6 +170,7 @@ class _QLKNNRuntimeConfigInputs:
   def from_config_slice(
       dynamic_config_slice: config_slice.DynamicConfigSlice,
   ) -> '_QLKNNRuntimeConfigInputs':
+    assert isinstance(dynamic_config_slice.transport, DynamicRuntimeParams)
     return _QLKNNRuntimeConfigInputs(
         nref=dynamic_config_slice.nref,
         Ai=dynamic_config_slice.plasma_composition.Ai,
@@ -153,9 +212,21 @@ def _filter_model_output(
 class QLKNNTransportModel(transport_model.TransportModel):
   """Calculates various coefficients related to particle transport."""
 
-  def __init__(self):
+  def __init__(
+      self,
+      runtime_params: RuntimeParams | None = None,
+  ):
+    self._runtime_params = runtime_params or RuntimeParams()
     super().__init__()
     self._cached_combined = functools.lru_cache(maxsize=10)(self._combined)
+
+  @property
+  def runtime_params(self) -> RuntimeParams:
+    return self._runtime_params
+
+  @runtime_params.setter
+  def runtime_params(self, runtime_params: RuntimeParams) -> None:
+    self._runtime_params = runtime_params
 
   def _call_implementation(
       self,

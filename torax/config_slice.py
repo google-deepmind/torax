@@ -38,16 +38,13 @@ used.
 from __future__ import annotations
 
 from collections.abc import Mapping
-import dataclasses
-import types
-import typing
-from typing import Any, Protocol
+from typing import Callable
 
 import chex
-from jax import numpy as jnp
 from torax import config as config_lib
-from torax import interpolated_param
 from torax import jax_utils
+from torax.runtime_params import config_slice_args
+from torax.transport_model import runtime_params as transport_model_params
 
 
 # Many of the variables follow scientific or mathematical notation, so disable
@@ -74,7 +71,7 @@ class DynamicConfigSlice:
   at a specific time t.
   """
 
-  transport: DynamicTransportConfigSlice
+  transport: transport_model_params.DynamicRuntimeParams
   solver: DynamicSolverConfigSlice
   plasma_composition: DynamicPlasmaComposition
   profile_conditions: DynamicProfileConditions
@@ -144,80 +141,6 @@ class DynamicConfigSlice:
 
   def __post_init__(self):
     self.sanity_check()
-
-
-@chex.dataclass(frozen=True)
-class DynamicTransportConfigSlice:
-  """Input params for the transport model which can be used as compiled args."""
-
-  # Allowed chi and diffusivity bounds
-  chimin: float  # minimum chi
-  chimax: float  # maximum chi (can be helpful for stability)
-  Demin: float  # minimum electron density diffusivity
-  Demax: float  # maximum electron density diffusivity
-  Vemin: float  # minimum electron density convection
-  Vemax: float  # minimum electron density convection
-
-  # set inner core transport coefficients (ad-hoc MHD/EM transport)
-  apply_inner_patch: bool
-  De_inner: float
-  Ve_inner: float
-  chii_inner: float
-  chie_inner: float
-  rho_inner: float  # normalized radius below which patch is applied
-
-  # set outer core transport coefficients.
-  # Useful for L-mode near-edge region where QLKNN10D is not applicable.
-  # Only used when set_pedestal = False
-  apply_outer_patch: bool
-  De_outer: float
-  Ve_outer: float
-  chii_outer: float
-  chie_outer: float
-  rho_outer: float  # normalized radius above which patch is applied
-
-  # For Critical Gradient Model (CGM)
-  # Exponent of chi power law: chi \propto (R/LTi - R/LTi_crit)^alpha
-  CGMalpha: float
-  # Stiffness parameter
-  CGMchistiff: float
-  # Ratio of electron to ion transport coefficient (ion higher: ITG)
-  CGMchiei_ratio: float
-  CGM_D_ratio: float
-
-  # QLKNN model configuration
-  # Collisionality multiplier in QLKNN for sensitivity testing.
-  # Default is 0.25 (correction factor to a more recent QLK collision operator)
-  coll_mult: float
-  include_ITG: bool  # to toggle ITG modes on or off
-  include_TEM: bool  # to toggle TEM modes on or off
-  include_ETG: bool  # to toggle ETG modes on or off
-  # The QLK version this specific QLKNN was trained on tends to underpredict
-  # ITG electron heat flux in shaped, high-beta scenarios.
-  # This is a correction factor
-  ITG_flux_ratio_correction: float
-  # effective D / effective V approach for particle transport
-  DVeff: bool
-  # minimum |R/Lne| below which effective V is used instead of effective D
-  An_min: float
-  # ensure that smag - alpha > -0.2 always, to compensate for no slab modes
-  avoid_big_negative_s: bool
-  # reduce magnetic shear by 0.5*alpha to capture main impact of alpha
-  smag_alpha_correction: bool
-  # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
-  q_sawtooth_proxy: bool
-  # Width of HWHM Gaussian smoothing kernel operating on transport model outputs
-  smoothing_sigma: float
-
-  # for constant chi model
-  # coefficient in ion heat equation diffusion term in m^2/s
-  chii_const: float
-  # coefficient in electron heat equation diffusion term in m^2/s
-  chie_const: float
-  # diffusion coefficient in electron density equation in m^2/s
-  De_const: float
-  # convection coefficient in electron density equation in m^2/s
-  Ve_const: float
 
 
 @chex.dataclass(frozen=True)
@@ -458,23 +381,19 @@ class StaticSolverConfigSlice:
 
 def build_dynamic_config_slice(
     config: config_lib.Config,
+    transport: transport_model_params.RuntimeParams | None = None,
     t: chex.Numeric | None = None,
 ) -> DynamicConfigSlice:
   """Builds a DynamicConfigSlice based on the input config."""
+  transport = transport or transport_model_params.RuntimeParams()
   t = config.numerics.t_initial if t is None else t
   # For each dataclass attribute under DynamicConfigSlice, build those objects
   # explicitly, and then for all scalar attributes, fetch their values directly
-  # from the input config using _get_init_kwargs.
+  # from the input config using config_slice_args.get_init_kwargs.
   return DynamicConfigSlice(
-      transport=DynamicTransportConfigSlice(
-          **_get_init_kwargs(
-              input_config=config.transport,
-              output_type=DynamicTransportConfigSlice,
-              t=t,
-          )
-      ),
+      transport=transport.build_dynamic_params(t),
       solver=DynamicSolverConfigSlice(
-          **_get_init_kwargs(
+          **config_slice_args.get_init_kwargs(
               input_config=config.solver,
               output_type=DynamicSolverConfigSlice,
               t=t,
@@ -482,27 +401,27 @@ def build_dynamic_config_slice(
       ),
       sources=_build_dynamic_sources(config, t),
       plasma_composition=DynamicPlasmaComposition(
-          **_get_init_kwargs(
+          **config_slice_args.get_init_kwargs(
               input_config=config.plasma_composition,
               output_type=DynamicPlasmaComposition,
               t=t,
           )
       ),
       profile_conditions=DynamicProfileConditions(
-          **_get_init_kwargs(
+          **config_slice_args.get_init_kwargs(
               input_config=config.profile_conditions,
               output_type=DynamicProfileConditions,
               t=t,
           )
       ),
       numerics=DynamicNumerics(
-          **_get_init_kwargs(
+          **config_slice_args.get_init_kwargs(
               input_config=config.numerics,
               output_type=DynamicNumerics,
               t=t,
           )
       ),
-      **_get_init_kwargs(
+      **config_slice_args.get_init_kwargs(
           input_config=config,
           output_type=DynamicConfigSlice,
           t=t,
@@ -530,21 +449,21 @@ def _build_dynamic_sources(
         is_explicit=input_source_config.is_explicit,
         formula=DynamicFormulaConfigSlice(
             exponential=DynamicExponentialFormulaConfigSlice(
-                **_get_init_kwargs(
+                **config_slice_args.get_init_kwargs(
                     input_config=input_source_config.formula.exponential,
                     output_type=DynamicExponentialFormulaConfigSlice,
                     t=t,
                 )
             ),
             gaussian=DynamicGaussianFormulaConfigSlice(
-                **_get_init_kwargs(
+                **config_slice_args.get_init_kwargs(
                     input_config=input_source_config.formula.gaussian,
                     output_type=DynamicGaussianFormulaConfigSlice,
                     t=t,
                 )
             ),
             custom_params={
-                key: _interpolate_param(value, t)
+                key: config_slice_args.interpolate_param(value, t)
                 for key, value in input_source_config.formula.custom_params.items()
             },
         ),
@@ -558,7 +477,9 @@ def build_static_config_slice(config: config_lib.Config) -> StaticConfigSlice:
   # config.
   return StaticConfigSlice(
       solver=StaticSolverConfigSlice(
-          **_get_init_kwargs(config.solver, StaticSolverConfigSlice, t=None)
+          **config_slice_args.get_init_kwargs(
+              config.solver, StaticSolverConfigSlice, t=None
+          )
       ),
       nr=config.numerics.nr,
       ion_heat_eq=config.numerics.ion_heat_eq,
@@ -569,138 +490,41 @@ def build_static_config_slice(config: config_lib.Config) -> StaticConfigSlice:
   )
 
 
-def _input_is_a_float(
-    field_name: str, input_config_fields_to_types: dict[str, Any]
-) -> bool:
-  try:
-    return field_name in input_config_fields_to_types and issubclass(
-        input_config_fields_to_types[field_name], float
-    )
-  except:  # pylint: disable=bare-except
-    # issubclass does not play nicely with generics, but if a type is a
-    # generic at this stage, it is not a float.
-    return False
+class DynamicConfigSliceProvider:
+  """Provides a DynamicConfigSlice to use during time t of the sim.
 
+  The DynamicConfigSlice may change from time step to time step, so this class
+  interpolates any time-dependent params in the input config to the values they
+  should be at time t.
 
-def _input_is_an_interpolated_param(
-    field_name: str,
-    input_config_fields_to_types: dict[str, Any],
-) -> bool:
-  """Returns True if the input config field is an InterpolatedParam."""
-  if field_name not in input_config_fields_to_types:
-    return False
-
-  def _check(ft):
-    """Checks if the input field type is an InterpolatedParam."""
-    try:
-      return (
-          # If the type comes as a string rather than an object, the Union check
-          # below won't work, so we check for the full name here.
-          ft == 'InterpParamOrInterpParamInput'
-          or
-          # Common alias for InterpParamOrInterpParamInput.
-          ft == 'TimeDependentField'
-          or
-          # Otherwise, only check if it is actually the InterpolatedParam.
-          ft == 'interpolated_param.InterpolatedParam'
-          or issubclass(ft, interpolated_param.InterpolatedParamBase)
-      )
-    except:  # pylint: disable=bare-except
-      # issubclass does not play nicely with generics, but if a type is a
-      # generic at this stage, it is not an InterpolatedParam.
-      return False
-
-  field_type = input_config_fields_to_types[field_name]
-  if isinstance(field_type, types.UnionType):
-    # Look at all the args of the union and see if any match properly
-    for arg in typing.get_args(field_type):
-      if _check(arg):
-        return True
-  else:
-    return _check(field_type)
-
-
-def _interpolate_param(
-    param_or_param_input: interpolated_param.InterpParamOrInterpParamInput,
-    t: chex.Numeric,
-) -> jnp.ndarray:
-  if not isinstance(param_or_param_input, interpolated_param.InterpolatedParam):
-    # The param is a InterpolatedParamInput, so we need to convert it to an
-    # InterpolatedParam first.
-    param_or_param_input = interpolated_param.InterpolatedParam(
-        value=param_or_param_input,
-    )
-  return param_or_param_input.get_value(t)
-
-
-def _get_init_kwargs(
-    input_config: ...,
-    output_type: ...,
-    t: chex.Numeric | None = None,
-    skip: tuple[str, ...] = (),
-) -> dict[str, Any]:
-  """Builds init() kwargs based on the input config for all non-dict fields."""
-  kwargs = {}
-  input_config_fields_to_types = {
-      field.name: field.type for field in dataclasses.fields(input_config)
-  }
-  for field in dataclasses.fields(output_type):
-    if field.name in skip:
-      continue
-    if not hasattr(input_config, field.name):
-      raise ValueError(f'Missing field {field.name}')
-    config_val = getattr(input_config, field.name)
-    # If the input config type is an InterpolatedParam, we need to interpolate
-    # it at time t to populate the correct values in the output config.
-    # dataclass fields can either be the actual type OR the string name of the
-    # type. Check for both.
-    if _input_is_an_interpolated_param(
-        field.name, input_config_fields_to_types
-    ):
-      if t is None:
-        raise ValueError('t must be specified for interpolated params')
-      config_val = _interpolate_param(config_val, t)
-    elif _input_is_a_float(field.name, input_config_fields_to_types):
-      config_val = float(config_val)
-    kwargs[field.name] = config_val
-  return kwargs
-
-
-class DynamicConfigSliceProvider(Protocol):
-  """Provides a DynamicConfigSlice to use during one time step of the sim.
-
-  The DynamicConfigSlice may change from time step to time step, so the
-  simulator needs to know which DynamicConfigSlice to feed to the
-  SimulationStepCallable. See `run_simulation()` for how this callable is
-  used.
-
-  This class is a typing.Protocol, meaning any class or function that implements
-  this API can be used as an argument for functions that require a
-  DynamicConfigSliceProvider (it uses the Python concept of "duck-typing").
+  See `run_simulation()` for how this callable is used.
   """
+
+  def __init__(
+      self,
+      config: config_lib.Config,
+      transport_getter: Callable[[], transport_model_params.RuntimeParams],
+  ):
+    self._input_config = config
+    self._transport_runtime_params_getter = transport_getter
+
+    if (
+        not self._input_config.profile_conditions.set_pedestal
+        and self._transport_runtime_params_getter().apply_outer_patch
+        and self._input_config.solver.convection_neumann_mode != 'ghost'
+        and self._input_config.solver.convection_dirichlet_mode != 'ghost'
+    ):
+      raise ValueError(
+          'To avoid numerical instability use ghost convection modes'
+      )
 
   def __call__(
       self,
       t: chex.Numeric,
   ) -> DynamicConfigSlice:
     """Returns a DynamicConfigSlice to use during time t of the sim."""
-
-
-class TimeDependentDynamicConfigSliceProvider(DynamicConfigSliceProvider):
-  """Provides a DynamicConfigSlice to use during time t of the sim.
-
-  Interpolates any time-dependent params in the input config to the values they
-  should be at time t.
-  """
-
-  def __init__(
-      self,
-      config: config_lib.Config,
-  ):
-    self._input_config = config
-
-  def __call__(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicConfigSlice:
-    return build_dynamic_config_slice(self._input_config, t)
+    return build_dynamic_config_slice(
+        config=self._input_config,
+        transport=self._transport_runtime_params_getter(),
+        t=t,
+    )

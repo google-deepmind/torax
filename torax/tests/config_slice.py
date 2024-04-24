@@ -23,6 +23,7 @@ from torax import config_slice as config_slice_lib
 from torax.sources import formula_config
 from torax.sources import source_config
 from torax.sources import source_models as source_models_lib
+from torax.transport_model import runtime_params as transport_params_lib
 
 
 class ConfigSliceTest(parameterized.TestCase):
@@ -53,7 +54,10 @@ class ConfigSliceTest(parameterized.TestCase):
             Ti_bound_right={0.0: 2.0, 4.0: 4.0},
         ),
     )
-    provider = config_slice_lib.TimeDependentDynamicConfigSliceProvider(config)
+    provider = config_slice_lib.DynamicConfigSliceProvider(
+        config=config,
+        transport_getter=transport_params_lib.RuntimeParams,
+    )
     dynamic_config_slice = provider(t=1.0)
     np.testing.assert_allclose(
         dynamic_config_slice.profile_conditions.Ti_bound_right, 2.5
@@ -79,19 +83,19 @@ class ConfigSliceTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         config_slice_lib.build_dynamic_config_slice(
-            config, 2.0
+            config, t=2.0
         ).profile_conditions.Ti_bound_right,
         3.0,
     )
     np.testing.assert_allclose(
         config_slice_lib.build_dynamic_config_slice(
-            config, 4.0
+            config, t=4.0
         ).profile_conditions.Te_bound_right,
         4.5,
     )
     np.testing.assert_allclose(
         config_slice_lib.build_dynamic_config_slice(
-            config, 6.0
+            config, t=6.0
         ).profile_conditions.ne_bound_right,
         6.0,
     )
@@ -108,7 +112,7 @@ class ConfigSliceTest(parameterized.TestCase):
         ),
     )
     # Check at time 0.
-    dcs = config_slice_lib.build_dynamic_config_slice(config, 0.0)
+    dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.0)
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, True)
     np.testing.assert_allclose(profile_conditions.Tiped, 0.0)
@@ -116,7 +120,7 @@ class ConfigSliceTest(parameterized.TestCase):
     np.testing.assert_allclose(profile_conditions.neped, 2.0)
     np.testing.assert_allclose(profile_conditions.Ped_top, 3.0)
     # And check after the time limit.
-    dcs = config_slice_lib.build_dynamic_config_slice(config, 1.0)
+    dcs = config_slice_lib.build_dynamic_config_slice(config, t=1.0)
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, False)
     np.testing.assert_allclose(profile_conditions.Tiped, 1.0)
@@ -139,7 +143,7 @@ class ConfigSliceTest(parameterized.TestCase):
           nbi_deposition_location={0.0: 0.0, 1.0: 7.0},
           S_nbi_tot={0.0: 0.0, 1.0: 8.0},
       )
-      dcs = config_slice_lib.build_dynamic_config_slice(config, 0.5)
+      dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.5)
       np.testing.assert_allclose(dcs.pellet_width, 0.5)
       np.testing.assert_allclose(dcs.pellet_deposition_location, 1.0)
       np.testing.assert_allclose(dcs.S_pellet_tot, 1.5)
@@ -163,7 +167,7 @@ class ConfigSliceTest(parameterized.TestCase):
               )
           }
       )
-      dcs = config_slice_lib.build_dynamic_config_slice(config, 0.25)
+      dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.25)
       np.testing.assert_allclose(
           dcs.sources['gas_puff_source'].formula.exponential.total, 0.25
       )
@@ -188,7 +192,7 @@ class ConfigSliceTest(parameterized.TestCase):
               )
           }
       )
-      dcs = config_slice_lib.build_dynamic_config_slice(config, 0.25)
+      dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.25)
       np.testing.assert_allclose(
           dcs.sources['gas_puff_source'].formula.gaussian.total, 0.25
       )
@@ -215,7 +219,7 @@ class ConfigSliceTest(parameterized.TestCase):
               )
           }
       )
-      dcs = config_slice_lib.build_dynamic_config_slice(config, 1.0)
+      dcs = config_slice_lib.build_dynamic_config_slice(config, t=1.0)
       np.testing.assert_allclose(
           dcs.sources['gas_puff_source'].formula.custom_params['foo'], 1.0
       )
@@ -230,14 +234,14 @@ class ConfigSliceTest(parameterized.TestCase):
     """Tests that wext cannot be negative."""
     config = config_lib.Config(wext={0.0: 1.0, 1.0: -1.0})
     # While wext is positive, this should be fine.
-    dcs = config_slice_lib.build_dynamic_config_slice(config, 0.0)
+    dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.0)
     np.testing.assert_allclose(dcs.wext, 1.0)
     # Even 0 should be fine.
-    dcs = config_slice_lib.build_dynamic_config_slice(config, 0.5)
+    dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.5)
     np.testing.assert_allclose(dcs.wext, 0.0)
     # But negative values will cause an error.
     with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
-      config_slice_lib.build_dynamic_config_slice(config, 1.0)
+      config_slice_lib.build_dynamic_config_slice(config, t=1.0)
 
 
 if __name__ == '__main__':

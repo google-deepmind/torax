@@ -200,7 +200,21 @@ def change_config(
   config_module, _ = _get_config_module(config_module_str)
   new_config = config_module.get_config()
   new_geo = config_module.get_geometry(new_config)
-  sim = simulation_app.update_sim(sim, new_config, new_geo)
+  new_transport_model = config_module.get_transport_model()
+  # Make sure the transport model has not changed.
+  # TODO(b/330172917): Improve the check for updated configs.
+  if not isinstance(new_transport_model, type(sim.transport_model)):
+    raise ValueError(
+        f'New transport model type {type(new_transport_model)} does not match'
+        f' the existing transport model {type(sim.transport_model)}. When using'
+        ' this option, you cannot change the transport model.'
+    )
+  sim = simulation_app.update_sim(
+      sim,
+      new_config,
+      new_geo,
+      new_transport_model.runtime_params,
+  )
   return sim, new_config, config_module_str
 
 

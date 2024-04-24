@@ -32,7 +32,7 @@ from torax.fvm import residual_and_loss
 from torax.sources import source_config
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
-from torax.transport_model import transport_model_factory
+from torax.transport_model import constant as constant_transport_model
 
 
 class FVMTest(torax_refs.ReferenceValueTest):
@@ -362,11 +362,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
             predictor_corrector=False,
             theta_imp=theta_imp,
         ),
-        transport=config_lib.TransportConfig(
-            transport_model='constant',
-            chimin=0,
-            chii_const=1,
-        ),
         sources=dict(
             fusion_heat_source=source_config.SourceConfig(
                 source_type=source_config.SourceType.ZERO,
@@ -377,7 +372,16 @@ class FVMTest(torax_refs.ReferenceValueTest):
         ),
     )
     geo = geometry.build_circular_geometry(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    transport_model = constant_transport_model.ConstantTransportModel(
+        runtime_params=constant_transport_model.RuntimeParams(
+            chimin=0,
+            chii_const=1,
+        ),
+    )
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config,
+        transport=transport_model.runtime_params,
+    )
     static_config_slice = config_slice.build_static_config_slice(config)
     source_models = source_models_lib.SourceModels()
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -391,7 +395,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
         core_profiles=core_profiles,
         explicit=True,
     )
-    transport_model = transport_model_factory.construct(config)
     coeffs = calc_coeffs.calc_coeffs(
         static_config_slice=static_config_slice,
         dynamic_config_slice=dynamic_config_slice,
@@ -475,11 +478,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
             predictor_corrector=False,
             theta_imp=1.0,
         ),
-        transport=config_lib.TransportConfig(
-            transport_model='constant',
-            chimin=0,
-            chii_const=1,
-        ),
         sources=dict(
             fusion_heat_source=source_config.SourceConfig(
                 source_type=source_config.SourceType.ZERO,
@@ -489,12 +487,18 @@ class FVMTest(torax_refs.ReferenceValueTest):
             ),
         ),
     )
-    static_config_slice = config_slice.build_static_config_slice(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
-    geo = geometry.build_circular_geometry(config)
-    transport_model = transport_model_factory.construct(
-        config,
+    transport_model = constant_transport_model.ConstantTransportModel(
+        runtime_params=constant_transport_model.RuntimeParams(
+            chimin=0,
+            chii_const=1,
+        ),
     )
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config,
+        transport=transport_model.runtime_params,
+    )
+    static_config_slice = config_slice.build_static_config_slice(config)
+    geo = geometry.build_circular_geometry(config)
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
         static_config_slice, dynamic_config_slice, geo, source_models
@@ -592,11 +596,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
             predictor_corrector=False,
             theta_imp=0.0,
         ),
-        transport=config_lib.TransportConfig(
-            transport_model='constant',
-            chimin=0,
-            chii_const=1,
-        ),
         sources=dict(
             fusion_heat_source=source_config.SourceConfig(
                 source_type=source_config.SourceType.ZERO,
@@ -607,7 +606,16 @@ class FVMTest(torax_refs.ReferenceValueTest):
         ),
     )
     geo = geometry.build_circular_geometry(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    transport_model = constant_transport_model.ConstantTransportModel(
+        runtime_params=constant_transport_model.RuntimeParams(
+            chimin=0,
+            chii_const=1,
+        ),
+    )
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config,
+        transport=transport_model.runtime_params,
+    )
     static_config_slice_theta0 = config_slice.build_static_config_slice(config)
     static_config_slice_theta05 = dataclasses.replace(
         static_config_slice_theta0,
@@ -616,9 +624,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
         ),
     )
 
-    transport_model = transport_model_factory.construct(
-        config,
-    )
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
         static_config_slice_theta0, dynamic_config_slice, geo, source_models

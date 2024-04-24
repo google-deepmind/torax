@@ -24,6 +24,7 @@ from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import state
+from torax.transport_model import runtime_params as runtime_params_lib
 
 
 # TODO(b/335593209) all clipping of of transport coefficients to minimum or
@@ -45,6 +46,19 @@ class TransportModel(abc.ABC):
         dynamic_config_slice,
         self._call_implementation(dynamic_config_slice, geo, core_profiles),
     )
+
+  @property
+  @abc.abstractmethod
+  def runtime_params(self) -> runtime_params_lib.RuntimeParams:
+    """Returns the runtime parameters for this model."""
+
+  @runtime_params.setter
+  @abc.abstractmethod
+  def runtime_params(
+      self,
+      runtime_params: runtime_params_lib.RuntimeParams,
+  ) -> None:
+    """Sets the runtime parameters for this model."""
 
   @abc.abstractmethod
   def _call_implementation(

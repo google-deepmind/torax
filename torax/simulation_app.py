@@ -57,6 +57,7 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
 from torax.spectators import plotting
+from torax.transport_model import runtime_params as transport_runtime_params_lib
 import xarray as xr
 
 import shutil
@@ -203,6 +204,7 @@ def update_sim(
     sim: sim_lib.Sim,
     config: torax.Config,
     geo: geometry.Geometry,
+    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
 ) -> sim_lib.Sim:
   """Updates the sim with a new config and geometry."""
   # NOTE: This function will NOT update any of the following in the config:
@@ -224,12 +226,14 @@ def update_sim(
       time_step_calculator=sim.time_step_calculator,
       source_models=sim.source_models,
   )
+  sim.transport_model.runtime_params = transport_runtime_params
   return sim_lib.Sim(
       time_step_calculator=sim.time_step_calculator,
       initial_state=initial_state,
       geometry_provider=sim_lib.ConstantGeometryProvider(geo),
-      dynamic_config_slice_provider=(
-          config_slice.TimeDependentDynamicConfigSliceProvider(config)
+      dynamic_config_slice_provider=config_slice.DynamicConfigSliceProvider(
+          config=config,
+          transport_getter=lambda: sim.transport_model.runtime_params,
       ),
       static_config_slice=static_config_slice,
       step_fn=sim.step_fn,

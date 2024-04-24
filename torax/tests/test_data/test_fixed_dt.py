@@ -20,6 +20,7 @@ from torax import sim as sim_lib
 from torax.sources import source_config
 from torax.stepper import linear_theta_method
 from torax.time_step_calculator import fixed_time_step_calculator
+from torax.transport_model import qlknn_wrapper
 
 
 def get_config() -> config_lib.Config:
@@ -41,7 +42,6 @@ def get_config() -> config_lib.Config:
               source_type=source_config.SourceType.ZERO,
           ),
       ),
-      transport=config_lib.TransportConfig(transport_model='qlknn'),
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
@@ -51,6 +51,10 @@ def get_config() -> config_lib.Config:
 
 def get_geometry(config: config_lib.Config) -> geometry.Geometry:
   return geometry.build_circular_geometry(config)
+
+
+def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
+  return qlknn_wrapper.QLKNNTransportModel()
 
 
 def get_sim() -> sim_lib.Sim:
@@ -67,5 +71,6 @@ def get_sim() -> sim_lib.Sim:
       config=sim_config,
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethod,
+      transport_model=get_transport_model(),
       time_step_calculator=time_step_calculator,
   )
