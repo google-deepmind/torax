@@ -109,7 +109,7 @@ def newton_raphson_solve_block(
     delta_reduction_factor: float = DELTA_REDUCTION_FACTOR,
     tau_min: float = TAU_MIN,
 ) -> tuple[tuple[cell_variable.CellVariable, ...], int, AuxiliaryOutput]:
-  # pyformat: disable  # pyformat removes line breaks needed for readability
+  # pyformat: disable  # pyformat removes line breaks needed for reability
   """Runs one time step of a Newton-Raphson based root-finding on the equation defined by `coeffs`.
 
   This solver is relatively generic in that it models diffusion, convection,
@@ -120,9 +120,13 @@ def newton_raphson_solve_block(
   between two sides of the equation describing a theta method update.
 
   The linearized residual for a trial x_new is:
+
   R(x_old) + jacobian(R(x_old))*(x_new - x_old)
+
   Setting delta = x_new - x_old, we solve the linear system:
+
   A*x_new = b, with A = jacobian(R(x_old)), b = A*x_old - R(x_old)
+
   Each successive iteration sets x_new = x_old - delta, until the residual
   or delta is under a tolerance (tol).
   If either the delta step leads to an unphysical state, represented by NaNs in

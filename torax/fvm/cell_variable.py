@@ -111,7 +111,7 @@ class CellVariable:
     useful for checking objects that were created e.g. using jax tree
     transformations.
     - `sanity_check` is guaranteed not to change the object, while
-      `__post_init__` could in principle make changes.
+    `__post_init__` could in principle make changes.
     """
     # Automatically check dtypes of all numeric fields
     for name, value in self.items():

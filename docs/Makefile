@@ -5,9 +5,9 @@
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 DOC_SOURCEDIR     = .
-PY_SOURCEDIR  = ..
+PY_SOURCEDIR  = ../torax
 BUILDDIR      = _build
-EXCLUDE_PATTERNS = ""
+EXCLUDE_PATTERNS = "../torax/simulation_app.py"
 
 # Put it first so that "make" without argument is like "make help".
 help:

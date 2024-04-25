@@ -759,7 +759,8 @@ def run_simulation(
   - the while loop checks the tracer of the `not_done()` bool.
   - the function calls jit on the main loop, and this disrupts grad tracing.
   - if the above issues were removed, jit on grad takes a prohibitively long
-    time to compile due to the large number of unrolled loop steps.
+  time to compile due to the large number of unrolled loop steps.
+
   This cannot be implement with `jax.lax.while_loop` due to the appended
   history.
 
