@@ -1,3 +1,5 @@
+.. _configuration:
+
 Simulation input configuration
 ##############################
 
