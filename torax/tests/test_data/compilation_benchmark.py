@@ -40,6 +40,7 @@ def get_config() -> config_lib.Config:
           nbar=0.85,  # initial density (Greenwald fraction units)
           ne_bound_right=0.2,
           neped=1.0,
+          nu=0,
       ),
       numerics=config_lib.Numerics(
           ion_heat_eq=True,
@@ -49,7 +50,6 @@ def get_config() -> config_lib.Config:
           resistivity_mult=100,  # to shorten current diffusion time
           t_final=0.0007944 * 2,
       ),
-      nu=0,
       solver=config_lib.SolverConfig(
           use_pereverzev=False,
       ),

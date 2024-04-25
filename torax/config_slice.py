@@ -78,19 +78,6 @@ class DynamicConfigSlice:
   numerics: DynamicNumerics
   sources: Mapping[str, sources_params.DynamicRuntimeParams]
 
-  # current profiles (broad "Ohmic" + localized "external" currents)
-
-  # peaking factor of prescribed (initial) "Ohmic" current:
-  # johm = j0*(1 - r^2/a^2)^nu
-  nu: float
-  # toggles if "Ohmic" current is treated as total current upon initialization,
-  # or if non-inductive current should be included in initial jtot calculation
-  initial_j_is_total_current: bool
-  # toggles if the initial psi calculation is based on the "nu" current formula,
-  # or from the psi available in the numerical geometry file. This setting is
-  # ignored for the ad-hoc circular geometry, which has no numerical geometry.
-  initial_psi_from_j: bool
-
 
 @chex.dataclass(frozen=True)
 class DynamicSolverConfigSlice:
@@ -166,6 +153,18 @@ class DynamicProfileConditions:
   neped_is_fGW: bool
   # Set ped top location.
   Ped_top: float
+
+  # current profiles (broad "Ohmic" + localized "external" currents)
+  # peaking factor of prescribed (initial) "Ohmic" current:
+  # johm = j0*(1 - r^2/a^2)^nu
+  nu: float
+  # toggles if "Ohmic" current is treated as total current upon initialization,
+  # or if non-inductive current should be included in initial jtot calculation
+  initial_j_is_total_current: bool
+  # toggles if the initial psi calculation is based on the "nu" current formula,
+  # or from the psi available in the numerical geometry file. This setting is
+  # ignored for the ad-hoc circular geometry, which has no numerical geometry.
+  initial_psi_from_j: bool
 
 
 @chex.dataclass

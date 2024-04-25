@@ -32,6 +32,9 @@ def get_config() -> config_lib.Config:
       profile_conditions=config_lib.ProfileConditions(
           set_pedestal=False,
           nbar=0.85,  # initial density (in Greenwald fraction units)
+          # set flat Ohmic current to provide larger range of current evolution
+          # for test
+          nu=0,
       ),
       numerics=config_lib.Numerics(
           ion_heat_eq=True,
@@ -41,9 +44,6 @@ def get_config() -> config_lib.Config:
           resistivity_mult=100,  # to shorten current diffusion time
           t_final=1,
       ),
-      # set flat Ohmic current to provide larger range of current evolution for
-      # test
-      nu=0,
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
       ),

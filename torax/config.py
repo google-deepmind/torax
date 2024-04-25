@@ -153,6 +153,17 @@ class ProfileConditions:
   # Set ped top location.
   Ped_top: TimeDependentField = 0.91
 
+  # current profiles (broad "Ohmic" + localized "external" currents)
+  # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
+  nu: float = 3.0
+  # toggles if "Ohmic" current is treated as total current upon initialization,
+  # or if non-inductive current should be included in initial jtot calculation
+  initial_j_is_total_current: bool = False
+  # toggles if the initial psi calculation is based on the "nu" current formula,
+  # or from the psi available in the numerical geometry file. This setting is
+  # ignored for the ad-hoc circular geometry, which has no numerical geometry.
+  initial_psi_from_j: bool = False
+
 
 @chex.dataclass
 class Numerics:
@@ -232,17 +243,6 @@ class Config:
       default_factory=ProfileConditions
   )
   numerics: Numerics = dataclasses.field(default_factory=Numerics)
-
-  # current profiles (broad "Ohmic" + localized "external" currents)
-  # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
-  nu: float = 3.0
-  # toggles if "Ohmic" current is treated as total current upon initialization,
-  # or if non-inductive current should be included in initial jtot calculation
-  initial_j_is_total_current: bool = False
-  # toggles if the initial psi calculation is based on the "nu" current formula,
-  # or from the psi available in the numerical geometry file. This setting is
-  # ignored for the ad-hoc circular geometry, which has no numerical geometry.
-  initial_psi_from_j: bool = False
 
   # solver parameters
   solver: SolverConfig = dataclasses.field(default_factory=SolverConfig)

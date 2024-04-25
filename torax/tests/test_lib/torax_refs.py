@@ -53,12 +53,12 @@ def circular_references() -> References:
       **{
           'profile_conditions': {
               'Ip': 15,
+              'nu': 3,
           },
           'numerics': {
               'nr': 25,
               'q_correction_factor': 1.0,
           },
-          'nu': 3,
       },
   )
   geo = geometry.build_circular_geometry(
@@ -205,12 +205,12 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       **{
           'profile_conditions': {
               'Ip': 15,
+              'nu': 3,
           },
           'numerics': {
               'nr': 25,
               'q_correction_factor': 1.0,
           },
-          'nu': 3,
       },
   )
   geo = geometry.build_chease_geometry(
@@ -358,12 +358,12 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
       **{
           'profile_conditions': {
               'Ip': 15,
+              'nu': 3,
           },
           'numerics': {
               'nr': 25,
               'q_correction_factor': 1.0,
           },
-          'nu': 3,
       },
   )
   geo = geometry.build_chease_geometry(
@@ -519,6 +519,7 @@ class ReferenceValueTest(parameterized.TestCase):
         chease_references_Ip_from_config()
     )
     # pylint: enable=invalid-name
+
 
 if __name__ == '__main__':
   absltest.main()

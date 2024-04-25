@@ -159,6 +159,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         profile_conditions=config_lib.ProfileConditions(
             set_pedestal=True,
             nbar=0.85,
+            nu=0,
         ),
         numerics=config_lib.Numerics(
             ion_heat_eq=True,
@@ -168,7 +169,6 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
             resistivity_mult=100,
             t_final=2,
         ),
-        nu=0,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
         ),

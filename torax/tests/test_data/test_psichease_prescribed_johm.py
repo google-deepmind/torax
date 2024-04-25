@@ -31,6 +31,9 @@ def get_config() -> config_lib.Config:
   return config_lib.Config(
       profile_conditions=config_lib.ProfileConditions(
           set_pedestal=False,
+          initial_psi_from_j=True,
+          initial_j_is_total_current=False,
+          nu=2,
       ),
       numerics=config_lib.Numerics(
           ion_heat_eq=False,
@@ -39,9 +42,6 @@ def get_config() -> config_lib.Config:
           resistivity_mult=100,  # to shorten current diffusion time
           t_final=3,
       ),
-      initial_psi_from_j=True,
-      initial_j_is_total_current=False,
-      nu=2,
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
       ),

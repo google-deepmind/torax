@@ -211,10 +211,12 @@ def _prescribe_currents_no_bootstrap(
   )
 
   # construct prescribed current formula on grid.
-  jformula_face = (1 - geo.r_face_norm**2) ** dynamic_config_slice.nu
+  jformula_face = (
+      1 - geo.r_face_norm**2
+  ) ** dynamic_config_slice.profile_conditions.nu
   # calculate total and Ohmic current profiles
   denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
-  if dynamic_config_slice.initial_j_is_total_current:
+  if dynamic_config_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
     johm_face = jtot_face - jext_face
@@ -318,10 +320,12 @@ def _prescribe_currents_with_bootstrap(
   )
 
   # construct prescribed current formula on grid.
-  jformula_face = (1 - geo.r_face_norm**2) ** dynamic_config_slice.nu
+  jformula_face = (
+      1 - geo.r_face_norm**2
+  ) ** dynamic_config_slice.profile_conditions.nu
   denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
   # calculate total and Ohmic current profiles
-  if dynamic_config_slice.initial_j_is_total_current:
+  if dynamic_config_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
     johm_face = jtot_face - jext_face - bootstrap_profile.j_bootstrap_face
@@ -548,7 +552,7 @@ def initial_core_profiles(
   # set up initial psi profile based on current profile
   if (
       isinstance(geo, geometry.CircularGeometry)
-      or dynamic_config_slice.initial_psi_from_j
+      or dynamic_config_slice.profile_conditions.initial_psi_from_j
   ):
     # set up initial current profile without bootstrap current, to get
     # q-profile approximation (needed for bootstrap)
@@ -593,7 +597,7 @@ def initial_core_profiles(
 
   elif (
       isinstance(geo, geometry.CHEASEGeometry)
-      and not dynamic_config_slice.initial_psi_from_j
+      and not dynamic_config_slice.profile_conditions.initial_psi_from_j
   ):
     # psi is already provided from the CHEASE equilibrium, so no need to first
     # calculate currents. However, non-inductive currents are still calculated
@@ -868,9 +872,11 @@ def _get_jtot_hires(
   )
 
   # calculate high resolution jtot and Ohmic current profile
-  jformula_hires = (1 - geo.r_hires_norm**2) ** dynamic_config_slice.nu
+  jformula_hires = (
+      1 - geo.r_hires_norm**2
+  ) ** dynamic_config_slice.profile_conditions.nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.r_hires)
-  if dynamic_config_slice.initial_j_is_total_current:
+  if dynamic_config_slice.profile_conditions.initial_j_is_total_current:
     Ctot_hires = dynamic_config_slice.profile_conditions.Ip * 1e6 / denom
     jtot_hires = jformula_hires * Ctot_hires
   else:

@@ -186,25 +186,33 @@ class InitialStatesTest(parameterized.TestCase):
   ):
     """Tests expected behaviour of initial psi and current options."""
     config1 = config_lib.Config(
-        initial_j_is_total_current=True,
-        initial_psi_from_j=True,
-        nu=2,
+        profile_conditions=config_lib.ProfileConditions(
+            initial_j_is_total_current=True,
+            initial_psi_from_j=True,
+            nu=2,
+        ),
     )
     config2 = config_lib.Config(
-        initial_j_is_total_current=False,
-        initial_psi_from_j=True,
-        nu=2,
+        profile_conditions=config_lib.ProfileConditions(
+            initial_j_is_total_current=False,
+            initial_psi_from_j=True,
+            nu=2,
+        ),
     )
     config3 = config_lib.Config(
-        initial_j_is_total_current=False,
-        initial_psi_from_j=True,
-        nu=2,
+        profile_conditions=config_lib.ProfileConditions(
+            initial_j_is_total_current=False,
+            initial_psi_from_j=True,
+            nu=2,
+        ),
     )
     # Needed to generate psi for bootstrap calculation
     config3_helper = config_lib.Config(
-        initial_j_is_total_current=True,
-        initial_psi_from_j=True,
-        nu=2,
+        profile_conditions=config_lib.ProfileConditions(
+            initial_j_is_total_current=True,
+            initial_psi_from_j=True,
+            nu=2,
+        ),
     )
     geo = geo_builder(config1)
     source_models = source_models_lib.SourceModels()
@@ -325,13 +333,17 @@ class InitialStatesTest(parameterized.TestCase):
     """Tests expected behaviour of initial psi and current options."""
     source_models = source_models_lib.SourceModels()
     config1 = config_lib.Config(
-        initial_psi_from_j=False,
+        profile_conditions=config_lib.ProfileConditions(
+            initial_psi_from_j=False,
+        ),
     )
     dcs1 = config_slice.build_dynamic_config_slice(
         config1, sources=source_models.runtime_params
     )
     config2 = config_lib.Config(
-        initial_psi_from_j=True,
+        profile_conditions=config_lib.ProfileConditions(
+            initial_psi_from_j=True,
+        ),
     )
     dcs2 = config_slice.build_dynamic_config_slice(
         config2, sources=source_models.runtime_params

@@ -37,6 +37,9 @@ def get_config() -> config_lib.Config:
           nbar=0.85,  # initial density (using Greenwald fraction default)
           ne_bound_right=0.2,
           neped=1.0,
+          # set flat Ohmic current to provide larger range of current evolution
+          # for test
+          nu=0,
       ),
       numerics=config_lib.Numerics(
           ion_heat_eq=True,
@@ -47,9 +50,6 @@ def get_config() -> config_lib.Config:
           t_final=2,
           largeValue_n=1.0e5,
       ),
-      # set flat Ohmic current to provide larger range of current evolution for
-      # test
-      nu=0,
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,

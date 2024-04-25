@@ -66,6 +66,9 @@ def get_config() -> config_lib.Config:
       profile_conditions=config_lib.ProfileConditions(
           Ti_bound_left=8,
           Te_bound_left=8,
+          # set flat Ohmic current to provide larger range of current evolution
+          # for test
+          nu=0,
       ),
       numerics=config_lib.Numerics(
           current_eq=True,
@@ -74,9 +77,6 @@ def get_config() -> config_lib.Config:
           resistivity_mult=100,
           t_final=2,
       ),
-      # set flat Ohmic current to provide larger range of current evolution for
-      # test
-      nu=0,
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
