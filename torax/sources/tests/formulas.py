@@ -21,11 +21,11 @@ from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.sources import default_sources
 from torax.sources import formula_config
 from torax.sources import formulas
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_config
-from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.tests.test_lib import sim_test_case
 from torax.transport_model import constant as constant_transport_model
@@ -47,53 +47,65 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # For this test, use test_particle_sources_constant with the linear stepper.
     custom_source_name = 'custom_exponential_source'
 
-    source_models = source_models_lib.SourceModels(
-        additional_sources=[
-            source.SingleProfileSource(
-                name=custom_source_name,
-                supported_types=(
-                    source_config.SourceType.ZERO,
-                    source_config.SourceType.FORMULA_BASED,
-                ),
-                affected_core_profiles=(source.AffectedCoreProfile.NE,),
-                formula=formulas.Exponential(custom_source_name),
-            )
-        ]
-    )
-
     # Copy the test_particle_sources_constant config in here for clarity.
-    # These are the common kwargs without any of the sources.
-    test_particle_sources_constant_config_kwargs = dict(
+    test_particle_sources_constant_config = config_lib.Config(
         profile_conditions=config_lib.ProfileConditions(
             set_pedestal=True,
             nbar=0.85,
         ),
         numerics=config_lib.Numerics(
-            Qei_mult=1,
             ion_heat_eq=True,
             el_heat_eq=True,
             dens_eq=True,  # This is important to be True to test ne sources.
             current_eq=True,
             resistivity_mult=100,
-            bootstrap_mult=1,
             t_final=2,
         ),
         nu=0,
-        S_pellet_tot=2.0e22,
-        S_puff_tot=1.0e22,
-        S_nbi_tot=0.0,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
         ),
     )
+    # Set the sources to match test_particle_sources_constant as well.
+    source_models = default_sources.get_default_sources()
+    source_models.sources['pellet_source'].runtime_params.S_pellet_tot = 2.0e22
+    S_puff_tot = 1.0e22  # pylint: disable=invalid-name
+    puff_decay_length = 0.05
+    source_models.sources['gas_puff_source'].runtime_params.S_puff_tot = (
+        S_puff_tot
+    )
+    source_models.sources[
+        'gas_puff_source'
+    ].runtime_params.puff_decay_length = puff_decay_length
+    source_models.sources['nbi_particle_source'].runtime_params.S_nbi_tot = 0.0
     # We need to turn off some other sources for test_particle_sources_constant
     # that are unrelated to our test for the ne custom source.
-    unrelated_source_configs = dict(
-        fusion_heat_source=source_config.SourceConfig(
-            source_type=source_config.SourceType.ZERO,
-        ),
-        ohmic_heat_source=source_config.SourceConfig(
-            source_type=source_config.SourceType.ZERO,
+    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+        runtime_params_lib.Mode.ZERO
+    )
+    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+        runtime_params_lib.Mode.ZERO
+    )
+
+    # Add the custom source to the source_models, but keep it turned off for the
+    # first run.
+    source_models.add_source(
+        custom_source_name,
+        source.SingleProfileSource(
+            supported_modes=(
+                runtime_params_lib.Mode.ZERO,
+                runtime_params_lib.Mode.FORMULA_BASED,
+            ),
+            affected_core_profiles=(source.AffectedCoreProfile.NE,),
+            formula=formulas.Exponential(),
+            runtime_params=runtime_params_lib.RuntimeParams(
+                mode=runtime_params_lib.Mode.ZERO,
+                # will override these later, but defining here because, due to
+                # how JAX works, this function is still evaluated even when the
+                # mode is set to ZERO. So the runtime config needs to be set
+                # with the correct params.
+                formula=formula_config.Exponential(),
+            ),
         ),
     )
 
@@ -102,19 +114,9 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         'test_particle_sources_constant.h5', _ALL_PROFILES
     )
 
-    # Set up the sim with the original config. We set up the sim only once and
-    # update the config on each run below in a way that does not trigger
-    # recompiles. This way we only trace the code once.
-    test_particle_sources_constant_config = config_lib.Config(
-        **test_particle_sources_constant_config_kwargs,
-        sources=dict(
-            **unrelated_source_configs,
-            # Turn off the custom source
-            custom_exponential_source=source_config.SourceConfig(
-                source_type=source_config.SourceType.ZERO,
-            ),
-        ),
-    )
+    # We set up the sim only once and update the config on each run below in a
+    # way that does not trigger recompiles. This way we only trace the code
+    # once.
     geo = geometry.build_circular_geometry(
         test_particle_sources_constant_config
     )
@@ -148,48 +150,38 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
       )
 
     with self.subTest('without_puff_and_with_custom_source'):
-      config_with_custom_source = config_lib.Config(
-          **test_particle_sources_constant_config_kwargs,
-          sources=dict(
-              **unrelated_source_configs,
-              custom_exponential_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.FORMULA_BASED,
-                  formula=formula_config.FormulaConfig(
-                      exponential=formula_config.Exponential(
-                          total=test_particle_sources_constant_config.S_puff_tot
-                          / test_particle_sources_constant_config.nref,
-                          c1=1.0,
-                          c2=test_particle_sources_constant_config.puff_decay_length,
-                          use_normalized_r=True,
-                      )
-                  ),
+      # Now turn on the custom source.
+      source_models.sources[custom_source_name].runtime_params.mode = (
+          runtime_params_lib.Mode.FORMULA_BASED
+      )
+      source_models.sources[custom_source_name].runtime_params.formula = (
+          formula_config.Exponential(
+              total=(
+                  S_puff_tot
+                  / test_particle_sources_constant_config.numerics.nref
               ),
-              gas_puff_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-          ),
+              c1=1.0,
+              c2=puff_decay_length,
+              use_normalized_r=True,
+          )
+      )
+      # And turn off the gas puff source it is replacing.
+      source_models.sources['gas_puff_source'].runtime_params.mode = (
+          runtime_params_lib.Mode.ZERO
       )
       self._run_sim_and_check(
-          config_with_custom_source, sim, ref_profiles, ref_time
+          test_particle_sources_constant_config, sim, ref_profiles, ref_time
       )
 
     with self.subTest('without_puff_and_without_custom_source'):
       # Confirm that the custom source actual has an effect.
-      config_without_ne_sources = config_lib.Config(
-          **test_particle_sources_constant_config_kwargs,
-          sources=dict(
-              **unrelated_source_configs,
-              custom_exponential_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-              gas_puff_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-          ),
+      # Turn it off as well, and the check shouldn't pass.
+      source_models.sources[custom_source_name].runtime_params.mode = (
+          runtime_params_lib.Mode.ZERO
       )
       with self.assertRaises(AssertionError):
         self._run_sim_and_check(
-            config_without_ne_sources, sim, ref_profiles, ref_time
+            test_particle_sources_constant_config, sim, ref_profiles, ref_time
         )
 
   def _run_sim_and_check(
@@ -205,6 +197,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         dynamic_config_slice_provider=config_slice.DynamicConfigSliceProvider(
             config=config,
             transport_getter=lambda: sim.transport_model.runtime_params,
+            sources_getter=lambda: sim.source_models.runtime_params,
         ),
         geometry_provider=sim.geometry_provider,
         initial_state=sim.initial_state,

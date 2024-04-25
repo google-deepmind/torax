@@ -93,7 +93,6 @@ class LinearThetaMethod(stepper_lib.Stepper):
         x_new_init,
         (
             source_models_lib.build_all_zero_profiles(
-                dynamic_config_slice_t,
                 geo,
                 self.source_models,
             ),

@@ -16,8 +16,8 @@
 
 from absl.testing import absltest
 from torax.sources import ion_el_heat_sources
+from torax.sources import runtime_params
 from torax.sources import source
-from torax.sources import source_config
 from torax.sources.tests import test_lib
 
 
@@ -28,8 +28,8 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.BremsstrahlungHeatSink,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
@@ -42,8 +42,8 @@ class ChargeExchangeHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.ChargeExchangeHeatSink,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_ION,),
     )
@@ -56,8 +56,8 @@ class CyclotronRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.CyclotronRadiationHeatSink,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
@@ -70,8 +70,8 @@ class ECRHHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.ECRHHeatSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
@@ -84,8 +84,8 @@ class ICRHHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.ICRHHeatSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_ION,),
     )
@@ -98,8 +98,8 @@ class LHHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.LHHeatSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
@@ -112,8 +112,8 @@ class LineRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.LineRadiationHeatSink,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
@@ -126,8 +126,8 @@ class NBIElectronHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.NBIElectronHeatSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
@@ -140,8 +140,8 @@ class NBIIonHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.NBIIonHeatSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_ION,),
     )
@@ -154,8 +154,8 @@ class RecombinationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.RecombinationHeatSink,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+import enum
 import types
 import typing
 from typing import Any
@@ -56,8 +57,8 @@ def input_is_an_interpolated_param(
           # below won't work, so we check for the full name here.
           ft == 'InterpParamOrInterpParamInput'
           or
-          # Common alias for InterpParamOrInterpParamInput.
-          ft == 'TimeDependentField'
+          # Common alias for InterpParamOrInterpParamInput in a few files.
+          (isinstance(ft, str) and 'TimeDependentField' in ft)
           or
           # Otherwise, only check if it is actually the InterpolatedParam.
           ft == 'interpolated_param.InterpolatedParam'
@@ -118,5 +119,9 @@ def get_init_kwargs(
       config_val = interpolate_param(config_val, t)
     elif input_is_a_float_field(field.name, input_config_fields_to_types):
       config_val = float(config_val)
+    elif isinstance(config_val, enum.Enum):
+      config_val = config_val.value
+    elif hasattr(config_val, 'build_dynamic_params'):
+      config_val = config_val.build_dynamic_params(t)
     kwargs[field.name] = config_val
   return kwargs

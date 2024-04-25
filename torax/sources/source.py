@@ -33,16 +33,20 @@ from torax import config_slice
 from torax import geometry
 from torax import jax_utils
 from torax import state
-from torax.sources import source_config
+from torax.sources import runtime_params as runtime_params_lib
 
 
-def get_cell_profile_shape(
-    unused_config: config_slice.DynamicConfigSlice,
-    geo: geometry.Geometry,
-    unused_state: state.CoreProfiles | None,
-):
-  """Returns the shape of a source profile on the cell grid."""
-  return ProfileType.CELL.get_profile_shape(geo)
+# Sources implement these functions to be able to provide source profiles.
+SourceProfileFunction = Callable[
+    [  # Arguments
+        config_slice.DynamicConfigSlice,  # General config params.
+        runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
+        geometry.Geometry,
+        state.CoreProfiles | None,
+    ],
+    # Returns a JAX array, tuple of arrays, or mapping of arrays.
+    chex.ArrayTree,
+]
 
 
 # Any callable which takes the dynamic config, geometry, and optional core
@@ -50,13 +54,18 @@ def get_cell_profile_shape(
 # source. See how these types of functions are used in the Source class below.
 SourceOutputShapeFunction = Callable[
     [  # Arguments
-        config_slice.DynamicConfigSlice,
         geometry.Geometry,
-        state.CoreProfiles | None,
     ],
     # Returns shape of the source's output.
     tuple[int, ...],
 ]
+
+
+def get_cell_profile_shape(
+    geo: geometry.Geometry,
+):
+  """Returns the shape of a source profile on the cell grid."""
+  return ProfileType.CELL.get_profile_shape(geo)
 
 
 @enum.unique
@@ -79,26 +88,26 @@ class AffectedCoreProfile(enum.IntEnum):
   TEMP_EL = 4
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class Source:
   """Base class for a single source/sink term.
 
   Sources are used to compute source profiles (see source_profiles.py), which
   are in turn used to compute coeffs in sim.py.
 
-  NOTE: For most use cases, you should extend or use SingleProfileSource defined
-  below.
+  NOTE: For most use cases, you should extend or use SingleProfileSource.
 
   Attributes:
-    name: Name of this source. Used as a key to find this source's configuraiton
-      in the DynamicConfigSlice. Also used as a key for the output in the
-      SourceProfiles.
+    runtime_params: Input dataclass containing all the source-specific runtime
+      parameters. At runtime, the parameters here are interpolated to a specific
+      time t and then passed to the model_func or formula, depending on the mode
+      this source is running in.
     affected_core_profiles: Core profiles affected by this source's profile(s).
       This attribute defines which equations the source profiles are terms for.
       By default, the number of affected core profiles should equal the rank of
       the output shape returned by output_shape_getter. Subclasses may override
       this requirement.
-    supported_types: Defines how the source computes its profile. Can be set to
+    supported_modes: Defines how the source computes its profile. Can be set to
       zero, model-based, etc. At runtime, the input runtime config (the Config
       or the DynamicConfigSlice) will specify which supported type the Source is
       running with. If the runtime config specifies an unsupported type, an
@@ -113,86 +122,82 @@ class Source:
       affected_core_profiles. Integer values of those enums.
   """
 
-  name: str
+  affected_core_profiles: tuple[AffectedCoreProfile, ...]
 
-  # Defining a default here for the affected_core_profiles helps allow us to
-  # freeze the default in subclasses of Source. Without adding a default here,
-  # it isn't possible to add a default value in a child class AND hide it from
-  # the arguments of the subclasses's __init__ function.
-  # Similar logic holds for all the other attributes below.
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
-      AffectedCoreProfile.NONE,
+  # Implementation detail: the DynamicConfigSliceProvider reads and interpolates
+  # these params via the SourceModels obj. This note is to help any code tracing
+  # someone might do if investigating how the parameters here are actually
+  # interpolated and packaged into the DynamicConfigSlice.
+  runtime_params: runtime_params_lib.RuntimeParams = dataclasses.field(
+      default_factory=runtime_params_lib.RuntimeParams
   )
 
-  supported_types: tuple[source_config.SourceType, ...] = (
-      source_config.SourceType.ZERO,
-      source_config.SourceType.FORMULA_BASED,
+  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
+      runtime_params_lib.Mode.ZERO,
+      runtime_params_lib.Mode.FORMULA_BASED,
   )
 
   output_shape_getter: SourceOutputShapeFunction = get_cell_profile_shape
 
-  model_func: source_config.SourceProfileFunction | None = None
+  model_func: SourceProfileFunction | None = None
 
-  formula: source_config.SourceProfileFunction | None = None
+  formula: SourceProfileFunction | None = None
 
   @property
   def affected_core_profiles_ints(self) -> tuple[int, ...]:
     return tuple([int(cp) for cp in self.affected_core_profiles])
 
-  def check_source_type(
+  def check_mode(
       self,
-      source_type: int | jnp.ndarray,
+      mode: int | jnp.ndarray,
   ) -> jnp.ndarray:
     """Raises an error if the source type is not supported."""
     # This function is really just a wrapper around jax_utils.error_if with the
     # custom error message coming from this class.
-    source_type = jnp.array(source_type)
-    source_type = jax_utils.error_if(
-        source_type,
-        jnp.logical_not(self._is_type_supported(source_type)),
-        self._unsupported_type_error_msg(source_type),
+    mode = jnp.array(mode)
+    mode = jax_utils.error_if(
+        mode,
+        jnp.logical_not(self._is_type_supported(mode)),
+        self._unsupported_mode_error_msg(mode),
     )
-    return source_type  # pytype: disable=bad-return-type
+    return mode  # pytype: disable=bad-return-type
 
   def _is_type_supported(
       self,
-      source_type: int | jnp.ndarray,
+      mode: int | jnp.ndarray,
   ) -> jnp.ndarray:
     """Returns whether the source type is supported."""
-    source_type = jnp.array(source_type)
+    mode = jnp.array(mode)
     return jnp.any(
         jnp.bool_([
-            supported_type.value == source_type
-            for supported_type in self.supported_types
+            supported_mode.value == mode
+            for supported_mode in self.supported_modes
         ])
     )
 
-  def _unsupported_type_error_msg(
+  def _unsupported_mode_error_msg(
       self,
-      source_type: source_config.SourceType | int | jnp.ndarray,
+      mode: runtime_params_lib.Mode | int | jnp.ndarray,
   ) -> str:
     return (
-        f'{self.name} supports the following types: {self.supported_types}.'
-        f' Unsupported type provided: {source_type}.'
+        f'This source supports the following modes: {self.supported_modes}.'
+        f' Unsupported mode provided: {mode}.'
     )
 
   def get_value(
       self,
-      source_type: int,  # value of the source_config.SourceType enum.
       dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
   ) -> chex.ArrayTree:
     """Returns the profile for this source during one time step.
 
     Args:
-      source_type: Method to use calculate the source profile (formula, model,
-        etc.). This integer should be the enum value of desired SourceType
-        instead of the actual enum because enums are not JAX-friendly. If the
-        input source type is not one of the object's supported types, this will
-        raise an error.
       dynamic_config_slice: Slice of the general TORAX config that can be used
         as input for this time step.
+      dynamic_source_runtime_params: Slice of this source's runtime parameters
+        at a specific time t.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles. May be the profiles at the start of
         the time step or a "live" set of core profiles being actively updated
@@ -204,25 +209,23 @@ class Source:
     Returns:
       Array, arrays, or nested dataclass/dict of arrays for the source profile.
     """
-    source_type = self.check_source_type(source_type)
-    output_shape = self.output_shape_getter(
-        dynamic_config_slice, geo, core_profiles
-    )
+    self.check_mode(dynamic_source_runtime_params.mode)
+    output_shape = self.output_shape_getter(geo)
     model_func = (
-        (lambda _0, _1, _2: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3: jnp.zeros(output_shape))
         if self.model_func is None
         else self.model_func
     )
     formula = (
-        (lambda _0, _1, _2: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3: jnp.zeros(output_shape))
         if self.formula is None
         else self.formula
     )
     return get_source_profiles(
         dynamic_config_slice=dynamic_config_slice,
+        dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        source_type=source_type,
         model_func=model_func,
         formula=formula,
         output_shape=output_shape,
@@ -277,7 +280,7 @@ class Source:
     )
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class SingleProfileSource(Source):
   """Source providing a single output profile on the cell grid.
 
@@ -288,66 +291,85 @@ class SingleProfileSource(Source):
 
   ```python
   # Define an electron-density source with a Gaussian profile.
-  my_custom_source_name = 'custom_ne_source'
   my_custom_source = source.SingleProfileSource(
-      name=my_custom_source_name,
-      supported_types=(
-          source_config.SourceType.ZERO,
-          source_config.SourceType.FORMULA_BASED,
+      supported_modes=(
+          runtime_params_lib.Mode.ZERO,
+          runtime_params_lib.Mode.FORMULA_BASED,
       ),
       affected_core_profiles=[source.AffectedCoreProfile.NE],
       formula=formulas.Gaussian(my_custom_source_name),
   )
-  all_torax_sources = source_models_lib.SourceModels(
-      additional_sources=[
-          my_custom_source,
-      ]
-  )
-  ```
-
-  You must also include a runtime config for the custom source:
-
-  ```python
-  my_torax_config = config.Config(
-      sources=dict(
-          ...  # Configs for other sources.
-          # Set some params for the new source
-          custom_ne_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.FORMULA_BASED,
-              formula=formula_config.FormulaConfig(
-                  gaussian=formula_config.Gaussian(
-                      total=1.0,
-                      c1=2.0,
-                      c2=3.0,
-                  ),
-              ),
-          ),
+  # Define its runtime parameters (this could be done in the constructor as
+  # well).
+  my_custom_source.runtime_params = runtime_params_lib.RuntimeParams(
+      mode=runtime_params_lib.Mode.FORMULA_BASED,
+      formula=formula_config.Gaussian(
+          total=1.0,
+          c1=2.0,
+          c2=3.0,
       ),
+  )
+  all_torax_sources = source_models_lib.SourceModels(
+      sources={
+          'my_custom_source': my_custom_source,
+      }
   )
   ```
 
   If you want to create a subclass of SingleProfileSource with frozen
   parameters, you can provide default implementations/attributes. This is an
   example of a model-based source with a frozen custom model that cannot be
-  changed by a config:
+  changed by a config, along with custom runtime parameters specific to this
+  source:
 
   ```python
+  @dataclasses.dataclass(kw_only=True)
+  class FooRuntimeParams(runtime_params_lib.RuntimeParams):
+    foo_param: runtime_params_lib.TimeDependentField
+    bar_param: float
 
-  def _my_foo_model(dynamic_config_slice, geo, core_profiles) -> jnp.ndarray:
+    def build_dynamic_params(self, t: chex.Numeric) -> DynamicFooRuntimeParams:
+    return DynamicFooRuntimeParams(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicFooRuntimeParams,
+            t=t,
+        )
+    )
+
+  @chex.dataclass(frozen=True)
+  class DynamicFooRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+    foo_param: float
+    bar_param: float
+
+  def _my_foo_model(
+      dynamic_config_slice,
+      dynamic_source_runtime_params,
+      geo,
+      core_profiles,
+  ) -> jnp.ndarray:
+    assert isinstance(dynamic_source_runtime_params, DynamicFooRuntimeParams)
     # implement your foo model.
 
+  @dataclasses.dataclass(kw_only=True)
   class FooSource(SingleProfileSource):
 
-    name: str = 'foo_source'  # the default name for this source.
+    # Provide a default set of params.
+    runtime_params: FooRuntimeParams = dataclasses.field(
+        default_factory=lambda: FooRuntimeParams(
+            foo_param={0.0: 10.0, 1.0: 20.0, 2.0: 35.0},
+            bar_param: 1.234,
+        )
+    )
 
     # By default, FooSource's can be model-based or set to 0.
-    supported_types: tuple[source_config.SourceType, ...] = (
-        source_config.SourceType.ZERO,
-        source_config.SourceType.MODEL_BASED,
+    supported_modes: tuple[runtime_params_lib.Mode, ...] = (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.MODEL_BASED,
     )
 
     # Don't include model_func in the __init__ arguments and freeze it.
-    model_func: source_config.SourceProfileFunction = dataclasses.field(
+    model_func: SourceProfileFunction = dataclasses.field(
         init=False,
         default_factory=lambda: _my_foo_model,
     )
@@ -363,20 +385,18 @@ class SingleProfileSource(Source):
 
   def get_value(
       self,
-      source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
   ) -> jnp.ndarray:
     """Returns the profile for this source during one time step."""
-    output_shape = self.output_shape_getter(
-        dynamic_config_slice, geo, core_profiles
-    )
+    output_shape = self.output_shape_getter(geo)
     profile = super().get_value(
         dynamic_config_slice=dynamic_config_slice,
+        dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        source_type=source_type,
     )
     assert isinstance(profile, jnp.ndarray)
     chex.assert_rank(profile, 1)
@@ -419,23 +439,24 @@ class ProfileType(enum.Enum):
 
 
 def get_source_profiles(
-    source_type: int | jnp.ndarray,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles | None,
-    model_func: source_config.SourceProfileFunction,
-    formula: source_config.SourceProfileFunction,
+    model_func: SourceProfileFunction,
+    formula: SourceProfileFunction,
     output_shape: tuple[int, ...],
 ) -> jnp.ndarray:
-  """Returns source profiles requested by the source_config.
+  """Returns source profiles requested by the runtime_params_lib.
 
   This function handles MODEL_BASED, FORMULA_BASED, and ZERO sources. All other
   source types will be ignored.
 
   Args:
-    source_type: Method to use to get the source profile.
     dynamic_config_slice: Slice of the general TORAX config that can be used as
       input for this time step.
+    dynamic_source_runtime_params: Slice of this source's runtime parameters at
+      a specific time t.
     geo: Geometry information. Used as input to the source profile functions.
     core_profiles: Core plasma profiles. Used as input to the source profile
       functions.
@@ -446,16 +467,27 @@ def get_source_profiles(
   Returns:
     Output array of a profile or concatenated/stacked profiles.
   """
+  mode = dynamic_source_runtime_params.mode
   zeros = jnp.zeros(output_shape)
   output = jnp.zeros(output_shape)
   output += jnp.where(
-      source_type == source_config.SourceType.MODEL_BASED.value,
-      model_func(dynamic_config_slice, geo, core_profiles),
+      mode == runtime_params_lib.Mode.MODEL_BASED.value,
+      model_func(
+          dynamic_config_slice,
+          dynamic_source_runtime_params,
+          geo,
+          core_profiles,
+      ),
       zeros,
   )
   output += jnp.where(
-      source_type == source_config.SourceType.FORMULA_BASED.value,
-      formula(dynamic_config_slice, geo, core_profiles),
+      mode == runtime_params_lib.Mode.FORMULA_BASED.value,
+      formula(
+          dynamic_config_slice,
+          dynamic_source_runtime_params,
+          geo,
+          core_profiles,
+      ),
       zeros,
   )
   return output
@@ -465,55 +497,43 @@ def get_source_profiles(
 # sources defined in the other files in this folder.
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class SingleProfilePsiSource(SingleProfileSource):
 
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param.
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
-      init=False,
-      default=(AffectedCoreProfile.PSI,),
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
+      AffectedCoreProfile.PSI,
   )
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class SingleProfileNeSource(SingleProfileSource):
 
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param.
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
-      init=False,
-      default=(AffectedCoreProfile.NE,),
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
+      AffectedCoreProfile.NE,
   )
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class SingleProfileTempIonSource(SingleProfileSource):
 
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param.
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
-      init=False,
-      default=(AffectedCoreProfile.TEMP_ION,),
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
+      AffectedCoreProfile.TEMP_ION,
   )
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class SingleProfileTempElSource(SingleProfileSource):
 
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param.
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
-      init=False,
-      default=(AffectedCoreProfile.TEMP_EL,),
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
+      AffectedCoreProfile.TEMP_EL,
   )
 
 
-def _get_ion_el_output_shape(unused_config, geo, unused_state):
+def _get_ion_el_output_shape(geo):
   return (2,) + ProfileType.CELL.get_profile_shape(geo)
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class IonElectronSource(Source):
   """Base class for a source/sink that can be used for both ions / electrons.
 
@@ -528,19 +548,16 @@ class IonElectronSource(Source):
   first being ion profile and the second being the electron profile.
   """
 
-  supported_types: tuple[source_config.SourceType, ...] = (
-      source_config.SourceType.FORMULA_BASED,
-      source_config.SourceType.ZERO,
+  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
+      runtime_params_lib.Mode.FORMULA_BASED,
+      runtime_params_lib.Mode.ZERO,
   )
 
   # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
-      init=False,
-      default=(
-          AffectedCoreProfile.TEMP_ION,
-          AffectedCoreProfile.TEMP_EL,
-      ),
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
+      AffectedCoreProfile.TEMP_ION,
+      AffectedCoreProfile.TEMP_EL,
   )
 
   # Don't include output_shape_getter in the __init__ arguments.
@@ -552,19 +569,18 @@ class IonElectronSource(Source):
 
   def get_value(
       self,
-      source_type: int,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
   ) -> jnp.ndarray:
     """Computes the ion and electron values of the source.
 
     Args:
-      source_type: Method to use calculate the source profile (formula, model,
-        etc.). This is the enum value of SourceType instead of the actual enum
-        instance because enums aren't JAX-friendly.
       dynamic_config_slice: Input config which can change from time step to time
         step.
+      dynamic_source_runtime_params: Slice of this source's runtime parameters
+        at a specific time t.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles used to compute the source's profiles.
 
@@ -572,12 +588,10 @@ class IonElectronSource(Source):
       2 stacked arrays, the first for the ion profile and the second for the
       electron profile.
     """
-    output_shape = self.output_shape_getter(
-        dynamic_config_slice, geo, core_profiles
-    )
+    output_shape = self.output_shape_getter(geo)
     profile = super().get_value(
-        source_type=source_type,
         dynamic_config_slice=dynamic_config_slice,
+        dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
     )

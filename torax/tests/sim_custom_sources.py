@@ -14,6 +14,10 @@
 
 """Tests for using custom, user-defined sources/sinks within TORAX."""
 
+from __future__ import annotations
+
+import dataclasses
+
 from absl.testing import absltest
 import chex
 from torax import config as config_lib
@@ -21,10 +25,11 @@ from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.runtime_params import config_slice_args
+from torax.sources import default_sources
 from torax.sources import electron_density_sources
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_config
-from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.tests.test_lib import sim_test_case
 from torax.transport_model import constant as constant_transport_model
@@ -43,100 +48,135 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     # stepper.
     custom_source_name = 'custom_ne_source'
 
-    def custom_source_formula(dynamic_config, geo, unused_state):
-      # Combine the outputs of the pellet
+    def custom_source_formula(
+        dynamic_config_slice: config_slice.DynamicConfigSlice,
+        dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
+        geo: geometry.Geometry,
+        unused_state: state_lib.CoreProfiles | None,
+    ):
+      # Combine the outputs.
+      assert isinstance(
+          dynamic_source_runtime_params, _CustomSourceDynamicRuntimeParams
+      )
+      ignored_default_kwargs = dict(
+          mode=dynamic_source_runtime_params.mode,
+          is_explicit=dynamic_source_runtime_params.is_explicit,
+          formula=dynamic_source_runtime_params.formula,
+      )
+      puff_params = electron_density_sources.DynamicGasPuffRuntimeParams(
+          puff_decay_length=dynamic_source_runtime_params.puff_decay_length,
+          S_puff_tot=dynamic_source_runtime_params.S_puff_tot,
+          **ignored_default_kwargs,
+      )
+      nbi_params = electron_density_sources.DynamicNBIParticleRuntimeParams(
+          nbi_deposition_location=dynamic_source_runtime_params.nbi_deposition_location,
+          nbi_particle_width=dynamic_source_runtime_params.nbi_particle_width,
+          S_nbi_tot=dynamic_source_runtime_params.S_nbi_tot,
+          **ignored_default_kwargs,
+      )
+      pellet_params = electron_density_sources.DynamicPelletRuntimeParams(
+          pellet_deposition_location=dynamic_source_runtime_params.pellet_deposition_location,
+          pellet_width=dynamic_source_runtime_params.pellet_width,
+          S_pellet_tot=dynamic_source_runtime_params.S_pellet_tot,
+          **ignored_default_kwargs,
+      )
+      # pylint: disable=protected-access
       return (
-          electron_density_sources.calc_puff_source(
-              geo,
-              puff_decay_length=dynamic_config.puff_decay_length,
-              S_puff_tot=dynamic_config.S_puff_tot,
-              nref=dynamic_config.nref,
+          electron_density_sources._calc_puff_source(
+              dynamic_config_slice=dynamic_config_slice,
+              dynamic_source_runtime_params=puff_params,
+              geo=geo,
           )
-          + electron_density_sources.calc_nbi_source(
-              geo,
-              nbi_deposition_location=dynamic_config.nbi_deposition_location,
-              nbi_particle_width=dynamic_config.nbi_particle_width,
-              S_nbi_tot=dynamic_config.S_nbi_tot,
-              nref=dynamic_config.nref,
+          + electron_density_sources._calc_nbi_source(
+              dynamic_config_slice=dynamic_config_slice,
+              dynamic_source_runtime_params=nbi_params,
+              geo=geo,
           )
-          + electron_density_sources.calc_pellet_source(
-              geo,
-              pellet_deposition_location=(
-                  dynamic_config.pellet_deposition_location
-              ),
-              pellet_width=dynamic_config.pellet_width,
-              S_pellet_tot=dynamic_config.S_pellet_tot,
-              nref=dynamic_config.nref,
+          + electron_density_sources._calc_pellet_source(
+              dynamic_config_slice=dynamic_config_slice,
+              dynamic_source_runtime_params=pellet_params,
+              geo=geo,
           )
       )
+      # pylint: enable=protected-access
 
-    source_models = source_models_lib.SourceModels(
-        additional_sources=[
-            source.SingleProfileSource(
-                name=custom_source_name,
-                supported_types=(
-                    source_config.SourceType.ZERO,
-                    source_config.SourceType.FORMULA_BASED,
-                ),
-                affected_core_profiles=(source.AffectedCoreProfile.NE,),
-                formula=custom_source_formula,
-            )
-        ]
+    # First instantiate the same default sources that test_particle_sources
+    # constant starts with.
+    source_models = default_sources.get_default_sources()
+    source_models.j_bootstrap.runtime_params.bootstrap_mult = 1
+    source_models.qei_source.runtime_params.Qei_mult = 1
+    nbi_params = source_models.sources['nbi_particle_source'].runtime_params
+    assert isinstance(
+        nbi_params, electron_density_sources.NBIParticleRuntimeParams
+    )
+    nbi_params.S_nbi_tot = 0.0
+    pellet_params = source_models.sources['pellet_source'].runtime_params
+    assert isinstance(
+        pellet_params, electron_density_sources.PelletRuntimeParams
+    )
+    pellet_params.S_pellet_tot = 2.0e22
+    gas_puff_params = source_models.sources['gas_puff_source'].runtime_params
+    assert isinstance(
+        gas_puff_params, electron_density_sources.GasPuffRuntimeParams
+    )
+    gas_puff_params.S_puff_tot = 1.0e22
+    # Turn off some sources.
+    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+        runtime_params_lib.Mode.ZERO
+    )
+    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+        runtime_params_lib.Mode.ZERO
+    )
+
+    # Add the custom source with the correct params, but keep it turned off to
+    # start.
+    source_models.add_source(
+        source_name=custom_source_name,
+        source=source.SingleProfileSource(
+            supported_modes=(
+                runtime_params_lib.Mode.ZERO,
+                runtime_params_lib.Mode.FORMULA_BASED,
+            ),
+            affected_core_profiles=(source.AffectedCoreProfile.NE,),
+            formula=custom_source_formula,
+            runtime_params=_CustomSourceRuntimeParams(
+                mode=runtime_params_lib.Mode.ZERO,
+                puff_decay_length=gas_puff_params.puff_decay_length,
+                S_puff_tot=gas_puff_params.S_puff_tot,
+                nbi_particle_width=nbi_params.nbi_particle_width,
+                nbi_deposition_location=nbi_params.nbi_deposition_location,
+                S_nbi_tot=nbi_params.S_nbi_tot,
+                pellet_width=pellet_params.pellet_width,
+                pellet_deposition_location=pellet_params.pellet_deposition_location,
+                S_pellet_tot=pellet_params.S_pellet_tot,
+            ),
+        ),
     )
 
     # Copy the test_particle_sources_constant config in here for clarity.
     # These are the common kwargs without any of the sources.
-    test_particle_sources_constant_config_kwargs = dict(
+    test_particle_sources_constant_config = config_lib.Config(
         profile_conditions=config_lib.ProfileConditions(
             set_pedestal=True,
             nbar=0.85,
         ),
         numerics=config_lib.Numerics(
-            Qei_mult=1,
             ion_heat_eq=True,
             el_heat_eq=True,
             dens_eq=True,  # This is important to be True to test ne sources.
             current_eq=True,
             resistivity_mult=100,
-            bootstrap_mult=1,
             t_final=2,
         ),
         nu=0,
-        S_pellet_tot=2.0e22,
-        S_puff_tot=1.0e22,
-        S_nbi_tot=0.0,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
-        ),
-    )
-    # We need to turn off some other sources for test_particle_sources_constant
-    # that are unrelated to our test for the ne custom source.
-    unrelated_source_configs = dict(
-        fusion_heat_source=source_config.SourceConfig(
-            source_type=source_config.SourceType.ZERO,
-        ),
-        ohmic_heat_source=source_config.SourceConfig(
-            source_type=source_config.SourceType.ZERO,
         ),
     )
 
     # Load reference profiles
     ref_profiles, ref_time = self._get_refs(
         'test_particle_sources_constant.h5', _ALL_PROFILES
-    )
-
-    # Set up the sim with the original config. We set up the sim only once and
-    # update the config on each run below in a way that does not trigger
-    # recompiles. This way we only trace the code once.
-    test_particle_sources_constant_config = config_lib.Config(
-        **test_particle_sources_constant_config_kwargs,
-        sources=dict(
-            **unrelated_source_configs,
-            # Turn off the custom source
-            custom_ne_source=source_config.SourceConfig(
-                source_type=source_config.SourceType.ZERO,
-            ),
-        ),
     )
     geo = geometry.build_circular_geometry(
         test_particle_sources_constant_config
@@ -170,51 +210,25 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       )
 
     with self.subTest('without_defaults_and_with_custom_source'):
-      config_with_custom_source = config_lib.Config(
-          **test_particle_sources_constant_config_kwargs,
-          sources=dict(
-              **unrelated_source_configs,
-              custom_ne_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.FORMULA_BASED,
-              ),
-              gas_puff_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-              nbi_particle_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-              pellet_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-          ),
+      # Turn off the other sources and turn on the custom one.
+      nbi_params.mode = runtime_params_lib.Mode.ZERO
+      pellet_params.mode = runtime_params_lib.Mode.ZERO
+      gas_puff_params.mode = runtime_params_lib.Mode.ZERO
+      source_models.sources[custom_source_name].runtime_params.mode = (
+          runtime_params_lib.Mode.FORMULA_BASED
       )
       self._run_sim_and_check(
-          config_with_custom_source, sim, ref_profiles, ref_time
+          test_particle_sources_constant_config, sim, ref_profiles, ref_time
       )
 
     with self.subTest('without_defaults_and_without_custom_source'):
       # Confirm that the custom source actual has an effect.
-      config_without_ne_sources = config_lib.Config(
-          **test_particle_sources_constant_config_kwargs,
-          sources=dict(
-              **unrelated_source_configs,
-              custom_ne_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-              gas_puff_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-              nbi_particle_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-              pellet_source=source_config.SourceConfig(
-                  source_type=source_config.SourceType.ZERO,
-              ),
-          ),
+      source_models.sources[custom_source_name].runtime_params.mode = (
+          runtime_params_lib.Mode.ZERO
       )
       with self.assertRaises(AssertionError):
         self._run_sim_and_check(
-            config_without_ne_sources, sim, ref_profiles, ref_time
+            test_particle_sources_constant_config, sim, ref_profiles, ref_time
         )
 
   def _run_sim_and_check(
@@ -233,6 +247,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
             config_slice.DynamicConfigSliceProvider(
                 config=config,
                 transport_getter=lambda: sim.transport_model.runtime_params,
+                sources_getter=lambda: sim.source_models.runtime_params,
             )
         ),
         static_config_slice=sim.static_config_slice,
@@ -249,6 +264,50 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         atol=self.atol,
     )
 
+
+# pylint: disable=invalid-name
+
+
+@dataclasses.dataclass(kw_only=True)
+class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime params for the custom source defined in the test case above."""
+
+  puff_decay_length: runtime_params_lib.TimeDependentField
+  S_puff_tot: runtime_params_lib.TimeDependentField
+  nbi_particle_width: runtime_params_lib.TimeDependentField
+  nbi_deposition_location: runtime_params_lib.TimeDependentField
+  S_nbi_tot: runtime_params_lib.TimeDependentField
+  pellet_width: runtime_params_lib.TimeDependentField
+  pellet_deposition_location: runtime_params_lib.TimeDependentField
+  S_pellet_tot: runtime_params_lib.TimeDependentField
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> _CustomSourceDynamicRuntimeParams:
+    return _CustomSourceDynamicRuntimeParams(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=_CustomSourceDynamicRuntimeParams,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass(frozen=True)
+class _CustomSourceDynamicRuntimeParams(
+    runtime_params_lib.DynamicRuntimeParams
+):
+  puff_decay_length: float
+  S_puff_tot: float
+  nbi_particle_width: float
+  nbi_deposition_location: float
+  S_nbi_tot: float
+  pellet_width: float
+  pellet_deposition_location: float
+  S_pellet_tot: float
+
+
+# pylint: enable=invalid-name
 
 if __name__ == '__main__':
   absltest.main()

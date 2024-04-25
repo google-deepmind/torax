@@ -21,6 +21,8 @@ from torax import config_slice
 from torax import geometry
 from torax import jax_utils
 from torax import state
+from torax.sources import formula_config
+from torax.sources import runtime_params
 
 
 # Many variables throughout this function are capitalized based on physics
@@ -108,27 +110,17 @@ def gaussian_profile(
 
 @dataclasses.dataclass(frozen=True)
 class Exponential:
-  """Callable class providing an exponential profile.
-
-  It uses the runtime config config_slice.DynamicConfigSlice to get the correct
-  parameters and returns an exponential profile on the cell grid.
-
-  Attributes:
-    source_name: Name of the source this formula is attached to. This helps grab
-      the relevant SourceConfig from the DynamicConfigSlice.
-  """
-
-  source_name: str
+  """Callable class providing an exponential profile."""
 
   def __call__(
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
   ) -> jnp.ndarray:
-    exp_config = dynamic_config_slice.sources[
-        self.source_name
-    ].formula.exponential
+    exp_config = dynamic_source_runtime_params.formula
+    assert isinstance(exp_config, formula_config.DynamicExponential)
     return exponential_profile(
         c1=exp_config.c1,
         c2=exp_config.c2,
@@ -140,27 +132,17 @@ class Exponential:
 
 @dataclasses.dataclass(frozen=True)
 class Gaussian:
-  """Callable class providing a gaussian profile.
-
-  It uses the runtime config config_slice.DynamicConfigSlice to get the correct
-  parameters and returns a gaussian profile on the cell grid.
-
-  Attributes:
-    source_name: Name of the source this formula is attached to. This helps grab
-      the relevant SourceConfig from the DynamicConfigSlice.
-  """
-
-  source_name: str
+  """Callable class providing a gaussian profile."""
 
   def __call__(
       self,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
   ) -> jnp.ndarray:
-    gaussian_config = dynamic_config_slice.sources[
-        self.source_name
-    ].formula.gaussian
+    gaussian_config = dynamic_source_runtime_params.formula
+    assert isinstance(gaussian_config, formula_config.DynamicGaussian)
     return gaussian_profile(
         c1=gaussian_config.c1,
         c2=gaussian_config.c2,

@@ -22,6 +22,7 @@ from torax import config_slice
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry
+from torax.sources import source_models as source_models_lib
 
 
 class BoundaryConditionsTest(absltest.TestCase):
@@ -44,17 +45,21 @@ class BoundaryConditionsTest(absltest.TestCase):
     )
 
     geo = geometry.build_circular_geometry(config)
+    source_models = source_models_lib.SourceModels()
     static_config_slice = config_slice.build_static_config_slice(config)
     initial_dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config
+        config,
+        sources=source_models.runtime_params,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         static_config_slice,
         initial_dynamic_config_slice,
         geo,
+        source_models=source_models,
     )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(
         config,
+        sources=source_models.runtime_params,
         t=0.5,
     )
 

@@ -28,14 +28,140 @@ from torax import jax_utils
 from torax import physics
 from torax import state
 from torax.fvm import cell_variable
+from torax.runtime_params import config_slice_args
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_config
 from torax.sources import source_profiles
+
+
+@dataclasses.dataclass(kw_only=True)
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  # Multiplication factor for bootstrap current
+  bootstrap_mult: float = 1.0
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicRuntimeParams,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  bootstrap_mult: float
+
+
+def _default_output_shapes(geo) -> tuple[int, int, int, int]:
+  return (
+      source.ProfileType.CELL.get_profile_shape(geo)  # sigmaneo
+      + source.ProfileType.CELL.get_profile_shape(geo)  # bootstrap
+      + source.ProfileType.FACE.get_profile_shape(geo)  # bootstrap face
+      + (1,)  # I_bootstrap
+  )
+
+
+@dataclasses.dataclass(kw_only=True)
+class BootstrapCurrentSource(source.Source):
+  """Bootstrap current density source profile.
+
+  Unlike other sources within TORAX, the BootstrapCurrentSource provides more
+  than just the bootstrap current. It uses neoclassical physics to determine
+  the following:
+    - sigmaneo
+    - bootstrap current (on cell and face grids)
+    - integrated bootstrap current
+  """
+
+  runtime_params: RuntimeParams = dataclasses.field(
+      default_factory=RuntimeParams,
+  )
+  output_shape_getter: source.SourceOutputShapeFunction = _default_output_shapes
+  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
+      runtime_params_lib.Mode.ZERO,
+      runtime_params_lib.Mode.MODEL_BASED,
+  )
+
+  # Don't include affected_core_profiles in the __init__ arguments.
+  # Freeze this param.
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      dataclasses.field(
+          init=False,
+          default_factory=lambda: (source.AffectedCoreProfile.PSI,),
+      )
+  )
+
+  def get_value(
+      self,
+      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles | None = None,
+      temp_ion: cell_variable.CellVariable | None = None,
+      temp_el: cell_variable.CellVariable | None = None,
+      ne: cell_variable.CellVariable | None = None,
+      ni: cell_variable.CellVariable | None = None,
+      jtot_face: jnp.ndarray | None = None,
+      psi: cell_variable.CellVariable | None = None,
+  ) -> source_profiles.BootstrapCurrentProfile:
+    # Make sure the input mode requested is supported.
+    self.check_mode(dynamic_source_runtime_params.mode)
+    # Make sure the input params are the correct type.
+    assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+    # Make sure the appropriate input args have been populated.
+    if not core_profiles and any([
+        not temp_ion,
+        not temp_el,
+        ne is None,
+        ni is None,
+        jtot_face is None,
+        not psi,
+    ]):
+      raise ValueError(
+          'If you cannot provide "core_profiles", then provide all of '
+          'temp_ion, temp_el, ne, ni, jtot_face, and psi.'
+      )
+    # pytype: disable=attribute-error
+    temp_ion = temp_ion or core_profiles.temp_ion
+    temp_el = temp_el or core_profiles.temp_el
+    ne = ne if ne is not None else core_profiles.ne
+    ni = ni if ni is not None else core_profiles.ni
+    jtot_face = (
+        jtot_face if jtot_face is not None else core_profiles.currents.jtot_face
+    )
+    psi = psi or core_profiles.psi
+    # pytype: enable=attribute-error
+    return calc_neoclassical(
+        dynamic_config_slice=dynamic_config_slice,
+        dynamic_source_runtime_params=dynamic_source_runtime_params,
+        geo=geo,
+        temp_ion=temp_ion,
+        temp_el=temp_el,
+        ne=ne,
+        ni=ni,
+        jtot_face=jtot_face,
+        psi=psi,
+    )
+
+  def get_source_profile_for_affected_core_profile(
+      self,
+      profile: chex.ArrayTree,
+      affected_core_profile: int,
+      geo: geometry.Geometry,
+  ) -> jnp.ndarray:
+    return jnp.where(
+        affected_core_profile in self.affected_core_profiles_ints,
+        profile['j_bootstrap'],
+        jnp.zeros_like(geo.r),
+    )
 
 
 @jax_utils.jit
 def calc_neoclassical(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_source_runtime_params: DynamicRuntimeParams,
     geo: geometry.Geometry,
     temp_ion: cell_variable.CellVariable,
     temp_el: cell_variable.CellVariable,
@@ -48,6 +174,7 @@ def calc_neoclassical(
 
   Args:
     dynamic_config_slice: General configuration parameters.
+    dynamic_source_runtime_params: Source-specific runtime parameters.
     geo: Torus geometry.
     temp_ion: Ion temperature. We don't pass in a full `State` here because this
       function is used to create the `Currents` in the initial `State`.
@@ -68,8 +195,9 @@ def calc_neoclassical(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  true_ne_face = ne.face_value() * dynamic_config_slice.nref
-  true_ni_face = ni.face_value() * dynamic_config_slice.nref
+  true_ne_face = ne.face_value() * dynamic_config_slice.numerics.nref
+  true_ni_face = ni.face_value() * dynamic_config_slice.numerics.nref
+  Zeff = dynamic_config_slice.plasma_composition.Zeff
 
   # # local r/R0 on face grid
   epsilon = (geo.Rout_face - geo.Rin_face) / (geo.Rout_face + geo.Rin_face)
@@ -80,7 +208,7 @@ def calc_neoclassical(
   ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
 
   # Spitzer conductivity
-  NZ = 0.58 + 0.74 / (0.76 + dynamic_config_slice.plasma_composition.Zeff)
+  NZ = 0.58 + 0.74 / (0.76 + Zeff)
   # TODO(b/335599537): expand the log to get rid of the exponentiation,
   # sqrt, etc.
   lnLame = 31.3 - jnp.log(jnp.sqrt(true_ne_face) / (temp_el.face_value() * 1e3))
@@ -91,13 +219,7 @@ def calc_neoclassical(
       / ((temp_ion.face_value() * 1e3) ** 1.5)
   )
 
-  sigsptz = (
-      1.9012e04
-      * (temp_el.face_value() * 1e3) ** 1.5
-      / dynamic_config_slice.plasma_composition.Zeff
-      / NZ
-      / lnLame
-  )
+  sigsptz = 1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Zeff / NZ / lnLame
 
   # We don't store q_cell in the evolving core profiles, so we need to
   # recalculate it.
@@ -112,7 +234,7 @@ def calc_neoclassical(
       * q_face
       * geo.Rmaj
       * true_ne_face
-      * dynamic_config_slice.plasma_composition.Zeff
+      * Zeff
       * lnLame
       / (
           ((temp_el.face_value() * 1e3) ** 2)
@@ -124,7 +246,7 @@ def calc_neoclassical(
       * q_face
       * geo.Rmaj
       * true_ni_face
-      * dynamic_config_slice.plasma_composition.Zeff**4
+      * Zeff**4
       * lnLami
       / (
           ((temp_ion.face_value() * 1e3) ** 2)
@@ -136,19 +258,10 @@ def calc_neoclassical(
   ft33 = ftrap / (
       1.0
       + (0.55 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.45
-      * (1.0 - ftrap)
-      * nuestar
-      / (dynamic_config_slice.plasma_composition.Zeff**1.5)
+      + 0.45 * (1.0 - ftrap) * nuestar / (Zeff**1.5)
   )
   signeo_face = 1.0 - ft33 * (
-      1.0
-      + 0.36 / dynamic_config_slice.plasma_composition.Zeff
-      - ft33
-      * (
-          0.59 / dynamic_config_slice.plasma_composition.Zeff
-          - 0.23 / dynamic_config_slice.plasma_composition.Zeff * ft33
-      )
+      1.0 + 0.36 / Zeff - ft33 * (0.59 / Zeff - 0.23 / Zeff * ft33)
   )
   sigmaneo = sigsptz * signeo_face
 
@@ -156,80 +269,54 @@ def calc_neoclassical(
   denom = (
       1.0
       + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5
-      * (1.0 - ftrap)
-      * nuestar
-      / dynamic_config_slice.plasma_composition.Zeff
+      + 0.5 * (1.0 - ftrap) * nuestar / Zeff
   )
   ft31 = ftrap / denom
   ft32ee = ftrap / (
       1
       + 0.26 * (1 - ftrap) * jnp.sqrt(nuestar)
-      + 0.18
-      * (1 - 0.37 * ftrap)
-      * nuestar
-      / jnp.sqrt(dynamic_config_slice.plasma_composition.Zeff)
+      + 0.18 * (1 - 0.37 * ftrap) * nuestar / jnp.sqrt(Zeff)
   )
   ft32ei = ftrap / (
       1
       + (1 + 0.6 * ftrap) * jnp.sqrt(nuestar)
-      + 0.85
-      * (1 - 0.37 * ftrap)
-      * nuestar
-      * (1 + dynamic_config_slice.plasma_composition.Zeff)
+      + 0.85 * (1 - 0.37 * ftrap) * nuestar * (1 + Zeff)
   )
   ft34 = ftrap / (
       1.0
       + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5
-      * (1.0 - 0.5 * ftrap)
-      * nuestar
-      / dynamic_config_slice.plasma_composition.Zeff
+      + 0.5 * (1.0 - 0.5 * ftrap) * nuestar / Zeff
   )
 
   F32ee = (
-      (0.05 + 0.62 * dynamic_config_slice.plasma_composition.Zeff)
-      / (
-          dynamic_config_slice.plasma_composition.Zeff
-          * (1 + 0.44 * dynamic_config_slice.plasma_composition.Zeff)
-      )
-      * (ft32ee - ft32ee**4)
+      (0.05 + 0.62 * Zeff) / (Zeff * (1 + 0.44 * Zeff)) * (ft32ee - ft32ee**4)
       + 1
-      / (1 + 0.22 * dynamic_config_slice.plasma_composition.Zeff)
+      / (1 + 0.22 * Zeff)
       * (ft32ee**2 - ft32ee**4 - 1.2 * (ft32ee**3 - ft32ee**4))
-      + 1.2
-      / (1 + 0.5 * dynamic_config_slice.plasma_composition.Zeff)
-      * ft32ee**4
+      + 1.2 / (1 + 0.5 * Zeff) * ft32ee**4
   )
 
   F32ei = (
-      -(0.56 + 1.93 * dynamic_config_slice.plasma_composition.Zeff)
-      / (
-          dynamic_config_slice.plasma_composition.Zeff
-          * (1 + 0.44 * dynamic_config_slice.plasma_composition.Zeff)
-      )
-      * (ft32ei - ft32ei**4)
+      -(0.56 + 1.93 * Zeff) / (Zeff * (1 + 0.44 * Zeff)) * (ft32ei - ft32ei**4)
       + 4.95
-      / (1 + 2.48 * dynamic_config_slice.plasma_composition.Zeff)
+      / (1 + 2.48 * Zeff)
       * (ft32ei**2 - ft32ei**4 - 0.55 * (ft32ei**3 - ft32ei**4))
-      - 1.2
-      / (1 + 0.5 * dynamic_config_slice.plasma_composition.Zeff)
-      * ft32ei**4
+      - 1.2 / (1 + 0.5 * Zeff) * ft32ei**4
   )
 
-  term_0 = (1 + 1.4 / (dynamic_config_slice.plasma_composition.Zeff + 1)) * ft31
-  term_1 = -1.9 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft31**2
-  term_2 = 0.3 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft31**3
-  term_3 = 0.2 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft31**4
+  term_0 = (1 + 1.4 / (Zeff + 1)) * ft31
+  term_1 = -1.9 / (Zeff + 1) * ft31**2
+  term_2 = 0.3 / (Zeff + 1) * ft31**3
+  term_3 = 0.2 / (Zeff + 1) * ft31**4
   L31 = term_0 + term_1 + term_2 + term_3
 
   L32 = F32ee + F32ei
 
   L34 = (
-      (1 + 1.4 / (dynamic_config_slice.plasma_composition.Zeff + 1)) * ft34
-      - 1.9 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft34**2
-      + 0.3 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft34**3
-      + 0.2 / (dynamic_config_slice.plasma_composition.Zeff + 1) * ft34**4
+      (1 + 1.4 / (Zeff + 1)) * ft34
+      - 1.9 / (Zeff + 1) * ft34**2
+      + 0.3 / (Zeff + 1) * ft34**3
+      + 0.2 / (Zeff + 1) * ft34**4
   )
 
   alpha0 = -1.17 * (1 - ftrap) / (1 - 0.22 * ftrap - 0.19 * ftrap**2)
@@ -245,7 +332,7 @@ def calc_neoclassical(
   # calculate bootstrap current
   prefactor = (
       -geo.F_face
-      * dynamic_config_slice.numerics.bootstrap_mult
+      * dynamic_source_runtime_params.bootstrap_mult
       * 2
       * jnp.pi
       / geo.B0
@@ -291,105 +378,3 @@ def calc_neoclassical(
       j_bootstrap_face=j_bootstrap_face,
       I_bootstrap=I_bootstrap,
   )
-
-
-# TODO(b/314308399): Remove this as a source and create a
-# Neoclassical class which will compute sigmaneo, j_bootstrap, etc.
-
-
-def _default_output_shapes(
-    unused_config, geo, unused_core_profiles
-) -> tuple[int, int, int, int]:
-  # TODO(b/314308399): When refactoring neoclassical "sources",
-  # revisit what we actually need to return here.
-  return (
-      source.ProfileType.CELL.get_profile_shape(geo)  # sigmaneo
-      + source.ProfileType.CELL.get_profile_shape(geo)  # bootstrap
-      + source.ProfileType.FACE.get_profile_shape(geo)  # bootstrap face
-      + (1,)  # I_bootstrap
-  )
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class BootstrapCurrentSource(source.Source):
-  """Bootstrap current density source profile.
-
-  Unlike other sources within TORAX, the BootstrapCurrentSource provides more
-  than just the bootstrap current. It uses neoclassical physics to determine
-  the following:
-    - sigmaneo
-    - bootstrap current (on cell and face grids)
-    - integrated bootstrap current
-  """
-
-  name: str = 'j_bootstrap'
-  output_shape_getter: source.SourceOutputShapeFunction = _default_output_shapes
-  supported_types: tuple[source_config.SourceType, ...] = (
-      source_config.SourceType.MODEL_BASED,
-  )
-
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param.
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default_factory=lambda: (source.AffectedCoreProfile.PSI,),
-      )
-  )
-
-  def get_value(
-      self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
-      temp_ion: cell_variable.CellVariable | None = None,
-      temp_el: cell_variable.CellVariable | None = None,
-      ne: cell_variable.CellVariable | None = None,
-      ni: cell_variable.CellVariable | None = None,
-      jtot_face: jnp.ndarray | None = None,
-      psi: cell_variable.CellVariable | None = None,
-  ) -> source_profiles.BootstrapCurrentProfile:
-    if not core_profiles and any([
-        not temp_ion,
-        not temp_el,
-        ne is None,
-        ni is None,
-        jtot_face is None,
-        not psi,
-    ]):
-      raise ValueError(
-          'If you cannot provide "core_profiles", then provide all of '
-          'temp_ion, temp_el, ne, ni, jtot_face, and psi.'
-      )
-    # pytype: disable=attribute-error
-    temp_ion = temp_ion or core_profiles.temp_ion
-    temp_el = temp_el or core_profiles.temp_el
-    ne = ne if ne is not None else core_profiles.ne
-    ni = ni if ni is not None else core_profiles.ni
-    jtot_face = (
-        jtot_face if jtot_face is not None else core_profiles.currents.jtot_face
-    )
-    psi = psi or core_profiles.psi
-    # pytype: enable=attribute-error
-    return calc_neoclassical(
-        dynamic_config_slice,
-        geo,
-        temp_ion=temp_ion,
-        temp_el=temp_el,
-        ne=ne,
-        ni=ni,
-        jtot_face=jtot_face,
-        psi=psi,
-    )
-
-  def get_source_profile_for_affected_core_profile(
-      self,
-      profile: chex.ArrayTree,
-      affected_core_profile: int,
-      geo: geometry.Geometry,
-  ) -> jnp.ndarray:
-    return jnp.where(
-        affected_core_profile in self.affected_core_profiles_ints,
-        profile['j_bootstrap'],
-        jnp.zeros_like(geo.r),
-    )

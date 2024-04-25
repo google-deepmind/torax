@@ -80,8 +80,9 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     consts = constants.CONSTANTS
 
-    true_ni = core_profiles_t.ni.value * dynamic_config_slice_t.nref
-    true_ni_face = core_profiles_t.ni.face_value() * dynamic_config_slice_t.nref
+    nref = dynamic_config_slice_t.numerics.nref
+    true_ni = core_profiles_t.ni.value * nref
+    true_ni_face = core_profiles_t.ni.face_value() * nref
 
     # Transient term coefficient vectors for ion heat equation
     # (has radial dependence through r, n)
@@ -149,7 +150,6 @@ class ExplicitStepper(stepper_lib.Stepper):
             s_face=s_face,
         ),
         source_models.build_all_zero_profiles(
-            dynamic_config_slice=dynamic_config_slice_t,
             geo=geo,
             source_models=self.source_models,
         ),

@@ -17,6 +17,8 @@
 from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
+from torax.sources import default_sources
+from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.transport_model import constant as constant_transport_model
 
@@ -35,6 +37,12 @@ def get_transport_model() -> constant_transport_model.ConstantTransportModel:
   return constant_transport_model.ConstantTransportModel()
 
 
+def get_sources() -> source_models_lib.SourceModels:
+  """Returns the source models used in the simulation."""
+  source_models = default_sources.get_default_sources()
+  return source_models
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -45,5 +53,6 @@ def get_sim() -> sim_lib.Sim:
       config=config,
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethod,
+      source_models=get_sources(),
       transport_model=get_transport_model(),
   )

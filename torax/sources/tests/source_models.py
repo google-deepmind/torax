@@ -23,8 +23,9 @@ import torax  # useful for setting up jax properly.
 from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
+from torax.sources import default_sources
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
-from torax.sources import source_config
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 
@@ -43,12 +44,15 @@ class SourceProfilesTest(parameterized.TestCase):
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
     config = torax.Config()
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = torax.build_circular_geometry(config)
     source_models = source_models_lib.SourceModels()
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config,
+        sources=source_models.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -68,7 +72,7 @@ class SourceProfilesTest(parameterized.TestCase):
     # fusion_heat_source, and ohmic_heat_source are included and produce
     # profiles for ion and electron heat.
     # temperature.
-    source_models = source_models_lib.SourceModels()
+    source_models = default_sources.get_default_sources()
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo))
     profiles = source_profiles_lib.SourceProfiles(
@@ -110,52 +114,45 @@ class SourceProfilesTest(parameterized.TestCase):
     """Test that custom source profiles don't change profiles when jitted."""
     source_name = 'foo'
 
-    def foo_formula(unused_dcs, geo: geometry.Geometry, unused_state):
+    def foo_formula(
+        unused_dcs,
+        unused_sc,
+        geo: geometry.Geometry,
+        unused_state,
+    ):
       return jnp.stack([
           jnp.zeros(source_lib.ProfileType.CELL.get_profile_shape(geo)),
           jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo)),
       ])
 
     foo_source = source_lib.Source(
-        name=source_name,
         # Test a fake source that somehow affects both electron temp and
         # electron density.
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.TEMP_EL,
             source_lib.AffectedCoreProfile.NE,
         ),
-        supported_types=(source_config.SourceType.FORMULA_BASED,),
-        output_shape_getter=lambda _0, geo, _1: (2,)
-        + source_lib.ProfileType.CELL.get_profile_shape(geo),
+        supported_modes=(runtime_params_lib.Mode.FORMULA_BASED,),
+        output_shape_getter=(
+            lambda geo: (2,)
+            + source_lib.ProfileType.CELL.get_profile_shape(geo)
+        ),
         formula=foo_formula,
     )
+    # Set the source mode to FORMULA.
+    foo_source.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
     source_models = source_models_lib.SourceModels(
-        additional_sources=[foo_source],
+        sources={source_name: foo_source},
     )
-    zero_config = source_config.SourceConfig(
-        source_type=source_config.SourceType.ZERO
+    config = torax.Config()
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config,
+        sources=source_models.runtime_params,
     )
-    config = torax.Config(
-        sources=dict(
-            # Turn off all the other ne sources.
-            gas_puff_source=zero_config,
-            nbi_particle_source=zero_config,
-            pellet_source=zero_config,
-            # And turn off the temp sources.
-            generic_ion_el_heat_source=zero_config,
-            fusion_heat_source=zero_config,
-            ohmic_heat_source=zero_config,
-            # But for the custom source, leave that on.
-            foo=source_config.SourceConfig(
-                source_type=source_config.SourceType.FORMULA_BASED,
-            ),
-        )
-    )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
     geo = torax.build_circular_geometry(config)
     core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
         static_config_slice=config_slice.build_static_config_slice(config),
+        dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         source_models=source_models,
     )

@@ -24,35 +24,27 @@ from torax.sources import source
 
 
 # The current sources below don't have any source-specific implementations, so
-# their bodies are mostly empty. You can refer to their base class to see the
+# their bodies are empty. You can refer to their base class to see the
 # implementation. We define new classes here to:
 #  a) support any future source-specific implementation.
 #  b) better readability and human-friendly error messages when debugging.
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class ECRHCurrentSource(source.SingleProfilePsiSource):
   """ECRH current density source for the psi equation."""
 
-  name: str = 'ecrh_current_source'
 
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class ICRHCurrentSource(source.SingleProfilePsiSource):
   """ICRH current density source for the psi equation."""
 
-  name: str = 'icrh_current_source'
 
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class LHCurrentSource(source.SingleProfilePsiSource):
   """LH current density source for the psi equation."""
 
-  name: str = 'lh_current_source'
 
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class NBICurrentSource(source.SingleProfilePsiSource):
   """NBI current density source for the psi equation."""
-
-  name: str = 'nbi_current_source'

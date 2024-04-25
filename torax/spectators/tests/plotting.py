@@ -19,6 +19,7 @@ from absl.testing import parameterized
 import torax  # We want this import to make sure jax gets set to float64
 from torax import config as config_lib
 from torax import geometry
+from torax.sources import default_sources
 from torax.spectators import plotting
 from torax.spectators import spectator
 from torax.stepper import linear_theta_method
@@ -61,6 +62,7 @@ def _run_sim(
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethod,
       transport_model=constant_transport_model.ConstantTransportModel(),
+      source_models=default_sources.get_default_sources(),
       time_step_calculator=chi_time_step_calculator.ChiTimeStepCalculator(),
   ).run(
       spectator=observer,

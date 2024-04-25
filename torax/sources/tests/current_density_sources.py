@@ -16,8 +16,8 @@
 
 from absl.testing import absltest
 from torax.sources import current_density_sources as cds
+from torax.sources import runtime_params
 from torax.sources import source
-from torax.sources import source_config
 from torax.sources.tests import test_lib
 
 
@@ -28,8 +28,8 @@ class ECRHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=cds.ECRHCurrentSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.PSI,),
     )
@@ -42,8 +42,8 @@ class ICRHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=cds.ICRHCurrentSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.PSI,),
     )
@@ -56,8 +56,8 @@ class LHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=cds.LHCurrentSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.PSI,),
     )
@@ -70,8 +70,8 @@ class NBICurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=cds.NBICurrentSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source.AffectedCoreProfile.PSI,),
     )

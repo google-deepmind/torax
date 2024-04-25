@@ -21,7 +21,9 @@ density. D_e scaled from chi_e
 from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
-from torax.sources import source_config
+from torax.sources import default_sources
+from torax.sources import runtime_params as source_runtime_params
+from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.transport_model import qlknn_wrapper
 
@@ -36,30 +38,19 @@ def get_config() -> config_lib.Config:
           neped=1.0,
       ),
       numerics=config_lib.Numerics(
-          Qei_mult=1,
           ion_heat_eq=True,
           el_heat_eq=True,
           dens_eq=True,
           current_eq=True,
           resistivity_mult=100,  # to shorten current diffusion time
-          bootstrap_mult=1,  # remove bootstrap current
           t_final=2,
       ),
       # set flat Ohmic current to provide larger range of current evolution for
       # test
       nu=0,
-      S_pellet_tot=1.0e22,
-      S_puff_tot=0.5e22,
-      S_nbi_tot=0.3e22,
-      Ptot=53.0e6,  # total external heating
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
-      ),
-      sources=dict(
-          ohmic_heat_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.ZERO,
-          ),
       ),
   )
 
@@ -76,6 +67,28 @@ def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
   )
 
 
+def get_sources() -> source_models_lib.SourceModels:
+  """Returns the source models used in the simulation."""
+  source_models = default_sources.get_default_sources()
+  # multiplier for ion-electron heat exchange term for sensitivity
+  source_models.qei_source.runtime_params.Qei_mult = 1.0
+  source_models.j_bootstrap.runtime_params.bootstrap_mult = 1.0
+  # total pellet particles/s (continuous pellet model)
+  source_models.sources['pellet_source'].runtime_params.S_pellet_tot = 1.0e22
+  # total heating (including accounting for radiation) r
+  source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
+      53.0e6
+  )
+  # total pellet particles/s
+  source_models.sources['gas_puff_source'].runtime_params.S_puff_tot = 0.5e22
+  # NBI total particle source
+  source_models.sources['nbi_particle_source'].runtime_params.S_nbi_tot = 0.3e22
+  source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+      source_runtime_params.Mode.ZERO
+  )
+  return source_models
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -86,5 +99,6 @@ def get_sim() -> sim_lib.Sim:
       config=config,
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethod,
+      source_models=get_sources(),
       transport_model=get_transport_model(),
   )

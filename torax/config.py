@@ -18,14 +18,13 @@ Specifies parameter names and default values for all physics and solver
 parameters.
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 import dataclasses
 import enum
 import typing
 from typing import Any
 import chex
 from torax import interpolated_param
-from torax.sources import source_config
 
 
 # Type-alias for clarity. While the InterpolatedParams can vary across any
@@ -205,10 +204,10 @@ class Numerics:
   # 1/multiplication factor for sigma (conductivity) to reduce current
   # diffusion timescale to be closer to heat diffusion timescale
   resistivity_mult: TimeDependentField = 1.0
-  # Multiplication factor for bootstrap current
-  bootstrap_mult: float = 1.0
-  # multiplier for ion-electron heat exchange term for sensitivity testing
-  Qei_mult: float = 1.0
+
+  # density profile info
+  # Reference value for normalization
+  nref: float = 1e20
 
   # numerical (e.g. no. of grid points, other info needed by solver)
   # radial grid points (num cells)
@@ -234,43 +233,6 @@ class Config:
   )
   numerics: Numerics = dataclasses.field(default_factory=Numerics)
 
-  # TODO(b/330172917): Move the source parameters into `sources`.
-
-  # density profile info
-  # Reference value for normalization
-  nref: float = 1e20
-
-  # external heat source parameters
-  w: TimeDependentField = 0.25  # Gaussian width in normalized radial coordinate
-  # Source Gaussian central location (in normalized r)
-  rsource: TimeDependentField = 0.0
-  Ptot: TimeDependentField = 120e6  # total heating
-  el_heat_fraction: TimeDependentField = 0.66666  # electron heating fraction
-
-  # particle source parameters
-  # Gaussian width of pellet deposition [normalized radial coord],
-  # (continuous pellet model)
-  pellet_width: TimeDependentField = 0.1
-  # Pellet source Gaussian central location [normalized radial coord]
-  # (continuous pellet model)
-  pellet_deposition_location: TimeDependentField = 0.85
-  # total pellet particles/s (continuous pellet model)
-  # TODO(b/326578331): improve numerical strategy, avoid these large numbers
-  S_pellet_tot: TimeDependentField = 2e22
-
-  # exponential decay length of gas puff ionization [normalized radial coord]
-  puff_decay_length: TimeDependentField = 0.05
-  # total gas puff particles/s
-  # TODO(b/326578331): improve numerical strategy, avoid these large numbers
-  S_puff_tot: TimeDependentField = 1e22
-
-  # NBI particle source Gaussian width in normalized radial coord
-  nbi_particle_width: TimeDependentField = 0.25
-  # NBI particle source Gaussian central location in normalized radial coord
-  nbi_deposition_location: TimeDependentField = 0.0
-  # NBI total particle source
-  S_nbi_tot: TimeDependentField = 1e22
-
   # current profiles (broad "Ohmic" + localized "external" currents)
   # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
   nu: float = 3.0
@@ -281,16 +243,6 @@ class Config:
   # or from the psi available in the numerical geometry file. This setting is
   # ignored for the ad-hoc circular geometry, which has no numerical geometry.
   initial_psi_from_j: bool = False
-  # toggles if external current is provided absolutely or as a fraction of Ip
-  use_absolute_jext: bool = False
-  # total "external" current in MA. Used if use_absolute_jext=True.
-  Iext: TimeDependentField = 3.0
-  # total "external" current fraction. Used if use_absolute_jext=False.
-  fext: TimeDependentField = 0.2
-  # width of "external" Gaussian current profile
-  wext: TimeDependentField = 0.05
-  # normalized radius of "external" Gaussian current profile
-  rext: TimeDependentField = 0.4
 
   # solver parameters
   solver: SolverConfig = dataclasses.field(default_factory=SolverConfig)
@@ -300,13 +252,6 @@ class Config:
   output_dir: str | None = None
 
   # pylint: enable=invalid-name
-
-  # Runtime configs for all source/sink terms.
-  # Note that the sources field is overridden in the __post_init__. See impl for
-  # details on how this field is updated.
-  sources: Mapping[str, source_config.SourceConfig] = dataclasses.field(
-      default_factory=source_config.get_default_sources_config
-  )
 
   def sanity_check(self) -> None:
     """Checks that various configuration parameters are valid."""
@@ -319,12 +264,6 @@ class Config:
     assert isinstance(self.numerics, Numerics)
 
   def __post_init__(self):
-    # The sources config should have the default values from
-    # source_config.get_default_sources_config. The additional values provided
-    # via the config constructor should OVERRIDE these defaults.
-    sources = dict(source_config.get_default_sources_config())
-    sources.update(self.sources)  # Update with the user inputs.
-    self.sources = sources
     self.sanity_check()
 
 

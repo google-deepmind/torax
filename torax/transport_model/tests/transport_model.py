@@ -48,7 +48,11 @@ class TransportSmoothingTest(parameterized.TestCase):
             smoothing_sigma=0.05,
         )
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config,
+        transport=transport_model.runtime_params,
+        sources=source_models.runtime_params,
+    )
     static_config_slice = config_slice.build_static_config_slice(config)
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     input_state = sim_lib.get_initial_state(

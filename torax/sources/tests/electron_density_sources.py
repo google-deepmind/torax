@@ -16,8 +16,8 @@
 
 from absl.testing import absltest
 from torax.sources import electron_density_sources as eds
+from torax.sources import runtime_params
 from torax.sources import source as source_lib
-from torax.sources import source_config
 from torax.sources.tests import test_lib
 
 
@@ -28,8 +28,8 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.GasPuffSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
@@ -42,8 +42,8 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.PelletSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
@@ -56,8 +56,8 @@ class NBISourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.NBIParticleSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
@@ -70,8 +70,8 @@ class RecombinationDensitySinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.RecombinationDensitySink,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )

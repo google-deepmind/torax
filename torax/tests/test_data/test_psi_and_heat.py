@@ -21,7 +21,9 @@ pedestal, chi from qlknn.
 from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
-from torax.sources import source_config
+from torax.sources import default_sources
+from torax.sources import runtime_params as source_runtime_params
+from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.transport_model import qlknn_wrapper
 
@@ -36,7 +38,6 @@ def get_config() -> config_lib.Config:
           current_eq=True,
           resistivity_mult=100,  # to shorten current diffusion time
           t_final=2,
-          bootstrap_mult=0,  # remove bootstrap current
       ),
       # set flat Ohmic current to provide larger range of current evolution for
       # test
@@ -44,14 +45,6 @@ def get_config() -> config_lib.Config:
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
-      ),
-      sources=dict(
-          fusion_heat_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.ZERO,
-          ),
-          ohmic_heat_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.ZERO,
-          ),
       ),
   )
 
@@ -64,6 +57,20 @@ def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
   return qlknn_wrapper.QLKNNTransportModel()
 
 
+def get_sources() -> source_models_lib.SourceModels:
+  """Returns the source models used in the simulation."""
+  source_models = default_sources.get_default_sources()
+  # remove bootstrap current
+  source_models.j_bootstrap.runtime_params.bootstrap_mult = 0.0
+  source_models.sources['fusion_heat_source'].runtime_params.mode = (
+      source_runtime_params.Mode.ZERO
+  )
+  source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+      source_runtime_params.Mode.ZERO
+  )
+  return source_models
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -74,5 +81,6 @@ def get_sim() -> sim_lib.Sim:
       config=config,
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethod,
+      source_models=get_sources(),
       transport_model=get_transport_model(),
   )

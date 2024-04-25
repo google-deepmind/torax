@@ -142,7 +142,6 @@ def optimizer_solve_block(
           # this is jitted.
           (
               source_models_lib.build_all_zero_profiles(
-                  dynamic_config_slice_t,
                   geo,
                   source_models,
               ),

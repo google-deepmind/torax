@@ -139,7 +139,6 @@ class Stepper(abc.ABC):
       x_new = tuple()
       core_sources = source_models_lib.build_all_zero_profiles(
           source_models=self.source_models,
-          dynamic_config_slice=dynamic_config_slice_t,
           geo=geo,
       )
       core_transport = state.CoreTransport.zeros(geo)

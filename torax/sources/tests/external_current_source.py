@@ -22,8 +22,8 @@ from torax import config as config_lib
 from torax import config_slice
 from torax import geometry
 from torax.sources import external_current_source
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
-from torax.sources import source_config
 from torax.sources.tests import test_lib
 
 
@@ -34,8 +34,8 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=external_current_source.ExternalCurrentSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params_lib.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
@@ -44,21 +44,26 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     """Tests that a formula-based source provides values."""
     source = external_current_source.ExternalCurrentSource()
     config = config_lib.Config()
-    dynamic_slice = config_slice.build_dynamic_config_slice(config)
+    dynamic_slice = config_slice.build_dynamic_config_slice(
+        config,
+        sources={
+            'jext': source.runtime_params,
+        },
+    )
     self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
     # Must be circular for jext_hires call.
     geo = geometry.build_circular_geometry(config)
     self.assertIsNotNone(
         source.get_value(
-            source_type=dynamic_slice.sources[source.name].source_type,
             dynamic_config_slice=dynamic_slice,
+            dynamic_source_runtime_params=dynamic_slice.sources['jext'],
             geo=geo,
         )
     )
     self.assertIsNotNone(
         source.jext_hires(
-            source_type=dynamic_slice.sources[source.name].source_type,
             dynamic_config_slice=dynamic_slice,
+            dynamic_source_runtime_params=dynamic_slice.sources['jext'],
             geo=geo,
         )
     )
@@ -67,13 +72,19 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     source = external_current_source.ExternalCurrentSource()
-    dynamic_slice = config_slice.build_dynamic_config_slice(config)
-    for unsupported_type in self._unsupported_types:
-      with self.subTest(unsupported_type.name):
+    for unsupported_mode in self._unsupported_modes:
+      with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
+          source.runtime_params.mode = unsupported_mode
+          dynamic_slice = config_slice.build_dynamic_config_slice(
+              config,
+              sources={
+                  'jext': source.runtime_params,
+              },
+          )
           source.get_value(
-              source_type=unsupported_type.value,
               dynamic_config_slice=dynamic_slice,
+              dynamic_source_runtime_params=dynamic_slice.sources['jext'],
               geo=geo,
           )
 

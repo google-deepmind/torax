@@ -19,10 +19,13 @@ dens, pedestal, chi from QLKNN. Includes time dependent Ip, Ptot, and
 pedestal, mocking up current-overshoot and an LH transition
 """
 
+import dataclasses
 from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
-from torax.sources import source_config
+from torax.sources import default_sources
+from torax.sources import runtime_params as source_runtime_params
+from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.transport_model import qlknn_wrapper
 
@@ -39,28 +42,14 @@ def get_config() -> config_lib.Config:
       numerics=config_lib.Numerics(
           current_eq=True,
           resistivity_mult=50,  # to shorten current diffusion time for the test
-          bootstrap_mult=0,  # remove bootstrap current
           dtmult=150,
           maxdt=0.5,
           t_final=10,
           enable_prescribed_profile_evolution=True,
       ),
-      w=0.18202270915319393,
-      S_pellet_tot=0,
-      S_puff_tot=0,
-      S_nbi_tot=0,
-      Ptot={0: 20e6, 9: 20e6, 10: 120e6, 15: 120e6},
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
-      ),
-      sources=dict(
-          fusion_heat_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.ZERO,
-          ),
-          ohmic_heat_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.ZERO,
-          ),
       ),
   )
 
@@ -84,6 +73,41 @@ def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
   )
 
 
+def get_sources() -> source_models_lib.SourceModels:
+  """Returns the source models used in the simulation."""
+  source_models = default_sources.get_default_sources()
+  # remove bootstrap current
+  source_models.j_bootstrap.runtime_params.bootstrap_mult = 0.0
+  # pylint: disable=unexpected-keyword-arg
+  source_models.sources["generic_ion_el_heat_source"].runtime_params = (
+      dataclasses.replace(
+          source_models.sources["generic_ion_el_heat_source"].runtime_params,
+          # Gaussian width in normalized radial coordinate r
+          w=0.18202270915319393,
+          # total heating (including accounting for radiation) r
+          Ptot={
+              0: 20e6,
+              9: 20e6,
+              10: 120e6,
+              15: 120e6,
+          },  # in W
+      )
+  )
+  # total pellet particles/s (continuous pellet model)
+  source_models.sources["pellet_source"].runtime_params.S_pellet_tot = 0.0
+  # total pellet particles/s
+  source_models.sources["gas_puff_source"].runtime_params.S_puff_tot = 0
+  # NBI total particle source
+  source_models.sources["nbi_particle_source"].runtime_params.S_nbi_tot = 0.0
+  source_models.sources["fusion_heat_source"].runtime_params.mode = (
+      source_runtime_params.Mode.ZERO
+  )
+  source_models.sources["ohmic_heat_source"].runtime_params.mode = (
+      source_runtime_params.Mode.ZERO
+  )
+  return source_models
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -94,5 +118,6 @@ def get_sim() -> sim_lib.Sim:
       config=config,
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethod,
+      source_models=get_sources(),
       transport_model=get_transport_model(),
   )

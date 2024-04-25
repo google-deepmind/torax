@@ -25,12 +25,36 @@ from torax import config_slice
 from torax import geometry
 from torax import physics
 from torax import state
+from torax.runtime_params import config_slice_args
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_config
 from torax.sources import source_profiles
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+# pylint: disable=invalid-name
+
+
+@dataclasses.dataclass(kw_only=True)
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  # multiplier for ion-electron heat exchange term for sensitivity testing
+  Qei_mult: float = 1.0
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicRuntimeParams,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  Qei_mult: float
+
+
+@dataclasses.dataclass(kw_only=True)
 class QeiSource(source.Source):
   """Collisional ion-electron heat source.
 
@@ -38,11 +62,13 @@ class QeiSource(source.Source):
   explicit terms in our solver. See sim.py for how this is used.
   """
 
-  name: str = 'qei_source'
+  runtime_params: RuntimeParams = dataclasses.field(
+      default_factory=RuntimeParams
+  )
 
-  supported_types: tuple[source_config.SourceType, ...] = (
-      source_config.SourceType.MODEL_BASED,
-      source_config.SourceType.ZERO,
+  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
+      runtime_params_lib.Mode.MODEL_BASED,
+      runtime_params_lib.Mode.ZERO,
   )
 
   # Don't include affected_core_profiles in the __init__ arguments.
@@ -60,18 +86,23 @@ class QeiSource(source.Source):
 
   def get_qei(
       self,
-      source_type: int,
       static_config_slice: config_slice.StaticConfigSlice,
       dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
-    source_type = self.check_source_type(source_type)
+    self.check_mode(dynamic_source_runtime_params.mode)
     return jax.lax.cond(
-        source_type == source_config.SourceType.MODEL_BASED.value,
+        dynamic_source_runtime_params.mode
+        == runtime_params_lib.Mode.MODEL_BASED.value,
         lambda: _model_based_qei(
-            static_config_slice, dynamic_config_slice, geo, core_profiles
+            static_config_slice,
+            dynamic_config_slice,
+            dynamic_source_runtime_params,
+            geo,
+            core_profiles,
         ),
         lambda: source_profiles.QeiInfo.zeros(geo),
     )
@@ -97,16 +128,18 @@ class QeiSource(source.Source):
 def _model_based_qei(
     static_config_slice: config_slice.StaticConfigSlice,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> source_profiles.QeiInfo:
   """Computes Qei via the coll_exchange model."""
+  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   zeros = jnp.zeros_like(geo.r_norm)
   qei_coef = physics.coll_exchange(
       core_profiles=core_profiles,
-      nref=dynamic_config_slice.nref,
+      nref=dynamic_config_slice.numerics.nref,
       Ai=dynamic_config_slice.plasma_composition.Ai,
-      Qei_mult=dynamic_config_slice.numerics.Qei_mult,
+      Qei_mult=dynamic_source_runtime_params.Qei_mult,
   )
   implicit_ii = -qei_coef
   implicit_ee = -qei_coef
@@ -136,3 +169,6 @@ def _model_based_qei(
       implicit_ie=implicit_ie,
       implicit_ei=implicit_ei,
   )
+
+
+# pylint: enable=invalid-name

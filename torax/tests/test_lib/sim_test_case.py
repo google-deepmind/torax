@@ -300,6 +300,7 @@ def make_frozen_optimizer_stepper(
   dynamic_config_slice = config_slice.build_dynamic_config_slice(
       config=config,
       transport=transport_params,
+      sources=source_models.runtime_params,
   )
   callback_builder = functools.partial(
       sim_lib.FrozenCoeffsCallback,

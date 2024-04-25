@@ -172,7 +172,7 @@ class _QLKNNRuntimeConfigInputs:
   ) -> '_QLKNNRuntimeConfigInputs':
     assert isinstance(dynamic_config_slice.transport, DynamicRuntimeParams)
     return _QLKNNRuntimeConfigInputs(
-        nref=dynamic_config_slice.nref,
+        nref=dynamic_config_slice.numerics.nref,
         Ai=dynamic_config_slice.plasma_composition.Ai,
         Zeff=dynamic_config_slice.plasma_composition.Zeff,
         transport=dynamic_config_slice.transport,

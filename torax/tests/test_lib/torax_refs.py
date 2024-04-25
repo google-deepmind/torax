@@ -59,9 +59,6 @@ def circular_references() -> References:
               'q_correction_factor': 1.0,
           },
           'nu': 3,
-          'fext': 0.2,
-          'wext': 0.05,
-          'rext': 0.4,
       },
   )
   geo = geometry.build_circular_geometry(
@@ -214,9 +211,6 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
               'q_correction_factor': 1.0,
           },
           'nu': 3,
-          'fext': 0.2,
-          'wext': 0.05,
-          'rext': 0.4,
       },
   )
   geo = geometry.build_chease_geometry(
@@ -370,9 +364,6 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
               'q_correction_factor': 1.0,
           },
           'nu': 3,
-          'fext': 0.2,
-          'wext': 0.05,
-          'rext': 0.4,
       },
   )
   geo = geometry.build_chease_geometry(

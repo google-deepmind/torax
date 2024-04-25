@@ -22,7 +22,6 @@ Use the TORAX_COMPILATION_ENABLED environment variable to turn
 jax compilation off and on. Compilation is on by default. Turning
 compilation off can sometimes help with debugging (e.g. by making
 it easier to print error messages in context).
-
 """
 
 from __future__ import annotations
@@ -430,8 +429,8 @@ def get_initial_state(
     static_config_slice: config_slice.StaticConfigSlice,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
-    time_step_calculator: ts.TimeStepCalculator,
     source_models: source_models_lib.SourceModels,
+    time_step_calculator: ts.TimeStepCalculator,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = core_profile_setters.initial_core_profiles(
@@ -664,8 +663,8 @@ def build_sim_from_config(
     geo: geometry.Geometry,
     stepper_builder: stepper_lib.StepperBuilder,
     transport_model: transport_model_lib.TransportModel,
+    source_models: source_models_lib.SourceModels,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
-    source_models: source_models_lib.SourceModels | None = None,
 ) -> Sim:
   """Builds a Sim object from a Config file.
 
@@ -680,35 +679,20 @@ def build_sim_from_config(
     stepper_builder: A callable to build the stepper. The stepper has already
       been factored out of the config.
     transport_model: Calculates diffusion and convection coefficients.
-    time_step_calculator: The time_step_calculator, if built, otherwise a
-      ChiTimeStepCalculator will be built by default.
     source_models: All TORAX sources/sink functions which provide profiles used
       as terms in the equations that evolve the core profiless.
+    time_step_calculator: The time_step_calculator, if built, otherwise a
+      ChiTimeStepCalculator will be built by default.
 
   Returns:
     sim: The built Sim instance.
   """
-  source_models = (
-      source_models_lib.SourceModels()
-      if source_models is None
-      else source_models
-  )
-
-  # Make sure the sources and the config (which contains the runtime configs for
-  # all the sources) have matching keys.
-  if set(source_models.all_sources.keys()) != set(config.sources.keys()):
-    raise ValueError(
-        'SourceModels and config.sources must have the same keys. Mismatch '
-        f'found.\nsource_models: {list(source_models.all_sources.keys())}.\n'
-        f'config.sources: {config.sources.keys()}'
-    )
 
   static_config_slice = config_slice.build_static_config_slice(config)
-  dynamic_config_slice_provider = (
-      config_slice.DynamicConfigSliceProvider(
-          config=config,
-          transport_getter=lambda: transport_model.runtime_params,
-      )
+  dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
+      config=config,
+      transport_getter=lambda: transport_model.runtime_params,
+      sources_getter=lambda: source_models.runtime_params,
   )
   stepper = stepper_builder(transport_model, source_models)
 
@@ -1035,6 +1019,9 @@ def update_current_distribution(
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_config_slice.sources[
+          source_models.j_bootstrap_name
+      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -1184,10 +1171,10 @@ def _get_initial_source_profiles(
   )
   qei = source_models.qei_source.get_qei(
       static_config_slice=static_config_slice,
-      source_type=dynamic_config_slice.sources[
-          source_models.qei_source.name
-      ].source_type,
       dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_config_slice.sources[
+          source_models.qei_source_name
+      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -1218,11 +1205,11 @@ def _merge_source_profiles(
     explicit_source_profiles: Profiles from explicit source models. This
       SourceProfiles dict will include keys for both the explicit and implicit
       sources, but only the explicit sources will have non-zero profiles. See
-      source.py and source_config.py for more info on explicit vs. implicit.
+      source.py and runtime_params.py for more info on explicit vs. implicit.
     implicit_source_profiles: Profiles from implicit source models. This
       SourceProfiles dict will include keys for both the explicit and implicit
       sources, but only the implicit sources will have non-zero profiles. See
-      source.py and source_config.py for more info on explicit vs. implicit.
+      source.py and runtime_params.py for more info on explicit vs. implicit.
     source_models: Source models used to compute the profiles given.
     qei_core_profiles: The core profiles used to compute the Qei source.
 
@@ -1246,7 +1233,7 @@ def _merge_source_profiles(
   )
   # For ease of comprehension, we convert the units of the Qei source and add it
   # to the list of other profiles before returning it.
-  summed_other_profiles[source_models.qei_source.name] = (
+  summed_other_profiles[source_models.qei_source_name] = (
       summed_qei_info.qei_coef
       * (qei_core_profiles.temp_el.value - qei_core_profiles.temp_ion.value)
   )

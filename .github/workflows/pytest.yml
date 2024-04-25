@@ -77,7 +77,6 @@ jobs:
           torax/sources/tests/generic_ion_el_heat_source.py \
           torax/sources/tests/ion_el_heat_sources.py \
           torax/sources/tests/qei_source.py \
-          torax/sources/tests/source_config.py \
           torax/sources/tests/source_models.py \
           torax/sources/tests/source.py \
           torax/spectators/tests/plotting.py \

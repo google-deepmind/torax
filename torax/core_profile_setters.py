@@ -111,7 +111,7 @@ def _updated_dens(
       dynamic_config_slice.profile_conditions.Ip
       / (jnp.pi * geo.Rmin**2)
       * 1e20
-      / dynamic_config_slice.nref
+      / dynamic_config_slice.numerics.nref
   )
   nbar_unnorm = jnp.where(
       dynamic_config_slice.profile_conditions.nbar_is_fGW,
@@ -189,10 +189,11 @@ def _prescribe_currents_no_bootstrap(
   # Calculate splitting of currents depending on config
   Ip = dynamic_config_slice.profile_conditions.Ip
 
-  if dynamic_config_slice.use_absolute_jext:
-    Iext = dynamic_config_slice.Iext
+  dynamic_jext_params = _get_jext_params(dynamic_config_slice, source_models)
+  if dynamic_jext_params.use_absolute_jext:
+    Iext = dynamic_jext_params.Iext
   else:
-    Iext = Ip * dynamic_config_slice.fext
+    Iext = Ip * dynamic_jext_params.fext
   # Total Ohmic current
   Iohm = Ip - Iext
 
@@ -203,10 +204,9 @@ def _prescribe_currents_no_bootstrap(
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_source = source_models.jext
-  jext_face, jext = jext_source.get_value(
-      source_type=dynamic_config_slice.sources[jext_source.name].source_type,
+  jext_face, jext = source_models.jext.get_value(
       dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
 
@@ -227,7 +227,12 @@ def _prescribe_currents_no_bootstrap(
   johm = geometry.face_to_cell(johm_face)
 
   jtot_hires = _get_jtot_hires(
-      dynamic_config_slice, geo, bootstrap_profile, Iohm, jext_source
+      dynamic_config_slice,
+      dynamic_jext_params,
+      geo,
+      bootstrap_profile,
+      Iohm,
+      source_models.jext,
   )
 
   currents = state.Currents(
@@ -283,6 +288,9 @@ def _prescribe_currents_with_bootstrap(
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_config_slice.sources[
+          source_models.j_bootstrap_name
+      ],
       geo=geo,
       temp_ion=temp_ion,
       temp_el=temp_el,
@@ -294,19 +302,19 @@ def _prescribe_currents_with_bootstrap(
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
   # Calculate splitting of currents depending on config
-  if dynamic_config_slice.use_absolute_jext:
-    Iext = dynamic_config_slice.Iext
+  dynamic_jext_params = _get_jext_params(dynamic_config_slice, source_models)
+  if dynamic_jext_params.use_absolute_jext:
+    Iext = dynamic_jext_params.Iext
   else:
-    Iext = Ip * dynamic_config_slice.fext
+    Iext = Ip * dynamic_jext_params.fext
   Iohm = Ip - Iext - f_bootstrap * Ip
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_source = source_models.jext
-  jext_face, jext = jext_source.get_value(
+  jext_face, jext = source_models.jext.get_value(
       dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
-      source_type=dynamic_config_slice.sources[jext_source.name].source_type,
   )
 
   # construct prescribed current formula on grid.
@@ -326,7 +334,12 @@ def _prescribe_currents_with_bootstrap(
   johm = geometry.face_to_cell(johm_face)
 
   jtot_hires = _get_jtot_hires(
-      dynamic_config_slice, geo, bootstrap_profile, Iohm, jext_source
+      dynamic_config_slice,
+      dynamic_jext_params,
+      geo,
+      bootstrap_profile,
+      Iohm,
+      source_models.jext,
   )
 
   currents = state.Currents(
@@ -385,6 +398,9 @@ def _calculate_currents_from_psi(
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_config_slice.sources[
+          source_models.j_bootstrap_name
+      ],
       geo=geo,
       temp_ion=temp_ion,
       temp_el=temp_el,
@@ -395,27 +411,36 @@ def _calculate_currents_from_psi(
   )
 
   # Calculate splitting of currents depending on config
-  if dynamic_config_slice.use_absolute_jext:
-    Iext = dynamic_config_slice.Iext
+  dynamic_jext_params = _get_jext_params(dynamic_config_slice, source_models)
+  if dynamic_jext_params.use_absolute_jext:
+    Iext = dynamic_jext_params.Iext
   else:
-    Iext = Ip * dynamic_config_slice.fext
+    Iext = Ip * dynamic_jext_params.fext
 
   Iohm = Ip - Iext - bootstrap_profile.I_bootstrap
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_source = source_models.jext
-  jext_face, jext = jext_source.get_value(
+  jext_face, jext = source_models.jext.get_value(
       dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
-      source_type=dynamic_config_slice.sources[jext_source.name].source_type,
   )
 
   johm = jtot - jext - bootstrap_profile.j_bootstrap
   johm_face = jtot_face - jext_face - bootstrap_profile.j_bootstrap_face
 
+  # TODO(b/336995925): TORAX currently only uses the external current source,
+  # jext, when computing the jtot initial currents from psi. Really, though, we
+  # should be summing over all sources that can contribute current i.e. ECCD,
+  # ICRH, NBI, LHCD.
   jtot_hires = _get_jtot_hires(
-      dynamic_config_slice, geo, bootstrap_profile, Iohm, jext_source
+      dynamic_config_slice,
+      dynamic_jext_params,
+      geo,
+      bootstrap_profile,
+      Iohm,
+      source_models.jext,
   )
 
   currents = state.Currents(
@@ -498,7 +523,7 @@ def initial_core_profiles(
     static_config_slice: config_slice.StaticConfigSlice,
     dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: Geometry,
-    source_models: source_models_lib.SourceModels | None = None,
+    source_models: source_models_lib.SourceModels,
 ) -> state.CoreProfiles:
   """Calculates the initial core profiles.
 
@@ -506,19 +531,12 @@ def initial_core_profiles(
     static_config_slice: Static simulation configuration parameters.
     dynamic_config_slice: Dynamic configuration parameters at t=t_initial.
     geo: Torus geometry.
-    source_models: All models for TORAX sources/sinks. If not provided, uses the
-      default source_models.
+    source_models: All models for TORAX sources/sinks.
 
   Returns:
     Initial core profiles.
   """
   # pylint: disable=invalid-name
-
-  source_models = (
-      source_models_lib.SourceModels()
-      if source_models is None
-      else source_models
-  )
 
   # To set initial values and compute the boundary conditions, we need to handle
   # potentially time-varying inputs from the users.
@@ -636,7 +654,10 @@ def initial_core_profiles(
   psidot = dataclasses.replace(
       psidot,
       value=source_models_lib.calc_psidot(
-          dynamic_config_slice, geo, core_profiles, source_models,
+          dynamic_config_slice,
+          geo,
+          core_profiles,
+          source_models,
       ),
   )
 
@@ -776,7 +797,7 @@ def compute_boundary_conditions(
       dynamic_config_slice.profile_conditions.Ip
       / (jnp.pi * geo.Rmin**2)
       * 1e20
-      / dynamic_config_slice.nref
+      / dynamic_config_slice.numerics.nref
   )
   # pylint: enable=invalid-name
   ne_bound_right = jnp.where(
@@ -828,6 +849,7 @@ def compute_boundary_conditions(
 # pylint: disable=invalid-name
 def _get_jtot_hires(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_jext_params: external_current_source.DynamicRuntimeParams,
     geo: Geometry,
     bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
     Iohm: jax.Array | float,
@@ -840,8 +862,8 @@ def _get_jtot_hires(
 
   # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
   jext_hires = jext_source.jext_hires(
-      source_type=dynamic_config_slice.sources[jext_source.name].source_type,
       dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
 
@@ -856,6 +878,23 @@ def _get_jtot_hires(
     johm_hires = jformula_hires * Cohm_hires
     jtot_hires = johm_hires + jext_hires + j_bootstrap_hires
   return jtot_hires
+
+
+def _get_jext_params(
+    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    source_models: source_models_lib.SourceModels,
+) -> external_current_source.DynamicRuntimeParams:
+  """Returns dynamic runtime params for the external current source."""
+  assert source_models.jext_name in dynamic_config_slice.sources, (
+      f'{source_models.jext_name} not found in dynamic_config_slice.sources.'
+      ' Check to make sure the DynamicConfigSlice was built with `sources`'
+      ' that include the external current source.'
+  )
+  dynamic_jext_params = dynamic_config_slice.sources[source_models.jext_name]
+  assert isinstance(
+      dynamic_jext_params, external_current_source.DynamicRuntimeParams
+  )
+  return dynamic_jext_params
 
 
 # pylint: enable=invalid-name

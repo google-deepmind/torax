@@ -14,32 +14,23 @@
 
 """Configuration for all the sources/sinks modelled in Torax."""
 
-from collections.abc import Callable, Mapping
+from __future__ import annotations
+
 import dataclasses
 import enum
-from typing import Any
 
 import chex
+from torax import interpolated_param
+from torax.runtime_params import config_slice_args
 from torax.sources import formula_config
 
 
-# Sources implement these functions to be able to provide source profiles. The
-# SourceConfig also gives a hook for users to provide a custom function.
-# Using `Any` instead of the actual argument types below to avoid circular
-# dependencies.
-SourceProfileFunction = Callable[
-    [  # Arguments
-        Any,  # config.Config
-        Any,  # geometry.Geometry
-        Any | None,  # state.CoreProfiles
-    ],
-    # Returns a JAX array, tuple of arrays, or mapping of arrays.
-    chex.ArrayTree,
-]
+# Type-alias for clarity.
+TimeDependentField = interpolated_param.InterpParamOrInterpParamInput
 
 
 @enum.unique
-class SourceType(enum.Enum):
+class Mode(enum.Enum):
   """Defines how to compute the source terms for this source/sink."""
 
   # Source is set to zero always. This is an explicit source by definition.
@@ -56,12 +47,12 @@ class SourceType(enum.Enum):
 
 
 @dataclasses.dataclass
-class SourceConfig:
+class RuntimeParams:
   """Configures a single source/sink term.
 
   This is a RUNTIME config, meaning its values can change from run to run
   without trigerring a recompile. This config defines the runtime config for the
-  entire simulation run. The DynamicSourceConfigSlice, which is derived from
+  entire simulation run. The DynamicRuntimeParams, which is derived from
   this class, only contains information for a single time step.
 
   Any compile-time configurations for the Sources should go into the Source
@@ -69,7 +60,7 @@ class SourceConfig:
   """
 
   # Defines how the source values are computed (from a model, from a file, etc.)
-  source_type: SourceType = SourceType.ZERO
+  mode: Mode = Mode.ZERO
 
   # Defines whether this is an explicit or implicit source.
   # Explicit sources are calculated based on the simulation state at the
@@ -83,41 +74,33 @@ class SourceConfig:
   # running the simulation.
   is_explicit: bool = False
 
+  # Parameters used only when the source is using a prescribed formula to
+  # compute its profile.
   formula: formula_config.FormulaConfig = dataclasses.field(
       default_factory=formula_config.FormulaConfig
   )
 
-
-# Define helper functions to use as factories in configs below.
-# pylint: disable=g-long-lambda
-get_model_based_source_config = lambda: SourceConfig(
-    source_type=SourceType.MODEL_BASED,
-)
-get_formula_based_source_config = lambda: SourceConfig(
-    source_type=SourceType.FORMULA_BASED,
-)
-# pylint: enable=g-long-lambda
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicRuntimeParams,
+            t=t,
+        )
+    )
 
 
-def get_default_sources_config() -> Mapping[str, SourceConfig]:
-  """Returns a mapping of source names to their default runtime configurations.
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams:
+  """Dynamic params for a single TORAX source.
 
-  This makes an assumption about the names of Source objects used in the
-  simulation run, that they match the keys of the dictionary here. If that's not
-  the case, callers must modify the dictionary returned here.
+  These params can be changed without triggering a recompile. TORAX sources are
+  stateless, so these params are their inputs to determine their output
+  profiles.
   """
-  return {
-      # Current sources (for psi equation)
-      'j_bootstrap': get_model_based_source_config(),
-      'jext': get_formula_based_source_config(),
-      # Electron density sources/sink (for the ne equation).
-      'nbi_particle_source': get_formula_based_source_config(),
-      'gas_puff_source': get_formula_based_source_config(),
-      'pellet_source': get_formula_based_source_config(),
-      # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-      'generic_ion_el_heat_source': get_formula_based_source_config(),
-      'fusion_heat_source': get_model_based_source_config(),
-      'ohmic_heat_source': get_model_based_source_config(),
-      # NOTE: For qei_source, the is_explicit field in the config has no effect.
-      'qei_source': get_model_based_source_config(),
-  }
+
+  # This maps to the enum value for the Mode enum. The enum itself is not
+  # JAX-friendly.
+  mode: int
+  is_explicit: bool
+  formula: formula_config.DynamicFormula

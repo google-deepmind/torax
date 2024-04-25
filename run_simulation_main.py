@@ -201,6 +201,11 @@ def change_config(
   new_config = config_module.get_config()
   new_geo = config_module.get_geometry(new_config)
   new_transport_model = config_module.get_transport_model()
+  source_models = config_module.get_sources()
+  new_source_params = {
+      name: source.runtime_params
+      for name, source in source_models.sources.items()
+  }
   # Make sure the transport model has not changed.
   # TODO(b/330172917): Improve the check for updated configs.
   if not isinstance(new_transport_model, type(sim.transport_model)):
@@ -210,10 +215,11 @@ def change_config(
         ' this option, you cannot change the transport model.'
     )
   sim = simulation_app.update_sim(
-      sim,
-      new_config,
-      new_geo,
-      new_transport_model.runtime_params,
+      sim=sim,
+      config=new_config,
+      geo=new_geo,
+      transport_runtime_params=new_transport_model.runtime_params,
+      source_runtime_params=new_source_params,
   )
   return sim, new_config, config_module_str
 

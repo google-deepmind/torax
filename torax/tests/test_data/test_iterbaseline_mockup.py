@@ -14,10 +14,13 @@
 
 """ITER baseline approximately based on Mantica PPCF 2021."""
 
+import dataclasses
 from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
-from torax.sources import source_config
+from torax.sources import default_sources
+from torax.sources import runtime_params as source_runtime_params
+from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.transport_model import qlknn_wrapper
 
@@ -58,12 +61,6 @@ def get_config() -> config_lib.Config:
           # 1/multiplication factor for sigma (conductivity) to reduce current
           # diffusion timescale to be closer to heat diffusion timescale
           resistivity_mult=200,
-          # multiplier for ion-electron heat exchange term for sensitivity
-          # testing
-          Qei_mult=1,
-          # Multiplication factor for bootstrap current (note fbs~0.3 in
-          # original simu)
-          bootstrap_mult=1,
           # numerical (e.g. no. of grid points, other info needed by solver)
           nr=25,  # radial grid points
           maxdt=0.5,
@@ -81,54 +78,11 @@ def get_config() -> config_lib.Config:
           # condtion location if n !=
           largeValue_n=1.0e8,
       ),
-      # external heat source parameters
-      w=0.07280908366127758,  # Gaussian width in normalized radial coordinate
-      # Source Gaussian central location in normalized r
-      rsource=0.1383372589564274,
-      Ptot=8.0e6,  # total heating (including accounting for radiation)
-      el_heat_fraction=0.0,  # electron heating fraction
-      # particle source parameters
-      # pellets behave like a gas puff for this simulation with exponential
-      # decay therefore use the "puff" structure for pellets
-      # exponential decay length of gas puff ionization (normalized radial
-      # coordinate)
-      puff_decay_length=0.21,
-      S_puff_tot=2.14e22,  # total pellet particles/s
-      # Gaussian width of pellet deposition (normalized radial coordinate) in
-      # continuous pellet model
-      pellet_width=0.1,
-      # Pellet source Gaussian central location (normalized radial coordinate)
-      # in continuous pellet model
-      pellet_deposition_location=0.85,
-      # total pellet particles/s (continuous pellet model)
-      S_pellet_tot=0.0e22,
-      # NBI particle source Gaussian width (normalized radial coordinate)
-      nbi_particle_width=0.25,
-      # NBI particle source Gaussian central location (normalized radial
-      # coordinate)
-      nbi_deposition_location=0.5,
-      S_nbi_tot=2.05e20,  # NBI total particle source
-      # external current profiles
-      fext=0.09,  # total "external" current fraction
-      # width of "external" Gaussian current profile (normalized radial
-      # coordinate)
-      wext=0.25,
-      # radius of "external" Gaussian current profile (normalized radial
-      # coordinate)
-      rext=0.35,
       solver=config_lib.SolverConfig(
           predictor_corrector=False,
           use_pereverzev=True,
           chi_per=20,
           d_per=10,
-      ),
-      sources=dict(
-          fusion_heat_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.MODEL_BASED,
-          ),
-          ohmic_heat_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.ZERO,
-          ),
       ),
   )
 
@@ -174,6 +128,78 @@ def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
   )
 
 
+def get_sources() -> source_models_lib.SourceModels:
+  """Returns the source models used in the simulation."""
+  source_models = default_sources.get_default_sources()
+  # multiplier for ion-electron heat exchange term for sensitivity
+  source_models.qei_source.runtime_params.Qei_mult = 1.0
+  # Multiplication factor for bootstrap current (note fbs~0.3 in original simu)
+  source_models.j_bootstrap.runtime_params.bootstrap_mult = 1.0
+  source_models.jext.runtime_params = dataclasses.replace(
+      source_models.jext.runtime_params,
+      # total "external" current fraction
+      fext=0.09,
+      # width of "external" Gaussian current profile (normalized radial
+      # coordinate)
+      wext=0.25,
+      # radius of "external" Gaussian current profile (normalized radial
+      # coordinate)
+      rext=0.35,
+  )
+  # pytype: disable=unexpected-keyword-arg
+  # pylint: disable=unexpected-keyword-arg
+  source_models.sources['generic_ion_el_heat_source'].runtime_params = (
+      dataclasses.replace(
+          source_models.sources['generic_ion_el_heat_source'].runtime_params,
+          rsource=0.1383372589564274,
+          # Gaussian width in normalized radial coordinate r
+          w=0.07280908366127758,
+          # total heating (including accounting for radiation) r
+          Ptot=8.0e6,
+          # electron heating fraction r
+          el_heat_fraction=0.0,
+      )
+  )
+  source_models.sources['gas_puff_source'].runtime_params = dataclasses.replace(
+      source_models.sources['gas_puff_source'].runtime_params,
+      # pellets behave like a gas puff for this simulation with exponential
+      # decay therefore use the puff structure for pellets exponential decay
+      # length of gas puff ionization (normalized radial coordinate)
+      puff_decay_length=0.21,
+      # total pellet particles/s
+      S_puff_tot=2.14e22,
+  )
+  source_models.sources['pellet_source'].runtime_params = dataclasses.replace(
+      source_models.sources['pellet_source'].runtime_params,
+      # total pellet particles/s (continuous pellet model)
+      S_pellet_tot=0.0e22,
+      # Gaussian width of pellet deposition (normalized radial coordinate) in
+      # continuous pellet model
+      pellet_width=0.1,
+      # Pellet source Gaussian central location (normalized radial coordinate)
+      # in continuous pellet model.
+      pellet_deposition_location=0.85,
+  )
+  source_models.sources['nbi_particle_source'].runtime_params = (
+      dataclasses.replace(
+          source_models.sources['nbi_particle_source'].runtime_params,
+          # NBI total particle source
+          S_nbi_tot=2.05e20,
+          # NBI particle source Gaussian central location (normalized radial
+          # coordinate)
+          nbi_deposition_location=0.5,
+          # NBI particle source Gaussian width (normalized radial coordinate)
+          nbi_particle_width=0.25,
+      )
+  )
+  # pytype: enable=unexpected-keyword-arg
+  # pylint: enable=unexpected-keyword-arg
+  source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+      source_runtime_params.Mode.ZERO
+  )
+  return source_models
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -184,5 +210,6 @@ def get_sim() -> sim_lib.Sim:
       config=config,
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethod,
+      source_models=get_sources(),
       transport_model=get_transport_model(),
   )

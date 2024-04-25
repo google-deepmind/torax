@@ -79,6 +79,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
         config=config,
         transport_getter=lambda: transport.runtime_params,
+        sources_getter=lambda: source_models.runtime_params,
     )
     initial_dynamic_config_slice = dynamic_config_slice_provider(
         config.numerics.t_initial
@@ -164,7 +165,6 @@ class FakeStepper(stepper_lib.Stepper):
     )
     # Use Qei as a hacky way to extract what the combined value was.
     core_sources = source_models_lib.build_all_zero_profiles(
-        dynamic_config_slice=dynamic_config_slice_t,
         geo=geo,
         source_models=self.source_models,
     )

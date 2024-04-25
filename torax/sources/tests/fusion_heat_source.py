@@ -23,8 +23,8 @@ from torax import config_slice
 from torax import constants
 from torax import core_profile_setters
 from torax.sources import fusion_heat_source
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_config
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 from torax.tests.test_lib import torax_refs
@@ -37,8 +37,8 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=fusion_heat_source.FusionHeatSource,
-        unsupported_types=[
-            source_config.SourceType.FORMULA_BASED,
+        unsupported_modes=[
+            runtime_params_lib.Mode.FORMULA_BASED,
         ],
         expected_affected_core_profiles=(
             source.AffectedCoreProfile.TEMP_ION,
@@ -59,13 +59,18 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
 
     config = references.config
     geo = references.geo
-    nref = config.nref
+    nref = config.numerics.nref
 
+    source_models = source_models_lib.SourceModels()
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config,
+        sources=source_models.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        dynamic_config_slice=dynamic_config_slice,
         geo=geo,
-        source_models=source_models_lib.SourceModels(),
+        source_models=source_models,
     )
 
     fusion_jax, _, _ = fusion_heat_source.calc_fusion(
@@ -109,7 +114,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
       Pfus = (
           Efus
           * 0.25
-          * (core_profiles.ni.face_value() * config.nref) ** 2
+          * (core_profiles.ni.face_value() * config.numerics.nref) ** 2
           * sigmav
       )  # [W/m^3]
       Ptot = np.trapz(Pfus * geo.vpr_face, geo.r_face) / 1e6  # [MW]

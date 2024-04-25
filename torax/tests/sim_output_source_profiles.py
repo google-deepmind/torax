@@ -17,10 +17,13 @@
 This is a separate file to not bloat the main sim.py test file.
 """
 
+from __future__ import annotations
+
 import dataclasses
 from typing import Any
 
 from absl.testing import absltest
+import chex
 from jax import numpy as jnp
 import numpy as np
 from torax import config as config_lib
@@ -30,8 +33,10 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.fvm import cell_variable
+from torax.runtime_params import config_slice_args
+from torax.sources import default_sources
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_config
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import explicit_stepper
@@ -50,9 +55,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     """Tests that the implicit and explicit source profiles merge correctly."""
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    source_models = default_sources.get_default_sources()
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config,
+        sources=source_models.runtime_params,
+    )
     static_config_slice = config_slice.build_static_config_slice(config)
-    source_models = source_models_lib.SourceModels()
     # Technically, the _merge_source_profiles() function should be called with
     # source profiles where, for every source, only one of the implicit or
     # explicit profiles has non-zero values. That is what makes the summing
@@ -60,14 +68,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # summed in the first place.
     # Build a fake set of source profiles which have all 1s in all the profiles.
     fake_implicit_source_profiles = _build_source_profiles_with_single_value(
-        dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         source_models=source_models,
         value=1.0,
     )
     # And a fake set of profiles with all 2s.
     fake_explicit_source_profiles = _build_source_profiles_with_single_value(
-        dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         source_models=source_models,
         value=2.0,
@@ -98,7 +104,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # All the profiles in the merged profiles should be a 1D array with all 3s.
     # Except the Qei profile, which is a special case.
     for name, profile in merged_profiles.profiles.items():
-      if name != source_models.qei_source.name:
+      if name != source_models.qei_source_name:
         np.testing.assert_allclose(profile, 3.0)
       else:
         np.testing.assert_allclose(profile, 6.0)
@@ -113,56 +119,53 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # The first time step and last time step's output source profiles are built
     # in a special way that combines the implicit and explicit profiles.
 
-    # Create custom sources which output profiles depending on the pellet_width.
-    def custom_source_formula(dynamic_config, geo, unused_state):
-      # Combine the outputs of the pellet
-      return jnp.ones_like(geo.r) * dynamic_config.pellet_width
+    # Create custom sources whose output profiles depend on Tiped.
+    # This is not physically realistic, just for testing purposes.
+    def custom_source_formula(
+        unused_dynamic_config,
+        source_conf,
+        geo,
+        unused_state,
+    ):
+      return jnp.ones_like(geo.r) * source_conf.foo
 
     # Include 2 versions of this source, one implicit and one explicit.
     source_models = source_models_lib.SourceModels(
-        additional_sources=[
-            source.SingleProfileSource(
-                name='implicit_ne_source',
-                supported_types=(
-                    source_config.SourceType.ZERO,
-                    source_config.SourceType.FORMULA_BASED,
-                ),
-                affected_core_profiles=(source.AffectedCoreProfile.NE,),
-                formula=custom_source_formula,
-            ),
-            source.SingleProfileSource(
-                name='explicit_ne_source',
-                supported_types=(
-                    source_config.SourceType.ZERO,
-                    source_config.SourceType.FORMULA_BASED,
-                ),
-                affected_core_profiles=(source.AffectedCoreProfile.NE,),
-                formula=custom_source_formula,
-            ),
-        ]
-    )
-    # Linearly scale the pellet_width.
-    config = config_lib.Config(
-        pellet_width={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
         sources={
-            'implicit_ne_source': source_config.SourceConfig(
-                source_type=source_config.SourceType.FORMULA_BASED,
-                is_explicit=False,
+            'implicit_ne_source': source.SingleProfileSource(
+                supported_modes=(
+                    runtime_params_lib.Mode.ZERO,
+                    runtime_params_lib.Mode.FORMULA_BASED,
+                ),
+                affected_core_profiles=(source.AffectedCoreProfile.NE,),
+                formula=custom_source_formula,
+                runtime_params=_FakeSourceRuntimeParams(
+                    mode=runtime_params_lib.Mode.FORMULA_BASED,
+                    foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
+                ),
             ),
-            'explicit_ne_source': source_config.SourceConfig(
-                source_type=source_config.SourceType.FORMULA_BASED,
-                is_explicit=True,
+            'explicit_ne_source': source.SingleProfileSource(
+                supported_modes=(
+                    runtime_params_lib.Mode.ZERO,
+                    runtime_params_lib.Mode.FORMULA_BASED,
+                ),
+                affected_core_profiles=(source.AffectedCoreProfile.NE,),
+                formula=custom_source_formula,
+                runtime_params=_FakeSourceRuntimeParams(
+                    mode=runtime_params_lib.Mode.FORMULA_BASED,
+                    foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
+                ),
             ),
-        },
+        }
     )
+    config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
     time_stepper = _FakeTimeStepCalculator()
     step_fn = _FakeSimulationStepFn(time_stepper, source_models)
-    dynamic_config_slice_provider = (
-        config_slice.DynamicConfigSliceProvider(
-            config=config,
-            transport_getter=constant_transport_model.RuntimeParams,
-        )
+    dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
+        config=config,
+        transport_getter=constant_transport_model.RuntimeParams,
+        sources_getter=lambda: source_models.runtime_params,
     )
     initial_dcs = dynamic_config_slice_provider(0.0)
     static_config_slice = config_slice.build_static_config_slice(config)
@@ -197,7 +200,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
 
 def _build_source_profiles_with_single_value(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     value: float,
@@ -206,12 +208,7 @@ def _build_source_profiles_with_single_value(
   face_1d_arr = jnp.ones_like(geo.r_face) * value
   return source_profiles_lib.SourceProfiles(
       profiles={
-          name: (
-              jnp.ones(
-                  shape=src.output_shape_getter(dynamic_config_slice, geo, None)
-              )
-              * value
-          )
+          name: jnp.ones(shape=src.output_shape_getter(geo)) * value
           for name, src in source_models.standard_sources.items()
       },
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(
@@ -255,6 +252,27 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
       core_transport: state_module.CoreTransport,
   ) -> tuple[jnp.ndarray, tuple[Any, ...]]:
     return jnp.ones(()), ()
+
+
+@dataclasses.dataclass(kw_only=True)
+class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
+  foo: runtime_params_lib.TimeDependentField
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> _FakeSourceDynamicRuntimeParams:
+    return _FakeSourceDynamicRuntimeParams(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=_FakeSourceDynamicRuntimeParams,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass(frozen=True)
+class _FakeSourceDynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  foo: float
 
 
 class _FakeSimulationStepFn(sim_lib.SimulationStepFn):

@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import dataclasses
 
+import chex
 from torax import interpolated_param
+from torax.runtime_params import config_slice_args
 
 
 # Type-alias for clarity.
@@ -26,7 +28,30 @@ TimeDependentField = interpolated_param.InterpParamOrInterpParamInput
 
 
 @dataclasses.dataclass
-class Exponential:
+class FormulaConfig:
+  """Configures a formula.
+
+  This config can include time-varying parameters which are interpolated as
+  the simulation runs. For new formula implementations, extend this class and
+  add the formula-specific parameters required.
+
+  The Gaussian and Exponential config classes, and their implementations in
+  formulas.py, are useful, simple examples for how to do this.
+  """
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicFormula:
+    """Interpolates this config to a dynamic config for time t."""
+    del t  # Unused because there are no params in the base class.
+    return DynamicFormula()
+
+
+@chex.dataclass(frozen=True)
+class DynamicFormula:
+  """Base class for dynamic configs."""
+
+
+@dataclasses.dataclass
+class Exponential(FormulaConfig):
   """Configures an exponential formula.
 
   See formulas.Exponential for more information on how this config is used.
@@ -39,6 +64,24 @@ class Exponential:
 
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicExponential:
+    return DynamicExponential(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicExponential,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass(frozen=True)
+class DynamicExponential(DynamicFormula):
+
+  total: float
+  c1: float
+  c2: float
+  use_normalized_r: bool
 
 
 @dataclasses.dataclass
@@ -56,13 +99,21 @@ class Gaussian:
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False
 
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicGaussian:
+    return DynamicGaussian(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicGaussian,
+            t=t,
+        )
+    )
 
-@dataclasses.dataclass
-class FormulaConfig:
-  """Contains all formula configs."""
 
-  exponential: Exponential = dataclasses.field(default_factory=Exponential)
-  gaussian: Gaussian = dataclasses.field(default_factory=Gaussian)
-  custom_params: dict[str, TimeDependentField] = dataclasses.field(
-      default_factory=lambda: {},
-  )
+@chex.dataclass(frozen=True)
+class DynamicGaussian(DynamicFormula):
+
+  total: float
+  c1: float
+  c2: float
+  # If True, uses r_norm when calculating the source profiles.
+  use_normalized_r: bool

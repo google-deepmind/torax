@@ -20,9 +20,10 @@ import jax
 import numpy as np
 from torax import config as config_lib
 from torax import config_slice as config_slice_lib
+from torax.sources import electron_density_sources
+from torax.sources import external_current_source
 from torax.sources import formula_config
-from torax.sources import source_config
-from torax.sources import source_models as source_models_lib
+from torax.sources import runtime_params
 from torax.transport_model import runtime_params as transport_params_lib
 
 
@@ -39,14 +40,6 @@ class ConfigSliceTest(parameterized.TestCase):
     # Make sure you can call the function with dynamic_slice as an arg.
     foo_jitted(dynamic_slice)
 
-  def test_dynamic_sources_config_contains_all_sources(self):
-    """Tests that all the Sources attributes are covered by SourcesConfig."""
-    source_models = source_models_lib.SourceModels().all_sources.keys()
-    sources_config_fields = config_slice_lib.build_dynamic_config_slice(
-        config_lib.Config()
-    ).sources.keys()
-    self.assertSameElements(source_models, sources_config_fields)
-
   def test_time_dependent_provider_is_time_dependent(self):
     """Tests that the config slice provider is time dependent."""
     config = config_lib.Config(
@@ -57,6 +50,7 @@ class ConfigSliceTest(parameterized.TestCase):
     provider = config_slice_lib.DynamicConfigSliceProvider(
         config=config,
         transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: {},
     )
     dynamic_config_slice = provider(t=1.0)
     np.testing.assert_allclose(
@@ -133,115 +127,140 @@ class ConfigSliceTest(parameterized.TestCase):
     with self.subTest('default_ne_sources'):
       # Check that the config params for the default ne sources are
       # time-dependent.
-      config = config_lib.Config(
-          pellet_width={0.0: 0.0, 1.0: 1.0},
-          pellet_deposition_location={0.0: 0.0, 1.0: 2.0},
-          S_pellet_tot={0.0: 0.0, 1.0: 3.0},
-          puff_decay_length={0.0: 0.0, 1.0: 4.0},
-          S_puff_tot={0.0: 0.0, 1.0: 5.0},
-          nbi_particle_width={0.0: 0.0, 1.0: 6.0},
-          nbi_deposition_location={0.0: 0.0, 1.0: 7.0},
-          S_nbi_tot={0.0: 0.0, 1.0: 8.0},
+      config = config_lib.Config()
+      dcs = config_slice_lib.build_dynamic_config_slice(
+          config=config,
+          sources={
+              'gas_puff_source': electron_density_sources.GasPuffRuntimeParams(
+                  puff_decay_length={0.0: 0.0, 1.0: 4.0},
+                  S_puff_tot={0.0: 0.0, 1.0: 5.0},
+              ),
+              'pellet_source': electron_density_sources.PelletRuntimeParams(
+                  pellet_width={0.0: 0.0, 1.0: 1.0},
+                  pellet_deposition_location={0.0: 0.0, 1.0: 2.0},
+                  S_pellet_tot={0.0: 0.0, 1.0: 3.0},
+              ),
+              'nbi_particle_source': (
+                  electron_density_sources.NBIParticleRuntimeParams(
+                      nbi_particle_width={0.0: 0.0, 1.0: 6.0},
+                      nbi_deposition_location={0.0: 0.0, 1.0: 7.0},
+                      S_nbi_tot={0.0: 0.0, 1.0: 8.0},
+                  )
+              ),
+          },
+          t=0.5,
       )
-      dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.5)
-      np.testing.assert_allclose(dcs.pellet_width, 0.5)
-      np.testing.assert_allclose(dcs.pellet_deposition_location, 1.0)
-      np.testing.assert_allclose(dcs.S_pellet_tot, 1.5)
-      np.testing.assert_allclose(dcs.puff_decay_length, 2.0)
-      np.testing.assert_allclose(dcs.S_puff_tot, 2.5)
-      np.testing.assert_allclose(dcs.nbi_particle_width, 3.0)
-      np.testing.assert_allclose(dcs.nbi_deposition_location, 3.5)
-      np.testing.assert_allclose(dcs.S_nbi_tot, 4.0)
+      assert isinstance(
+          dcs.sources['pellet_source'],
+          electron_density_sources.DynamicPelletRuntimeParams,
+      )
+      assert isinstance(
+          dcs.sources['gas_puff_source'],
+          electron_density_sources.DynamicGasPuffRuntimeParams,
+      )
+      assert isinstance(
+          dcs.sources['nbi_particle_source'],
+          electron_density_sources.DynamicNBIParticleRuntimeParams,
+      )
+      np.testing.assert_allclose(dcs.sources['pellet_source'].pellet_width, 0.5)
+      np.testing.assert_allclose(
+          dcs.sources['pellet_source'].pellet_deposition_location, 1.0
+      )
+      np.testing.assert_allclose(dcs.sources['pellet_source'].S_pellet_tot, 1.5)
+      np.testing.assert_allclose(
+          dcs.sources['gas_puff_source'].puff_decay_length, 2.0
+      )
+      np.testing.assert_allclose(dcs.sources['gas_puff_source'].S_puff_tot, 2.5)
+      np.testing.assert_allclose(
+          dcs.sources['nbi_particle_source'].nbi_particle_width, 3.0
+      )
+      np.testing.assert_allclose(
+          dcs.sources['nbi_particle_source'].nbi_deposition_location, 3.5
+      )
+      np.testing.assert_allclose(
+          dcs.sources['nbi_particle_source'].S_nbi_tot, 4.0
+      )
 
     with self.subTest('exponential_formula'):
-      config = config_lib.Config(
+      config = config_lib.Config()
+      dcs = config_slice_lib.build_dynamic_config_slice(
+          config=config,
           sources={
-              'gas_puff_source': source_config.SourceConfig(
-                  formula=formula_config.FormulaConfig(
-                      exponential=formula_config.Exponential(
-                          total={0.0: 0.0, 1.0: 1.0},
-                          c1={0.0: 0.0, 1.0: 2.0},
-                          c2={0.0: 0.0, 1.0: 3.0},
-                      )
+              'gas_puff_source': runtime_params.RuntimeParams(
+                  formula=formula_config.Exponential(
+                      total={0.0: 0.0, 1.0: 1.0},
+                      c1={0.0: 0.0, 1.0: 2.0},
+                      c2={0.0: 0.0, 1.0: 3.0},
                   )
-              )
-          }
+              ),
+          },
+          t=0.25,
       )
-      dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.25)
-      np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.exponential.total, 0.25
-      )
-      np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.exponential.c1, 0.5
+      assert isinstance(
+          dcs.sources['gas_puff_source'].formula,
+          formula_config.DynamicExponential,
       )
       np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.exponential.c2, 0.75
+          dcs.sources['gas_puff_source'].formula.total, 0.25
+      )
+      np.testing.assert_allclose(dcs.sources['gas_puff_source'].formula.c1, 0.5)
+      np.testing.assert_allclose(
+          dcs.sources['gas_puff_source'].formula.c2, 0.75
       )
 
     with self.subTest('gaussian_formula'):
-      config = config_lib.Config(
+      config = config_lib.Config()
+      dcs = config_slice_lib.build_dynamic_config_slice(
+          config=config,
           sources={
-              'gas_puff_source': source_config.SourceConfig(
-                  formula=formula_config.FormulaConfig(
-                      gaussian=formula_config.Gaussian(
-                          total={0.0: 0.0, 1.0: 1.0},
-                          c1={0.0: 0.0, 1.0: 2.0},
-                          c2={0.0: 0.0, 1.0: 3.0},
-                      )
+              'gas_puff_source': runtime_params.RuntimeParams(
+                  formula=formula_config.Gaussian(
+                      total={0.0: 0.0, 1.0: 1.0},
+                      c1={0.0: 0.0, 1.0: 2.0},
+                      c2={0.0: 0.0, 1.0: 3.0},
                   )
-              )
-          }
+              ),
+          },
+          t=0.25,
       )
-      dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.25)
-      np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.gaussian.total, 0.25
-      )
-      np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.gaussian.c1, 0.5
+      assert isinstance(
+          dcs.sources['gas_puff_source'].formula, formula_config.DynamicGaussian
       )
       np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.gaussian.c2, 0.75
+          dcs.sources['gas_puff_source'].formula.total, 0.25
       )
-
-    with self.subTest('custom_formula'):
-      config = config_lib.Config(
-          sources={
-              'gas_puff_source': source_config.SourceConfig(
-                  formula=formula_config.FormulaConfig(
-                      custom_params={
-                          'foo': 1.0,
-                          'bar': {0.0: 0.0, 1.0: 1.0},
-                          'baz': config_lib.InterpolationParam(
-                              {0.0: 0.0, 1.0: 2.0},
-                          ),
-                      }
-                  )
-              )
-          }
-      )
-      dcs = config_slice_lib.build_dynamic_config_slice(config, t=1.0)
+      np.testing.assert_allclose(dcs.sources['gas_puff_source'].formula.c1, 0.5)
       np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.custom_params['foo'], 1.0
-      )
-      np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.custom_params['bar'], 1.0
-      )
-      np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.custom_params['baz'], 2.0
+          dcs.sources['gas_puff_source'].formula.c2, 0.75
       )
 
   def test_wext_in_dynamic_config_cannot_be_negative(self):
     """Tests that wext cannot be negative."""
-    config = config_lib.Config(wext={0.0: 1.0, 1.0: -1.0})
+    config = config_lib.Config()
+    dcs_provider = config_slice_lib.DynamicConfigSliceProvider(
+        config=config,
+        transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: {
+            'jext': external_current_source.RuntimeParams(
+                wext={0.0: 1.0, 1.0: -1.0}
+            ),
+        },
+    )
     # While wext is positive, this should be fine.
-    dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.0)
-    np.testing.assert_allclose(dcs.wext, 1.0)
+    dcs = dcs_provider(t=0.0)
+    assert isinstance(
+        dcs.sources['jext'], external_current_source.DynamicRuntimeParams
+    )
+    np.testing.assert_allclose(dcs.sources['jext'].wext, 1.0)
     # Even 0 should be fine.
-    dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.5)
-    np.testing.assert_allclose(dcs.wext, 0.0)
+    dcs = dcs_provider(t=0.5)
+    assert isinstance(
+        dcs.sources['jext'], external_current_source.DynamicRuntimeParams
+    )
+    np.testing.assert_allclose(dcs.sources['jext'].wext, 0.0)
     # But negative values will cause an error.
     with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
-      config_slice_lib.build_dynamic_config_slice(config, t=1.0)
+      dcs_provider(t=1.0)
 
 
 if __name__ == '__main__':

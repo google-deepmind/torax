@@ -29,7 +29,8 @@ from torax import fvm
 from torax import geometry
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
-from torax.sources import source_config
+from torax.sources import default_sources
+from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
 from torax.transport_model import constant as constant_transport_model
@@ -354,21 +355,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
         ),
         numerics=config_lib.Numerics(
             nr=num_cells,
-            Qei_mult=0,
             el_heat_eq=False,
         ),
-        Ptot=0,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
             theta_imp=theta_imp,
-        ),
-        sources=dict(
-            fusion_heat_source=source_config.SourceConfig(
-                source_type=source_config.SourceType.ZERO,
-            ),
-            ohmic_heat_source=source_config.SourceConfig(
-                source_type=source_config.SourceType.ZERO,
-            ),
         ),
     )
     geo = geometry.build_circular_geometry(config)
@@ -378,18 +369,29 @@ class FVMTest(torax_refs.ReferenceValueTest):
             chii_const=1,
         ),
     )
+    source_models = default_sources.get_default_sources()
+    source_models.qei_source.runtime_params.Qei_mult = 0.0
+    source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
+        0.0
+    )
+    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+        source_runtime_params.Mode.ZERO
+    )
+    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+        source_runtime_params.Mode.ZERO
+    )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(
         config,
         transport=transport_model.runtime_params,
+        sources=source_models.runtime_params,
     )
     static_config_slice = config_slice.build_static_config_slice(config)
-    source_models = source_models_lib.SourceModels()
     core_profiles = core_profile_setters.initial_core_profiles(
         static_config_slice, dynamic_config_slice, geo, source_models
     )
     evolving_names = tuple(['temp_ion'])
     explicit_source_profiles = source_models_lib.build_source_profiles(
-        source_models=source_models_lib.SourceModels(),
+        source_models=source_models,
         dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         core_profiles=core_profiles,
@@ -428,7 +430,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # core_profiles_t_plus_dt is not updated since coeffs stay constant here
       loss, _ = residual_and_loss.theta_method_block_loss(
           dt=dt,
-          static_config_slice=config_slice.build_static_config_slice(config),
+          static_config_slice=static_config_slice,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
           geo=geo,
           x_old=x_old,
@@ -443,7 +445,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
 
       residual, _ = residual_and_loss.theta_method_block_residual(
           dt=dt,
-          static_config_slice=config_slice.build_static_config_slice(config),
+          static_config_slice=static_config_slice,
           dynamic_config_slice_t_plus_dt=dynamic_config_slice,
           geo=geo,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
@@ -470,21 +472,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
         ),
         numerics=config_lib.Numerics(
             nr=num_cells,
-            Qei_mult=0,
             el_heat_eq=False,
         ),
-        Ptot=0,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
             theta_imp=1.0,
-        ),
-        sources=dict(
-            fusion_heat_source=source_config.SourceConfig(
-                source_type=source_config.SourceType.ZERO,
-            ),
-            ohmic_heat_source=source_config.SourceConfig(
-                source_type=source_config.SourceType.ZERO,
-            ),
         ),
     )
     transport_model = constant_transport_model.ConstantTransportModel(
@@ -493,9 +485,21 @@ class FVMTest(torax_refs.ReferenceValueTest):
             chii_const=1,
         ),
     )
+    source_models = default_sources.get_default_sources()
+    source_models.qei_source.runtime_params.Qei_mult = 0.0
+    source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
+        0.0
+    )
+    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+        source_runtime_params.Mode.ZERO
+    )
+    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+        source_runtime_params.Mode.ZERO
+    )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(
         config,
         transport=transport_model.runtime_params,
+        sources=source_models.runtime_params,
     )
     static_config_slice = config_slice.build_static_config_slice(config)
     geo = geometry.build_circular_geometry(config)
@@ -588,21 +592,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
         ),
         numerics=config_lib.Numerics(
             nr=num_cells,
-            Qei_mult=0,
             el_heat_eq=False,
         ),
-        Ptot=0,
         solver=config_lib.SolverConfig(
             predictor_corrector=False,
             theta_imp=0.0,
-        ),
-        sources=dict(
-            fusion_heat_source=source_config.SourceConfig(
-                source_type=source_config.SourceType.ZERO,
-            ),
-            ohmic_heat_source=source_config.SourceConfig(
-                source_type=source_config.SourceType.ZERO,
-            ),
         ),
     )
     geo = geometry.build_circular_geometry(config)
@@ -612,9 +606,21 @@ class FVMTest(torax_refs.ReferenceValueTest):
             chii_const=1,
         ),
     )
+    source_models = default_sources.get_default_sources()
+    source_models.qei_source.runtime_params.Qei_mult = 0.0
+    source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
+        0.0
+    )
+    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+        source_runtime_params.Mode.ZERO
+    )
+    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+        source_runtime_params.Mode.ZERO
+    )
     dynamic_config_slice = config_slice.build_dynamic_config_slice(
         config,
         transport=transport_model.runtime_params,
+        sources=source_models.runtime_params,
     )
     static_config_slice_theta0 = config_slice.build_static_config_slice(config)
     static_config_slice_theta05 = dataclasses.replace(
@@ -659,7 +665,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_constraint=initial_right_boundary,
     )
     core_profiles_t_plus_dt = core_profile_setters.initial_core_profiles(
-        static_config_slice_theta0, dynamic_config_slice, geo
+        static_config_slice=static_config_slice_theta0,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        source_models=source_models,
     )
     core_profiles_t_plus_dt = dataclasses.replace(
         core_profiles_t_plus_dt,

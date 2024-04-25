@@ -25,8 +25,8 @@ from torax import config as config_lib
 from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
-from torax.sources import source_config as source_config_lib
 from torax.sources import source_models as source_models_lib
 
 
@@ -42,21 +42,21 @@ class SourceTestCase(parameterized.TestCase):
 
   _source_class: Type[source_lib.Source]
   _config_attr_name: str
-  _unsupported_types: Sequence[source_config_lib.SourceType]
+  _unsupported_modes: Sequence[runtime_params_lib.Mode]
   _expected_affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...]
 
   @classmethod
   def setUpClass(
       cls,
       source_class: Type[source_lib.Source],
-      unsupported_types: Sequence[source_config_lib.SourceType],
+      unsupported_modes: Sequence[runtime_params_lib.Mode],
       expected_affected_core_profiles: tuple[
           source_lib.AffectedCoreProfile, ...
       ],
   ):
     super().setUpClass()
     cls._source_class = source_class
-    cls._unsupported_types = unsupported_types
+    cls._unsupported_modes = unsupported_modes
     cls._expected_affected_core_profiles = expected_affected_core_profiles
 
   def test_expected_mesh_states(self):
@@ -83,36 +83,25 @@ class SingleProfileSourceTestCase(SourceTestCase):
     # pylint: enable=missing-kwoa
     self.assertIsInstance(source, source_lib.SingleProfileSource)
     config = config_lib.Config()
-    # Not all sources are in the default config, so add the source in here if
-    # it doesn't already exist.
-    if source.name not in config.sources:
-      supported_types = set(
-          [source_type for source_type in source_config_lib.SourceType]
-      ) - set(self._unsupported_types)
-      supported_type = supported_types.pop()
-      config = config_lib.Config(
-          sources={
-              source.name: source_config_lib.SourceConfig(
-                  source_type=supported_type,
-              )
-          }
-      )
-      source_models = source_models_lib.SourceModels(
-          additional_sources=[source]
-      )
-    else:
-      source_models = source_models_lib.SourceModels()
+    source.runtime_params.mode = source.supported_modes[0]
+    source_models = source_models_lib.SourceModels(
+        sources={'foo': source},
+    )
     geo = geometry.build_circular_geometry(config)
+    static_config_slice = config_slice.build_static_config_slice(config)
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config=config,
+        sources=source_models.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+        static_config_slice=static_config_slice,
+        dynamic_config_slice=dynamic_config_slice,
         geo=geo,
         source_models=source_models,
     )
-    source_type = config.sources[source.name].source_type.value
     value = source.get_value(
-        source_type=source_type,
-        dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
+        dynamic_config_slice=dynamic_config_slice,
+        dynamic_source_runtime_params=dynamic_config_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -122,25 +111,34 @@ class SingleProfileSourceTestCase(SourceTestCase):
     """Tests that using unsupported types raises an error."""
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
-        geo=geo,
-        # only need default sources here.
-        source_models=source_models_lib.SourceModels(),
-    )
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     self.assertIsInstance(source, source_lib.SingleProfileSource)
-    for unsupported_type in self._unsupported_types:
-      with self.subTest(unsupported_type.name):
+    source_models = source_models_lib.SourceModels(
+        sources={'foo': source},
+    )
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config=config,
+        sources=source_models.runtime_params,
+    )
+    core_profiles = core_profile_setters.initial_core_profiles(
+        static_config_slice=config_slice.build_static_config_slice(config),
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        source_models=source_models,
+    )
+    for unsupported_mode in self._unsupported_modes:
+      source.runtime_params.mode = unsupported_mode
+      dynamic_config_slice = config_slice.build_dynamic_config_slice(
+          config=config,
+          sources=source_models.runtime_params,
+      )
+      with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
           source.get_value(
-              source_type=unsupported_type.value,
-              dynamic_config_slice=(
-                  config_slice.build_dynamic_config_slice(config)
-              ),
+              dynamic_config_slice=dynamic_config_slice,
+              dynamic_source_runtime_params=dynamic_config_slice.sources['foo'],
               geo=geo,
               core_profiles=core_profiles,
           )
@@ -157,17 +155,23 @@ class IonElSourceTestCase(SourceTestCase):
     self.assertIsInstance(source, source_lib.IonElectronSource)
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
-        geo=geo,
-        # only need default sources here.
-        source_models=source_models_lib.SourceModels(),
+    source_models = source_models_lib.SourceModels(
+        sources={'foo': source},
     )
-    source_type = config.sources[source.name].source_type.value
+    static_config_slice = config_slice.build_static_config_slice(config)
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config=config,
+        sources=source_models.runtime_params,
+    )
+    core_profiles = core_profile_setters.initial_core_profiles(
+        static_config_slice=static_config_slice,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        source_models=source_models,
+    )
     ion_and_el = source.get_value(
-        source_type=source_type,
-        dynamic_config_slice=(config_slice.build_dynamic_config_slice(config)),
+        dynamic_config_slice=dynamic_config_slice,
+        dynamic_source_runtime_params=dynamic_config_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -177,25 +181,35 @@ class IonElSourceTestCase(SourceTestCase):
     """Tests that using unsupported types raises an error."""
     config = config_lib.Config()
     geo = geometry.build_circular_geometry(config)
-    core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
-        geo=geo,
-        # only need default sources here.
-        source_models=source_models_lib.SourceModels(),
-    )
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     self.assertIsInstance(source, source_lib.IonElectronSource)
-    for unsupported_type in self._unsupported_types:
-      with self.subTest(unsupported_type.name):
+    source_models = source_models_lib.SourceModels(
+        sources={'foo': source},
+    )
+    static_config_slice = config_slice.build_static_config_slice(config)
+    dynamic_config_slice = config_slice.build_dynamic_config_slice(
+        config=config,
+        sources=source_models.runtime_params,
+    )
+    core_profiles = core_profile_setters.initial_core_profiles(
+        static_config_slice=static_config_slice,
+        dynamic_config_slice=dynamic_config_slice,
+        geo=geo,
+        source_models=source_models,
+    )
+    for unsupported_mode in self._unsupported_modes:
+      source.runtime_params.mode = unsupported_mode
+      dynamic_config_slice = config_slice.build_dynamic_config_slice(
+          config=config,
+          sources=source_models.runtime_params,
+      )
+      with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
           source.get_value(
-              source_type=unsupported_type.value,
-              dynamic_config_slice=(
-                  config_slice.build_dynamic_config_slice(config)
-              ),
+              dynamic_config_slice=dynamic_config_slice,
+              dynamic_source_runtime_params=dynamic_config_slice.sources['foo'],
               geo=geo,
               core_profiles=core_profiles,
           )

@@ -16,8 +16,8 @@
 
 from absl.testing import absltest
 from torax.sources import generic_ion_el_heat_source
+from torax.sources import runtime_params
 from torax.sources import source
-from torax.sources import source_config
 from torax.sources.tests import test_lib
 
 
@@ -28,8 +28,8 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=generic_ion_el_heat_source.GenericIonElectronHeatSource,
-        unsupported_types=[
-            source_config.SourceType.MODEL_BASED,
+        unsupported_modes=[
+            runtime_params.Mode.MODEL_BASED,
         ],
         expected_affected_core_profiles=(
             source.AffectedCoreProfile.TEMP_ION,

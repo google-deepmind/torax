@@ -41,8 +41,12 @@ def calculate_pereverzev_flux(
   """Adds Pereverzev-Corrigan flux to diffusion terms."""
 
   consts = constants.CONSTANTS
-  true_ne_face = core_profiles.ne.face_value() * dynamic_config_slice.nref
-  true_ni_face = core_profiles.ni.face_value() * dynamic_config_slice.nref
+  true_ne_face = (
+      core_profiles.ne.face_value() * dynamic_config_slice.numerics.nref
+  )
+  true_ni_face = (
+      core_profiles.ni.face_value() * dynamic_config_slice.numerics.nref
+  )
 
   geo_factor = jnp.concatenate(
       [jnp.ones(1), geo.g1_over_vpr_face[1:] / geo.g0_face[1:]]
@@ -277,22 +281,22 @@ def _calc_coeffs_full(
   # Decide which values to use depending on whether the source is explicit or
   # implicit.
   sigma = jax_utils.select(
-      dynamic_config_slice.sources[source_models.j_bootstrap.name].is_explicit,
+      dynamic_config_slice.sources[source_models.j_bootstrap_name].is_explicit,
       explicit_source_profiles.j_bootstrap.sigma,
       implicit_source_profiles.j_bootstrap.sigma,
   )
   j_bootstrap = jax_utils.select(
-      dynamic_config_slice.sources[source_models.j_bootstrap.name].is_explicit,
+      dynamic_config_slice.sources[source_models.j_bootstrap_name].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap,
       implicit_source_profiles.j_bootstrap.j_bootstrap,
   )
   j_bootstrap_face = jax_utils.select(
-      dynamic_config_slice.sources[source_models.j_bootstrap.name].is_explicit,
+      dynamic_config_slice.sources[source_models.j_bootstrap_name].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap_face,
       implicit_source_profiles.j_bootstrap.j_bootstrap_face,
   )
   I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
-      dynamic_config_slice.sources[source_models.j_bootstrap.name].is_explicit,
+      dynamic_config_slice.sources[source_models.j_bootstrap_name].is_explicit,
       explicit_source_profiles.j_bootstrap.I_bootstrap,
       implicit_source_profiles.j_bootstrap.I_bootstrap,
   )
@@ -328,13 +332,21 @@ def _calc_coeffs_full(
       source_models,
   )
 
-  true_ne_face = core_profiles.ne.face_value() * dynamic_config_slice.nref
-  true_ni_face = core_profiles.ni.face_value() * dynamic_config_slice.nref
+  true_ne_face = (
+      core_profiles.ne.face_value() * dynamic_config_slice.numerics.nref
+  )
+  true_ni_face = (
+      core_profiles.ni.face_value() * dynamic_config_slice.numerics.nref
+  )
 
   # Transient term coefficient vector (has radial dependence through r, n)
-  toc_temp_ion = 1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.nref
+  toc_temp_ion = (
+      1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.numerics.nref
+  )
   tic_temp_ion = core_profiles.ni.value
-  toc_temp_el = 1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.nref
+  toc_temp_el = (
+      1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.numerics.nref
+  )
   tic_temp_el = core_profiles.ne.value
   toc_psi = (
       1.0
@@ -516,7 +528,7 @@ def _calc_coeffs_full(
       dynamic_config_slice.profile_conditions.Ip
       / (jnp.pi * geo.Rmin**2)
       * 1e20
-      / dynamic_config_slice.nref
+      / dynamic_config_slice.numerics.nref
   )
   # pylint: enable=invalid-name
   neped_unnorm = jnp.where(
@@ -551,7 +563,9 @@ def _calc_coeffs_full(
   ) = jax.lax.cond(
       use_pereverzev,
       lambda: calculate_pereverzev_flux(
-          dynamic_config_slice, geo, core_profiles,
+          dynamic_config_slice,
+          geo,
+          core_profiles,
       ),
       lambda: tuple([jnp.zeros_like(geo.r_face)] * 6),
   )
@@ -563,9 +577,11 @@ def _calc_coeffs_full(
 
   # Ion and electron heat sources.
   qei = source_models.qei_source.get_qei(
-      dynamic_config_slice.sources[source_models.qei_source.name].source_type,
-      dynamic_config_slice=dynamic_config_slice,
       static_config_slice=static_config_slice,
+      dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_config_slice.sources[
+          source_models.qei_source_name
+      ],
       geo=geo,
       # For Qei, always use the current set of core profiles.
       # In the linear solver, core_profiles is the set of profiles at time t (at

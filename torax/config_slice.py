@@ -42,8 +42,8 @@ from typing import Callable
 
 import chex
 from torax import config as config_lib
-from torax import jax_utils
 from torax.runtime_params import config_slice_args
+from torax.sources import runtime_params as sources_params
 from torax.transport_model import runtime_params as transport_model_params
 
 
@@ -76,41 +76,7 @@ class DynamicConfigSlice:
   plasma_composition: DynamicPlasmaComposition
   profile_conditions: DynamicProfileConditions
   numerics: DynamicNumerics
-  sources: Mapping[str, DynamicSourceConfigSlice]
-
-  # density profile info
-  # Reference value for normalization
-  nref: float
-
-  # external heat source parameters
-  w: float  # Gaussian width
-  rsource: float  # Source Gaussian central location
-  Ptot: float  # total heating
-  el_heat_fraction: float  # fraction of heating to electrons (rest are to ions)
-
-  # particle source parameters
-  # Gaussian width of pellet deposition [normalized radial coord],
-  # (continuous pellet model)
-  pellet_width: float
-  # Pellet source Gaussian central location [normalized radial coord]
-  # (continuous pellet model)
-  pellet_deposition_location: float
-  # total pellet particles/s (continuous pellet model)
-  # TODO(b/326578331): improve numerical strategy, avoid these large numbers
-  S_pellet_tot: float
-
-  # exponential decay length of gas puff ionization [normalized radial coord]
-  puff_decay_length: float
-  # total gas puff particles/s
-  # TODO(b/326578331): improve numerical strategy, avoid these large numbers
-  S_puff_tot: float
-
-  # NBI particle source Gaussian width in normalized radial coord
-  nbi_particle_width: float
-  # NBI particle source Gaussian central location in normalized radial coord
-  nbi_deposition_location: float
-  # NBI total particle source
-  S_nbi_tot: float
+  sources: Mapping[str, sources_params.DynamicRuntimeParams]
 
   # current profiles (broad "Ohmic" + localized "external" currents)
 
@@ -124,23 +90,6 @@ class DynamicConfigSlice:
   # or from the psi available in the numerical geometry file. This setting is
   # ignored for the ad-hoc circular geometry, which has no numerical geometry.
   initial_psi_from_j: bool
-  # toggles if external current is provided absolutely or as a fraction of Ip
-  use_absolute_jext: bool
-  # total "external" current in MA. Used if use_absolute_jext=True.
-  Iext: float
-  # total "external" current fraction. Used if use_absolute_jext=False.
-  fext: float
-  # width of "external" Gaussian current profile
-  wext: float
-  # normalized radius of "external" Gaussian current profile
-  rext: float
-
-  def sanity_check(self):
-    """Checks that all parameters are valid."""
-    jax_utils.error_if_negative(self.wext, 'wext')
-
-  def __post_init__(self):
-    self.sanity_check()
 
 
 @chex.dataclass(frozen=True)
@@ -249,10 +198,10 @@ class DynamicNumerics:
   # 1/multiplication factor for sigma (conductivity) to reduce current
   # diffusion timescale to be closer to heat diffusion timescale
   resistivity_mult: float
-  # Multiplication factor for bootstrap current
-  bootstrap_mult: float
-  # multiplier for ion-electron heat exchange term for sensitivity testing
-  Qei_mult: float
+
+  # density profile info
+  # Reference value for normalization
+  nref: float
 
   # numerical (e.g. no. of grid points, other info needed by solver)
   # effective source to dominate PDE in internal boundary condtion location
@@ -267,60 +216,6 @@ class DynamicNumerics:
   # to a Greenwald fraction, and freeze this density even if the current is time
   # evolving. Otherwise the density will evolve to always maintain that GW frac.
   enable_prescribed_profile_evolution: bool
-
-
-@chex.dataclass(frozen=True)
-class DynamicExponentialFormulaConfigSlice:
-  """Runtime config for an exponential source profile."""
-
-  # floats to parameterize the formula.
-  total: float
-  c1: float
-  c2: float
-  # If True, uses r_norm when calculating the source profiles.
-  use_normalized_r: bool
-
-
-@chex.dataclass(frozen=True)
-class DynamicGaussianFormulaConfigSlice:
-  # floats to parameterize the formula.
-  total: float
-  c1: float
-  c2: float
-  # If True, uses r_norm when calculating the source profiles.
-  use_normalized_r: bool
-
-
-@chex.dataclass(frozen=True)
-class DynamicFormulaConfigSlice:
-  """Contains all formula configs."""
-
-  exponential: DynamicExponentialFormulaConfigSlice
-  gaussian: DynamicGaussianFormulaConfigSlice
-  custom_params: dict[str, chex.Numeric]
-
-
-@chex.dataclass(frozen=True)
-class DynamicSourceConfigSlice:
-  """Dynamic params for a single TORAX source.
-
-  These params can be changed without triggering a recompile. TORAX sources are
-  stateless, so these params are their inputs to determine their output
-  profiles.
-  """
-
-  # Method to get the source profile. See source_config.py for more info on
-  # possible types. This maps to the enum value for the SourceType enum. The
-  # enum itself is not JAX-friendly.
-  source_type: int
-  # If True, this source depends on the mesh state at the start of the time
-  # step, or does not depend on the mesh state at all, to compute it's value
-  # for the time step. If False, then the source will depend on the "live"
-  # state that is updated within the JointStateStepper call.
-  is_explicit: bool
-  # Parameters used only when the source is using a prescribed formula to
-  # compute its profile.
-  formula: DynamicFormulaConfigSlice
 
 
 @chex.dataclass(frozen=True)
@@ -382,10 +277,12 @@ class StaticSolverConfigSlice:
 def build_dynamic_config_slice(
     config: config_lib.Config,
     transport: transport_model_params.RuntimeParams | None = None,
+    sources: dict[str, sources_params.RuntimeParams] | None = None,
     t: chex.Numeric | None = None,
 ) -> DynamicConfigSlice:
   """Builds a DynamicConfigSlice based on the input config."""
   transport = transport or transport_model_params.RuntimeParams()
+  sources = sources or {}
   t = config.numerics.t_initial if t is None else t
   # For each dataclass attribute under DynamicConfigSlice, build those objects
   # explicitly, and then for all scalar attributes, fetch their values directly
@@ -399,7 +296,7 @@ def build_dynamic_config_slice(
               t=t,
           )
       ),
-      sources=_build_dynamic_sources(config, t),
+      sources=_build_dynamic_sources(sources, t),
       plasma_composition=DynamicPlasmaComposition(
           **config_slice_args.get_init_kwargs(
               input_config=config.plasma_composition,
@@ -438,37 +335,14 @@ def build_dynamic_config_slice(
 
 
 def _build_dynamic_sources(
-    config: config_lib.Config,
+    sources: dict[str, sources_params.RuntimeParams],
     t: chex.Numeric,
-) -> dict[str, DynamicSourceConfigSlice]:
+) -> dict[str, sources_params.DynamicRuntimeParams]:
   """Builds a dict of DynamicSourceConfigSlice based on the input config."""
-  source_configs = {}
-  for source_name, input_source_config in config.sources.items():
-    source_configs[source_name] = DynamicSourceConfigSlice(
-        source_type=input_source_config.source_type.value,
-        is_explicit=input_source_config.is_explicit,
-        formula=DynamicFormulaConfigSlice(
-            exponential=DynamicExponentialFormulaConfigSlice(
-                **config_slice_args.get_init_kwargs(
-                    input_config=input_source_config.formula.exponential,
-                    output_type=DynamicExponentialFormulaConfigSlice,
-                    t=t,
-                )
-            ),
-            gaussian=DynamicGaussianFormulaConfigSlice(
-                **config_slice_args.get_init_kwargs(
-                    input_config=input_source_config.formula.gaussian,
-                    output_type=DynamicGaussianFormulaConfigSlice,
-                    t=t,
-                )
-            ),
-            custom_params={
-                key: config_slice_args.interpolate_param(value, t)
-                for key, value in input_source_config.formula.custom_params.items()
-            },
-        ),
-    )
-  return source_configs
+  return {
+      source_name: input_source_config.build_dynamic_params(t)
+      for source_name, input_source_config in sources.items()
+  }
 
 
 def build_static_config_slice(config: config_lib.Config) -> StaticConfigSlice:
@@ -504,9 +378,11 @@ class DynamicConfigSliceProvider:
       self,
       config: config_lib.Config,
       transport_getter: Callable[[], transport_model_params.RuntimeParams],
+      sources_getter: Callable[[], dict[str, sources_params.RuntimeParams]],
   ):
     self._input_config = config
     self._transport_runtime_params_getter = transport_getter
+    self._sources_getter = sources_getter
 
     if (
         not self._input_config.profile_conditions.set_pedestal
@@ -526,5 +402,6 @@ class DynamicConfigSliceProvider:
     return build_dynamic_config_slice(
         config=self._input_config,
         transport=self._transport_runtime_params_getter(),
+        sources=self._sources_getter(),
         t=t,
     )

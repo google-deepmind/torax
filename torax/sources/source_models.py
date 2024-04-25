@@ -28,13 +28,10 @@ from torax import physics
 from torax import state
 from torax.fvm import diffusion_terms
 from torax.sources import bootstrap_current_source
-from torax.sources import electron_density_sources
 from torax.sources import external_current_source
-from torax.sources import fusion_heat_source as fusion_heat_source_lib
-from torax.sources import generic_ion_el_heat_source as generic_ion_el_heat_source_lib
 from torax.sources import qei_source as qei_source_lib
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
-from torax.sources import source_config
 from torax.sources import source_profiles
 
 
@@ -70,14 +67,16 @@ def build_source_profiles(
   """
   # Bootstrap current is a special-case source with multiple outputs, so handle
   # it here.
-  # TODO(b/314308399): Add a new neoclassical directory with
-  # different ways to compute sigma and bootstrap current.
+  dynamic_bootstrap_runtime_params = dynamic_config_slice.sources[
+      source_models.j_bootstrap_name
+  ]
   bootstrap_profiles = _build_bootstrap_profiles(
-      dynamic_config_slice,
-      geo,
-      core_profiles,
-      source_models.j_bootstrap,
-      explicit,
+      dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      j_bootstrap_source=source_models.j_bootstrap,
+      explicit=explicit,
   )
   other_profiles = {}
   other_profiles.update(
@@ -110,6 +109,7 @@ def build_source_profiles(
 
 def _build_bootstrap_profiles(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     j_bootstrap_source: bootstrap_current_source.BootstrapCurrentSource,
@@ -121,6 +121,8 @@ def _build_bootstrap_profiles(
   Args:
     dynamic_config_slice: Input config for this time step. Can change from time
       step to time step.
+    dynamic_source_runtime_params: Input runtime parameters for this time step,
+      specific to the bootstrap current source.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
@@ -138,13 +140,13 @@ def _build_bootstrap_profiles(
   """
   bootstrap_profile = j_bootstrap_source.get_value(
       dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_source_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
   )
   sigma = jax_utils.select(
       jnp.logical_or(
-          explicit
-          == dynamic_config_slice.sources[j_bootstrap_source.name].is_explicit,
+          explicit == dynamic_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.sigma,
@@ -152,8 +154,7 @@ def _build_bootstrap_profiles(
   )
   j_bootstrap = jax_utils.select(
       jnp.logical_or(
-          explicit
-          == dynamic_config_slice.sources[j_bootstrap_source.name].is_explicit,
+          explicit == dynamic_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.j_bootstrap,
@@ -161,8 +162,7 @@ def _build_bootstrap_profiles(
   )
   j_bootstrap_face = jax_utils.select(
       jnp.logical_or(
-          explicit
-          == dynamic_config_slice.sources[j_bootstrap_source.name].is_explicit,
+          explicit == dynamic_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.j_bootstrap_face,
@@ -170,8 +170,7 @@ def _build_bootstrap_profiles(
   )
   I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
       jnp.logical_or(
-          explicit
-          == dynamic_config_slice.sources[j_bootstrap_source.name].is_explicit,
+          explicit == dynamic_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.I_bootstrap,
@@ -214,11 +213,13 @@ def _build_psi_profiles(
     dict of psi source profiles.
   """
   psi_profiles = {}
-  # jext is precomputed in the initial core profiles.
-  psi_profiles[source_models.jext.name] = jax_utils.select(
+  # jext is precomputed in the core profiles.
+  dynamic_jext_runtime_params = dynamic_config_slice.sources[
+      source_models.jext_name
+  ]
+  psi_profiles[source_models.jext_name] = jax_utils.select(
       jnp.logical_or(
-          explicit
-          == dynamic_config_slice.sources[source_models.jext.name].is_explicit,
+          explicit == dynamic_jext_runtime_params.is_explicit,
           calculate_anyway,
       ),
       core_profiles.currents.jext,
@@ -227,14 +228,15 @@ def _build_psi_profiles(
   # Iterate through the rest of the sources and compute profiles for the ones
   # which relate to psi. jext is not part of the "standard sources."
   for source_name, source in source_models.psi_sources.items():
-    dynamic_source_config = dynamic_config_slice.sources[source_name]
+    dynamic_source_runtime_params = dynamic_config_slice.sources[source_name]
     psi_profiles[source_name] = jax_utils.select(
         jnp.logical_or(
-            explicit == dynamic_source_config.is_explicit, calculate_anyway
+            explicit == dynamic_source_runtime_params.is_explicit,
+            calculate_anyway,
         ),
         source.get_value(
-            dynamic_source_config.source_type,
             dynamic_config_slice,
+            dynamic_source_runtime_params,
             geo,
             core_profiles,
         ),
@@ -273,12 +275,12 @@ def _build_ne_profiles(
   # Iterate through the sources and compute profiles for the ones which relate
   # to ne.
   for source_name, source in source_models.ne_sources.items():
-    dynamic_source_config = dynamic_config_slice.sources[source_name]
+    dynamic_source_runtime_params = dynamic_config_slice.sources[source_name]
     ne_profiles[source_name] = jax_utils.select(
-        explicit == dynamic_source_config.is_explicit,
+        explicit == dynamic_source_runtime_params.is_explicit,
         source.get_value(
-            dynamic_source_config.source_type,
             dynamic_config_slice,
+            dynamic_source_runtime_params,
             geo,
             core_profiles,
         ),
@@ -319,15 +321,13 @@ def _build_temp_ion_el_profiles(
       source_models.temp_ion_sources | source_models.temp_el_sources
   )
   for source_name, source in temp_ion_el_sources.items():
-    zeros = jnp.zeros(
-        source.output_shape_getter(dynamic_config_slice, geo, core_profiles)
-    )
-    dynamic_source_config = dynamic_config_slice.sources[source_name]
+    zeros = jnp.zeros(source.output_shape_getter(geo))
+    dynamic_source_runtime_params = dynamic_config_slice.sources[source_name]
     ion_el_profiles[source_name] = jax_utils.select(
-        explicit == dynamic_source_config.is_explicit,
+        explicit == dynamic_source_runtime_params.is_explicit,
         source.get_value(
-            dynamic_source_config.source_type,
             dynamic_config_slice,
+            dynamic_source_runtime_params,
             geo,
             core_profiles,
         ),
@@ -344,7 +344,7 @@ def sum_sources_psi(
   """Computes psi source values for sim.calc_coeffs."""
   total = (
       source_profile.j_bootstrap.j_bootstrap
-      + source_profile.profiles[source_models.jext.name]
+      + source_profile.profiles[source_models.jext_name]
   )
   for source_name, source in source_models.psi_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
@@ -426,11 +426,15 @@ def calc_and_sum_sources_psi(
   total = 0
   for key in psi_profiles:
     total += psi_profiles[key]
+  dynamic_bootstrap_runtime_params = dynamic_config_slice.sources[
+      source_models.j_bootstrap_name
+  ]
   j_bootstrap_profiles = _build_bootstrap_profiles(
-      dynamic_config_slice,
-      geo,
-      core_profiles,
-      source_models.j_bootstrap,
+      dynamic_config_slice=dynamic_config_slice,
+      dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
+      geo=geo,
+      core_profiles=core_profiles,
+      j_bootstrap_source=source_models.j_bootstrap,
       calculate_anyway=True,
   )
   total += j_bootstrap_profiles.j_bootstrap
@@ -522,21 +526,36 @@ def _ohmic_heat_model(
   return pohm
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class OhmicHeatSource(source_lib.SingleProfileSource):
   """Ohmic heat source for electron heat equation.
 
-  Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV
+  Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
+
+  Because this source requires access to the rest of the Sources, it must be
+  added to the SourceModels object after creation:
+
+  ```python
+  source_models = SourceModels(sources={...})
+  # Now add the ohmic heat source and turn it on.
+  source_models.add_source(
+      source_name='ohmic_heat_source',
+      source=OhmicHeatSource(
+          source_models=source_models,
+          runtime_params=runtime_params.RuntimeParams(
+              mode=runtime_params.Mode.MODEL_BASED,  # turns the source on.
+          ),
+      ),
+  )
+  ```
   """
 
   # Users must pass in a pointer to the complete set of sources to this object.
   source_models: SourceModels
 
-  name: str = 'ohmic_heat_source'
-
-  supported_types: tuple[source_config.SourceType, ...] = (
-      source_config.SourceType.ZERO,
-      source_config.SourceType.MODEL_BASED,
+  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
+      runtime_params_lib.Mode.ZERO,
+      runtime_params_lib.Mode.MODEL_BASED,
   )
 
   # Freeze these params and do not include them in the __init__.
@@ -546,7 +565,7 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
           default=(source_lib.AffectedCoreProfile.TEMP_EL,),
       )
   )
-  model_func: source_config.SourceProfileFunction | None = dataclasses.field(
+  model_func: source_lib.SourceProfileFunction | None = dataclasses.field(
       init=False,
       default_factory=lambda: None,  # ignored.
   )
@@ -555,9 +574,11 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
     # Ignore the model provided above and set it to the function here.
     def _model_func(
         dynamic_config_slice: config_slice.DynamicConfigSlice,
+        dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
         geo: geometry.Geometry,
         core_profiles: state.CoreProfiles,
     ) -> jnp.ndarray:
+      del dynamic_source_runtime_params
       return _ohmic_heat_model(
           dynamic_config_slice=dynamic_config_slice,
           geo=geo,
@@ -565,13 +586,7 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
           source_models=self.source_models,
       )
 
-    # Must use object.__setattr__ instead of simply doing
-    # self.model_func = _model_func
-    # because this class is a frozen dataclass. Frozen classes cannot set any
-    # self attributes after init, but this is a workaround. We cannot set the
-    # model_func in the dataclass field above either because we need access to
-    # self in the implementation.
-    object.__setattr__(self, 'model_func', _model_func)
+    self.model_func = _model_func
 
 
 class SourceModels:
@@ -591,227 +606,179 @@ class SourceModels:
   shows how to define a new custom electron-density source.
 
   ```python
-  # Define an electron-density source with a Gaussian profile.
-  my_custom_source_name = 'custom_ne_source'
+  # Define an electron-density source with a time-dependent Gaussian profile.
   my_custom_source = source.SingleProfileSource(
-      name=my_custom_source_name,
-      supported_types=(
-          source_config.SourceType.ZERO,
-          source_config.SourceType.FORMULA_BASED,
+      supported_modes=(
+          runtime_params_lib.Mode.ZERO,
+          runtime_params_lib.Mode.FORMULA_BASED,
       ),
       affected_core_profiles=source.AffectedCoreProfile.NE,
-      formula=formulas.Gaussian(my_custom_source_name),
-  )
-  all_torax_sources = source_models_lib.SourceModels(
-      additional_sources=[
-          my_custom_source,
-      ]
-  )
-  ```
-
-  You must also include a runtime config for the new custom source:
-
-  ```python
-  my_torax_config = config.Config(
-      sources=dict(
-          ...  # Configs for other sources.
-          # Set some params for the new source
-          custom_ne_source=source_config.SourceConfig(
-              source_type=source_config.SourceType.FORMULA_BASED,
-              formula=formula_config.FormulaConfig(
-                  gaussian=formula_config.Gaussian(
-                      total=1.0,
-                      c1=2.0,
-                      c2=3.0,
-                  ),
-              ),
+      formula=formulas.Gaussian(),
+      # Define (possibly) time-dependent parameters to feed to the formula.
+      runtime_params=runtime_params_lib.RuntimeParams(
+          formula=formula_config.Gaussian(
+              total={0.0: 1.0, 5.0: 2.0, 10.0: 1.0},  # time-dependent.
+              c1=2.0,
+              c2=3.0,
           ),
       ),
   )
+  # Define the collection of sources here, which in this example only includes
+  # one source.
+  all_torax_sources = source_models_lib.SourceModels(
+      sources={'my_custom_source': my_custom_source}
+  )
   ```
 
-  See source_config.py for more details on how to configure all the source/sink
+  See runtime_params.py for more details on how to configure all the source/sink
   terms.
   """
 
   def __init__(
       self,
-      *,
-      # All arguments must be provided as keyword arguments to ensure that
-      # everything is set explicitly. Helps avoid unwarranted mistakes.
-      # The sources below are on by default, which is why they are exposed
-      # directly in the constructor.
-      # The sources listed below are the default sources that are turned on as
-      # well by default.
-      # Current sources (for psi equation)
-      j_bootstrap: (
-          bootstrap_current_source.BootstrapCurrentSource | None
-      ) = None,
-      jext: external_current_source.ExternalCurrentSource | None = None,
-      # Electron density sources/sink (for the ne equation).
-      gas_puff_source: electron_density_sources.GasPuffSource | None = None,
-      nbi_particle_source: (
-          electron_density_sources.NBIParticleSource | None
-      ) = None,
-      pellet_source: electron_density_sources.PelletSource | None = None,
-      # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-      generic_ion_el_heat_source: (
-          generic_ion_el_heat_source_lib.GenericIonElectronHeatSource | None
-      ) = None,
-      fusion_heat_source: fusion_heat_source_lib.FusionHeatSource | None = None,
-      ohmic_heat_source: OhmicHeatSource | None = None,
-      qei_source: qei_source_lib.QeiSource | None = None,
-      # Any additional sources that the user wants to provide.
-      additional_sources: list[source_lib.Source] | None = None,
+      sources: dict[str, source_lib.Source] | None = None,
   ):
     """Constructs a collection of sources.
 
     This class defines which sources are available in a TORAX simulation run.
     Users can configure whether each source is actually on and what kind of
     profile it produces by changing its runtime configuration (see
-    source_config.py).
-
-    Some TORAX sources are required and on by default. These sources are in the
-    argument list of this `__init__()` function. While these sources are on by
-    default, they can be turned off by setting the source to ZERO.
-
-    For example, to turn off the gas-puff source:
-
-    ```python
-    sources = source_models_lib.SourceModels()
-    my_torax_config = config.Config(
-        sources=dict(
-            gas_puff_source=source_config.SourceConfig(
-                source_type=source_config.SourceType.ZERO,
-            ),
-        ),
-    )
-    ```
+    runtime_params_lib.py).
 
     Args:
-      j_bootstrap: Bootstrap current density source for the psi equation. Is a
-        "neoclassical" source.
-      jext: External current density source for the psi equation.
-      gas_puff_source: Gas puff particle source for the electron density ne
-        equation.
-      nbi_particle_source: Neutral beam injection particle source for the
-        electron density ne equation.
-      pellet_source: Pellet source for the electron density ne equation.
-      generic_ion_el_heat_source: Generic heat source coupled for both the ion
-        and electron heat equations.
-      fusion_heat_source: Alpha heat source for coupled for both the ion and
-        electron heat equations.
-      ohmic_heat_source: Ohmic heating for electron temperatures.
-      qei_source: Collisional ion-electron heat source. Special-case source used
-        in both the explicit and implicit terms in the TORAX solver.
-      additional_sources: Optional list of additional sources to include in
-        TORAX. Remember that all additional sources need their corresponding
-        runtime config to be included in config.Config(). All these additional
-        sources are "standard" sources (they are not going to be treated as
-        special cases like j_bootstrap, jext, and qei_source are). They will be
-        accessible via the standard_sources property.
+      sources: Mapping of source model names to the Source objects. The names
+        (i.e. the keys of this dictionary) also define the keys in the output
+        SourceProfiles which are computed from this SourceModels object. NOTE -
+        Some sources are "special-case": bootstrap current, external current,
+        and Qei. SourceModels will always instantiate default objects for these
+        types of sources unless they are provided by this `sources` argument.
+        Also, their default names are reserved, meaning the input dictionary
+        `sources` should not have the keys 'j_bootstrap', 'jext', or
+        'qei_source' unless those sources are one of these "special-case"
+        sources.
+
+    Raises:
+      ValueError if there is a naming collision with the reserved names as
+      described above.
     """
-    self._j_bootstrap = (
-        bootstrap_current_source.BootstrapCurrentSource()
-        if j_bootstrap is None
-        else j_bootstrap
-    )
-    self._qei_source = (
-        qei_source_lib.QeiSource() if qei_source is None else qei_source
-    )
+    sources = sources or {}
+    # Some sources are accessed for specific use cases, so we extract those
+    # ones and expose them directly.
+    self._j_bootstrap = None
+    self._j_bootstrap_name = 'j_bootstrap'  # default, can be overridden below.
+    self._jext = None
+    self._jext_name = 'jext'  # default, can be overridden below.
+    self._qei_source = None
+    self._qei_source_name = 'qei_source'  # default, can be overridden below.
+    # The rest of the sources are "standard".
+    self._standard_sources = {}
 
-    self._jext = (
-        external_current_source.ExternalCurrentSource()
-        if jext is None
-        else jext
-    )
-    gas_puff_source = (
-        electron_density_sources.GasPuffSource()
-        if gas_puff_source is None
-        else gas_puff_source
-    )
-    nbi_particle_source = (
-        electron_density_sources.NBIParticleSource()
-        if nbi_particle_source is None
-        else nbi_particle_source
-    )
-    pellet_source = (
-        electron_density_sources.PelletSource()
-        if pellet_source is None
-        else pellet_source
-    )
-    generic_ion_el_heat_source = (
-        generic_ion_el_heat_source_lib.GenericIonElectronHeatSource()
-        if generic_ion_el_heat_source is None
-        else generic_ion_el_heat_source
-    )
-    fusion_heat_source = (
-        fusion_heat_source_lib.FusionHeatSource()
-        if fusion_heat_source is None
-        else fusion_heat_source
-    )
-    ohmic_heat_source = (
-        OhmicHeatSource(source_models=self)
-        if ohmic_heat_source is None
-        else ohmic_heat_source
-    )
-    additional_sources = (
-        [] if additional_sources is None else additional_sources
-    )
-
-    # All sources which are "standard" and can be accessed as
-    # source_lib.Source objects when computing profiles.
-    self._standard_sources: dict[str, source_lib.Source] = dict(
-        gas_puff_source=gas_puff_source,
-        nbi_particle_source=nbi_particle_source,
-        pellet_source=pellet_source,
-        generic_ion_el_heat_source=generic_ion_el_heat_source,
-        fusion_heat_source=fusion_heat_source,
-        ohmic_heat_source=ohmic_heat_source,
-    )
-    for additional_source in additional_sources:
-      self._standard_sources[additional_source.name] = additional_source
+    # Divide up the sources based on which core profiles they affect.
     self._psi_sources: dict[str, source_lib.Source] = {}
     self._ne_sources: dict[str, source_lib.Source] = {}
     self._temp_ion_sources: dict[str, source_lib.Source] = {}
     self._temp_el_sources: dict[str, source_lib.Source] = {}
 
-    for source_name, source in self._standard_sources.items():
-      if source_lib.AffectedCoreProfile.PSI in source.affected_core_profiles:
-        self._psi_sources[source_name] = source
-      if source_lib.AffectedCoreProfile.NE in source.affected_core_profiles:
-        self._ne_sources[source_name] = source
-      if (
-          source_lib.AffectedCoreProfile.TEMP_ION
-          in source.affected_core_profiles
-      ):
-        self._temp_ion_sources[source_name] = source
-      if (
-          source_lib.AffectedCoreProfile.TEMP_EL
-          in source.affected_core_profiles
-      ):
-        self._temp_el_sources[source_name] = source
+    for source_name, source in sources.items():
+      if isinstance(source, bootstrap_current_source.BootstrapCurrentSource):
+        self._j_bootstrap_name = source_name
+        self._j_bootstrap = source
+      elif isinstance(source, external_current_source.ExternalCurrentSource):
+        self._jext_name = source_name
+        self._jext = source
+      elif isinstance(source, qei_source_lib.QeiSource):
+        self._qei_source_name = source_name
+        self._qei_source = source
+      else:
+        self.add_source(source_name, source)
 
-    self._all_sources = self._standard_sources | {
-        self._j_bootstrap.name: self._j_bootstrap,
-        self._jext.name: self._jext,
-        self._qei_source.name: self._qei_source,
-    }
+    # Make sure defaults are set.
+    if self._j_bootstrap is None:
+      self._j_bootstrap = bootstrap_current_source.BootstrapCurrentSource()
+    if self._jext is None:
+      self._jext = external_current_source.ExternalCurrentSource()
+    if self._qei_source is None:
+      self._qei_source = qei_source_lib.QeiSource()
+
+  def add_source(
+      self,
+      source_name: str,
+      source: source_lib.Source,
+  ) -> None:
+    """Adds a source to the collection of sources.
+
+    Do NOT directly add new sources to `SourceModels.standard_sources`. Users
+    should call this function instead. Cannot add additional bootstrap current,
+    external current, or Qei sources - those must be defined in the __init__.
+
+    Args:
+      source_name: Name of the new source being added. This will be the key
+        under which the source's output profile will be found in the output
+        SourceProfiles object.
+      source: The new standard source being added.
+
+    Raises:
+      ValueError if a "special-case" source is provided.
+    """
+    if (
+        isinstance(source, bootstrap_current_source.BootstrapCurrentSource)
+        or isinstance(source, external_current_source.ExternalCurrentSource)
+        or isinstance(source, qei_source_lib.QeiSource)
+    ):
+      raise ValueError(
+          'Cannot add a source with the following types: '
+          'bootstrap_current_source.BootstrapCurrentSource,'
+          ' external_current_source.ExternalCurrentSource, or'
+          ' qei_source_lib.QeiSource.'
+      )
+    reserved_names = [
+        self._j_bootstrap_name,
+        self._jext_name,
+        self._qei_source_name,
+    ]
+    if source_name in reserved_names:
+      raise ValueError(
+          f'Cannot add a source with one of these names: {reserved_names}.'
+      )
+    self._standard_sources[source_name] = source
+    if source_lib.AffectedCoreProfile.PSI in source.affected_core_profiles:
+      self._psi_sources[source_name] = source
+    if source_lib.AffectedCoreProfile.NE in source.affected_core_profiles:
+      self._ne_sources[source_name] = source
+    if source_lib.AffectedCoreProfile.TEMP_ION in source.affected_core_profiles:
+      self._temp_ion_sources[source_name] = source
+    if source_lib.AffectedCoreProfile.TEMP_EL in source.affected_core_profiles:
+      self._temp_el_sources[source_name] = source
 
   # Some sources require direct access, so this class defines properties for
   # those sources.
 
   @property
   def j_bootstrap(self) -> bootstrap_current_source.BootstrapCurrentSource:
+    assert self._j_bootstrap is not None
     return self._j_bootstrap
 
   @property
+  def j_bootstrap_name(self) -> str:
+    return self._j_bootstrap_name
+
+  @property
   def jext(self) -> external_current_source.ExternalCurrentSource:
+    assert self._jext is not None
     return self._jext
 
   @property
+  def jext_name(self) -> str:
+    return self._jext_name
+
+  @property
   def qei_source(self) -> qei_source_lib.QeiSource:
+    assert self._qei_source is not None
     return self._qei_source
+
+  @property
+  def qei_source_name(self) -> str:
+    return self._qei_source_name
 
   @property
   def psi_sources(self) -> dict[str, source_lib.Source]:
@@ -834,7 +801,7 @@ class SourceModels:
     """Returns all source models which output both ion and el temp profiles."""
     return {
         name: source
-        for name, source in self.standard_sources.items()
+        for name, source in self._standard_sources.items()
         if source.affected_core_profiles
         == (
             source_lib.AffectedCoreProfile.TEMP_ION,
@@ -852,23 +819,32 @@ class SourceModels:
     return self._standard_sources
 
   @property
-  def all_sources(self) -> dict[str, source_lib.Source]:
-    return self._all_sources
+  def sources(self) -> dict[str, source_lib.Source]:
+    return self._standard_sources | {
+        self._j_bootstrap_name: self.j_bootstrap,
+        self._jext_name: self.jext,
+        self._qei_source_name: self.qei_source,
+    }
+
+  @property
+  def runtime_params(self) -> dict[str, runtime_params_lib.RuntimeParams]:
+    """Returns all the runtime params for all sources."""
+    return {
+        source_name: source.runtime_params
+        for source_name, source in self.sources.items()
+    }
 
 
 def build_all_zero_profiles(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
     geo: geometry.Geometry,
     source_models: SourceModels,
 ) -> source_profiles.SourceProfiles:
   """Returns a SourceProfiles object with all zero profiles."""
   profiles = {
-      source_name: jnp.zeros(
-          source_model.output_shape_getter(dynamic_config_slice, geo, None)
-      )
+      source_name: jnp.zeros(source_model.output_shape_getter(geo))
       for source_name, source_model in source_models.standard_sources.items()
   }
-  profiles[source_models.jext.name] = jnp.zeros_like(geo.r)
+  profiles[source_models.jext_name] = jnp.zeros_like(geo.r)
   return source_profiles.SourceProfiles(
       profiles=profiles,
       j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),

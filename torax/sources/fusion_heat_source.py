@@ -24,8 +24,8 @@ from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import state
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_config
 
 
 def calc_fusion(
@@ -122,24 +122,26 @@ def calc_fusion(
 
 def fusion_heat_model_func(
     dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> jnp.ndarray:
+  del dynamic_source_runtime_params  # Unused.
   # pylint: disable=invalid-name
-  _, Pfus_i, Pfus_e = calc_fusion(geo, core_profiles, dynamic_config_slice.nref)
+  _, Pfus_i, Pfus_e = calc_fusion(
+      geo, core_profiles, dynamic_config_slice.numerics.nref
+  )
   return jnp.stack((Pfus_i, Pfus_e))
   # pylint: enable=invalid-name
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(kw_only=True)
 class FusionHeatSource(source.IonElectronSource):
   """Fusion heat source for both ion and electron heat."""
 
-  name: str = 'fusion_heat_source'
-
-  supported_types: tuple[source_config.SourceType, ...] = (
-      source_config.SourceType.ZERO,
-      source_config.SourceType.MODEL_BASED,
+  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
+      runtime_params_lib.Mode.ZERO,
+      runtime_params_lib.Mode.MODEL_BASED,
   )
 
-  model_func: source_config.SourceProfileFunction = fusion_heat_model_func
+  model_func: source.SourceProfileFunction = fusion_heat_model_func

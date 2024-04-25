@@ -27,6 +27,7 @@ import numpy as np
 import torax
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.sources import source_models as source_models_lib
 from torax.spectators import spectator as spectator_lib
 from torax.stepper import linear_theta_method
 from torax.tests.test_lib import explicit_stepper
@@ -417,6 +418,7 @@ class SimTest(sim_test_case.SimTestCase):
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethod,
         transport_model=constant_transport_model.ConstantTransportModel(),
+        source_models=source_models_lib.SourceModels(),
         time_step_calculator=time_step_calculator,
     )
 
@@ -478,6 +480,7 @@ class SimTest(sim_test_case.SimTestCase):
         geo=geo,
         stepper_builder=stepper,
         transport_model=config_module.get_transport_model(),
+        source_models=config_module.get_sources(),
         time_step_calculator=time_step_calculator,
     )
     sim.run(

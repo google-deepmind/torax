@@ -56,6 +56,7 @@ from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.sources import runtime_params as source_runtime_params_lib
 from torax.spectators import plotting
 from torax.transport_model import runtime_params as transport_runtime_params_lib
 import xarray as xr
@@ -205,39 +206,58 @@ def update_sim(
     config: torax.Config,
     geo: geometry.Geometry,
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
 ) -> sim_lib.Sim:
   """Updates the sim with a new config and geometry."""
-  # NOTE: This function will NOT update any of the following in the config:
+  # NOTE: This function will NOT update any of the following:
   #  - stepper (for the mesh state)
-  #  - transport model
+  #  - transport model object (runtime params are updated)
   #  - spectator
   #  - time step calculator
+  #  - source objects (runtime params are updated)
   # TODO(b/335596447): Add checks to ensure that SimulationStepFn can be reused
   # correctly given the new config. If any of the attributes above change, then
   # ether raise an error or build a new SimulationStepFn (and notify the user).
   # TODO(b/335596447): If the static slice is updated, add checks or logs
   # notifying the user that using this new config will result in recompiling
   # the SimulationStepFn.
+  sim.transport_model.runtime_params = transport_runtime_params
+  _update_source_params(sim, source_runtime_params)
   static_config_slice = config_slice.build_static_config_slice(config)
+  dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
+      config=config,
+      transport_getter=lambda: sim.transport_model.runtime_params,
+      sources_getter=lambda: sim.source_models.runtime_params,
+  )
   initial_state = sim_lib.get_initial_state(
-      dynamic_config_slice=config_slice.build_dynamic_config_slice(config),
+      dynamic_config_slice=dynamic_config_slice_provider(
+          t=config.numerics.t_initial
+      ),
       static_config_slice=static_config_slice,
       geo=geo,
       time_step_calculator=sim.time_step_calculator,
       source_models=sim.source_models,
   )
-  sim.transport_model.runtime_params = transport_runtime_params
   return sim_lib.Sim(
       time_step_calculator=sim.time_step_calculator,
       initial_state=initial_state,
       geometry_provider=sim_lib.ConstantGeometryProvider(geo),
-      dynamic_config_slice_provider=config_slice.DynamicConfigSliceProvider(
-          config=config,
-          transport_getter=lambda: sim.transport_model.runtime_params,
-      ),
+      dynamic_config_slice_provider=dynamic_config_slice_provider,
       static_config_slice=static_config_slice,
       step_fn=sim.step_fn,
   )
+
+
+def _update_source_params(
+    sim: sim_lib.Sim,
+    source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
+) -> None:
+  for source_name, source_runtime_params in source_runtime_params.items():
+    if source_name not in sim.source_models.sources:
+      raise ValueError(f'Source {source_name} not found in sim.')
+    sim.source_models.sources[source_name].runtime_params = (
+        source_runtime_params
+    )
 
 
 def can_plot() -> bool:
@@ -311,12 +331,10 @@ def main(
   ds = simulation_output_to_xr(torax_outputs, geo)
 
   write_simulation_output_to_file(output_dir, ds)
-  # TODO(b/335596701): Add back functionality to write configs to file after
-  # running to help with keeping track of simulation runs.
 
   if log_sim_output:
-    core_profile_history, _, _ = (
-        state_lib.build_history_from_states(torax_outputs)
+    core_profile_history, _, _ = state_lib.build_history_from_states(
+        torax_outputs
     )
     t = state_lib.build_time_history_from_states(torax_outputs)
     log_simulation_output_to_stdout(core_profile_history, geo, t)
