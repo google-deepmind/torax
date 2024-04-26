@@ -24,6 +24,7 @@ from torax.sources import default_sources
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
+from torax.stepper import runtime_params as stepper_runtime_params
 from torax.transport_model import constant as constant_transport_model
 
 
@@ -38,9 +39,6 @@ def get_config() -> config_lib.Config:
           current_eq=True,
           resistivity_mult=100,  # to shorten current diffusion time
           t_final=3,
-      ),
-      solver=config_lib.SolverConfig(
-          predictor_corrector=False,
       ),
   )
 
@@ -83,6 +81,16 @@ def get_sources() -> source_models_lib.SourceModels:
   return source_models
 
 
+def get_stepper_builder() -> linear_theta_method.LinearThetaMethodBuilder:
+  """Returns a builder for the stepper that includes its runtime params."""
+  builder = linear_theta_method.LinearThetaMethodBuilder(
+      runtime_params=stepper_runtime_params.RuntimeParams(
+          predictor_corrector=False,
+      )
+  )
+  return builder
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -92,7 +100,7 @@ def get_sim() -> sim_lib.Sim:
   return sim_lib.build_sim_from_config(
       config=config,
       geo=geo,
-      stepper_builder=linear_theta_method.LinearThetaMethod,
+      stepper_builder=get_stepper_builder(),
       source_models=get_sources(),
       transport_model=get_transport_model(),
   )

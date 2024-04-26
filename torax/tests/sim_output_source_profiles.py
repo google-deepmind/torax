@@ -39,6 +39,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.stepper import runtime_params as stepper_runtime_params
 from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import time_step_calculator as ts
@@ -166,6 +167,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         config=config,
         transport_getter=constant_transport_model.RuntimeParams,
         sources_getter=lambda: source_models.runtime_params,
+        stepper_getter=stepper_runtime_params.RuntimeParams,
     )
     initial_dcs = dynamic_config_slice_provider(0.0)
     static_config_slice = config_slice.build_static_config_slice(config)

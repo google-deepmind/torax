@@ -84,10 +84,6 @@ def get_config() -> config_lib.Config:
           resistivity_mult=100,
           t_final=2,
       ),
-      solver=config_lib.SolverConfig(
-          predictor_corrector=False,
-          use_pereverzev=True,
-      ),
   )
 
 
@@ -113,6 +109,20 @@ def get_sources() -> source_models_lib.SourceModels:
   return source_models
 
 
+def get_stepper_builder() -> (
+    nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder
+):
+  """Returns a builder for the stepper that includes its runtime params."""
+  builder = nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder(
+      builder=make_linear_newton_raphson_stepper,
+      runtime_params=nonlinear_theta_method.NewtonRaphsonRuntimeParams(
+          predictor_corrector=False,
+          use_pereverzev=True,
+      ),
+  )
+  return builder
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -122,7 +132,7 @@ def get_sim() -> sim_lib.Sim:
   return sim_lib.build_sim_from_config(
       config=config,
       geo=geo,
-      stepper_builder=make_linear_newton_raphson_stepper,
       source_models=get_sources(),
+      stepper_builder=get_stepper_builder(),
       transport_model=get_transport_model(),
   )

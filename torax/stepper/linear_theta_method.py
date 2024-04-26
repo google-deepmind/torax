@@ -14,6 +14,8 @@
 
 """The LinearThetaMethodStepper class."""
 
+from collections.abc import Callable
+import dataclasses
 from typing import Type
 import jax
 from torax import config_slice
@@ -24,6 +26,7 @@ from torax import state
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
+from torax.stepper import runtime_params as runtime_params_lib
 from torax.stepper import stepper as stepper_lib
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -115,3 +118,34 @@ class LinearThetaMethod(stepper_lib.Stepper):
     error = 0  # linear method always works
 
     return x_new, core_sources, core_transport, error
+
+
+def _default_linear_builder(
+    transport_model: transport_model_lib.TransportModel,
+    source_models: source_models_lib.SourceModels,
+) -> LinearThetaMethod:
+  return LinearThetaMethod(transport_model, source_models)
+
+
+# Type-alias so that users only need to import this file.
+LinearRuntimeParams = runtime_params_lib.RuntimeParams
+
+
+@dataclasses.dataclass(kw_only=True)
+class LinearThetaMethodBuilder(stepper_lib.StepperBuilder):
+  """Builds an LinearThetaMethod."""
+
+  builder: Callable[
+      [
+          transport_model_lib.TransportModel,
+          source_models_lib.SourceModels,
+      ],
+      LinearThetaMethod,
+  ] = _default_linear_builder
+
+  def __call__(
+      self,
+      transport_model: transport_model_lib.TransportModel,
+      source_models: source_models_lib.SourceModels,
+  ) -> LinearThetaMethod:
+    return self.builder(transport_model, source_models)

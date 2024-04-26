@@ -128,7 +128,7 @@ class CoeffsCallback:
       core_profiles = dataclasses.replace(core_profiles, ni=ni)
 
     if allow_pereverzev:
-      use_pereverzev = self.static_config_slice.solver.use_pereverzev
+      use_pereverzev = self.static_config_slice.stepper.use_pereverzev
     else:
       use_pereverzev = False
 
@@ -688,11 +688,15 @@ def build_sim_from_config(
     sim: The built Sim instance.
   """
 
-  static_config_slice = config_slice.build_static_config_slice(config)
+  static_config_slice = config_slice.build_static_config_slice(
+      config,
+      stepper=stepper_builder.runtime_params,
+  )
   dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
       config=config,
       transport_getter=lambda: transport_model.runtime_params,
       sources_getter=lambda: source_models.runtime_params,
+      stepper_getter=lambda: stepper_builder.runtime_params,
   )
   stepper = stepper_builder(transport_model, source_models)
 

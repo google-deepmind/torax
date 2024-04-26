@@ -14,9 +14,14 @@
 
 """The NonLinearThetaMethod class."""
 
+from __future__ import annotations
+
 import abc
+from collections.abc import Callable
+import dataclasses
 from typing import Type
 
+import chex
 import jax
 from torax import config_slice
 from torax import fvm
@@ -25,8 +30,10 @@ from torax import sim
 from torax import state
 from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
+from torax.runtime_params import config_slice_args
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
+from torax.stepper import runtime_params as runtime_params_lib
 from torax.stepper import stepper
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -201,6 +208,63 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     return super()._artificially_linear()
 
 
+# Type-alias so that users only need to import this file.
+OptimizerRuntimeParams = runtime_params_lib.RuntimeParams
+
+
+def _default_optimizer_builder(
+    transport_model: transport_model_lib.TransportModel,
+    source_models: source_models_lib.SourceModels,
+) -> OptimizerThetaMethod:
+  return OptimizerThetaMethod(transport_model, source_models)
+
+
+@dataclasses.dataclass(kw_only=True)
+class OptimizerThetaMethodBuilder(stepper.StepperBuilder):
+  """Builds an OptimizerThetaMethod."""
+
+  builder: Callable[
+      [
+          transport_model_lib.TransportModel,
+          source_models_lib.SourceModels,
+      ],
+      OptimizerThetaMethod,
+  ] = _default_optimizer_builder
+
+  def __call__(
+      self,
+      transport_model: transport_model_lib.TransportModel,
+      source_models: source_models_lib.SourceModels,
+  ) -> OptimizerThetaMethod:
+    return self.builder(transport_model, source_models)
+
+
+@dataclasses.dataclass(kw_only=True)
+class NewtonRaphsonRuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime parameters used inside the NewtonRaphsonThetaMethod stepper."""
+
+  # If True, log internal iterations in Newton-Raphson solver.
+  log_iterations: bool = False
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> DynamicNewtonRaphsonRuntimeParams:
+    return DynamicNewtonRaphsonRuntimeParams(
+        **config_slice_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicNewtonRaphsonRuntimeParams,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass(frozen=True)
+class DynamicNewtonRaphsonRuntimeParams(
+    runtime_params_lib.DynamicRuntimeParams
+):
+  log_iterations: bool
+
+
 class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
   """Nonlinear theta method using Newton Raphson.
 
@@ -254,6 +318,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       int,
   ]:
     """Final implementation of x_new after callback has been created etc."""
+    assert isinstance(
+        dynamic_config_slice_t.stepper, DynamicNewtonRaphsonRuntimeParams
+    )
     # disable error checking in residual, since Newton-Raphson routine has
     # error checking based on result of each linear step
 
@@ -272,7 +339,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             source_models=self.source_models,
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
-            log_iterations=dynamic_config_slice_t.solver.log_iterations,
+            log_iterations=dynamic_config_slice_t.stepper.log_iterations,
             initial_guess_mode=self.initial_guess_mode,
             maxiter=self.maxiter,
             tol=self.tol,
@@ -287,3 +354,34 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     if self.maxiter == 0:
       return True
     return super()._artificially_linear()
+
+
+def _default_newton_raphson_builder(
+    transport_model: transport_model_lib.TransportModel,
+    source_models: source_models_lib.SourceModels,
+) -> NewtonRaphsonThetaMethod:
+  return NewtonRaphsonThetaMethod(transport_model, source_models)
+
+
+@dataclasses.dataclass(kw_only=True)
+class NewtonRaphsonThetaMethodBuilder(stepper.StepperBuilder):
+  """Builds a NewtonRaphsonThetaMethod."""
+
+  runtime_params: NewtonRaphsonRuntimeParams = dataclasses.field(
+      default_factory=NewtonRaphsonRuntimeParams
+  )
+
+  builder: Callable[
+      [
+          transport_model_lib.TransportModel,
+          source_models_lib.SourceModels,
+      ],
+      NewtonRaphsonThetaMethod,
+  ] = _default_newton_raphson_builder
+
+  def __call__(
+      self,
+      transport_model: transport_model_lib.TransportModel,
+      source_models: source_models_lib.SourceModels,
+  ) -> NewtonRaphsonThetaMethod:
+    return self.builder(transport_model, source_models)

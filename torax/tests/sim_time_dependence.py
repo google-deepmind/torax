@@ -28,6 +28,7 @@ from torax import sim as sim_lib
 from torax import state
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
+from torax.stepper import runtime_params as stepper_runtime_params
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import runtime_params as transport_runtime_params
@@ -80,6 +81,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         config=config,
         transport_getter=lambda: transport.runtime_params,
         sources_getter=lambda: source_models.runtime_params,
+        stepper_getter=stepper_runtime_params.RuntimeParams,
     )
     initial_dynamic_config_slice = dynamic_config_slice_provider(
         config.numerics.t_initial

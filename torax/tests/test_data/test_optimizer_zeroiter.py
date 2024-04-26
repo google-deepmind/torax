@@ -27,6 +27,7 @@ from torax.sources import default_sources
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.stepper import nonlinear_theta_method
+from torax.stepper import runtime_params as stepper_runtime_params
 from torax.stepper import stepper as stepper_lib
 from torax.transport_model import qlknn_wrapper
 from torax.transport_model import transport_model as transport_model_lib
@@ -77,10 +78,6 @@ def get_config() -> config_lib.Config:
           resistivity_mult=100,
           t_final=2,
       ),
-      solver=config_lib.SolverConfig(
-          predictor_corrector=False,
-          use_pereverzev=True,
-      ),
   )
 
 
@@ -106,6 +103,18 @@ def get_sources() -> source_models_lib.SourceModels:
   return source_models
 
 
+def get_stepper_builder() -> nonlinear_theta_method.OptimizerThetaMethodBuilder:
+  """Returns a builder for the stepper that includes its runtime params."""
+  builder = nonlinear_theta_method.OptimizerThetaMethodBuilder(
+      builder=make_linear_optimizer_stepper,
+      runtime_params=stepper_runtime_params.RuntimeParams(
+          predictor_corrector=False,
+          use_pereverzev=True,
+      ),
+  )
+  return builder
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -115,7 +124,7 @@ def get_sim() -> sim_lib.Sim:
   return sim_lib.build_sim_from_config(
       config=config,
       geo=geo,
-      stepper_builder=make_linear_optimizer_stepper,
       source_models=get_sources(),
+      stepper_builder=get_stepper_builder(),
       transport_model=get_transport_model(),
   )

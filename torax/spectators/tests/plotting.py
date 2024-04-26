@@ -60,7 +60,7 @@ def _run_sim(
   torax.build_sim_from_config(
       config=config,
       geo=geo,
-      stepper_builder=linear_theta_method.LinearThetaMethod,
+      stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
       transport_model=constant_transport_model.ConstantTransportModel(),
       source_models=default_sources.get_default_sources(),
       time_step_calculator=chi_time_step_calculator.ChiTimeStepCalculator(),

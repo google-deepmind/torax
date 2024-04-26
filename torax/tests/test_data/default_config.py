@@ -43,6 +43,12 @@ def get_sources() -> source_models_lib.SourceModels:
   return source_models
 
 
+def get_stepper_builder() -> linear_theta_method.LinearThetaMethodBuilder:
+  """Returns a builder for the stepper that includes its runtime params."""
+  builder = linear_theta_method.LinearThetaMethodBuilder()
+  return builder
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -52,7 +58,7 @@ def get_sim() -> sim_lib.Sim:
   return sim_lib.build_sim_from_config(
       config=config,
       geo=geo,
-      stepper_builder=linear_theta_method.LinearThetaMethod,
+      stepper_builder=get_stepper_builder(),
       source_models=get_sources(),
       transport_model=get_transport_model(),
   )

@@ -156,3 +156,11 @@ class ExplicitStepper(stepper_lib.Stepper):
         state.CoreTransport.zeros(geo),
         error,
     )
+
+
+@dataclasses.dataclass(kw_only=True)
+class ExplicitStepperBuilder(stepper_lib.StepperBuilder):
+  """Builds an ExplicitStepper."""
+
+  def __call__(self, transport_model, sources) -> ExplicitStepper:
+    return ExplicitStepper(transport_model, sources)

@@ -416,7 +416,7 @@ class SimTest(sim_test_case.SimTestCase):
     sim = sim_lib.build_sim_from_config(
         config=config,
         geo=geo,
-        stepper_builder=linear_theta_method.LinearThetaMethod,
+        stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
         transport_model=constant_transport_model.ConstantTransportModel(),
         source_models=source_models_lib.SourceModels(),
         time_step_calculator=time_step_calculator,
@@ -459,15 +459,16 @@ class SimTest(sim_test_case.SimTestCase):
   @parameterized.named_parameters(
       (
           'implicit_update',
-          linear_theta_method.LinearThetaMethod,
+          linear_theta_method.LinearThetaMethodBuilder,
       ),
       (
           'explicit_update',
-          explicit_stepper.ExplicitStepper,
+          explicit_stepper.ExplicitStepperBuilder,
       ),
   )
-  def test_observers_update_during_runs(self, stepper):
+  def test_observers_update_during_runs(self, stepper_builder_constructor):
     """Verify that the observer's state is updated after the simulation run."""
+    stepper_builder = stepper_builder_constructor()
     # Load config structure.
     config_module = self._get_config_module('test_explicit.py')
     config = config_module.get_config()
@@ -478,7 +479,7 @@ class SimTest(sim_test_case.SimTestCase):
     sim = sim_lib.build_sim_from_config(
         config=config,
         geo=geo,
-        stepper_builder=stepper,
+        stepper_builder=stepper_builder,
         transport_model=config_module.get_transport_model(),
         source_models=config_module.get_sources(),
         time_step_calculator=time_step_calculator,

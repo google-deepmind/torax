@@ -50,9 +50,6 @@ def get_config() -> config_lib.Config:
           resistivity_mult=100,  # to shorten current diffusion time
           t_final=0.0007944 * 2,
       ),
-      solver=config_lib.SolverConfig(
-          use_pereverzev=False,
-      ),
   )
 
 
@@ -93,6 +90,18 @@ def get_sources() -> source_models_lib.SourceModels:
   return source_models
 
 
+def get_stepper_builder() -> (
+    nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder
+):
+  """Returns a builder for the stepper that includes its runtime params."""
+  builder = nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder(
+      runtime_params=nonlinear_theta_method.NewtonRaphsonRuntimeParams(
+          use_pereverzev=False,
+      )
+  )
+  return builder
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -101,7 +110,7 @@ def get_sim() -> sim_lib.Sim:
   return sim_lib.build_sim_from_config(
       config=config,
       geo=get_geometry(config),
-      stepper_builder=nonlinear_theta_method.NewtonRaphsonThetaMethod,
+      stepper_builder=get_stepper_builder(),
       source_models=get_sources(),
       transport_model=get_transport_model(),
   )

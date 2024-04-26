@@ -85,17 +85,6 @@ def get_config() -> config_lib.Config:
           # condtion location if n != neped
           largeValue_n=1.0e8,
       ),
-      solver=config_lib.SolverConfig(
-          predictor_corrector=False,
-          convection_dirichlet_mode='ghost',
-          convection_neumann_mode='ghost',
-          # (deliberately) large heat conductivity for Pereverzev rule
-          chi_per=30,
-          # (deliberately) large particle diffusion for Pereverzev rule
-          d_per=15,
-          use_pereverzev=True,
-          log_iterations=False,
-      ),
   )
 
 
@@ -223,6 +212,26 @@ def get_sources() -> source_models_lib.SourceModels:
   return source_models
 
 
+def get_stepper_builder() -> (
+    nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder
+):
+  """Returns a builder for the stepper that includes its runtime params."""
+  builder = nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder(
+      runtime_params=nonlinear_theta_method.NewtonRaphsonRuntimeParams(
+          predictor_corrector=False,
+          convection_dirichlet_mode='ghost',
+          convection_neumann_mode='ghost',
+          # (deliberately) large heat conductivity for Pereverzev rule
+          chi_per=30,
+          # (deliberately) large particle diffusion for Pereverzev rule
+          d_per=15,
+          use_pereverzev=True,
+          log_iterations=False,
+      )
+  )
+  return builder
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -232,7 +241,7 @@ def get_sim() -> sim_lib.Sim:
   return sim_lib.build_sim_from_config(
       config=config,
       geo=geo,
-      stepper_builder=nonlinear_theta_method.NewtonRaphsonThetaMethod,
+      stepper_builder=get_stepper_builder(),
       source_models=get_sources(),
       transport_model=get_transport_model(),
   )

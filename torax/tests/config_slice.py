@@ -24,6 +24,7 @@ from torax.sources import electron_density_sources
 from torax.sources import external_current_source
 from torax.sources import formula_config
 from torax.sources import runtime_params
+from torax.stepper import runtime_params as stepper_params_lib
 from torax.transport_model import runtime_params as transport_params_lib
 
 
@@ -51,6 +52,7 @@ class ConfigSliceTest(parameterized.TestCase):
         config=config,
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
+        stepper_getter=stepper_params_lib.RuntimeParams,
     )
     dynamic_config_slice = provider(t=1.0)
     np.testing.assert_allclose(
@@ -245,6 +247,7 @@ class ConfigSliceTest(parameterized.TestCase):
                 wext={0.0: 1.0, 1.0: -1.0}
             ),
         },
+        stepper_getter=stepper_params_lib.RuntimeParams,
     )
     # While wext is positive, this should be fine.
     dcs = dcs_provider(t=0.0)

@@ -17,7 +17,6 @@
 from absl.testing import absltest
 import chex
 from torax import config as config_lib
-from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
@@ -61,9 +60,6 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
             current_eq=True,
             resistivity_mult=100,
             t_final=2,
-        ),
-        solver=config_lib.SolverConfig(
-            predictor_corrector=False,
         ),
     )
     # Set the sources to match test_particle_sources_constant as well.
@@ -129,7 +125,11 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     sim = sim_lib.build_sim_from_config(
         config=test_particle_sources_constant_config,
         geo=geo,
-        stepper_builder=linear_theta_method.LinearThetaMethod,
+        stepper_builder=linear_theta_method.LinearThetaMethodBuilder(
+            runtime_params=linear_theta_method.LinearRuntimeParams(
+                predictor_corrector=False,
+            )
+        ),
         transport_model=transport_model,
         source_models=source_models,
     )
@@ -169,9 +169,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
       source_models.sources['gas_puff_source'].runtime_params.mode = (
           runtime_params_lib.Mode.ZERO
       )
-      self._run_sim_and_check(
-          test_particle_sources_constant_config, sim, ref_profiles, ref_time
-      )
+      self._run_sim_and_check(sim, ref_profiles, ref_time)
 
     with self.subTest('without_puff_and_without_custom_source'):
       # Confirm that the custom source actual has an effect.
@@ -180,13 +178,10 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
           runtime_params_lib.Mode.ZERO
       )
       with self.assertRaises(AssertionError):
-        self._run_sim_and_check(
-            test_particle_sources_constant_config, sim, ref_profiles, ref_time
-        )
+        self._run_sim_and_check(sim, ref_profiles, ref_time)
 
   def _run_sim_and_check(
       self,
-      config: config_lib.Config,
       sim: sim_lib.Sim,
       ref_profiles: dict[str, chex.ArrayTree],
       ref_time: chex.Array,
@@ -194,11 +189,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     """Runs sim with new dynamic config and checks the profiles vs. expected."""
     torax_outputs = sim_lib.run_simulation(
         static_config_slice=sim.static_config_slice,
-        dynamic_config_slice_provider=config_slice.DynamicConfigSliceProvider(
-            config=config,
-            transport_getter=lambda: sim.transport_model.runtime_params,
-            sources_getter=lambda: sim.source_models.runtime_params,
-        ),
+        dynamic_config_slice_provider=sim.dynamic_config_slice_provider,
         geometry_provider=sim.geometry_provider,
         initial_state=sim.initial_state,
         time_step_calculator=sim.time_step_calculator,

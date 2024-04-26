@@ -21,6 +21,7 @@ from torax import sim as sim_lib
 from torax.sources import default_sources
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
+from torax.stepper import runtime_params as stepper_runtime_params
 from torax.tests.test_lib import explicit_stepper
 from torax.transport_model import constant as constant_transport_model
 
@@ -37,10 +38,6 @@ def get_config() -> config_lib.Config:
           t_final=0.1,
           ion_heat_eq=True,
           el_heat_eq=False,
-      ),
-      solver=config_lib.SolverConfig(
-          predictor_corrector=False,
-          use_pereverzev=False,
       ),
   )
 
@@ -77,6 +74,17 @@ def get_sources() -> source_models_lib.SourceModels:
   return source_models
 
 
+def get_stepper_builder() -> explicit_stepper.ExplicitStepperBuilder:
+  """Returns a builder for the stepper that includes its runtime params."""
+  builder = explicit_stepper.ExplicitStepperBuilder(
+      runtime_params=stepper_runtime_params.RuntimeParams(
+          predictor_corrector=False,
+          use_pereverzev=False,
+      )
+  )
+  return builder
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -86,7 +94,7 @@ def get_sim() -> sim_lib.Sim:
   return sim_lib.build_sim_from_config(
       config=config,
       geo=geo,
-      stepper_builder=explicit_stepper.ExplicitStepper,
       source_models=get_sources(),
       transport_model=get_transport_model(),
+      stepper_builder=get_stepper_builder(),
   )

@@ -44,6 +44,7 @@ import chex
 from torax import config as config_lib
 from torax.runtime_params import config_slice_args
 from torax.sources import runtime_params as sources_params
+from torax.stepper import runtime_params as stepper_params
 from torax.transport_model import runtime_params as transport_model_params
 
 
@@ -72,26 +73,11 @@ class DynamicConfigSlice:
   """
 
   transport: transport_model_params.DynamicRuntimeParams
-  solver: DynamicSolverConfigSlice
+  stepper: stepper_params.DynamicRuntimeParams
   plasma_composition: DynamicPlasmaComposition
   profile_conditions: DynamicProfileConditions
   numerics: DynamicNumerics
   sources: Mapping[str, sources_params.DynamicRuntimeParams]
-
-
-@chex.dataclass(frozen=True)
-class DynamicSolverConfigSlice:
-  """Input params for the solver which can be used as compiled args."""
-
-  # (deliberately) large heat conductivity for Pereverzev rule
-  chi_per: float
-  # (deliberately) large particle diffusion for Pereverzev rule
-  d_per: float
-  # Number of corrector steps for the predictor-corrector linear solver.
-  # 0 means a pure linear solve with no corrector steps.
-  corrector_steps: int
-  # log internal iterations in Newton-Raphson solver
-  log_iterations: bool
 
 
 @chex.dataclass
@@ -233,7 +219,7 @@ class StaticConfigSlice:
   change in config will trigger a recompile.
   """
 
-  solver: StaticSolverConfigSlice
+  stepper: stepper_params.StaticRuntimeParams
   # radial grid points (num cells)
   nr: int
   # Solve the ion heat equation (ion temperature evolves over time)
@@ -251,25 +237,6 @@ class StaticConfigSlice:
   # iteratively at successively lower dt until convergence is reached
   adaptive_dt: bool
 
-
-@chex.dataclass(frozen=True)
-class StaticSolverConfigSlice:
-  """Static params for the solver."""
-
-  # Theta for theta-method. 0 is fully explicit, 1 is fully implicit.
-  theta_imp: float
-  # See `fvm.convection_terms` docstring, `dirichlet_mode` argument
-  convection_dirichlet_mode: str
-  # See `fvm.convection_terms` docstring, `neumann_mode` argument
-  convection_neumann_mode: str
-  # use pereverzev terms for linear solver. Is only applied in the nonlinear
-  # solver for the optional initial guess from the linear solver
-  use_pereverzev: bool
-  # Enables predictor_corrector iterations with the linear solver.
-  # If False, compilation is faster
-  predictor_corrector: bool
-
-
 # pylint: enable=invalid-name
 
 
@@ -277,24 +244,20 @@ def build_dynamic_config_slice(
     config: config_lib.Config,
     transport: transport_model_params.RuntimeParams | None = None,
     sources: dict[str, sources_params.RuntimeParams] | None = None,
+    stepper: stepper_params.RuntimeParams | None = None,
     t: chex.Numeric | None = None,
 ) -> DynamicConfigSlice:
   """Builds a DynamicConfigSlice based on the input config."""
   transport = transport or transport_model_params.RuntimeParams()
   sources = sources or {}
+  stepper = stepper or stepper_params.RuntimeParams()
   t = config.numerics.t_initial if t is None else t
   # For each dataclass attribute under DynamicConfigSlice, build those objects
   # explicitly, and then for all scalar attributes, fetch their values directly
   # from the input config using config_slice_args.get_init_kwargs.
   return DynamicConfigSlice(
       transport=transport.build_dynamic_params(t),
-      solver=DynamicSolverConfigSlice(
-          **config_slice_args.get_init_kwargs(
-              input_config=config.solver,
-              output_type=DynamicSolverConfigSlice,
-              t=t,
-          )
-      ),
+      stepper=stepper.build_dynamic_params(t),
       sources=_build_dynamic_sources(sources, t),
       plasma_composition=DynamicPlasmaComposition(
           **config_slice_args.get_init_kwargs(
@@ -323,7 +286,7 @@ def build_dynamic_config_slice(
           t=t,
           skip=(
               'transport',
-              'solver',
+              'stepper',
               'sources',
               'plasma_composition',
               'profile_conditions',
@@ -344,16 +307,16 @@ def _build_dynamic_sources(
   }
 
 
-def build_static_config_slice(config: config_lib.Config) -> StaticConfigSlice:
+def build_static_config_slice(
+    config: config_lib.Config,
+    stepper: stepper_params.RuntimeParams | None = None,
+) -> StaticConfigSlice:
   """Builds a StaticConfigSlice based on the input config."""
   # t set to None because there shouldnt be time-dependent params in the static
   # config.
+  stepper = stepper or stepper_params.RuntimeParams()
   return StaticConfigSlice(
-      solver=StaticSolverConfigSlice(
-          **config_slice_args.get_init_kwargs(
-              config.solver, StaticSolverConfigSlice, t=None
-          )
-      ),
+      stepper=stepper.build_static_params(),
       nr=config.numerics.nr,
       ion_heat_eq=config.numerics.ion_heat_eq,
       el_heat_eq=config.numerics.el_heat_eq,
@@ -378,20 +341,12 @@ class DynamicConfigSliceProvider:
       config: config_lib.Config,
       transport_getter: Callable[[], transport_model_params.RuntimeParams],
       sources_getter: Callable[[], dict[str, sources_params.RuntimeParams]],
+      stepper_getter: Callable[[], stepper_params.RuntimeParams],
   ):
     self._input_config = config
     self._transport_runtime_params_getter = transport_getter
     self._sources_getter = sources_getter
-
-    if (
-        not self._input_config.profile_conditions.set_pedestal
-        and self._transport_runtime_params_getter().apply_outer_patch
-        and self._input_config.solver.convection_neumann_mode != 'ghost'
-        and self._input_config.solver.convection_dirichlet_mode != 'ghost'
-    ):
-      raise ValueError(
-          'To avoid numerical instability use ghost convection modes'
-      )
+    self._stepper_getter = stepper_getter
 
   def __call__(
       self,
@@ -402,5 +357,6 @@ class DynamicConfigSliceProvider:
         config=self._input_config,
         transport=self._transport_runtime_params_getter(),
         sources=self._sources_getter(),
+        stepper=self._stepper_getter(),
         t=t,
     )

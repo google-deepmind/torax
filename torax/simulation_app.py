@@ -58,6 +58,7 @@ from torax import sim as sim_lib
 from torax import state as state_lib
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.spectators import plotting
+from torax.stepper import runtime_params as stepper_runtime_params_lib
 from torax.transport_model import runtime_params as transport_runtime_params_lib
 import xarray as xr
 
@@ -207,6 +208,9 @@ def update_sim(
     geo: geometry.Geometry,
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
+    stepper_runtime_params_getter: Callable[
+        [], stepper_runtime_params_lib.RuntimeParams
+    ],
 ) -> sim_lib.Sim:
   """Updates the sim with a new config and geometry."""
   # NOTE: This function will NOT update any of the following:
@@ -215,19 +219,17 @@ def update_sim(
   #  - spectator
   #  - time step calculator
   #  - source objects (runtime params are updated)
-  # TODO(b/335596447): Add checks to ensure that SimulationStepFn can be reused
-  # correctly given the new config. If any of the attributes above change, then
-  # ether raise an error or build a new SimulationStepFn (and notify the user).
-  # TODO(b/335596447): If the static slice is updated, add checks or logs
-  # notifying the user that using this new config will result in recompiling
-  # the SimulationStepFn.
   sim.transport_model.runtime_params = transport_runtime_params
   _update_source_params(sim, source_runtime_params)
-  static_config_slice = config_slice.build_static_config_slice(config)
+  static_config_slice = config_slice.build_static_config_slice(
+      config,
+      stepper=stepper_runtime_params_getter(),
+  )
   dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
       config=config,
       transport_getter=lambda: sim.transport_model.runtime_params,
       sources_getter=lambda: sim.source_models.runtime_params,
+      stepper_getter=stepper_runtime_params_getter,
   )
   initial_state = sim_lib.get_initial_state(
       dynamic_config_slice=dynamic_config_slice_provider(

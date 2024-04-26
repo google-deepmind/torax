@@ -32,6 +32,7 @@ from torax.fvm import residual_and_loss
 from torax.sources import default_sources
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
+from torax.stepper import runtime_params as stepper_runtime_params
 from torax.tests.test_lib import torax_refs
 from torax.transport_model import constant as constant_transport_model
 
@@ -357,10 +358,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
             nr=num_cells,
             el_heat_eq=False,
         ),
-        solver=config_lib.SolverConfig(
-            predictor_corrector=False,
-            theta_imp=theta_imp,
-        ),
+    )
+    stepper_params = stepper_runtime_params.RuntimeParams(
+        predictor_corrector=False,
+        theta_imp=theta_imp,
     )
     geo = geometry.build_circular_geometry(config)
     transport_model = constant_transport_model.ConstantTransportModel(
@@ -384,8 +385,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
         config,
         transport=transport_model.runtime_params,
         sources=source_models.runtime_params,
+        stepper=stepper_params,
     )
-    static_config_slice = config_slice.build_static_config_slice(config)
+    static_config_slice = config_slice.build_static_config_slice(
+        config, stepper=stepper_params
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         static_config_slice, dynamic_config_slice, geo, source_models
     )
@@ -474,10 +478,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
             nr=num_cells,
             el_heat_eq=False,
         ),
-        solver=config_lib.SolverConfig(
-            predictor_corrector=False,
-            theta_imp=1.0,
-        ),
+    )
+    stepper_params = stepper_runtime_params.RuntimeParams(
+        predictor_corrector=False,
+        theta_imp=1.0,
     )
     transport_model = constant_transport_model.ConstantTransportModel(
         runtime_params=constant_transport_model.RuntimeParams(
@@ -500,8 +504,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
         config,
         transport=transport_model.runtime_params,
         sources=source_models.runtime_params,
+        stepper=stepper_params,
     )
-    static_config_slice = config_slice.build_static_config_slice(config)
+    static_config_slice = config_slice.build_static_config_slice(
+        config, stepper=stepper_params
+    )
     geo = geometry.build_circular_geometry(config)
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
@@ -594,10 +601,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
             nr=num_cells,
             el_heat_eq=False,
         ),
-        solver=config_lib.SolverConfig(
-            predictor_corrector=False,
-            theta_imp=0.0,
-        ),
+    )
+    stepper_params = stepper_runtime_params.RuntimeParams(
+        predictor_corrector=False,
+        theta_imp=0.0,
     )
     geo = geometry.build_circular_geometry(config)
     transport_model = constant_transport_model.ConstantTransportModel(
@@ -621,12 +628,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
         config,
         transport=transport_model.runtime_params,
         sources=source_models.runtime_params,
+        stepper=stepper_params,
     )
-    static_config_slice_theta0 = config_slice.build_static_config_slice(config)
+    static_config_slice_theta0 = config_slice.build_static_config_slice(
+        config, stepper=stepper_params
+    )
     static_config_slice_theta05 = dataclasses.replace(
         static_config_slice_theta0,
-        solver=dataclasses.replace(
-            static_config_slice_theta0.solver, theta_imp=0.5
+        stepper=dataclasses.replace(
+            static_config_slice_theta0.stepper, theta_imp=0.5
         ),
     )
 

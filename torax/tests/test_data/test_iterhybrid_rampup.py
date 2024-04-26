@@ -92,17 +92,6 @@ def get_config() -> config_lib.Config:
           # condtion location if n != neped
           largeValue_n=1.0e8,
       ),
-      solver=config_lib.SolverConfig(
-          predictor_corrector=True,
-          corrector_steps=10,
-          # (deliberately) large heat conductivity for Pereverzev rule
-          chi_per=30,
-          # (deliberately) large particle diffusion for Pereverzev rule
-          d_per=15,
-          # use_pereverzev is only used for the linear solver
-          use_pereverzev=True,
-          log_iterations=True,
-      ),
   )
 
 
@@ -228,13 +217,33 @@ def get_sources() -> source_models_lib.SourceModels:
   return source_models
 
 
+def get_stepper_builder() -> (
+    nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder
+):
+  """Returns a builder for the stepper that includes its runtime params."""
+  builder = nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder(
+      runtime_params=nonlinear_theta_method.NewtonRaphsonRuntimeParams(
+          predictor_corrector=True,
+          corrector_steps=10,
+          # (deliberately) large heat conductivity for Pereverzev rule
+          chi_per=30,
+          # (deliberately) large particle diffusion for Pereverzev rule
+          d_per=15,
+          # use_pereverzev is only used for the linear solver
+          use_pereverzev=True,
+          log_iterations=True,
+      )
+  )
+  return builder
+
+
 def get_sim() -> sim_lib.Sim:
   config = get_config()
   geo = get_geometry(config)
   return sim_lib.build_sim_from_config(
       config=config,
       geo=geo,
-      stepper_builder=nonlinear_theta_method.NewtonRaphsonThetaMethod,
+      stepper_builder=get_stepper_builder(),
       source_models=get_sources(),
       transport_model=get_transport_model(),
       time_step_calculator=fixed_time_step_calculator.FixedTimeStepCalculator(),

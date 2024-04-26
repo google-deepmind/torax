@@ -18,7 +18,7 @@ Abstract base class defining updates to State.
 """
 
 import abc
-from typing import Callable
+import dataclasses
 
 import jax
 from torax import config_slice
@@ -28,6 +28,7 @@ from torax import geometry
 from torax import state
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
+from torax.stepper import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model as transport_model_lib
 
 
@@ -217,10 +218,19 @@ class Stepper(abc.ABC):
     )
 
 
-StepperBuilder = Callable[
-    [  # Arguments
-        transport_model_lib.TransportModel,
-        source_models_lib.SourceModels,
-    ],
-    Stepper,  # Returns a Stepper.
-]
+@dataclasses.dataclass(kw_only=True)
+class StepperBuilder(abc.ABC):
+  """Factory for Stepper objects."""
+
+  @abc.abstractmethod
+  def __call__(
+      self,
+      transport_model: transport_model_lib.TransportModel,
+      source_models: source_models_lib.SourceModels,
+  ) -> Stepper:
+    """Builds a Stepper instance."""
+
+  # Input parameters to the stepper built by this class.
+  runtime_params: runtime_params_lib.RuntimeParams = dataclasses.field(
+      default_factory=runtime_params_lib.RuntimeParams
+  )

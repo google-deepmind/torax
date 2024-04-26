@@ -276,9 +276,9 @@ def theta_method_block_residual(
       x_new_guess=x_new_guess,
       coeffs_old=coeffs_old,
       coeffs_new=coeffs_new,
-      theta_imp=static_config_slice.solver.theta_imp,
-      convection_dirichlet_mode=static_config_slice.solver.convection_dirichlet_mode,
-      convection_neumann_mode=static_config_slice.solver.convection_neumann_mode,
+      theta_imp=static_config_slice.stepper.theta_imp,
+      convection_dirichlet_mode=static_config_slice.stepper.convection_dirichlet_mode,
+      convection_neumann_mode=static_config_slice.stepper.convection_neumann_mode,
   )
 
   lhs = jnp.dot(lhs_mat, x_new_guess_vec) + lhs_vec

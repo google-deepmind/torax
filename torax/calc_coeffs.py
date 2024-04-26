@@ -56,7 +56,7 @@ def calculate_pereverzev_flux(
       geo.g1_over_vpr_face
       * true_ni_face
       * consts.keV2J
-      * dynamic_config_slice.solver.chi_per
+      * dynamic_config_slice.stepper.chi_per
       / geo.rmax**2
   )
 
@@ -64,11 +64,11 @@ def calculate_pereverzev_flux(
       geo.g1_over_vpr_face
       * true_ne_face
       * consts.keV2J
-      * dynamic_config_slice.solver.chi_per
+      * dynamic_config_slice.stepper.chi_per
       / geo.rmax**2
   )
 
-  d_face_per_el = dynamic_config_slice.solver.d_per / geo.rmax
+  d_face_per_el = dynamic_config_slice.stepper.d_per / geo.rmax
   v_face_per_el = (
       core_profiles.ne.face_grad()
       / core_profiles.ne.face_value()
@@ -185,7 +185,7 @@ def calc_coeffs(
 
   # If we are fully implicit and we are making a call for calc_coeffs for the
   # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
-  if explicit_call and static_config_slice.solver.theta_imp == 1.0:
+  if explicit_call and static_config_slice.stepper.theta_imp == 1.0:
     return _calc_coeffs_reduced(
         geo,
         core_profiles,

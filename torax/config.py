@@ -18,11 +18,9 @@ Specifies parameter names and default values for all physics and solver
 parameters.
 """
 
-from collections.abc import Iterable
 import dataclasses
 import enum
 import typing
-from typing import Any
 import chex
 from torax import interpolated_param
 
@@ -33,61 +31,6 @@ TimeDependentField = interpolated_param.InterpParamOrInterpParamInput
 # Type-alias for brevity. Helps users only import this module.
 InterpolationMode = interpolated_param.InterpolationMode
 InterpolationParam = interpolated_param.InterpolatedParam
-
-
-def _check_config_param_in_set(
-    param_name: str,
-    param_value: Any,
-    valid_values: Iterable[Any],
-) -> None:
-  if param_value not in valid_values:
-    raise ValueError(
-        f'{param_name} invalid. Must give {" or ".join(valid_values)}. '
-        f'Provided: {param_value}.'
-    )
-
-
-@chex.dataclass
-class SolverConfig:
-  """Configuration parameters for the differential equation solver."""
-
-  # theta value in the theta method.
-  # 0 = explicit, 1 = fully implicit, 0.5 = Crank-Nicolson
-  theta_imp: float = 1.0
-  # Enables predictor_corrector iterations with the linear solver.
-  # If False, compilation is faster
-  predictor_corrector: bool = True
-  # Number of corrector steps for the predictor-corrector linear solver.
-  # 0 means a pure linear solve with no corrector steps.
-  corrector_steps: int = 1
-  # See `fvm.convection_terms` docstring, `dirichlet_mode` argument
-  convection_dirichlet_mode: str = 'ghost'
-  # See `fvm.convection_terms` docstring, `neumann_mode` argument
-  convection_neumann_mode: str = 'ghost'
-  # use pereverzev terms for linear solver. Is only applied in the nonlinear
-  # solver for the optional initial guess from the linear solver
-  use_pereverzev: bool = False
-  # (deliberately) large heat conductivity for Pereverzev rule
-  chi_per: float = 20.0
-  # (deliberately) large particle diffusion for Pereverzev rule
-  d_per: float = 10.0
-  # log internal iterations in Newton-Raphson solver
-  log_iterations: bool = False
-
-  def __post_init__(self):
-    assert self.theta_imp >= 0.0
-    assert self.theta_imp <= 1.0
-    assert self.corrector_steps >= 0
-    _check_config_param_in_set(
-        'convection_dirichlet_mode',
-        self.convection_dirichlet_mode,
-        ['ghost', 'direct', 'semi-implicit'],
-    )
-    _check_config_param_in_set(
-        'convection_neumann_mode',
-        self.convection_neumann_mode,
-        ['ghost', 'semi-implicit'],
-    )
 
 
 # pylint: disable=invalid-name
@@ -244,9 +187,6 @@ class Config:
   )
   numerics: Numerics = dataclasses.field(default_factory=Numerics)
 
-  # solver parameters
-  solver: SolverConfig = dataclasses.field(default_factory=SolverConfig)
-
   # 'File directory where the simulation outputs will be saved. If not '
   # 'provided, this will default to /tmp/torax_results_<YYYYMMDD_HHMMSS>/.',
   output_dir: str | None = None
@@ -259,7 +199,6 @@ class Config:
 
     # These are floats, not jax types, so we can use direct asserts.
     assert self.numerics.dtmult > 0.0
-    assert isinstance(self.solver, SolverConfig)
     assert isinstance(self.plasma_composition, PlasmaComposition)
     assert isinstance(self.numerics, Numerics)
 
