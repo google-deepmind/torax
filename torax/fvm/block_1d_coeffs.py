@@ -65,7 +65,7 @@ class Block1DCoeffs:
   This class imposes the following structure on the problem:
   - It assumes the variables are arranged on a 1-D, evenly spaced grid.
   - It assumes the x variable is broken up into "channels," so the resulting
-    matrix equation has one block per channel.
+  matrix equation has one block per channel.
 
   Attributes:
     transient_out_cell: Tuple with one entry per channel, transient_out_cell[i]
