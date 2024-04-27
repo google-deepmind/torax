@@ -12,23 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Definition of configuration dataclass.
+"""General runtime input parameters used throughout TORAX simulations."""
 
-Specifies parameter names and default values for all physics and solver
-parameters.
-"""
+from __future__ import annotations
 
 import dataclasses
-import enum
-import typing
+
 import chex
 from torax import interpolated_param
 
 
 # Type-alias for clarity. While the InterpolatedParams can vary across any
-# field, in Config, we mainly use it to handle time-dependent parameters.
+# field, in here, we mainly use it to handle time-dependent parameters.
 TimeDependentField = interpolated_param.InterpParamOrInterpParamInput
-# Type-alias for brevity. Helps users only import this module.
+# Type-alias for brevity.
 InterpolationMode = interpolated_param.InterpolationMode
 InterpolationParam = interpolated_param.InterpolatedParam
 
@@ -176,8 +173,8 @@ class Numerics:
 
 # NOMUTANTS -- It's expected for the tests to pass with different defaults.
 @chex.dataclass
-class Config:
-  """Configuration parameters for the `torax` module."""
+class GeneralRuntimeParams:
+  """General runtime input parameters for the `torax` module."""
 
   plasma_composition: PlasmaComposition = dataclasses.field(
       default_factory=PlasmaComposition
@@ -204,84 +201,3 @@ class Config:
 
   def __post_init__(self):
     self.sanity_check()
-
-
-def recursive_replace(obj: ..., **changes) -> ...:
-  """Recursive version of `dataclasses.replace`.
-
-  This allows updating of nested dataclasses.
-  Assumes all dict-valued keys in `changes` are themselves changes to apply
-  to fields of obj.
-
-  Args:
-    obj: Any dataclass instance.
-    **changes: Dict of updates to apply to fields of `obj`.
-
-  Returns:
-    A copy of `obj` with the changes applied.
-  """
-
-  flattened_changes = {}
-  if dataclasses.is_dataclass(obj):
-    keys_to_types = {
-        field.name: field.type for field in dataclasses.fields(obj)
-    }
-  else:
-    # obj is another dict-like object that does not have typed fields.
-    keys_to_types = None
-  for key, value in changes.items():
-    if isinstance(value, dict):
-      if dataclasses.is_dataclass(getattr(obj, key)):
-        # If obj[key] is another dataclass, recurse and populate that dataclass
-        # with the input changes.
-        flattened_changes[key] = recursive_replace(getattr(obj, key), **value)
-      elif keys_to_types is not None:
-        # obj[key] is likely just a dict, and each key needs to be treated
-        # separately.
-        # In order to support this, there needs to be some added type
-        # information for what the values of the dict should be.
-        typing_args = typing.get_args(keys_to_types[key])
-        if len(typing_args) == 2:  # the keys type, the values type.
-          inner_dict = {}
-          value_type = typing_args[1]
-          for inner_key, inner_value in value.items():
-            if dataclasses.is_dataclass(value_type):
-              inner_dict[inner_key] = recursive_replace(
-                  value_type(), **inner_value
-              )
-            else:
-              inner_dict[inner_key] = value_type(inner_value)
-          flattened_changes[key] = inner_dict
-        else:
-          # If we don't have additional type information, just try using the
-          # value as is.
-          flattened_changes[key] = value
-      else:
-        # keys_to_types is None, so again, we don't have additional information.
-        flattened_changes[key] = value
-    else:
-      # For any value that should be an enum value but is not an enum already
-      # (could come a YAML file for instance and might be a string or int),
-      # this converts that value to an enum.
-      try:
-        if (
-            # if obj is a dataclass
-            keys_to_types is not None
-            and
-            # and this param should be an enum
-            issubclass(keys_to_types[key], enum.Enum)
-            and
-            # but it is not already one.
-            not isinstance(value, enum.Enum)
-        ):
-          if isinstance(value, str):
-            value = keys_to_types[key][value.upper()]
-          else:
-            value = keys_to_types[key](value)
-      except TypeError:
-        # Ignore these errors. issubclass doesn't work with typing.Optional
-        # types. Note that this means that optional enum fields might not be
-        # cast properly, so avoid these when defining configs.
-        pass
-      flattened_changes[key] = value
-  return dataclasses.replace(obj, **flattened_changes)

@@ -17,10 +17,10 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
-from torax import config as config_lib
-from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import qlknn_wrapper
 
@@ -35,22 +35,26 @@ class QlknnWrapperTest(parameterized.TestCase):
     qlknn = qlknn_wrapper.QLKNNTransportModel()
     # Caching only works when compiled.
     qlknn_jitted = jax.jit(qlknn)
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     source_models = source_models_lib.SourceModels()
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config=config,
-        transport=qlknn.runtime_params,
-        sources=source_models.runtime_params,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params=runtime_params,
+            transport=qlknn.runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
-    static_config_slice = config_slice.build_static_config_slice(config)
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=static_config_slice,
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
-    qlknn_jitted(dynamic_config_slice, geo, core_profiles)
+    qlknn_jitted(dynamic_runtime_params_slice, geo, core_profiles)
     # The call should be cached. If there was an error, the cache size would be
     # 0.
     self.assertGreaterEqual(

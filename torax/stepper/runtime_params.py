@@ -21,11 +21,12 @@ from typing import Any, Iterable
 
 import chex
 from torax import interpolated_param
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
 
 
 # Type-alias for clarity. While the InterpolatedParams can vary across any
-# field, in Config, we mainly use it to handle time-dependent parameters.
+# field, in runtime_params, we mainly use it to handle time-dependent
+# parameters.
 TimeDependentField = interpolated_param.InterpParamOrInterpParamInput
 
 
@@ -83,7 +84,7 @@ class RuntimeParams:
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
@@ -92,7 +93,7 @@ class RuntimeParams:
 
   def build_static_params(self) -> StaticRuntimeParams:
     return StaticRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=StaticRuntimeParams,
         )

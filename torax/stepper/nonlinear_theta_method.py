@@ -23,14 +23,14 @@ from typing import Type
 
 import chex
 import jax
-from torax import config_slice
 from torax import fvm
 from torax import geometry
 from torax import sim
 from torax import state
+from torax.config import config_args
+from torax.config import runtime_params_slice
 from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
-from torax.runtime_params import config_slice_args
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import runtime_params as runtime_params_lib
@@ -65,9 +65,9 @@ class NonlinearThetaMethod(stepper.Stepper):
   def _x_new(
       self,
       dt: jax.Array,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-      dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -82,7 +82,7 @@ class NonlinearThetaMethod(stepper.Stepper):
     """See Stepper._x_new docstring."""
 
     coeffs_callback = self.callback_class(
-        static_config_slice=static_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -93,9 +93,9 @@ class NonlinearThetaMethod(stepper.Stepper):
     )
     x_new, core_sources, core_transport, error = self._x_new_helper(
         dt=dt,
-        static_config_slice=static_config_slice,
-        dynamic_config_slice_t=dynamic_config_slice_t,
-        dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo=geo,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -110,9 +110,9 @@ class NonlinearThetaMethod(stepper.Stepper):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-      dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -163,9 +163,9 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-      dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -183,9 +183,9 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     x_new, error, (core_sources, core_transport) = (
         optimizer_solve_block.optimizer_solve_block(
             dt=dt,
-            static_config_slice=static_config_slice,
-            dynamic_config_slice_t=dynamic_config_slice_t,
-            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
             geo=geo,
             x_old=tuple([core_profiles_t[name] for name in evolving_names]),
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -250,7 +250,7 @@ class NewtonRaphsonRuntimeParams(runtime_params_lib.RuntimeParams):
       self, t: chex.Numeric
   ) -> DynamicNewtonRaphsonRuntimeParams:
     return DynamicNewtonRaphsonRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicNewtonRaphsonRuntimeParams,
             t=t,
@@ -302,9 +302,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
   def _x_new_helper(
       self,
       dt: jax.Array,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-      dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -319,7 +319,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
   ]:
     """Final implementation of x_new after callback has been created etc."""
     assert isinstance(
-        dynamic_config_slice_t.stepper, DynamicNewtonRaphsonRuntimeParams
+        dynamic_runtime_params_slice_t.stepper,
+        DynamicNewtonRaphsonRuntimeParams,
     )
     # disable error checking in residual, since Newton-Raphson routine has
     # error checking based on result of each linear step
@@ -328,9 +329,9 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     x_new, error, (core_sources, core_transport) = (
         newton_raphson_solve_block.newton_raphson_solve_block(
             dt=dt,
-            static_config_slice=static_config_slice,
-            dynamic_config_slice_t=dynamic_config_slice_t,
-            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
             geo=geo,
             x_old=tuple([core_profiles_t[name] for name in evolving_names]),
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -339,7 +340,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             source_models=self.source_models,
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
-            log_iterations=dynamic_config_slice_t.stepper.log_iterations,
+            log_iterations=dynamic_runtime_params_slice_t.stepper.log_iterations,
             initial_guess_mode=self.initial_guess_mode,
             maxiter=self.maxiter,
             tol=self.tol,

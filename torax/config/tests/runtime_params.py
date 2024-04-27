@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.config."""
+"""Unit tests for torax.config.runtime_params."""
 
 import dataclasses
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax import config as config_lib
+from torax.config import config_args
 
 
-class ConfigTest(parameterized.TestCase):
-  """Unit tests for the `torax.config` module."""
+class RuntimeParamsTest(parameterized.TestCase):
+  """Unit tests for the `torax.config.runtime_params` module."""
 
   def test_recursive_replace(self):
     """Basic test of recursive replace."""
@@ -66,7 +66,7 @@ class ConfigTest(parameterized.TestCase):
         # Don't update a4, to test that it is untouched
     }
 
-    result = config_lib.recursive_replace(instance, **changes)
+    result = config_args.recursive_replace(instance, **changes)
 
     self.assertIsInstance(result, A)
     self.assertEqual(result.a1, -1)

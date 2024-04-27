@@ -21,12 +21,13 @@ import chex
 from jax import numpy as jnp
 import numpy as np
 import torax
+from torax.config import config_args
+from torax.config import runtime_params as general_runtime_params
 
 _GEO_DIRECTORY = 'torax/data/third_party/geo'
 
 # It's best to import the parent `torax` package because that has the
 # __init__ file that configures jax to float64
-config_lib = torax.config
 fvm = torax.fvm
 geometry = torax.geometry
 
@@ -35,7 +36,7 @@ geometry = torax.geometry
 class References:
   """Collection of reference values useful for unit tests."""
 
-  config: config_lib.Config
+  runtime_params: general_runtime_params.GeneralRuntimeParams
   geo: geometry.Geometry
   psi: fvm.CellVariable
   psi_face_grad: np.ndarray
@@ -47,9 +48,9 @@ def circular_references() -> References:
   """Reference values for circular geometry."""
   # Hard-code the parameters relevant to the tests, so the reference values
   # will stay valid even if we change the Config constructor defaults
-  config = config_lib.Config()
-  config = config_lib.recursive_replace(
-      config,
+  runtime_params = general_runtime_params.GeneralRuntimeParams()
+  runtime_params = config_args.recursive_replace(
+      runtime_params,
       **{
           'profile_conditions': {
               'Ip': 15,
@@ -62,7 +63,7 @@ def circular_references() -> References:
       },
   )
   geo = geometry.build_circular_geometry(
-      config=config,
+      runtime_params=runtime_params,
       kappa=1.72,
       hires_fac=4,
       Rmaj=6.2,
@@ -188,7 +189,7 @@ def circular_references() -> References:
       2.3139498913449468,
   ])
   return References(
-      config=config,
+      runtime_params=runtime_params,
       geo=geo,
       psi=psi,
       psi_face_grad=psi_face_grad,
@@ -199,9 +200,9 @@ def circular_references() -> References:
 
 def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid-name
   """Reference values for CHEASE geometry where the Ip comes from the file."""
-  config = config_lib.Config()
-  config = config_lib.recursive_replace(
-      config,
+  runtime_params = general_runtime_params.GeneralRuntimeParams()
+  runtime_params = config_args.recursive_replace(
+      runtime_params,
       **{
           'profile_conditions': {
               'Ip': 15,
@@ -214,7 +215,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       },
   )
   geo = geometry.build_chease_geometry(
-      config=config,
+      runtime_params=runtime_params,
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
       Ip_from_parameters=False,
@@ -341,7 +342,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       1.8139935034456611,
   ])
   return References(
-      config=config,
+      runtime_params=runtime_params,
       geo=geo,
       psi=psi,
       psi_face_grad=psi_face_grad,
@@ -350,11 +351,11 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
   )
 
 
-def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid-name
+def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable=invalid-name
   """Reference values for CHEASE geometry where the Ip comes from the config."""
-  config = config_lib.Config()
-  config = config_lib.recursive_replace(
-      config,
+  runtime_params = general_runtime_params.GeneralRuntimeParams()
+  runtime_params = config_args.recursive_replace(
+      runtime_params,
       **{
           'profile_conditions': {
               'Ip': 15,
@@ -367,7 +368,7 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
       },
   )
   geo = geometry.build_chease_geometry(
-      config=config,
+      runtime_params=runtime_params,
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
       Ip_from_parameters=True,
@@ -494,7 +495,7 @@ def chease_references_Ip_from_config() -> References:  # pylint: disable=invalid
       1.813993503445698,
   ])
   return References(
-      config=config,
+      runtime_params=runtime_params,
       geo=geo,
       psi=psi,
       psi_face_grad=psi_face_grad,
@@ -516,7 +517,7 @@ class ReferenceValueTest(parameterized.TestCase):
         chease_references_Ip_from_chease()
     )
     self.chease_references_with_Ip_from_config = (
-        chease_references_Ip_from_config()
+        chease_references_Ip_from_runtime_params()
     )
     # pylint: enable=invalid-name
 

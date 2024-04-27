@@ -201,7 +201,7 @@ python3 run_simulation_main.py \
 
 Once complete, the time history of a simulation state and derived quantities is written to `state_history.nc`. The output path is written to stdout
 
-To take advantage of the in-memory (non-persistent) cache, the process does not end upon simulation termination. It is possible to modify the config, toggle the `log_progress` and `plot_progress` flags, and rerun the simulation. Only the following modifications will then trigger a recompilation:
+To take advantage of the in-memory (non-persistent) cache, the process does not end upon simulation termination. It is possible to modify the runtime_params, toggle the `log_progress` and `plot_progress` flags, and rerun the simulation. Only the following modifications will then trigger a recompilation:
 
 - Grid resolution
 - Evolved variables (equations being solved)

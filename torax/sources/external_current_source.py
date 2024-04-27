@@ -21,11 +21,11 @@ import dataclasses
 import chex
 from jax import numpy as jnp
 from jax.scipy import integrate
-from torax import config_slice
 from torax import geometry
 from torax import jax_utils
 from torax import state
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
+from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
@@ -54,7 +54,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
@@ -87,7 +87,7 @@ _trapz = integrate.trapezoid
 
 
 def _calculate_jext_face(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
@@ -95,7 +95,7 @@ def _calculate_jext_face(
   """Calculates the external current density profiles.
 
   Args:
-    dynamic_config_slice: Parameter configuration at present timestep.
+    dynamic_runtime_params_slice: Parameter configuration at present timestep.
     dynamic_source_runtime_params: Source-specific parameters at the present
       timestep.
     geo: Tokamak geometry.
@@ -107,7 +107,7 @@ def _calculate_jext_face(
   """
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   Iext = _calculate_Iext(
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       dynamic_source_runtime_params,
   )
   # form of external current on face grid
@@ -123,7 +123,7 @@ def _calculate_jext_face(
 
 
 def _calculate_jext_hires(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
@@ -131,7 +131,7 @@ def _calculate_jext_hires(
   """Calculates the external current density profile along the hires grid.
 
   Args:
-    dynamic_config_slice: Parameter configuration at present timestep.
+    dynamic_runtime_params_slice: Parameter configuration at present timestep.
     dynamic_source_runtime_params: Source-specific parameters at the present
       timestep.
     geo: Tokamak geometry.
@@ -143,7 +143,7 @@ def _calculate_jext_hires(
   """
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   Iext = _calculate_Iext(
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       dynamic_source_runtime_params,
   )
   # calculate "External" current profile (e.g. ECCD)
@@ -159,7 +159,7 @@ def _calculate_jext_hires(
 
 
 def _calculate_Iext(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: DynamicRuntimeParams,
 ) -> chex.Numeric:
   """Calculates the total value of external current."""
@@ -167,7 +167,7 @@ def _calculate_Iext(
       dynamic_source_runtime_params.use_absolute_jext,
       dynamic_source_runtime_params.Iext,
       (
-          dynamic_config_slice.profile_conditions.Ip
+          dynamic_runtime_params_slice.profile_conditions.Ip
           * dynamic_source_runtime_params.fext
       ),
   )
@@ -200,7 +200,7 @@ class ExternalCurrentSource(source.Source):
 
   def get_value(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
@@ -209,7 +209,7 @@ class ExternalCurrentSource(source.Source):
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
     self.check_mode(dynamic_source_runtime_params.mode)
     profile = source.get_source_profiles(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -224,7 +224,7 @@ class ExternalCurrentSource(source.Source):
 
   def jext_hires(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
   ) -> jnp.ndarray:
@@ -232,7 +232,7 @@ class ExternalCurrentSource(source.Source):
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
     self.check_mode(dynamic_source_runtime_params.mode)
     return source.get_source_profiles(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         core_profiles=None,

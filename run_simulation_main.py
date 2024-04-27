@@ -168,7 +168,7 @@ def maybe_update_config_module(
 def change_config(
     sim: torax.Sim,
     config_module_str: str,
-) -> tuple[torax.Sim, torax.Config, str]:
+) -> tuple[torax.Sim, torax.GeneralRuntimeParams, str]:
   """Returns a new Sim with the updated config but same SimulationStepFn.
 
   This function gives the user a chance to reuse the SimulationStepFn without
@@ -193,13 +193,13 @@ def change_config(
   config_module_str = maybe_update_config_module(config_module_str)
   simulation_app.log_to_stdout(
       f'Change {config_module_str} to include new values. Only changes to '
-      'get_config() will be picked up.',
+      'get_runtime_params() will be picked up.',
       color=simulation_app.AnsiColors.BLUE,
   )
   input('Press Enter when ready.')
   config_module, _ = _get_config_module(config_module_str)
-  new_config = config_module.get_config()
-  new_geo = config_module.get_geometry(new_config)
+  new_runtime_params = config_module.get_runtime_params()
+  new_geo = config_module.get_geometry(new_runtime_params)
   new_transport_model = config_module.get_transport_model()
   source_models = config_module.get_sources()
   new_source_params = {
@@ -220,18 +220,18 @@ def change_config(
     )
   sim = simulation_app.update_sim(
       sim=sim,
-      config=new_config,
+      runtime_params=new_runtime_params,
       geo=new_geo,
       transport_runtime_params=new_transport_model.runtime_params,
       source_runtime_params=new_source_params,
       stepper_runtime_params_getter=stepper_params_getter,
   )
-  return sim, new_config, config_module_str
+  return sim, new_runtime_params, config_module_str
 
 
 def change_sim_obj(
     config_module_str: str,
-) -> tuple[torax.Sim, torax.Config, str]:
+) -> tuple[torax.Sim, torax.GeneralRuntimeParams, str]:
   """Builds a new Sim from the config module.
 
   Unlike change_config(), this function builds a brand new Sim object with a
@@ -256,9 +256,9 @@ def change_sim_obj(
   )
   input('Press Enter when done changing the module.')
   config_module, _ = _get_config_module(config_module_str)
-  new_config = config_module.get_config()
+  new_runtime_params = config_module.get_runtime_params()
   sim = config_module.get_sim()
-  return sim, new_config, config_module_str
+  return sim, new_runtime_params, config_module_str
 
 
 def _toggle_log_progress(log_sim_progress: bool) -> bool:
@@ -323,14 +323,14 @@ def _toggle_log_output(log_sim_output: bool) -> bool:
 
 def main(_):
   config_module, config_module_str = _get_config_module()
-  new_config = config_module.get_config()
+  new_runtime_params = config_module.get_runtime_params()
   sim = config_module.get_sim()
   log_sim_progress = _LOG_SIM_PROGRESS.value
   plot_sim_progress = _PLOT_SIM_PROGRESS.value
   log_sim_output = _LOG_SIM_OUTPUT.value
   simulation_app.main(
       lambda: sim,
-      output_dir=new_config.output_dir,
+      output_dir=new_runtime_params.output_dir,
       log_sim_progress=log_sim_progress,
       plot_sim_progress=plot_sim_progress,
       log_sim_output=log_sim_output,
@@ -344,19 +344,21 @@ def main(_):
       case _UserCommand.RUN:
         simulation_app.main(
             lambda: sim,
-            output_dir=new_config.output_dir,
+            output_dir=new_runtime_params.output_dir,
             log_sim_progress=log_sim_progress,
             plot_sim_progress=plot_sim_progress,
             log_sim_output=log_sim_output,
         )
       case _UserCommand.CHANGE_CONFIG:
         # See docstring for detailed info on what recompiles.
-        sim, new_config, config_module_str = change_config(
+        sim, new_runtime_params, config_module_str = change_config(
             sim, config_module_str
         )
       case _UserCommand.CHANGE_SIM_OBJ:
         # This always builds a new object and requires recompilation.
-        sim, new_config, config_module_str = change_sim_obj(config_module_str)
+        sim, new_runtime_params, config_module_str = change_sim_obj(
+            config_module_str
+        )
       case _UserCommand.TOGGLE_LOG_SIM_PROGRESS:
         log_sim_progress = _toggle_log_progress(log_sim_progress)
       case _UserCommand.TOGGLE_PLOT_SIM_PROGRESS:

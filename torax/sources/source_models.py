@@ -20,12 +20,12 @@ import dataclasses
 import functools
 
 import jax.numpy as jnp
-from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax.config import runtime_params_slice
 from torax.fvm import diffusion_terms
 from torax.sources import bootstrap_current_source
 from torax.sources import external_current_source
@@ -42,7 +42,7 @@ from torax.sources import source_profiles
     ],
 )
 def build_source_profiles(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
@@ -51,8 +51,8 @@ def build_source_profiles(
   """Builds explicit or implicit source profiles.
 
   Args:
-    dynamic_config_slice: Input config for this time step. Can change from time
-      step to time step.
+    dynamic_runtime_params_slice: Input config for this time step. Can change
+      from time step to time step.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
@@ -67,11 +67,11 @@ def build_source_profiles(
   """
   # Bootstrap current is a special-case source with multiple outputs, so handle
   # it here.
-  dynamic_bootstrap_runtime_params = dynamic_config_slice.sources[
+  dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
   bootstrap_profiles = _build_bootstrap_profiles(
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
@@ -81,17 +81,25 @@ def build_source_profiles(
   other_profiles = {}
   other_profiles.update(
       _build_psi_profiles(
-          dynamic_config_slice, geo, core_profiles, source_models, explicit
+          dynamic_runtime_params_slice,
+          geo,
+          core_profiles,
+          source_models,
+          explicit,
       )
   )
   other_profiles.update(
       _build_ne_profiles(
-          dynamic_config_slice, geo, core_profiles, source_models, explicit
+          dynamic_runtime_params_slice,
+          geo,
+          core_profiles,
+          source_models,
+          explicit,
       )
   )
   other_profiles.update(
       _build_temp_ion_el_profiles(
-          dynamic_config_slice,
+          dynamic_runtime_params_slice,
           geo,
           core_profiles,
           source_models,
@@ -108,7 +116,7 @@ def build_source_profiles(
 
 
 def _build_bootstrap_profiles(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -119,8 +127,8 @@ def _build_bootstrap_profiles(
   """Computes the bootstrap current profile.
 
   Args:
-    dynamic_config_slice: Input config for this time step. Can change from time
-      step to time step.
+    dynamic_runtime_params_slice: Input config for this time step. Can change
+      from time step to time step.
     dynamic_source_runtime_params: Input runtime parameters for this time step,
       specific to the bootstrap current source.
     geo: Geometry of the torus.
@@ -139,7 +147,7 @@ def _build_bootstrap_profiles(
     Bootstrap current profile.
   """
   bootstrap_profile = j_bootstrap_source.get_value(
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_source_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
@@ -185,7 +193,7 @@ def _build_bootstrap_profiles(
 
 
 def _build_psi_profiles(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
@@ -195,8 +203,8 @@ def _build_psi_profiles(
   """Computes psi sources and builds a kwargs dict for SourceProfiles.
 
   Args:
-    dynamic_config_slice: Input config for this time step. Can change from time
-      step to time step.
+    dynamic_runtime_params_slice: Input config for this time step. Can change
+      from time step to time step.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
@@ -214,7 +222,7 @@ def _build_psi_profiles(
   """
   psi_profiles = {}
   # jext is precomputed in the core profiles.
-  dynamic_jext_runtime_params = dynamic_config_slice.sources[
+  dynamic_jext_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.jext_name
   ]
   psi_profiles[source_models.jext_name] = jax_utils.select(
@@ -228,14 +236,16 @@ def _build_psi_profiles(
   # Iterate through the rest of the sources and compute profiles for the ones
   # which relate to psi. jext is not part of the "standard sources."
   for source_name, source in source_models.psi_sources.items():
-    dynamic_source_runtime_params = dynamic_config_slice.sources[source_name]
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        source_name
+    ]
     psi_profiles[source_name] = jax_utils.select(
         jnp.logical_or(
             explicit == dynamic_source_runtime_params.is_explicit,
             calculate_anyway,
         ),
         source.get_value(
-            dynamic_config_slice,
+            dynamic_runtime_params_slice,
             dynamic_source_runtime_params,
             geo,
             core_profiles,
@@ -246,7 +256,7 @@ def _build_psi_profiles(
 
 
 def _build_ne_profiles(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
@@ -255,8 +265,8 @@ def _build_ne_profiles(
   """Computes ne sources and builds a kwargs dict for SourceProfiles.
 
   Args:
-    dynamic_config_slice: Input config for this time step. Can change from time
-      step to time step.
+    dynamic_runtime_params_slice: Input config for this time step. Can change
+      from time step to time step.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
@@ -275,11 +285,13 @@ def _build_ne_profiles(
   # Iterate through the sources and compute profiles for the ones which relate
   # to ne.
   for source_name, source in source_models.ne_sources.items():
-    dynamic_source_runtime_params = dynamic_config_slice.sources[source_name]
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        source_name
+    ]
     ne_profiles[source_name] = jax_utils.select(
         explicit == dynamic_source_runtime_params.is_explicit,
         source.get_value(
-            dynamic_config_slice,
+            dynamic_runtime_params_slice,
             dynamic_source_runtime_params,
             geo,
             core_profiles,
@@ -290,7 +302,7 @@ def _build_ne_profiles(
 
 
 def _build_temp_ion_el_profiles(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
@@ -299,8 +311,8 @@ def _build_temp_ion_el_profiles(
   """Computes ion and el sources and builds a kwargs dict for SourceProfiles.
 
   Args:
-    dynamic_config_slice: Input config for this time step. Can change from time
-      step to time step.
+    dynamic_runtime_params_slice: Input config for this time step. Can change
+      from time step to time step.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
@@ -322,11 +334,13 @@ def _build_temp_ion_el_profiles(
   )
   for source_name, source in temp_ion_el_sources.items():
     zeros = jnp.zeros(source.output_shape_getter(geo))
-    dynamic_source_runtime_params = dynamic_config_slice.sources[source_name]
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        source_name
+    ]
     ion_el_profiles[source_name] = jax_utils.select(
         explicit == dynamic_source_runtime_params.is_explicit,
         source.get_value(
-            dynamic_config_slice,
+            dynamic_runtime_params_slice,
             dynamic_source_runtime_params,
             geo,
             core_profiles,
@@ -406,7 +420,7 @@ def sum_sources_temp_el(
 
 
 def calc_and_sum_sources_psi(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
@@ -417,7 +431,7 @@ def calc_and_sum_sources_psi(
   # expensive source functions that might not jittable (like file-based or
   # RPC-based sources).
   psi_profiles = _build_psi_profiles(
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       geo,
       core_profiles,
       source_models,
@@ -426,11 +440,11 @@ def calc_and_sum_sources_psi(
   total = 0
   for key in psi_profiles:
     total += psi_profiles[key]
-  dynamic_bootstrap_runtime_params = dynamic_config_slice.sources[
+  dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
   j_bootstrap_profiles = _build_bootstrap_profiles(
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
@@ -451,7 +465,7 @@ def calc_and_sum_sources_psi(
     ],
 )
 def calc_psidot(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
@@ -466,7 +480,7 @@ def calc_psidot(
   (but abridged) formulation as in sim.calc_coeffs and fvm._calc_c is used here
 
   Args:
-    dynamic_config_slice: Simulation configuration at this timestep
+    dynamic_runtime_params_slice: Simulation configuration at this timestep
     geo: Torus geometry
     core_profiles: Core plasma profiles.
     source_models: All TORAX source/sinks.
@@ -477,14 +491,14 @@ def calc_psidot(
   consts = constants.CONSTANTS
 
   psi_sources, sigma = calc_and_sum_sources_psi(
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       geo,
       core_profiles,
       source_models,
   )
   toc_psi = (
       1.0
-      / dynamic_config_slice.numerics.resistivity_mult
+      / dynamic_runtime_params_slice.numerics.resistivity_mult
       * geo.r
       * sigma
       * consts.mu0
@@ -504,7 +518,7 @@ def calc_psidot(
 #  OhmicHeatSource is a special case and defined here to avoid circular
 #  dependencies, since it depends on the psi sources
 def _ohmic_heat_model(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
@@ -516,7 +530,7 @@ def _ohmic_heat_model(
   )
 
   psidot = calc_psidot(
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       geo,
       core_profiles,
       source_models,
@@ -573,14 +587,14 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
   def __post_init__(self):
     # Ignore the model provided above and set it to the function here.
     def _model_func(
-        dynamic_config_slice: config_slice.DynamicConfigSlice,
+        dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
         dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
         geo: geometry.Geometry,
         core_profiles: state.CoreProfiles,
     ) -> jnp.ndarray:
       del dynamic_source_runtime_params
       return _ohmic_heat_model(
-          dynamic_config_slice=dynamic_config_slice,
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
           geo=geo,
           core_profiles=core_profiles,
           source_models=self.source_models,

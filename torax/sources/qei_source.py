@@ -21,11 +21,11 @@ import dataclasses
 import chex
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import geometry
 from torax import physics
 from torax import state
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
+from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -41,7 +41,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
@@ -86,8 +86,8 @@ class QeiSource(source.Source):
 
   def get_qei(
       self,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -98,8 +98,8 @@ class QeiSource(source.Source):
         dynamic_source_runtime_params.mode
         == runtime_params_lib.Mode.MODEL_BASED.value,
         lambda: _model_based_qei(
-            static_config_slice,
-            dynamic_config_slice,
+            static_runtime_params_slice,
+            dynamic_runtime_params_slice,
             dynamic_source_runtime_params,
             geo,
             core_profiles,
@@ -110,7 +110,7 @@ class QeiSource(source.Source):
   def get_value(
       self,
       source_type: int,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
   ) -> source_profiles.QeiInfo:
@@ -126,8 +126,8 @@ class QeiSource(source.Source):
 
 
 def _model_based_qei(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -137,8 +137,8 @@ def _model_based_qei(
   zeros = jnp.zeros_like(geo.r_norm)
   qei_coef = physics.coll_exchange(
       core_profiles=core_profiles,
-      nref=dynamic_config_slice.numerics.nref,
-      Ai=dynamic_config_slice.plasma_composition.Ai,
+      nref=dynamic_runtime_params_slice.numerics.nref,
+      Ai=dynamic_runtime_params_slice.plasma_composition.Ai,
       Qei_mult=dynamic_source_runtime_params.Qei_mult,
   )
   implicit_ii = -qei_coef
@@ -146,9 +146,13 @@ def _model_based_qei(
 
   if (
       # if only a single heat equation is being evolved
-      (static_config_slice.ion_heat_eq and not static_config_slice.el_heat_eq)
+      (
+          static_runtime_params_slice.ion_heat_eq
+          and not static_runtime_params_slice.el_heat_eq
+      )
       or (
-          static_config_slice.el_heat_eq and not static_config_slice.ion_heat_eq
+          static_runtime_params_slice.el_heat_eq
+          and not static_runtime_params_slice.ion_heat_eq
       )
   ):
     explicit_i = qei_coef * core_profiles.temp_el.value

@@ -18,11 +18,11 @@ from collections.abc import Callable
 import dataclasses
 from typing import Type
 import jax
-from torax import config_slice
 from torax import fvm
 from torax import geometry
 from torax import sim
 from torax import state
+from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
@@ -46,9 +46,9 @@ class LinearThetaMethod(stepper_lib.Stepper):
   def _x_new(
       self,
       dt: jax.Array,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-      dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -69,7 +69,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
 
     # Instantiate coeffs_callback class
     coeffs_callback = self.callback_class(
-        static_config_slice=static_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -82,11 +82,15 @@ class LinearThetaMethod(stepper_lib.Stepper):
     # Compute the explicit coeffs based on the core profiles at time t and all
     # runtime parameters at time t.
     coeffs_exp = coeffs_callback(
-        dynamic_config_slice_t, x_old, allow_pereverzev=True, explicit_call=True
+        dynamic_runtime_params_slice_t,
+        x_old,
+        allow_pereverzev=True,
+        explicit_call=True,
     )
 
     # Calculate x_new with the predictor corrector method. Reverts to a
-    # standard linear solve if static_config_slice.predictor_corrector=False.
+    # standard linear solve if
+    # static_runtime_params_slice.predictor_corrector=False.
     # init_val is the initialization for the predictor_corrector loop.
     # Neither value impacts the final result, but needs to be the correct
     # type. x_new initialization (index 0) input is x_old for correct typing.
@@ -106,8 +110,8 @@ class LinearThetaMethod(stepper_lib.Stepper):
     x_new, (core_sources, core_transport) = (
         predictor_corrector_method.predictor_corrector_method(
             dt=dt,
-            static_config_slice=static_config_slice,
-            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
             x_old=x_old,
             init_val=init_val,
             coeffs_exp=coeffs_exp,

@@ -20,9 +20,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import torax  # useful for setting up jax properly.
-from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
+from torax.config import runtime_params_slice
 from torax.sources import default_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -43,30 +43,42 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
-    config = torax.Config()
-    geo = torax.build_circular_geometry(config)
+    runtime_params = torax.GeneralRuntimeParams()
+    geo = torax.build_circular_geometry(runtime_params)
     source_models = source_models_lib.SourceModels()
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        sources=source_models.runtime_params,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params
+        ),
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
     _ = source_models_lib.build_source_profiles(
-        dynamic_config_slice, geo, core_profiles, source_models, explicit=True
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        source_models,
+        explicit=True,
     )
     _ = source_models_lib.build_source_profiles(
-        dynamic_config_slice, geo, core_profiles, source_models, explicit=False
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        source_models,
+        explicit=False,
     )
 
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
     """Test that sum_sources_temp_{ion|el} works with jitting."""
-    config = torax.Config()
-    geo = torax.build_circular_geometry(config)
+    runtime_params = torax.GeneralRuntimeParams()
+    geo = torax.build_circular_geometry(runtime_params)
 
     # Use the default sources where the generic_ion_el_heat_source,
     # fusion_heat_source, and ohmic_heat_source are included and produce
@@ -144,22 +156,26 @@ class SourceProfilesTest(parameterized.TestCase):
     source_models = source_models_lib.SourceModels(
         sources={source_name: foo_source},
     )
-    config = torax.Config()
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        sources=source_models.runtime_params,
+    runtime_params = torax.GeneralRuntimeParams()
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
-    geo = torax.build_circular_geometry(config)
+    geo = torax.build_circular_geometry(runtime_params)
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params
+        ),
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
 
     def compute_and_sum_profiles():
       profiles = source_models_lib.build_source_profiles(
-          dynamic_config_slice=dynamic_config_slice,
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
           geo=geo,
           core_profiles=core_profiles,
           source_models=source_models,

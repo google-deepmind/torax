@@ -22,10 +22,10 @@ from typing import Union
 
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import geometry
 from torax import jax_utils
 from torax import state as state_module
+from torax.config import runtime_params_slice
 from torax.time_step_calculator import time_step_calculator
 
 # Dummy state and type for compatibility with time_step_calculator base class
@@ -48,16 +48,16 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
   def not_done(
       self,
       t: Union[float, jax.Array],
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       state: State,
   ) -> Union[bool, jax.Array]:
-    """Returns True if iteration not done (t < config.numerics.t_final)."""
-    return t < dynamic_config_slice.numerics.t_final
+    """Returns True if iteration not done (t < runtime_params.numerics.t_final)."""
+    return t < dynamic_runtime_params_slice.numerics.t_final
 
   @functools.partial(jax_utils.jit, static_argnames=['self'])
   def next_dt(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
@@ -69,8 +69,8 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
     size for the explicit method, and is therefore a function of chi_max.
 
     Args:
-      dynamic_config_slice: Input config parameters that can change without
-        triggering a JAX recompilation.
+      dynamic_runtime_params_slice: Input runtime parameters that can change
+        without triggering a JAX recompilation.
       geo: Geometry for the tokamak being simulated.
       core_profiles: Current core plasma profiles.
       time_step_calculator_state: None, for compatibility with
@@ -86,8 +86,8 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
     basic_dt = (3.0 / 4.0) * (geo.dr_norm**2) / chi_max * geo.rmax**2
 
     dt = jnp.minimum(
-        dynamic_config_slice.numerics.dtmult * basic_dt,
-        dynamic_config_slice.numerics.maxdt,
+        dynamic_runtime_params_slice.numerics.dtmult * basic_dt,
+        dynamic_runtime_params_slice.numerics.maxdt,
     )
 
     return dt, STATE

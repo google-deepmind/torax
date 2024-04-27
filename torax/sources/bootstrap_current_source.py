@@ -21,14 +21,14 @@ import dataclasses
 import chex
 from jax import numpy as jnp
 from jax.scipy import integrate
-from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax.config import config_args
+from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
-from torax.runtime_params import config_slice_args
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -41,7 +41,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
@@ -95,7 +95,7 @@ class BootstrapCurrentSource(source.Source):
 
   def get_value(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
@@ -134,7 +134,7 @@ class BootstrapCurrentSource(source.Source):
     psi = psi or core_profiles.psi
     # pytype: enable=attribute-error
     return calc_neoclassical(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         temp_ion=temp_ion,
@@ -160,7 +160,7 @@ class BootstrapCurrentSource(source.Source):
 
 @jax_utils.jit
 def calc_neoclassical(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: DynamicRuntimeParams,
     geo: geometry.Geometry,
     temp_ion: cell_variable.CellVariable,
@@ -173,7 +173,7 @@ def calc_neoclassical(
   """Calculates sigmaneo, j_bootstrap, and I_bootstrap.
 
   Args:
-    dynamic_config_slice: General configuration parameters.
+    dynamic_runtime_params_slice: General configuration parameters.
     dynamic_source_runtime_params: Source-specific runtime parameters.
     geo: Torus geometry.
     temp_ion: Ion temperature. We don't pass in a full `State` here because this
@@ -195,9 +195,9 @@ def calc_neoclassical(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  true_ne_face = ne.face_value() * dynamic_config_slice.numerics.nref
-  true_ni_face = ni.face_value() * dynamic_config_slice.numerics.nref
-  Zeff = dynamic_config_slice.plasma_composition.Zeff
+  true_ne_face = ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+  true_ni_face = ni.face_value() * dynamic_runtime_params_slice.numerics.nref
+  Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
 
   # # local r/R0 on face grid
   epsilon = (geo.Rout_face - geo.Rin_face) / (geo.Rout_face + geo.Rin_face)
@@ -214,7 +214,7 @@ def calc_neoclassical(
   lnLame = 31.3 - jnp.log(jnp.sqrt(true_ne_face) / (temp_el.face_value() * 1e3))
   # TODO(b/335599537) use ni instead of ne
   lnLami = 30 - jnp.log(
-      dynamic_config_slice.plasma_composition.Zi**3
+      dynamic_runtime_params_slice.plasma_composition.Zi**3
       * jnp.sqrt(true_ne_face)
       / ((temp_ion.face_value() * 1e3) ** 1.5)
   )
@@ -227,7 +227,7 @@ def calc_neoclassical(
       geo=geo,
       psi=psi,
       jtot_face=jtot_face,
-      q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
+      q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
   )
   nuestar = (
       6.921e-18

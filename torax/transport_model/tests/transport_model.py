@@ -17,11 +17,11 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax import config as config_lib
-from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import runtime_params as runtime_params_lib
@@ -34,10 +34,12 @@ class TransportSmoothingTest(parameterized.TestCase):
   def test_smoothing(self):
     """Tests that smoothing works as expected."""
     # Set up default config and geo
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(set_pedestal=False),
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            set_pedestal=False
+        ),
     )
-    geo = geometry.build_circular_geometry(config)
+    geo = geometry.build_circular_geometry(runtime_params)
     source_models = source_models_lib.SourceModels()
     transport_model = FakeTransportModel(
         runtime_params=runtime_params_lib.RuntimeParams(
@@ -48,32 +50,36 @@ class TransportSmoothingTest(parameterized.TestCase):
             smoothing_sigma=0.05,
         )
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        transport=transport_model.runtime_params,
-        sources=source_models.runtime_params,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            transport=transport_model.runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
-    static_config_slice = config_slice.build_static_config_slice(config)
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+    )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     input_state = sim_lib.get_initial_state(
-        dynamic_config_slice=dynamic_config_slice,
-        static_config_slice=static_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         time_step_calculator=time_calculator,
         source_models=source_models,
     )
     transport_coeffs = transport_model(
-        dynamic_config_slice, geo, input_state.core_profiles
+        dynamic_runtime_params_slice, geo, input_state.core_profiles
     )
     chi_face_ion_orig = np.linspace(0.5, 2, geo.r_face_norm.shape[0])
     chi_face_el_orig = np.linspace(0.25, 1, geo.r_face_norm.shape[0])
     d_face_el_orig = np.linspace(2, 3, geo.r_face_norm.shape[0])
     v_face_el_orig = np.linspace(-0.2, -2, geo.r_face_norm.shape[0])
     inner_patch_idx = np.searchsorted(
-        geo.r_face_norm, dynamic_config_slice.transport.rho_inner
+        geo.r_face_norm, dynamic_runtime_params_slice.transport.rho_inner
     )
     outer_patch_idx = np.searchsorted(
-        geo.r_face_norm, dynamic_config_slice.transport.rho_outer
+        geo.r_face_norm, dynamic_runtime_params_slice.transport.rho_outer
     )
 
     # assert that the smoothing did not impact the zones inside/outside the
@@ -120,7 +126,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     smoothing_array = np.exp(
         -np.log(2)
         * (r_reduced - test_r) ** 2
-        / (dynamic_config_slice.transport.smoothing_sigma**2 + eps)
+        / (dynamic_runtime_params_slice.transport.smoothing_sigma**2 + eps)
     )
     smoothing_array /= np.sum(smoothing_array)
     smoothing_array = np.where(
@@ -180,11 +186,11 @@ class FakeTransportModel(transport_model_lib.TransportModel):
 
   def _call_implementation(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
-    del dynamic_config_slice, core_profiles  # these are unused
+    del dynamic_runtime_params_slice, core_profiles  # these are unused
     chi_face_ion = np.linspace(0.5, 2, geo.r_face_norm.shape[0])
     chi_face_el = np.linspace(0.25, 1, geo.r_face_norm.shape[0])
     d_face_el = np.linspace(2, 3, geo.r_face_norm.shape[0])

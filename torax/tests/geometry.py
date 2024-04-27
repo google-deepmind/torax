@@ -21,8 +21,8 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import config as config_lib
 from torax import geometry
+from torax.config import runtime_params as general_runtime_params
 
 
 class GeometryTest(parameterized.TestCase):
@@ -52,25 +52,27 @@ class GeometryTest(parameterized.TestCase):
 
   def test_frozen(self):
     """Test that the Geometry class is frozen."""
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     with self.assertRaises(dataclasses.FrozenInstanceError):
       geo.dr = 1.0
 
   def test_geometry_can_be_input_to_jitted_function(self):
     """Test that the Geometry class can be input to a jitted function."""
+
     def foo(geo: geometry.Geometry):
       _ = geo  # do nothing.
+
     foo_jitted = jax.jit(foo)
-    config = config_lib.Config()
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
 
     with self.subTest('CircularGeometry'):
-      geo = geometry.build_circular_geometry(config)
+      geo = geometry.build_circular_geometry(runtime_params)
       # Make sure you can call the function with geo as an arg.
       foo_jitted(geo)
 
     with self.subTest('CHEASEGeometry'):
-      geo = geometry.build_chease_geometry(config)
+      geo = geometry.build_chease_geometry(runtime_params)
       # Make sure you can call the function with geo as an arg.
       foo_jitted(geo)
 

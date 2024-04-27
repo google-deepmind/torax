@@ -22,9 +22,9 @@ from typing import Protocol, TypeVar, Union
 
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import geometry
 from torax import state as state_module
+from torax.config import runtime_params_slice
 
 # Subclasses override with their own state type
 State = TypeVar('State')
@@ -52,7 +52,7 @@ class TimeStepCalculator(Protocol[State]):
   def not_done(
       self,
       t: Union[float, jax.Array],
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       state: State,
   ) -> Union[bool, jax.Array]:
     """If True, next_dt may be called again."""
@@ -60,7 +60,7 @@ class TimeStepCalculator(Protocol[State]):
   @abc.abstractmethod
   def next_dt(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
@@ -69,8 +69,8 @@ class TimeStepCalculator(Protocol[State]):
     """Returns the next time step duration and internal time stepper state.
 
     Args:
-      dynamic_config_slice: Input config parameters that can change without
-        triggering a JAX recompilation.
+      dynamic_runtime_params_slice: Input runtime parameters that can change
+        without triggering a JAX recompilation.
       geo: Geometry for the Tokamak.
       core_profiles: Core plasma profiles in the tokamak.
       time_step_calculator_state: Internal state of the time stepper.

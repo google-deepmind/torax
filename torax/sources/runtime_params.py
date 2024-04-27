@@ -21,7 +21,7 @@ import enum
 
 import chex
 from torax import interpolated_param
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
 from torax.sources import formula_config
 
 
@@ -50,7 +50,8 @@ class Mode(enum.Enum):
 class RuntimeParams:
   """Configures a single source/sink term.
 
-  This is a RUNTIME config, meaning its values can change from run to run
+  This is a RUNTIME runtime_params, meaning its values can change from run to
+  run
   without trigerring a recompile. This config defines the runtime config for the
   entire simulation run. The DynamicRuntimeParams, which is derived from
   this class, only contains information for a single time step.
@@ -82,7 +83,7 @@ class RuntimeParams:
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,

@@ -21,10 +21,10 @@ import dataclasses
 import chex
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import geometry
 from torax import state
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
+from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
@@ -50,7 +50,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
@@ -102,13 +102,13 @@ def calc_generic_heat_source(
 
 
 def _default_formula(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> jnp.ndarray:
   """Returns the default formula-based ion/electron heat source profile."""
-  del dynamic_config_slice, core_profiles  # Unused.
+  del dynamic_runtime_params_slice, core_profiles  # Unused.
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   ion, el = calc_generic_heat_source(
       geo,

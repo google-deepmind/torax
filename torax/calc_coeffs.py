@@ -21,12 +21,12 @@ import functools
 
 import jax
 import jax.numpy as jnp
-from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -34,7 +34,7 @@ from torax.transport_model import transport_model as transport_model_lib
 
 
 def calculate_pereverzev_flux(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
@@ -42,10 +42,10 @@ def calculate_pereverzev_flux(
 
   consts = constants.CONSTANTS
   true_ne_face = (
-      core_profiles.ne.face_value() * dynamic_config_slice.numerics.nref
+      core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
   )
   true_ni_face = (
-      core_profiles.ni.face_value() * dynamic_config_slice.numerics.nref
+      core_profiles.ni.face_value() * dynamic_runtime_params_slice.numerics.nref
   )
 
   geo_factor = jnp.concatenate(
@@ -56,7 +56,7 @@ def calculate_pereverzev_flux(
       geo.g1_over_vpr_face
       * true_ni_face
       * consts.keV2J
-      * dynamic_config_slice.stepper.chi_per
+      * dynamic_runtime_params_slice.stepper.chi_per
       / geo.rmax**2
   )
 
@@ -64,11 +64,11 @@ def calculate_pereverzev_flux(
       geo.g1_over_vpr_face
       * true_ne_face
       * consts.keV2J
-      * dynamic_config_slice.stepper.chi_per
+      * dynamic_runtime_params_slice.stepper.chi_per
       / geo.rmax**2
   )
 
-  d_face_per_el = dynamic_config_slice.stepper.d_per / geo.rmax
+  d_face_per_el = dynamic_runtime_params_slice.stepper.d_per / geo.rmax
   v_face_per_el = (
       core_profiles.ne.face_grad()
       / core_profiles.ne.face_value()
@@ -80,16 +80,18 @@ def calculate_pereverzev_flux(
   # (for PDE stability)
   chi_face_per_ion = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.profile_conditions.set_pedestal,
-          geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
+          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+          geo.r_face_norm
+          > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
       chi_face_per_ion,
   )
   chi_face_per_el = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.profile_conditions.set_pedestal,
-          geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
+          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+          geo.r_face_norm
+          > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
       chi_face_per_el,
@@ -108,8 +110,9 @@ def calculate_pereverzev_flux(
 
   d_face_per_el = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.profile_conditions.set_pedestal,
-          geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
+          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+          geo.r_face_norm
+          > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
       d_face_per_el * geo.g1_over_vpr_face / geo.rmax,
@@ -117,8 +120,9 @@ def calculate_pereverzev_flux(
 
   v_face_per_el = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.profile_conditions.set_pedestal,
-          geo.r_face_norm > dynamic_config_slice.profile_conditions.Ped_top,
+          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+          geo.r_face_norm
+          > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
       v_face_per_el * geo.g0_face / geo.rmax,
@@ -138,8 +142,8 @@ def calculate_pereverzev_flux(
 
 
 def calc_coeffs(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     transport_model: transport_model_lib.TransportModel,
@@ -152,11 +156,11 @@ def calc_coeffs(
   """Calculates Block1DCoeffs for the time step described by `core_profiles`.
 
   Args:
-    static_config_slice: General input parameters which are fixed through a
-      simulation run, and if changed, would trigger a recompile.
-    dynamic_config_slice: General input parameters that can change from time
-      step to time step or simulation run to run, and do so without triggering a
-      recompile.
+    static_runtime_params_slice: General input parameters which are fixed
+      through a simulation run, and if changed, would trigger a recompile.
+    dynamic_runtime_params_slice: General input parameters that can change from
+      time step to time step or simulation run to run, and do so without
+      triggering a recompile.
     geo: Geometry describing the torus.
     core_profiles: Core plasma profiles for this time step during this iteration
       of the solver. Depending on the type of stepper being used, this may or
@@ -185,7 +189,7 @@ def calc_coeffs(
 
   # If we are fully implicit and we are making a call for calc_coeffs for the
   # explicit components of the PDE, only return a cheaper reduced Block1DCoeffs
-  if explicit_call and static_config_slice.stepper.theta_imp == 1.0:
+  if explicit_call and static_runtime_params_slice.stepper.theta_imp == 1.0:
     return _calc_coeffs_reduced(
         geo,
         core_profiles,
@@ -193,8 +197,8 @@ def calc_coeffs(
     )
   else:
     return _calc_coeffs_full(
-        static_config_slice,
-        dynamic_config_slice,
+        static_runtime_params_slice,
+        dynamic_runtime_params_slice,
         geo,
         core_profiles,
         transport_model,
@@ -208,15 +212,15 @@ def calc_coeffs(
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
-        'static_config_slice',
+        'static_runtime_params_slice',
         'transport_model',
         'source_models',
         'evolving_names',
     ],
 )
 def _calc_coeffs_full(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     transport_model: transport_model_lib.TransportModel,
@@ -228,11 +232,11 @@ def _calc_coeffs_full(
   """Calculates Block1DCoeffs for the time step described by `core_profiles`.
 
   Args:
-    static_config_slice: General input parameters which are fixed through a
-      simulation run, and if changed, would trigger a recompile.
-    dynamic_config_slice: General input parameters that can change from time
-      step to time step or simulation run to run, and do so without triggering a
-      recompile.
+    static_runtime_params_slice: General input parameters which are fixed
+      through a simulation run, and if changed, would trigger a recompile.
+    dynamic_runtime_params_slice: General input parameters that can change from
+      time step to time step or simulation run to run, and do so without
+      triggering a recompile.
     geo: Geometry describing the torus.
     core_profiles: Core plasma profiles for this time step during this iteration
       of the solver. Depending on the type of stepper being used, this may or
@@ -261,8 +265,8 @@ def _calc_coeffs_full(
   # model the pedestal.
   mask = physics.internal_boundary(
       geo,
-      dynamic_config_slice.profile_conditions.Ped_top,
-      dynamic_config_slice.profile_conditions.set_pedestal,
+      dynamic_runtime_params_slice.profile_conditions.Ped_top,
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
   )
 
   # This only calculates sources set to implicit in the config. All other
@@ -270,7 +274,7 @@ def _calc_coeffs_full(
   # explicit_source_profiles).
   implicit_source_profiles = source_models_lib.build_source_profiles(
       source_models=source_models,
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       explicit=False,
@@ -281,22 +285,30 @@ def _calc_coeffs_full(
   # Decide which values to use depending on whether the source is explicit or
   # implicit.
   sigma = jax_utils.select(
-      dynamic_config_slice.sources[source_models.j_bootstrap_name].is_explicit,
+      dynamic_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ].is_explicit,
       explicit_source_profiles.j_bootstrap.sigma,
       implicit_source_profiles.j_bootstrap.sigma,
   )
   j_bootstrap = jax_utils.select(
-      dynamic_config_slice.sources[source_models.j_bootstrap_name].is_explicit,
+      dynamic_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap,
       implicit_source_profiles.j_bootstrap.j_bootstrap,
   )
   j_bootstrap_face = jax_utils.select(
-      dynamic_config_slice.sources[source_models.j_bootstrap_name].is_explicit,
+      dynamic_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap_face,
       implicit_source_profiles.j_bootstrap.j_bootstrap_face,
   )
   I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
-      dynamic_config_slice.sources[source_models.j_bootstrap_name].is_explicit,
+      dynamic_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ].is_explicit,
       explicit_source_profiles.j_bootstrap.I_bootstrap,
       implicit_source_profiles.j_bootstrap.I_bootstrap,
   )
@@ -333,24 +345,24 @@ def _calc_coeffs_full(
   )
 
   true_ne_face = (
-      core_profiles.ne.face_value() * dynamic_config_slice.numerics.nref
+      core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
   )
   true_ni_face = (
-      core_profiles.ni.face_value() * dynamic_config_slice.numerics.nref
+      core_profiles.ni.face_value() * dynamic_runtime_params_slice.numerics.nref
   )
 
   # Transient term coefficient vector (has radial dependence through r, n)
   toc_temp_ion = (
-      1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.numerics.nref
+      1.5 * geo.vpr * consts.keV2J * dynamic_runtime_params_slice.numerics.nref
   )
   tic_temp_ion = core_profiles.ni.value
   toc_temp_el = (
-      1.5 * geo.vpr * consts.keV2J * dynamic_config_slice.numerics.nref
+      1.5 * geo.vpr * consts.keV2J * dynamic_runtime_params_slice.numerics.nref
   )
   tic_temp_el = core_profiles.ne.value
   toc_psi = (
       1.0
-      / dynamic_config_slice.numerics.resistivity_mult
+      / dynamic_runtime_params_slice.numerics.resistivity_mult
       * geo.r
       * sigma
       * consts.mu0
@@ -362,14 +374,16 @@ def _calc_coeffs_full(
   tic_dens_el = jnp.ones_like(geo.vpr)
 
   # Diffusion term coefficients
-  transport_coeffs = transport_model(dynamic_config_slice, geo, core_profiles)
+  transport_coeffs = transport_model(
+      dynamic_runtime_params_slice, geo, core_profiles
+  )
   chi_face_ion = transport_coeffs.chi_face_ion
   chi_face_el = transport_coeffs.chi_face_el
   d_face_el = transport_coeffs.d_face_el
   v_face_el = transport_coeffs.v_face_el
   d_face_psi = geo.G2_face / geo.J_face / geo.rmax**2
 
-  if static_config_slice.dens_eq:
+  if static_runtime_params_slice.dens_eq:
     if d_face_el is None or v_face_el is None:
       raise NotImplementedError(
           f'{type(transport_model)} does not support the density equation.'
@@ -382,38 +396,38 @@ def _calc_coeffs_full(
   # transport regions, to avoid transient discontinuities
   chi_face_ion = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.transport.apply_inner_patch,
+          dynamic_runtime_params_slice.transport.apply_inner_patch,
           geo.r_face_norm
-          < dynamic_config_slice.transport.rho_inner + consts.eps,
+          < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
       ),
-      dynamic_config_slice.transport.chii_inner,
+      dynamic_runtime_params_slice.transport.chii_inner,
       chi_face_ion,
   )
   chi_face_el = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.transport.apply_inner_patch,
+          dynamic_runtime_params_slice.transport.apply_inner_patch,
           geo.r_face_norm
-          < dynamic_config_slice.transport.rho_inner + consts.eps,
+          < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
       ),
-      dynamic_config_slice.transport.chie_inner,
+      dynamic_runtime_params_slice.transport.chie_inner,
       chi_face_el,
   )
   d_face_el = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.transport.apply_inner_patch,
+          dynamic_runtime_params_slice.transport.apply_inner_patch,
           geo.r_face_norm
-          < dynamic_config_slice.transport.rho_inner + consts.eps,
+          < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
       ),
-      dynamic_config_slice.transport.De_inner,
+      dynamic_runtime_params_slice.transport.De_inner,
       d_face_el,
   )
   v_face_el = jnp.where(
       jnp.logical_and(
-          dynamic_config_slice.transport.apply_inner_patch,
+          dynamic_runtime_params_slice.transport.apply_inner_patch,
           geo.r_face_norm
-          < dynamic_config_slice.transport.rho_inner + consts.eps,
+          < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
       ),
-      dynamic_config_slice.transport.Ve_inner,
+      dynamic_runtime_params_slice.transport.Ve_inner,
       v_face_el,
   )
 
@@ -423,57 +437,57 @@ def _calc_coeffs_full(
   chi_face_ion = jnp.where(
       jnp.logical_and(
           jnp.logical_and(
-              dynamic_config_slice.transport.apply_outer_patch,
+              dynamic_runtime_params_slice.transport.apply_outer_patch,
               jnp.logical_not(
-                  dynamic_config_slice.profile_conditions.set_pedestal
+                  dynamic_runtime_params_slice.profile_conditions.set_pedestal
               ),
           ),
           geo.r_face_norm
-          > dynamic_config_slice.transport.rho_outer - consts.eps,
+          > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
       ),
-      dynamic_config_slice.transport.chii_outer,
+      dynamic_runtime_params_slice.transport.chii_outer,
       chi_face_ion,
   )
   chi_face_el = jnp.where(
       jnp.logical_and(
           jnp.logical_and(
-              dynamic_config_slice.transport.apply_outer_patch,
+              dynamic_runtime_params_slice.transport.apply_outer_patch,
               jnp.logical_not(
-                  dynamic_config_slice.profile_conditions.set_pedestal
+                  dynamic_runtime_params_slice.profile_conditions.set_pedestal
               ),
           ),
           geo.r_face_norm
-          > dynamic_config_slice.transport.rho_outer - consts.eps,
+          > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
       ),
-      dynamic_config_slice.transport.chie_outer,
+      dynamic_runtime_params_slice.transport.chie_outer,
       chi_face_el,
   )
   d_face_el = jnp.where(
       jnp.logical_and(
           jnp.logical_and(
-              dynamic_config_slice.transport.apply_outer_patch,
+              dynamic_runtime_params_slice.transport.apply_outer_patch,
               jnp.logical_not(
-                  dynamic_config_slice.profile_conditions.set_pedestal
+                  dynamic_runtime_params_slice.profile_conditions.set_pedestal
               ),
           ),
           geo.r_face_norm
-          > dynamic_config_slice.transport.rho_outer - consts.eps,
+          > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
       ),
-      dynamic_config_slice.transport.De_outer,
+      dynamic_runtime_params_slice.transport.De_outer,
       d_face_el,
   )
   v_face_el = jnp.where(
       jnp.logical_and(
           jnp.logical_and(
-              dynamic_config_slice.transport.apply_outer_patch,
+              dynamic_runtime_params_slice.transport.apply_outer_patch,
               jnp.logical_not(
-                  dynamic_config_slice.profile_conditions.set_pedestal
+                  dynamic_runtime_params_slice.profile_conditions.set_pedestal
               ),
           ),
           geo.r_face_norm
-          > dynamic_config_slice.transport.rho_outer - consts.eps,
+          > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
       ),
-      dynamic_config_slice.transport.Ve_outer,
+      dynamic_runtime_params_slice.transport.Ve_outer,
       v_face_el,
   )
 
@@ -525,26 +539,26 @@ def _calc_coeffs_full(
   # calculate neped
   # pylint: disable=invalid-name
   nGW = (
-      dynamic_config_slice.profile_conditions.Ip
+      dynamic_runtime_params_slice.profile_conditions.Ip
       / (jnp.pi * geo.Rmin**2)
       * 1e20
-      / dynamic_config_slice.numerics.nref
+      / dynamic_runtime_params_slice.numerics.nref
   )
   # pylint: enable=invalid-name
   neped_unnorm = jnp.where(
-      dynamic_config_slice.profile_conditions.neped_is_fGW,
-      dynamic_config_slice.profile_conditions.neped * nGW,
-      dynamic_config_slice.profile_conditions.neped,
+      dynamic_runtime_params_slice.profile_conditions.neped_is_fGW,
+      dynamic_runtime_params_slice.profile_conditions.neped * nGW,
+      dynamic_runtime_params_slice.profile_conditions.neped,
   )
 
   source_ne += jnp.where(
-      dynamic_config_slice.profile_conditions.set_pedestal,
-      mask * dynamic_config_slice.numerics.largeValue_n * neped_unnorm,
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+      mask * dynamic_runtime_params_slice.numerics.largeValue_n * neped_unnorm,
       0.0,
   )
   source_mat_nn += jnp.where(
-      dynamic_config_slice.profile_conditions.set_pedestal,
-      -(mask * dynamic_config_slice.numerics.largeValue_n),
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+      -(mask * dynamic_runtime_params_slice.numerics.largeValue_n),
       0.0,
   )
 
@@ -563,7 +577,7 @@ def _calc_coeffs_full(
   ) = jax.lax.cond(
       use_pereverzev,
       lambda: calculate_pereverzev_flux(
-          dynamic_config_slice,
+          dynamic_runtime_params_slice,
           geo,
           core_profiles,
       ),
@@ -577,9 +591,9 @@ def _calc_coeffs_full(
 
   # Ion and electron heat sources.
   qei = source_models.qei_source.get_qei(
-      static_config_slice=static_config_slice,
-      dynamic_config_slice=dynamic_config_slice,
-      dynamic_source_runtime_params=dynamic_config_slice.sources[
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
           source_models.qei_source_name
       ],
       geo=geo,
@@ -632,28 +646,28 @@ def _calc_coeffs_full(
 
   # Pedestal
   source_i += jnp.where(
-      dynamic_config_slice.profile_conditions.set_pedestal,
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
       mask
-      * dynamic_config_slice.numerics.largeValue_T
-      * dynamic_config_slice.profile_conditions.Tiped,
+      * dynamic_runtime_params_slice.numerics.largeValue_T
+      * dynamic_runtime_params_slice.profile_conditions.Tiped,
       0.0,
   )
   source_e += jnp.where(
-      dynamic_config_slice.profile_conditions.set_pedestal,
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
       mask
-      * dynamic_config_slice.numerics.largeValue_T
-      * dynamic_config_slice.profile_conditions.Teped,
+      * dynamic_runtime_params_slice.numerics.largeValue_T
+      * dynamic_runtime_params_slice.profile_conditions.Teped,
       0.0,
   )
 
   source_mat_ii -= jnp.where(
-      dynamic_config_slice.profile_conditions.set_pedestal,
-      mask * dynamic_config_slice.numerics.largeValue_T,
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+      mask * dynamic_runtime_params_slice.numerics.largeValue_T,
       0.0,
   )
   source_mat_ee -= jnp.where(
-      dynamic_config_slice.profile_conditions.set_pedestal,
-      mask * dynamic_config_slice.numerics.largeValue_T,
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+      mask * dynamic_runtime_params_slice.numerics.largeValue_T,
       0.0,
   )
 

@@ -20,10 +20,10 @@ transport.
 import abc
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import state
+from torax.config import runtime_params_slice
 from torax.transport_model import runtime_params as runtime_params_lib
 
 
@@ -37,14 +37,16 @@ class TransportModel(abc.ABC):
 
   def __call__(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
     return self.smooth_coeffs(
         geo,
-        dynamic_config_slice,
-        self._call_implementation(dynamic_config_slice, geo, core_profiles),
+        dynamic_runtime_params_slice,
+        self._call_implementation(
+            dynamic_runtime_params_slice, geo, core_profiles
+        ),
     )
 
   @property
@@ -63,7 +65,7 @@ class TransportModel(abc.ABC):
   @abc.abstractmethod
   def _call_implementation(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
@@ -72,11 +74,11 @@ class TransportModel(abc.ABC):
   def smooth_coeffs(
       self,
       geo: geometry.Geometry,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       transport_coeffs: state.CoreTransport,
   ) -> state.CoreTransport:
     """Gaussian smoothing of transport coefficients."""
-    smoothing_matrix = build_smoothing_matrix(geo, dynamic_config_slice)
+    smoothing_matrix = build_smoothing_matrix(geo, dynamic_runtime_params_slice)
     smoothed_coeffs = {}
     for coeff in transport_coeffs:
       smoothed_coeff = jnp.dot(smoothing_matrix, transport_coeffs[coeff])
@@ -86,7 +88,7 @@ class TransportModel(abc.ABC):
 
 def build_smoothing_matrix(
     geo: geometry.Geometry,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
 ) -> jax.Array:
   """Builds a smoothing matrix for the transport model.
 
@@ -94,8 +96,8 @@ def build_smoothing_matrix(
 
   Args:
     geo: Geometry of the torus.
-    dynamic_config_slice: Input config parameters that can change without
-      triggering a JAX recompilation.
+    dynamic_runtime_params_slice: Input runtime parameters that can change
+      without triggering a JAX recompilation.
 
   Returns:
     kernel: A smoothing matrix for convolution with the transport outputs.
@@ -112,30 +114,33 @@ def build_smoothing_matrix(
   kernel = jnp.exp(
       -jnp.log(2)
       * (geo.r_face_norm[:, jnp.newaxis] - geo.r_face_norm) ** 2
-      / (dynamic_config_slice.transport.smoothing_sigma**2 + consts.eps)
+      / (dynamic_runtime_params_slice.transport.smoothing_sigma**2 + consts.eps)
   )
 
   # 2. Masking: we do not want transport coefficients calculated in pedestal
   # region or in inner and outer transport patch regions, to impact
   # transport_model calculated coefficients
   mask_outer_edge = jax.lax.cond(
-      dynamic_config_slice.profile_conditions.set_pedestal,
-      lambda: dynamic_config_slice.profile_conditions.Ped_top - consts.eps,
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+      lambda: dynamic_runtime_params_slice.profile_conditions.Ped_top
+      - consts.eps,
       lambda: 1.0,
   )
 
   mask_outer_edge = jax.lax.cond(
       jnp.logical_and(
-          jnp.logical_not(dynamic_config_slice.profile_conditions.set_pedestal),
-          dynamic_config_slice.transport.apply_outer_patch,
+          jnp.logical_not(
+              dynamic_runtime_params_slice.profile_conditions.set_pedestal
+          ),
+          dynamic_runtime_params_slice.transport.apply_outer_patch,
       ),
-      lambda: dynamic_config_slice.transport.rho_outer - consts.eps,
+      lambda: dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
       lambda: mask_outer_edge,
   )
 
   mask_inner_edge = jax.lax.cond(
-      dynamic_config_slice.transport.apply_inner_patch,
-      lambda: dynamic_config_slice.transport.rho_inner + consts.eps,
+      dynamic_runtime_params_slice.transport.apply_inner_patch,
+      lambda: dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
       lambda: 0.0,
   )
 

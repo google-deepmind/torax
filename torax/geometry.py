@@ -22,12 +22,12 @@ import os
 import chex
 import jax
 import jax.numpy as jnp
-from torax import config as config_lib
-from torax import config_slice
 from torax import constants
 from torax import geometry_loader
 from torax import jax_utils
 from torax import math_utils
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 
 
 @chex.dataclass(frozen=True)
@@ -175,7 +175,7 @@ class CHEASEGeometry(Geometry):
 
 
 def build_circular_geometry(
-    config: config_lib.Config,
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
     kappa: float = 1.72,
     Rmaj: float = 6.2,
     Rmin: float = 2.0,
@@ -191,7 +191,7 @@ def build_circular_geometry(
   for this object, Fiddle-ify this function, not CircularGeometry.__init__.
 
   Args:
-    config: General TORAX config.
+    runtime_params: General TORAX runtime input parameters.
     kappa: Elogination. Defaults to 1.72 for the ITER elongation, to
       approximately correct volume and area integral Jacobians.
     Rmaj: major radius (R) in meters
@@ -207,8 +207,8 @@ def build_circular_geometry(
   # r_norm coordinate is r/Rmin in circular, and rho_norm in standard
   # geometry (CHEASE/EQDSK)
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  dr_norm = jnp.array(1) / config.numerics.nr
-  mesh = Grid1D.construct(nx=config.numerics.nr, dx=dr_norm)
+  dr_norm = jnp.array(1) / runtime_params.numerics.nr
+  mesh = Grid1D.construct(nx=runtime_params.numerics.nr, dx=dr_norm)
   rmax = jnp.array(Rmin)
   # helper variables for mesh cells and faces
   # r coordinate of faces
@@ -253,16 +253,11 @@ def build_circular_geometry(
   delta_face = jnp.zeros(len(r_face))
 
   # uses <1/R^2> with circular geometry
-  G2 = vpr / (
-      4 * jnp.pi**2 * Rmaj**2 * jnp.sqrt(1 - (r / Rmaj) ** 2)
-  )
+  G2 = vpr / (4 * jnp.pi**2 * Rmaj**2 * jnp.sqrt(1 - (r / Rmaj) ** 2))
 
   # generate G2_face by hand
   G2_outer_face = vpr_face[-1] / (
-      4
-      * jnp.pi**2
-      * Rmaj**2
-      * jnp.sqrt(1 - (r_face[-1] / Rmaj) ** 2)
+      4 * jnp.pi**2 * Rmaj**2 * jnp.sqrt(1 - (r_face[-1] / Rmaj) ** 2)
   )
   G2_outer_face = jnp.expand_dims(G2_outer_face, 0)
   G2_face = jnp.concatenate(
@@ -291,7 +286,7 @@ def build_circular_geometry(
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
   # the only option for ad-hoc circular geometry.
-  r_hires_norm = jnp.linspace(0, 1, config.numerics.nr * hires_fac)
+  r_hires_norm = jnp.linspace(0, 1, runtime_params.numerics.nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
   Rout = Rmaj + r
@@ -318,12 +313,7 @@ def build_circular_geometry(
   )
 
   # uses <1/R^2> with circular geometry
-  denom = (
-      4
-      * jnp.pi**2
-      * Rmaj**2
-      * jnp.sqrt(1 - (r_hires / Rmaj) ** 2)
-  )
+  denom = 4 * jnp.pi**2 * Rmaj**2 * jnp.sqrt(1 - (r_hires / Rmaj) ** 2)
   G2_hires = vpr_hires / denom
 
   # terms applied in transport equations and dt calculation.
@@ -400,7 +390,7 @@ def build_circular_geometry(
 
 
 def build_chease_geometry(
-    config: config_lib.Config,
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
     geometry_dir: str | None = None,
     geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
     Rmaj: float = 6.2,
@@ -418,7 +408,7 @@ def build_chease_geometry(
   for this object, Fiddle-ify this function, not CHEASEGeometry.__init__.
 
   Args:
-    config: General TORAX config.
+    runtime_params: General TORAX runtime input parameters.
     geometry_dir: Directory where to find the CHEASE file describing the
       magnetic geometry. If None, uses the environment variable
       TORAX_GEOMETRY_DIR if available. If that variable is not set and
@@ -450,8 +440,10 @@ def build_chease_geometry(
   )
 
   # TODO(b/326406367): incorporate time dependent geometry
-  # build t_initial config_slice
-  dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+  # build t_initial runtime_params_slice
+  dynamic_runtime_params_slice = (
+      runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+  )
 
   # Prepare variables from CHEASE to be interpolated into our simulation
   # grid. CHEASE variables are normalized. Need to unnormalize them with
@@ -461,9 +453,7 @@ def build_chease_geometry(
   B0 = jnp.array(B0)
   psiunnormfactor = (Rmaj**2 * B0) * 2 * jnp.pi
   psi_chease = chease_data['PSIchease=psi/2pi'] * psiunnormfactor
-  Ip_chease = (
-      chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * Rmaj * B0
-  )
+  Ip_chease = chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * Rmaj * B0
 
   # toroidal flux coordinate
   rho = chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * Rmaj
@@ -524,16 +514,16 @@ def build_chease_geometry(
   # if Ip from parameter file, renormalize psi to match desired current
   if Ip_from_parameters:
     Ip_scale_factor = (
-        dynamic_config_slice.profile_conditions.Ip * 1e6 / Ip_chease[-1]
+        dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / Ip_chease[-1]
     )
     psi_from_chease_Ip *= Ip_scale_factor
   else:
-    # This overwrites the config.profile_conditions.Ip, even if it's time
-    # dependent, to be consistent with the geometry file being processed.
+    # This overwrites the runtime_params.profile_conditions.Ip, even if it's
+    # time dependent, to be consistent with the geometry file being processed.
     # TODO(b/326406367): Do not rely on writing back to the config to
     # make this work. We should not rely on the geometry being computed for the
     # config to have the correct Ip.
-    config.profile_conditions.Ip = Ip_chease[-1] / 1e6
+    runtime_params.profile_conditions.Ip = Ip_chease[-1] / 1e6
     Ip_scale_factor = 1
 
   # volume, area, and dV/drho, dS/drho
@@ -556,9 +546,9 @@ def build_chease_geometry(
 
   # fill geometry structure
   # r_norm coordinate is rho_tor_norm
-  dr_norm = jnp.array(1) / config.numerics.nr
+  dr_norm = jnp.array(1) / runtime_params.numerics.nr
   # normalized grid
-  mesh = Grid1D.construct(nx=config.numerics.nr, dx=dr_norm)
+  mesh = Grid1D.construct(nx=runtime_params.numerics.nr, dx=dr_norm)
   rmax = rho[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   r_face_norm = mesh.face_centers
@@ -570,7 +560,7 @@ def build_chease_geometry(
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  r_hires_norm = jnp.linspace(0, 1, config.numerics.nr * hires_fac)
+  r_hires_norm = jnp.linspace(0, 1, runtime_params.numerics.nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
   interp_func = lambda x: jnp.interp(x, rhon, vpr_chease)

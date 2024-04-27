@@ -19,9 +19,9 @@ from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax import config_slice
 from torax import constants
 from torax import core_profile_setters
+from torax.config import runtime_params_slice
 from torax.sources import fusion_heat_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -49,7 +49,9 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_calc_fusion(
       self, references_getter: Callable[[], torax_refs.References]
@@ -57,18 +59,22 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     """Compare `calc_fusion` function to a reference implementation."""
     references = references_getter()
 
-    config = references.config
+    runtime_params = references.runtime_params
     geo = references.geo
-    nref = config.numerics.nref
+    nref = runtime_params.numerics.nref
 
     source_models = source_models_lib.SourceModels()
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        sources=source_models.runtime_params,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params
+        ),
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -79,7 +85,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         nref,
     )
 
-    def calculate_fusion(config, geo, core_profiles):
+    def calculate_fusion(runtime_params, geo, core_profiles):
       """Reference implementation from PINT. We still use TORAX state here."""
       # PINT doesn't follow Google style
       # pylint:disable=invalid-name
@@ -114,14 +120,14 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
       Pfus = (
           Efus
           * 0.25
-          * (core_profiles.ni.face_value() * config.numerics.nref) ** 2
+          * (core_profiles.ni.face_value() * runtime_params.numerics.nref) ** 2
           * sigmav
       )  # [W/m^3]
       Ptot = np.trapz(Pfus * geo.vpr_face, geo.r_face) / 1e6  # [MW]
 
       return Ptot
 
-    fusion_pint = calculate_fusion(config, geo, core_profiles)
+    fusion_pint = calculate_fusion(runtime_params, geo, core_profiles)
 
     np.testing.assert_allclose(fusion_jax, fusion_pint)
 

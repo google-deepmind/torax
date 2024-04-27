@@ -401,8 +401,8 @@ class SimTest(sim_test_case.SimTestCase):
   def test_no_op(self):
     """Tests that running the stepper with all equations off is a no-op."""
 
-    config = torax.config.Config(
-        numerics=torax.config.Numerics(
+    runtime_params = torax.general_runtime_params.GeneralRuntimeParams(
+        numerics=torax.general_runtime_params.Numerics(
             t_final=0.1,
             ion_heat_eq=False,
             el_heat_eq=False,
@@ -411,10 +411,10 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
-    geo = torax.build_circular_geometry(config)
+    geo = torax.build_circular_geometry(runtime_params)
 
     sim = sim_lib.build_sim_from_config(
-        config=config,
+        runtime_params=runtime_params,
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
         transport_model=constant_transport_model.ConstantTransportModel(),
@@ -429,7 +429,7 @@ class SimTest(sim_test_case.SimTestCase):
     chex.assert_rank(t, 1)
     history_length = state_history.temp_ion.value.shape[0]
     self.assertEqual(history_length, t.shape[0])
-    self.assertGreater(t[-1], config.numerics.t_final)
+    self.assertGreater(t[-1], runtime_params.numerics.t_final)
 
     for torax_profile in _ALL_PROFILES:
       profile_history = state_history[torax_profile]
@@ -471,13 +471,13 @@ class SimTest(sim_test_case.SimTestCase):
     stepper_builder = stepper_builder_constructor()
     # Load config structure.
     config_module = self._get_config_module('test_explicit.py')
-    config = config_module.get_config()
-    geo = config_module.get_geometry(config)
+    runtime_params = config_module.get_runtime_params()
+    geo = config_module.get_geometry(runtime_params)
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     spectator = spectator_lib.InMemoryJaxArraySpectator()
     sim = sim_lib.build_sim_from_config(
-        config=config,
+        runtime_params=runtime_params,
         geo=geo,
         stepper_builder=stepper_builder,
         transport_model=config_module.get_transport_model(),

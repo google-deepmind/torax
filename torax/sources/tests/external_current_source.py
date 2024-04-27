@@ -18,9 +18,9 @@ from absl.testing import absltest
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import config as config_lib
-from torax import config_slice
 from torax import geometry
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import external_current_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -43,55 +43,57 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
   def test_source_value(self):
     """Tests that a formula-based source provides values."""
     source = external_current_source.ExternalCurrentSource()
-    config = config_lib.Config()
-    dynamic_slice = config_slice.build_dynamic_config_slice(
-        config,
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params,
         sources={
             'jext': source.runtime_params,
         },
     )
     self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
     # Must be circular for jext_hires call.
-    geo = geometry.build_circular_geometry(config)
+    geo = geometry.build_circular_geometry(runtime_params)
     self.assertIsNotNone(
         source.get_value(
-            dynamic_config_slice=dynamic_slice,
+            dynamic_runtime_params_slice=dynamic_slice,
             dynamic_source_runtime_params=dynamic_slice.sources['jext'],
             geo=geo,
         )
     )
     self.assertIsNotNone(
         source.jext_hires(
-            dynamic_config_slice=dynamic_slice,
+            dynamic_runtime_params_slice=dynamic_slice,
             dynamic_source_runtime_params=dynamic_slice.sources['jext'],
             geo=geo,
         )
     )
 
   def test_invalid_source_types_raise_errors(self):
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     source = external_current_source.ExternalCurrentSource()
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
           source.runtime_params.mode = unsupported_mode
-          dynamic_slice = config_slice.build_dynamic_config_slice(
-              config,
-              sources={
-                  'jext': source.runtime_params,
-              },
+          dynamic_slice = (
+              runtime_params_slice.build_dynamic_runtime_params_slice(
+                  runtime_params,
+                  sources={
+                      'jext': source.runtime_params,
+                  },
+              )
           )
           source.get_value(
-              dynamic_config_slice=dynamic_slice,
+              dynamic_runtime_params_slice=dynamic_slice,
               dynamic_source_runtime_params=dynamic_slice.sources['jext'],
               geo=geo,
           )
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     source = external_current_source.ExternalCurrentSource()
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     fake_profile = (jnp.ones(cell), jnp.zeros(cell))

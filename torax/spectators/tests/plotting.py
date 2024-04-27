@@ -17,8 +17,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import torax  # We want this import to make sure jax gets set to float64
-from torax import config as config_lib
 from torax import geometry
+from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
 from torax.spectators import plotting
 from torax.spectators import spectator
@@ -31,12 +31,12 @@ class PlottingTest(parameterized.TestCase):
   """Tests the plotting library."""
 
   def test_default_plot_config_has_valid_keys(self):
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     plot_config = plotting.get_default_plot_config(geo)
 
     observer = spectator.InMemoryJaxArraySpectator()
-    _run_sim(config, geo, observer)
+    _run_sim(runtime_params, geo, observer)
 
     # Make sure all the keys in plot_config are collected by the observer.
     for plot in plot_config:
@@ -44,21 +44,21 @@ class PlottingTest(parameterized.TestCase):
         self.assertIn(key.key, observer.arrays)
 
   def test_plot_observer_runs_with_sim(self):
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     observer = plotting.PlotSpectator(
         plots=plotting.get_default_plot_config(geo),
     )
-    _run_sim(config, geo, observer)
+    _run_sim(runtime_params, geo, observer)
 
 
 def _run_sim(
-    config: config_lib.Config,
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
     geo: geometry.Geometry,
     observer: spectator.Spectator,
 ):
   torax.build_sim_from_config(
-      config=config,
+      runtime_params=runtime_params,
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
       transport_model=constant_transport_model.ConstantTransportModel(),

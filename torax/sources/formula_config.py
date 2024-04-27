@@ -20,7 +20,7 @@ import dataclasses
 
 import chex
 from torax import interpolated_param
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
 
 
 # Type-alias for clarity.
@@ -67,7 +67,7 @@ class Exponential(FormulaConfig):
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicExponential:
     return DynamicExponential(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicExponential,
             t=t,
@@ -101,7 +101,7 @@ class Gaussian:
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicGaussian:
     return DynamicGaussian(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicGaussian,
             t=t,

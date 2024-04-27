@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests torax.sim for handling time dependent input config params."""
+"""Tests torax.sim for handling time dependent input runtime params."""
 
 import dataclasses
 
@@ -21,11 +21,11 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import config as config_lib
-from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import runtime_params as stepper_runtime_params
@@ -36,7 +36,7 @@ from torax.transport_model import transport_model as transport_model_lib
 
 
 class SimWithTimeDependeceTest(parameterized.TestCase):
-  """Integration tests for torax.sim with time-dependent config params."""
+  """Integration tests for torax.sim with time-dependent runtime params."""
 
   @parameterized.named_parameters(
       ('with_adaptive_dt', True, 3, 0, 2.44444444444),
@@ -50,17 +50,17 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
       expected_combined_value: float,
   ):
     """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             Ti_bound_right={0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
         ),
-        numerics=config_lib.Numerics(
+        numerics=general_runtime_params.Numerics(
             adaptive_dt=adaptive_dt,
             fixed_dt=1.0,  # 1 time step in, the Ti_bound_right will be 2.0
             dt_reduction_factor=1.5,
         ),
     )
-    geo = geometry.build_circular_geometry(config)
+    geo = geometry.build_circular_geometry(runtime_params)
     transport = FakeTransportModel()
     source_models = source_models_lib.SourceModels()
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
@@ -77,30 +77,36 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         time_calculator,
         transport_model=transport,
     )
-    dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
-        config=config,
-        transport_getter=lambda: transport.runtime_params,
-        sources_getter=lambda: source_models.runtime_params,
-        stepper_getter=stepper_runtime_params.RuntimeParams,
+    dynamic_runtime_params_slice_provider = (
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params=runtime_params,
+            transport_getter=lambda: transport.runtime_params,
+            sources_getter=lambda: source_models.runtime_params,
+            stepper_getter=stepper_runtime_params.RuntimeParams,
+        )
     )
-    initial_dynamic_config_slice = dynamic_config_slice_provider(
-        config.numerics.t_initial
+    initial_dynamic_runtime_params_slice = (
+        dynamic_runtime_params_slice_provider(runtime_params.numerics.t_initial)
     )
     input_state = sim_lib.get_initial_state(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=initial_dynamic_config_slice,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params
+        ),
+        dynamic_runtime_params_slice=initial_dynamic_runtime_params_slice,
         geo=geo,
         time_step_calculator=time_calculator,
         source_models=source_models,
     )
     output_state = sim_step_fn(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice_provider=dynamic_config_slice_provider,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params
+        ),
+        dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
         geo=geo,
         input_state=input_state,
         explicit_source_profiles=source_models_lib.build_source_profiles(
             source_models=source_models,
-            dynamic_config_slice=initial_dynamic_config_slice,
+            dynamic_runtime_params_slice=initial_dynamic_runtime_params_slice,
             geo=geo,
             core_profiles=input_state.core_profiles,
             explicit=True,
@@ -121,7 +127,8 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
 class FakeStepper(stepper_lib.Stepper):
   """Fake stepper that allows us to hook into the error logic.
 
-  Given the name of a time-dependent param in the config, and a max value for
+  Given the name of a time-dependent param in the runtime_params, and a max
+  value for
   that param, this stepper returns a successful state if the config values for
   that param in the config at time t and config at time t+dt sum to less than
   max value.
@@ -146,9 +153,9 @@ class FakeStepper(stepper_lib.Stepper):
   def __call__(
       self,
       dt: jax.Array,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-      dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -160,10 +167,12 @@ class FakeStepper(stepper_lib.Stepper):
       int,
   ]:
     combined = getattr(
-        dynamic_config_slice_t.profile_conditions, self._param
-    ) + getattr(dynamic_config_slice_t_plus_dt.profile_conditions, self._param)
+        dynamic_runtime_params_slice_t.profile_conditions, self._param
+    ) + getattr(
+        dynamic_runtime_params_slice_t_plus_dt.profile_conditions, self._param
+    )
     transport = self.transport_model(
-        dynamic_config_slice_t, geo, core_profiles_t
+        dynamic_runtime_params_slice_t, geo, core_profiles_t
     )
     # Use Qei as a hacky way to extract what the combined value was.
     core_sources = source_models_lib.build_all_zero_profiles(
@@ -198,7 +207,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
 
   def _call_implementation(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:

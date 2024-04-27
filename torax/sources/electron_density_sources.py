@@ -20,10 +20,10 @@ import dataclasses
 
 import chex
 from jax import numpy as jnp
-from torax import config_slice
 from torax import geometry
 from torax import state
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
+from torax.config import runtime_params_slice
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -44,7 +44,7 @@ class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
       t: chex.Numeric,
   ) -> DynamicGasPuffRuntimeParams:
     return DynamicGasPuffRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicGasPuffRuntimeParams,
             t=t,
@@ -60,7 +60,7 @@ class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 # Default formula: exponential with nref normalization.
 def _calc_puff_source(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
@@ -72,7 +72,7 @@ def _calc_puff_source(
       c2=dynamic_source_runtime_params.puff_decay_length,
       total=(
           dynamic_source_runtime_params.S_puff_tot
-          / dynamic_config_slice.numerics.nref
+          / dynamic_runtime_params_slice.numerics.nref
       ),
       use_normalized_r=True,
       geo=geo,
@@ -106,7 +106,7 @@ class NBIParticleRuntimeParams(runtime_params_lib.RuntimeParams):
       t: chex.Numeric,
   ) -> DynamicNBIParticleRuntimeParams:
     return DynamicNBIParticleRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicNBIParticleRuntimeParams,
             t=t,
@@ -122,7 +122,7 @@ class DynamicNBIParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def _calc_nbi_source(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
@@ -136,7 +136,7 @@ def _calc_nbi_source(
       c2=dynamic_source_runtime_params.nbi_particle_width,
       total=(
           dynamic_source_runtime_params.S_nbi_tot
-          / dynamic_config_slice.numerics.nref
+          / dynamic_runtime_params_slice.numerics.nref
       ),
       use_normalized_r=True,
       geo=geo,
@@ -172,7 +172,7 @@ class PelletRuntimeParams(runtime_params_lib.RuntimeParams):
       t: chex.Numeric,
   ) -> DynamicPelletRuntimeParams:
     return DynamicPelletRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicPelletRuntimeParams,
             t=t,
@@ -188,7 +188,7 @@ class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def _calc_pellet_source(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
@@ -200,7 +200,7 @@ def _calc_pellet_source(
       c2=dynamic_source_runtime_params.pellet_width,
       total=(
           dynamic_source_runtime_params.S_pellet_tot
-          / dynamic_config_slice.numerics.nref
+          / dynamic_runtime_params_slice.numerics.nref
       ),
       use_normalized_r=True,
       geo=geo,

@@ -16,10 +16,10 @@
 
 from absl.testing import absltest
 import chex
-from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
 from torax.sources import formula_config
 from torax.sources import formulas
@@ -47,13 +47,13 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     custom_source_name = 'custom_exponential_source'
 
     # Copy the test_particle_sources_constant config in here for clarity.
-    test_particle_sources_constant_config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    test_particle_sources_constant_runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             set_pedestal=True,
             nbar=0.85,
             nu=0,
         ),
-        numerics=config_lib.Numerics(
+        numerics=general_runtime_params.Numerics(
             ion_heat_eq=True,
             el_heat_eq=True,
             dens_eq=True,  # This is important to be True to test ne sources.
@@ -114,7 +114,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # way that does not trigger recompiles. This way we only trace the code
     # once.
     geo = geometry.build_circular_geometry(
-        test_particle_sources_constant_config
+        test_particle_sources_constant_runtime_params
     )
     transport_model = constant_transport_model.ConstantTransportModel(
         runtime_params=constant_transport_model.RuntimeParams(
@@ -123,7 +123,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         )
     )
     sim = sim_lib.build_sim_from_config(
-        config=test_particle_sources_constant_config,
+        runtime_params=test_particle_sources_constant_runtime_params,
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(
             runtime_params=linear_theta_method.LinearRuntimeParams(
@@ -158,7 +158,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
           formula_config.Exponential(
               total=(
                   S_puff_tot
-                  / test_particle_sources_constant_config.numerics.nref
+                  / test_particle_sources_constant_runtime_params.numerics.nref
               ),
               c1=1.0,
               c2=puff_decay_length,
@@ -186,10 +186,10 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
       ref_profiles: dict[str, chex.ArrayTree],
       ref_time: chex.Array,
   ):
-    """Runs sim with new dynamic config and checks the profiles vs. expected."""
+    """Runs sim with new runtime params and checks the profiles vs. expected."""
     torax_outputs = sim_lib.run_simulation(
-        static_config_slice=sim.static_config_slice,
-        dynamic_config_slice_provider=sim.dynamic_config_slice_provider,
+        static_runtime_params_slice=sim.static_runtime_params_slice,
+        dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
         geometry_provider=sim.geometry_provider,
         initial_state=sim.initial_state,
         time_step_calculator=sim.time_step_calculator,

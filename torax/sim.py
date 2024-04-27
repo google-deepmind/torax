@@ -34,14 +34,15 @@ from absl import logging
 import jax
 import jax.numpy as jnp
 from torax import calc_coeffs
-from torax import config as config_lib
-from torax import config_slice
 from torax import core_profile_setters
 from torax import fvm
 from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax.config import config_args
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.spectators import spectator as spectator_lib
@@ -66,7 +67,7 @@ class CoeffsCallback:
   """Implements fvm.Block1DCoeffsCallback using calc_coeffs.
 
   Attributes:
-    static_config_slice: See the docstring for `stepper.Stepper`.
+    static_runtime_params_slice: See the docstring for `stepper.Stepper`.
     geo: See the docstring for `stepper.Stepper`.
     core_profiles_t: The core plasma profiles at the start of the time step.
     core_profiles_t_plus_dt: Core plasma profiles at the end of the time step.
@@ -78,7 +79,7 @@ class CoeffsCallback:
 
   def __init__(
       self,
-      static_config_slice: config_slice.StaticConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -87,7 +88,7 @@ class CoeffsCallback:
       source_models: source_models_lib.SourceModels,
       evolving_names: tuple[str, ...],
   ):
-    self.static_config_slice = static_config_slice
+    self.static_runtime_params_slice = static_runtime_params_slice
     self.geo = geo
     self.core_profiles_t = core_profiles_t
     self.core_profiles_t_plus_dt = core_profiles_t_plus_dt
@@ -98,7 +99,7 @@ class CoeffsCallback:
 
   def __call__(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       x: tuple[fvm.CellVariable, ...],
       allow_pereverzev: bool = False,
       # Checks if reduced calc_coeffs for explicit terms when theta_imp=1
@@ -107,11 +108,11 @@ class CoeffsCallback:
   ):
     replace = {k: v for k, v in zip(self.evolving_names, x)}
     if explicit_call:
-      core_profiles = config_lib.recursive_replace(
+      core_profiles = config_args.recursive_replace(
           self.core_profiles_t, **replace
       )
     else:
-      core_profiles = config_lib.recursive_replace(
+      core_profiles = config_args.recursive_replace(
           self.core_profiles_t_plus_dt, **replace
       )
     # update ion density in core_profiles if ne is being evolved.
@@ -121,20 +122,20 @@ class CoeffsCallback:
           core_profiles.ni,
           value=core_profiles.ne.value
           * physics.get_main_ion_dilution_factor(
-              dynamic_config_slice.plasma_composition.Zimp,
-              dynamic_config_slice.plasma_composition.Zeff,
+              dynamic_runtime_params_slice.plasma_composition.Zimp,
+              dynamic_runtime_params_slice.plasma_composition.Zeff,
           ),
       )
       core_profiles = dataclasses.replace(core_profiles, ni=ni)
 
     if allow_pereverzev:
-      use_pereverzev = self.static_config_slice.stepper.use_pereverzev
+      use_pereverzev = self.static_runtime_params_slice.stepper.use_pereverzev
     else:
       use_pereverzev = False
 
     return calc_coeffs.calc_coeffs(
-        static_config_slice=self.static_config_slice,
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=self.static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=self.geo,
         core_profiles=core_profiles,
         transport_model=self.transport_model,
@@ -154,17 +155,24 @@ class FrozenCoeffsCallback(CoeffsCallback):
   """
 
   def __init__(self, *args, **kwargs):
-    if 'dynamic_config_slice' not in kwargs:
-      raise ValueError('dynamic_config_slice must be provided.')
-    dynamic_config_slice = kwargs.pop('dynamic_config_slice')
+    if 'dynamic_runtime_params_slice' not in kwargs:
+      raise ValueError('dynamic_runtime_params_slice must be provided.')
+    dynamic_runtime_params_slice = kwargs.pop('dynamic_runtime_params_slice')
     super().__init__(*args, **kwargs)
     x = tuple([self.core_profiles_t[name] for name in self.evolving_names])
     self.frozen_coeffs = super().__call__(
-        dynamic_config_slice, x, allow_pereverzev=False, explicit_call=False
+        dynamic_runtime_params_slice,
+        x,
+        allow_pereverzev=False,
+        explicit_call=False,
     )
 
   def __call__(
-      self, dynamic_config_slice, x, allow_pereverzev=False, explicit_call=False
+      self,
+      dynamic_runtime_params_slice,
+      x,
+      allow_pereverzev=False,
+      explicit_call=False,
   ):
 
     return self.frozen_coeffs
@@ -217,8 +225,8 @@ class SimulationStepFn:
 
   def __call__(
       self,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
       geo: geometry.Geometry,
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
@@ -226,12 +234,12 @@ class SimulationStepFn:
     """Advances the simulation state one time step.
 
     Args:
-      static_config_slice: Static parameters that, if they change, should
-        trigger a recompilation of the SimulationStepFn.
-      dynamic_config_slice_provider: Object that returns a set of runtime
-        parameters which may change from time step to time step or simulation
-        run to run. If these config parameters change, it does NOT trigger a JAX
-        recompilation.
+      static_runtime_params_slice: Static parameters that, if they change,
+        should trigger a recompilation of the SimulationStepFn.
+      dynamic_runtime_params_slice_provider: Object that returns a set of
+        runtime parameters which may change from time step to time step or
+        simulation run to run. If these runtime parameters change, it does NOT
+        trigger a JAX recompilation.
       geo: The geometry of the torus during this time step of the simulation.
         While the geometry may change, any changes to the grid size can trigger
         recompilation of the stepper (if it is jitted) or an error (assuming it
@@ -252,7 +260,9 @@ class SimulationStepFn:
            2 if solver converged within coarse tolerance. Allowed to pass with a
              warning. Occasional error=2 has low impact on final sim state.
     """
-    dynamic_config_slice_t = dynamic_config_slice_provider(input_state.t)
+    dynamic_runtime_params_slice_t = dynamic_runtime_params_slice_provider(
+        input_state.t
+    )
     # TODO(b/335598388): We call the transport model both here and in the the
     # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
     # calls fall within the same jit scope* because can use
@@ -261,12 +271,12 @@ class SimulationStepFn:
     # calculate transport coeffs at delta_t = 0 in only one place, so that we
     # have some flexibility in where to place the jit boundaries.
     transport_coeffs = self._jitted_transport_model(
-        dynamic_config_slice_t, geo, input_state.core_profiles
+        dynamic_runtime_params_slice_t, geo, input_state.core_profiles
     )
 
     # initialize new dt and reset stepper iterations.
     dt, time_step_calculator_state = self._time_step_calculator.next_dt(
-        dynamic_config_slice_t,
+        dynamic_runtime_params_slice_t,
         geo,
         input_state.core_profiles,
         input_state.time_step_calculator_state,
@@ -274,25 +284,28 @@ class SimulationStepFn:
     )
 
     crosses_t_final = (
-        input_state.t < dynamic_config_slice_t.numerics.t_final
+        input_state.t < dynamic_runtime_params_slice_t.numerics.t_final
     ) * (
-        input_state.t + input_state.dt > dynamic_config_slice_t.numerics.t_final
+        input_state.t + input_state.dt
+        > dynamic_runtime_params_slice_t.numerics.t_final
     )
     dt = jnp.where(
         jnp.logical_and(
-            dynamic_config_slice_t.numerics.exact_t_final,
+            dynamic_runtime_params_slice_t.numerics.exact_t_final,
             crosses_t_final,
         ),
-        dynamic_config_slice_t.numerics.t_final - input_state.t,
+        dynamic_runtime_params_slice_t.numerics.t_final - input_state.t,
         dt,
     )
     if jnp.any(jnp.isnan(dt)):
       raise ValueError('dt is NaN.')
 
-    # The stepper needs the dynamic_config_slice at time t + dt for implicit
-    # computations in the solver.
-    dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
-        input_state.t + dt,
+    # The stepper needs the dynamic_runtime_params_slice at time t + dt for
+    # implicit computations in the solver.
+    dynamic_runtime_params_slice_t_plus_dt = (
+        dynamic_runtime_params_slice_provider(
+            input_state.t + dt,
+        )
     )
 
     core_profiles_t = input_state.core_profiles
@@ -301,8 +314,8 @@ class SimulationStepFn:
     # conditions and time-dependent prescribed profiles not directly solved by
     # PDE system.
     core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
-        static_config_slice=static_config_slice,
-        dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo=geo,
         core_profiles_t=core_profiles_t,
     )
@@ -314,9 +327,9 @@ class SimulationStepFn:
     core_profiles, core_sources, core_transport, stepper_error_state = (
         self._stepper_fn(
             dt=dt,
-            static_config_slice=static_config_slice,
-            dynamic_config_slice_t=dynamic_config_slice_t,
-            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
             geo=geo,
             core_profiles_t=core_profiles_t,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -336,7 +349,7 @@ class SimulationStepFn:
         stepper_error_state=stepper_error_state,
     )
 
-    if static_config_slice.adaptive_dt:
+    if static_runtime_params_slice.adaptive_dt:
       # Check if stepper converged. If not, proceed to body_fun
       def cond_fun(updated_output: state.ToraxSimState) -> bool:
         if updated_output.stepper_error_state == 1:
@@ -354,28 +367,30 @@ class SimulationStepFn:
 
         dt = (
             updated_output.dt
-            / dynamic_config_slice_t.numerics.dt_reduction_factor
+            / dynamic_runtime_params_slice_t.numerics.dt_reduction_factor
         )
         if jnp.any(jnp.isnan(dt)):
           raise ValueError('dt is NaN.')
-        if dt < dynamic_config_slice_t.numerics.mindt:
+        if dt < dynamic_runtime_params_slice_t.numerics.mindt:
           raise ValueError('dt below minimum timestep following adaptation')
 
-        dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
-            input_state.t + dt,
+        dynamic_runtime_params_slice_t_plus_dt = (
+            dynamic_runtime_params_slice_provider(
+                input_state.t + dt,
+            )
         )
         core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
             core_profiles_t=core_profiles_t,
-            dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
-            static_config_slice=static_config_slice,
+            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+            static_runtime_params_slice=static_runtime_params_slice,
             geo=geo,
         )
         core_profiles, core_sources, core_transport, stepper_error_state = (
             self._stepper_fn(
                 dt=dt,
-                static_config_slice=static_config_slice,
-                dynamic_config_slice_t=dynamic_config_slice_t,
-                dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+                static_runtime_params_slice=static_runtime_params_slice,
+                dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+                dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
                 geo=geo,
                 core_profiles_t=core_profiles_t,
                 core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -396,10 +411,12 @@ class SimulationStepFn:
       output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
 
     # Update total current, q, and s profiles based on new psi
-    dynamic_config_slice_t_plus_dt = dynamic_config_slice_provider(
-        input_state.t + output_state.dt,
+    dynamic_runtime_params_slice_t_plus_dt = (
+        dynamic_runtime_params_slice_provider(
+            input_state.t + output_state.dt,
+        )
     )
-    q_corr = dynamic_config_slice_t_plus_dt.numerics.q_correction_factor
+    q_corr = dynamic_runtime_params_slice_t_plus_dt.numerics.q_correction_factor
     output_state.core_profiles = physics.update_jtot_q_face_s_face(
         geo=geo,
         core_profiles=output_state.core_profiles,
@@ -409,7 +426,7 @@ class SimulationStepFn:
     # Update ohmic and bootstrap current based on the new core profiles.
     output_state.core_profiles = update_current_distribution(
         source_models=self._stepper_fn.source_models,
-        dynamic_config_slice=dynamic_config_slice_t_plus_dt,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
         geo=geo,
         core_profiles=output_state.core_profiles,
     )
@@ -417,7 +434,7 @@ class SimulationStepFn:
     # Update psidot based on the new core profiles
     output_state.core_profiles = update_psidot(
         source_models=self._stepper_fn.source_models,
-        dynamic_config_slice=dynamic_config_slice_t_plus_dt,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
         geo=geo,
         core_profiles=output_state.core_profiles,
     )
@@ -426,18 +443,21 @@ class SimulationStepFn:
 
 
 def get_initial_state(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     time_step_calculator: ts.TimeStepCalculator,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = core_profile_setters.initial_core_profiles(
-      static_config_slice, dynamic_config_slice, geo, source_models
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
+      geo,
+      source_models,
   )
   return state.ToraxSimState(
-      t=jnp.array(dynamic_config_slice.numerics.t_initial),
+      t=jnp.array(dynamic_runtime_params_slice.numerics.t_initial),
       dt=jnp.zeros(()),
       core_profiles=initial_core_profiles,
       # This will be overridden within run_simulation().
@@ -534,8 +554,8 @@ class Sim:
 
   def __init__(
       self,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
       geometry_provider: GeometryProvider,
       initial_state: state.ToraxSimState,
       time_step_calculator: ts.TimeStepCalculator,
@@ -543,8 +563,10 @@ class Sim:
       stepper: stepper_lib.Stepper | None = None,
       step_fn: SimulationStepFn | None = None,
   ):
-    self._static_config_slice = static_config_slice
-    self._dynamic_config_slice_provider = dynamic_config_slice_provider
+    self._static_runtime_params_slice = static_runtime_params_slice
+    self._dynamic_runtime_params_slice_provider = (
+        dynamic_runtime_params_slice_provider
+    )
     self._geometry_provider = geometry_provider
     self._initial_state = initial_state
     self._time_step_calculator = time_step_calculator
@@ -586,14 +608,16 @@ class Sim:
     return self._geometry_provider
 
   @property
-  def dynamic_config_slice_provider(
+  def dynamic_runtime_params_slice_provider(
       self,
-  ) -> config_slice.DynamicConfigSliceProvider:
-    return self._dynamic_config_slice_provider
+  ) -> runtime_params_slice.DynamicRuntimeParamsSliceProvider:
+    return self._dynamic_runtime_params_slice_provider
 
   @property
-  def static_config_slice(self) -> config_slice.StaticConfigSlice:
-    return self._static_config_slice
+  def static_runtime_params_slice(
+      self,
+  ) -> runtime_params_slice.StaticRuntimeParamsSlice:
+    return self._static_runtime_params_slice
 
   @property
   def step_fn(self) -> SimulationStepFn | None:
@@ -647,8 +671,8 @@ class Sim:
     if spectator is not None:
       spectator.reset()
     return run_simulation(
-        static_config_slice=self.static_config_slice,
-        dynamic_config_slice_provider=self.dynamic_config_slice_provider,
+        static_runtime_params_slice=self.static_runtime_params_slice,
+        dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
         geometry_provider=self.geometry_provider,
         initial_state=self.initial_state,
         time_step_calculator=self.time_step_calculator,
@@ -659,22 +683,22 @@ class Sim:
 
 
 def build_sim_from_config(
-    config: config_lib.Config,
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
     geo: geometry.Geometry,
     stepper_builder: stepper_lib.StepperBuilder,
     transport_model: transport_model_lib.TransportModel,
     source_models: source_models_lib.SourceModels,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
 ) -> Sim:
-  """Builds a Sim object from a Config file.
+  """Builds a Sim object from the input runtime params and objects.
 
   Over time we expect to transition to functions that just build
   Sim objects directly. This function is needed during the
   transitional stage during which many objects still require
-  a Config.
+  a config.
 
   Args:
-    config: The Config used to build everything.
+    runtime_params: The input runtime params used throughout the simulation run.
     geo: Describes the magnetic geometry.
     stepper_builder: A callable to build the stepper. The stepper has already
       been factored out of the config.
@@ -688,36 +712,40 @@ def build_sim_from_config(
     sim: The built Sim instance.
   """
 
-  static_config_slice = config_slice.build_static_config_slice(
-      config,
-      stepper=stepper_builder.runtime_params,
+  static_runtime_params_slice = (
+      runtime_params_slice.build_static_runtime_params_slice(
+          runtime_params=runtime_params,
+          stepper=stepper_builder.runtime_params,
+      )
   )
-  dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
-      config=config,
-      transport_getter=lambda: transport_model.runtime_params,
-      sources_getter=lambda: source_models.runtime_params,
-      stepper_getter=lambda: stepper_builder.runtime_params,
+  dynamic_runtime_params_slice_provider = (
+      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+          runtime_params=runtime_params,
+          transport_getter=lambda: transport_model.runtime_params,
+          sources_getter=lambda: source_models.runtime_params,
+          stepper_getter=lambda: stepper_builder.runtime_params,
+      )
   )
   stepper = stepper_builder(transport_model, source_models)
 
   if time_step_calculator is None:
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
 
-  # build dynamic_config_slice at t_initial for initial conditions
-  dynamic_config_slice = dynamic_config_slice_provider(
-      config.numerics.t_initial
+  # build dynamic_runtime_params_slice at t_initial for initial conditions
+  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
+      runtime_params.numerics.t_initial
   )
   initial_state = get_initial_state(
-      static_config_slice=static_config_slice,
-      dynamic_config_slice=dynamic_config_slice,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       source_models=stepper.source_models,
       time_step_calculator=time_step_calculator,
   )
 
   return Sim(
-      static_config_slice=static_config_slice,
-      dynamic_config_slice_provider=dynamic_config_slice_provider,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       geometry_provider=ConstantGeometryProvider(geo),
       initial_state=initial_state,
       time_step_calculator=time_step_calculator,
@@ -727,8 +755,8 @@ def build_sim_from_config(
 
 
 def run_simulation(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
     geometry_provider: GeometryProvider,
     initial_state: state.ToraxSimState,
     time_step_calculator: ts.TimeStepCalculator,
@@ -753,16 +781,18 @@ def run_simulation(
   history.
 
   Args:
-    static_config_slice: A static set of arguments to provide to the step_fn. If
-      step_fn is JAX-compiled, then these params are "compile-time constant"
-      meaning that they are considered static to the compiled function. If they
-      change (i.e. the same step_fn is called again with a different
-      static_config_slice), then the step_fn will be recompiled. JAX determines
-      if recompilation is necessary via the hash of the static_config_slice.
-    dynamic_config_slice_provider: Provides a DynamicConfigSlice to use as input
-      for each time step. See static_config_slice and the config_slice module
-      docstring for config_slice to understand why we need the dynamic and
-      static config slices and what they control.
+    static_runtime_params_slice: A static set of arguments to provide to the
+      step_fn. If step_fn is JAX-compiled, then these params are "compile-time
+      constant" meaning that they are considered static to the compiled
+      function. If they change (i.e. the same step_fn is called again with a
+      different static_runtime_params_slice), then the step_fn will be
+      recompiled. JAX determines if recompilation is necessary via the hash of
+      the static_runtime_params_slice.
+    dynamic_runtime_params_slice_provider: Provides a DynamicRuntimeParamsSlice
+      to use as input for each time step. See static_runtime_params_slice and
+      the runtime_params_slice module docstring for runtime_params_slice to
+      understand why we need the dynamic and static config slices and what they
+      control.
     geometry_provider: Provides the geometry of the torus for each time step
       based on the ToraxSimState at the start of the time step. The geometry may
       change from time step to time step, so the sim needs a function to provide
@@ -809,15 +839,17 @@ def run_simulation(
       initial_state,
   ]
   stepper_error_state = 0
-  dynamic_config_slice = dynamic_config_slice_provider(initial_state.t)
+  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
+      initial_state.t
+  )
   geo = geometry_provider(initial_state)
 
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
   # inside the loop and will be merged with these implicit source profiles.
   initial_state.core_sources = _get_initial_source_profiles(
-      static_config_slice=static_config_slice,
-      dynamic_config_slice=dynamic_config_slice,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       core_profiles=initial_state.core_profiles,
       source_models=step_fn.stepper.source_models,
@@ -832,7 +864,7 @@ def run_simulation(
   # done.
   while time_step_calculator.not_done(
       sim_state.t,
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       sim_state.time_step_calculator_state,
   ):
     # Measure how long in wall clock time each simulation step takes.
@@ -840,7 +872,7 @@ def run_simulation(
     if log_timestep_info:
       _log_timestep(sim_state.t, sim_state.dt, sim_state.stepper_iterations)
       # TODO(b/330172917): once tol and coarse_tol are configurable in the
-      # config, also log the value of tol and coarse_tol below
+      # runtime_params, also log the value of tol and coarse_tol below
       match stepper_error_state:
         case 0:
           pass
@@ -855,7 +887,7 @@ def run_simulation(
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
     # set to 0.
     explicit_source_profiles = source_models_lib.build_source_profiles(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=sim_state.core_profiles,
         source_models=step_fn.stepper.source_models,
@@ -881,15 +913,17 @@ def run_simulation(
       # Now prep the spectator for the following time step.
       spectator.before_step()
     sim_state = step_fn(
-        static_config_slice,
-        dynamic_config_slice_provider,
+        static_runtime_params_slice,
+        dynamic_runtime_params_slice_provider,
         geo,
         sim_state,
         explicit_source_profiles,
     )
     stepper_error_state = sim_state.stepper_error_state
     # Update the runtime config for the next iteration.
-    dynamic_config_slice = dynamic_config_slice_provider(sim_state.t)
+    dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
+        sim_state.t
+    )
     torax_outputs.append(sim_state)
     geo = geometry_provider(sim_state)
     wall_clock_step_times.append(time.time() - step_start_time)
@@ -902,7 +936,7 @@ def run_simulation(
   # profiles computed based on the final state.
   logging.info("Updating last step's source profiles.")
   explicit_source_profiles = source_models_lib.build_source_profiles(
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       core_profiles=sim_state.core_profiles,
       source_models=step_fn.stepper.source_models,
@@ -1015,7 +1049,7 @@ def _update_spectator(
 
 
 def update_current_distribution(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -1023,8 +1057,8 @@ def update_current_distribution(
   """Update bootstrap current based on the new core_profiles."""
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
-      dynamic_config_slice=dynamic_config_slice,
-      dynamic_source_runtime_params=dynamic_config_slice.sources[
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ],
       geo=geo,
@@ -1058,7 +1092,7 @@ def update_current_distribution(
 
 
 def update_psidot(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -1068,7 +1102,7 @@ def update_psidot(
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=source_models_lib.calc_psidot(
-          dynamic_config_slice,
+          dynamic_runtime_params_slice,
           geo,
           core_profiles,
           source_models,
@@ -1083,21 +1117,21 @@ def update_psidot(
 
 
 def provide_core_profiles_t_plus_dt(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
 ) -> state.CoreProfiles:
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
   updated_boundary_conditions = (
       core_profile_setters.compute_boundary_conditions(
-          dynamic_config_slice_t_plus_dt,
+          dynamic_runtime_params_slice_t_plus_dt,
           geo,
       )
   )
   updated_values = core_profile_setters.updated_prescribed_core_profiles(
-      static_config_slice=static_config_slice,
-      dynamic_config_slice=dynamic_config_slice_t_plus_dt,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo,
       core_profiles=core_profiles_t,
   )
@@ -1123,8 +1157,8 @@ def provide_core_profiles_t_plus_dt(
       core_profiles_t.ni,
       value=ne.value
       * physics.get_main_ion_dilution_factor(
-          dynamic_config_slice_t_plus_dt.plasma_composition.Zimp,
-          dynamic_config_slice_t_plus_dt.plasma_composition.Zeff,
+          dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zimp,
+          dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zeff,
       ),
   )
   core_profiles_t_plus_dt = dataclasses.replace(
@@ -1134,8 +1168,8 @@ def provide_core_profiles_t_plus_dt(
 
 
 def _get_initial_source_profiles(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
@@ -1154,10 +1188,11 @@ def _get_initial_source_profiles(
   core profiles.
 
   Args:
-    static_config_slice: Config parameters which, when they change, trigger
-      recompilations. They should not change within a single run of the sim.
-    dynamic_config_slice: Runtime parameters which may change from time step to
-      time step without triggering recompilations.
+    static_runtime_params_slice: Runtime parameters which, when they change,
+      trigger recompilations. They should not change within a single run of the
+      sim.
+    dynamic_runtime_params_slice: Runtime parameters which may change from time
+      step to time step without triggering recompilations.
     geo: The geometry of the torus during this time step of the simulation.
     core_profiles: Core profiles that may evolve throughout the course of a
       simulation. These values here are, of course, only the original states.
@@ -1168,16 +1203,16 @@ def _get_initial_source_profiles(
     the starting state.
   """
   implicit_profiles = source_models_lib.build_source_profiles(
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
       explicit=False,
   )
   qei = source_models.qei_source.get_qei(
-      static_config_slice=static_config_slice,
-      dynamic_config_slice=dynamic_config_slice,
-      dynamic_source_runtime_params=dynamic_config_slice.sources[
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
           source_models.qei_source_name
       ],
       geo=geo,

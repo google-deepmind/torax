@@ -24,7 +24,7 @@ from typing import Any, Optional, Protocol
 
 import chex
 import jax
-from torax import config_slice
+from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 
 
@@ -80,11 +80,11 @@ class Block1DCoeffs:
       channel i on the face grid.
     source_mat_cell: 2-D matrix of Tuples, with source_mat_cell[i][j] adding to
       block-row i a term of the form source_cell[j] * u[channel j]. Depending on
-      the source config, may be constant values for a timestep, or updated
-      iteratively with new states in a nonlinear solver
-    source_cell: Additional source terms on the cell grid for each channel.
-      Depending on the source config, may be constant values for a timestep, or
+      the source runtime_params, may be constant values for a timestep, or
       updated iteratively with new states in a nonlinear solver
+    source_cell: Additional source terms on the cell grid for each channel.
+      Depending on the source runtime_params, may be constant values for a
+      timestep, or updated iteratively with new states in a nonlinear solver
     auxiliary_outputs: Optional extra output which can include auxiliary state
       or information useful for inspecting the computation inside the callback
       which calculated these coeffs.
@@ -103,7 +103,7 @@ class Block1DCoeffsCallback(Protocol):
 
   def __call__(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       x: tuple[cell_variable.CellVariable, ...],
       allow_pereverzev: bool = False,
       explicit_call: bool = False,
@@ -124,9 +124,9 @@ class Block1DCoeffsCallback(Protocol):
     final output x_new.
 
     Args:
-      dynamic_config_slice: Runtime configuration parameters. These values are
-        potentially time-dependent and should correspond to the time step of the
-        state x.
+      dynamic_runtime_params_slice: Runtime configuration parameters. These
+        values are potentially time-dependent and should correspond to the time
+        step of the state x.
       x: The state.
       allow_pereverzev: If True, then the coeffs are being called for an initial
         guess based on a linear step as opposed to just passing the iniitial

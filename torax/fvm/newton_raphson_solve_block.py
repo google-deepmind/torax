@@ -24,11 +24,11 @@ from absl import logging
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import config_slice
 from torax import fvm
 from torax import geometry
 from torax import jax_utils
 from torax import state as state_module
+from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import fvm_conversions
@@ -90,9 +90,9 @@ def _log_iterations(
 
 def newton_raphson_solve_block(
     dt: jax.Array,
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state_module.CoreProfiles,
@@ -138,12 +138,12 @@ def newton_raphson_solve_block(
 
   Args:
     dt: Discrete time step.
-    static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation.
-    dynamic_config_slice_t: Runtime configuration for time t (the start time of
-      the step). These config params can change from step to step without
-      triggering a recompilation.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    static_runtime_params_slice: Static runtime parameters. Changes to these
+      runtime params will trigger recompilation.
+    dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
+      time of the step). These config params can change from step to step
+      without triggering a recompilation.
+    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo: Geometry object.
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
@@ -187,7 +187,7 @@ def newton_raphson_solve_block(
   # pyformat: enable
 
   coeffs_old = coeffs_callback(
-      dynamic_config_slice_t, x_old, explicit_call=True
+      dynamic_runtime_params_slice_t, x_old, explicit_call=True
   )
 
   match initial_guess_mode:
@@ -195,10 +195,10 @@ def newton_raphson_solve_block(
     # corrector method if predictor_corrector=True in the solver config
     case InitialGuessMode.LINEAR:
       # returns transport coefficients with additional pereverzev terms
-      # if set by config, needed if stiff transport models (e.g. qlknn)
+      # if set by runtime_params, needed if stiff transport models (e.g. qlknn)
       # are used.
       coeffs_exp_linear = coeffs_callback(
-          dynamic_config_slice_t,
+          dynamic_runtime_params_slice_t,
           x_old,
           allow_pereverzev=True,
           explicit_call=True,
@@ -222,8 +222,8 @@ def newton_raphson_solve_block(
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
-          static_config_slice=static_config_slice,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           x_old=x_old,
           init_val=init_val,
           coeffs_exp=coeffs_exp_linear,
@@ -244,8 +244,8 @@ def newton_raphson_solve_block(
   residual_fun = functools.partial(
       residual_and_loss.theta_method_block_residual,
       dt=dt,
-      static_config_slice=static_config_slice,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -258,8 +258,8 @@ def newton_raphson_solve_block(
   jacobian_fun = functools.partial(
       residual_and_loss.theta_method_block_jacobian,
       dt=dt,
-      static_config_slice=static_config_slice,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,

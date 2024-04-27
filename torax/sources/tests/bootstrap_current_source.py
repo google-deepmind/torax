@@ -17,10 +17,10 @@
 from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
-from torax import config as config_lib
-from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import bootstrap_current_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -44,26 +44,30 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
 
   def test_source_value(self):
     source = bootstrap_current_source.BootstrapCurrentSource()
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     source_models = source_models_lib.SourceModels(
         sources={'j_bootstrap': source}
     )
-    static_config_slice = config_slice.build_static_config_slice(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        sources=source_models.runtime_params,
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+    )
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice=dynamic_config_slice,
-        static_config_slice=static_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
     self.assertIsNotNone(
         source.get_value(
-            dynamic_config_slice=dynamic_config_slice,
-            dynamic_source_runtime_params=dynamic_config_slice.sources[
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+            dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
                 source_models.j_bootstrap_name
             ],
             geo=geo,
@@ -79,8 +83,8 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
     source = bootstrap_current_source.BootstrapCurrentSource()
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     face = source_lib.ProfileType.FACE.get_profile_shape(geo)
     fake_profile = source_profiles.BootstrapCurrentProfile(

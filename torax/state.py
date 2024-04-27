@@ -22,8 +22,8 @@ from typing import Any
 import chex
 import jax
 from jax import numpy as jnp
-from torax import config
 from torax import geometry
+from torax.config import config_args
 from torax.fvm import cell_variable
 from torax.sources import source_profiles
 
@@ -107,7 +107,7 @@ class CoreProfiles:
     history_vars = ["temp_ion", "temp_el", "psi", "psidot", "ne", "ni"]
     history_replace = {"history": None}
     replace_dict = {var: history_replace for var in history_vars}
-    state = config.recursive_replace(state, **replace_dict)
+    state = config_args.recursive_replace(state, **replace_dict)
     return state
 
   def sanity_check(self):

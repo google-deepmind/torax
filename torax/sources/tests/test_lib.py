@@ -21,10 +21,10 @@ import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import config as config_lib
-from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -82,26 +82,32 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     self.assertIsInstance(source, source_lib.SingleProfileSource)
-    config = config_lib.Config()
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
     source.runtime_params.mode = source.supported_modes[0]
     source_models = source_models_lib.SourceModels(
         sources={'foo': source},
     )
-    geo = geometry.build_circular_geometry(config)
-    static_config_slice = config_slice.build_static_config_slice(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config=config,
-        sources=source_models.runtime_params,
+    geo = geometry.build_circular_geometry(runtime_params)
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+    )
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params=runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=static_config_slice,
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
     value = source.get_value(
-        dynamic_config_slice=dynamic_config_slice,
-        dynamic_source_runtime_params=dynamic_config_slice.sources['foo'],
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+            'foo'
+        ],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -109,8 +115,8 @@ class SingleProfileSourceTestCase(SourceTestCase):
 
   def test_invalid_source_types_raise_errors(self):
     """Tests that using unsupported types raises an error."""
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
@@ -118,27 +124,35 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source_models = source_models_lib.SourceModels(
         sources={'foo': source},
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config=config,
-        sources=source_models.runtime_params,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params=runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params
+        ),
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
     for unsupported_mode in self._unsupported_modes:
       source.runtime_params.mode = unsupported_mode
-      dynamic_config_slice = config_slice.build_dynamic_config_slice(
-          config=config,
-          sources=source_models.runtime_params,
+      dynamic_runtime_params_slice = (
+          runtime_params_slice.build_dynamic_runtime_params_slice(
+              runtime_params=runtime_params,
+              sources=source_models.runtime_params,
+          )
       )
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
           source.get_value(
-              dynamic_config_slice=dynamic_config_slice,
-              dynamic_source_runtime_params=dynamic_config_slice.sources['foo'],
+              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+              dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+                  'foo'
+              ],
               geo=geo,
               core_profiles=core_profiles,
           )
@@ -153,25 +167,31 @@ class IonElSourceTestCase(SourceTestCase):
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     self.assertIsInstance(source, source_lib.IonElectronSource)
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     source_models = source_models_lib.SourceModels(
         sources={'foo': source},
     )
-    static_config_slice = config_slice.build_static_config_slice(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config=config,
-        sources=source_models.runtime_params,
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+    )
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params=runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=static_config_slice,
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
     ion_and_el = source.get_value(
-        dynamic_config_slice=dynamic_config_slice,
-        dynamic_source_runtime_params=dynamic_config_slice.sources['foo'],
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+            'foo'
+        ],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -179,8 +199,8 @@ class IonElSourceTestCase(SourceTestCase):
 
   def test_invalid_source_types_raise_errors(self):
     """Tests that using unsupported types raises an error."""
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
@@ -188,36 +208,44 @@ class IonElSourceTestCase(SourceTestCase):
     source_models = source_models_lib.SourceModels(
         sources={'foo': source},
     )
-    static_config_slice = config_slice.build_static_config_slice(config)
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config=config,
-        sources=source_models.runtime_params,
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+    )
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params=runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=static_config_slice,
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
     for unsupported_mode in self._unsupported_modes:
       source.runtime_params.mode = unsupported_mode
-      dynamic_config_slice = config_slice.build_dynamic_config_slice(
-          config=config,
-          sources=source_models.runtime_params,
+      dynamic_runtime_params_slice = (
+          runtime_params_slice.build_dynamic_runtime_params_slice(
+              runtime_params=runtime_params,
+              sources=source_models.runtime_params,
+          )
       )
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
           source.get_value(
-              dynamic_config_slice=dynamic_config_slice,
-              dynamic_source_runtime_params=dynamic_config_slice.sources['foo'],
+              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+              dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+                  'foo'
+              ],
               geo=geo,
               core_profiles=core_profiles,
           )
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa

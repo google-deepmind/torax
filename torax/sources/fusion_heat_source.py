@@ -20,10 +20,10 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import constants
 from torax import geometry
 from torax import state
+from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
@@ -121,7 +121,7 @@ def calc_fusion(
 
 
 def fusion_heat_model_func(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -129,7 +129,7 @@ def fusion_heat_model_func(
   del dynamic_source_runtime_params  # Unused.
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
-      geo, core_profiles, dynamic_config_slice.numerics.nref
+      geo, core_profiles, dynamic_runtime_params_slice.numerics.nref
   )
   return jnp.stack((Pfus_i, Pfus_e))
   # pylint: enable=invalid-name

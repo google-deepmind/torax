@@ -19,11 +19,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax import config_slice
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry
 from torax import physics
+from torax.config import runtime_params_slice
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
@@ -35,7 +35,9 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_calc_q_from_psi(
       self, references_getter: Callable[[], torax_refs.References]
@@ -43,26 +45,28 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     """Compare `calc_q_from_psi` function to a reference implementation."""
     references = references_getter()
 
-    config = references.config
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+    runtime_params = references.runtime_params
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+    )
     geo = references.geo
 
     # Dummy value for jtot for unit testing purposes.
-    jtot = jnp.ones(config.numerics.nr)
+    jtot = jnp.ones(runtime_params.numerics.nr)
 
     q_face_jax, q_cell_jax = physics.calc_q_from_jtot_psi(
         geo,
         references.psi,
         jtot,
-        dynamic_config_slice.numerics.q_correction_factor,
+        dynamic_runtime_params_slice.numerics.q_correction_factor,
     )
 
     # Make ground truth
-    def calc_q_from_psi(config, geo):
+    def calc_q_from_psi(runtime_params, geo):
       """Reference implementation from PINT."""
       consts = constants.CONSTANTS
-      iota = np.zeros(config.numerics.nr + 1)  # on face grid
-      q = np.zeros(config.numerics.nr + 1)  # on face grid
+      iota = np.zeros(runtime_params.numerics.nr + 1)  # on face grid
+      q = np.zeros(runtime_params.numerics.nr + 1)  # on face grid
       # We use the reference value of psi here because the original code
       # for calculating psi depends on FiPy, and we don't want to install that
       iota[1:] = np.abs(
@@ -75,17 +79,17 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
       q[0] = (
           2 * geo.B0 / (consts.mu0 * jtot[0] * geo.Rmaj)
       )  # use on-axis definition of q (Wesson 2004, Eq 3.48)
-      q *= config.numerics.q_correction_factor
+      q *= runtime_params.numerics.q_correction_factor
 
-      def face_to_cell(config, face):
-        cell = np.zeros(config.numerics.nr)
+      def face_to_cell(runtime_params, face):
+        cell = np.zeros(runtime_params.numerics.nr)
         cell[:] = 0.5 * (face[1:] + face[:-1])
         return cell
 
-      q_cell = face_to_cell(config, q)
+      q_cell = face_to_cell(runtime_params, q)
       return q, q_cell
 
-    q_face_np, q_cell_np = calc_q_from_psi(config, geo)
+    q_face_np, q_cell_np = calc_q_from_psi(runtime_params, geo)
 
     np.testing.assert_allclose(q_face_jax, q_face_np)
     np.testing.assert_allclose(q_cell_jax, q_cell_np)
@@ -93,7 +97,9 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_update_psi_from_j(
       self, references_getter: Callable[[], torax_refs.References]
@@ -101,26 +107,28 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     """Compare `update_psi_from_j` function to a reference implementation."""
     references = references_getter()
 
-    config = references.config
+    runtime_params = references.runtime_params
     source_models = source_models_lib.SourceModels()
     # Turn on the external current source.
     source_models.jext.runtime_params.mode = (
         source_runtime_params.Mode.FORMULA_BASED
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config, sources=source_models.runtime_params
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params, sources=source_models.runtime_params
+        )
     )
     geo = references.geo
 
     # pylint: disable=protected-access
     if isinstance(geo, geometry.CircularGeometry):
       currents = core_profile_setters._prescribe_currents_no_bootstrap(
-          dynamic_config_slice,
+          dynamic_runtime_params_slice,
           geo,
           source_models=source_models,
       )
       psi = core_profile_setters._update_psi_from_j(
-          dynamic_config_slice, geo, currents
+          dynamic_runtime_params_slice, geo, currents
       ).value
     elif isinstance(geo, geometry.CHEASEGeometry):
       psi = geo.psi_from_chease_Ip
@@ -133,7 +141,9 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_calc_jtot_from_psi(
       self, references_getter: Callable[[], torax_refs.References]
@@ -151,7 +161,9 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_calc_s_from_psi(
       self, references_getter: Callable[[], torax_refs.References]

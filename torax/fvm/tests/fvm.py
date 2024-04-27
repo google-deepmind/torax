@@ -22,11 +22,11 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import calc_coeffs
-from torax import config as config_lib
-from torax import config_slice
 from torax import core_profile_setters
 from torax import fvm
 from torax import geometry
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
 from torax.sources import default_sources
@@ -43,7 +43,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_face_grad(
       self,
@@ -59,7 +61,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_underconstrained(
       self,
@@ -69,7 +73,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.config.numerics.nr)
+    value = jnp.zeros(references.runtime_params.numerics.nr)
     cell_variable = fvm.CellVariable(value=value, dr=references.geo.dr)
     # Underconstrain the left
     with self.assertRaises(AssertionError):
@@ -89,7 +93,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_overconstrained(
       self,
@@ -99,7 +105,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.config.numerics.nr)
+    value = jnp.zeros(references.runtime_params.numerics.nr)
     cell_variable = fvm.CellVariable(value=value, dr=references.geo.dr)
     # Overconstrain the left
     with self.assertRaises(AssertionError):
@@ -125,7 +131,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
       ),
       dict(
           seed=20221114,
-          references_getter=torax_refs.chease_references_Ip_from_config,
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params,
       ),
   ])
   def test_face_grad_constraints(self, seed, references_getter):
@@ -133,7 +139,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    dim = references.config.numerics.nr
+    dim = references.runtime_params.numerics.nr
     value = jnp.zeros(dim)
 
     rng_state = jax.random.PRNGKey(seed)
@@ -350,11 +356,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
       self, num_cells, theta_imp, time_steps
   ):
     """Tests that the linear solution for a linear problem yields zero residual and loss."""
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             set_pedestal=False,
         ),
-        numerics=config_lib.Numerics(
+        numerics=general_runtime_params.Numerics(
             nr=num_cells,
             el_heat_eq=False,
         ),
@@ -363,7 +369,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         predictor_corrector=False,
         theta_imp=theta_imp,
     )
-    geo = geometry.build_circular_geometry(config)
+    geo = geometry.build_circular_geometry(runtime_params)
     transport_model = constant_transport_model.ConstantTransportModel(
         runtime_params=constant_transport_model.RuntimeParams(
             chimin=0,
@@ -381,29 +387,36 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models.sources['ohmic_heat_source'].runtime_params.mode = (
         source_runtime_params.Mode.ZERO
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        transport=transport_model.runtime_params,
-        sources=source_models.runtime_params,
-        stepper=stepper_params,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            transport=transport_model.runtime_params,
+            sources=source_models.runtime_params,
+            stepper=stepper_params,
+        )
     )
-    static_config_slice = config_slice.build_static_config_slice(
-        config, stepper=stepper_params
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params, stepper=stepper_params
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice, dynamic_config_slice, geo, source_models
+        static_runtime_params_slice,
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
     )
     evolving_names = tuple(['temp_ion'])
     explicit_source_profiles = source_models_lib.build_source_profiles(
         source_models=source_models,
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
         explicit=True,
     )
     coeffs = calc_coeffs.calc_coeffs(
-        static_config_slice=static_config_slice,
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
         transport_model=transport_model,
@@ -434,8 +447,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # core_profiles_t_plus_dt is not updated since coeffs stay constant here
       loss, _ = residual_and_loss.theta_method_block_loss(
           dt=dt,
-          static_config_slice=static_config_slice,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
           geo=geo,
           x_old=x_old,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
@@ -449,8 +462,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
 
       residual, _ = residual_and_loss.theta_method_block_residual(
           dt=dt,
-          static_config_slice=static_config_slice,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
           geo=geo,
           x_new_guess_vec=jnp.concatenate([var.value for var in x_new]),
           x_old=x_old,
@@ -470,11 +483,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # Create a system with diffusive transport and no sources. When initialized
     # flat, x_new should remain zero unless boundary conditions change.
     num_cells = 2
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             set_pedestal=False,
         ),
-        numerics=config_lib.Numerics(
+        numerics=general_runtime_params.Numerics(
             nr=num_cells,
             el_heat_eq=False,
         ),
@@ -500,22 +513,29 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models.sources['ohmic_heat_source'].runtime_params.mode = (
         source_runtime_params.Mode.ZERO
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        transport=transport_model.runtime_params,
-        sources=source_models.runtime_params,
-        stepper=stepper_params,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            transport=transport_model.runtime_params,
+            sources=source_models.runtime_params,
+            stepper=stepper_params,
+        )
     )
-    static_config_slice = config_slice.build_static_config_slice(
-        config, stepper=stepper_params
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params, stepper=stepper_params
+        )
     )
-    geo = geometry.build_circular_geometry(config)
+    geo = geometry.build_circular_geometry(runtime_params)
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice, dynamic_config_slice, geo, source_models
+        static_runtime_params_slice,
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
     )
     explicit_source_profiles = source_models_lib.build_source_profiles(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,
@@ -526,8 +546,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
     evolving_names = tuple(['temp_ion'])
 
     coeffs = calc_coeffs.calc_coeffs(
-        static_config_slice=static_config_slice,
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
         transport_model=transport_model,
@@ -593,11 +613,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # Create a system with diffusive transport and no sources. When initialized
     # flat, residual should remain zero unless boundary conditions change.
     num_cells = 2
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             set_pedestal=False,
         ),
-        numerics=config_lib.Numerics(
+        numerics=general_runtime_params.Numerics(
             nr=num_cells,
             el_heat_eq=False,
         ),
@@ -606,7 +626,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         predictor_corrector=False,
         theta_imp=0.0,
     )
-    geo = geometry.build_circular_geometry(config)
+    geo = geometry.build_circular_geometry(runtime_params)
     transport_model = constant_transport_model.ConstantTransportModel(
         runtime_params=constant_transport_model.RuntimeParams(
             chimin=0,
@@ -624,28 +644,35 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models.sources['ohmic_heat_source'].runtime_params.mode = (
         source_runtime_params.Mode.ZERO
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        transport=transport_model.runtime_params,
-        sources=source_models.runtime_params,
-        stepper=stepper_params,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            transport=transport_model.runtime_params,
+            sources=source_models.runtime_params,
+            stepper=stepper_params,
+        )
     )
-    static_config_slice_theta0 = config_slice.build_static_config_slice(
-        config, stepper=stepper_params
+    static_runtime_params_slice_theta0 = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params, stepper=stepper_params
+        )
     )
-    static_config_slice_theta05 = dataclasses.replace(
-        static_config_slice_theta0,
+    static_runtime_params_slice_theta05 = dataclasses.replace(
+        static_runtime_params_slice_theta0,
         stepper=dataclasses.replace(
-            static_config_slice_theta0.stepper, theta_imp=0.5
+            static_runtime_params_slice_theta0.stepper, theta_imp=0.5
         ),
     )
 
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice_theta0, dynamic_config_slice, geo, source_models
+        static_runtime_params_slice_theta0,
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
     )
     explicit_source_profiles = source_models_lib.build_source_profiles(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,
@@ -656,8 +683,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
     evolving_names = tuple(['temp_ion'])
 
     coeffs_old = calc_coeffs.calc_coeffs(
-        static_config_slice=static_config_slice_theta05,
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice_theta05,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
         transport_model=transport_model,
@@ -675,8 +702,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_constraint=initial_right_boundary,
     )
     core_profiles_t_plus_dt = core_profile_setters.initial_core_profiles(
-        static_config_slice=static_config_slice_theta0,
-        dynamic_config_slice=dynamic_config_slice,
+        static_runtime_params_slice=static_runtime_params_slice_theta0,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -691,8 +718,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # at all 0, and the residual should be 0.
       residual, _ = residual_and_loss.theta_method_block_residual(
           dt=dt,
-          static_config_slice=static_config_slice_theta05,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_runtime_params_slice=static_runtime_params_slice_theta05,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
           geo=geo,
           x_old=(x_0,),
           x_new_guess_vec=x_0.value,
@@ -711,8 +738,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
       final_right_boundary = jnp.array(1.0)
       residual, _ = residual_and_loss.theta_method_block_residual(
           dt=dt,
-          static_config_slice=static_config_slice_theta0,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_runtime_params_slice=static_runtime_params_slice_theta0,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
           geo=geo,
           x_old=(x_0,),
           x_new_guess_vec=x_0.value,
@@ -732,8 +759,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
       # But when theta_imp > 0, the residual should be non-zero.
       residual, _ = residual_and_loss.theta_method_block_residual(
           dt=dt,
-          static_config_slice=static_config_slice_theta05,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice,
+          static_runtime_params_slice=static_runtime_params_slice_theta05,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
           geo=geo,
           x_old=(x_0,),
           core_profiles_t_plus_dt=dataclasses.replace(

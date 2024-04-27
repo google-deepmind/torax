@@ -25,11 +25,11 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 import torax
-from torax import config as config_lib
-from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
@@ -79,10 +79,10 @@ class SimTestCase(parameterized.TestCase):
   def _get_config(
       self,
       config_name: str,
-  ) -> config_lib.Config:
+  ) -> general_runtime_params.GeneralRuntimeParams:
     """Returns an input Config from the name given."""
     config_module = self._get_config_module(config_name)
-    return config_module.get_config()
+    return config_module.get_runtime_params()
 
   def _get_geometry(
       self,
@@ -90,8 +90,8 @@ class SimTestCase(parameterized.TestCase):
   ) -> geometry.Geometry:
     """Returns an input Config from the name given."""
     config_module = self._get_config_module(config_name)
-    config = config_module.get_config()
-    return config_module.get_geometry(config)
+    runtime_params = config_module.get_runtime_params()
+    return config_module.get_geometry(runtime_params)
 
   def _get_sim(self, config_name: str) -> sim_lib.Sim:
     """Returns a Sim given the name of a py file to build it."""
@@ -254,8 +254,8 @@ class SimTestCase(parameterized.TestCase):
           time_step_calculator=time_step_calculator,
           initial_state=sim.initial_state,
           geometry_provider=sim.geometry_provider,
-          dynamic_config_slice_provider=sim.dynamic_config_slice_provider,
-          static_config_slice=sim.static_config_slice,
+          dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
+          static_runtime_params_slice=sim.static_runtime_params_slice,
           stepper=sim.stepper,
           transport_model=sim.transport_model,
           step_fn=sim.step_fn,
@@ -278,7 +278,7 @@ class SimTestCase(parameterized.TestCase):
 def make_frozen_optimizer_stepper(
     transport_model: transport_model_lib.TransportModel,
     source_models: source_models_lib.SourceModels,
-    config: config_lib.Config,
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
     transport_params: transport_params_lib.RuntimeParams,
 ) -> stepper_lib.Stepper:
   """Makes an optimizer stepper with frozen coefficients.
@@ -290,21 +290,23 @@ def make_frozen_optimizer_stepper(
     transport_model: Transport model.
     source_models: TORAX sources/sinks used to compute profile terms in the
       state evolution equations.
-    config: General TORAX config.
+    runtime_params: General TORAX runtime input parameters.
     transport_params: Runtime params for the transport model.
 
   Returns:
     Stepper: the stepper.
   """
-  # Get the dynamic config for the start of the simulation.
-  dynamic_config_slice = config_slice.build_dynamic_config_slice(
-      config=config,
-      transport=transport_params,
-      sources=source_models.runtime_params,
+  # Get the dynamic runtime params for the start of the simulation.
+  dynamic_runtime_params_slice = (
+      runtime_params_slice.build_dynamic_runtime_params_slice(
+          runtime_params=runtime_params,
+          transport=transport_params,
+          sources=source_models.runtime_params,
+      )
   )
   callback_builder = functools.partial(
       sim_lib.FrozenCoeffsCallback,
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
   )
   return nonlinear_theta_method.OptimizerThetaMethod(
       transport_model,
@@ -316,7 +318,7 @@ def make_frozen_optimizer_stepper(
 def make_frozen_newton_raphson_stepper(
     transport_model: transport_model_lib.TransportModel,
     source_models: source_models_lib.SourceModels,
-    config: config_lib.Config,
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
 ) -> stepper_lib.Stepper:
   """Makes a Newton Raphson stepper with frozen coefficients.
 
@@ -328,18 +330,20 @@ def make_frozen_newton_raphson_stepper(
     transport_model: Transport model.
     source_models: TORAX sources/sinks used to compute profile terms in the
       state evolution equations.
-    config: General TORAX config.
+    runtime_params: General TORAX runtime input parameters.
 
   Returns:
     Stepper: the stepper.
   """
-  # Get the dynamic config for the start of the simulation.
-  dynamic_config_slice = config_slice.build_dynamic_config_slice(config)
+  # Get the dynamic runtime params for the start of the simulation.
+  dynamic_runtime_params_slice = (
+      runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+  )
   callback_builder = functools.partial(
       sim_lib.FrozenCoeffsCallback,
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
   )
-  functools.partial(sim_lib.FrozenCoeffsCallback, config=config)
+  functools.partial(sim_lib.FrozenCoeffsCallback, runtime_params=runtime_params)
   return nonlinear_theta_method.NewtonRaphsonThetaMethod(
       transport_model,
       source_models=source_models,

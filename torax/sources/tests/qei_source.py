@@ -17,10 +17,10 @@
 import dataclasses
 from absl.testing import absltest
 import jax
-from torax import config as config_lib
-from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import qei_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -50,16 +50,18 @@ class QeiSourceTest(test_lib.SourceTestCase):
     source_models = source_models_lib.SourceModels(
         sources={'qei_source': source}
     )
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
-    static_slice = config_slice.build_static_config_slice(config)
-    dynamic_slice = config_slice.build_dynamic_config_slice(
-        config,
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params
+    )
+    dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params,
         sources=source_models.runtime_params,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=static_slice,
-        dynamic_config_slice=dynamic_slice,
+        static_runtime_params_slice=static_slice,
+        dynamic_runtime_params_slice=dynamic_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -78,29 +80,35 @@ class QeiSourceTest(test_lib.SourceTestCase):
     source_models = source_models_lib.SourceModels(
         sources={'qei_source': source}
     )
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
-    static_slice = config_slice.build_static_config_slice(config)
-    dynamic_slice = config_slice.build_dynamic_config_slice(
-        config,
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params
+    )
+    dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params,
         sources=source_models.runtime_params,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=static_slice,
-        dynamic_config_slice=dynamic_slice,
+        static_runtime_params_slice=static_slice,
+        dynamic_runtime_params_slice=dynamic_slice,
         geo=geo,
         source_models=source_models,
     )
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
-          dynamic_slice = config_slice.build_dynamic_config_slice(
-              config,
-              sources={
-                  'qei_source': dataclasses.replace(
-                      source.runtime_params, mode=unsupported_mode
-                  )
-              },
+          dynamic_slice = (
+              runtime_params_slice.build_dynamic_runtime_params_slice(
+                  runtime_params,
+                  sources={
+                      'qei_source': (
+                          dataclasses.replace(
+                              source.runtime_params, mode=unsupported_mode
+                          )
+                      )
+                  },
+              )
           )
           source.get_qei(
               static_slice,

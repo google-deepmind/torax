@@ -21,9 +21,9 @@ from typing import Union
 
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import geometry
 from torax import state as state_module
+from torax.config import runtime_params_slice
 from torax.time_step_calculator import time_step_calculator
 
 State = int
@@ -42,24 +42,32 @@ class ArrayTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
   def not_done(
       self,
       t: Union[float, jax.Array],
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       state: State,
   ) -> Union[jax.Array, bool]:
     """Returns True until the whole array has been visited, then False."""
-    del t, dynamic_config_slice  # Unused for this type of TimeStepCalculator.
+    del (
+        t,
+        dynamic_runtime_params_slice,
+    )  # Unused for this type of TimeStepCalculator.
     idx = state
     return idx < self.arr.shape[0] - 1
 
   def next_dt(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
       core_transport: state_module.CoreTransport,
   ) -> tuple[jax.Array, State]:
     """Returns the next diff between consecutive array entries."""
-    del dynamic_config_slice, geo, core_profiles, core_transport  # Unused.
+    del (
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        core_transport,
+    )  # Unused.
     idx = time_step_calculator_state
     idx += 1
     return self.arr[idx] - self.arr[idx - 1], idx

@@ -17,10 +17,10 @@
 import dataclasses
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import geometry
 from torax import jax_utils
 from torax import state
+from torax.config import runtime_params_slice
 from torax.sources import formula_config
 from torax.sources import runtime_params
 
@@ -114,7 +114,7 @@ class Exponential:
 
   def __call__(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
@@ -136,7 +136,7 @@ class Gaussian:
 
   def __call__(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,

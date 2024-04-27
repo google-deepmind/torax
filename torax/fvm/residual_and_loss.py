@@ -25,11 +25,11 @@ import jax
 from jax import numpy as jnp
 import jaxopt
 from torax import calc_coeffs
-from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
 from torax import jax_utils
 from torax import state
+from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import discrete_system
@@ -193,7 +193,7 @@ def theta_method_matrix_equation(
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
-        'static_config_slice',
+        'static_runtime_params_slice',
         'transport_model',
         'source_models',
         'evolving_names',
@@ -202,8 +202,8 @@ def theta_method_matrix_equation(
 def theta_method_block_residual(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -219,15 +219,15 @@ def theta_method_block_residual(
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
     dt: Time step duration.
-    static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation. A key parameter in static_config slice
-      is theta_imp, a coefficient in [0, 1] determining which solution method to
-      use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) +
-      (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
-      solution methods: theta_imp = 1: Backward Euler implicit method (default).
-      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
-      method.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    static_runtime_params_slice: Static runtime parameters. Changes to these
+      runtime params will trigger recompilation. A key parameter in this params
+      slice is theta_imp, a coefficient in [0, 1] determining which solution
+      method to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp
+      F(t_new) + (1 - theta_imp) F(t_old). Three values of theta_imp correspond
+      to named solution methods: theta_imp = 1: Backward Euler implicit method
+      (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
+      explicit method.
+    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo: Geometry object.
     x_old: The starting x defined as a tuple of CellVariables.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
@@ -254,13 +254,13 @@ def theta_method_block_residual(
   )
   core_profiles_t_plus_dt = core_profile_setters.update_evolving_core_profiles(
       x_new_guess,
-      dynamic_config_slice_t_plus_dt,
+      dynamic_runtime_params_slice_t_plus_dt,
       core_profiles_t_plus_dt,
       evolving_names,
   )
   coeffs_new = calc_coeffs.calc_coeffs(
-      static_config_slice=static_config_slice,
-      dynamic_config_slice=dynamic_config_slice_t_plus_dt,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo,
       core_profiles=core_profiles_t_plus_dt,
       transport_model=transport_model,
@@ -276,9 +276,9 @@ def theta_method_block_residual(
       x_new_guess=x_new_guess,
       coeffs_old=coeffs_old,
       coeffs_new=coeffs_new,
-      theta_imp=static_config_slice.stepper.theta_imp,
-      convection_dirichlet_mode=static_config_slice.stepper.convection_dirichlet_mode,
-      convection_neumann_mode=static_config_slice.stepper.convection_neumann_mode,
+      theta_imp=static_runtime_params_slice.stepper.theta_imp,
+      convection_dirichlet_mode=static_runtime_params_slice.stepper.convection_dirichlet_mode,
+      convection_neumann_mode=static_runtime_params_slice.stepper.convection_neumann_mode,
   )
 
   lhs = jnp.dot(lhs_mat, x_new_guess_vec) + lhs_vec
@@ -294,7 +294,7 @@ theta_method_block_jacobian = jax.jacfwd(
 theta_method_block_jacobian = jax_utils.jit(
     theta_method_block_jacobian,
     static_argnames=[
-        'static_config_slice',
+        'static_runtime_params_slice',
         'transport_model',
         'source_models',
         'evolving_names',
@@ -305,7 +305,7 @@ theta_method_block_jacobian = jax_utils.jit(
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
-        'static_config_slice',
+        'static_runtime_params_slice',
         'transport_model',
         'source_models',
         'evolving_names',
@@ -314,8 +314,8 @@ theta_method_block_jacobian = jax_utils.jit(
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,
     dt: jax.Array,
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -331,15 +331,15 @@ def theta_method_block_loss(
     x_new_guess_vec: Flattened array of current guess of x_new for all evolving
       core profiles.
     dt: Time step duration.
-    static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation. A key parameter in static_config slice
-      is theta_imp, a coefficient in [0, 1] determining which solution method to
-      use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) +
-      (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
-      solution methods: theta_imp = 1: Backward Euler implicit method (default).
-      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
-      method.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    static_runtime_params_slice: Static runtime parameters. Changes to these
+      runtime params will trigger recompilation. A key parameter in this params
+      slice is theta_imp, a coefficient in [0, 1] determining which solution
+      method to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp
+      F(t_new) + (1 - theta_imp) F(t_old). Three values of theta_imp correspond
+      to named solution methods: theta_imp = 1: Backward Euler implicit method
+      (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
+      explicit method.
+    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo: geometry object
     x_old: The starting x defined as a tuple of CellVariables.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
@@ -361,8 +361,8 @@ def theta_method_block_loss(
 
   residual, aux_output = theta_method_block_residual(
       dt=dt,
-      static_config_slice=static_config_slice,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo,
       x_old=x_old,
       x_new_guess_vec=x_new_guess_vec,
@@ -380,7 +380,7 @@ def theta_method_block_loss(
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
-        'static_config_slice',
+        'static_runtime_params_slice',
         'transport_model',
         'source_models',
         'evolving_names',
@@ -388,8 +388,8 @@ def theta_method_block_loss(
 )
 def jaxopt_solver(
     dt: jax.Array,
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,
@@ -406,15 +406,15 @@ def jaxopt_solver(
 
   Args:
     dt: Time step duration.
-    static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation. A key parameter in static_config slice
-      is theta_imp, a coefficient in [0, 1] determining which solution method to
-      use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) +
-      (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
-      solution methods: theta_imp = 1: Backward Euler implicit method (default).
-      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
-      method.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    static_runtime_params_slice: Static runtime parameters. Changes to these
+      runtime params will trigger recompilation. A key parameter in this params
+      slice is theta_imp, a coefficient in [0, 1] determining which solution
+      method to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp
+      F(t_new) + (1 - theta_imp) F(t_old). Three values of theta_imp correspond
+      to named solution methods: theta_imp = 1: Backward Euler implicit method
+      (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
+      explicit method.
+    dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
     geo: geometry object.
     x_old: The starting x defined as a tuple of CellVariables.
     init_x_new_vec: Flattened array of initial guess of x_new for all evolving
@@ -442,8 +442,8 @@ def jaxopt_solver(
   loss = functools.partial(
       theta_method_block_loss,
       dt=dt,
-      static_config_slice=static_config_slice,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,

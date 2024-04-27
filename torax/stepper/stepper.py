@@ -21,11 +21,11 @@ import abc
 import dataclasses
 
 import jax
-from torax import config_slice
 from torax import core_profile_setters
 from torax import fvm
 from torax import geometry
 from torax import state
+from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import runtime_params as runtime_params_lib
@@ -56,9 +56,9 @@ class Stepper(abc.ABC):
   def __call__(
       self,
       dt: jax.Array,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-      dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -73,14 +73,14 @@ class Stepper(abc.ABC):
 
     Args:
       dt: Time step duration.
-      static_config_slice: Input params that trigger recompilation when they
-        change. These don't have to be JAX-friendly types and can be used in
-        control-flow logic.
-      dynamic_config_slice_t: Runtime configuration for time t (the start time
-        of the step). These config params can change from step to step without
-        triggering a recompilation.
-      dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt,
-        used for implicit calculations in the solver.
+      static_runtime_params_slice: Input params that trigger recompilation when
+        they change. These don't have to be JAX-friendly types and can be used
+        in control-flow logic.
+      dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
+        time of the step). These runtime params can change from step to step
+        without triggering a recompilation.
+      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
+        dt, used for implicit calculations in the solver.
       geo: Geometry of the torus.
       core_profiles_t: Core plasma profiles at the beginning of the time step.
       core_profiles_t_plus_dt: Core plasma profiles which contain all available
@@ -88,7 +88,7 @@ class Stepper(abc.ABC):
         evolving boundary conditions and prescribed time-dependent profiles that
         are not being evolved by the PDE system.
       explicit_source_profiles: Source profiles of all explicit sources (as
-        configured by the input config). All implicit source's profiles will be
+        configured by the input params). All implicit source's profiles will be
         set to 0 in this object. These explicit source profiles were calculated
         either based on the original core profiles at the start of the time step
         or were independent of the core profiles. Because they were calculated
@@ -111,15 +111,15 @@ class Stepper(abc.ABC):
     # This base class method can be completely overriden by a subclass, but
     # most can make use of the boilerplate here and just implement `_x_new`.
 
-    # Use config to determine which variables to evolve
+    # Use runtime params to determine which variables to evolve
     evolving_names = []
-    if static_config_slice.ion_heat_eq:
+    if static_runtime_params_slice.ion_heat_eq:
       evolving_names.append('temp_ion')
-    if static_config_slice.el_heat_eq:
+    if static_runtime_params_slice.el_heat_eq:
       evolving_names.append('temp_el')
-    if static_config_slice.current_eq:
+    if static_runtime_params_slice.current_eq:
       evolving_names.append('psi')
-    if static_config_slice.dens_eq:
+    if static_runtime_params_slice.dens_eq:
       evolving_names.append('ne')
     evolving_names = tuple(evolving_names)
 
@@ -127,9 +127,9 @@ class Stepper(abc.ABC):
     if evolving_names:
       x_new, core_sources, core_transport, error = self._x_new(
           dt=dt,
-          static_config_slice=static_config_slice,
-          dynamic_config_slice_t=dynamic_config_slice_t,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo=geo,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -148,7 +148,7 @@ class Stepper(abc.ABC):
     core_profiles_t_plus_dt = (
         core_profile_setters.update_evolving_core_profiles(
             x_new,
-            dynamic_config_slice_t_plus_dt,
+            dynamic_runtime_params_slice_t_plus_dt,
             core_profiles_t_plus_dt,
             evolving_names,
         )
@@ -164,9 +164,9 @@ class Stepper(abc.ABC):
   def _x_new(
       self,
       dt: jax.Array,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-      dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -185,14 +185,14 @@ class Stepper(abc.ABC):
 
     Args:
       dt: Time step duration.
-      static_config_slice: Input params that trigger recompilation when they
-        change. These don't have to be JAX-friendly types and can be used in
-        control-flow logic.
-      dynamic_config_slice_t: Runtime configuration for time t (the start time
-        of the step). These config params can change from step to step without
-        triggering a recompilation.
-      dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt,
-        used for implicit calculations in the solver.
+      static_runtime_params_slice: Input params that trigger recompilation when
+        they change. These don't have to be JAX-friendly types and can be used
+        in control-flow logic.
+      dynamic_runtime_params_slice_t: Runtime parameters for time t (the start
+        time of the step). These runtime params can change from step to step
+        without triggering a recompilation.
+      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
+        dt, used for implicit calculations in the solver.
       geo: Geometry of the torus.
       core_profiles_t: Core plasma profiles at the beginning of the time step.
       core_profiles_t_plus_dt: Core plasma profiles which contain all available

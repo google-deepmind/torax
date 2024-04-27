@@ -15,26 +15,24 @@
 """Carries out the predictor corrector method for the PDE solution.
 
 Picard iterations to approximate the nonlinear solution. If
-static_config_slice.stepper.predictor_corrector is False, reverts to a
+static_runtime_params_slice.stepper.predictor_corrector is False, reverts to a
 standard linear solution.
 """
 from typing import Any
 import chex
 import jax
-from torax import config_slice
 from torax import fvm
 from torax import jax_utils
+from torax.config import runtime_params_slice
 from torax.fvm import implicit_solve_block
 
 
 def predictor_corrector_method(
     dt: jax.Array,
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     x_old: tuple[fvm.CellVariable, ...],
-    init_val: tuple[
-        tuple[fvm.CellVariable, ...], chex.ArrayTree
-    ],
+    init_val: tuple[tuple[fvm.CellVariable, ...], chex.ArrayTree],
     coeffs_exp: fvm.block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: fvm.block_1d_coeffs.Block1DCoeffsCallback,
 ) -> tuple[tuple[fvm.CellVariable, ...], Any]:
@@ -42,10 +40,11 @@ def predictor_corrector_method(
 
   Args:
     dt: current timestep
-    static_config_slice: General input parameters which are fixed through a
-      simulation run, and if changed, would trigger a recompile.
-    dynamic_config_slice_t_plus_dt: Dynamic config parameters corresponding to
-      the next time step, needed for the implicit PDE coefficients
+    static_runtime_params_slice: General input parameters which are fixed
+      through a simulation run, and if changed, would trigger a recompile.
+    dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters
+      corresponding to the next time step, needed for the implicit PDE
+      coefficients
     x_old: Tuple of CellVariables correspond to the evolving core profiles at
       time t.
     init_val: Initial guess for the predictor corrector output.
@@ -64,7 +63,7 @@ def predictor_corrector_method(
     x_new_guess = val[0]
 
     coeffs_new = coeffs_callback(
-        dynamic_config_slice_t_plus_dt,
+        dynamic_runtime_params_slice_t_plus_dt,
         x_new_guess,
         allow_pereverzev=True,
     )
@@ -75,12 +74,12 @@ def predictor_corrector_method(
         x_new_guess=x_new_guess,
         coeffs_old=coeffs_exp,
         coeffs_new=coeffs_new,
-        theta_imp=static_config_slice.stepper.theta_imp,
+        theta_imp=static_runtime_params_slice.stepper.theta_imp,
         convection_dirichlet_mode=(
-            static_config_slice.stepper.convection_dirichlet_mode
+            static_runtime_params_slice.stepper.convection_dirichlet_mode
         ),
         convection_neumann_mode=(
-            static_config_slice.stepper.convection_neumann_mode
+            static_runtime_params_slice.stepper.convection_neumann_mode
         ),
     )
 
@@ -91,10 +90,10 @@ def predictor_corrector_method(
   # TORAX_COMPILATION_ENABLED=False. This logic is in jax.utils_py_fori_loop.
   # If the static predictor_corrector=False, then compilation is faster, so
   # we maintain this option.
-  if static_config_slice.stepper.predictor_corrector:
+  if static_runtime_params_slice.stepper.predictor_corrector:
     return jax_utils.py_fori_loop(
         0,
-        dynamic_config_slice_t_plus_dt.stepper.corrector_steps + 1,
+        dynamic_runtime_params_slice_t_plus_dt.stepper.corrector_steps + 1,
         loop_body,
         init_val,
     )

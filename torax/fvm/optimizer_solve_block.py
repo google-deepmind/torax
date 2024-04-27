@@ -17,10 +17,10 @@ See function docstring for details.
 """
 
 import jax
-from torax import config_slice
 from torax import fvm
 from torax import geometry
 from torax import state
+from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import fvm_conversions
@@ -45,9 +45,9 @@ TOL = 1e-12
 
 def optimizer_solve_block(
     dt: jax.Array,
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-    dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -72,18 +72,18 @@ def optimizer_solve_block(
 
   Args:
     dt: Discrete time step.
-    static_config_slice: Static runtime configuration. Changes to these config
-      params will trigger recompilation. A key parameter in static_config slice
-      is theta_imp, a coefficient in [0, 1] determining which solution method to
-      use. We solve transient_coeff (x_new - x_old) / dt = theta_imp F(t_new) +
-      (1 - theta_imp) F(t_old). Three values of theta_imp correspond to named
-      solution methods: theta_imp = 1: Backward Euler implicit method (default).
-      theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler explicit
-      method.
-    dynamic_config_slice_t: Runtime configuration for time t (the start time of
-      the step). These config params can change from step to step without
+    static_runtime_params_slice: Static runtime parameters. Changes to these
+      runtime params will trigger recompilation. A key parameter in this params
+      slice is theta_imp, a coefficient in [0, 1] determining which solution
+      method to use. We solve transient_coeff (x_new - x_old) / dt = theta_imp
+      F(t_new) + (1 - theta_imp) F(t_old). Three values of theta_imp correspond
+      to named solution methods: theta_imp = 1: Backward Euler implicit method
+      (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
+      explicit method.
+    dynamic_runtime_params_slice_t: Runtime params for time t (the start time of
+      the step). These runtime params can change from step to step without
       triggering a recompilation.
-    dynamic_config_slice_t_plus_dt: Runtime configuration for time t + dt.
+    dynamic_runtime_params_slice_t_plus_dt: Runtime params for time t + dt.
     geo: Geometry object used to initialize auxiliary outputs.
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
@@ -116,18 +116,18 @@ def optimizer_solve_block(
   # pyformat: enable
 
   coeffs_old = coeffs_callback(
-      dynamic_config_slice_t, x_old, explicit_call=True
+      dynamic_runtime_params_slice_t, x_old, explicit_call=True
   )
 
   match initial_guess_mode:
     # LINEAR initial guess will provide the initial guess using the predictor-
-    # corrector method if predictor_corrector=True in the solver config
+    # corrector method if predictor_corrector=True in the stepper runtime params
     case InitialGuessMode.LINEAR:
       # returns transport coefficients with additional pereverzev terms
-      # if set by config, needed if stiff transport models (e.g. qlknn)
+      # if set by runtime_params, needed if stiff transport models (e.g. qlknn)
       # are used.
       coeffs_exp_linear = coeffs_callback(
-          dynamic_config_slice_t,
+          dynamic_runtime_params_slice_t,
           x_old,
           allow_pereverzev=True,
           explicit_call=True,
@@ -150,8 +150,8 @@ def optimizer_solve_block(
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
-          static_config_slice=static_config_slice,
-          dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+          static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           init_val=init_val,
           x_old=x_old,
           coeffs_exp=coeffs_exp_linear,
@@ -168,8 +168,8 @@ def optimizer_solve_block(
   # Advance jaxopt_solver by one timestep
   x_new_vec, final_loss, aux_output = residual_and_loss.jaxopt_solver(
       dt=dt,
-      static_config_slice=static_config_slice,
-      dynamic_config_slice_t_plus_dt=dynamic_config_slice_t_plus_dt,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo,
       x_old=x_old,
       init_x_new_vec=init_x_new_vec,

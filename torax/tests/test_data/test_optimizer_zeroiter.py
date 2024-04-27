@@ -19,9 +19,9 @@ a nonlinear solver but then hack it to act like a linear solver by
 using 0 iterations and an initial guess based on the linear solver.
 """
 
-from torax import config as config_lib
 from torax import geometry
 from torax import sim as sim_lib
+from torax.config import runtime_params as general_runtime_params
 from torax.fvm import enums
 from torax.sources import default_sources
 from torax.sources import runtime_params as source_runtime_params
@@ -60,18 +60,18 @@ def make_linear_optimizer_stepper(
   )
 
 
-def get_config() -> config_lib.Config:
+def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
   # This config based approach is deprecated.
   # Over time more will be built with pure Python constructors in `get_sim`.
-  return config_lib.Config(
-      profile_conditions=config_lib.ProfileConditions(
+  return general_runtime_params.GeneralRuntimeParams(
+      profile_conditions=general_runtime_params.ProfileConditions(
           Ti_bound_left=8,
           Te_bound_left=8,
           # set flat Ohmic current to provide larger range of current evolution
           # for test
           nu=0,
       ),
-      numerics=config_lib.Numerics(
+      numerics=general_runtime_params.Numerics(
           current_eq=True,
           adaptive_dt=False,
           # to shorten current diffusion time for the test
@@ -81,8 +81,10 @@ def get_config() -> config_lib.Config:
   )
 
 
-def get_geometry(config: config_lib.Config) -> geometry.Geometry:
-  return geometry.build_circular_geometry(config)
+def get_geometry(
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
+) -> geometry.Geometry:
+  return geometry.build_circular_geometry(runtime_params)
 
 
 def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:
@@ -119,10 +121,10 @@ def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
   # config taking place via constructor args in this function.
-  config = get_config()
-  geo = get_geometry(config)
+  runtime_params = get_runtime_params()
+  geo = get_geometry(runtime_params)
   return sim_lib.build_sim_from_config(
-      config=config,
+      runtime_params=runtime_params,
       geo=geo,
       source_models=get_sources(),
       stepper_builder=get_stepper_builder(),

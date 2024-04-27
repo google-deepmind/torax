@@ -17,11 +17,12 @@
 
 from absl.testing import absltest
 import numpy as np
-from torax import config as config_lib
-from torax import config_slice
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry
+from torax.config import config_args
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 
 
@@ -32,43 +33,49 @@ class BoundaryConditionsTest(absltest.TestCase):
     """Tests that setting boundary conditions works."""
     # Boundary conditions can be time-dependent, but when creating the initial
     # state, we want to grab the boundary condition params at time 0.
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
-            ne_bound_right=config_lib.InterpolationParam(
+            ne_bound_right=general_runtime_params.InterpolationParam(
                 {0.0: 0.1, 0.1: 2.0},
-                interpolation_mode=config_lib.InterpolationMode.STEP,
+                interpolation_mode=general_runtime_params.InterpolationMode.STEP,
             ),
             Ip={0.0: 5, 1.0: 7},
         ),
     )
 
-    geo = geometry.build_circular_geometry(config)
+    geo = geometry.build_circular_geometry(runtime_params)
     source_models = source_models_lib.SourceModels()
-    static_config_slice = config_slice.build_static_config_slice(config)
-    initial_dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        sources=source_models.runtime_params,
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+    )
+    initial_dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice,
-        initial_dynamic_config_slice,
+        static_runtime_params_slice,
+        initial_dynamic_runtime_params_slice,
         geo,
         source_models=source_models,
     )
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        sources=source_models.runtime_params,
-        t=0.5,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            sources=source_models.runtime_params,
+            t=0.5,
+        )
     )
 
     bc = core_profile_setters.compute_boundary_conditions(
-        dynamic_config_slice,
+        dynamic_runtime_params_slice,
         geo,
     )
 
-    updated = config_lib.recursive_replace(core_profiles, **bc)
+    updated = config_args.recursive_replace(core_profiles, **bc)
 
     psi_constraint = 6e6 * constants.CONSTANTS.mu0 / geo.G2_face[-1] * geo.rmax
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)

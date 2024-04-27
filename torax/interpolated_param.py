@@ -166,11 +166,12 @@ def _convert_value_to_floats(
 class InterpolatedParam(InterpolatedParamBase):
   """Parameter that may vary based on an input coordinate.
 
-  This class is useful for defining time-dependent config parameters, but can
+  This class is useful for defining time-dependent runtime parameters, but can
   be used to define any parameters that vary across some range. This class is
   the main "user-facing" class defined in this module.
 
-  See `config.Config` and associated tests to see how this is used.
+  See `config.runtime_params.RuntimeParams` and associated tests to see how this
+  is used.
   """
 
   def __init__(
@@ -222,7 +223,7 @@ class InterpolatedParam(InterpolatedParamBase):
     return self._is_bool_param
 
 
-# In Config, users should be able to either specify the InterpolatedParam object
-# directly or the values that go in the constructor. This helps with brevity
-# since a lot of these params are fixed floats.
+# In runtime_params, users should be able to either specify the
+# InterpolatedParam object directly or the values that go in the constructor.
+# This helps with brevity since a lot of these params are fixed floats.
 InterpParamOrInterpParamInput = InterpolatedParam | InterpolatedParamInput

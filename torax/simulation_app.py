@@ -52,10 +52,10 @@ import jax
 from jax import numpy as jnp
 from matplotlib import pyplot as plt
 import torax
-from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.config import runtime_params_slice
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.spectators import plotting
 from torax.stepper import runtime_params as stepper_runtime_params_lib
@@ -204,7 +204,7 @@ def _get_output_dir(
 
 def update_sim(
     sim: sim_lib.Sim,
-    config: torax.Config,
+    runtime_params: torax.GeneralRuntimeParams,
     geo: geometry.Geometry,
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
@@ -212,7 +212,7 @@ def update_sim(
         [], stepper_runtime_params_lib.RuntimeParams
     ],
 ) -> sim_lib.Sim:
-  """Updates the sim with a new config and geometry."""
+  """Updates the sim with a new set of runtime params and geometry."""
   # NOTE: This function will NOT update any of the following:
   #  - stepper (for the mesh state)
   #  - transport model object (runtime params are updated)
@@ -221,21 +221,25 @@ def update_sim(
   #  - source objects (runtime params are updated)
   sim.transport_model.runtime_params = transport_runtime_params
   _update_source_params(sim, source_runtime_params)
-  static_config_slice = config_slice.build_static_config_slice(
-      config,
-      stepper=stepper_runtime_params_getter(),
+  static_runtime_params_slice = (
+      runtime_params_slice.build_static_runtime_params_slice(
+          runtime_params,
+          stepper=stepper_runtime_params_getter(),
+      )
   )
-  dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
-      config=config,
-      transport_getter=lambda: sim.transport_model.runtime_params,
-      sources_getter=lambda: sim.source_models.runtime_params,
-      stepper_getter=stepper_runtime_params_getter,
+  dynamic_runtime_params_slice_provider = (
+      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+          runtime_params=runtime_params,
+          transport_getter=lambda: sim.transport_model.runtime_params,
+          sources_getter=lambda: sim.source_models.runtime_params,
+          stepper_getter=stepper_runtime_params_getter,
+      )
   )
   initial_state = sim_lib.get_initial_state(
-      dynamic_config_slice=dynamic_config_slice_provider(
-          t=config.numerics.t_initial
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
+          t=runtime_params.numerics.t_initial
       ),
-      static_config_slice=static_config_slice,
+      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       time_step_calculator=sim.time_step_calculator,
       source_models=sim.source_models,
@@ -244,8 +248,8 @@ def update_sim(
       time_step_calculator=sim.time_step_calculator,
       initial_state=initial_state,
       geometry_provider=sim_lib.ConstantGeometryProvider(geo),
-      dynamic_config_slice_provider=dynamic_config_slice_provider,
-      static_config_slice=static_config_slice,
+      dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+      static_runtime_params_slice=static_runtime_params_slice,
       step_fn=sim.step_fn,
   )
 

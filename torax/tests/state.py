@@ -22,11 +22,12 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import config as config_lib
-from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
 from torax import state
+from torax.config import config_args
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
 
@@ -41,21 +42,23 @@ class StateTest(torax_refs.ReferenceValueTest):
     self.history_length = 2
     source_models = source_models_lib.SourceModels()
 
-    def make_hist(config, geo):
+    def make_hist(runtime_params, geo):
       initial_counter = jnp.array(0)
 
       def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
         core_profiles = core_profile_setters.initial_core_profiles(
-            static_config_slice=config_slice.build_static_config_slice(config),
-            dynamic_config_slice=config_slice.build_dynamic_config_slice(
-                config, sources=source_models.runtime_params
+            static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+                runtime_params
+            ),
+            dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
+                runtime_params, sources=source_models.runtime_params
             ),
             geo=geo,
             source_models=source_models,
         )
         # Make one variable in the history track the value of the counter
         value = jnp.ones_like(core_profiles.temp_ion.value) * counter
-        core_profiles = config_lib.recursive_replace(
+        core_profiles = config_args.recursive_replace(
             core_profiles, temp_ion={'value': value}
         )
         return counter + 1, core_profiles.history_elem()
@@ -68,9 +71,9 @@ class StateTest(torax_refs.ReferenceValueTest):
       )
       return history
 
-    def make_history(config, geo):
+    def make_history(runtime_params, geo):
       # Bind non-JAX arguments so it can be jitted
-      bound = functools.partial(make_hist, config, geo)
+      bound = functools.partial(make_hist, runtime_params, geo)
       return jax.jit(bound)()
 
     self._make_history = make_history
@@ -78,7 +81,9 @@ class StateTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_sanity_check(
       self,
@@ -88,11 +93,11 @@ class StateTest(torax_refs.ReferenceValueTest):
     references = references_getter()
     source_models = source_models_lib.SourceModels()
     basic_core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(
-            references.config
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            references.runtime_params
         ),
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(
-            references.config, sources=source_models.runtime_params
+        dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
+            references.runtime_params, sources=source_models.runtime_params
         ),
         geo=references.geo,
         source_models=source_models,
@@ -102,7 +107,9 @@ class StateTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_index(
       self,
@@ -110,7 +117,7 @@ class StateTest(torax_refs.ReferenceValueTest):
   ):
     """Test State.index."""
     references = references_getter()
-    history = self._make_history(references.config, references.geo)
+    history = self._make_history(references.runtime_params, references.geo)
 
     for i in range(self.history_length):
       self.assertEqual(i, history.index(i).temp_ion.value[0])
@@ -118,7 +125,9 @@ class StateTest(torax_refs.ReferenceValueTest):
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
       dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(references_getter=torax_refs.chease_references_Ip_from_config),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
   ])
   def test_project(
       self,
@@ -126,7 +135,7 @@ class StateTest(torax_refs.ReferenceValueTest):
   ):
     """Test State.project."""
     references = references_getter()
-    history = self._make_history(references.config, references.geo)
+    history = self._make_history(references.runtime_params, references.geo)
 
     seed = 20230421
     rng_state = jax.random.PRNGKey(seed)
@@ -150,23 +159,25 @@ class InitialStatesTest(parameterized.TestCase):
     """Tests that the initial boundary conditions are set from the config."""
     # Boundary conditions can be time-dependent, but when creating the initial
     # core profiles, we want to grab the boundary condition params at time 0.
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
-            ne_bound_right=config_lib.InterpolationParam(
+            ne_bound_right=general_runtime_params.InterpolationParam(
                 {0.0: 0.1, 1.0: 2.0},
-                interpolation_mode=config_lib.InterpolationMode.STEP,
+                interpolation_mode=general_runtime_params.InterpolationMode.STEP,
             ),
         ),
     )
     source_models = source_models_lib.SourceModels()
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config),
-        dynamic_config_slice=config_slice.build_dynamic_config_slice(
-            config, sources=source_models.runtime_params
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params
         ),
-        geo=geometry.build_circular_geometry(config),
+        dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params, sources=source_models.runtime_params
+        ),
+        geo=geometry.build_circular_geometry(runtime_params),
         source_models=source_models,
     )
     np.testing.assert_allclose(
@@ -182,33 +193,36 @@ class InitialStatesTest(parameterized.TestCase):
       dict(geo_builder=geometry.build_chease_geometry),
   ])
   def test_initial_psi_from_j(
-      self, geo_builder: Callable[[config_lib.Config], geometry.Geometry]
+      self,
+      geo_builder: Callable[
+          [general_runtime_params.GeneralRuntimeParams], geometry.Geometry
+      ],
   ):
     """Tests expected behaviour of initial psi and current options."""
-    config1 = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    config1 = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             initial_j_is_total_current=True,
             initial_psi_from_j=True,
             nu=2,
         ),
     )
-    config2 = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    config2 = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             initial_j_is_total_current=False,
             initial_psi_from_j=True,
             nu=2,
         ),
     )
-    config3 = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    config3 = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             initial_j_is_total_current=False,
             initial_psi_from_j=True,
             nu=2,
         ),
     )
     # Needed to generate psi for bootstrap calculation
-    config3_helper = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    config3_helper = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             initial_j_is_total_current=True,
             initial_psi_from_j=True,
             nu=2,
@@ -217,46 +231,52 @@ class InitialStatesTest(parameterized.TestCase):
     geo = geo_builder(config1)
     source_models = source_models_lib.SourceModels()
     source_models.j_bootstrap.runtime_params.bootstrap_mult = 0.0
-    dcs1 = config_slice.build_dynamic_config_slice(
+    dcs1 = runtime_params_slice.build_dynamic_runtime_params_slice(
         config1, sources=source_models.runtime_params
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config1),
-        dynamic_config_slice=dcs1,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            config1
+        ),
+        dynamic_runtime_params_slice=dcs1,
         geo=geo,
         source_models=source_models,
     )
     source_models.j_bootstrap.runtime_params.bootstrap_mult = 0.0
-    dcs2 = config_slice.build_dynamic_config_slice(
+    dcs2 = runtime_params_slice.build_dynamic_runtime_params_slice(
         config2, sources=source_models.runtime_params
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config2),
-        dynamic_config_slice=dcs2,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            config2
+        ),
+        dynamic_runtime_params_slice=dcs2,
         geo=geo,
         source_models=source_models,
     )
     source_models.j_bootstrap.runtime_params.bootstrap_mult = 1.0
     source_models.jext.runtime_params.fext = 0.0
-    dcs3 = config_slice.build_dynamic_config_slice(
+    dcs3 = runtime_params_slice.build_dynamic_runtime_params_slice(
         config3, sources=source_models.runtime_params
     )
     core_profiles3 = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config3),
-        dynamic_config_slice=dcs3,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            config3
+        ),
+        dynamic_runtime_params_slice=dcs3,
         geo=geo,
         source_models=source_models,
     )
     source_models.j_bootstrap.runtime_params.bootstrap_mult = 0.0
     source_models.jext.runtime_params.fext = 0.0
-    dcs3_helper = config_slice.build_dynamic_config_slice(
+    dcs3_helper = runtime_params_slice.build_dynamic_runtime_params_slice(
         config3_helper, sources=source_models.runtime_params
     )
     core_profiles3_helper = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
             config3_helper
         ),
-        dynamic_config_slice=dcs3_helper,
+        dynamic_runtime_params_slice=dcs3_helper,
         geo=geo,
         source_models=source_models,
     )
@@ -275,7 +295,7 @@ class InitialStatesTest(parameterized.TestCase):
     # Calculate bootstrap current for config3 which doesn't zero it out
     source_models = source_models_lib.SourceModels()
     bootstrap_profile = source_models.j_bootstrap.get_value(
-        dynamic_config_slice=dcs3,
+        dynamic_runtime_params_slice=dcs3,
         dynamic_source_runtime_params=dcs3.sources[
             source_models.j_bootstrap_name
         ],
@@ -332,31 +352,35 @@ class InitialStatesTest(parameterized.TestCase):
   def test_initial_psi_from_geo_noop_circular(self):
     """Tests expected behaviour of initial psi and current options."""
     source_models = source_models_lib.SourceModels()
-    config1 = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    config1 = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             initial_psi_from_j=False,
         ),
     )
-    dcs1 = config_slice.build_dynamic_config_slice(
+    dcs1 = runtime_params_slice.build_dynamic_runtime_params_slice(
         config1, sources=source_models.runtime_params
     )
-    config2 = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    config2 = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             initial_psi_from_j=True,
         ),
     )
-    dcs2 = config_slice.build_dynamic_config_slice(
+    dcs2 = runtime_params_slice.build_dynamic_runtime_params_slice(
         config2, sources=source_models.runtime_params
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config1),
-        dynamic_config_slice=dcs1,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            config1
+        ),
+        dynamic_runtime_params_slice=dcs1,
         geo=geometry.build_circular_geometry(config1),
         source_models=source_models,
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
-        static_config_slice=config_slice.build_static_config_slice(config2),
-        dynamic_config_slice=dcs2,
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            config2
+        ),
+        dynamic_runtime_params_slice=dcs2,
         geo=geometry.build_circular_geometry(config2),
         source_models=source_models,
     )

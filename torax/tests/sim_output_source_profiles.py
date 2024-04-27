@@ -26,14 +26,14 @@ from absl.testing import absltest
 import chex
 from jax import numpy as jnp
 import numpy as np
-from torax import config as config_lib
-from torax import config_slice
 from torax import core_profile_setters
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_module
+from torax.config import config_args
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
-from torax.runtime_params import config_slice_args
 from torax.sources import default_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -54,14 +54,18 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     source_models = default_sources.get_default_sources()
-    dynamic_config_slice = config_slice.build_dynamic_config_slice(
-        config,
-        sources=source_models.runtime_params,
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            sources=source_models.runtime_params,
+        )
     )
-    static_config_slice = config_slice.build_static_config_slice(config)
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+    )
     # Technically, the _merge_source_profiles() function should be called with
     # source profiles where, for every source, only one of the implicit or
     # explicit profiles has non-zero values. That is what makes the summing
@@ -80,8 +84,8 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         value=2.0,
     )
     qei_core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_config_slice=dynamic_config_slice,
-        static_config_slice=static_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -123,7 +127,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # Create custom sources whose output profiles depend on Tiped.
     # This is not physically realistic, just for testing purposes.
     def custom_source_formula(
-        unused_dynamic_config,
+        unused_dynamic_runtime_params,
         source_conf,
         geo,
         unused_state,
@@ -159,31 +163,35 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             ),
         }
     )
-    config = config_lib.Config()
-    geo = geometry.build_circular_geometry(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(runtime_params)
     time_stepper = _FakeTimeStepCalculator()
     step_fn = _FakeSimulationStepFn(time_stepper, source_models)
-    dynamic_config_slice_provider = config_slice.DynamicConfigSliceProvider(
-        config=config,
-        transport_getter=constant_transport_model.RuntimeParams,
-        sources_getter=lambda: source_models.runtime_params,
-        stepper_getter=stepper_runtime_params.RuntimeParams,
+    dynamic_runtime_params_slice_provider = (
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params=runtime_params,
+            transport_getter=constant_transport_model.RuntimeParams,
+            sources_getter=lambda: source_models.runtime_params,
+            stepper_getter=stepper_runtime_params.RuntimeParams,
+        )
     )
-    initial_dcs = dynamic_config_slice_provider(0.0)
-    static_config_slice = config_slice.build_static_config_slice(config)
+    initial_dcs = dynamic_runtime_params_slice_provider(0.0)
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+    )
 
     sim_states = sim_lib.run_simulation(
         initial_state=sim_lib.get_initial_state(
-            static_config_slice=static_config_slice,
-            dynamic_config_slice=initial_dcs,
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice=initial_dcs,
             geo=geo,
             time_step_calculator=time_stepper,
             source_models=source_models,
         ),
         step_fn=step_fn,
         geometry_provider=sim_lib.ConstantGeometryProvider(geo),
-        dynamic_config_slice_provider=dynamic_config_slice_provider,
-        static_config_slice=static_config_slice,
+        dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+        static_runtime_params_slice=static_runtime_params_slice,
         time_step_calculator=time_stepper,
     )
 
@@ -240,14 +248,14 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
   def not_done(
       self,
       t: float | jnp.ndarray,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       state,
   ) -> bool | jnp.ndarray:
     return t < 2
 
   def next_dt(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
       time_step_calculator_state,
@@ -264,7 +272,7 @@ class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
       self, t: chex.Numeric
   ) -> _FakeSourceDynamicRuntimeParams:
     return _FakeSourceDynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=_FakeSourceDynamicRuntimeParams,
             t=t,
@@ -298,14 +306,16 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
 
   def __call__(
       self,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_provider: config_slice.DynamicConfigSliceProvider,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
       geo: geometry.Geometry,
       input_state: state_module.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state_module.ToraxSimState:
     dt, ts_state = self._time_step_calculator.next_dt(
-        dynamic_config_slice=dynamic_config_slice_provider(input_state.t),
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
+            input_state.t
+        ),
         geo=geo,
         core_profiles=input_state.core_profiles,
         time_step_calculator_state=input_state.time_step_calculator_state,
@@ -319,7 +329,9 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
         time_step_calculator_state=ts_state,
         # The returned source profiles include only the implicit sources.
         core_sources=source_models_lib.build_source_profiles(
-            dynamic_config_slice=dynamic_config_slice_provider(new_t),
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
+                new_t
+            ),
             geo=geo,
             core_profiles=input_state.core_profiles,  # no state evolution.
             source_models=self.stepper.source_models,

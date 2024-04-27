@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import chex
 from jax import numpy as jnp
-from torax import config_slice
 from torax import constants as constants_module
 from torax import geometry
 from torax import jax_utils
 from torax import state
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
+from torax.config import runtime_params_slice
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
@@ -46,7 +46,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
@@ -96,15 +96,15 @@ class CriticalGradientModel(transport_model.TransportModel):
 
   def _call_implementation(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
     """Calculates transport coefficients using the Critical Gradient Model.
 
     Args:
-      dynamic_config_slice: Input config parameters that can change without
-        triggering a JAX recompilation.
+      dynamic_runtime_params_slice: Input runtime parameters that can change
+        without triggering a JAX recompilation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
 
@@ -121,7 +121,9 @@ class CriticalGradientModel(transport_model.TransportModel):
     #  R/LTi_crit)*(R/LTi - R/LTi_crit)^alpha
 
     constants = constants_module.CONSTANTS
-    assert isinstance(dynamic_config_slice.transport, DynamicRuntimeParams)
+    assert isinstance(
+        dynamic_runtime_params_slice.transport, DynamicRuntimeParams
+    )
 
     # set typical values for now. Will include user-defined q and s later
     s = core_profiles.s_face
@@ -149,7 +151,8 @@ class CriticalGradientModel(transport_model.TransportModel):
 
     # gyrobohm diffusivity
     chiGB = (
-        (dynamic_config_slice.plasma_composition.Ai * constants.mp) ** 0.5
+        (dynamic_runtime_params_slice.plasma_composition.Ai * constants.mp)
+        ** 0.5
         / (constants.qe * geo.B0) ** 2
         * (temp_ion_face * constants.keV2J) ** 1.5
         / geo.Rmaj
@@ -159,7 +162,7 @@ class CriticalGradientModel(transport_model.TransportModel):
     rlti = -geo.Rmaj * temp_ion_face_grad / temp_ion_face
 
     # set minimum chi for PDE stability
-    chi_ion = dynamic_config_slice.transport.chimin * jnp.ones_like(
+    chi_ion = dynamic_runtime_params_slice.transport.chimin * jnp.ones_like(
         geo.mesh.face_centers
     )
 
@@ -167,16 +170,16 @@ class CriticalGradientModel(transport_model.TransportModel):
     chi_ion = jnp.where(
         rlti >= rlti_crit,
         chiGB
-        * dynamic_config_slice.transport.CGMchistiff
-        * (rlti - rlti_crit) ** dynamic_config_slice.transport.CGMalpha,
+        * dynamic_runtime_params_slice.transport.CGMchistiff
+        * (rlti - rlti_crit) ** dynamic_runtime_params_slice.transport.CGMalpha,
         chi_ion,
     )
 
     # set (high) ceiling to CGM flux for PDE stability
     # (might not be necessary with Perezerev)
     chi_ion = jnp.where(
-        chi_ion > dynamic_config_slice.transport.chimax,
-        dynamic_config_slice.transport.chimax,
+        chi_ion > dynamic_runtime_params_slice.transport.chimax,
+        dynamic_runtime_params_slice.transport.chimax,
         chi_ion,
     )
 
@@ -184,18 +187,23 @@ class CriticalGradientModel(transport_model.TransportModel):
     # (more consistency between desired profile and transport coefficients)
     chi_face_ion = jnp.where(
         jnp.logical_and(
-            dynamic_config_slice.profile_conditions.set_pedestal,
-            geo.r_face_norm >= dynamic_config_slice.profile_conditions.Ped_top,
+            dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+            geo.r_face_norm
+            >= dynamic_runtime_params_slice.profile_conditions.Ped_top,
         ),
-        dynamic_config_slice.transport.chimin,
+        dynamic_runtime_params_slice.transport.chimin,
         chi_ion,
     )
 
     # set electron heat transport coefficient to user-defined ratio of ion heat
     # transport coefficient
-    chi_face_el = chi_face_ion / dynamic_config_slice.transport.CGMchiei_ratio
+    chi_face_el = (
+        chi_face_ion / dynamic_runtime_params_slice.transport.CGMchiei_ratio
+    )
 
-    d_face_el = chi_face_ion / dynamic_config_slice.transport.CGM_D_ratio
+    d_face_el = (
+        chi_face_ion / dynamic_runtime_params_slice.transport.CGM_D_ratio
+    )
 
     # No convection in this critical gradient model.
     # (Not a realistic model for particle transport anyway).

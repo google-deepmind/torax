@@ -19,11 +19,11 @@
 import os
 
 import jax
-from torax import config
 from torax import fvm
 from torax import math_utils
 from torax import physics
-from torax.config import recursive_replace
+from torax.config import runtime_params as general_runtime_params
+from torax.config.config_args import recursive_replace
 from torax.constants import CONSTANTS
 from torax.geometry import build_chease_geometry
 from torax.geometry import build_circular_geometry
@@ -43,7 +43,7 @@ from torax.time_step_calculator.fixed_time_step_calculator import FixedTimeStepC
 from torax.time_step_calculator.time_step_calculator import TimeStepCalculator
 # Unsure why but `from torax.config import Config` doesn't work in some
 # circumstances.
-Config = config.Config
+GeneralRuntimeParams = general_runtime_params.GeneralRuntimeParams
 
 
 # pylint: enable=g-importing-member
@@ -69,10 +69,10 @@ CellVariable = fvm.CellVariable
 CANONICAL_ORDER = [
     'dt',
     'source_type',
-    'static_config_slice',
-    'dynamic_config_slice',
-    'dynamic_config_slice_t',
-    'dynamic_config_slice_t_plus_dt',
+    'static_runtime_params_slice',
+    'dynamic_runtime_params_slice',
+    'dynamic_runtime_params_slice_t',
+    'dynamic_runtime_params_slice_t_plus_dt',
     'unused_config',
     'dynamic_source_runtime_params',
     'geo',

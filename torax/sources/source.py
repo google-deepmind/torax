@@ -29,17 +29,17 @@ from typing import Callable
 
 import chex
 from jax import numpy as jnp
-from torax import config_slice
 from torax import geometry
 from torax import jax_utils
 from torax import state
+from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 
 
 # Sources implement these functions to be able to provide source profiles.
 SourceProfileFunction = Callable[
     [  # Arguments
-        config_slice.DynamicConfigSlice,  # General config params.
+        runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
         runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
         geometry.Geometry,
         state.CoreProfiles | None,
@@ -49,8 +49,8 @@ SourceProfileFunction = Callable[
 ]
 
 
-# Any callable which takes the dynamic config, geometry, and optional core
-# profiles, and outputs a shape corresponding to the expected output of a
+# Any callable which takes the dynamic runtime_params, geometry, and optional
+# core profiles, and outputs a shape corresponding to the expected output of a
 # source. See how these types of functions are used in the Source class below.
 SourceOutputShapeFunction = Callable[
     [  # Arguments
@@ -186,7 +186,7 @@ class Source:
 
   def get_value(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
@@ -194,8 +194,8 @@ class Source:
     """Returns the profile for this source during one time step.
 
     Args:
-      dynamic_config_slice: Slice of the general TORAX config that can be used
-        as input for this time step.
+      dynamic_runtime_params_slice: Slice of the general TORAX config that can
+        be used as input for this time step.
       dynamic_source_runtime_params: Slice of this source's runtime parameters
         at a specific time t.
       geo: Geometry of the torus.
@@ -222,7 +222,7 @@ class Source:
         else self.formula
     )
     return get_source_profiles(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -319,7 +319,8 @@ class SingleProfileSource(Source):
   If you want to create a subclass of SingleProfileSource with frozen
   parameters, you can provide default implementations/attributes. This is an
   example of a model-based source with a frozen custom model that cannot be
-  changed by a config, along with custom runtime parameters specific to this
+  changed by a runtime_params, along with custom runtime parameters specific to
+  this
   source:
 
   ```python
@@ -330,7 +331,7 @@ class SingleProfileSource(Source):
 
     def build_dynamic_params(self, t: chex.Numeric) -> DynamicFooRuntimeParams:
     return DynamicFooRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicFooRuntimeParams,
             t=t,
@@ -343,7 +344,7 @@ class SingleProfileSource(Source):
     bar_param: float
 
   def _my_foo_model(
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       dynamic_source_runtime_params,
       geo,
       core_profiles,
@@ -385,7 +386,7 @@ class SingleProfileSource(Source):
 
   def get_value(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
@@ -393,7 +394,7 @@ class SingleProfileSource(Source):
     """Returns the profile for this source during one time step."""
     output_shape = self.output_shape_getter(geo)
     profile = super().get_value(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
@@ -439,7 +440,7 @@ class ProfileType(enum.Enum):
 
 
 def get_source_profiles(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles | None,
@@ -453,8 +454,8 @@ def get_source_profiles(
   source types will be ignored.
 
   Args:
-    dynamic_config_slice: Slice of the general TORAX config that can be used as
-      input for this time step.
+    dynamic_runtime_params_slice: Slice of the general TORAX config that can be
+      used as input for this time step.
     dynamic_source_runtime_params: Slice of this source's runtime parameters at
       a specific time t.
     geo: Geometry information. Used as input to the source profile functions.
@@ -473,7 +474,7 @@ def get_source_profiles(
   output += jnp.where(
       mode == runtime_params_lib.Mode.MODEL_BASED.value,
       model_func(
-          dynamic_config_slice,
+          dynamic_runtime_params_slice,
           dynamic_source_runtime_params,
           geo,
           core_profiles,
@@ -483,7 +484,7 @@ def get_source_profiles(
   output += jnp.where(
       mode == runtime_params_lib.Mode.FORMULA_BASED.value,
       formula(
-          dynamic_config_slice,
+          dynamic_runtime_params_slice,
           dynamic_source_runtime_params,
           geo,
           core_profiles,
@@ -569,7 +570,7 @@ class IonElectronSource(Source):
 
   def get_value(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
@@ -577,8 +578,8 @@ class IonElectronSource(Source):
     """Computes the ion and electron values of the source.
 
     Args:
-      dynamic_config_slice: Input config which can change from time step to time
-        step.
+      dynamic_runtime_params_slice: Input config which can change from time step
+        to time step.
       dynamic_source_runtime_params: Slice of this source's runtime parameters
         at a specific time t.
       geo: Geometry of the torus.
@@ -590,7 +591,7 @@ class IonElectronSource(Source):
     """
     output_shape = self.output_shape_getter(geo)
     profile = super().get_value(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,

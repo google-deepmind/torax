@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Inputs to the TORAX steppers based on the input config.
+"""Inputs to TORAX steppers and functions based on the input runtime parameters.
 
 When running a TORAX simulation, the steppers are (by default) JAX-compiled
 function, meaning it has two types of arguments: "dynamic" and "static".
@@ -20,7 +20,7 @@ function, meaning it has two types of arguments: "dynamic" and "static".
 The "dynamic" arguments can change from call to call. These arguments must be
 arrays, scalars, or standard (possibly nested) Python containers. See the JAX
 docs for more info on allowed types. They cannot influence the logical branches
-the JointStateStepper may take (again, see the sharp bits in the JAX docs to
+the SimulationStepFn may take (again, see the sharp bits in the JAX docs to
 learn more about the how these "dynamic" args can be used within the function).
 
 Note that the "dynamic" arguments are NOT necessarily time-dependent. They do
@@ -41,8 +41,8 @@ from collections.abc import Mapping
 from typing import Callable
 
 import chex
-from torax import config as config_lib
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
+from torax.config import runtime_params as general_runtime_params
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
 from torax.transport_model import runtime_params as transport_model_params
@@ -54,13 +54,13 @@ from torax.transport_model import runtime_params as transport_model_params
 
 
 @chex.dataclass(frozen=True)
-class DynamicConfigSlice:
+class DynamicRuntimeParamsSlice:
   """Input params that are ok to use as inputs to a JAX-compiled function.
 
-  This PyTree of params is input to the sim.JointStateStepper, which updates
+  This PyTree of params is input to the sim.SimulationStepFn, which updates
   the joint state and evolves the mesh state. This config includes various
   "dynamic" parameters which can change from step to step, or from
-  simulation run to simulation run, without requiring the JointStateStepper to
+  simulation run to simulation run, without requiring the SimulationStepFn to
   recompile.
 
   Note that "dynamic" does NOT mean time dependent necessarily (though these
@@ -70,6 +70,16 @@ class DynamicConfigSlice:
   While the parameters are not necessarily time-dependent, that is how the class
   gets its name: a config "slice" refers to a subset of the overall TORAX config
   at a specific time t.
+
+  This class contains "slices" of various RuntimeParams attributes defined
+  throughout TORAX:
+   - from the "general" runtime params
+   - from the transport model's runtime params
+   - from the stepper's runtime params
+   - from each of the sources' runtime params
+
+  This class packages all these together for convenience, as it simplifies many
+  of the internal APIs within TORAX.
   """
 
   transport: transport_model_params.DynamicRuntimeParams
@@ -204,10 +214,10 @@ class DynamicNumerics:
 
 
 @chex.dataclass(frozen=True)
-class StaticConfigSlice:
-  """Static arguments to JointStateStepper which cannot be changed.
+class StaticRuntimeParamsSlice:
+  """Static arguments to SimulationStepFn which cannot be changed.
 
-  If any changes are made to these arguments, then the JointStateStepper must be
+  If any changes are made to these arguments, then the SimulationStepFn must be
   recompiled.
 
   NOTE: These are not the only parameters which can trigger a recompile! For
@@ -237,52 +247,53 @@ class StaticConfigSlice:
   # iteratively at successively lower dt until convergence is reached
   adaptive_dt: bool
 
+
 # pylint: enable=invalid-name
 
 
-def build_dynamic_config_slice(
-    config: config_lib.Config,
+def build_dynamic_runtime_params_slice(
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
     transport: transport_model_params.RuntimeParams | None = None,
     sources: dict[str, sources_params.RuntimeParams] | None = None,
     stepper: stepper_params.RuntimeParams | None = None,
     t: chex.Numeric | None = None,
-) -> DynamicConfigSlice:
-  """Builds a DynamicConfigSlice based on the input config."""
+) -> DynamicRuntimeParamsSlice:
+  """Builds a DynamicRuntimeParamsSlice."""
   transport = transport or transport_model_params.RuntimeParams()
   sources = sources or {}
   stepper = stepper or stepper_params.RuntimeParams()
-  t = config.numerics.t_initial if t is None else t
-  # For each dataclass attribute under DynamicConfigSlice, build those objects
-  # explicitly, and then for all scalar attributes, fetch their values directly
-  # from the input config using config_slice_args.get_init_kwargs.
-  return DynamicConfigSlice(
+  t = runtime_params.numerics.t_initial if t is None else t
+  # For each dataclass attribute under DynamicRuntimeParamsSlice, build those
+  # objects explicitly, and then for all scalar attributes, fetch their values
+  # directly from the input runtime params using config_args.get_init_kwargs.
+  return DynamicRuntimeParamsSlice(
       transport=transport.build_dynamic_params(t),
       stepper=stepper.build_dynamic_params(t),
       sources=_build_dynamic_sources(sources, t),
       plasma_composition=DynamicPlasmaComposition(
-          **config_slice_args.get_init_kwargs(
-              input_config=config.plasma_composition,
+          **config_args.get_init_kwargs(
+              input_config=runtime_params.plasma_composition,
               output_type=DynamicPlasmaComposition,
               t=t,
           )
       ),
       profile_conditions=DynamicProfileConditions(
-          **config_slice_args.get_init_kwargs(
-              input_config=config.profile_conditions,
+          **config_args.get_init_kwargs(
+              input_config=runtime_params.profile_conditions,
               output_type=DynamicProfileConditions,
               t=t,
           )
       ),
       numerics=DynamicNumerics(
-          **config_slice_args.get_init_kwargs(
-              input_config=config.numerics,
+          **config_args.get_init_kwargs(
+              input_config=runtime_params.numerics,
               output_type=DynamicNumerics,
               t=t,
           )
       ),
-      **config_slice_args.get_init_kwargs(
-          input_config=config,
-          output_type=DynamicConfigSlice,
+      **config_args.get_init_kwargs(
+          input_config=runtime_params,
+          output_type=DynamicRuntimeParamsSlice,
           t=t,
           skip=(
               'transport',
@@ -307,43 +318,43 @@ def _build_dynamic_sources(
   }
 
 
-def build_static_config_slice(
-    config: config_lib.Config,
+def build_static_runtime_params_slice(
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
     stepper: stepper_params.RuntimeParams | None = None,
-) -> StaticConfigSlice:
-  """Builds a StaticConfigSlice based on the input config."""
+) -> StaticRuntimeParamsSlice:
+  """Builds a StaticRuntimeParamsSlice."""
   # t set to None because there shouldnt be time-dependent params in the static
   # config.
   stepper = stepper or stepper_params.RuntimeParams()
-  return StaticConfigSlice(
+  return StaticRuntimeParamsSlice(
       stepper=stepper.build_static_params(),
-      nr=config.numerics.nr,
-      ion_heat_eq=config.numerics.ion_heat_eq,
-      el_heat_eq=config.numerics.el_heat_eq,
-      current_eq=config.numerics.current_eq,
-      dens_eq=config.numerics.dens_eq,
-      adaptive_dt=config.numerics.adaptive_dt,
+      nr=runtime_params.numerics.nr,
+      ion_heat_eq=runtime_params.numerics.ion_heat_eq,
+      el_heat_eq=runtime_params.numerics.el_heat_eq,
+      current_eq=runtime_params.numerics.current_eq,
+      dens_eq=runtime_params.numerics.dens_eq,
+      adaptive_dt=runtime_params.numerics.adaptive_dt,
   )
 
 
-class DynamicConfigSliceProvider:
-  """Provides a DynamicConfigSlice to use during time t of the sim.
+class DynamicRuntimeParamsSliceProvider:
+  """Provides a DynamicRuntimeParamsSlice to use during time t of the sim.
 
-  The DynamicConfigSlice may change from time step to time step, so this class
-  interpolates any time-dependent params in the input config to the values they
-  should be at time t.
+  The DynamicRuntimeParamsSlice may change from time step to time step, so this
+  class interpolates any time-dependent params in the input config to the values
+  they should be at time t.
 
   See `run_simulation()` for how this callable is used.
   """
 
   def __init__(
       self,
-      config: config_lib.Config,
+      runtime_params: general_runtime_params.GeneralRuntimeParams,
       transport_getter: Callable[[], transport_model_params.RuntimeParams],
       sources_getter: Callable[[], dict[str, sources_params.RuntimeParams]],
       stepper_getter: Callable[[], stepper_params.RuntimeParams],
   ):
-    self._input_config = config
+    self._runtime_params = runtime_params
     self._transport_runtime_params_getter = transport_getter
     self._sources_getter = sources_getter
     self._stepper_getter = stepper_getter
@@ -351,10 +362,10 @@ class DynamicConfigSliceProvider:
   def __call__(
       self,
       t: chex.Numeric,
-  ) -> DynamicConfigSlice:
-    """Returns a DynamicConfigSlice to use during time t of the sim."""
-    return build_dynamic_config_slice(
-        config=self._input_config,
+  ) -> DynamicRuntimeParamsSlice:
+    """Returns a DynamicRuntimeParamsSlice to use during time t of the sim."""
+    return build_dynamic_runtime_params_slice(
+        runtime_params=self._runtime_params,
         transport=self._transport_runtime_params_getter(),
         sources=self._sources_getter(),
         stepper=self._stepper_getter(),

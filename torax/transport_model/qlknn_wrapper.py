@@ -29,13 +29,13 @@ from absl import flags
 import chex
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import constants as constants_module
 from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
+from torax.config import runtime_params_slice
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
 from torax.transport_model import runtime_params as runtime_params_lib
@@ -74,7 +74,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
@@ -150,9 +150,9 @@ def _get_model() -> base_qlknn_model.BaseQLKNNModel:
 class _QLKNNRuntimeConfigInputs:
   """Runtime config inputs for QLKNN.
 
-  The runtime DynamicConfigSlice contains global config parameters, not all of
-  which are cacheable. This set of inputs IS cacheable, and using this added
-  layer allows the global config to change without affecting how
+  The runtime DynamicRuntimeParamsSlice contains global runtime parameters, not
+  all of which are cacheable. This set of inputs IS cacheable, and using this
+  added layer allows the global config to change without affecting how
   QLKNNTransportModel works.
   """
 
@@ -167,18 +167,20 @@ class _QLKNNRuntimeConfigInputs:
   # pylint: enable=invalid-name
 
   @staticmethod
-  def from_config_slice(
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+  def from_runtime_params_slice(
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
   ) -> '_QLKNNRuntimeConfigInputs':
-    assert isinstance(dynamic_config_slice.transport, DynamicRuntimeParams)
+    assert isinstance(
+        dynamic_runtime_params_slice.transport, DynamicRuntimeParams
+    )
     return _QLKNNRuntimeConfigInputs(
-        nref=dynamic_config_slice.numerics.nref,
-        Ai=dynamic_config_slice.plasma_composition.Ai,
-        Zeff=dynamic_config_slice.plasma_composition.Zeff,
-        transport=dynamic_config_slice.transport,
-        Ped_top=dynamic_config_slice.profile_conditions.Ped_top,
-        set_pedestal=dynamic_config_slice.profile_conditions.set_pedestal,
-        q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
+        nref=dynamic_runtime_params_slice.numerics.nref,
+        Ai=dynamic_runtime_params_slice.plasma_composition.Ai,
+        Zeff=dynamic_runtime_params_slice.plasma_composition.Zeff,
+        transport=dynamic_runtime_params_slice.transport,
+        Ped_top=dynamic_runtime_params_slice.profile_conditions.Ped_top,
+        set_pedestal=dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
     )
 
 
@@ -230,15 +232,15 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
   def _call_implementation(
       self,
-      dynamic_config_slice: config_slice.DynamicConfigSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
     """Calculates several transport coefficients simultaneously.
 
     Args:
-      dynamic_config_slice: Input config parameters that can change without
-        triggering a JAX recompilation.
+      dynamic_runtime_params_slice: Input runtime parameters that can change
+        without triggering a JAX recompilation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
 
@@ -258,8 +260,8 @@ class QLKNNTransportModel(transport_model.TransportModel):
     # hashable. We assume that either we're running a whole sim in uncompiled
     # mode and everything is concrete or we're running a whole sim in compiled
     # mode and everything is a tracer, so we can just test one value.
-    runtime_config_inputs = _QLKNNRuntimeConfigInputs.from_config_slice(
-        dynamic_config_slice
+    runtime_config_inputs = _QLKNNRuntimeConfigInputs.from_runtime_params_slice(
+        dynamic_runtime_params_slice
     )
     try:
       return self._cached_combined(runtime_config_inputs, geo, core_profiles)
@@ -286,7 +288,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
     `__call__` itself is just a cache dispatch wrapper.
 
     Args:
-      runtime_config_inputs: Input config parameters that can change without
+      runtime_config_inputs: Input runtime parameters that can change without
         triggering a JAX recompilation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
@@ -557,7 +559,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
     # set low transport in pedestal region to facilitate PDE solver
     # (more consistency between desired profile and transport coefficients)
-    # if config.profile_conditions.set_pedestal:
+    # if runtime_params.profile_conditions.set_pedestal:
     mask = geo.r_face_norm >= runtime_config_inputs.Ped_top
     chi_face_ion = jnp.where(
         jnp.logical_and(runtime_config_inputs.set_pedestal, mask),

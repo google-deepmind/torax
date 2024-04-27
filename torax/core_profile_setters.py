@@ -22,7 +22,6 @@ evolved by the PDE system.
 import dataclasses
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import constants
 from torax import fvm
 from torax import geometry
@@ -30,6 +29,7 @@ from torax import jax_utils
 from torax import math_utils
 from torax import physics
 from torax import state
+from torax.config import runtime_params_slice
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
 from torax.sources import external_current_source
 from torax.sources import source_models as source_models_lib
@@ -39,23 +39,24 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def _updated_ti(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
 ) -> fvm.CellVariable:
   """Updated ion temp. Used upon initialization and if temp_ion=False."""
   # pylint: disable=invalid-name
   Ti_bound_left = jax_utils.error_if_not_positive(
-      dynamic_config_slice.profile_conditions.Ti_bound_left, 'Ti_bound_left'
+      dynamic_runtime_params_slice.profile_conditions.Ti_bound_left,
+      'Ti_bound_left',
   )
   Ti_bound_right = jax_utils.error_if_not_positive(
-      dynamic_config_slice.profile_conditions.Ti_bound_right,
+      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
       'Ti_bound_right',
   )
   temp_ion_face = jnp.linspace(
       start=Ti_bound_left,
       stop=Ti_bound_right,
-      num=static_config_slice.nr + 1,
+      num=static_runtime_params_slice.nr + 1,
   )
   temp_ion = geometry.face_to_cell(temp_ion_face)
   temp_ion = fvm.CellVariable(
@@ -70,23 +71,24 @@ def _updated_ti(
 
 
 def _updated_te(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
 ) -> fvm.CellVariable:
   """Updated electron temp. Used upon initialization and if temp_el=False."""
   # pylint: disable=invalid-name
   Te_bound_left = jax_utils.error_if_not_positive(
-      dynamic_config_slice.profile_conditions.Te_bound_left, 'Te_bound_left'
+      dynamic_runtime_params_slice.profile_conditions.Te_bound_left,
+      'Te_bound_left',
   )
   Te_bound_right = jax_utils.error_if_not_positive(
-      dynamic_config_slice.profile_conditions.Te_bound_right,
+      dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
       'Te_bound_right',
   )
   temp_el_face = jnp.linspace(
       start=Te_bound_left,
       stop=Te_bound_right,
-      num=static_config_slice.nr + 1,
+      num=static_runtime_params_slice.nr + 1,
   )
   temp_el = geometry.face_to_cell(temp_el_face)
   temp_el = fvm.CellVariable(
@@ -101,35 +103,35 @@ def _updated_te(
 
 
 def _updated_dens(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
 ) -> tuple[fvm.CellVariable, fvm.CellVariable]:
   """Updated particle density. Used upon initialization and if dens_eq=False."""
   # pylint: disable=invalid-name
   nGW = (
-      dynamic_config_slice.profile_conditions.Ip
+      dynamic_runtime_params_slice.profile_conditions.Ip
       / (jnp.pi * geo.Rmin**2)
       * 1e20
-      / dynamic_config_slice.numerics.nref
+      / dynamic_runtime_params_slice.numerics.nref
   )
   nbar_unnorm = jnp.where(
-      dynamic_config_slice.profile_conditions.nbar_is_fGW,
-      dynamic_config_slice.profile_conditions.nbar * nGW,
-      dynamic_config_slice.profile_conditions.nbar,
+      dynamic_runtime_params_slice.profile_conditions.nbar_is_fGW,
+      dynamic_runtime_params_slice.profile_conditions.nbar * nGW,
+      dynamic_runtime_params_slice.profile_conditions.nbar,
   )
   # calculate ne_bound_right
   ne_bound_right = jnp.where(
-      dynamic_config_slice.profile_conditions.ne_bound_right_is_fGW,
-      dynamic_config_slice.profile_conditions.ne_bound_right * nGW,
-      dynamic_config_slice.profile_conditions.ne_bound_right,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
   )
 
   # set peaking (limited to linear profile)
   nshape_face = jnp.linspace(
-      dynamic_config_slice.profile_conditions.npeak,
+      dynamic_runtime_params_slice.profile_conditions.npeak,
       1,
-      static_config_slice.nr + 1,
+      static_runtime_params_slice.nr + 1,
   )
   nshape = geometry.face_to_cell(nshape_face)
 
@@ -153,8 +155,8 @@ def _updated_dens(
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
 
   dilution_factor = physics.get_main_ion_dilution_factor(
-      dynamic_config_slice.plasma_composition.Zimp,
-      dynamic_config_slice.plasma_composition.Zeff,
+      dynamic_runtime_params_slice.plasma_composition.Zimp,
+      dynamic_runtime_params_slice.plasma_composition.Zeff,
   )
 
   ni = fvm.CellVariable(
@@ -167,14 +169,14 @@ def _updated_dens(
 
 
 def _prescribe_currents_no_bootstrap(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
   """Creates the initial Currents without the bootstrap current.
 
   Args:
-    dynamic_config_slice: General configuration parameters at t_initial.
+    dynamic_runtime_params_slice: General runtime parameters at t_initial.
     geo: Geometry of the tokamak.
     source_models: All TORAX source/sink functions.
 
@@ -186,10 +188,12 @@ def _prescribe_currents_no_bootstrap(
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
 
-  # Calculate splitting of currents depending on config
-  Ip = dynamic_config_slice.profile_conditions.Ip
+  # Calculate splitting of currents depending on input runtime params.
+  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
 
-  dynamic_jext_params = _get_jext_params(dynamic_config_slice, source_models)
+  dynamic_jext_params = _get_jext_params(
+      dynamic_runtime_params_slice, source_models
+  )
   if dynamic_jext_params.use_absolute_jext:
     Iext = dynamic_jext_params.Iext
   else:
@@ -205,7 +209,7 @@ def _prescribe_currents_no_bootstrap(
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
   jext_face, jext = source_models.jext.get_value(
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
@@ -213,10 +217,10 @@ def _prescribe_currents_no_bootstrap(
   # construct prescribed current formula on grid.
   jformula_face = (
       1 - geo.r_face_norm**2
-  ) ** dynamic_config_slice.profile_conditions.nu
+  ) ** dynamic_runtime_params_slice.profile_conditions.nu
   # calculate total and Ohmic current profiles
   denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
-  if dynamic_config_slice.profile_conditions.initial_j_is_total_current:
+  if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
     johm_face = jtot_face - jext_face
@@ -229,7 +233,7 @@ def _prescribe_currents_no_bootstrap(
   johm = geometry.face_to_cell(johm_face)
 
   jtot_hires = _get_jtot_hires(
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       dynamic_jext_params,
       geo,
       bootstrap_profile,
@@ -255,7 +259,7 @@ def _prescribe_currents_no_bootstrap(
 
 
 def _prescribe_currents_with_bootstrap(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     temp_ion: fvm.CellVariable,
     temp_el: fvm.CellVariable,
@@ -268,7 +272,7 @@ def _prescribe_currents_with_bootstrap(
   """Creates the initial Currents.
 
   Args:
-    dynamic_config_slice: General configuration parameters at t_initial.
+    dynamic_runtime_params_slice: General runtime parameters at t_initial.
     geo: Geometry of the tokamak.
     temp_ion: Ion temperature.
     temp_el: Electron temperature.
@@ -286,11 +290,11 @@ def _prescribe_currents_with_bootstrap(
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
-  Ip = dynamic_config_slice.profile_conditions.Ip
+  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
-      dynamic_config_slice=dynamic_config_slice,
-      dynamic_source_runtime_params=dynamic_config_slice.sources[
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ],
       geo=geo,
@@ -303,8 +307,10 @@ def _prescribe_currents_with_bootstrap(
   )
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
-  # Calculate splitting of currents depending on config
-  dynamic_jext_params = _get_jext_params(dynamic_config_slice, source_models)
+  # Calculate splitting of currents depending on input runtime params
+  dynamic_jext_params = _get_jext_params(
+      dynamic_runtime_params_slice, source_models
+  )
   if dynamic_jext_params.use_absolute_jext:
     Iext = dynamic_jext_params.Iext
   else:
@@ -314,7 +320,7 @@ def _prescribe_currents_with_bootstrap(
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
   jext_face, jext = source_models.jext.get_value(
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
@@ -322,10 +328,10 @@ def _prescribe_currents_with_bootstrap(
   # construct prescribed current formula on grid.
   jformula_face = (
       1 - geo.r_face_norm**2
-  ) ** dynamic_config_slice.profile_conditions.nu
+  ) ** dynamic_runtime_params_slice.profile_conditions.nu
   denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
   # calculate total and Ohmic current profiles
-  if dynamic_config_slice.profile_conditions.initial_j_is_total_current:
+  if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
     johm_face = jtot_face - jext_face - bootstrap_profile.j_bootstrap_face
@@ -338,7 +344,7 @@ def _prescribe_currents_with_bootstrap(
   johm = geometry.face_to_cell(johm_face)
 
   jtot_hires = _get_jtot_hires(
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       dynamic_jext_params,
       geo,
       bootstrap_profile,
@@ -364,7 +370,7 @@ def _prescribe_currents_with_bootstrap(
 
 
 def _calculate_currents_from_psi(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     temp_ion: fvm.CellVariable,
     temp_el: fvm.CellVariable,
@@ -376,7 +382,7 @@ def _calculate_currents_from_psi(
   """Creates the initial Currents using psi to calculate jtot.
 
   Args:
-    dynamic_config_slice: General configuration parameters at t_initial.
+    dynamic_runtime_params_slice: General runtime parameters at t_initial.
     geo: Geometry of the tokamak.
     temp_ion: Ion temperature.
     temp_el: Electron temperature.
@@ -393,7 +399,7 @@ def _calculate_currents_from_psi(
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
-  Ip = dynamic_config_slice.profile_conditions.Ip
+  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
 
   jtot, jtot_face = physics.calc_jtot_from_psi(
       geo,
@@ -401,8 +407,8 @@ def _calculate_currents_from_psi(
   )
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
-      dynamic_config_slice=dynamic_config_slice,
-      dynamic_source_runtime_params=dynamic_config_slice.sources[
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ],
       geo=geo,
@@ -414,8 +420,10 @@ def _calculate_currents_from_psi(
       psi=psi,
   )
 
-  # Calculate splitting of currents depending on config
-  dynamic_jext_params = _get_jext_params(dynamic_config_slice, source_models)
+  # Calculate splitting of currents depending on input runtime params.
+  dynamic_jext_params = _get_jext_params(
+      dynamic_runtime_params_slice, source_models
+  )
   if dynamic_jext_params.use_absolute_jext:
     Iext = dynamic_jext_params.Iext
   else:
@@ -426,7 +434,7 @@ def _calculate_currents_from_psi(
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
   jext_face, jext = source_models.jext.get_value(
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
@@ -439,7 +447,7 @@ def _calculate_currents_from_psi(
   # should be summing over all sources that can contribute current i.e. ECCD,
   # ICRH, NBI, LHCD.
   jtot_hires = _get_jtot_hires(
-      dynamic_config_slice,
+      dynamic_runtime_params_slice,
       dynamic_jext_params,
       geo,
       bootstrap_profile,
@@ -466,7 +474,7 @@ def _calculate_currents_from_psi(
 
 
 def _update_psi_from_j(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     currents: state.Currents,
 ) -> fvm.CellVariable:
@@ -476,7 +484,7 @@ def _update_psi_from_j(
     integration.
 
   Args:
-    dynamic_config_slice: Dynamic configuration parameters.
+    dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Torus geometry.
     currents: Currents structure including high resolution version of jtot.
 
@@ -485,7 +493,7 @@ def _update_psi_from_j(
   """
 
   psi_constraint = (
-      dynamic_config_slice.profile_conditions.Ip
+      dynamic_runtime_params_slice.profile_conditions.Ip
       * 1e6
       * constants.CONSTANTS.mu0
       / geo.G2_face[-1]
@@ -524,16 +532,16 @@ def _update_psi_from_j(
 
 
 def initial_core_profiles(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     source_models: source_models_lib.SourceModels,
 ) -> state.CoreProfiles:
   """Calculates the initial core profiles.
 
   Args:
-    static_config_slice: Static simulation configuration parameters.
-    dynamic_config_slice: Dynamic configuration parameters at t=t_initial.
+    static_runtime_params_slice: Static simulation runtime parameters.
+    dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
     geo: Torus geometry.
     source_models: All models for TORAX sources/sinks.
 
@@ -544,33 +552,39 @@ def initial_core_profiles(
 
   # To set initial values and compute the boundary conditions, we need to handle
   # potentially time-varying inputs from the users.
-  # The default time in build_dynamic_config_slice is t_initial
-  temp_ion = _updated_ti(static_config_slice, dynamic_config_slice, geo)
-  temp_el = _updated_te(static_config_slice, dynamic_config_slice, geo)
-  ne, ni = _updated_dens(static_config_slice, dynamic_config_slice, geo)
+  # The default time in build_dynamic_runtime_params_slice is t_initial
+  temp_ion = _updated_ti(
+      static_runtime_params_slice, dynamic_runtime_params_slice, geo
+  )
+  temp_el = _updated_te(
+      static_runtime_params_slice, dynamic_runtime_params_slice, geo
+  )
+  ne, ni = _updated_dens(
+      static_runtime_params_slice, dynamic_runtime_params_slice, geo
+  )
 
   # set up initial psi profile based on current profile
   if (
       isinstance(geo, geometry.CircularGeometry)
-      or dynamic_config_slice.profile_conditions.initial_psi_from_j
+      or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     # set up initial current profile without bootstrap current, to get
     # q-profile approximation (needed for bootstrap)
     currents_no_bootstrap = _prescribe_currents_no_bootstrap(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
 
     psi_no_bootstrap = _update_psi_from_j(
-        dynamic_config_slice,
+        dynamic_runtime_params_slice,
         geo,
         currents_no_bootstrap,
     )
 
     # second iteration, with bootstrap current
     currents = _prescribe_currents_with_bootstrap(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         temp_ion=temp_ion,
         temp_el=temp_el,
@@ -582,7 +596,7 @@ def initial_core_profiles(
     )
 
     psi = _update_psi_from_j(
-        dynamic_config_slice,
+        dynamic_runtime_params_slice,
         geo,
         currents,
     )
@@ -591,19 +605,19 @@ def initial_core_profiles(
         geo=geo,
         psi=psi,
         jtot_face=currents.jtot_face,
-        q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
+        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, psi)
 
   elif (
       isinstance(geo, geometry.CHEASEGeometry)
-      and not dynamic_config_slice.profile_conditions.initial_psi_from_j
+      and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     # psi is already provided from the CHEASE equilibrium, so no need to first
     # calculate currents. However, non-inductive currents are still calculated
     # and used in current diffusion equation.
     psi_constraint = (
-        dynamic_config_slice.profile_conditions.Ip
+        dynamic_runtime_params_slice.profile_conditions.Ip
         * 1e6
         * constants.CONSTANTS.mu0
         / geo.G2_face[-1]
@@ -618,13 +632,13 @@ def initial_core_profiles(
         geo=geo,
         psi=psi,
         jtot_face=geo.jtot_face,
-        q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
+        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, psi)
 
     # calculation external currents
     currents = _calculate_currents_from_psi(
-        dynamic_config_slice=dynamic_config_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
         temp_ion=temp_ion,
@@ -658,7 +672,7 @@ def initial_core_profiles(
   psidot = dataclasses.replace(
       psidot,
       value=source_models_lib.calc_psidot(
-          dynamic_config_slice,
+          dynamic_runtime_params_slice,
           geo,
           core_profiles,
           source_models,
@@ -671,7 +685,7 @@ def initial_core_profiles(
   core_profiles = physics.update_jtot_q_face_s_face(
       geo=geo,
       core_profiles=core_profiles,
-      q_correction_factor=dynamic_config_slice.numerics.q_correction_factor,
+      q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
   )
 
   # pylint: enable=invalid-name
@@ -679,8 +693,8 @@ def initial_core_profiles(
 
 
 def updated_prescribed_core_profiles(
-    static_config_slice: config_slice.StaticConfigSlice,
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     core_profiles: state.CoreProfiles,
 ) -> dict[str, jax.Array]:
@@ -689,8 +703,8 @@ def updated_prescribed_core_profiles(
   Uses same functions as for profile initialization.
 
   Args:
-    static_config_slice: Static simulation configuration parameters.
-    dynamic_config_slice: Dynamic configuration parameters at t=t_initial.
+    static_runtime_params_slice: Static simulation runtime parameters.
+    dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
     geo: Torus geometry.
     core_profiles: Core profiles dataclass to be updated
 
@@ -700,26 +714,32 @@ def updated_prescribed_core_profiles(
   # pylint: disable=invalid-name
 
   # If profiles are not evolved, they can still potential be time-evolving,
-  # depending on the config. If so, they are updated below.
+  # depending on the runtime params. If so, they are updated below.
   if (
-      not static_config_slice.ion_heat_eq
-      and dynamic_config_slice.numerics.enable_prescribed_profile_evolution
+      not static_runtime_params_slice.ion_heat_eq
+      and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    temp_ion = _updated_ti(static_config_slice, dynamic_config_slice, geo).value
+    temp_ion = _updated_ti(
+        static_runtime_params_slice, dynamic_runtime_params_slice, geo
+    ).value
   else:
     temp_ion = core_profiles.temp_ion.value
   if (
-      not static_config_slice.el_heat_eq
-      and dynamic_config_slice.numerics.enable_prescribed_profile_evolution
+      not static_runtime_params_slice.el_heat_eq
+      and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    temp_el = _updated_te(static_config_slice, dynamic_config_slice, geo).value
+    temp_el = _updated_te(
+        static_runtime_params_slice, dynamic_runtime_params_slice, geo
+    ).value
   else:
     temp_el = core_profiles.temp_el.value
   if (
-      not static_config_slice.dens_eq
-      and dynamic_config_slice.numerics.enable_prescribed_profile_evolution
+      not static_runtime_params_slice.dens_eq
+      and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    ne, _ = _updated_dens(static_config_slice, dynamic_config_slice, geo)
+    ne, _ = _updated_dens(
+        static_runtime_params_slice, dynamic_runtime_params_slice, geo
+    )
     ne = ne.value
   else:
     ne = core_profiles.ne.value
@@ -729,7 +749,7 @@ def updated_prescribed_core_profiles(
 
 def update_evolving_core_profiles(
     x_new: tuple[fvm.cell_variable.CellVariable, ...],
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],
 ) -> state.CoreProfiles:
@@ -737,7 +757,7 @@ def update_evolving_core_profiles(
 
   Args:
     x_new: The new values of the evolving variables.
-    dynamic_config_slice: The dynamic config slice.
+    dynamic_runtime_params_slice: The dynamic runtime params slice.
     core_profiles: The old set of core plasma profiles.
     evolving_names: The names of the evolving variables.
   """
@@ -757,8 +777,8 @@ def update_evolving_core_profiles(
       core_profiles.ni,
       value=ne.value
       * physics.get_main_ion_dilution_factor(
-          dynamic_config_slice.plasma_composition.Zimp,
-          dynamic_config_slice.plasma_composition.Zeff,
+          dynamic_runtime_params_slice.plasma_composition.Zimp,
+          dynamic_runtime_params_slice.plasma_composition.Zeff,
       ),
   )
 
@@ -773,13 +793,13 @@ def update_evolving_core_profiles(
 
 
 def compute_boundary_conditions(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
 ) -> dict[str, dict[str, jax.Array | None]]:
   """Computes boundary conditions for time t and returns updates to State.
 
   Args:
-    dynamic_config_slice: Runtime configuration at time t.
+    dynamic_runtime_params_slice: Runtime parameters at time t.
     geo: Geometry object
 
   Returns:
@@ -787,27 +807,29 @@ def compute_boundary_conditions(
     each CellVariable in the state. This dict can in theory recursively replace
     values in a State object.
   """
-  Ip = dynamic_config_slice.profile_conditions.Ip  # pylint: disable=invalid-name
+  Ip = dynamic_runtime_params_slice.profile_conditions.Ip  # pylint: disable=invalid-name
   Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-      dynamic_config_slice.profile_conditions.Ti_bound_right, 'Ti_bound_right'
+      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
+      'Ti_bound_right',
   )
   Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-      dynamic_config_slice.profile_conditions.Te_bound_right, 'Te_bound_right'
+      dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
+      'Te_bound_right',
   )
 
   # calculate ne_bound_right
   # pylint: disable=invalid-name
   nGW = (
-      dynamic_config_slice.profile_conditions.Ip
+      dynamic_runtime_params_slice.profile_conditions.Ip
       / (jnp.pi * geo.Rmin**2)
       * 1e20
-      / dynamic_config_slice.numerics.nref
+      / dynamic_runtime_params_slice.numerics.nref
   )
   # pylint: enable=invalid-name
   ne_bound_right = jnp.where(
-      dynamic_config_slice.profile_conditions.ne_bound_right_is_fGW,
-      dynamic_config_slice.profile_conditions.ne_bound_right * nGW,
-      dynamic_config_slice.profile_conditions.ne_bound_right,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
   )
   # define ion profile based on (flat) Zeff and single assumed impurity
   # with Zimp. main ion limited to hydrogenic species for now.
@@ -815,8 +837,8 @@ def compute_boundary_conditions(
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
 
   dilution_factor = physics.get_main_ion_dilution_factor(
-      dynamic_config_slice.plasma_composition.Zimp,
-      dynamic_config_slice.plasma_composition.Zeff,
+      dynamic_runtime_params_slice.plasma_composition.Zimp,
+      dynamic_runtime_params_slice.plasma_composition.Zeff,
   )
   return {
       'temp_ion': dict(
@@ -852,7 +874,7 @@ def compute_boundary_conditions(
 
 # pylint: disable=invalid-name
 def _get_jtot_hires(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_jext_params: external_current_source.DynamicRuntimeParams,
     geo: Geometry,
     bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
@@ -866,7 +888,7 @@ def _get_jtot_hires(
 
   # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
   jext_hires = jext_source.jext_hires(
-      dynamic_config_slice=dynamic_config_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
@@ -874,10 +896,12 @@ def _get_jtot_hires(
   # calculate high resolution jtot and Ohmic current profile
   jformula_hires = (
       1 - geo.r_hires_norm**2
-  ) ** dynamic_config_slice.profile_conditions.nu
+  ) ** dynamic_runtime_params_slice.profile_conditions.nu
   denom = _trapz(jformula_hires * geo.spr_hires, geo.r_hires)
-  if dynamic_config_slice.profile_conditions.initial_j_is_total_current:
-    Ctot_hires = dynamic_config_slice.profile_conditions.Ip * 1e6 / denom
+  if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
+    Ctot_hires = (
+        dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / denom
+    )
     jtot_hires = jformula_hires * Ctot_hires
   else:
     Cohm_hires = Iohm * 1e6 / denom
@@ -887,16 +911,19 @@ def _get_jtot_hires(
 
 
 def _get_jext_params(
-    dynamic_config_slice: config_slice.DynamicConfigSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     source_models: source_models_lib.SourceModels,
 ) -> external_current_source.DynamicRuntimeParams:
   """Returns dynamic runtime params for the external current source."""
-  assert source_models.jext_name in dynamic_config_slice.sources, (
-      f'{source_models.jext_name} not found in dynamic_config_slice.sources.'
-      ' Check to make sure the DynamicConfigSlice was built with `sources`'
-      ' that include the external current source.'
+  assert source_models.jext_name in dynamic_runtime_params_slice.sources, (
+      f'{source_models.jext_name} not found in'
+      ' dynamic_runtime_params_slice.sources. Check to make sure the'
+      ' DynamicRuntimeParamsSlice was built with `sources` that include the'
+      ' external current source.'
   )
-  dynamic_jext_params = dynamic_config_slice.sources[source_models.jext_name]
+  dynamic_jext_params = dynamic_runtime_params_slice.sources[
+      source_models.jext_name
+  ]
   assert isinstance(
       dynamic_jext_params, external_current_source.DynamicRuntimeParams
   )

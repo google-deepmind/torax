@@ -20,12 +20,12 @@ import dataclasses
 
 from absl.testing import absltest
 import chex
-from torax import config as config_lib
-from torax import config_slice
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.sources import default_sources
 from torax.sources import electron_density_sources
 from torax.sources import runtime_params as runtime_params_lib
@@ -49,7 +49,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     custom_source_name = 'custom_ne_source'
 
     def custom_source_formula(
-        dynamic_config_slice: config_slice.DynamicConfigSlice,
+        dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
         dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
         geo: geometry.Geometry,
         unused_state: state_lib.CoreProfiles | None,
@@ -83,17 +83,17 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       # pylint: disable=protected-access
       return (
           electron_density_sources._calc_puff_source(
-              dynamic_config_slice=dynamic_config_slice,
+              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=puff_params,
               geo=geo,
           )
           + electron_density_sources._calc_nbi_source(
-              dynamic_config_slice=dynamic_config_slice,
+              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=nbi_params,
               geo=geo,
           )
           + electron_density_sources._calc_pellet_source(
-              dynamic_config_slice=dynamic_config_slice,
+              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=pellet_params,
               geo=geo,
           )
@@ -155,13 +155,13 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 
     # Copy the test_particle_sources_constant config in here for clarity.
     # These are the common kwargs without any of the sources.
-    test_particle_sources_constant_config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    test_particle_sources_constant_runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             set_pedestal=True,
             nbar=0.85,
             nu=0,
         ),
-        numerics=config_lib.Numerics(
+        numerics=general_runtime_params.Numerics(
             ion_heat_eq=True,
             el_heat_eq=True,
             dens_eq=True,  # This is important to be True to test ne sources.
@@ -176,10 +176,10 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         'test_particle_sources_constant.h5', _ALL_PROFILES
     )
     geo = geometry.build_circular_geometry(
-        test_particle_sources_constant_config
+        test_particle_sources_constant_runtime_params
     )
     sim = sim_lib.build_sim_from_config(
-        config=test_particle_sources_constant_config,
+        runtime_params=test_particle_sources_constant_runtime_params,
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(
             runtime_params=linear_theta_method.LinearRuntimeParams(
@@ -234,13 +234,13 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       ref_profiles: dict[str, chex.ArrayTree],
       ref_time: chex.Array,
   ):
-    """Runs sim with new dynamic config and checks the profiles vs. expected."""
+    """Runs sim with new runtime params and checks the profiles vs. expected."""
     torax_outputs = sim_lib.run_simulation(
         initial_state=sim.initial_state,
         step_fn=sim.step_fn,
         geometry_provider=sim.geometry_provider,
-        dynamic_config_slice_provider=sim.dynamic_config_slice_provider,
-        static_config_slice=sim.static_config_slice,
+        dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
+        static_runtime_params_slice=sim.static_runtime_params_slice,
         time_step_calculator=sim.time_step_calculator,
     )
     state_history, _, _ = state_lib.build_history_from_states(torax_outputs)
@@ -275,7 +275,7 @@ class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
       self, t: chex.Numeric
   ) -> _CustomSourceDynamicRuntimeParams:
     return _CustomSourceDynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=_CustomSourceDynamicRuntimeParams,
             t=t,

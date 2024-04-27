@@ -23,13 +23,13 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
-from torax import config_slice
 from torax import constants
 from torax import core_profile_setters
 from torax import fvm
 from torax import geometry
 from torax import physics
 from torax import state
+from torax.config import runtime_params_slice
 from torax.sources import source_models
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
@@ -51,9 +51,9 @@ class ExplicitStepper(stepper_lib.Stepper):
   def __call__(
       self,
       dt: jax.Array,
-      static_config_slice: config_slice.StaticConfigSlice,
-      dynamic_config_slice_t: config_slice.DynamicConfigSlice,
-      dynamic_config_slice_t_plus_dt: config_slice.DynamicConfigSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
@@ -73,14 +73,14 @@ class ExplicitStepper(stepper_lib.Stepper):
     # The explicit method is for testing purposes and
     # only implemented for ion heat.
     # Ensure that this is what the user requested.
-    assert static_config_slice.ion_heat_eq
-    assert not static_config_slice.el_heat_eq
-    assert not static_config_slice.dens_eq
-    assert not static_config_slice.current_eq
+    assert static_runtime_params_slice.ion_heat_eq
+    assert not static_runtime_params_slice.el_heat_eq
+    assert not static_runtime_params_slice.dens_eq
+    assert not static_runtime_params_slice.current_eq
 
     consts = constants.CONSTANTS
 
-    nref = dynamic_config_slice_t.numerics.nref
+    nref = dynamic_runtime_params_slice_t.numerics.nref
     true_ni = core_profiles_t.ni.value * nref
     true_ni_face = core_profiles_t.ni.face_value() * nref
 
@@ -90,14 +90,14 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     # Diffusion term coefficient
     assert isinstance(
-        dynamic_config_slice_t.transport,
+        dynamic_runtime_params_slice_t.transport,
         constant_transport_model.DynamicRuntimeParams,
     )
     d_face_ion = (
         geo.g1_over_vpr_face
         * true_ni_face
         * consts.keV2J
-        * dynamic_config_slice_t.transport.chii_const
+        * dynamic_runtime_params_slice_t.transport.chii_const
         / geo.rmax**2
     )
 
@@ -119,7 +119,7 @@ class ExplicitStepper(stepper_lib.Stepper):
     # Update the potentially time-dependent boundary conditions as well.
     updated_boundary_conditions = (
         core_profile_setters.compute_boundary_conditions(
-            dynamic_config_slice_t_plus_dt,
+            dynamic_runtime_params_slice_t_plus_dt,
             geo,
         )
     )
@@ -133,7 +133,7 @@ class ExplicitStepper(stepper_lib.Stepper):
         geo=geo,
         psi=core_profiles_t.psi,
         jtot_face=core_profiles_t.currents.jtot,
-        q_correction_factor=dynamic_config_slice_t.numerics.q_correction_factor,
+        q_correction_factor=dynamic_runtime_params_slice_t.numerics.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo, core_profiles_t.psi)
 

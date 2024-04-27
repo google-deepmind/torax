@@ -23,7 +23,7 @@ from __future__ import annotations
 import chex
 from torax import interpolated_param
 from torax import jax_utils
-from torax.runtime_params import config_slice_args
+from torax.config import config_args
 
 
 # Type-alias for clarity. While the InterpolatedParams can vary across any
@@ -73,7 +73,7 @@ class RuntimeParams:
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_slice_args.get_init_kwargs(
+        **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,

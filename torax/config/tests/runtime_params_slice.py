@@ -12,94 +12,100 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.config_slice."""
+"""Unit tests for torax.config.runtime_params_slice."""
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
-from torax import config as config_lib
-from torax import config_slice as config_slice_lib
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.sources import electron_density_sources
 from torax.sources import external_current_source
 from torax.sources import formula_config
-from torax.sources import runtime_params
+from torax.sources import runtime_params as sources_params_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.transport_model import runtime_params as transport_params_lib
 
 
-class ConfigSliceTest(parameterized.TestCase):
-  """Unit tests for the `config_slice` module."""
+class RuntimeParamsSliceTest(parameterized.TestCase):
+  """Unit tests for the `runtime_params_slice` module."""
 
   def test_dynamic_slice_can_be_input_to_jitted_function(self):
-    def foo(config_slice: config_slice_lib.DynamicConfigSlice):
-      _ = config_slice  # do nothing.
+    """Tests that the slice can be input to a jitted function."""
+
+    def foo(
+        runtime_params_slice: runtime_params_slice_lib.DynamicRuntimeParamsSlice,
+    ):
+      _ = runtime_params_slice  # do nothing.
 
     foo_jitted = jax.jit(foo)
-    config = config_lib.Config()
-    dynamic_slice = config_slice_lib.build_dynamic_config_slice(config)
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+        runtime_params,
+    )
     # Make sure you can call the function with dynamic_slice as an arg.
     foo_jitted(dynamic_slice)
 
   def test_time_dependent_provider_is_time_dependent(self):
-    """Tests that the config slice provider is time dependent."""
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    """Tests that the runtime_params slice provider is time dependent."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             Ti_bound_right={0.0: 2.0, 4.0: 4.0},
         ),
     )
-    provider = config_slice_lib.DynamicConfigSliceProvider(
-        config=config,
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
     )
-    dynamic_config_slice = provider(t=1.0)
+    dynamic_runtime_params_slice = provider(t=1.0)
     np.testing.assert_allclose(
-        dynamic_config_slice.profile_conditions.Ti_bound_right, 2.5
+        dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 2.5
     )
-    dynamic_config_slice = provider(t=2.0)
+    dynamic_runtime_params_slice = provider(t=2.0)
     np.testing.assert_allclose(
-        dynamic_config_slice.profile_conditions.Ti_bound_right, 3.0
+        dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 3.0
     )
 
   def test_boundary_conditions_are_time_dependent(self):
     """Tests that the boundary conditions are time dependent params."""
     # All of the following parameters are time-dependent fields, but they can
     # be initialized in different ways.
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             Ti_bound_right={0.0: 2.0, 4.0: 4.0},
             Te_bound_right=4.5,  # not time-dependent.
-            ne_bound_right=config_lib.InterpolationParam(
+            ne_bound_right=general_runtime_params.InterpolationParam(
                 {5.0: 6.0, 7.0: 8.0},
-                interpolation_mode=config_lib.InterpolationMode.STEP,
+                interpolation_mode=general_runtime_params.InterpolationMode.STEP,
             ),
         ),
     )
     np.testing.assert_allclose(
-        config_slice_lib.build_dynamic_config_slice(
-            config, t=2.0
+        runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+            runtime_params, t=2.0
         ).profile_conditions.Ti_bound_right,
         3.0,
     )
     np.testing.assert_allclose(
-        config_slice_lib.build_dynamic_config_slice(
-            config, t=4.0
+        runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+            runtime_params, t=4.0
         ).profile_conditions.Te_bound_right,
         4.5,
     )
     np.testing.assert_allclose(
-        config_slice_lib.build_dynamic_config_slice(
-            config, t=6.0
+        runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+            runtime_params, t=6.0
         ).profile_conditions.ne_bound_right,
         6.0,
     )
 
   def test_pedestal_is_time_dependent(self):
-    """Tests that the pedestal config params are time dependent."""
-    config = config_lib.Config(
-        profile_conditions=config_lib.ProfileConditions(
+    """Tests that the pedestal runtime params are time dependent."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
             set_pedestal={0.0: True, 1.0: False},
             Tiped={0.0: 0.0, 1.0: 1.0},
             Teped={0.0: 1.0, 1.0: 2.0},
@@ -108,7 +114,9 @@ class ConfigSliceTest(parameterized.TestCase):
         ),
     )
     # Check at time 0.
-    dcs = config_slice_lib.build_dynamic_config_slice(config, t=0.0)
+    dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+        runtime_params, t=0.0
+    )
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, True)
     np.testing.assert_allclose(profile_conditions.Tiped, 0.0)
@@ -116,7 +124,9 @@ class ConfigSliceTest(parameterized.TestCase):
     np.testing.assert_allclose(profile_conditions.neped, 2.0)
     np.testing.assert_allclose(profile_conditions.Ped_top, 3.0)
     # And check after the time limit.
-    dcs = config_slice_lib.build_dynamic_config_slice(config, t=1.0)
+    dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+        runtime_params, t=1.0
+    )
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, False)
     np.testing.assert_allclose(profile_conditions.Tiped, 1.0)
@@ -127,11 +137,11 @@ class ConfigSliceTest(parameterized.TestCase):
   def test_source_formula_config_has_time_dependent_params(self):
     """Tests that the source formula config params are time-dependent."""
     with self.subTest('default_ne_sources'):
-      # Check that the config params for the default ne sources are
+      # Check that the runtime params for the default ne sources are
       # time-dependent.
-      config = config_lib.Config()
-      dcs = config_slice_lib.build_dynamic_config_slice(
-          config=config,
+      runtime_params = general_runtime_params.GeneralRuntimeParams()
+      dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+          runtime_params=runtime_params,
           sources={
               'gas_puff_source': electron_density_sources.GasPuffRuntimeParams(
                   puff_decay_length={0.0: 0.0, 1.0: 4.0},
@@ -184,11 +194,11 @@ class ConfigSliceTest(parameterized.TestCase):
       )
 
     with self.subTest('exponential_formula'):
-      config = config_lib.Config()
-      dcs = config_slice_lib.build_dynamic_config_slice(
-          config=config,
+      runtime_params = general_runtime_params.GeneralRuntimeParams()
+      dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+          runtime_params=runtime_params,
           sources={
-              'gas_puff_source': runtime_params.RuntimeParams(
+              'gas_puff_source': sources_params_lib.RuntimeParams(
                   formula=formula_config.Exponential(
                       total={0.0: 0.0, 1.0: 1.0},
                       c1={0.0: 0.0, 1.0: 2.0},
@@ -211,11 +221,11 @@ class ConfigSliceTest(parameterized.TestCase):
       )
 
     with self.subTest('gaussian_formula'):
-      config = config_lib.Config()
-      dcs = config_slice_lib.build_dynamic_config_slice(
-          config=config,
+      runtime_params = general_runtime_params.GeneralRuntimeParams()
+      dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+          runtime_params=runtime_params,
           sources={
-              'gas_puff_source': runtime_params.RuntimeParams(
+              'gas_puff_source': sources_params_lib.RuntimeParams(
                   formula=formula_config.Gaussian(
                       total={0.0: 0.0, 1.0: 1.0},
                       c1={0.0: 0.0, 1.0: 2.0},
@@ -236,11 +246,11 @@ class ConfigSliceTest(parameterized.TestCase):
           dcs.sources['gas_puff_source'].formula.c2, 0.75
       )
 
-  def test_wext_in_dynamic_config_cannot_be_negative(self):
+  def test_wext_in_dynamic_runtime_params_cannot_be_negative(self):
     """Tests that wext cannot be negative."""
-    config = config_lib.Config()
-    dcs_provider = config_slice_lib.DynamicConfigSliceProvider(
-        config=config,
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    dcs_provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {
             'jext': external_current_source.RuntimeParams(
