@@ -18,6 +18,7 @@ from typing import Any
 
 from torax import geometry
 from torax import sim as sim_lib
+from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.stepper import stepper as stepper_lib
@@ -104,7 +105,7 @@ def build_sim_from_config(
 
 
 def build_runtime_params_from_config(
-    config: dict[str, Any],
+    general_runtime_params_config: dict[str, Any],
 ) -> runtime_params_lib.GeneralRuntimeParams:
   """Builds `GeneralRuntimeParams` from the input config.
 
@@ -114,14 +115,16 @@ def build_runtime_params_from_config(
   the `GeneralRuntimeParams` docstring and class definition.
 
   Args:
-    config: Python dictionary containing keys/values that map onto
-      `GeneralRuntimeParams` and its attributes.
+    general_runtime_params_config: Python dictionary containing keys/values that
+      map onto `GeneralRuntimeParams` and its attributes.
 
   Returns:
     A `GeneralRuntimeParams` based on the input config.
   """
-  del config
-  raise NotImplementedError()
+  return config_args.recursive_replace(
+      runtime_params_lib.GeneralRuntimeParams(),
+      **general_runtime_params_config,
+  )
 
 
 def build_geometry_from_config(config: dict[str, Any]) -> geometry.Geometry:
