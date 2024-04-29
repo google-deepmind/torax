@@ -25,9 +25,9 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 import torax
-from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.config import build_sim
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
@@ -76,27 +76,23 @@ class SimTestCase(parameterized.TestCase):
     python_config_module = _PYTHON_MODULE_PREFIX + config_name_no_py
     return importlib.import_module(python_config_module, _PYTHON_CONFIG_PACKAGE)
 
-  def _get_config(
-      self,
-      config_name: str,
-  ) -> general_runtime_params.GeneralRuntimeParams:
-    """Returns an input Config from the name given."""
-    config_module = self._get_config_module(config_name)
-    return config_module.get_runtime_params()
-
-  def _get_geometry(
-      self,
-      config_name: str,
-  ) -> geometry.Geometry:
-    """Returns an input Config from the name given."""
-    config_module = self._get_config_module(config_name)
-    runtime_params = config_module.get_runtime_params()
-    return config_module.get_geometry(runtime_params)
-
   def _get_sim(self, config_name: str) -> sim_lib.Sim:
     """Returns a Sim given the name of a py file to build it."""
     config_module = self._get_config_module(config_name)
-    return config_module.get_sim()
+    if hasattr(config_module, 'get_sim'):
+      # The config module likely uses the "advanced" configuration setup with
+      # python functions defining all the Sim object attributes.
+      return config_module.get_sim()
+    elif hasattr(config_module, 'CONFIG'):
+      # The config module is using the "basic" configuration setup with a single
+      # CONFIG dictionary defining everything.
+      # This CONFIG needs to be built into an actual Sim object.
+      return build_sim.build_sim_from_config(config_module.CONFIG)
+    else:
+      raise ValueError(
+          f'Config module {config_name} must either define a get_sim() method'
+          ' or a CONFIG dictionary.'
+      )
 
   def _get_refs(
       self,

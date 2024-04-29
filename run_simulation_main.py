@@ -29,6 +29,7 @@ from absl import logging
 import jax
 import torax
 from torax import simulation_app
+from torax.config import build_sim
 
 
 _PYTHON_CONFIG_MODULE = flags.DEFINE_string(
@@ -192,21 +193,39 @@ def change_config(
   """
   config_module_str = maybe_update_config_module(config_module_str)
   simulation_app.log_to_stdout(
-      f'Change {config_module_str} to include new values. Only changes to '
-      'get_runtime_params() will be picked up.',
+      f'Change {config_module_str} to include new values.',
       color=simulation_app.AnsiColors.BLUE,
   )
   input('Press Enter when ready.')
   config_module, _ = _get_config_module(config_module_str)
-  new_runtime_params = config_module.get_runtime_params()
-  new_geo = config_module.get_geometry(new_runtime_params)
-  new_transport_model = config_module.get_transport_model()
-  source_models = config_module.get_sources()
+  if hasattr(config_module, 'CONFIG'):
+    # Assume that the config module uses the basic config dict to build Sim.
+    sim_config = config_module.CONFIG
+    new_runtime_params = build_sim.build_runtime_params_from_config(
+        sim_config['runtime_params']
+    )
+    new_geo = build_sim.build_geometry_from_config(
+        sim_config['geometry'], new_runtime_params
+    )
+    new_transport_model = build_sim.build_transport_model_from_config(
+        sim_config['transport']
+    )
+    source_models = build_sim.build_sources_from_config(sim_config['sources'])
+    new_stepper_builder = build_sim.build_stepper_builder_from_config(
+        sim_config['stepper']
+    )
+  else:
+    # Assume the config module has several methods to define the individual Sim
+    # attributes (the "advanced", more Python-forward configuration method).
+    new_runtime_params = config_module.get_runtime_params()
+    new_geo = config_module.get_geometry(new_runtime_params)
+    new_transport_model = config_module.get_transport_model()
+    source_models = config_module.get_sources()
+    new_stepper_builder = config_module.get_stepper_builder()
   new_source_params = {
       name: source.runtime_params
       for name, source in source_models.sources.items()
   }
-  new_stepper_builder = config_module.get_stepper_builder()
   # We pass the getter so that any changes to the objects runtime params after
   # the Sim object is created are picked up.
   stepper_params_getter = lambda: new_stepper_builder.runtime_params
@@ -323,8 +342,26 @@ def _toggle_log_output(log_sim_output: bool) -> bool:
 
 def main(_):
   config_module, config_module_str = _get_config_module()
-  new_runtime_params = config_module.get_runtime_params()
-  sim = config_module.get_sim()
+  if hasattr(config_module, 'CONFIG'):
+    # The module likely uses the "basic" config setup which has a single CONFIG
+    # dictionary defining the full simulation.
+    config = config_module.CONFIG
+    new_runtime_params = build_sim.build_runtime_params_from_config(
+        config['runtime_params']
+    )
+    sim = build_sim.build_sim_from_config(config)
+  elif hasattr(config_module, 'get_runtime_params') and hasattr(
+      config_module, 'get_sim'
+  ):
+    # The module is likely using the "advances", more Python-forward
+    # configuration setup.
+    new_runtime_params = config_module.get_runtime_params()
+    sim = config_module.get_sim()
+  else:
+    raise ValueError(
+        f'Config module {config_module_str} must either define a get_sim() '
+        'method or a CONFIG dictionary.'
+    )
   log_sim_progress = _LOG_SIM_PROGRESS.value
   plot_sim_progress = _PLOT_SIM_PROGRESS.value
   log_sim_output = _LOG_SIM_OUTPUT.value
