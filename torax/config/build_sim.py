@@ -30,6 +30,9 @@ from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
+from torax.time_step_calculator import array_time_step_calculator
+from torax.time_step_calculator import chi_time_step_calculator
+from torax.time_step_calculator import fixed_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as time_step_calculator_lib
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
@@ -500,7 +503,7 @@ def build_stepper_builder_from_config(
 
 
 def build_time_step_calculator_from_config(
-    config: dict[str, Any],
+    time_step_calculator_config: dict[str, Any] | str,
 ) -> time_step_calculator_lib.TimeStepCalculator:
   """Builds a `TimeStepCalculator` from the input config.
 
@@ -513,20 +516,20 @@ def build_time_step_calculator_from_config(
    -  `array`: Maps to `ArrayTimeStepCalculator`.
 
   If the time-step calculator chosen has any constructor arguments, those can be
-  passed to the `init_args` key in the input config:
+  passed to the `init_kwargs` key in the input config:
 
   ```
   {
       'calculator_type': 'array',
-      'init_args': {
+      'init_kwargs': {
           'array': [0, 0.1, 0.2, 0.4, 0.8],
       }
   }
   ```
 
   Args:
-    config: Python dictionary configuring a `TimeStepCalculator` with the
-      structure shown above.
+    time_step_calculator_config: Python dictionary configuring a
+      `TimeStepCalculator` with the structure shown above.
 
   Returns:
     A `TimeStepCalculator`.
@@ -534,5 +537,20 @@ def build_time_step_calculator_from_config(
   Raises:
     ValueError if the `calculator_type` is not one of the ones listed above.
   """
-  del config
-  raise NotImplementedError()
+  if isinstance(time_step_calculator_config, str):
+    time_step_calculator_config = {
+        'calculator_type': time_step_calculator_config
+    }
+  else:
+    if 'calculator_type' not in time_step_calculator_config:
+      raise ValueError('calculator_type must be set in the input config.')
+    time_step_calculator_config = copy.copy(time_step_calculator_config)
+  calculator_type = time_step_calculator_config.pop('calculator_type')
+  init_args = time_step_calculator_config.pop('init_kwargs', {})
+  if calculator_type == 'fixed':
+    return fixed_time_step_calculator.FixedTimeStepCalculator(**init_args)
+  elif calculator_type == 'chi':
+    return chi_time_step_calculator.ChiTimeStepCalculator(**init_args)
+  elif calculator_type == 'array':
+    return array_time_step_calculator.ArrayTimeStepCalculator(**init_args)
+  raise ValueError(f'Unknown calculator type: {calculator_type}')

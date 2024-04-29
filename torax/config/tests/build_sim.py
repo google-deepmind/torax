@@ -25,6 +25,9 @@ from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
+from torax.time_step_calculator import array_time_step_calculator
+from torax.time_step_calculator import chi_time_step_calculator
+from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_wrapper
@@ -37,17 +40,88 @@ class BuildSimTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       build_sim.build_sim_from_config({})
 
-  def test_build_sim(self):
-    # TODO(b/323504363): Update once implemented.
-    with self.assertRaises(ValueError):
-      build_sim.build_sim_from_config({
-          'runtime_params': {},
-          'geometry': {},
-          'sources': {},
-          'transport': {},
-          'stepper': {},
-          'time_step_calculator': {},
-      })
+  def test_build_sim_with_full_config(self):
+    """Tests building Sim with a more complete config."""
+    sim = build_sim.build_sim_from_config(
+        dict(
+            runtime_params=dict(
+                plasma_composition=dict(
+                    Ai=0.1,
+                ),
+                profile_conditions=dict(
+                    nbar_is_fGW=False,
+                ),
+                numerics=dict(
+                    q_correction_factor=0.2,
+                ),
+            ),
+            geometry=dict(
+                geometry_type='circular',
+                nr=5,
+            ),
+            sources=dict(
+                pellet_source=dict(
+                    mode='zero',
+                ),
+            ),
+            transport=dict(
+                transport_model='qlknn',
+                qlknn_params=dict(
+                    include_ITG=False,
+                ),
+            ),
+            stepper=dict(
+                stepper_type='linear',
+                theta_imp=0.5,
+            ),
+            time_step_calculator=dict(
+                calculator_type='fixed',
+            ),
+        )
+    )
+    dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
+        sim.initial_state.t
+    )
+    with self.subTest('runtime_params'):
+      self.assertEqual(dynamic_runtime_params_slice.plasma_composition.Ai, 0.1)
+      self.assertEqual(
+          dynamic_runtime_params_slice.profile_conditions.nbar_is_fGW,
+          False,
+      )
+      self.assertEqual(
+          dynamic_runtime_params_slice.numerics.q_correction_factor,
+          0.2,
+      )
+    with self.subTest('geometry'):
+      geo = sim.geometry_provider(sim.initial_state)
+      self.assertIsInstance(geo, geometry.CircularGeometry)
+      self.assertEqual(geo.mesh.nx, 5)
+    with self.subTest('sources'):
+      self.assertEqual(
+          sim.source_models.sources['pellet_source'].runtime_params.mode,
+          source_runtime_params_lib.Mode.ZERO,
+      )
+    with self.subTest('transport'):
+      self.assertIsInstance(
+          sim.transport_model, qlknn_wrapper.QLKNNTransportModel
+      )
+      self.assertIsInstance(
+          dynamic_runtime_params_slice.transport,
+          qlknn_wrapper.DynamicRuntimeParams,
+      )
+      # pytype: disable=attribute-error
+      self.assertEqual(
+          dynamic_runtime_params_slice.transport.include_ITG, False
+      )
+      # pytype: enable=attribute-error
+    with self.subTest('stepper'):
+      self.assertIsInstance(sim.stepper, linear_theta_method.LinearThetaMethod)
+      self.assertEqual(sim.static_runtime_params_slice.stepper.theta_imp, 0.5)
+    with self.subTest('time_step_calculator'):
+      self.assertIsInstance(
+          sim.time_step_calculator,
+          fixed_time_step_calculator.FixedTimeStepCalculator,
+      )
 
   def test_build_runtime_params_from_empty_config(self):
     """An empty config should return all defaults."""
@@ -293,10 +367,45 @@ class BuildSimTest(parameterized.TestCase):
     self.assertIsInstance(stepper, expected_type)
     self.assertEqual(stepper_builder.runtime_params.theta_imp, 0.5)
 
-  def test_build_time_step_calculator_from_config(self):
-    # TODO(b/323504363): Update once implemented.
-    with self.assertRaises(NotImplementedError):
+  def test_missing_time_step_calculator_type_raises_error(self):
+    with self.assertRaises(ValueError):
       build_sim.build_time_step_calculator_from_config({})
+
+  def test_unknown_time_step_calculator_type_raises_error(self):
+    with self.assertRaises(ValueError):
+      build_sim.build_time_step_calculator_from_config({'calculator_type': 'x'})
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='fixed',
+          calculator_type='fixed',
+          expected_type=fixed_time_step_calculator.FixedTimeStepCalculator,
+      ),
+      dict(
+          testcase_name='chi',
+          calculator_type='chi',
+          expected_type=chi_time_step_calculator.ChiTimeStepCalculator,
+      ),
+  )
+  def test_build_time_step_calculator_from_config(
+      self, calculator_type, expected_type
+  ):
+    """Builds a time step calculator from the config."""
+    time_stepper = build_sim.build_time_step_calculator_from_config(
+        calculator_type
+    )
+    self.assertIsInstance(time_stepper, expected_type)
+
+  def test_build_array_time_step_calculator(self):
+    time_stepper = build_sim.build_time_step_calculator_from_config({
+        'calculator_type': 'array',
+        'init_kwargs': {
+            'arr': [0.1, 0.2, 0.3],
+        },
+    })
+    self.assertIsInstance(
+        time_stepper, array_time_step_calculator.ArrayTimeStepCalculator
+    )
 
 
 if __name__ == '__main__':

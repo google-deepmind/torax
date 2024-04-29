@@ -19,6 +19,7 @@ A TimeStepCalculator that iterates over entries in an array.
 
 from typing import Union
 
+import chex
 import jax
 from jax import numpy as jnp
 from torax import geometry
@@ -32,9 +33,9 @@ State = int
 class ArrayTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
   """TimeStepCalculator that iterates over entries in an array."""
 
-  def __init__(self, arr: jnp.ndarray):
+  def __init__(self, arr: chex.Array):
     super().__init__()
-    self.arr = arr
+    self.arr = jnp.asarray(arr)
 
   def initial_state(self) -> State:
     return 0
