@@ -23,6 +23,8 @@ from torax.config import runtime_params as runtime_params_lib
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
+from torax.stepper import linear_theta_method
+from torax.stepper import nonlinear_theta_method
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_wrapper
@@ -253,10 +255,43 @@ class BuildSimTest(parameterized.TestCase):
     else:
       self.fail(f'Unknown transport model: {name}')
 
-  def test_build_stepper_from_config(self):
-    # TODO(b/323504363): Update once implemented.
-    with self.assertRaises(NotImplementedError):
-      build_sim.build_stepper_from_config({})
+  def test_missing_stepper_type_raises_error(self):
+    with self.assertRaises(ValueError):
+      build_sim.build_stepper_builder_from_config({})
+
+  def test_unknown_stepper_type_raises_error(self):
+    with self.assertRaises(ValueError):
+      build_sim.build_stepper_builder_from_config({'stepper_type': 'foo'})
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='linear',
+          stepper_type='linear',
+          expected_type=linear_theta_method.LinearThetaMethod,
+      ),
+      dict(
+          testcase_name='newton_raphson',
+          stepper_type='newton_raphson',
+          expected_type=nonlinear_theta_method.NewtonRaphsonThetaMethod,
+      ),
+      dict(
+          testcase_name='optimizer',
+          stepper_type='optimizer',
+          expected_type=nonlinear_theta_method.OptimizerThetaMethod,
+      ),
+  )
+  def test_build_stepper_builder_from_config(self, stepper_type, expected_type):
+    """Builds a stepper from the config."""
+    stepper_builder = build_sim.build_stepper_builder_from_config({
+        'stepper_type': stepper_type,
+        'theta_imp': 0.5,
+    })
+    stepper = stepper_builder(
+        transport_model=build_sim.build_transport_model_from_config('constant'),
+        source_models=build_sim.build_sources_from_config({}),
+    )
+    self.assertIsInstance(stepper, expected_type)
+    self.assertEqual(stepper_builder.runtime_params.theta_imp, 0.5)
 
   def test_build_time_step_calculator_from_config(self):
     # TODO(b/323504363): Update once implemented.

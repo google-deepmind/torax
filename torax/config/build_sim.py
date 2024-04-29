@@ -27,6 +27,8 @@ from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.stepper import linear_theta_method
+from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import time_step_calculator as time_step_calculator_lib
 from torax.transport_model import constant as constant_transport
@@ -69,7 +71,7 @@ def build_sim_from_config(
    -  `geometry`: `build_geometry_from_config()`
    -  `sources`: `build_sources_from_config()`
    -  `transport`: `build_transport_model_from_config()`
-   -  `stepper`: `build_stepper_from_config()`
+   -  `stepper`: `build_stepper_builder_from_config()`
    -  `time_step_calculator`: `build_time_step_calculator_from_config()`
 
   To learn more about the Sim object and its components, see `sim.Sim`'s class
@@ -107,7 +109,7 @@ def build_sim_from_config(
       geo=build_geometry_from_config(config['geometry'], runtime_params),
       source_models=build_sources_from_config(config['sources']),
       transport_model=build_transport_model_from_config(config['transport']),
-      stepper_builder=build_stepper_from_config(config['stepper']),
+      stepper_builder=build_stepper_builder_from_config(config['stepper']),
       time_step_calculator=build_time_step_calculator_from_config(
           config['time_step_calculator']
       ),
@@ -138,7 +140,7 @@ def build_runtime_params_from_config(
 
 
 def build_geometry_from_config(
-    geometry_config: dict[str, Any],
+    geometry_config: dict[str, Any] | str,
     runtime_params: runtime_params_lib.GeneralRuntimeParams | None = None,
 ) -> geometry.Geometry:
   """Builds a `Geometry` from the input config.
@@ -165,11 +167,14 @@ def build_geometry_from_config(
   Returns:
     A `Geometry` based on the input config.
   """
-  if 'geometry_type' not in geometry_config:
-    raise ValueError('geometry_type must be set in the input config.')
-  # Do a shallow copy to keep references to the original objects while not
-  # modifying the original config dict with the pop-statement below.
-  kwargs = copy.copy(geometry_config)
+  if isinstance(geometry_config, str):
+    kwargs = {'geometry_type': geometry_config}
+  else:
+    if 'geometry_type' not in geometry_config:
+      raise ValueError('geometry_type must be set in the input config.')
+    # Do a shallow copy to keep references to the original objects while not
+    # modifying the original config dict with the pop-statement below.
+    kwargs = copy.copy(geometry_config)
   geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
   if geometry_type == 'circular':
     return geometry.build_circular_geometry(**kwargs)
@@ -329,7 +334,7 @@ def _build_single_source_from_config(
 
 
 def build_transport_model_from_config(
-    transport_config: dict[str, Any],
+    transport_config: dict[str, Any] | str,
 ) -> transport_model_lib.TransportModel:
   """Builds a `TransportModel` from the input config.
 
@@ -385,9 +390,12 @@ def build_transport_model_from_config(
   Returns:
     A `TransportModel` object.
   """
-  if 'transport_model' not in transport_config:
-    raise ValueError('transport_model must be set in the input config.')
-  transport_config = copy.copy(transport_config)
+  if isinstance(transport_config, str):
+    transport_config = {'transport_model': transport_config}
+  else:
+    if 'transport_model' not in transport_config:
+      raise ValueError('transport_model must be set in the input config.')
+    transport_config = copy.copy(transport_config)
   transport_model = transport_config.pop('transport_model')
   if transport_model == 'qlknn':
     qlknn_params = transport_config.pop('qlknn_params', {})
@@ -428,8 +436,8 @@ def build_transport_model_from_config(
   raise ValueError(f'Unknown transport model: {transport_model}')
 
 
-def build_stepper_from_config(
-    config: dict[str, Any],
+def build_stepper_builder_from_config(
+    stepper_config: dict[str, Any],
 ) -> stepper_lib.StepperBuilder:
   """Builds a `StepperBuilder` from the input config.
 
@@ -449,8 +457,8 @@ def build_stepper_from_config(
   the dataclasses listed above.
 
   Args:
-    config: Python dictionary containing arguments to build a stepper object and
-      its runtime parameters, with the structure outlined above.
+    stepper_config: Python dictionary containing arguments to build a stepper
+      object and its runtime parameters, with the structure outlined above.
 
   Returns:
     A `StepperBuilder` object, configured with RuntimeParams defined based on
@@ -459,8 +467,36 @@ def build_stepper_from_config(
   Raises:
     ValueError if the `stepper_type` is unknown.
   """
-  del config
-  raise NotImplementedError()
+  if isinstance(stepper_config, str):
+    stepper_config = {'stepper_type': stepper_config}
+  else:
+    if 'stepper_type' not in stepper_config:
+      raise ValueError('stepper_type must be set in the input config.')
+    # Shallow copy so we don't modify the input config.
+    stepper_config = copy.copy(stepper_config)
+  stepper_type = stepper_config.pop('stepper_type')
+  if stepper_type == 'linear':
+    return linear_theta_method.LinearThetaMethodBuilder(
+        runtime_params=config_args.recursive_replace(
+            linear_theta_method.LinearRuntimeParams(),
+            **stepper_config,
+        )
+    )
+  elif stepper_type == 'newton_raphson':
+    return nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder(
+        runtime_params=config_args.recursive_replace(
+            nonlinear_theta_method.NewtonRaphsonRuntimeParams(),
+            **stepper_config,
+        )
+    )
+  elif stepper_type == 'optimizer':
+    return nonlinear_theta_method.OptimizerThetaMethodBuilder(
+        runtime_params=config_args.recursive_replace(
+            nonlinear_theta_method.OptimizerRuntimeParams(),
+            **stepper_config,
+        )
+    )
+  raise ValueError(f'Unknown stepper type: {stepper_type}')
 
 
 def build_time_step_calculator_from_config(
