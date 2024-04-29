@@ -239,7 +239,7 @@ def get_stepper_builder() -> (
 def get_sim() -> sim_lib.Sim:
   runtime_params = get_runtime_params()
   geo = get_geometry(runtime_params)
-  return sim_lib.build_sim_from_config(
+  return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geo=geo,
       stepper_builder=get_stepper_builder(),

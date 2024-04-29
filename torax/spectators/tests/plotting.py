@@ -57,7 +57,7 @@ def _run_sim(
     geo: geometry.Geometry,
     observer: spectator.Spectator,
 ):
-  torax.build_sim_from_config(
+  torax.build_sim_object(
       runtime_params=runtime_params,
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),

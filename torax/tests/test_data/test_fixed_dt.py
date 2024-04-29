@@ -84,7 +84,7 @@ def get_sim() -> sim_lib.Sim:
     time_step_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
   else:
     time_step_calculator = None
-  return sim_lib.build_sim_from_config(
+  return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geo=geo,
       stepper_builder=get_stepper_builder(),

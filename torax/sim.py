@@ -547,7 +547,10 @@ class Sim:
   in local variables of a script and call `run_simulation` directly.
 
   The main purpose of the Sim object is to enable configuration via
-  constructor arguments.
+  constructor arguments. Components are reused in subsequent simulation runs, so
+  if a component, like the `step_fn` is compiled, it will be reused for the next
+  `Sim.run()` call and will not be recompiled unless a static argument or shape
+  changes.
   """
 
   def __init__(
@@ -680,7 +683,7 @@ class Sim:
     )
 
 
-def build_sim_from_config(
+def build_sim_object(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     geo: geometry.Geometry,
     stepper_builder: stepper_lib.StepperBuilder,
@@ -688,12 +691,14 @@ def build_sim_from_config(
     source_models: source_models_lib.SourceModels,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
 ) -> Sim:
-  """Builds a Sim object from the input runtime params and objects.
+  """Builds a Sim object from the input runtime params and sim components.
 
-  Over time we expect to transition to functions that just build
-  Sim objects directly. This function is needed during the
-  transitional stage during which many objects still require
-  a config.
+  The Sim object provides a container for all the components that go into a
+  single TORAX simulation run. It gives a way to reuse components without having
+  to rebuild or recompile them if JAX shapes or static arguments do not change.
+
+  Read more about the Sim object in its class docstring. The use of it is
+  optional, and users may call `sim.run_simulation()` directly as well.
 
   Args:
     runtime_params: The input runtime params used throughout the simulation run.

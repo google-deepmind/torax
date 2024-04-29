@@ -413,7 +413,7 @@ class SimTest(sim_test_case.SimTestCase):
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     geo = torax.build_circular_geometry()
 
-    sim = sim_lib.build_sim_from_config(
+    sim = sim_lib.build_sim_object(
         runtime_params=runtime_params,
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
@@ -476,7 +476,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     spectator = spectator_lib.InMemoryJaxArraySpectator()
-    sim = sim_lib.build_sim_from_config(
+    sim = sim_lib.build_sim_object(
         runtime_params=runtime_params,
         geo=geo,
         stepper_builder=stepper_builder,

@@ -120,7 +120,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
             Ve_const=-0.2,
         )
     )
-    sim = sim_lib.build_sim_from_config(
+    sim = sim_lib.build_sim_object(
         runtime_params=test_particle_sources_constant_runtime_params,
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(

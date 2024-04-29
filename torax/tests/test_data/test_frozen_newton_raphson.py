@@ -86,7 +86,7 @@ def get_sim() -> sim_lib.Sim:
       sim_test_case.make_frozen_newton_raphson_stepper,
       runtime_params=runtime_params,
   )
-  return sim_lib.build_sim_from_config(
+  return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geo=geo,
       stepper_builder=stepper_builder,

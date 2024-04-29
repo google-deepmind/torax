@@ -31,7 +31,7 @@ from torax.geometry import Geometry
 from torax.geometry import Grid1D
 from torax.opt import interp
 from torax.physics import internal_boundary
-from torax.sim import build_sim_from_config
+from torax.sim import build_sim_object
 from torax.sim import run_simulation
 from torax.sim import Sim
 from torax.sources.source_profiles import SourceProfiles

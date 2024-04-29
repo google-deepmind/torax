@@ -110,7 +110,7 @@ def get_sim() -> sim_lib.Sim:
   # config for construction, but over time we expect to transition to most
   # config taking place via constructor args in this function.
   runtime_params = get_runtime_params()
-  return sim_lib.build_sim_from_config(
+  return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geo=get_geometry(runtime_params),
       stepper_builder=get_stepper_builder(),

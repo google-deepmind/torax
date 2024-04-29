@@ -176,7 +176,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         'test_particle_sources_constant.h5', _ALL_PROFILES
     )
     geo = geometry.build_circular_geometry()
-    sim = sim_lib.build_sim_from_config(
+    sim = sim_lib.build_sim_object(
         runtime_params=test_particle_sources_constant_runtime_params,
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(
