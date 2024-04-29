@@ -239,7 +239,6 @@ def update_sim(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
           t=runtime_params.numerics.t_initial
       ),
-      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       time_step_calculator=sim.time_step_calculator,
       source_models=sim.source_models,

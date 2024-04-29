@@ -175,9 +175,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     ref_profiles, ref_time = self._get_refs(
         'test_particle_sources_constant.h5', _ALL_PROFILES
     )
-    geo = geometry.build_circular_geometry(
-        test_particle_sources_constant_runtime_params
-    )
+    geo = geometry.build_circular_geometry()
     sim = sim_lib.build_sim_from_config(
         runtime_params=test_particle_sources_constant_runtime_params,
         geo=geo,

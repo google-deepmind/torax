@@ -56,7 +56,8 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
 def get_geometry(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
 ) -> geometry.Geometry:
-  return geometry.build_circular_geometry(runtime_params)
+  del runtime_params  # Unused.
+  return geometry.build_circular_geometry()
 
 
 def get_transport_model() -> qlknn_wrapper.QLKNNTransportModel:

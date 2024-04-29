@@ -52,8 +52,7 @@ class GeometryTest(parameterized.TestCase):
 
   def test_frozen(self):
     """Test that the Geometry class is frozen."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     with self.assertRaises(dataclasses.FrozenInstanceError):
       geo.dr = 1.0
 
@@ -67,7 +66,7 @@ class GeometryTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
 
     with self.subTest('CircularGeometry'):
-      geo = geometry.build_circular_geometry(runtime_params)
+      geo = geometry.build_circular_geometry()
       # Make sure you can call the function with geo as an arg.
       foo_jitted(geo)
 

@@ -39,7 +39,6 @@ _trapz = jax.scipy.integrate.trapezoid
 
 
 def _updated_ti(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
 ) -> fvm.CellVariable:
@@ -56,7 +55,7 @@ def _updated_ti(
   temp_ion_face = jnp.linspace(
       start=Ti_bound_left,
       stop=Ti_bound_right,
-      num=static_runtime_params_slice.nr + 1,
+      num=geo.mesh.nx + 1,
   )
   temp_ion = geometry.face_to_cell(temp_ion_face)
   temp_ion = fvm.CellVariable(
@@ -71,7 +70,6 @@ def _updated_ti(
 
 
 def _updated_te(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
 ) -> fvm.CellVariable:
@@ -88,7 +86,7 @@ def _updated_te(
   temp_el_face = jnp.linspace(
       start=Te_bound_left,
       stop=Te_bound_right,
-      num=static_runtime_params_slice.nr + 1,
+      num=geo.mesh.nx + 1,
   )
   temp_el = geometry.face_to_cell(temp_el_face)
   temp_el = fvm.CellVariable(
@@ -103,7 +101,6 @@ def _updated_te(
 
 
 def _updated_dens(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
 ) -> tuple[fvm.CellVariable, fvm.CellVariable]:
@@ -131,7 +128,7 @@ def _updated_dens(
   nshape_face = jnp.linspace(
       dynamic_runtime_params_slice.profile_conditions.npeak,
       1,
-      static_runtime_params_slice.nr + 1,
+      geo.mesh.nx + 1,
   )
   nshape = geometry.face_to_cell(nshape_face)
 
@@ -532,7 +529,6 @@ def _update_psi_from_j(
 
 
 def initial_core_profiles(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     source_models: source_models_lib.SourceModels,
@@ -540,7 +536,6 @@ def initial_core_profiles(
   """Calculates the initial core profiles.
 
   Args:
-    static_runtime_params_slice: Static simulation runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
     geo: Torus geometry.
     source_models: All models for TORAX sources/sinks.
@@ -554,13 +549,13 @@ def initial_core_profiles(
   # potentially time-varying inputs from the users.
   # The default time in build_dynamic_runtime_params_slice is t_initial
   temp_ion = _updated_ti(
-      static_runtime_params_slice, dynamic_runtime_params_slice, geo
+      dynamic_runtime_params_slice, geo
   )
   temp_el = _updated_te(
-      static_runtime_params_slice, dynamic_runtime_params_slice, geo
+      dynamic_runtime_params_slice, geo
   )
   ne, ni = _updated_dens(
-      static_runtime_params_slice, dynamic_runtime_params_slice, geo
+      dynamic_runtime_params_slice, geo
   )
 
   # set up initial psi profile based on current profile
@@ -720,7 +715,7 @@ def updated_prescribed_core_profiles(
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
     temp_ion = _updated_ti(
-        static_runtime_params_slice, dynamic_runtime_params_slice, geo
+        dynamic_runtime_params_slice, geo
     ).value
   else:
     temp_ion = core_profiles.temp_ion.value
@@ -729,7 +724,7 @@ def updated_prescribed_core_profiles(
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
     temp_el = _updated_te(
-        static_runtime_params_slice, dynamic_runtime_params_slice, geo
+        dynamic_runtime_params_slice, geo
     ).value
   else:
     temp_el = core_profiles.temp_el.value
@@ -738,7 +733,7 @@ def updated_prescribed_core_profiles(
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
     ne, _ = _updated_dens(
-        static_runtime_params_slice, dynamic_runtime_params_slice, geo
+        dynamic_runtime_params_slice, geo
     )
     ne = ne.value
   else:

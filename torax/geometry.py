@@ -175,7 +175,7 @@ class CHEASEGeometry(Geometry):
 
 
 def build_circular_geometry(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
+    nr: int = 25,
     kappa: float = 1.72,
     Rmaj: float = 6.2,
     Rmin: float = 2.0,
@@ -191,7 +191,7 @@ def build_circular_geometry(
   for this object, Fiddle-ify this function, not CircularGeometry.__init__.
 
   Args:
-    runtime_params: General TORAX runtime input parameters.
+    nr: Radial grid points (num cells)
     kappa: Elogination. Defaults to 1.72 for the ITER elongation, to
       approximately correct volume and area integral Jacobians.
     Rmaj: major radius (R) in meters
@@ -207,8 +207,8 @@ def build_circular_geometry(
   # r_norm coordinate is r/Rmin in circular, and rho_norm in standard
   # geometry (CHEASE/EQDSK)
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  dr_norm = jnp.array(1) / runtime_params.numerics.nr
-  mesh = Grid1D.construct(nx=runtime_params.numerics.nr, dx=dr_norm)
+  dr_norm = jnp.array(1) / nr
+  mesh = Grid1D.construct(nx=nr, dx=dr_norm)
   rmax = jnp.array(Rmin)
   # helper variables for mesh cells and faces
   # r coordinate of faces
@@ -286,7 +286,7 @@ def build_circular_geometry(
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
   # the only option for ad-hoc circular geometry.
-  r_hires_norm = jnp.linspace(0, 1, runtime_params.numerics.nr * hires_fac)
+  r_hires_norm = jnp.linspace(0, 1, nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
   Rout = Rmaj + r
@@ -393,6 +393,7 @@ def build_chease_geometry(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     geometry_dir: str | None = None,
     geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+    nr: int = 25,
     Rmaj: float = 6.2,
     Rmin: float = 2.0,
     B0: float = 5.3,
@@ -415,6 +416,7 @@ def build_chease_geometry(
       geometry_dir is not provided, then it defaults to another dir. See
       implementation.
     geometry_file: CHEASE file name.
+    nr: Radial grid points (num cells)
     Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
       is used as an unnormalization factor.
     Rmin: minor radius (a) in meters
@@ -546,9 +548,9 @@ def build_chease_geometry(
 
   # fill geometry structure
   # r_norm coordinate is rho_tor_norm
-  dr_norm = jnp.array(1) / runtime_params.numerics.nr
+  dr_norm = jnp.array(1) / nr
   # normalized grid
-  mesh = Grid1D.construct(nx=runtime_params.numerics.nr, dx=dr_norm)
+  mesh = Grid1D.construct(nx=nr, dx=dr_norm)
   rmax = rho[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   r_face_norm = mesh.face_centers
@@ -560,7 +562,7 @@ def build_chease_geometry(
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  r_hires_norm = jnp.linspace(0, 1, runtime_params.numerics.nr * hires_fac)
+  r_hires_norm = jnp.linspace(0, 1, nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
   interp_func = lambda x: jnp.interp(x, rhon, vpr_chease)

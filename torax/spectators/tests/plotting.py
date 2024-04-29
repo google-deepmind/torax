@@ -32,7 +32,7 @@ class PlottingTest(parameterized.TestCase):
 
   def test_default_plot_config_has_valid_keys(self):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     plot_config = plotting.get_default_plot_config(geo)
 
     observer = spectator.InMemoryJaxArraySpectator()
@@ -45,7 +45,7 @@ class PlottingTest(parameterized.TestCase):
 
   def test_plot_observer_runs_with_sim(self):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     observer = plotting.PlotSpectator(
         plots=plotting.get_default_plot_config(geo),
     )

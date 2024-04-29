@@ -113,9 +113,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # We set up the sim only once and update the config on each run below in a
     # way that does not trigger recompiles. This way we only trace the code
     # once.
-    geo = geometry.build_circular_geometry(
-        test_particle_sources_constant_runtime_params
-    )
+    geo = geometry.build_circular_geometry()
     transport_model = constant_transport_model.ConstantTransportModel(
         runtime_params=constant_transport_model.RuntimeParams(
             De_const=0.5,

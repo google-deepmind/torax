@@ -87,10 +87,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source_models = source_models_lib.SourceModels(
         sources={'foo': source},
     )
-    geo = geometry.build_circular_geometry(runtime_params)
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
-    )
+    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
@@ -98,7 +95,6 @@ class SingleProfileSourceTestCase(SourceTestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -116,7 +112,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
   def test_invalid_source_types_raise_errors(self):
     """Tests that using unsupported types raises an error."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
@@ -131,9 +127,6 @@ class SingleProfileSourceTestCase(SourceTestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params
-        ),
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -168,12 +161,9 @@ class IonElSourceTestCase(SourceTestCase):
     # pylint: enable=missing-kwoa
     self.assertIsInstance(source, source_lib.IonElectronSource)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     source_models = source_models_lib.SourceModels(
         sources={'foo': source},
-    )
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
@@ -182,7 +172,6 @@ class IonElSourceTestCase(SourceTestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -200,16 +189,13 @@ class IonElSourceTestCase(SourceTestCase):
   def test_invalid_source_types_raise_errors(self):
     """Tests that using unsupported types raises an error."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     self.assertIsInstance(source, source_lib.IonElectronSource)
     source_models = source_models_lib.SourceModels(
         sources={'foo': source},
-    )
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
@@ -218,7 +204,6 @@ class IonElSourceTestCase(SourceTestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -244,8 +229,7 @@ class IonElSourceTestCase(SourceTestCase):
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa

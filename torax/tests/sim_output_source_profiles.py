@@ -55,16 +55,13 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     source_models = default_sources.get_default_sources()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models.runtime_params,
         )
-    )
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
     # Technically, the _merge_source_profiles() function should be called with
     # source profiles where, for every source, only one of the implicit or
@@ -85,7 +82,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     )
     qei_core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -164,7 +160,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         }
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     time_stepper = _FakeTimeStepCalculator()
     step_fn = _FakeSimulationStepFn(time_stepper, source_models)
     dynamic_runtime_params_slice_provider = (
@@ -182,7 +178,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
     sim_states = sim_lib.run_simulation(
         initial_state=sim_lib.get_initial_state(
-            static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice=initial_dcs,
             geo=geo,
             time_step_calculator=time_stepper,

@@ -47,9 +47,6 @@ class StateTest(torax_refs.ReferenceValueTest):
 
       def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
         core_profiles = core_profile_setters.initial_core_profiles(
-            static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-                runtime_params
-            ),
             dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
                 runtime_params, sources=source_models.runtime_params
             ),
@@ -93,9 +90,6 @@ class StateTest(torax_refs.ReferenceValueTest):
     references = references_getter()
     source_models = source_models_lib.SourceModels()
     basic_core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            references.runtime_params
-        ),
         dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
             references.runtime_params, sources=source_models.runtime_params
         ),
@@ -171,13 +165,10 @@ class InitialStatesTest(parameterized.TestCase):
     )
     source_models = source_models_lib.SourceModels()
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params
-        ),
         dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params, sources=source_models.runtime_params
         ),
-        geo=geometry.build_circular_geometry(runtime_params),
+        geo=geometry.build_circular_geometry(),
         source_models=source_models,
     )
     np.testing.assert_allclose(
@@ -189,7 +180,7 @@ class InitialStatesTest(parameterized.TestCase):
     np.testing.assert_allclose(core_profiles.ne.right_face_constraint, 0.1)
 
   @parameterized.parameters([
-      dict(geo_builder=geometry.build_circular_geometry),
+      dict(geo_builder=lambda unused_arg: geometry.build_circular_geometry()),
       dict(geo_builder=geometry.build_chease_geometry),
   ])
   def test_initial_psi_from_j(
@@ -235,9 +226,6 @@ class InitialStatesTest(parameterized.TestCase):
         config1, sources=source_models.runtime_params
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            config1
-        ),
         dynamic_runtime_params_slice=dcs1,
         geo=geo,
         source_models=source_models,
@@ -247,9 +235,6 @@ class InitialStatesTest(parameterized.TestCase):
         config2, sources=source_models.runtime_params
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            config2
-        ),
         dynamic_runtime_params_slice=dcs2,
         geo=geo,
         source_models=source_models,
@@ -260,9 +245,6 @@ class InitialStatesTest(parameterized.TestCase):
         config3, sources=source_models.runtime_params
     )
     core_profiles3 = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            config3
-        ),
         dynamic_runtime_params_slice=dcs3,
         geo=geo,
         source_models=source_models,
@@ -273,9 +255,6 @@ class InitialStatesTest(parameterized.TestCase):
         config3_helper, sources=source_models.runtime_params
     )
     core_profiles3_helper = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            config3_helper
-        ),
         dynamic_runtime_params_slice=dcs3_helper,
         geo=geo,
         source_models=source_models,
@@ -369,19 +348,13 @@ class InitialStatesTest(parameterized.TestCase):
         config2, sources=source_models.runtime_params
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            config1
-        ),
         dynamic_runtime_params_slice=dcs1,
-        geo=geometry.build_circular_geometry(config1),
+        geo=geometry.build_circular_geometry(),
         source_models=source_models,
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            config2
-        ),
         dynamic_runtime_params_slice=dcs2,
-        geo=geometry.build_circular_geometry(config2),
+        geo=geometry.build_circular_geometry(),
         source_models=source_models,
     )
     np.testing.assert_allclose(

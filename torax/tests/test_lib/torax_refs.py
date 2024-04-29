@@ -57,13 +57,12 @@ def circular_references() -> References:
               'nu': 3,
           },
           'numerics': {
-              'nr': 25,
               'q_correction_factor': 1.0,
           },
       },
   )
   geo = geometry.build_circular_geometry(
-      runtime_params=runtime_params,
+      nr=25,
       kappa=1.72,
       hires_fac=4,
       Rmaj=6.2,
@@ -209,7 +208,6 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
               'nu': 3,
           },
           'numerics': {
-              'nr': 25,
               'q_correction_factor': 1.0,
           },
       },
@@ -218,6 +216,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       runtime_params=runtime_params,
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      nr=25,
       Ip_from_parameters=False,
       Rmaj=6.2,
       Rmin=2.0,
@@ -362,7 +361,6 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
               'nu': 3,
           },
           'numerics': {
-              'nr': 25,
               'q_correction_factor': 1.0,
           },
       },
@@ -371,6 +369,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       runtime_params=runtime_params,
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      nr=25,
       Ip_from_parameters=True,
       Rmaj=6.2,
       Rmin=2.0,

@@ -62,8 +62,6 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
           # 1/multiplication factor for sigma (conductivity) to reduce current
           # diffusion timescale to be closer to heat diffusion timescale
           resistivity_mult=200,
-          # numerical (e.g. no. of grid points, other info needed by solver)
-          nr=25,  # radial grid points
           maxdt=0.5,
           # multiplier in front of the base timestep dt=dx^2/(2*chi). Can likely
           # be increased further beyond this default

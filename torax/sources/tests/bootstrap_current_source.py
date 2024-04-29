@@ -45,12 +45,9 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
   def test_source_value(self):
     source = bootstrap_current_source.BootstrapCurrentSource()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     source_models = source_models_lib.SourceModels(
         sources={'j_bootstrap': source}
-    )
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
@@ -60,7 +57,6 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -83,8 +79,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
     source = bootstrap_current_source.BootstrapCurrentSource()
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     face = source_lib.ProfileType.FACE.get_profile_shape(geo)
     fake_profile = source_profiles.BootstrapCurrentProfile(

@@ -71,9 +71,6 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params
-        ),
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,

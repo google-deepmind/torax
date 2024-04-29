@@ -36,7 +36,7 @@ class QlknnWrapperTest(parameterized.TestCase):
     # Caching only works when compiled.
     qlknn_jitted = jax.jit(qlknn)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     source_models = source_models_lib.SourceModels()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
@@ -45,11 +45,7 @@ class QlknnWrapperTest(parameterized.TestCase):
             sources=source_models.runtime_params,
         )
     )
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
-    )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,

@@ -42,10 +42,7 @@ class SourceTest(parameterized.TestCase):
         sources={'foo': source},
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
-    )
+    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
@@ -53,7 +50,6 @@ class SourceTest(parameterized.TestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -87,10 +83,7 @@ class SourceTest(parameterized.TestCase):
         sources={'foo': source},
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
-    )
+    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
@@ -98,7 +91,6 @@ class SourceTest(parameterized.TestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -128,10 +120,7 @@ class SourceTest(parameterized.TestCase):
         sources={'foo': source},
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
-    )
+    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
@@ -139,7 +128,6 @@ class SourceTest(parameterized.TestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -214,10 +202,7 @@ class SourceTest(parameterized.TestCase):
         sources={'foo': source},
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
-    )
+    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
@@ -225,7 +210,6 @@ class SourceTest(parameterized.TestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -258,10 +242,7 @@ class SourceTest(parameterized.TestCase):
         sources={'foo': source},
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
-    )
+    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
@@ -269,7 +250,6 @@ class SourceTest(parameterized.TestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -297,10 +277,7 @@ class SourceTest(parameterized.TestCase):
             source_lib.AffectedCoreProfile.NE,
         ),
     )
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        numerics=general_runtime_params.Numerics(nr=4),
-    )
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry(nr=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )
@@ -324,11 +301,9 @@ class SingleProfileSourceTest(parameterized.TestCase):
 
   def test_custom_formula(self):
     """The user-specified formula should override the default formula."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        numerics=general_runtime_params.Numerics(nr=5),
-    )
-    geo = geometry.build_circular_geometry(runtime_params)
-    expected_output = jnp.ones(5)  # 5 matches runtime_params.numerics.nr.
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(nr=5)
+    expected_output = jnp.ones(5)  # 5 matches the geo.
     source = source_lib.SingleProfileSource(
         formula=lambda _0, _1, _2, _3: expected_output,
         affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
@@ -344,9 +319,6 @@ class SingleProfileSourceTest(parameterized.TestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params
-        ),
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -374,13 +346,8 @@ class SingleProfileSourceTest(parameterized.TestCase):
     source_models = source_models_lib.SourceModels(
         sources={'foo': source},
     )
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        numerics=general_runtime_params.Numerics(nr=5),
-    )
-    geo = geometry.build_circular_geometry(runtime_params)
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
-    )
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry(nr=5)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
@@ -388,7 +355,6 @@ class SingleProfileSourceTest(parameterized.TestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         # defaults are enough for this.
@@ -412,10 +378,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         model_func=lambda _0, _1, _2, _3: profile,
         affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        numerics=general_runtime_params.Numerics(nr=4),
-    )
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry(nr=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )

@@ -60,7 +60,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
             dt_reduction_factor=1.5,
         ),
     )
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     transport = FakeTransportModel()
     source_models = source_models_lib.SourceModels()
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
@@ -89,9 +89,6 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         dynamic_runtime_params_slice_provider(runtime_params.numerics.t_initial)
     )
     input_state = sim_lib.get_initial_state(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params
-        ),
         dynamic_runtime_params_slice=initial_dynamic_runtime_params_slice,
         geo=geo,
         time_step_calculator=time_calculator,

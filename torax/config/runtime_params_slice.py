@@ -230,8 +230,6 @@ class StaticRuntimeParamsSlice:
   """
 
   stepper: stepper_params.StaticRuntimeParams
-  # radial grid points (num cells)
-  nr: int
   # Solve the ion heat equation (ion temperature evolves over time)
   ion_heat_eq: bool
   # Solve the electron heat equation (electron temperature evolves over time)
@@ -328,7 +326,6 @@ def build_static_runtime_params_slice(
   stepper = stepper or stepper_params.RuntimeParams()
   return StaticRuntimeParamsSlice(
       stepper=stepper.build_static_params(),
-      nr=runtime_params.numerics.nr,
       ion_heat_eq=runtime_params.numerics.ion_heat_eq,
       el_heat_eq=runtime_params.numerics.el_heat_eq,
       current_eq=runtime_params.numerics.current_eq,

@@ -443,7 +443,6 @@ class SimulationStepFn:
 
 
 def get_initial_state(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
@@ -451,7 +450,6 @@ def get_initial_state(
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = core_profile_setters.initial_core_profiles(
-      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       source_models,
@@ -736,7 +734,6 @@ def build_sim_from_config(
       runtime_params.numerics.t_initial
   )
   initial_state = get_initial_state(
-      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       source_models=stepper.source_models,

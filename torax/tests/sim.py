@@ -411,7 +411,7 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
-    geo = torax.build_circular_geometry(runtime_params)
+    geo = torax.build_circular_geometry()
 
     sim = sim_lib.build_sim_from_config(
         runtime_params=runtime_params,

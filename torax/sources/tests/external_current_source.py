@@ -52,7 +52,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     )
     self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
     # Must be circular for jext_hires call.
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     self.assertIsNotNone(
         source.get_value(
             dynamic_runtime_params_slice=dynamic_slice,
@@ -70,7 +70,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
 
   def test_invalid_source_types_raise_errors(self):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     source = external_current_source.ExternalCurrentSource()
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
@@ -92,8 +92,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     source = external_current_source.ExternalCurrentSource()
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     fake_profile = (jnp.ones(cell), jnp.zeros(cell))

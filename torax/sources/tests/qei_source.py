@@ -51,7 +51,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
         sources={'qei_source': source}
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
         runtime_params
     )
@@ -60,7 +60,6 @@ class QeiSourceTest(test_lib.SourceTestCase):
         sources=source_models.runtime_params,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_slice,
         dynamic_runtime_params_slice=dynamic_slice,
         geo=geo,
         source_models=source_models,
@@ -81,7 +80,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
         sources={'qei_source': source}
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
         runtime_params
     )
@@ -90,7 +89,6 @@ class QeiSourceTest(test_lib.SourceTestCase):
         sources=source_models.runtime_params,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_slice,
         dynamic_runtime_params_slice=dynamic_slice,
         geo=geo,
         source_models=source_models,

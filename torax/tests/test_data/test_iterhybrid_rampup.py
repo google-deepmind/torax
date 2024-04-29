@@ -73,9 +73,6 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
           # 1/multiplication factor for sigma (conductivity) to reduce current
           # diffusion timescale to be closer to heat diffusion timescale.
           resistivity_mult=1,
-          # Multiplication factor for bootstrap current
-          # numerical (e.g. no. of grid points, other info needed by solver)
-          nr=25,  # radial grid points
           ion_heat_eq=True,
           el_heat_eq=True,
           current_eq=True,

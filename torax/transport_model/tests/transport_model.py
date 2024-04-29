@@ -39,7 +39,7 @@ class TransportSmoothingTest(parameterized.TestCase):
             set_pedestal=False
         ),
     )
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry()
     source_models = source_models_lib.SourceModels()
     transport_model = FakeTransportModel(
         runtime_params=runtime_params_lib.RuntimeParams(
@@ -57,13 +57,9 @@ class TransportSmoothingTest(parameterized.TestCase):
             sources=source_models.runtime_params,
         )
     )
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
-    )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     input_state = sim_lib.get_initial_state(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         time_step_calculator=time_calculator,
         source_models=source_models,

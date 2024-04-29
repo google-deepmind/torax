@@ -44,7 +44,7 @@ class SourceProfilesTest(parameterized.TestCase):
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
     runtime_params = torax.GeneralRuntimeParams()
-    geo = torax.build_circular_geometry(runtime_params)
+    geo = torax.build_circular_geometry()
     source_models = source_models_lib.SourceModels()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
@@ -53,9 +53,6 @@ class SourceProfilesTest(parameterized.TestCase):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params
-        ),
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,
@@ -77,8 +74,7 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
     """Test that sum_sources_temp_{ion|el} works with jitting."""
-    runtime_params = torax.GeneralRuntimeParams()
-    geo = torax.build_circular_geometry(runtime_params)
+    geo = torax.build_circular_geometry()
 
     # Use the default sources where the generic_ion_el_heat_source,
     # fusion_heat_source, and ohmic_heat_source are included and produce
@@ -163,11 +159,8 @@ class SourceProfilesTest(parameterized.TestCase):
             sources=source_models.runtime_params,
         )
     )
-    geo = torax.build_circular_geometry(runtime_params)
+    geo = torax.build_circular_geometry()
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params
-        ),
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,

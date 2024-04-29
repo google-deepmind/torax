@@ -73,7 +73,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.runtime_params.numerics.nr)
+    value = jnp.zeros(references.geo.mesh.nx)
     cell_variable = fvm.CellVariable(value=value, dr=references.geo.dr)
     # Underconstrain the left
     with self.assertRaises(AssertionError):
@@ -105,7 +105,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.runtime_params.numerics.nr)
+    value = jnp.zeros(references.geo.mesh.nx)
     cell_variable = fvm.CellVariable(value=value, dr=references.geo.dr)
     # Overconstrain the left
     with self.assertRaises(AssertionError):
@@ -139,7 +139,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    dim = references.runtime_params.numerics.nr
+    dim = references.geo.mesh.nx
     value = jnp.zeros(dim)
 
     rng_state = jax.random.PRNGKey(seed)
@@ -361,7 +361,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
             set_pedestal=False,
         ),
         numerics=general_runtime_params.Numerics(
-            nr=num_cells,
             el_heat_eq=False,
         ),
     )
@@ -369,7 +368,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         predictor_corrector=False,
         theta_imp=theta_imp,
     )
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry(nr=num_cells)
     transport_model = constant_transport_model.ConstantTransportModel(
         runtime_params=constant_transport_model.RuntimeParams(
             chimin=0,
@@ -401,7 +400,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
@@ -488,7 +486,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
             set_pedestal=False,
         ),
         numerics=general_runtime_params.Numerics(
-            nr=num_cells,
             el_heat_eq=False,
         ),
     )
@@ -526,10 +523,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
             runtime_params, stepper=stepper_params
         )
     )
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry(nr=num_cells)
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
@@ -618,7 +614,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
             set_pedestal=False,
         ),
         numerics=general_runtime_params.Numerics(
-            nr=num_cells,
             el_heat_eq=False,
         ),
     )
@@ -626,7 +621,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         predictor_corrector=False,
         theta_imp=0.0,
     )
-    geo = geometry.build_circular_geometry(runtime_params)
+    geo = geometry.build_circular_geometry(nr=num_cells)
     transport_model = constant_transport_model.ConstantTransportModel(
         runtime_params=constant_transport_model.RuntimeParams(
             chimin=0,
@@ -666,7 +661,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
 
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice_theta0,
         dynamic_runtime_params_slice,
         geo,
         source_models,
@@ -702,7 +696,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_constraint=initial_right_boundary,
     )
     core_profiles_t_plus_dt = core_profile_setters.initial_core_profiles(
-        static_runtime_params_slice=static_runtime_params_slice_theta0,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         source_models=source_models,

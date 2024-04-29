@@ -161,8 +161,6 @@ class Numerics:
   nref: float = 1e20
 
   # numerical (e.g. no. of grid points, other info needed by solver)
-  # radial grid points (num cells)
-  nr: int = 25  # TODO(b/330172917): Move this to geometry.
   # effective source to dominate PDE in internal boundary condtion location
   # if T != Tped
   largeValue_T: float = 1.0e10
