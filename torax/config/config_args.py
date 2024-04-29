@@ -83,12 +83,27 @@ def interpolate_param(
     param_or_param_input: interpolated_param.InterpParamOrInterpParamInput,
     t: chex.Numeric,
 ) -> jnp.ndarray:
+  """Interpolates the input param at time t."""
   if not isinstance(param_or_param_input, interpolated_param.InterpolatedParam):
     # The param is a InterpolatedParamInput, so we need to convert it to an
     # InterpolatedParam first.
-    param_or_param_input = interpolated_param.InterpolatedParam(
-        value=param_or_param_input,
-    )
+    if isinstance(param_or_param_input, tuple):
+      if len(param_or_param_input) != 2:
+        raise ValueError(
+            'Interpolated param tuple length must be 2. The first element are'
+            ' the values and the second element is the interpolation mode.'
+            f' Given: {param_or_param_input}.'
+        )
+      param_or_param_input = interpolated_param.InterpolatedParam(
+          value=param_or_param_input[0],
+          interpolation_mode=interpolated_param.InterpolationMode[
+              param_or_param_input[1].upper()
+          ],
+      )
+    else:
+      param_or_param_input = interpolated_param.InterpolatedParam(
+          value=param_or_param_input,
+      )
   return param_or_param_input.get_value(t)
 
 

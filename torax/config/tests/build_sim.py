@@ -20,6 +20,7 @@ import numpy as np
 from torax import geometry
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
+from torax.config import runtime_params_slice
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
@@ -147,17 +148,29 @@ class BuildSimTest(parameterized.TestCase):
         },
         'numerics': {
             'q_correction_factor': 0.2,  # scalar fields.
-            'resistivity_mult': {0: 0.3, 1: 0.6, 2: 0.9},  # time-dependent.
+            # Designate the interpolation mode, as well, setting to "step".
+            'resistivity_mult': ({0: 0.3, 1: 0.6, 2: 0.9}, 'step'),
         },
         'output_dir': '/tmp/this/is/a/test',
     })
     self.assertEqual(runtime_params.plasma_composition.Ai, 0.1)
-    self.assertEqual(runtime_params.plasma_composition.Zeff[0], 0.1)
     self.assertEqual(runtime_params.profile_conditions.nbar_is_fGW, False)
-    self.assertEqual(runtime_params.profile_conditions.Ip[1], 0.4)
     self.assertEqual(runtime_params.numerics.q_correction_factor, 0.2)
-    self.assertEqual(runtime_params.numerics.resistivity_mult[2], 0.9)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params, t=1.5
+        )
+    )
+    np.testing.assert_allclose(
+        dynamic_runtime_params_slice.plasma_composition.Zeff, 0.25
+    )
+    np.testing.assert_allclose(
+        dynamic_runtime_params_slice.profile_conditions.Ip, 0.5
+    )
+    np.testing.assert_allclose(
+        dynamic_runtime_params_slice.numerics.resistivity_mult, 0.6
+    )
 
   def test_missing_geometry_type_raises_error(self):
     with self.assertRaises(ValueError):

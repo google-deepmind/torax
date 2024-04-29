@@ -226,4 +226,8 @@ class InterpolatedParam(InterpolatedParamBase):
 # In runtime_params, users should be able to either specify the
 # InterpolatedParam object directly or the values that go in the constructor.
 # This helps with brevity since a lot of these params are fixed floats.
-InterpParamOrInterpParamInput = InterpolatedParam | InterpolatedParamInput
+InterpParamOrInterpParamInput = (
+    InterpolatedParam
+    | InterpolatedParamInput
+    | tuple[InterpolatedParamInput, str]
+)
