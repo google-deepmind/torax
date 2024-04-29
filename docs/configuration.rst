@@ -453,6 +453,18 @@ sources
 dict with nested dicts containing the runtime parameters of all TORAX heat, particle, and current sources. The following runtime parameters
 are common to all sources, with defaults depending on the specific source. See :ref:`physics_models` For details on the source physics models.
 
+Any source which is not explicitly included in the sources dict, is set to zero. To include a source with default
+options, the source dict should contain an empty dict. For example, for setting ``qei_source``, with default options,
+as the only active source in ``sources``, set:
+
+.. code-block:: python
+
+    'sources': {
+        'qei_source': {},
+    }
+
+The configurable runtime parameters of each source are as follows:
+
 ``mode`` (str)
   Defines how the source values are computed. Currently the options are:
 
