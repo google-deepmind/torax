@@ -14,54 +14,37 @@
 
 """Run with the default general_runtime_params."""
 
-from torax import geometry
-from torax import sim as sim_lib
-from torax.config import runtime_params as general_runtime_params
-from torax.sources import default_sources
-from torax.sources import source_models as source_models_lib
-from torax.stepper import linear_theta_method
-from torax.transport_model import constant as constant_transport_model
+
+# Note, for backwards-compatibility, the "default" test in this case has many
+# sources turned on as well.
 
 
-def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
-  # This config based approach is deprecated.
-  # Over time more will be built with pure Python constructors in `get_sim`.
-  return general_runtime_params.GeneralRuntimeParams()
-
-
-def get_geometry(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-) -> geometry.Geometry:
-  del runtime_params  # Unused.
-  return geometry.build_circular_geometry()
-
-
-def get_transport_model() -> constant_transport_model.ConstantTransportModel:
-  return constant_transport_model.ConstantTransportModel()
-
-
-def get_sources() -> source_models_lib.SourceModels:
-  """Returns the source models used in the simulation."""
-  source_models = default_sources.get_default_sources()
-  return source_models
-
-
-def get_stepper_builder() -> linear_theta_method.LinearThetaMethodBuilder:
-  """Returns a builder for the stepper that includes its runtime params."""
-  builder = linear_theta_method.LinearThetaMethodBuilder()
-  return builder
-
-
-def get_sim() -> sim_lib.Sim:
-  # This approach is currently lightweight because so many objects require
-  # config for construction, but over time we expect to transition to most
-  # config taking place via constructor args in this function.
-  runtime_params = get_runtime_params()
-  geo = get_geometry(runtime_params)
-  return sim_lib.build_sim_object(
-      runtime_params=runtime_params,
-      geo=geo,
-      stepper_builder=get_stepper_builder(),
-      source_models=get_sources(),
-      transport_model=get_transport_model(),
-  )
+CONFIG = {
+    'runtime_params': {},
+    'geometry': {
+        'geometry_type': 'circular',
+    },
+    'sources': {
+        # Current sources (for psi equation)
+        'j_bootstrap': {},
+        'jext': {},
+        # Electron density sources/sink (for the ne equation).
+        'nbi_particle_source': {},
+        'gas_puff_source': {},
+        'pellet_source': {},
+        # Ion and electron heat sources (for the temp-ion and temp-el eqs).
+        'generic_ion_el_heat_source': {},
+        'fusion_heat_source': {},
+        'qei_source': {},
+        'ohmic_heat_source': {},
+    },
+    'transport': {
+        'transport_model': 'constant',
+    },
+    'stepper': {
+        'stepper_type': 'linear',
+    },
+    'time_step_calculator': {
+        'calculator_type': 'chi',
+    },
+}
