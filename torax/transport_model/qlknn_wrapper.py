@@ -43,7 +43,7 @@ from torax.transport_model import transport_model
 
 
 # pylint: disable=invalid-name
-@chex.dataclass
+@chex.dataclass(eq=True, frozen=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Extends the base runtime params with additional params for this model.
 
@@ -590,3 +590,11 @@ class QLKNNTransportModel(transport_model.TransportModel):
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )
+
+  def __eq__(self, other):
+    if not isinstance(other, QLKNNTransportModel):
+      return False
+    return self.runtime_params == other.runtime_params
+
+  def __hash__(self):
+    return hash(self.runtime_params)

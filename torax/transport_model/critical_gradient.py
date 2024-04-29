@@ -29,7 +29,7 @@ from torax.transport_model import transport_model
 
 
 # pylint: disable=invalid-name
-@chex.dataclass
+@chex.dataclass(eq=True, frozen=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Extends the base runtime params with additional params for this model.
 

@@ -58,6 +58,28 @@ class QlknnWrapperTest(parameterized.TestCase):
         1,
     )
 
+  def test_hash_eq_same(self):
+    """Tests that hash/eq work make equivalent QLKNNs hit the cache."""
+    # This is essential for the Jax persistent cache to work
+
+    # Construct two completely independent but functionally equivalent data
+    # structures
+    runtime_params_1 = qlknn_wrapper.RuntimeParams()
+    qlknn_1 = qlknn_wrapper.QLKNNTransportModel(runtime_params_1)
+    runtime_params_2 = qlknn_wrapper.RuntimeParams()
+    qlknn_2 = qlknn_wrapper.QLKNNTransportModel(runtime_params_2)
+
+    # Explicitly test that the hashes are the same
+    self.assertEqual(hash(qlknn_1), hash(qlknn_2))
+    # Explicitly test that they compare equal
+    self.assertEqual(qlknn_1, qlknn_2)
+
+    # Putting one of them in a set tests that Python considers it hashable
+    my_set = set([qlknn_1])
+    # This tests that they hash the same and compare equal, should be a cache
+    # hit
+    self.assertIn(qlknn_2, my_set)
+
 
 if __name__ == '__main__':
   absltest.main()

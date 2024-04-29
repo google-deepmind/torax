@@ -32,7 +32,7 @@ TimeDependentField = interpolated_param.InterpParamOrInterpParamInput
 
 
 # pylint: disable=invalid-name
-@chex.dataclass
+@chex.dataclass(eq=True, frozen=True)
 class RuntimeParams:
   """Runtime parameters for the turbulent transport model.
 
