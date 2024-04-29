@@ -5,9 +5,17 @@
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 DOC_SOURCEDIR     = .
-PY_SOURCEDIR  = ../torax
+# copybara:strip_begin(internal variant)
+PY_SOURCEDIR  = ../.
+# copybara:strip_end_and_replace_begin
+# PY_SOURCEDIR  = ../torax
+# copybara:replace_end
 BUILDDIR      = _build
-EXCLUDE_PATTERNS = "../torax/simulation_app.py"
+# copybara:strip_begin(internal variant)
+EXCLUDE_PATTERNS = "../simulation_app.py"
+# copybara:strip_end_and_replace_begin
+# EXCLUDE_PATTERNS = "../torax/simulation_app.py"
+# copybara:replace_end
 
 # Put it first so that "make" without argument is like "make help".
 help:
