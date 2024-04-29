@@ -126,7 +126,6 @@ class Numerics:
   # In most use-cases can be increased further above this conservative default
   dtmult: float = 0.9 * 10
 
-  use_fixed_dt: bool = False  # use fixed_time_step_calculator
   fixed_dt: float = 1e-2  # timestep used for fixed_time_step_calculator
 
   # Iterative reduction of dt if nonlinear step does not converge,

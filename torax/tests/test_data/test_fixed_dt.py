@@ -32,7 +32,6 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
   return general_runtime_params.GeneralRuntimeParams(
       numerics=general_runtime_params.Numerics(
           t_final=2,
-          use_fixed_dt=True,
           fixed_dt=2e-2,
       ),
   )
@@ -80,10 +79,7 @@ def get_sim() -> sim_lib.Sim:
   # config taking place via constructor args in this function.
   runtime_params = get_runtime_params()
   geo = get_geometry(runtime_params)
-  if runtime_params.numerics.use_fixed_dt:
-    time_step_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
-  else:
-    time_step_calculator = None
+  time_step_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
   return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geo=geo,

@@ -184,7 +184,6 @@ class DynamicNumerics:
   # In most use-cases can be increased further above this conservative default
   dtmult: float
 
-  use_fixed_dt: bool  # use fixed_time_step_calculator
   fixed_dt: float  # timestep used for fixed_time_step_calculator
   dt_reduction_factor: float
 
