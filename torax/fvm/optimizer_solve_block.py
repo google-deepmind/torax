@@ -35,13 +35,6 @@ AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 InitialGuessMode = fvm.InitialGuessMode
 
-# Default values, so that other modules that pass through arguments to
-# these functions can use the same defaults.
-# TODO(b/330172917) allow these variables to be set in config
-INITIAL_GUESS_MODE = InitialGuessMode.LINEAR
-MAXITER = 100
-TOL = 1e-12
-
 
 def optimizer_solve_block(
     dt: jax.Array,
@@ -56,9 +49,9 @@ def optimizer_solve_block(
     source_models: source_models_lib.SourceModels,
     coeffs_callback: Block1DCoeffsCallback,
     evolving_names: tuple[str, ...],
-    initial_guess_mode: InitialGuessMode = INITIAL_GUESS_MODE,
-    maxiter=MAXITER,
-    tol=TOL,
+    initial_guess_mode: InitialGuessMode,
+    maxiter: int,
+    tol: float,
 ) -> tuple[tuple[cell_variable.CellVariable, ...], int, AuxiliaryOutput]:
   # pyformat: disable  # pyformat removes line breaks needed for readability
   """Runs one time step of an optimization-based solver on the equation defined by `coeffs`.

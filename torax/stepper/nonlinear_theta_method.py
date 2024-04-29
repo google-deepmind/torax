@@ -128,11 +128,32 @@ class NonlinearThetaMethod(stepper.Stepper):
     """Final implementation of x_new after callback has been created etc."""
     ...
 
-  def _artificially_linear(self) -> bool:
-    """If True, the Stepper has been hacked to be linear in practice."""
-    if issubclass(self.callback_class, sim.FrozenCoeffsCallback):
-      return True
-    return False
+
+@dataclasses.dataclass(kw_only=True)
+class OptimizerRuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime parameters used inside the OptimizerThetaMethod stepper."""
+
+  initial_guess_mode: fvm.InitialGuessMode = fvm.InitialGuessMode.LINEAR
+  maxiter: int = 100
+  tol: float = 1e-12
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> DynamicOptimizerRuntimeParams:
+    return DynamicOptimizerRuntimeParams(
+        **config_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicOptimizerRuntimeParams,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass(frozen=True)
+class DynamicOptimizerRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  initial_guess_mode: int
+  maxiter: int
+  tol: float
 
 
 class OptimizerThetaMethod(NonlinearThetaMethod):
@@ -145,20 +166,6 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
     maxiter: Passed through to `jaxopt.LBFGS`.
     tol: Passed through to `jaxopt.LBFGS`.
   """
-
-  def __init__(
-      self,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
-      initial_guess_mode: fvm.InitialGuessMode = optimizer_solve_block.INITIAL_GUESS_MODE,
-      maxiter: int = optimizer_solve_block.MAXITER,
-      tol: float = optimizer_solve_block.TOL,
-  ):
-    self.maxiter = maxiter
-    self.tol = tol
-    self.initial_guess_mode = initial_guess_mode
-    super().__init__(transport_model, source_models, callback_class)
 
   def _x_new_helper(
       self,
@@ -179,6 +186,8 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       int,
   ]:
     """Final implementation of x_new after callback has been created etc."""
+    stepper_params = dynamic_runtime_params_slice_t.stepper
+    assert isinstance(stepper_params, DynamicOptimizerRuntimeParams)
     # Unpack the outputs of the optimizer_solve_block.
     x_new, error, (core_sources, core_transport) = (
         optimizer_solve_block.optimizer_solve_block(
@@ -194,22 +203,14 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
             source_models=self.source_models,
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
-            initial_guess_mode=self.initial_guess_mode,
-            maxiter=self.maxiter,
-            tol=self.tol,
+            initial_guess_mode=fvm.InitialGuessMode(
+                int(stepper_params.initial_guess_mode)
+            ),
+            maxiter=stepper_params.maxiter,
+            tol=stepper_params.tol,
         )
     )
     return x_new, core_sources, core_transport, error
-
-  def _artificially_linear(self) -> bool:
-    """If True, the Stepper has been hacked to be linear in practice."""
-    if self.maxiter == 0:
-      return True
-    return super()._artificially_linear()
-
-
-# Type-alias so that users only need to import this file.
-OptimizerRuntimeParams = runtime_params_lib.RuntimeParams
 
 
 def _default_optimizer_builder(
@@ -222,6 +223,10 @@ def _default_optimizer_builder(
 @dataclasses.dataclass(kw_only=True)
 class OptimizerThetaMethodBuilder(stepper.StepperBuilder):
   """Builds an OptimizerThetaMethod."""
+
+  runtime_params: OptimizerRuntimeParams = dataclasses.field(
+      default_factory=OptimizerRuntimeParams
+  )
 
   builder: Callable[
       [
@@ -245,6 +250,12 @@ class NewtonRaphsonRuntimeParams(runtime_params_lib.RuntimeParams):
 
   # If True, log internal iterations in Newton-Raphson solver.
   log_iterations: bool = False
+  initial_guess_mode: fvm.InitialGuessMode = fvm.InitialGuessMode.LINEAR
+  maxiter: int = 30
+  tol: float = 1e-5
+  coarse_tol: float = 1e-2
+  delta_reduction_factor: float = 0.5
+  tau_min: float = 0.01
 
   def build_dynamic_params(
       self, t: chex.Numeric
@@ -263,6 +274,12 @@ class DynamicNewtonRaphsonRuntimeParams(
     runtime_params_lib.DynamicRuntimeParams
 ):
   log_iterations: bool
+  initial_guess_mode: int
+  maxiter: int
+  tol: float
+  coarse_tol: float
+  delta_reduction_factor: float
+  tau_min: float
 
 
 class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
@@ -271,33 +288,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
   Attributes:
     transport_model: A TransportModel subclass, calculates transport coeffs.
     callback_class: Which class should be used to calculate the coefficients.
-    initial_guess_mode: Passed through to `stepper.newton_raphson_solve_block`.
-    maxiter: Passed through to `stepper.newton_raphson_solve_block`
-    tol: Passed through to `stepper.newton_raphson_solve_block`
-    delta_reduction_factor: Passed through to
-      `stepper.newton_raphson_solve_block`
-    tau_min: Passed through to `stepper.newton_raphson_solve_block`
   """
-
-  def __init__(
-      self,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
-      initial_guess_mode: fvm.InitialGuessMode = newton_raphson_solve_block.INITIAL_GUESS_MODE,
-      maxiter: int = newton_raphson_solve_block.MAXITER,
-      tol: float = newton_raphson_solve_block.TOL,
-      coarse_tol: float = newton_raphson_solve_block.COARSE_TOL,
-      delta_reduction_factor: float = newton_raphson_solve_block.DELTA_REDUCTION_FACTOR,
-      tau_min: float = newton_raphson_solve_block.TAU_MIN,
-  ):
-    self.initial_guess_mode = initial_guess_mode
-    self.maxiter = maxiter
-    self.tol = tol
-    self.coarse_tol = coarse_tol
-    self.delta_reduction_factor = delta_reduction_factor
-    self.tau_min = tau_min
-    super().__init__(transport_model, source_models, callback_class)
 
   def _x_new_helper(
       self,
@@ -318,10 +309,8 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       int,
   ]:
     """Final implementation of x_new after callback has been created etc."""
-    assert isinstance(
-        dynamic_runtime_params_slice_t.stepper,
-        DynamicNewtonRaphsonRuntimeParams,
-    )
+    stepper_params = dynamic_runtime_params_slice_t.stepper
+    assert isinstance(stepper_params, DynamicNewtonRaphsonRuntimeParams)
     # disable error checking in residual, since Newton-Raphson routine has
     # error checking based on result of each linear step
 
@@ -340,21 +329,18 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             source_models=self.source_models,
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
-            log_iterations=dynamic_runtime_params_slice_t.stepper.log_iterations,
-            initial_guess_mode=self.initial_guess_mode,
-            maxiter=self.maxiter,
-            tol=self.tol,
-            coarse_tol=self.coarse_tol,
-            delta_reduction_factor=self.delta_reduction_factor,
+            log_iterations=stepper_params.log_iterations,
+            initial_guess_mode=fvm.InitialGuessMode(
+                int(stepper_params.initial_guess_mode)
+            ),
+            maxiter=stepper_params.maxiter,
+            tol=stepper_params.tol,
+            coarse_tol=stepper_params.coarse_tol,
+            delta_reduction_factor=stepper_params.delta_reduction_factor,
+            tau_min=stepper_params.tau_min,
         )
     )
     return x_new, core_sources, core_transport, error
-
-  def _artificially_linear(self) -> bool:
-    """If True, the Stepper has been hacked to be linear in practice."""
-    if self.maxiter == 0:
-      return True
-    return super()._artificially_linear()
 
 
 def _default_newton_raphson_builder(

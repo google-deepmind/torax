@@ -23,7 +23,7 @@ class InitialGuessMode(enum.Enum):
   """Modes for initial guess of x_new for iterative solvers."""
 
   # Initialize x_new = x_old
-  X_OLD = 'x_old'
+  X_OLD = 0
 
   # Use the linear solver to guess x_new
-  LINEAR = 'linear'
+  LINEAR = 1

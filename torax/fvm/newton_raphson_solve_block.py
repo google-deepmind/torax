@@ -42,13 +42,7 @@ AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 InitialGuessMode = fvm.InitialGuessMode
 
-# TODO(b/330172917) allow these variables to be set in config
-INITIAL_GUESS_MODE = InitialGuessMode.LINEAR
-MAXITER = 30
-TOL = 1e-5
-COARSE_TOL = 1e-2
-DELTA_REDUCTION_FACTOR = 0.5
-TAU_MIN = 0.01
+
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
 # cases with bad numerics.
@@ -101,13 +95,13 @@ def newton_raphson_solve_block(
     source_models: source_models_lib.SourceModels,
     coeffs_callback: Block1DCoeffsCallback,
     evolving_names: tuple[str, ...],
+    initial_guess_mode: InitialGuessMode,
+    maxiter: int,
+    tol: float,
+    coarse_tol: float,
+    delta_reduction_factor: float,
+    tau_min: float,
     log_iterations: bool = False,
-    initial_guess_mode: InitialGuessMode = INITIAL_GUESS_MODE,
-    maxiter: int = MAXITER,
-    tol: float = TOL,
-    coarse_tol: float = COARSE_TOL,
-    delta_reduction_factor: float = DELTA_REDUCTION_FACTOR,
-    tau_min: float = TAU_MIN,
 ) -> tuple[tuple[cell_variable.CellVariable, ...], int, AuxiliaryOutput]:
   # pyformat: disable  # pyformat removes line breaks needed for reability
   """Runs one time step of a Newton-Raphson based root-finding on the equation defined by `coeffs`.
@@ -160,8 +154,6 @@ def newton_raphson_solve_block(
       core_profiles. Repeatedly called by the iterative optimizer.
     evolving_names: The names of variables within the core profiles that should
       evolve.
-    log_iterations: If true, output diagnostic information from within iteration
-      loop.
     initial_guess_mode: chooses the initial_guess for the iterative method,
       either x_old or linear step. When taking the linear step, it is also
       recommended to use Pereverzev-Corrigan terms if the transport coefficients
@@ -176,6 +168,8 @@ def newton_raphson_solve_block(
       line search step.
     tau_min: Minimum delta/delta_original allowed before the newton raphson
       routine resets at a lower timestep.
+    log_iterations: If true, output diagnostic information from within iteration
+      loop.
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
