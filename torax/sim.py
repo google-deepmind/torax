@@ -461,8 +461,6 @@ def get_initial_state(
       # This will be overridden within run_simulation().
       core_sources=source_profiles_lib.SourceProfiles(
           profiles={},
-          # TODO(b/326588413): Move sigmaneo out of the source
-          # profiles and into the core_profiles to match IMAS.
           j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
               geo
           ),
@@ -1024,8 +1022,6 @@ def _update_spectator(
   spectator.observe(
       key='chi_face_el', data=output_state.core_transport.chi_face_el
   )
-  # TODO(b/326588413): Make this more flexible to different source
-  # names. Potentially spectate all sources?
   spectator.observe(
       key='source_ion',
       data=output_state.core_sources.profiles['generic_ion_el_heat_source_ion'],
