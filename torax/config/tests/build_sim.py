@@ -23,6 +23,9 @@ from torax.config import runtime_params as runtime_params_lib
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
+from torax.transport_model import constant as constant_transport
+from torax.transport_model import critical_gradient as critical_gradient_transport
+from torax.transport_model import qlknn_wrapper
 
 
 class BuildSimTest(parameterized.TestCase):
@@ -203,10 +206,52 @@ class BuildSimTest(parameterized.TestCase):
     self.assertEqual(gas_source.runtime_params.formula.c2, 3)
     # pytype: enable=attribute-error
 
-  def test_build_transport_model_from_config(self):
-    # TODO(b/323504363): Update once implemented.
-    with self.assertRaises(NotImplementedError):
+  def test_missing_transport_model_raises_error(self):
+    with self.assertRaises(ValueError):
       build_sim.build_transport_model_from_config({})
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='constant',
+          name='constant',
+          expected_type=constant_transport.ConstantTransportModel,
+      ),
+      dict(
+          testcase_name='critical_gradient',
+          name='CGM',
+          expected_type=critical_gradient_transport.CriticalGradientModel,
+      ),
+      dict(
+          testcase_name='qlknn',
+          name='qlknn',
+          expected_type=qlknn_wrapper.QLKNNTransportModel,
+      ),
+  )
+  def test_build_transport_models(self, name, expected_type):
+    """Tests that we can build a transport model from the config."""
+    transport_model = build_sim.build_transport_model_from_config({
+        'transport_model': name,
+        'chimin': 1.23,
+        'constant_params': {
+            'chii_const': 4.56,
+        },
+        'cgm_params': {
+            'CGMalpha': 7.89,
+        },
+        'qlknn_params': {
+            'coll_mult': 10.11,
+        },
+    })
+    self.assertIsInstance(transport_model, expected_type)
+    self.assertEqual(transport_model.runtime_params.chimin, 1.23)
+    if name == 'constant':
+      self.assertEqual(transport_model.runtime_params.chii_const, 4.56)
+    elif name == 'CGM':
+      self.assertEqual(transport_model.runtime_params.CGMalpha, 7.89)
+    elif name == 'qlknn':
+      self.assertEqual(transport_model.runtime_params.coll_mult, 10.11)
+    else:
+      self.fail(f'Unknown transport model: {name}')
 
   def test_build_stepper_from_config(self):
     # TODO(b/323504363): Update once implemented.

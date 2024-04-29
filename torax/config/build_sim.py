@@ -29,6 +29,9 @@ from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import time_step_calculator as time_step_calculator_lib
+from torax.transport_model import constant as constant_transport
+from torax.transport_model import critical_gradient as critical_gradient_transport
+from torax.transport_model import qlknn_wrapper
 from torax.transport_model import transport_model as transport_model_lib
 
 
@@ -326,7 +329,7 @@ def _build_single_source_from_config(
 
 
 def build_transport_model_from_config(
-    config: dict[str, Any],
+    transport_config: dict[str, Any],
 ) -> transport_model_lib.TransportModel:
   """Builds a `TransportModel` from the input config.
 
@@ -339,7 +342,7 @@ def build_transport_model_from_config(
    -  `constant`: Constant transport
      -  See `transport_model.constant.RuntimeParams` for model-specific
         params.
-   -  `cgm`: Critical gradient transport
+   -  `CGM`: Critical gradient transport
      -  See `transport_model.critical_gradient.RuntimeParams` for model-specific
         params.
 
@@ -376,14 +379,53 @@ def build_transport_model_from_config(
   ```
 
   Args:
-    config: Python dict describing how to build a `TransportModel` with the
-      structure outlined above.
+    transport_config: Python dict describing how to build a `TransportModel`
+      with the structure outlined above.
 
   Returns:
     A `TransportModel` object.
   """
-  del config
-  raise NotImplementedError()
+  if 'transport_model' not in transport_config:
+    raise ValueError('transport_model must be set in the input config.')
+  transport_config = copy.copy(transport_config)
+  transport_model = transport_config.pop('transport_model')
+  if transport_model == 'qlknn':
+    qlknn_params = transport_config.pop('qlknn_params', {})
+    qlknn_params.update(transport_config)
+    # Remove params from the other models, if present.
+    qlknn_params.pop('constant_params', None)
+    qlknn_params.pop('cgm_params', None)
+    return qlknn_wrapper.QLKNNTransportModel(
+        runtime_params=config_args.recursive_replace(
+            qlknn_wrapper.RuntimeParams(),
+            **qlknn_params,
+        )
+    )
+  elif transport_model == 'constant':
+    constant_params = transport_config.pop('constant_params', {})
+    constant_params.update(transport_config)
+    # Remove params from the other models, if present.
+    constant_params.pop('qlknn_params', None)
+    constant_params.pop('cgm_params', None)
+    return constant_transport.ConstantTransportModel(
+        runtime_params=config_args.recursive_replace(
+            constant_transport.RuntimeParams(),
+            **constant_params,
+        )
+    )
+  elif transport_model == 'CGM':
+    cgm_params = transport_config.pop('cgm_params', {})
+    cgm_params.update(transport_config)
+    # Remove params from the other models, if present.
+    cgm_params.pop('qlknn_params', None)
+    cgm_params.pop('constant_params', None)
+    return critical_gradient_transport.CriticalGradientModel(
+        runtime_params=config_args.recursive_replace(
+            critical_gradient_transport.RuntimeParams(),
+            **cgm_params,
+        )
+    )
+  raise ValueError(f'Unknown transport model: {transport_model}')
 
 
 def build_stepper_from_config(
