@@ -133,7 +133,7 @@ class BootstrapCurrentSource(source.Source):
     )
     psi = psi or core_profiles.psi
     # pytype: enable=attribute-error
-    return calc_neoclassical(
+    bootstrap_current = calc_neoclassical(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
@@ -143,6 +143,28 @@ class BootstrapCurrentSource(source.Source):
         ni=ni,
         jtot_face=jtot_face,
         psi=psi,
+    )
+    zero_profile = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
+    is_zero_mode = (
+        dynamic_source_runtime_params.mode == runtime_params_lib.Mode.ZERO.value
+    )
+    return source_profiles.BootstrapCurrentProfile(
+        sigma=bootstrap_current.sigma,
+        j_bootstrap=jax_utils.select(
+            is_zero_mode,
+            zero_profile.j_bootstrap,
+            bootstrap_current.j_bootstrap,
+        ),
+        j_bootstrap_face=jax_utils.select(
+            is_zero_mode,
+            zero_profile.j_bootstrap_face,
+            bootstrap_current.j_bootstrap_face,
+        ),
+        I_bootstrap=jax_utils.select(
+            is_zero_mode,
+            zero_profile.I_bootstrap,
+            bootstrap_current.I_bootstrap,
+        ),
     )
 
   def get_source_profile_for_affected_core_profile(
