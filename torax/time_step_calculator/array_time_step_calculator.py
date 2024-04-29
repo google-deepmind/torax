@@ -30,6 +30,8 @@ from torax.time_step_calculator import time_step_calculator
 State = int
 
 
+# TODO(b/337844885). Remove the array option and make fixed_dt time-dependent
+# instead.
 class ArrayTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
   """TimeStepCalculator that iterates over entries in an array."""
 

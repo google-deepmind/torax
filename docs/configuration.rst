@@ -3,4 +3,838 @@
 Simulation input configuration
 ##############################
 
-Under construction
+Jump to :ref:`config_details` for an immediate overview of all configuration parameters.
+
+General notes
+=============
+
+TORAX's configuration system allows for fine-grained control over various aspects of the simulation.
+The top layer ``config`` file is passed as input into a simulation, and contains a dictionary with the following keys:
+
+* **runtime_params**. Dictionary containing nested dictionaries describing the following sets of simulation parameters.
+
+  * **plasma_composition**: Configures the distribution of ion species.
+  * **profile_conditions**: Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
+  * **numerics**: Configures time stepping settings and numerical parameters.
+  * **output_dir**: Selects the output directory.
+
+* **geometry**: Configures geometry setup and constructs the Geometry object.
+* **transport**: Selects and configures the transport model, and constructs the TransportModel object.
+* **sources**: Selects and configures parameters of the various heat source, particle source, and non-inductive current models.
+* **stepper**: Selects and configures the PDE solver.
+* **time_step_calculator**: Selects the method used to calculate the timestep `dt`.
+
+This configuration structure maps to objects instantiated and manipulated within TORAX.
+See :ref:`structure` for more information on TORAX simulation objects.
+Further details on the internals of the configuration data structures are found in :ref:`config_details`.
+
+For various definitions, see :ref:`glossary`.
+
+Time dependence and parameter interpolation
+===========================================
+Some TORAX parameters are allowed to temporally vary. Parameters where time dependence is enabled are
+are labelled with **time-varying** in :ref:`config_details`. Time dependence is set by assigning
+a dict to the parameter, instead of a single value. The dict defines a time-series with ``{time: value}`` pairs.
+The keys do not need to be sorted in order of time. Ordering is carried out internally. For each evaluation of
+the TORAX stepper (PDE solver), time-dependent variables are interpolated at both time :math:`t` and time :math:`t+dt`.
+There are two interpolation modes:
+
+* **PIECEWISE_LINEAR**: linear interpolation of the input time-series (default)
+* **STEP**: stepwise change in values following each traversal above a time value in the time-series.
+
+The following inputs are valid for time-dependent parameters:
+
+* Single integer, float, or boolean. The parameter is then not time dependent
+* A time-series dict with ``{time: value}`` pairs, using the default ``interpolation_mode='PIECEWISE_LINEAR'``.
+* A tuple with ``(dict, str)`` corresponding to ``(time-series, interpolation_mode)``.
+
+Examples:
+
+1. Define a time-dependent :math:`Z_{eff}` with piecewise linear interpolation, from :math:`t=2` to :math:`t=15`.
+:math:`Z_{eff}` drops from 2.8 to 1.5, and then stays flat.
+
+.. code-block:: python
+
+  Zeff = ({2: 2.8, 5: 2.0, 8: 1.5, 15: 1.5}, 'PIECEWISE_LINEAR)
+
+or more simply, taking advantage of the default.
+
+.. code-block:: python
+
+  Zeff = {2: 2.8, 5: 2.0, 8: 1.5, 15: 1.5}
+
+2. Define a time dependent internal boundary condition for ion temperature, ``Tiped``, with stepwise changes,
+starting at :math:`1~keV`` at :math:`t=2s`, transitioning to :math:`3~keV`` at :math:`t=8s`, and back down
+to :math:`1~keV` at :math:`t=20s`:
+
+.. code-block:: python
+
+  Tiped= ({2: 1.0, 8: 3.0, 20: 1.0}, 'STEP')
+
+To extend configuration parameters where time-dependence is not enabled, to have time-dependence, see :ref:`developer-guides`.
+
+.. _config_details:
+
+Detailed configuration structure
+================================
+
+Data types and default values are written in parentheses. Any declared parameter in a run-specific config, overrides the default value.
+
+runtime_params
+--------------
+
+plasma_composition
+^^^^^^^^^^^^^^^^^^
+
+Defines the distribution of ion species. Currently restricted to a single main ion, a single impurity and a flat :math:`Z_{eff}`.
+
+``Ai`` (float = 2.5)
+  Mass of main ion in amu units. For multiple-isotope plasmas, make an effective average.
+
+``Zi`` (float = 1.0):
+  Charge of main ion in units of electron charge.
+
+``Zimp`` (float = 10.0), **time-varying**
+  Impurity charge state.
+
+``Zeff`` (float = 1.0), **time-varying**
+  Plasma effective charge, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is
+  the normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and :math:`Z_{imp}`, a consistent :math:`\hat{n}_i` is calculated,
+  with the appropriate degree of main ion dilution.
+
+Profile conditions
+^^^^^^^^^^^^^^^^^^
+
+Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
+
+``Ip`` (float = 15.0), **time-varying**
+  Plasma current in MA. Boundary condition for the :math:`\psi` equation.
+
+``Ti_bound_right`` (float = 1.0), **time-varying**
+  Ion temperature boundary condition at :math:`\hat{\rho}=1` in units of keV.
+
+``Te_bound_right`` (float = 1.0), **time-varying**
+  Electron temperature boundary condition at :math:`\hat{\rho}=1`, in units of keV.
+
+``Ti_bound_left`` (float = 15.0), **time-varying**
+  Initial and (if time evolving) prescribed :math:`\hat{\rho}=0` ion temperature, in units of keV.
+  The initial and prescribed ion temperature is a linear interpolation between ``Ti_bound_left`` and ``Ti_bound_right``. If ``ion_heat_eq==True``
+  (see :ref:`numerics_dataclass`), then time dependent `Ti_bound_left` is ignored, and only the initial value is used.
+
+``Te_bound_left`` (float = 15.0), **time-varying**
+  Initial and (if time evolving) prescribed :math:`\hat{\rho}=0` electron temperature, in units of keV.
+  The initial and prescribed electron temperature is a linear interpolation between ``Te_bound_left`` and ``Te_bound_right``. If ``el_heat_eq==True``
+  (see :ref:`numerics_dataclass`), then time dependent `Te_bound_left` is ignored, and only the initial value is used.
+
+``npeak`` (float = 1.5), **time-varying**
+  Peaking factor of density profile. ``npeak`` :math:`=\frac{n_e(\hat{\rho}=0)}{n_e(\hat{\rho}=1)}`.
+  If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``npeak`` is ignored, and only the initial value is used.
+
+``nbar`` (float = 0.5), **time-varying**
+  Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``nbar_is_fGW==False``.
+  In units of Greenwald fraction :math:`n_{GW}` if ``nbar_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
+  is the tokamak minor radius in meters, and :math:`I_p` is the plasma current in MA.
+
+``nbar_is_fGW`` (bool = True)
+  Toggles units of ``nbar``.
+
+``ne_bound_right`` (float = 0.5), **time-varying**
+  Density boundary condition at :math:`\hat{\rho}=1`. In units of ``nref`` if ``ne_bound_right_is_fGW==False``.
+  In units of Greenwald fraction :math:`n_{GW}` if ``ne_bound_right_is_fGW==True``.
+
+``ne_bound_right_is_fGW`` (bool = False)
+  Toggles units of ``ne_bound_right``.
+
+``set_pedestal`` (bool = True), **time-varying**
+  Set internal boundary conditions if True. Do not set internal boundary conditions if False.
+  Internal boundary conditions are set using an adaptive localized source term. While a common use-case is to mock up a pedestal, this feature
+  can also be used for L-mode modeling with a desired internal boundary condition below :math:`\hat{\rho}=1`.
+
+``Tiped`` (float = 5.0), **time-varying**
+  Internal boundary condition for ion temperature at :math:`\hat{\rho}` = ``Ped_top``, in units of keV.
+
+``Teped`` (float = 5.0), **time-varying**
+  Internal boundary condition for electron temperature at :math:`\hat{\rho}` = ``Ped_top``, in units of keV.
+
+``neped`` (float = 0.7), **time-varying**
+  Internal boundary condition for electron density at  :math:`\hat{\rho}` = ``Ped_top``, in units of keV.
+  In units of reference density if ``neped_is_fGW==False``. In units of Greenwald fraction if ``neped_is_fGW==True``.
+
+``neped_is_fGW`` (bool = False)
+  Toggles units of ``neped``.
+
+``Ped_top`` (float = 0.91), **time-varying**
+  Location of internal boundary condition, in units of :math:`\hat{\rho}`. In practice, the closest cell
+  gridpoint to ``Ped_top`` will be used.
+
+``nu`` (float = 3.0)
+  Peaking coefficient of initial current profile: :math:`j = j_0(1 - \hat{\rho}^2)^\nu`. :math:`j_0` is calculated
+  to be consistent with a desired total current. Only used if ``initial_psi_from_j==True``, otherwise the ``psi`` profile from the geometry file is used.
+
+``initial_j_is_total_current`` (bool = False)
+  Toggles the interpretation of :math:`j` above. If true, then :math:`j` is the total current.
+  If false, then :math:`j` is Ohmic current, with :math:`I_{ohm} = I_{tot} - I_{ni}`, where :math:`I_{ni}` is the total non-inductive current
+  calculated upon initialization.
+
+``initial_psi_from_j`` (bool = False)
+  Toggles if the initial ``psi`` (:math:`\psi`) calculation is based on the "nu" current formula, or from the ``psi``
+  available in the numerical geometry file. This setting is ignored for the ad-hoc circular geometry option, which has no numerical geometry, and thus the
+  initial ``psi`` is always calculated from the "nu" current formula.
+
+.. _numerics_dataclass:
+
+numerics
+^^^^^^^^
+
+Configures simulation control such as time settings and timestep calculation, equations being solved, constant numerical variables.
+
+``t_initial`` (float = 0.0)
+  Simulation start time, in units of seconds.
+
+``t_final`` (float = 5.0)
+  Simulation end time, in units of seconds.
+
+``exact_t_final`` (bool = False)
+  If True, ensures that the simulation end time is exactly ``t_final``, by adapting the final ``dt`` to match.
+
+``maxdt`` (float = 1e-1)
+  Maximum timesteps allowed in the simulation. This is only used with the ``chi_time_step_calculator`` time_step_calculator.
+
+``mindt`` (float = 1e-8)
+  Minimum timestep allowed in simulation.
+
+``dtmult`` (float = 9.0)
+  Prefactor in front of ``chi_timestep_calculator`` base timestep :math:`dt_{base}=\frac{dx^2}{2\chi}` (see :ref:`time_step_calculator`).
+  In most use-cases with implicit solution methods, ``dtmult`` can be increased further above the conservative default.
+
+``fixed_dt`` (float = 1e-2)
+  Timestep used for ``fixed_time_step_calculator`` (see :ref:`time_step_calculator`).
+
+``ion_heat_eq`` (bool = True)
+  Solve the ion heat equation in the time-dependent PDE.
+
+``el_heat_eq`` (bool = True)
+  Solve the electron heat equation in the time-dependent PDE.
+
+``current_eq`` (bool = False)
+  Solve the current diffusion equation (evolving :math:`\psi`) in the time-dependent PDE.
+
+``dens_eq`` (bool = False)
+  Solve the electron density equation in the time-dependent PDE.
+
+``enable_prescribed_profile_evolution`` (bool = True)
+  Enable time-dependent prescribed profiles. If False, then time-dependent ``numerics``
+  quantities such as ``nbar`` and ``Ti_bound_left`` will be ignored, even if their respective core_profile equation is not being solved by the PDE.
+  This option is provided to allow initialization of density profiles scaled to a Greenwald fraction, and freeze this density even if the current
+  is time evolving. Otherwise the density will evolve to always maintain that GW fraction.
+
+``q_correction_factor`` (float = 1.38)
+  q-profile correction factor used only in the ad-hoc circular geometry model
+
+``resistivity_mult`` (float = 1.0)
+  1/multiplication factor for :math:`\sigma` (conductivity) to reduce the current
+  diffusion timescale to be closer to the energy confinement timescale, for testing purposes.
+
+``largeValue_T`` (float = 1e10)
+  Prefactor for adaptive source term for setting temperature internal boundary conditions.
+
+``largeValue_n`` (float = 1e8)
+  Prefactor for adaptive source term for setting density internal boundary conditions.
+
+``nref`` (float = 1e20)
+  Reference density value for normalizations.
+
+output_dir
+^^^^^^^^^^
+
+``output_dir`` (str)
+  Optional string containing the file directory where the simulation outputs will be saved. If not provided,
+  this will default to ``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``
+
+.. _time_step_calculator:
+
+geometry
+--------
+
+``geometry_type`` (str = 'chease')
+  Geometry model used. There are currently two options:
+
+* ``'circular'``
+    An ad-hoc circular geometry model. Includes elongation corrections.
+    Not recommended for use apart from for testing purposes.
+
+* ``'chease'``
+    Loads a CHEASE geometry file.
+
+Time dependent geometry is not currently supported, but is on the immediate-term roadmap.
+
+``nr`` (int = 25)
+  Number of radial grid points
+
+``geometry_file`` (str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols')
+  Only used for ``geometry_type='chease'``. Sets the geometry file loaded.
+  The geometry directory is set with the ``TORAX_GEOMETRY_DIR`` environment variable. If none is set, then the default is ``torax/data/third_party/geo``.
+
+``Ip_from_parameters`` (bool = True)
+  Only used for ``geometry_type='chease'``.Toggles whether total plasma current is read from the configuration file,
+  or from the geometry file. If True, then the :math:`\psi` calculated from the geometry file is scaled to match the desired :math:`I_p`.
+
+``Rmaj`` (float = 6.2)
+  Major radius (R) in meters.
+
+``Rmin`` (float = 2.0)
+  Minor radius (a) in meters.
+
+``B0`` (float = 5.3)
+  Toroidal magnetic field on axis [T].
+
+``kappa`` (float = 1.72)
+  Only used for ``geometry_type='circular'``. Sets the plasma elongation used for volume, area and q-profile corrections.
+
+``hi_res_fac`` (int = 4)
+  Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
+  with ``nr_hires = nr * hi_res_fac``, used for ``j`` to ``psi`` conversions.
+
+
+transport
+---------
+
+Select and configure various transport models, such as constant diffusivity, critical gradient model (CGM), or the QuaLiKiz neural network (QLKNN10D).
+The dictionary consists of keys common to all transport models, and additional nested dictionaries were parameters pertaining to a specific transport
+model are defined.
+
+``transport_model`` (str = 'constant')
+  Select the transport model. There are currently three options:
+
+* ``'constant'``
+  Constant transport coefficients
+* ``'CGM'``
+  Critical Gradient Model
+* ``'qlknn'``
+  The QuaLiKiz Neural Network, 10D hypercube version (QLKNN10D) `[K.L. van de Plassche PoP 2020] <https://doi.org/10.1063/1.5134126>`_
+
+``chimin`` (float = 0.05)
+  Lower allowed bound for heat conductivities :math:`\chi`, in units of :math:`m^2/s`.
+
+``chimax`` (float = 100.0)
+  Upper allowed bound for heat conductivities :math:`\chi`, in units of :math:`m^2/s`.
+
+``Demin`` (float = 0.05)
+  Lower allowed bound for particle conductivity :math:`D`, in units of :math:`m^2/s`.
+
+``Demax`` (float = 100.0)
+  Upper allowed bound for particle conductivity :math:`D`, in units of :math:`m^2/s`.
+
+``Vemin`` (float = -50.0)
+  Lower allowed bound for particle convection :math:`V`, in units of :math:`m^2/s`.
+
+``Vemax`` (float = 50.0)
+  Upper allowed bound for particle convection :math:`V`, in units of :math:`m^2/s`.
+
+``apply_inner_patch`` (bool = False), **time-varying**
+  If True, set a patch for inner core transport coefficients below `rho_inner`.
+  Typically used as an ad-hoc measure for MHD (e.g. sawteeth) or EM (e.g. KBM) transport in the inner-core.
+
+``De_inner``  (float = 0.2), **time-varying**
+  Particle diffusivity value for inner transport patch.
+
+``Ve_inner``  (float = 0.0), **time-varying**
+  Particle convection value for inner transport patch.
+
+``chii_inner``  (float = 1.0), **time-varying**
+  Ion heat conduction value for inner transport patch.
+
+``chie_inner`` (float = 1.0), **time-varying**
+  Electron heat conduction value for inner transport patch.
+
+``rho_inner`` (float = 0.3)
+  :math:`\hat{\rho}` below which inner patch is applied.
+
+``apply_outer_patch`` (bool = False), **time-varying**
+  If True, set a patch for outer core transport coefficients above ``rho_outer``.
+  Useful for the L-mode near-edge region where models like QLKNN10D are not applicable. Only used if ``set_pedestal==False``.
+
+``De_outer``  (float = 0.2), **time-varying**
+  Particle diffusivity value for outer transport patch.
+
+``Ve_outer``  (float = 0.0), **time-varying**
+  Particle convection value for outer transport patch.
+
+``chii_outer``  (float = 1.0), **time-varying**
+  Ion heat conduction value for outer transport patch.
+
+``chie_outer`` (float = 1.0), **time-varying**
+  Electron heat conduction value for outer transport patch.
+
+``rho_outer`` (float = 0.9)
+  :math:`\hat{\rho}` above which outer patch is applied.
+
+``smoothing_sigma`` (float = 0.0)
+  Width of HWHM Gaussian smoothing kernel operating on transport model outputs.
+
+constant
+^^^^^^^^
+
+Runtime parameters for the constant chi transport model
+
+``chii_const`` (float = 1.0), **time-varying**
+  Ion heat conductivity. In units of :math:`m^2/s`.
+
+``chie_const`` (float = 1.0), **time-varying**
+  Electron heat conductivity. In units of :math:`m^2/s`.
+
+``De_const`` (float = 1.0), **time-varying**
+  Electron particle diffusion. In units of :math:`m^2/s`.
+
+``Ve_const`` (float = -0.33), **time-varying**
+  Electron particle convection. In units of :math:`m^2/s`.
+
+CGM
+^^^
+
+Runtime parameters for the Critical Gradient Model (CGM).
+
+``CGMalpha`` (float = 2.0)
+  Exponent of chi power law: :math:`\chi \propto (R/L_{Ti} - R/L_{Ti_crit})^\alpha`.
+
+``CGMchistiff`` (float = 2.0)
+  Stiffness parameter.
+
+``CGMchiei_ratio`` (float = 2.0)
+  Ratio of ion to electron heat conductivity. ITG turbulence has values above 1.
+
+``CGM_D_ratio`` (float = 5.0)
+  Ratio of ion heat conductivity to electron particle diffusion.
+
+qlknn
+^^^^^
+
+Runtime parameters for the QLKNN10D model.
+
+``coll_mult`` (float = 0.25)
+  Collisionality multiplier. The default 0.25 is a proxy for the upgraded collision operator
+  in QuaLiKiz, in place since QLKNN10D was developed.
+
+``include_ITG`` (bool = True)
+  If True, include ITG modes in the total fluxes.
+
+``include_TEM`` (bool = True)
+  If True, include TEM modes in the total fluxes.
+
+``include_ETG`` (bool = True)
+  If True, include ETG modes in the total electron heat flux.
+
+``ITG_flux_ratio_correction`` (float = 2.0)
+  Increase the electron heat flux in ITG modes by this factor.
+  The default 2.0 is a proxy for the impact of the upgraded QuaLiKiz collision operator, in place since QLKNN10D was developed.
+
+``DVeff`` (bool = False)
+  If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
+
+``An_min`` (float = 0.05)
+  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DVeff==True``.
+
+``avoid_big_negative_s`` (bool = True)
+  If True, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
+  to compensate for the lack of slab ITG modes in QuaLiKiz.
+
+``smag_alpha_correction`` (bool = True)
+  If True, reduce input magnetic shear by :math:`0.5*\alpha_{MHD}` to capture the main impact of
+  :math:`\alpha_{MHD}`, which was not itself part of the QLKNN10D training set.
+
+``q_sawtooth_proxy`` (bool = True)
+  To avoid un-physical transport barriers, modify the input q-profile and magnetic shear for zones where
+  :math:`q < 1`, as a proxy for sawteeth. Where :math:`q<1`, then the :math:`q` and :math:`\hat{s}` QLKNN10D inputs are clipped to
+  :math:`q=1` and :math:`\hat{s}=0.1`.
+
+sources
+-------
+
+dict with nested dicts containing the runtime parameters of all TORAX heat, particle, and current sources. The following runtime parameters
+are common to all sources, with defaults depending on the specific source. See :ref:`physics_models` For details on the source physics models.
+
+``mode`` (str)
+  Defines how the source values are computed. Currently the options are:
+
+* ``'zero'``
+    Source is set to zero.
+
+* ``'model'``
+    Source values come from a model in code. Specific model selection is not yet available in TORAX since there are no source components with more than one
+    physics model. However, this will be straightforward to develop when that occurs.
+
+* ``'formula'``
+    Source values come from a prescribed (possibly time-dependent) formula that is not dependent on the state of the system. The formula type (Gaussian, exponential)
+    is set by ``formula_type``.
+
+``is_explicit`` (bool)
+  Defines whether the source is to be considered explicit or implicit. Explicit sources are calculated based on the simulation state at the
+  beginning of a time step, or do not have any dependance on state. Implicit sources depend on updated states as the iterative solvers evolve the state through the
+  course of a time step. If a source model is complex but evolves over slow timescales compared to the state, it may be beneficial to set it as explicit.
+
+``formula_type`` (str='default')
+  Sets the formula type if ``mode=='formula'``. The current options are:
+
+* ``'exponential'`` takes the following arguments:
+  * c1 (float): Offset location
+  * c2 (float): Exponential decay parameter
+  * total (float): integral
+  * use_normalized_r (bool = False)
+
+  The profile is parameterized as follows :math:`Q = C e^{-(r - c1) / c2}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
+  then c1 and c2 are interpreted as being in normalized toroidal flux units.
+
+* ``'gaussian'`` takes the following arguments:
+  * c1 (float): Gaussian peak Location
+  * c2 (float): Gaussian width
+  * total (float): integral
+  * use_normalized_r (bool = False)
+
+  The profile is parameterized as follows :math:`Q = C e^{-((r - c1)^2) / (2 c2^2)}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
+  then c1 and c2 are interpreted as being in normalized toroidal flux units.
+
+* ``'default'``
+    Some sources have default implementations which use the above formulas under the hood with intuitive parameter names for c1 and c2.
+    Consult the list below for further details.
+
+generic_ion_el_heat_source
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A utility source module that allows for a time dependent Gaussian ion and electron heat source.
+
+``mode`` (str = 'formula')
+
+``formula_type`` (str = 'default')
+  Uses the Gaussian formula with ``use_normalized_r=True``.
+
+``rsource`` (float = 0.0), **time-varying**
+  Gaussian center of source profile in units of :math:`\hat{\rho}`.
+
+``w`` (float = 0.25), **time-varying**
+  Gaussian width of source profile in units of :math:`\hat{\rho}`.
+
+``Ptot`` (float = 120e6), **time-varying**
+  Total source power in MW.
+
+``el_heat_fraction`` (float = 0.66666), **time-varying**
+  Electron heating fraction.
+
+qei_source
+^^^^^^^^^^
+
+Ion-electron heat exchange.
+
+``mode`` (str = 'model')
+
+``Qei_mult`` (float = 1.0)
+  Multiplication factor for ion-electron heat exchange term for testing purposes.
+
+ohmic_heat_source
+^^^^^^^^^^^^^^^^^
+
+Ohmic power.
+
+``mode`` (str = 'model')
+
+fusion_heat_source
+^^^^^^^^^^^^^^^^^^
+
+Fusion power assuming a 50-50 D-T ion distribution.
+
+``mode`` (str = 'model')
+
+gas_puff_source
+^^^^^^^^^^^^^^^
+
+Formula based exponential gas puff source. No first-principle-based model is yet implemented in TORAX.
+
+``mode`` (str = 'formula')
+
+``formula_type`` (str = 'default')
+  Uses the exponential formula with ``use_normalized_r=True``, and ``c1=1``.
+
+``puff_decay_length`` (float = 0.05), **time-varying**
+  Gas puff decay length from edge in units of :math:`\hat{\rho}`.
+
+``S_puff_tot`` (float = 1e22), **time-varying**
+  Total number of particle source in units of particles/s.
+
+pellet_source
+^^^^^^^^^^^^^
+
+Time dependent Gaussian pellet source. No first-principle-based model is yet implemented in TORAX.
+
+``mode`` (str = 'formula')
+
+``formula_type`` (str = 'default')
+  Uses the Gaussian formula with ``use_normalized_r=True``.
+
+``pellet_deposition_location`` (float = 0.85), **time-varying**
+  Gaussian center of source profile in units of :math:`\hat{\rho}`.
+
+``pellet_width`` (float = 0.1), **time-varying**
+  Gaussian width of source profile in units of :math:`\hat{\rho}`.
+
+``S_pellet_tot`` (float = 2e22), **time-varying**
+  Total particle source in units of particles/s
+
+nbi_particle_source
+^^^^^^^^^^^^^^^^^^^
+
+Time dependent NBI Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
+
+``mode`` (str = 'formula')
+
+``formula_type`` (str = 'default')
+  Uses the Gaussian formula with ``use_normalized_r=True``.
+
+``nbi_deposition_location`` (float = 0.0), **time-varying**
+  Gaussian center of source profile in units of :math:`\hat{\rho}`.
+
+``nbi_particle_width`` (float = 0.25), **time-varying**
+  Gaussian width of source profile in units of :math:`\hat{\rho}`.
+
+``S_nbi_tot`` (float = 1e22), **time-varying**
+  Total particle source.
+
+j_bootstrap
+^^^^^^^^^^^
+
+Bootstrap current calculated with the Sauter model.
+
+``mode`` (str = 'model')
+
+``bootstrap_mult`` (float = 1.0)
+  Multiplication factor for bootstrap current for testing purposes.
+
+j_ext
+^^^^^
+
+Generic external current profile, parameterized as a Gaussian (e.g. ECCD).
+
+``mode`` (str = 'formula')
+
+``formula_type`` (str = 'default')
+  Uses the Gaussian formula with ``use_normalized_r=True``.
+
+``rext`` (float = 0.4), **time-varying**
+  Gaussian center of current profile in units of :math:`\hat{\rho}`.
+
+``wext`` (float = 0.05), **time-varying**
+  Gaussian width of current profile in units of :math:`\hat{\rho}`.
+
+``Iext`` (float = 3.0), **time-varying**
+  Total current in MA. Only used if ``use_absolute_jext==True``.
+
+``fext`` (float = 0.2), **time-varying**
+  Sets total ``j_ext`` to be a fraction ``fext`` of the total plasma current.
+  Only used if ``use_absolute_jext==False``.
+
+``use_absolute_jext`` (bool = False)
+  Toggles relative vs absolute external current setting.
+
+The following sources defined in TORAX but not yet implemented. They are listed here for completeness.
+
+ECRHHeatSource
+^^^^^^^^^^^^^^
+
+ICRHHeatSource
+^^^^^^^^^^^^^^
+
+LHHeatSource
+^^^^^^^^^^^^
+
+NBIElectronHeatSource
+^^^^^^^^^^^^^^^^^^^^^
+
+NBIIonHeatSource
+^^^^^^^^^^^^^^^^
+
+LineRadiationHeatSink
+^^^^^^^^^^^^^^^^^^^^^
+
+BremsstrahlungHeatSink
+^^^^^^^^^^^^^^^^^^^^^^
+
+CyclotronRadiationHeatSink
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ChargeExchangeHeatSink
+^^^^^^^^^^^^^^^^^^^^^^
+
+RecombinationHeatSink
+^^^^^^^^^^^^^^^^^^^^^
+
+RecombinationDensitySink
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+ECRHCurrentSource
+^^^^^^^^^^^^^^^^^
+
+ICRHCurrentSource
+^^^^^^^^^^^^^^^^^
+
+LHCurrentSource
+^^^^^^^^^^^^^^^
+
+NBICurrentSource
+^^^^^^^^^^^^^^^^
+
+stepper
+-------
+
+Select and configure the ``Stepper`` object, which evolves the PDE system by one timestep. See :ref:`solver_details` for further details.
+The dictionary consists of keys common to all steppers, and additional nested dictionaries where parameters pertaining to a specific stepper are defined.
+
+``stepper_type`` (str = 'linear')
+  Selected PDE solver algorithm. The current options are:
+
+* ``'linear'``
+    Linear solver where PDE coefficients are set at fixed values of the state. An approximation of the nonlinear solution is optionally
+    carried out with a predictor-corrector method, i.e. fixed point iteration of the PDE coefficients.
+
+* ``'newton_raphson'``
+    Nonlinear solver using the Newton-Raphson iterative algorithm, with backtracking line search, and timestep backtracking,
+    for increased robustness.
+
+* ``'optimizer'``
+    Nonlinear solver using the jaxopt library.
+
+``theta_imp`` (float = 1.0)
+  theta value in the theta method of time discretization. 0 = explicit, 1 = fully implicit, 0.5 = Crank-Nicolson.
+
+``adaptive_dt`` (bool = True)
+  If true, then turns on dt backtracking, where dt is iteratively reduced by ``dt_reduction_factor`` in a new attempt step
+  if the stepper does not converge. Only relevant for nonlinear steppers.
+
+``dt_reduction_factor`` (float = 3.0)
+  dt reduction factor if the stepper does not converge following a call, and ``adaptive_dt=True``. Only relevant
+  for nonlinear steppers.
+
+``predictor_corrector`` (bool = True)
+  Enables predictor_corrector iterations with the linear solver.
+
+``corrector_steps`` (int = 1)
+  Number of corrector steps for the predictor-corrector linear solver. 0 means a pure linear solve with no corrector steps.
+
+``use_pereverzev`` (bool = False)
+  Use Pereverzev-Corrigan terms in the heat and particle flux when using the linear solver.
+  Critical for stable calculation of stiff transport, at the cost of introducing non-physical lag during transient. Also used for
+  the ``linear_step`` initial guess mode in the nonlinear solvers.
+
+``chi_per`` (float = 20.0)
+  Large heat conductivity used for the Pereverzev-Corrigan term.
+
+``d_per`` (float = 10.0)
+  Large particle diffusion used for the Pereverzev-Corrigan term.
+
+linear
+^^^^^^
+
+Runtime parameters relevant for the ``LinearThetaMethod``, e.g. ``predictor_corrector``, are not defined in the child class but in the parent
+``Stepper`` class and hence in the upper layer of the ``stepper`` config dict. Since the nonlinear steppers also have the option of using
+a linear solver for calculating an initial guess, it is more appropriate for these shared linear runtime parameters to be defined in the
+parent ``Stepper`` class.
+
+newton_raphson
+^^^^^^^^^^^^^^
+
+Dict containing the following configuration parameters for the Newton Raphson stepper.
+
+``log_iterations`` (bool = False)
+  Log the internal iterations in the Newton-Raphson solver.
+
+``initial_guess_mode`` (str = 'linear_step')
+  Sets the approach taken for the initial guess into the Newton-Raphson solver for the first iteration.
+  Two options are available:
+
+* ``x_old``
+    Use the state at the beginning of the timestep.
+
+* ``linear_step``
+    Use the linear solver to obtain an initial guess to warm-start the nonlinear solver.
+
+``tol`` (float = 1e-5)
+  PDE residual magnitude tolerance for successfully exiting the iterative solver.
+
+``coarse_tol`` (float = 1e-2)
+  If the solver hits an exit criterion due to small steps or many iterations,
+  but the residual is still below ``coarse_tol``, then the step is allowed to successfully pass, and a warning is passed to the user.
+
+``maxiter`` (int = 30)
+  Maximum number of allowed Newton iterations. If the number of iterations surpasses ``maxiter``, then the solver will
+  exit in an unconverged state.   The step will still be accepted if ``residual < coarse_tol``, otherwise dt backtracking will take place if enabled.
+
+``delta_reduction_factor`` (float = 0.5)
+  Reduction of Newton iteration step size in the backtracking line search. If in a given iteration,
+  the new state is unphysical (e.g. negative temperatures) or the residual increases in magnitude, then a smaller step will be iteratively taken
+  until the above conditions are met.
+
+``tau_min`` (float = 0.01)
+  tau is the relative reduction in step size: delta/delta_original, following backtracking line search,
+  where delta_original is the step in state :math:`x` that minimizes the linearized PDE system. If following some iterations,
+  ``tau`` :math:`<` ``tau_min``, , then the solver will exit in an unconverged state. The step will still be accepted if ``residual < coarse_tol``,
+  otherwise dt backtracking will take place if enabled.
+
+optimizer
+^^^^^^^^^
+
+Dictionary containing the following configuration parameters for the Optimizer stepper.
+
+``initial_guess_mode`` (str = 'linear_step')
+  Sets the approach taken for the initial guess into the Newton-Raphson solver for the first iteration.
+  Two options are available:
+
+* ``x_old``
+    Use the state at the beginning of the timestep.
+
+* ``linear_step``
+    Use the linear solver to obtain an initial guess to warm-start the nonlinear solver.
+
+``tol`` (float = 1e-12)
+  PDE loss magnitude tolerance for successfully exiting the iterative solver.
+
+``maxiter`` (int = 100)
+  Maximum number of allowed optimizer iterations.
+
+time_step_calculator
+--------------------
+
+``time_step_calculator_type`` (str = 'chi')
+  The name of the ``time_step_calculator``, a method which calculates ``dt`` at every timestep.
+  Two methods are currently available:
+
+* ``'fixed'``
+    ``dt`` is equal to ``fixed_dt`` defined in :ref:`numerics_dataclass`. If the Newton-Raphson solver is being used
+    and ``adaptive_dt==True``, then in practice some steps may have lower ``dt`` if the solver needed to backtrack.
+
+* ``'chi'``
+    adaptive dt method, where ``dt`` is a multiple of a base dt inspired by the explicit stability limit for parabolic PDEs:
+    :math:`dt_{base}=\frac{dx^2}{2\chi}`, where :math:`dx` is the grid resolution and :math:`\chi=max(\chi_i, \chi_e)`. ``dt=dtmult * dt_base``, where
+    ``dtmult`` is defined in :ref:`numerics_dataclass`, and can be significantly larger than unity for implicit solvers.
+
+Scaling the timestep to be :math:`\propto \chi` helps protect against traversing through fast transients, if there is a desire for them to be fully resolved.
+
+
+Additional Notes
+================
+
+Dynamic vs. Static Parameters
+-----------------------------
+
+Dynamic parameters: These can be changed without recompiling the simulation code. Examples include time-dependent parameters like heating power or external current.
+
+Static parameters: These define the fundamental structure of the simulation and require JAX recompilation if changed.
+Examples include the number of grid points or the choice of transport model. A partial list is provided below.
+
+* ``runtime_params['geometry']['nr']``
+* ``runtime_params['numerics']['ion_heat_eq']``
+* ``runtime_params['numerics']['el_heat_eq']``
+* ``runtime_params['numerics']['current_eq']``
+* ``runtime_params['numerics']['dens_eq']``
+* ``transport['transport_model']``
+* ``stepper['stepper_type']``
+* ``time_step_calculator['time_step_calculator_type']``
+
+In addition, changing any source from ``formula`` to ``model`` mode, or changing any source ``model``, will trigger recompilation. Toggling sources to ``zero``
+mode and back, will not trigger recompilation.

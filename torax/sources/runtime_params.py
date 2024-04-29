@@ -41,7 +41,7 @@ class Mode(enum.Enum):
   MODEL_BASED = 1
 
   # Source values come from a prescribed (possibly time-dependent) formula that
-  # is not dependant on the state of the system. These formulas may be dependent
+  # is not dependent on the state of the system. These formulas may be dependent
   # on the config and geometry of the system.
   FORMULA_BASED = 2
 

@@ -1,3 +1,5 @@
+.. _solver_details:
+
 TORAX solver details
 ####################
 

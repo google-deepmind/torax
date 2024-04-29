@@ -1,3 +1,5 @@
+.. _physics_models:
+
 Physics models
 ##############
 
