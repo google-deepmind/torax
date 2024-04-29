@@ -225,15 +225,15 @@ def build_sources_from_config(
   }
   ```
 
-  If the `mode` is set to `formula_based`, then the you can provide a `func` key
-  argument which may have the following values:
+  If the `mode` is set to `formula_based`, then the you can provide a
+  `formula_type` key which may have the following values:
 
    -  `default`: Uses the default impl (if the source has one) (default)
       -  The other config args are based on the source's RuntimeParams object
          outlined above.
    -  `exponential`: Exponential profile.
       - The other config args are from `sources.formula_config.Exponential`.
-   -  `gauss`: Gaussian profile.
+   -  `gaussian`: Gaussian profile.
       - The other config args are from `sources.formula_config.Gaussian`.
 
   E.g. for an example heat source:
@@ -241,7 +241,7 @@ def build_sources_from_config(
   ```
   {
       mode: 'formula',
-      func: 'gauss',
+      formula_type: 'gaussian',
       total: 120e6,  # total heating
       c1: 0.0,  # Source Gaussian central location (in normalized r)
       c2: 0.25,  # Gaussian width in normalized radial coordinates
@@ -301,8 +301,8 @@ def _build_single_source_from_config(
     mode = source_runtime_params_lib.Mode[source_config.pop('mode').upper()]
     runtime_params.mode = mode
   formula = None
-  if 'func' in source_config:
-    func = source_config.pop('func')
+  if 'formula_type' in source_config:
+    func = source_config.pop('formula_type').lower()
     if func == 'default':
       pass  # Nothing to do here.
     elif func == 'exponential':
@@ -312,7 +312,7 @@ def _build_single_source_from_config(
           **source_config,
       )
       formula = formulas.Exponential()
-    elif func == 'gauss':
+    elif func == 'gaussian':
       runtime_params.formula = config_args.recursive_replace(
           formula_config.Gaussian(),
           ignore_extra_kwargs=True,
@@ -320,7 +320,7 @@ def _build_single_source_from_config(
       )
       formula = formulas.Gaussian()
     else:
-      raise ValueError(f'Unknown func for source {source_name}: {func}')
+      raise ValueError(f'Unknown formula_type for source {source_name}: {func}')
   runtime_params = config_args.recursive_replace(
       runtime_params, ignore_extra_kwargs=True, **source_config
   )

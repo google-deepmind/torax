@@ -264,7 +264,7 @@ class BuildSimTest(parameterized.TestCase):
     source_models = build_sim.build_sources_from_config(
         {
             'gas_puff_source': {
-                'func': 'gauss',
+                'formula_type': 'gaussian',
                 'total': 1,
                 'c1': 2,
                 'c2': 3,
