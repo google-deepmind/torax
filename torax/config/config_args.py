@@ -127,7 +127,9 @@ def get_init_kwargs(
   return kwargs
 
 
-def recursive_replace(obj: ..., **changes) -> ...:
+def recursive_replace(
+    obj: ..., ignore_extra_kwargs: bool = False, **changes
+) -> ...:
   """Recursive version of `dataclasses.replace`.
 
   This allows updating of nested dataclasses.
@@ -136,6 +138,8 @@ def recursive_replace(obj: ..., **changes) -> ...:
 
   Args:
     obj: Any dataclass instance.
+    ignore_extra_kwargs: If True, any kwargs from `changes` are ignored if they
+      do not apply to `obj`.
     **changes: Dict of updates to apply to fields of `obj`.
 
   Returns:
@@ -151,11 +155,19 @@ def recursive_replace(obj: ..., **changes) -> ...:
     # obj is another dict-like object that does not have typed fields.
     keys_to_types = None
   for key, value in changes.items():
+    if (
+        ignore_extra_kwargs
+        and keys_to_types is not None
+        and key not in keys_to_types
+    ):
+      continue
     if isinstance(value, dict):
       if dataclasses.is_dataclass(getattr(obj, key)):
         # If obj[key] is another dataclass, recurse and populate that dataclass
         # with the input changes.
-        flattened_changes[key] = recursive_replace(getattr(obj, key), **value)
+        flattened_changes[key] = recursive_replace(
+            getattr(obj, key), ignore_extra_kwargs=ignore_extra_kwargs, **value
+        )
       elif keys_to_types is not None:
         # obj[key] is likely just a dict, and each key needs to be treated
         # separately.
@@ -168,7 +180,9 @@ def recursive_replace(obj: ..., **changes) -> ...:
           for inner_key, inner_value in value.items():
             if dataclasses.is_dataclass(value_type):
               inner_dict[inner_key] = recursive_replace(
-                  value_type(), **inner_value
+                  value_type(),
+                  ignore_extra_kwargs=ignore_extra_kwargs,
+                  **inner_value,
               )
             else:
               inner_dict[inner_key] = value_type(inner_value)

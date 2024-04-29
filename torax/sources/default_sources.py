@@ -28,7 +28,78 @@ from torax.sources import fusion_heat_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
 from torax.sources import qei_source
 from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import source
 from torax.sources import source_models as source_models_lib
+
+
+def get_default_runtime_params(
+    source_name: str,
+) -> runtime_params_lib.RuntimeParams:
+  """Returns default RuntimeParams for the given source."""
+  match source_name:
+    case 'j_bootstrap':
+      return bootstrap_current_source.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
+    case 'jext':
+      return external_current_source.RuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'nbi_particle_source':
+      return electron_density_sources.NBIParticleRuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'gas_puff_source':
+      return electron_density_sources.GasPuffRuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'pellet_source':
+      return electron_density_sources.PelletRuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'generic_ion_el_heat_source':
+      return ion_el_heat.RuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'fusion_heat_source':
+      return runtime_params_lib.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
+    case 'qei_source':
+      return qei_source.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
+    case 'ohmic_heat_source':
+      return runtime_params_lib.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
+    case _:
+      raise ValueError(f'Unknown source name: {source_name}')
+
+
+def get_source_type(source_name: str) -> type[source.Source]:
+  """Returns a constructor for the given source."""
+  match source_name:
+    case 'j_bootstrap':
+      return bootstrap_current_source.BootstrapCurrentSource
+    case 'jext':
+      return external_current_source.ExternalCurrentSource
+    case 'nbi_particle_source':
+      return electron_density_sources.NBIParticleSource
+    case 'gas_puff_source':
+      return electron_density_sources.GasPuffSource
+    case 'pellet_source':
+      return electron_density_sources.PelletSource
+    case 'generic_ion_el_heat_source':
+      return ion_el_heat.GenericIonElectronHeatSource
+    case 'fusion_heat_source':
+      return fusion_heat_source.FusionHeatSource
+    case 'qei_source':
+      return qei_source.QeiSource
+    case 'ohmic_heat_source':
+      return source_models_lib.OhmicHeatSource
+    case _:
+      raise ValueError(f'Unknown source name: {source_name}')
 
 
 def get_default_sources() -> source_models_lib.SourceModels:
@@ -56,63 +127,37 @@ def get_default_sources() -> source_models_lib.SourceModels:
   More examples are located in the test config files under
   `torax/tests/test_data`.
   """
+  names = [
+      # Current sources (for psi equation)
+      'j_bootstrap',
+      'jext',
+      # Electron density sources/sink (for the ne equation).
+      'nbi_particle_source',
+      'gas_puff_source',
+      'pellet_source',
+      # Ion and electron heat sources (for the temp-ion and temp-el eqs).
+      'generic_ion_el_heat_source',
+      'fusion_heat_source',
+      'qei_source',
+  ]
+  # pylint: disable=missing-kwoa
+  # pytype: disable=missing-parameter
   source_models = source_models_lib.SourceModels(
       sources={
-          # Current sources (for psi equation)
-          'j_bootstrap': bootstrap_current_source.BootstrapCurrentSource(
-              runtime_params=bootstrap_current_source.RuntimeParams(
-                  mode=runtime_params_lib.Mode.MODEL_BASED,
-              ),
-          ),
-          'jext': external_current_source.ExternalCurrentSource(
-              runtime_params=external_current_source.RuntimeParams(
-                  mode=runtime_params_lib.Mode.FORMULA_BASED,
-              ),
-          ),
-          # Electron density sources/sink (for the ne equation).
-          'nbi_particle_source': electron_density_sources.NBIParticleSource(
-              runtime_params=electron_density_sources.NBIParticleRuntimeParams(
-                  mode=runtime_params_lib.Mode.FORMULA_BASED,
-              ),
-          ),
-          'gas_puff_source': electron_density_sources.GasPuffSource(
-              runtime_params=electron_density_sources.GasPuffRuntimeParams(
-                  mode=runtime_params_lib.Mode.FORMULA_BASED,
-              ),
-          ),
-          'pellet_source': electron_density_sources.PelletSource(
-              runtime_params=electron_density_sources.PelletRuntimeParams(
-                  mode=runtime_params_lib.Mode.FORMULA_BASED,
-              ),
-          ),
-          # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-          'generic_ion_el_heat_source': (
-              ion_el_heat.GenericIonElectronHeatSource(
-                  runtime_params=ion_el_heat.RuntimeParams(
-                      mode=runtime_params_lib.Mode.FORMULA_BASED,
-                  ),
-              )
-          ),
-          'fusion_heat_source': fusion_heat_source.FusionHeatSource(
-              runtime_params=runtime_params_lib.RuntimeParams(
-                  mode=runtime_params_lib.Mode.MODEL_BASED,
-              ),
-          ),
-          'qei_source': qei_source.QeiSource(
-              runtime_params=qei_source.RuntimeParams(
-                  mode=runtime_params_lib.Mode.MODEL_BASED,
-              ),
-          ),
+          name: get_source_type(name)(
+              runtime_params=get_default_runtime_params(name)
+          )
+          for name in names
       }
   )
+  # pylint: enable=missing-kwoa
+  # pytype: enable=missing-parameter
   # Add OhmicHeatSource after because it requires a pointer to the SourceModels.
   source_models.add_source(
       source_name='ohmic_heat_source',
       source=source_models_lib.OhmicHeatSource(
           source_models=source_models,
-          runtime_params=runtime_params_lib.RuntimeParams(
-              mode=runtime_params_lib.Mode.MODEL_BASED,
-          ),
+          runtime_params=get_default_runtime_params('ohmic_heat_source'),
       ),
   )
   return source_models

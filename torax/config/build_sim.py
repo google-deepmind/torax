@@ -21,6 +21,11 @@ from torax import geometry
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
+from torax.sources import default_sources
+from torax.sources import formula_config
+from torax.sources import formulas
+from torax.sources import runtime_params as source_runtime_params_lib
+from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import time_step_calculator as time_step_calculator_lib
@@ -173,7 +178,7 @@ def build_geometry_from_config(
 
 
 def build_sources_from_config(
-    config: dict[str, Any],
+    source_configs: dict[str, Any],
 ) -> source_models_lib.SourceModels:
   """Builds a `SourceModels` from the input config.
 
@@ -196,8 +201,8 @@ def build_sources_from_config(
    -  `qei_source`: `source.qei_source.RuntimeParams`
 
   If the input config includes a key that does not match one of the keys listed
-  above, an error is raised. The sources above are turned off unless included in
-  the input config.
+  above, an error is raised. Sources are turned off unless included in the input
+  config.
 
   For the source `Mode` enum, the string name can be provided as input:
 
@@ -238,7 +243,7 @@ def build_sources_from_config(
   method and build your `SourceModel` object directly.
 
   Args:
-    config: Input config dict defining all sources, with a structure as
+    source_configs: Input config dict defining all sources, with a structure as
       described above.
 
   Returns:
@@ -248,8 +253,76 @@ def build_sources_from_config(
     ValueError if an input key doesn't match one of the source names defined
       above.
   """
-  del config
-  raise NotImplementedError()
+  sources = {}
+  ohmic_name = 'ohmic_heat_source'
+  for source_name, source_config in source_configs.items():
+    if source_name == ohmic_name:
+      # The ohmic heat source requires a pointer to the fully constructed
+      # SourceModels object, so we add that source after the rest are built.
+      continue
+    sources[source_name] = _build_single_source_from_config(
+        source_name, source_config
+    )
+  source_models = source_models_lib.SourceModels(sources=sources)
+  # Add the OhmicHeatSource if requested.
+  if ohmic_name in source_configs:
+    ohmic = _build_single_source_from_config(
+        source_name=ohmic_name,
+        source_config=source_configs[ohmic_name],
+        extra_init_kwargs={'source_models': source_models},
+    )
+    source_models.add_source(source_name=ohmic_name, source=ohmic)
+  return source_models
+
+
+def _build_single_source_from_config(
+    source_name: str,
+    source_config: dict[str, Any],
+    extra_init_kwargs: dict[str, Any] | None = None,
+) -> source_lib.Source:
+  """Builds a `Source` from the input config."""
+  runtime_params = default_sources.get_default_runtime_params(
+      source_name,
+  )
+  # Update the defaults with the config provided.
+  source_config = copy.copy(source_config)
+  if 'mode' in source_config:
+    mode = source_runtime_params_lib.Mode[source_config.pop('mode').upper()]
+    runtime_params.mode = mode
+  formula = None
+  if 'func' in source_config:
+    func = source_config.pop('func')
+    if func == 'default':
+      pass  # Nothing to do here.
+    elif func == 'exponential':
+      runtime_params.formula = config_args.recursive_replace(
+          formula_config.Exponential(),
+          ignore_extra_kwargs=True,
+          **source_config,
+      )
+      formula = formulas.Exponential()
+    elif func == 'gauss':
+      runtime_params.formula = config_args.recursive_replace(
+          formula_config.Gaussian(),
+          ignore_extra_kwargs=True,
+          **source_config,
+      )
+      formula = formulas.Gaussian()
+    else:
+      raise ValueError(f'Unknown func for source {source_name}: {func}')
+  runtime_params = config_args.recursive_replace(
+      runtime_params, ignore_extra_kwargs=True, **source_config
+  )
+  kwargs = {'runtime_params': runtime_params}
+  if formula is not None:
+    kwargs['formula'] = formula
+  if extra_init_kwargs is not None:
+    kwargs.update(extra_init_kwargs)
+  # pylint: disable=missing-kwoa
+  # pytype: disable=missing-parameter
+  return default_sources.get_source_type(source_name)(**kwargs)
+  # pylint: enable=missing-kwoa
+  # pytype: enable=missing-parameter
 
 
 def build_transport_model_from_config(

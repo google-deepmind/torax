@@ -20,6 +20,9 @@ import numpy as np
 from torax import geometry
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
+from torax.sources import formula_config
+from torax.sources import formulas
+from torax.sources import runtime_params as source_runtime_params_lib
 
 
 class BuildSimTest(parameterized.TestCase):
@@ -114,10 +117,91 @@ class BuildSimTest(parameterized.TestCase):
     self.assertNotEqual(runtime_params.profile_conditions.Ip, original_Ip)
     # pylint: enable=invalid-name
 
-  def test_build_sources_from_config(self):
-    # TODO(b/323504363): Update once implemented.
-    with self.assertRaises(NotImplementedError):
-      build_sim.build_sources_from_config({})
+  def test_empty_source_config_only_has_defaults_turned_off(self):
+    """Tests that an empty source config has all sources turned off."""
+    source_models = build_sim.build_sources_from_config({})
+    self.assertEqual(
+        source_models.j_bootstrap.runtime_params.mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+    self.assertEqual(
+        source_models.jext.runtime_params.mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+    self.assertEqual(
+        source_models.qei_source.runtime_params.mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+    self.assertLen(source_models.sources, 3)
+    self.assertEmpty(source_models.standard_sources)
+
+  def test_adding_standard_source_via_config(self):
+    """Tests that a source can be added with overriding defaults."""
+    source_models = build_sim.build_sources_from_config({
+        'gas_puff_source': {
+            'puff_decay_length': 1.23,
+        },
+        'ohmic_heat_source': {
+            'is_explicit': True,
+            'mode': 'zero',  # turn it off.
+        },
+    })
+    # The non-standard ones are still off.
+    self.assertEqual(
+        source_models.j_bootstrap.runtime_params.mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+    self.assertEqual(
+        source_models.jext.runtime_params.mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+    self.assertEqual(
+        source_models.qei_source.runtime_params.mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+    # But these new sources have been added.
+    self.assertLen(source_models.sources, 5)
+    self.assertLen(source_models.standard_sources, 2)
+    # With the overriding params.
+    # pytype: disable=attribute-error
+    self.assertEqual(
+        source_models.sources[
+            'gas_puff_source'
+        ].runtime_params.puff_decay_length,
+        1.23,
+    )
+    # pytype: enable=attribute-error
+    self.assertEqual(
+        source_models.sources['gas_puff_source'].runtime_params.mode,
+        source_runtime_params_lib.Mode.FORMULA_BASED,  # On by default.
+    )
+    self.assertEqual(
+        source_models.sources['ohmic_heat_source'].runtime_params.mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+
+  def test_updating_formula_via_source_config(self):
+    """Tests that we can set the formula type and params via the config."""
+    source_models = build_sim.build_sources_from_config(
+        {
+            'gas_puff_source': {
+                'func': 'gauss',
+                'total': 1,
+                'c1': 2,
+                'c2': 3,
+            }
+        }
+    )
+    gas_source = source_models.sources['gas_puff_source']
+    self.assertIsInstance(gas_source.formula, formulas.Gaussian)
+    self.assertIsInstance(
+        gas_source.runtime_params.formula, formula_config.Gaussian
+    )
+    # pytype: disable=attribute-error
+    self.assertEqual(gas_source.runtime_params.formula.total, 1)
+    self.assertEqual(gas_source.runtime_params.formula.c1, 2)
+    self.assertEqual(gas_source.runtime_params.formula.c2, 3)
+    # pytype: enable=attribute-error
 
   def test_build_transport_model_from_config(self):
     # TODO(b/323504363): Update once implemented.
