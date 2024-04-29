@@ -16,6 +16,8 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
+from torax import geometry
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
 
@@ -29,7 +31,7 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_build_sim(self):
     # TODO(b/323504363): Update once implemented.
-    with self.assertRaises(NotImplementedError):
+    with self.assertRaises(ValueError):
       build_sim.build_sim_from_config({
           'runtime_params': {},
           'geometry': {},
@@ -75,10 +77,42 @@ class BuildSimTest(parameterized.TestCase):
     self.assertEqual(runtime_params.numerics.resistivity_mult[2], 0.9)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
 
-  def test_build_geometry_from_config(self):
-    # TODO(b/323504363): Update once implemented.
-    with self.assertRaises(NotImplementedError):
+  def test_missing_geometry_type_raises_error(self):
+    with self.assertRaises(ValueError):
       build_sim.build_geometry_from_config({})
+
+  def test_build_circular_geometry(self):
+    geo = build_sim.build_geometry_from_config({
+        'geometry_type': 'circular',
+        'nr': 5,  # override a default.
+    })
+    self.assertIsInstance(geo, geometry.CircularGeometry)
+    np.testing.assert_array_equal(geo.mesh.nx, 5)
+    np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
+
+  def test_build_chease_geometry(self):
+    geo = build_sim.build_geometry_from_config(
+        {
+            'geometry_type': 'chease',
+            'nr': 5,  # override a default.
+        },
+        runtime_params=runtime_params_lib.GeneralRuntimeParams(),
+    )
+    self.assertIsInstance(geo, geometry.CHEASEGeometry)
+    np.testing.assert_array_equal(geo.mesh.nx, 5)
+
+  # pylint: disable=invalid-name
+  def test_chease_geometry_updates_Ip(self):
+    runtime_params = runtime_params_lib.GeneralRuntimeParams()
+    original_Ip = runtime_params.profile_conditions.Ip
+    geo = build_sim.build_geometry_from_config({
+        'geometry_type': 'chease',
+        'runtime_params': runtime_params,
+        'Ip_from_parameters': False,  # this will force update runtime_params.Ip
+    })
+    self.assertIsInstance(geo, geometry.CHEASEGeometry)
+    self.assertNotEqual(runtime_params.profile_conditions.Ip, original_Ip)
+    # pylint: enable=invalid-name
 
   def test_build_sources_from_config(self):
     # TODO(b/323504363): Update once implemented.

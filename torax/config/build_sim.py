@@ -14,6 +14,7 @@
 
 """Functions to build sim.Sim objects, which are used to run TORAX."""
 
+import copy
 from typing import Any
 
 from torax import geometry
@@ -92,9 +93,10 @@ def build_sim_from_config(
     raise ValueError(
         f'The following required keys are not in the input dict: {missing_keys}'
     )
+  runtime_params = build_runtime_params_from_config(config['runtime_params'])
   return sim_lib.build_sim_object(
-      runtime_params=build_runtime_params_from_config(config['runtime_params']),
-      geo=build_geometry_from_config(config['geometry']),
+      runtime_params=runtime_params,
+      geo=build_geometry_from_config(config['geometry'], runtime_params),
       source_models=build_sources_from_config(config['sources']),
       transport_model=build_transport_model_from_config(config['transport']),
       stepper_builder=build_stepper_from_config(config['stepper']),
@@ -127,7 +129,10 @@ def build_runtime_params_from_config(
   )
 
 
-def build_geometry_from_config(config: dict[str, Any]) -> geometry.Geometry:
+def build_geometry_from_config(
+    geometry_config: dict[str, Any],
+    runtime_params: runtime_params_lib.GeneralRuntimeParams | None = None,
+) -> geometry.Geometry:
   """Builds a `Geometry` from the input config.
 
   The input config has one required key: `geometry_type`. Its value must be one
@@ -144,14 +149,27 @@ def build_geometry_from_config(config: dict[str, Any]) -> geometry.Geometry:
    -  `geometry.build_chease_geometry()`
 
   Args:
-    config: Python dictionary containing keys/values that map onto a `geometry`
-      module function that builds a `Geometry` object.
+    geometry_config: Python dictionary containing keys/values that map onto a
+      `geometry` module function that builds a `Geometry` object.
+    runtime_params: `GeneralRuntimeParams` that will be set as a kwarg for
+      `runtime_params` for chease geometry.
 
   Returns:
     A `Geometry` based on the input config.
   """
-  del config
-  raise NotImplementedError()
+  if 'geometry_type' not in geometry_config:
+    raise ValueError('geometry_type must be set in the input config.')
+  # Do a shallow copy to keep references to the original objects while not
+  # modifying the original config dict with the pop-statement below.
+  kwargs = copy.copy(geometry_config)
+  geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
+  if geometry_type == 'circular':
+    return geometry.build_circular_geometry(**kwargs)
+  elif geometry_type == 'chease':
+    if runtime_params is not None:
+      kwargs['runtime_params'] = runtime_params
+    return geometry.build_chease_geometry(**kwargs)
+  raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 
 def build_sources_from_config(
