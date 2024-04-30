@@ -261,11 +261,11 @@ def get_default_plot_config(
   """
   # Keep track of the transforms we want to apply to the data before plotting.
   data_transforms = {
-      'source_ion': lambda arr: arr / 1e3,
-      'Pfus_i': lambda arr: arr / 1e3,
+      'Qext_i': lambda arr: arr / 1e3,
+      'Qext_e': lambda arr: arr / 1e3,
+      'Qfus_i': lambda arr: arr / 1e3,
+      'Qfus_e': lambda arr: arr / 1e3,
       'Qei': lambda arr: arr / 1e3,
-      'source_el': lambda arr: arr / 1e3,
-      'Pfus_e': lambda arr: arr / 1e3,
       'jtot_face': lambda arr: arr / 1e6,
       'jext_face': lambda arr: arr / 1e6,
       'j_bootstrap_face': lambda arr: arr / 1e6,
@@ -321,14 +321,14 @@ def get_default_plot_config(
           y_label=r'Density $[10^{20}~m^{-3}]$',
       ),
       get_plot(
-          keys=('source_ion', 'Pfus_i', 'Qei'),
+          keys=('Qext_i', 'Qfus_i', 'Qei'),
           x_axis=geo.r_norm,
           x_label='Normalized radius',
           y_label=r'Ion heat source $[kW~m^{-3}]$',
           labels=('External term', 'Fusion term', 'Ion-electron heat exchange'),
       ),
       get_plot(
-          keys=('source_el', 'Pfus_e', 'Qei'),
+          keys=('Qext_e', 'Qfus_e', 'Qei'),
           x_axis=geo.r_norm,
           x_label='Normalized radius',
           y_label=r'Electron heat source $[kW~m^{-3}]$',

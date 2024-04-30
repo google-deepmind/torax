@@ -93,6 +93,39 @@ def simulation_output_to_xr(
     geo: torax.Geometry,
 ) -> xr.Dataset:
   """Build an xr.Dataset of the simulation output."""
+
+  # TODO(b/338033916). Extend outputs with:
+  # Post-processed integrals, more geo outputs.
+  # Cleanup structure by excluding QeiInfo from core_sources altogether.
+  # Add attribute to dataset variables with explanation of contents + units.
+
+  #  Exclude uninteresting variables from output DataSet
+  exclude_set = {
+      'explicit_e',
+      'explicit_i',
+      'implicit_ee',
+      'implicit_ii',
+      'implicit_ei',
+      'implicit_ie',
+      'qei_coef',
+  }
+
+  name_map = {
+      'fusion_heat_source_el': 'Qfus_e',
+      'fusion_heat_source_ion': 'Qfus_i',
+      'generic_ion_el_heat_source_el': 'Qext_e',
+      'generic_ion_el_heat_source_ion': 'Qext_i',
+      'qei_source': 'Qei',
+      'gas_puff_source': 's_puff',
+      'nbi_particle_source': 's_nbi',
+      'pellet_source': 's_pellet',
+  }
+
+  def name_mapper(name):
+    if name in name_map:
+      return name_map[name]
+    return name
+
   core_profile_history, core_transport_history, core_sources_history = (
       state_lib.build_history_from_states(torax_outputs)
   )
@@ -132,6 +165,7 @@ def simulation_output_to_xr(
       name = path[-1].key
     else:
       name = path[-1].name if path[-1].name != 'value' else path[-2].name
+    name = name_mapper(name)
     if is_face_var(leaf):
       return name, xr.DataArray(leaf, dims=['time', 'rho_face'], name=name)
     elif is_cell_var(leaf):
@@ -139,10 +173,22 @@ def simulation_output_to_xr(
     else:
       return name, None
 
-  xr_dict = {}
+  # Initialize dict with desired geometry variables
+  xr_dict = {
+      'vpr': xr.DataArray(geo.vpr, dims=['rho_cell'], name='vpr'),
+      'spr': xr.DataArray(geo.spr_cell, dims=['rho_cell'], name='spr'),
+      'vpr_face': xr.DataArray(
+          geo.vpr_face, dims=['rho_face'], name='vpr_face'
+      ),
+      'spr_face': xr.DataArray(
+          geo.spr_face, dims=['rho_face'], name='spr_face'
+      ),
+  }
+
+  # Extend with desired core_profiles, core_sources, core_transport variables
   for path, leaf in leaves_with_path:
     name, da = translate_leaf_with_path(path, leaf)
-    if da is not None:
+    if da is not None and name not in exclude_set:
       xr_dict[name] = da
   ds = xr.Dataset(
       xr_dict,
@@ -158,7 +204,7 @@ def simulation_output_to_xr(
 
 
 def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> None:
-  """Writes the state history and some geometry information to an HDF5 file."""
+  """Writes the state history and some geometry information to a NetCDF file."""
   if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
   os.makedirs(output_dir)
