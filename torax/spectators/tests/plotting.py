@@ -20,6 +20,7 @@ import torax  # We want this import to make sure jax gets set to float64
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
+from torax.sources import source_models as source_models_lib
 from torax.spectators import plotting
 from torax.spectators import spectator
 from torax.stepper import linear_theta_method
@@ -36,23 +37,35 @@ class PlottingTest(parameterized.TestCase):
     plot_config = plotting.get_default_plot_config(geo)
 
     observer = spectator.InMemoryJaxArraySpectator()
-    _run_sim(runtime_params, geo, observer)
+    _run_sim_with_sources(runtime_params, geo, observer)
 
     # Make sure all the keys in plot_config are collected by the observer.
     for plot in plot_config:
       for key in plot.keys:
         self.assertIn(key.key, observer.arrays)
 
-  def test_plot_observer_runs_with_sim(self):
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
+  def test_plot_observer_runs_with_sim_with_sources(self):
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        numerics=general_runtime_params.Numerics(t_final=0.2),
+    )
     geo = geometry.build_circular_geometry()
     observer = plotting.PlotSpectator(
         plots=plotting.get_default_plot_config(geo),
     )
-    _run_sim(runtime_params, geo, observer)
+    _run_sim_with_sources(runtime_params, geo, observer)
+
+  def test_plot_observer_runs_with_sim_without_sources(self):
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        numerics=general_runtime_params.Numerics(t_final=0.2),
+    )
+    geo = geometry.build_circular_geometry()
+    observer = plotting.PlotSpectator(
+        plots=plotting.get_default_plot_config(geo),
+    )
+    _run_sim_without_sources(runtime_params, geo, observer)
 
 
-def _run_sim(
+def _run_sim_with_sources(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     geo: geometry.Geometry,
     observer: spectator.Spectator,
@@ -63,6 +76,23 @@ def _run_sim(
       stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
       transport_model=constant_transport_model.ConstantTransportModel(),
       source_models=default_sources.get_default_sources(),
+      time_step_calculator=chi_time_step_calculator.ChiTimeStepCalculator(),
+  ).run(
+      spectator=observer,
+  )
+
+
+def _run_sim_without_sources(
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
+    geo: geometry.Geometry,
+    observer: spectator.Spectator,
+):
+  torax.build_sim_object(
+      runtime_params=runtime_params,
+      geo=geo,
+      stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
+      transport_model=constant_transport_model.ConstantTransportModel(),
+      source_models=source_models_lib.SourceModels(),
       time_step_calculator=chi_time_step_calculator.ChiTimeStepCalculator(),
   ).run(
       spectator=observer,

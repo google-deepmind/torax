@@ -40,6 +40,12 @@ class SourceProfiles:
   j_bootstrap: BootstrapCurrentProfile
   qei: QeiInfo
 
+  def get_profile(self, name: str) -> jnp.ndarray:
+    """Returns the profile, returning zeroes if profile name doesn't exist."""
+    if name in self.profiles:
+      return self.profiles[name]
+    return jnp.zeros_like(self.j_bootstrap.j_bootstrap)
+
 
 @chex.dataclass(frozen=True)
 class BootstrapCurrentProfile:

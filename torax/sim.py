@@ -1024,25 +1024,30 @@ def _update_spectator(
   )
   spectator.observe(
       key='source_ion',
-      data=output_state.core_sources.profiles['generic_ion_el_heat_source_ion'],
+      data=output_state.core_sources.get_profile(
+          'generic_ion_el_heat_source_ion'
+      ),
   )
   spectator.observe(
       key='source_el',
-      data=output_state.core_sources.profiles['generic_ion_el_heat_source_el'],
+      data=output_state.core_sources.get_profile(
+          'generic_ion_el_heat_source_el'
+      ),
   )
   spectator.observe(
       key='Pfus_i',
-      data=output_state.core_sources.profiles['fusion_heat_source_ion'],
+      data=output_state.core_sources.get_profile('fusion_heat_source_ion'),
   )
   spectator.observe(
       key='Pfus_e',
-      data=output_state.core_sources.profiles['fusion_heat_source_el'],
+      data=output_state.core_sources.get_profile('fusion_heat_source_el'),
   )
   spectator.observe(
-      key='Pohm', data=output_state.core_sources.profiles['ohmic_heat_source']
+      key='Pohm',
+      data=output_state.core_sources.get_profile('ohmic_heat_source'),
   )
   spectator.observe(
-      key='Qei', data=output_state.core_sources.profiles['qei_source']
+      key='Qei', data=output_state.core_sources.get_profile('qei_source')
   )
 
 
