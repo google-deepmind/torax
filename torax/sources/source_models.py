@@ -693,18 +693,32 @@ class SourceModels:
     self._temp_ion_sources: dict[str, source_lib.Source] = {}
     self._temp_el_sources: dict[str, source_lib.Source] = {}
 
+    # First set the "special" sources.
     for source_name, source in sources.items():
       if isinstance(source, bootstrap_current_source.BootstrapCurrentSource):
+        if self._j_bootstrap is not None:
+          raise ValueError(
+              'Can only provide a single BootstrapCurrentSource. Provided two:'
+              f' {self._j_bootstrap_name} and {source_name}.'
+          )
         self._j_bootstrap_name = source_name
         self._j_bootstrap = source
       elif isinstance(source, external_current_source.ExternalCurrentSource):
+        if self._jext is not None:
+          raise ValueError(
+              'Can only provide a single ExternalCurrentSource. Provided two:'
+              f' {self._jext_name} and {source_name}.'
+          )
         self._jext_name = source_name
         self._jext = source
       elif isinstance(source, qei_source_lib.QeiSource):
+        if self._qei_source is not None:
+          raise ValueError(
+              'Can only provide a single QeiSource. Provided two:'
+              f' {self._qei_source_name} and {source_name}.'
+          )
         self._qei_source_name = source_name
         self._qei_source = source
-      else:
-        self.add_source(source_name, source)
 
     # Make sure defaults are set.
     if self._j_bootstrap is None:
@@ -713,6 +727,17 @@ class SourceModels:
       self._jext = external_current_source.ExternalCurrentSource()
     if self._qei_source is None:
       self._qei_source = qei_source_lib.QeiSource()
+
+    # Then add all the "standard" sources.
+    for source_name, source in sources.items():
+      if (
+          isinstance(source, bootstrap_current_source.BootstrapCurrentSource)
+          or isinstance(source, external_current_source.ExternalCurrentSource)
+          or isinstance(source, qei_source_lib.QeiSource)
+      ):
+        continue
+      else:
+        self.add_source(source_name, source)
 
   def add_source(
       self,
@@ -743,16 +768,11 @@ class SourceModels:
           'Cannot add a source with the following types: '
           'bootstrap_current_source.BootstrapCurrentSource,'
           ' external_current_source.ExternalCurrentSource, or'
-          ' qei_source_lib.QeiSource.'
+          ' qei_source_lib.QeiSource. These must be added at init time.'
       )
-    reserved_names = [
-        self._j_bootstrap_name,
-        self._jext_name,
-        self._qei_source_name,
-    ]
-    if source_name in reserved_names:
+    if source_name in self.sources.keys():
       raise ValueError(
-          f'Cannot add a source with one of these names: {reserved_names}.'
+          f'Trying to add another source with the same name: {source_name}.'
       )
     self._standard_sources[source_name] = source
     if source_lib.AffectedCoreProfile.PSI in source.affected_core_profiles:
