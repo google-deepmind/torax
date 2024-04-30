@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torax"
+description = "Differentiable 1D tokamak plasma transport simulator in JAX."
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [{name = "TORAX authors", email="torax-team@google.com"}]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Intended Audience :: Science/Research",
+]
+
+dependencies = [
+    "absl-py>=2.0.0",
+    "typing_extensions>=4.2.0",
+    "immutabledict>=1.0.0",
+    "jax>=0.4.20",
+    "jaxlib>=0.4.20",
+    "jaxopt>=0.8.2",
+    "flax>=0.7.5",
+    "matplotlib>=3.3.0",
+    "numpy>=1.24.1",
+    "setuptools;python_version>='3.10'",
+    "chex>=0.1.85",
+    "fancyflags>=1.2",
+    "equinox @ git+https://github.com/patrick-kidger/equinox@1e601672d38d2c4d483535070a3572d8e8508a20",
+    "PyYAML>=6.0.1",
+    "xarray>=2023.12.0",
+]
+
+[project.urls]
+homepage = "https://github.com/google-deepmind/torax"
+repository = "https://github.com/google-deepmind/torax"
+documentation = "https://github.com/google-deepmind/torax/blob/main/README.md"
+
+[project.optional-dependencies]
+# Installed through `pip install -e .[dev]`
+dev = [
+    "pytest",
+    "pytest-xdist",
+    "pytest-shard",
+    "pylint>=2.6.0",
+    "pyink",
+]
+
+[tool.pyink]
+# Formatting configuration to follow Google style-guide
+line-length = 80
+unstable = true
+pyink-indentation = 2
+pyink-use-majority-quotes = true
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["torax*"]

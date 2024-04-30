@@ -128,7 +128,14 @@ git clone git@github.com:google-deepmind/torax.git
 Enter the TORAX directory and pip install the dependencies.
 
 ```shell
-cd torax; pip install .
+cd torax; pip install -e .
+```
+
+If you want to install with the dev dependencies (useful for running `pytest`
+and installing `pink` for lint checking), then run with the `[dev]`:
+
+```shell
+cd torax; pip install -e .[dev]
 ```
 
 Optional: Install additional GPU support for JAX if your machine has a GPU:
@@ -136,7 +143,9 @@ https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
 
 ## Running an example
 
-The following command will run TORAX using the configuration file `tests/test_data/default_config.py`. TORAX configuration files overwrite the defaults in `config.py`. Comments in `config.py` provide a brief explanation of all configuration variables. More detailed documentation is on the roadmap.
+The following command will run TORAX using the configuration file
+`tests/test_data/default_config.py`. More detailed documentation is on the
+roadmap.
 
 ```shell
 python3 run_simulation_main.py \

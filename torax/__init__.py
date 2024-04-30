@@ -41,15 +41,12 @@ from torax.stepper.stepper import Stepper
 from torax.time_step_calculator.chi_time_step_calculator import ChiTimeStepCalculator
 from torax.time_step_calculator.fixed_time_step_calculator import FixedTimeStepCalculator
 from torax.time_step_calculator.time_step_calculator import TimeStepCalculator
-# Unsure why but `from torax.config import Config` doesn't work in some
-# circumstances.
+# Unsure why but `from torax.config import GeneralRuntimeParams` doesn't work in
+# some circumstances.
 GeneralRuntimeParams = general_runtime_params.GeneralRuntimeParams
 
 
 # pylint: enable=g-importing-member
-
-# TORAX version. Follows semantic versioning: https://semver.org/
-__version__ = '0.1.0'
 
 # Default TORAX JAX precision is f64
 precision = os.getenv('JAX_PRECISION', 'f64')
