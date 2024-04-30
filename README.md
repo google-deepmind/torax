@@ -144,12 +144,19 @@ https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
 ## Running an example
 
 The following command will run TORAX using the configuration file
-`tests/test_data/default_config.py`. More detailed documentation is on the
-roadmap.
+`examples/iterhybrid_predictor_corrector.py`. More detailed documentation is on
+the roadmap.
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.tests.test_data.default_config' --log_progress
+   --python_config='torax.examples.iterhybrid_predictor_corrector' --log_progress
+```
+
+To run a more involved, ITER-inspired simulation, run:
+
+```shell
+python3 run_simulation_main.py \
+   --python_config='torax.examples.iterhybrid_rampup' --log_progress
 ```
 
 Additional configuration is provided through flags which append the above run command, and environment variables:
@@ -186,7 +193,7 @@ Output simulation time, dt, and number of stepper iterations (dt backtracking wi
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.tests.test_data.default_config' \
+   --python_config='torax.examples.iterhybrid_predictor_corrector' \
    --log_progress
 ```
 
@@ -194,7 +201,7 @@ Live plotting of simulation state and derived quantities.
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.tests.test_data.default_config' \
+   --python_config='torax.examples.iterhybrid_predictor_corrector' \
    --plot_progress
 ```
 
@@ -202,7 +209,7 @@ Combination of the above.
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.tests.test_data.default_config' \
+   --python_config='torax.examples.default_config' \
    --log_progress --plot_progress
 ```
 
