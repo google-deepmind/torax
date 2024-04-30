@@ -515,31 +515,8 @@ def calc_psidot(
   return psidot
 
 
-#  OhmicHeatSource is a special case and defined here to avoid circular
-#  dependencies, since it depends on the psi sources
-def _ohmic_heat_model(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: SourceModels,
-) -> jnp.ndarray:
-  """Returns the Ohmic source for electron heat equation."""
-  jtot, _ = physics.calc_jtot_from_psi(
-      geo,
-      core_profiles.psi,
-  )
-
-  psidot = calc_psidot(
-      dynamic_runtime_params_slice,
-      geo,
-      core_profiles,
-      source_models,
-  )
-
-  pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
-  return pohm
-
-
+# OhmicHeatSource is a special case and defined here to avoid circular
+# dependencies, since it depends on the psi sources
 @dataclasses.dataclass(kw_only=True)
 class OhmicHeatSource(source_lib.SingleProfileSource):
   """Ohmic heat source for electron heat equation.
@@ -579,28 +556,48 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
           default=(source_lib.AffectedCoreProfile.TEMP_EL,),
       )
   )
+
+  # The model function is fixed to self._model_func because that is the only
+  # supported implementation of this source.
+  # However, since this is a param in the parent dataclass, we need to (a)
+  # remove the parameter from the init args and (b) set it to the correct
+  # function in __post_init__().
+  #
+  # We cannot simply define a function `def model_func()` and use that because
+  # that definition would be overridden in this classes dataclass constructor.
+  # Also, the `__post_init__()` is required because it allows access to `self`,
+  # which is required for this model function implementation.
   model_func: source_lib.SourceProfileFunction | None = dataclasses.field(
       init=False,
-      default_factory=lambda: None,  # ignored.
+      default_factory=lambda: None,
   )
 
   def __post_init__(self):
-    # Ignore the model provided above and set it to the function here.
-    def _model_func(
-        dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-        dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-        geo: geometry.Geometry,
-        core_profiles: state.CoreProfiles,
-    ) -> jnp.ndarray:
-      del dynamic_source_runtime_params
-      return _ohmic_heat_model(
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          geo=geo,
-          core_profiles=core_profiles,
-          source_models=self.source_models,
-      )
+    self.model_func = self._model_func
 
-    self.model_func = _model_func
+  def _model_func(
+      self,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+  ) -> jnp.ndarray:
+    """Returns the Ohmic source for electron heat equation."""
+    del dynamic_source_runtime_params
+    jtot, _ = physics.calc_jtot_from_psi(
+        geo,
+        core_profiles.psi,
+    )
+
+    psidot = calc_psidot(
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        self.source_models,
+    )
+
+    pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
+    return pohm
 
 
 class SourceModels:
