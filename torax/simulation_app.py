@@ -61,7 +61,6 @@ from torax.spectators import plotting
 from torax.stepper import runtime_params as stepper_runtime_params_lib
 from torax.transport_model import runtime_params as transport_runtime_params_lib
 import xarray as xr
-
 import shutil
 
 
@@ -115,6 +114,7 @@ def simulation_output_to_xr(
       'fusion_heat_source_ion': 'Qfus_i',
       'generic_ion_el_heat_source_el': 'Qext_e',
       'generic_ion_el_heat_source_ion': 'Qext_i',
+      'ohmic_heat_source': 'Qohm',
       'qei_source': 'Qei',
       'gas_puff_source': 's_puff',
       'nbi_particle_source': 's_nbi',
@@ -158,6 +158,8 @@ def simulation_output_to_xr(
   )
   is_cell_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.r))
 
+  is_scalar = lambda x: x.ndim == 1 and x.shape == (len(time),)
+
   def translate_leaf_with_path(path, leaf):
     # Assume name is the last part of the path, unless the name is "value"
     # in which case we use the second to last part of the path.
@@ -170,10 +172,12 @@ def simulation_output_to_xr(
       return name, xr.DataArray(leaf, dims=['time', 'rho_face'], name=name)
     elif is_cell_var(leaf):
       return name, xr.DataArray(leaf, dims=['time', 'rho_cell'], name=name)
+    elif is_scalar(leaf):
+      return name, xr.DataArray(leaf, dims=['time'], name=name)
     else:
       return name, None
 
-  # Initialize dict with desired geometry variables
+  # Initialize dict with desired geometry and reference variables
   xr_dict = {
       'vpr': xr.DataArray(geo.vpr, dims=['rho_cell'], name='vpr'),
       'spr': xr.DataArray(geo.spr_cell, dims=['rho_cell'], name='spr'),

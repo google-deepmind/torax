@@ -662,6 +662,7 @@ def initial_core_profiles(
       currents=currents,
       q_face=q_face,
       s_face=s_face,
+      nref=jnp.asarray(dynamic_runtime_params_slice.numerics.nref),
   )
 
   psidot = dataclasses.replace(

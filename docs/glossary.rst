@@ -12,6 +12,11 @@ Glossary of Terms
 :math:`\psi`: poloidal flux
 
 :math:`\hat{\rho}`: The normalized toroidal flux coordinate. used as the radial coordinate in the TORAX 1D mesh.
+:math:`\hat{\rho}` is a flux surface label, being constant on a closed surface of magnetic flux.
+The toroidal flux coordinate is defined as :math:`\rho=\sqrt{\frac{\Phi}{\pi B}}`, where :math:`\Phi` is the
+toroidal magnetic flux enclosed by the magnetic flux surface being labelled. :math:`B` is the magnetic field at the
+magnetic axis. The :math:`\hat{\rho}=\rho/\rho_{LCFS}`, where :math:`\rho_{LCFS}` is the
+toroidal flux coordinate at the last-closed-flux-surface, in units of meters.
 
 **evolving profiles**: ``core_profile`` variables (:math:`T_i`, :math:`T_e`, :math:`n_e`, :math:`\psi`)
 which are evolved by the PDE, as determined in the **numerics** dataclass (see :ref:`configuration`).

@@ -75,6 +75,7 @@ class CoreProfiles:
   currents: Currents
   q_face: jax.Array
   s_face: jax.Array
+  nref: jax.Array  # Reference density for ion and electron density
 
   def history_elem(self) -> CoreProfiles:
     """Returns the current CoreProfiles as a history entry.
@@ -96,6 +97,7 @@ class CoreProfiles:
         currents=self.currents,
         q_face=self.q_face,
         s_face=self.s_face,
+        nref=self.nref,
     )
 
   def index(self, i: int) -> CoreProfiles:
@@ -130,6 +132,7 @@ class CoreProfiles:
         currents=proj_currents,
         q_face=project(self.q_face),
         s_face=project(self.s_face),
+        nref=project(self.nref),
     )
 
   def __hash__(self):
