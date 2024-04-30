@@ -8,7 +8,9 @@ TORAX is a differentiable tokamak core transport simulator aimed for fast and ac
 - JAX provides auto-differentiation capabilities and code compilation for fast runtimes. Differentiability allows for gradient-based nonlinear PDE solvers for fast and accurate modelling, and for sensitivity analysis of simulation results to arbitrary parameter inputs, enabling applications such as trajectory optimization and data-driven parameter identification for semi-empirical models. Auto-differentiability allows for these applications to be easily extended with the addition of new physics models, or new parameter inputs, by avoiding the need to hand-derive Jacobians
 - Python-JAX is a natural framework for the coupling of ML-surrogates of physics models
 
-TORAX is in a pre-beta phase with a basic physics feature set, including:
+For more comprehensive documentation, a readthedocs page is currently in preparation.
+
+TORAX now has the following physics feature set:
 
 - Coupled PDEs of ion and electron heat transport, electron particle transport, and current diffusion
     - Finite-volume-method
@@ -30,14 +32,11 @@ This is not an officially supported Google product.
 Short term development plans include:
 
 - Time dependent geometry
-- Time dependent prescribed state profiles
 - More flexible initial conditions
 - Implementation of forward sensitivity calculations w.r.t. control inputs and parameters
 - Implementation of persistent compilation cache for CPU
-- Performance optimization and cleanup
 - More extensive documentation and tutorials
-- Visualisation: run summaries, run comparisons
-- Port the unit-test and integration test suite
+- Visualisation improvements
 
 Longer term desired features include:
 
@@ -143,20 +142,26 @@ https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
 
 ## Running an example
 
-The following command will run TORAX using the configuration file
-`examples/iterhybrid_predictor_corrector.py`. More detailed documentation is on
-the roadmap.
+The following command will run TORAX using the default configuration file
+`examples/default_config.py`.
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.examples.iterhybrid_predictor_corrector' --log_progress
+   --python_config='torax.examples.default_config' --log_progress
 ```
 
-To run a more involved, ITER-inspired simulation, run:
+To run more involved, ITER-inspired simulations, run:
 
 ```shell
 python3 run_simulation_main.py \
    --python_config='torax.examples.iterhybrid_rampup' --log_progress
+```
+
+and
+
+```shell
+python3 run_simulation_main.py \
+   --python_config='torax.examples.iterhybrid_predictor_corrector' --log_progress
 ```
 
 Additional configuration is provided through flags which append the above run command, and environment variables:
@@ -209,13 +214,13 @@ Combination of the above.
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.examples.default_config' \
+   --python_config='torax.examples.iterhybrid_predictor_corrector' \
    --log_progress --plot_progress
 ```
 
 ### Post-simulation
 
-Once complete, the time history of a simulation state and derived quantities is written to `state_history.nc`. The output path is written to stdout
+Once complete, the time history of a simulation state and derived quantities is written to `state_history.nc`. The output path is written to stdout.
 
 To take advantage of the in-memory (non-persistent) cache, the process does not end upon simulation termination. It is possible to modify the runtime_params, toggle the `log_progress` and `plot_progress` flags, and rerun the simulation. Only the following modifications will then trigger a recompilation:
 
@@ -235,3 +240,8 @@ deactivate
 # Simulation tutorials
 
 Under construction
+
+
+# Citing TORAX
+
+A technical report is in preparation and will soon be made available for citing.

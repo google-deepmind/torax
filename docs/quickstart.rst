@@ -1,17 +1,25 @@
+.. _quickstart:
+
 Quickstart to Running and Plotting
 ##################################
 Running an example
 ==================
 It is convenient to set up a Python virtual environment for running TORAX, as described in :ref:`installation`.
 
-The following command will run TORAX using the configuration file ``tests/test_data/default_config.py``.
+The following command will run TORAX using the configuration file ``torax/examples/basic_config.py``.
 TORAX configuration files overwrite the defaults in ``config.py``. See :ref:`configuration` for details
 of all input configuration fields.
 
 .. code-block:: console
 
   python3 run_simulation_main.py \
-     --python_config='torax.tests.test_data.default_config' --log_progress
+     --python_config='torax.examples.basic_config' --log_progress
+
+More involved examples in ``torax/examples`` include non-rigorous mockups of the ITER hybrid scenario:
+
+* ``iterhybrid_predictor_corrector.py``: flattop phase with the linear stepper using predictor-corrector iterations.
+
+* ``iterhybrid_rampup.py``: time-dependent ramppup phase with the nonlinear Newton-Raphson stepper.
 
 Additional configuration is provided through flags which append the above run command, and environment variables.
 
@@ -64,7 +72,7 @@ For nonlinear solvers, the stepper iterations can be more than 1 due to dt backt
 .. code-block:: console
 
   python3 run_simulation_main.py \
-   --python_config='torax.tests.test_data.default_config' \
+   --python_config='torax.examples.basic_config' \
    --log_progress
 
 plot_progress
@@ -74,7 +82,7 @@ Live plotting of simulation state and derived quantities as the simulation progr
 .. code-block:: console
 
   python3 run_simulation_main.py \
-   --python_config='torax.tests.test_data.default_config' \
+   --python_config='torax.examples.basic_config' \
    --plot_progress
 
 For a combination of the above:
@@ -82,7 +90,7 @@ For a combination of the above:
 .. code-block:: console
 
   python3 run_simulation_main.py \
-  --python_config='torax.tests.test_data.default_config' \
+  --python_config='torax.examples.basic_config' \
   --log_progress --plot_progress
 
 Post-simulation

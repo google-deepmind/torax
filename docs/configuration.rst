@@ -850,3 +850,125 @@ Examples include the number of grid points or the choice of transport model. A p
 
 In addition, changing any source from ``formula`` to ``model`` mode, or changing any source ``model``, will trigger recompilation. Toggling sources to ``zero``
 mode and back, will not trigger recompilation.
+
+Examples
+========
+
+An example configuration dict, corresponding to a non-rigorous demonstration mock-up of a time-dependent ITER
+hybrid scenario rampup (presently with a fixed CHEASE geometry), is shown below.
+The configuration file is also available in ``torax/examples/iterhybrid_rampup.py``.
+
+.. code-block:: python
+
+  CONFIG = {
+      'runtime_params': {
+          'plasma_composition': {
+              'Ai': 2.5,
+              'Zeff': 1.6,
+              'Zimp': 10,
+          },
+          'profile_conditions': {
+              'Ip': {0: 3, 80: 10.5},
+              'Ti_bound_left': 6.0,
+              'Ti_bound_right': 0.1,
+              'Te_bound_left': 6.0,
+              'Te_bound_right': 0.1,
+              'ne_bound_right_is_fGW': True,
+              'ne_bound_right': {0: 0.1, 80: 0.3},
+              'nbar_is_fGW': True,
+              'nbar': 1,
+              'npeak': 1.5,
+              'set_pedestal': True,
+              'Tiped': 1.0,
+              'Teped': 1.0,
+              'neped_is_fGW': True,
+              'neped': {0: 0.3, 80: 0.7},
+              'Ped_top': 0.9,
+          },
+          'numerics': {
+              't_final': 80,
+              'fixed_dt': 2,
+              'ion_heat_eq': True,
+              'el_heat_eq': True,
+              'current_eq': True,
+              'dens_eq': True,
+              'dt_reduction_factor': 3,
+              'largeValue_T': 1.0e10,
+              'largeValue_n': 1.0e8,
+          },
+      },
+      'geometry': {
+          'geometry_type': 'chease',
+          'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+          'Ip_from_parameters': True,
+          'Rmaj': 6.2,
+          'Rmin': 2.0,
+          'B0': 5.3,
+      },
+      'sources': {
+          'j_bootstrap': {},
+          'jext': {
+              'fext': 0.15,
+              'wext': 0.075,
+              'rext': 0.36,
+          },
+          'pellet_source': {
+              'S_pellet_tot': 0.0e22,
+              'pellet_width': 0.1,
+              'pellet_deposition_location': 0.85,
+          },
+          'generic_ion_el_heat_source': {
+              'rsource': 0.12741589640723575,
+              'w': 0.07280908366127758,
+              # total heating (with a rough assumption of radiation reduction)
+              'Ptot': 20.0e6,
+              'el_heat_fraction': 1.0,
+          },
+          'fusion_heat_source': {},
+          'qei_source': {},
+      },
+      'transport': {
+          'transport_model': 'qlknn',
+          'apply_inner_patch': True,
+          'De_inner': 0.25,
+          'Ve_inner': 0.0,
+          'chii_inner': 1.5,
+          'chie_inner': 1.5,
+          'rho_inner': 0.3,
+          'apply_outer_patch': True,
+          'De_outer': 0.1,
+          'Ve_outer': 0.0,
+          'chii_outer': 2.0,
+          'chie_outer': 2.0,
+          'rho_outer': 0.9,
+          'chimin': 0.05,
+          'chimax': 100,
+          'Demin': 0.05,
+          'Demax': 50,
+          'Vemin': -10,
+          'Vemax': 10,
+          'smoothing_sigma': 0.1,
+          'qlknn_params': {
+              'DVeff': True,
+              'coll_mult': 0.25,
+              'include_ITG': True,
+              'include_TEM': True,
+              'include_ETG': True,
+              'avoid_big_negative_s': True,
+              'An_min': 0.05,
+              'ITG_flux_ratio_correction': 1,
+          },
+      },
+      'stepper': {
+          'stepper_type': 'newton_raphson',
+          'predictor_corrector': True,
+          'corrector_steps': 10,
+          'chi_per': 30,
+          'd_per': 15,
+          'use_pereverzev': True,
+          'log_iterations': True,
+      },
+      'time_step_calculator': {
+          'calculator_type': 'fixed',
+      },
+  }
