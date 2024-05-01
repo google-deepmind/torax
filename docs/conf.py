@@ -125,12 +125,13 @@ napolean_use_rtype = False
 #
 html_theme = 'sphinx_rtd_theme'
 
+enable_logo = False
+if enable_logo:
+  # The name of an image file (relative to this directory) to place at the top
+  # of the sidebar.
+  html_logo = 'images/torax_logo_250px.png'
 
-# The name of an image file (relative to this directory) to place at the top
-# of the sidebar.
-html_logo = 'images/torax_logo_250px.png'
-
-html_favicon = 'images/favicon.png'
+  html_favicon = 'images/favicon.png'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
