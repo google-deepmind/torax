@@ -6,6 +6,7 @@ sphinx-copybutton>=0.5.0
 sphinx-remove-toctrees
 sphinx-design
 sphinx-autodoc-typehints
+sphinx-rtd-theme
 myst-nb>=1.0.0
 
 # Packages used for CI tests.
