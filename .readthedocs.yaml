@@ -9,7 +9,7 @@ build:
   tools:
     python: "3.10"
   commands:
-    - ls
+    - cd docs
     - make html
 
 
