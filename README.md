@@ -131,7 +131,7 @@ cd torax; pip install -e .
 ```
 
 If you want to install with the dev dependencies (useful for running `pytest`
-and installing `pink` for lint checking), then run with the `[dev]`:
+and installing `pyink` for lint checking), then run with the `[dev]`:
 
 ```shell
 cd torax; pip install -e .[dev]
@@ -143,11 +143,11 @@ https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
 ## Running an example
 
 The following command will run TORAX using the default configuration file
-`examples/default_config.py`.
+`examples/basic_config.py`.
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.examples.default_config' --log_progress
+   --python_config='torax.examples.basic_config' --log_progress
 ```
 
 To run more involved, ITER-inspired simulations, run:
