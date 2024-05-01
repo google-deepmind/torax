@@ -12,7 +12,7 @@ concurrency:
 # Set the correct env variables for all the unit tests
 env:
   TORAX_ERRORS_ENABLED: 1
-  PYTEST_NUM_SHARDS: 4  # Controls tests sharding enabled by `pytest-shard`
+  PYTEST_NUM_SHARDS: 8  # Controls tests sharding enabled by `pytest-shard`
 
 jobs:
   shards-job:
@@ -73,6 +73,7 @@ jobs:
           torax/sources/tests/current_density_sources.py \
           torax/sources/tests/electron_density_sources.py \
           torax/sources/tests/external_current_source.py \
+          torax/sources/tests/formulas.py \
           torax/sources/tests/fusion_heat_source.py \
           torax/sources/tests/generic_ion_el_heat_source.py \
           torax/sources/tests/ion_el_heat_sources.py \
@@ -88,25 +89,15 @@ jobs:
           torax/tests/math_utils.py \
           torax/tests/opt.py \
           torax/tests/physics.py \
+          torax/tests/sim_custom_sources.py \
           torax/tests/sim_time_dependence.py \
+          torax/tests/sim.py \
           torax/tests/state.py \
           torax/transport_model/tests/qlknn_wrapper.py \
           torax/transport_model/tests/transport_model.py \
           -vv -n auto \
           --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
 
-    # # TODO(b/326579500): fix UnparsedFlagAccessError and run under pytest
-    # - name: "Run torax/tests/sim_custom_sources.py"
-    #   run: python torax/tests/sim_custom_sources.py
-
-    # # TODO(b/326579500): fix UnparsedFlagAccessError and run under pytest
-    # - name: "Run torax/sources/tests/formulas.py"
-    #   run: python torax/sources/tests/formulas.py
-
-    # # TODO(b/326579500): fix UnparsedFlagAccessError, pass env variable, and run under pytest
+    # # TODO(b/326579500): pass env variable and run under pytest
     # - name: "Run torax/tests/sim_no_compile.py"
     #   run: TORAX_COMPILATION_ENABLED=False python torax/tests/sim_no_compile.py
-
-    # # TODO(b/326579500): fix UnparsedFlagAccessError, parallelize, and run under pytest
-    # - name: "Run torax/tests/sim.py"
-    #   run: python torax/tests/sim.py

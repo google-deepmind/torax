@@ -30,6 +30,8 @@ dependencies = [
     "equinox @ git+https://github.com/patrick-kidger/equinox@1e601672d38d2c4d483535070a3572d8e8508a20",
     "PyYAML>=6.0.1",
     "xarray>=2023.12.0",
+    "netcdf4>=1.6.5",
+    "h5netcdf>=1.3.0",
 ]
 
 [project.urls]
