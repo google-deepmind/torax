@@ -98,6 +98,8 @@ jobs:
           -vv -n auto \
           --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
 
-    # # TODO(b/326579500): pass env variable and run under pytest
-    # - name: "Run torax/tests/sim_no_compile.py"
-    #   run: TORAX_COMPILATION_ENABLED=False python torax/tests/sim_no_compile.py
+    # One test requires an extra environment variable, so we run it separately.
+    - name: Run sim_no_compile
+      if: ${{ matrix.shard-id == 1 }}
+      run: |
+        TORAX_COMPILATION_ENABLED=False pytest -vv -n auto torax/tests/sim_no_compile.py
