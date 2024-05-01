@@ -8,11 +8,10 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.10"
+  image: latest
+  commands:
+    - make html
 
-sphinx:
-  builder: html
-  configuration: docs/conf.py
-  fail_on_warning: false
 
 # Optionally set the version of Python and requirements required to build your docs
 python:
