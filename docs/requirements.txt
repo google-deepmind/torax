@@ -1,0 +1,22 @@
+absl-py
+ipython>=8.8.0  # 8.7.0 has ipython3 lexer error
+sphinx>=7.3.2  # 7.3.0 breaks sphinx-book-theme
+sphinx-book-theme>=1.0.1  # Older versions fail to pin pydata-sphinx-theme
+sphinx-copybutton>=0.5.0
+sphinx-remove-toctrees
+sphinx-design
+sphinx-autodoc-typehints
+sphinx-rtd-theme
+myst-nb>=1.0.0
+
+# Packages used for CI tests.
+flatbuffers
+pytest
+pytest-xdist
+
+# Packages used for notebook execution
+matplotlib
+scikit-learn
+numpy
+rich[jupyter]
+.[ci]  # Install jax from the current directory; jaxlib from pypi.
