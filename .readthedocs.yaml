@@ -9,6 +9,7 @@ build:
   tools:
     python: "3.10"
   commands:
+    - ls
     - make html
 
 
