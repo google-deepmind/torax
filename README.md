@@ -8,7 +8,7 @@ TORAX is a differentiable tokamak core transport simulator aimed for fast and ac
 - JAX provides auto-differentiation capabilities and code compilation for fast runtimes. Differentiability allows for gradient-based nonlinear PDE solvers for fast and accurate modelling, and for sensitivity analysis of simulation results to arbitrary parameter inputs, enabling applications such as trajectory optimization and data-driven parameter identification for semi-empirical models. Auto-differentiability allows for these applications to be easily extended with the addition of new physics models, or new parameter inputs, by avoiding the need to hand-derive Jacobians
 - Python-JAX is a natural framework for the coupling of ML-surrogates of physics models
 
-For more comprehensive documentation, a readthedocs page is currently in preparation.
+For more comprehensive documentation, see our [readthedocs page](https://torax.readthedocs.io/).
 
 TORAX now has the following physics feature set:
 
