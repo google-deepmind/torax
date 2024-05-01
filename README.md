@@ -147,21 +147,21 @@ The following command will run TORAX using the default configuration file
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.examples.basic_config' --log_progress
+   --config='torax.examples.basic_config' --log_progress
 ```
 
 To run more involved, ITER-inspired simulations, run:
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.examples.iterhybrid_rampup' --log_progress
+   --config='torax.examples.iterhybrid_rampup' --log_progress
 ```
 
 and
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.examples.iterhybrid_predictor_corrector' --log_progress
+   --config='torax.examples.iterhybrid_predictor_corrector' --log_progress
 ```
 
 Additional configuration is provided through flags which append the above run command, and environment variables:
@@ -198,7 +198,7 @@ Output simulation time, dt, and number of stepper iterations (dt backtracking wi
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.examples.iterhybrid_predictor_corrector' \
+   --config='torax.examples.iterhybrid_predictor_corrector' \
    --log_progress
 ```
 
@@ -206,7 +206,7 @@ Live plotting of simulation state and derived quantities.
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.examples.iterhybrid_predictor_corrector' \
+   --config='torax.examples.iterhybrid_predictor_corrector' \
    --plot_progress
 ```
 
@@ -214,7 +214,7 @@ Combination of the above.
 
 ```shell
 python3 run_simulation_main.py \
-   --python_config='torax.examples.iterhybrid_predictor_corrector' \
+   --config='torax.examples.iterhybrid_predictor_corrector' \
    --log_progress --plot_progress
 ```
 

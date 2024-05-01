@@ -13,7 +13,7 @@ of all input configuration fields.
 .. code-block:: console
 
   python3 run_simulation_main.py \
-     --python_config='torax.examples.basic_config' --log_progress
+     --config='torax.examples.basic_config' --log_progress
 
 More involved examples in ``torax/examples`` include non-rigorous mockups of the ITER hybrid scenario:
 
@@ -72,7 +72,7 @@ For nonlinear solvers, the stepper iterations can be more than 1 due to dt backt
 .. code-block:: console
 
   python3 run_simulation_main.py \
-   --python_config='torax.examples.basic_config' \
+   --config='torax.examples.basic_config' \
    --log_progress
 
 plot_progress
@@ -82,7 +82,7 @@ Live plotting of simulation state and derived quantities as the simulation progr
 .. code-block:: console
 
   python3 run_simulation_main.py \
-   --python_config='torax.examples.basic_config' \
+   --config='torax.examples.basic_config' \
    --plot_progress
 
 For a combination of the above:
@@ -90,7 +90,7 @@ For a combination of the above:
 .. code-block:: console
 
   python3 run_simulation_main.py \
-  --python_config='torax.examples.basic_config' \
+  --config='torax.examples.basic_config' \
   --log_progress --plot_progress
 
 Post-simulation
