@@ -10,6 +10,7 @@ build:
     python: "3.10"
   commands:
     - cat docs/requirements.txt
+    - pip install -r docs/requirements.txt
     - cd docs && make html
     - mkdir $READTHEDOCS_OUTPUT
     - cp -r docs/_build/html $READTHEDOCS_OUTPUT/
