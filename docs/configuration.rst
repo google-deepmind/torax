@@ -831,6 +831,8 @@ Scaling the timestep to be :math:`\propto \chi` helps protect against traversing
 Additional Notes
 ================
 
+.. _dynamic_vs_static:
+
 Dynamic vs. Static Parameters
 -----------------------------
 
