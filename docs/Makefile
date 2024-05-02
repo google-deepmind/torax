@@ -27,7 +27,6 @@ help:
 .PHONY: help Makefile
 
 apidoc: Makefile
-	python -m sphinx
 	python -m sphinx-apidoc -o $(DOC_SOURCEDIR)/api "${PY_SOURCEDIR}" ${EXCLUDE_PATTERNS}
 	# The content of this file never really changes, so it is feasible to
 	# replace it with a static copy manually.
