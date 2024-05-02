@@ -16,9 +16,11 @@ Longer term desired features include:
 * Sawtooth model (Porcelli + reconnection)
 * Neoclassical tearing modes (modified Rutherford equation)
 * Radiation sinks
+
   * Cyclotron radiation
   * Bremsstrahlung
   * Line radiation
+
 * Neoclassical transport + multi-ion transport, with a focus on heavy impurities
 * IMAS coupling
 * Stationary-state solver
