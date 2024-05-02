@@ -97,7 +97,7 @@ Post-simulation
 
 Once complete, the time history of a simulation state and derived quantities is
 written to ``state_history.nc``. The output path is written to stdout. The ``output_dir``
-is user-configurable (see :ref:`configuration`). The default is ``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``. 
+is user-configurable (see :ref:`configuration`). The default is ``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``.
 
 To take advantage of the in-memory (non-persistent) cache, the process does not end upon
 simulation termination. Instead, the user is presented with the following menu.
@@ -122,4 +122,3 @@ simulation termination. Instead, the user is presented with the following menu.
 * **tpp** toggles the ``--plot_progress`` flag for the next run.
 * **tlo** toggles the ``--log_output`` flag for the next run, used for debugging purposes.
 * **q** quits the process.
- 

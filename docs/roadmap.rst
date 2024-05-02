@@ -20,7 +20,7 @@ Longer term desired features include:
   * Cyclotron radiation
   * Bremsstrahlung
   * Line radiation
-  
+
 * Neoclassical transport + multi-ion transport, with a focus on heavy impurities
 * IMAS coupling
 * Stationary-state solver
