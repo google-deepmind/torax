@@ -1,4 +1,4 @@
-TORAX: Tokamak transport simulation in JAX
+Test Docs Build
 ==========================================
 
 TORAX is a differentiable tokamak core transport simulator aimed for fast and
