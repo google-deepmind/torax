@@ -29,7 +29,6 @@ from torax.geometry import build_chease_geometry
 from torax.geometry import build_circular_geometry
 from torax.geometry import Geometry
 from torax.geometry import Grid1D
-from torax.opt import interp
 from torax.physics import internal_boundary
 from torax.sim import build_sim_object
 from torax.sim import run_simulation
