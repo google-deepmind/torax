@@ -42,16 +42,15 @@ def make_convection_terms(
       to diffusion is used to weight the contribution of neighboring cells when
       calculating face values of u.
     var: CellVariable to define mesh and boundary conditions.
-    dirichlet_mode: Which strategy to use to handle Dirichlet boundary
-      conditions. The default is 'ghost', which has superior stability on
-      test6_no_pedestal. 'ghost' -> Boundary face values are inferred by
-      constructing a ghost cell then alpha weighting cells 'direct' -> Boundary
-      face values are read directly from constraints 'semi-implicit' -> Matches
-      FiPy. Boundary face values are alpha weighted with the constraint value
-      specifying the value of the "other" cell: x_{boundary_face} = alpha
-      x_{last_cell} + (1 - alpha) BC
+    dirichlet_mode: The strategy to use to handle Dirichlet boundary conditions.
+      The default is 'ghost', which has superior stability. 'ghost' -> Boundary
+      face values are inferred by constructing a ghost cell then alpha weighting
+      cells 'direct' -> Boundary face values are read directly from constraints
+      'semi-implicit' -> Matches FiPy. Boundary face values are alpha weighted
+      with the constraint value specifying the value of the "other" cell:
+      x_{boundary_face} = alpha x_{last_cell} + (1 - alpha) BC
     neumann_mode: Which strategy to use to handle Neumann boundary conditions.
-      The default is `ghost`, which has superior stability on test6_no_pedestal.
+      The default is `ghost`, which has superior stability.
       'ghost' -> Boundary face values are inferred by constructing a ghost cell
       then alpha weighting cells. 'semi-implicit' -> Matches FiPy. Boundary face
       values are alpha weighted, with the (1 - alpha) weight applied to the

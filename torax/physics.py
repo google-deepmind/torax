@@ -141,7 +141,7 @@ def calc_q_from_jtot_psi(
     jtot_face: jax.Array,
     q_correction_factor: float,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
-  """Calculates q given jtot and psi.
+  """Calculates the q-profile (q) given current (jtot) and poloidal flux (psi).
 
   We don't simply pass a `CoreProfiles` instance because this needs to be called
   before the first `CoreProfiles` is constructed; the output of this function is
@@ -182,7 +182,7 @@ def calc_jtot_from_psi(
     geo: Geometry,
     psi: cell_variable.CellVariable,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
-  """Calculates j from psi.
+  """Calculates current (jtot) from poloidal flux (psi).
 
   Args:
     geo: Torus geometry.
@@ -212,7 +212,7 @@ def calc_jtot_from_psi(
 def calc_s_from_psi(
     geo: Geometry, psi: cell_variable.CellVariable
 ) -> jnp.ndarray:
-  """Calculates s from psi.
+  """Calculates magnetic shear (s) from poloidal flux (psi).
 
   Args:
     geo: Torus geometry.

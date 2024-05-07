@@ -15,7 +15,7 @@
 """Optimization-related functionality.
 
 Functionality for differentiation throughout time, constrained optimization,
-etc.
+etc. WIP and experimental.
 """
 
 import chex
