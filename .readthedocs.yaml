@@ -10,6 +10,7 @@ build:
     python: "3.10"
   commands:
     - pip install -r docs/requirements.txt
+    - export SPHINX_APIDOC_OPTIONS=members,show-inheritance
     - cd docs && make html
     - mkdir $READTHEDOCS_OUTPUT
     - cp -r docs/_build/html $READTHEDOCS_OUTPUT/

@@ -1,4 +1,4 @@
-.. _quickstart:
+.. running:
 
 Running simulations
 ###################

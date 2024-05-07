@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-r"""Main entrypoint for running transport simulation.
+"""Main entrypoint for running transport simulation.
 
 Example command with a configuration defined in Python:
 python3 run_simulation_main.py \

@@ -187,8 +187,7 @@ def build_circular_geometry(
   This is the standard entrypoint for building a circular geometry, not
   CircularGeometry.__init__(). chex.dataclasses do not allow overriding __init__
   functions with different parameters than the attributes of the dataclass, so
-  this builder function lives outside the class. When building a Fiddle config
-  for this object, Fiddle-ify this function, not CircularGeometry.__init__.
+  this builder function lives outside the class.
 
   Args:
     nr: Radial grid points (num cells)
@@ -405,8 +404,7 @@ def build_chease_geometry(
   This is the standard entrypoint for building a CHEASE geometry, not
   CHEASEGeometry.__init__(). chex.dataclasses do not allow overriding __init__
   functions with different parameters than the attributes of the dataclass, so
-  this builder function lives outside the class. When building a Fiddle config
-  for this object, Fiddle-ify this function, not CHEASEGeometry.__init__.
+  this builder function lives outside the class.
 
   Args:
     runtime_params: General TORAX runtime input parameters.

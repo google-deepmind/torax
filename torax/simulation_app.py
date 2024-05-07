@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-r"""A module providing a runnable main for transport simulation.
+"""A module providing a runnable main for transport simulation.
 
 You can use the `main()` function in this module as an
 entry point for your simulation (see the example below).
@@ -25,19 +25,19 @@ See run_simulation_main.py for a ready-made entrypoint for running simulations.
 You can also implement your own main with a different implementation as
 long as you pass in your sim-getter to this module, as shown below.
 
-```
-# In my_runnable_sim.py:
+.. code-block:: python
 
-from absl import app
-import torax
-from torax import simulation_app
+  # In my_runnable_sim.py:
 
-def get_sim():
-  return torax.Sim(<your args here>)
+  from absl import app
+  import torax
+  from torax import simulation_app
 
-if __name__ == '__main__':
-  app.run(simulation_app.main(get_sim()))
-```
+  def get_sim():
+    return torax.Sim(<your args here>)
+
+  if __name__ == '__main__':
+    app.run(simulation_app.main(get_sim()))
 """
 
 import datetime
