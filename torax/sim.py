@@ -487,15 +487,15 @@ class GeometryProvider(Protocol):
   For instance, the following is an equivalent implementation of the
   ConstantGeometryProvider without actually creating a class, and equally valid.
 
-  ```python
-  geo = geometry.build_circular_geometry(...)
-  constant_geo_provider = lamdba input_state: geo
+  .. code-block:: python
 
-  def func_expecting_geo_provider(gp: GeometryProvider):
-    ... # do something with the provider.
+    geo = geometry.build_circular_geometry(...)
+    constant_geo_provider = lamdba input_state: geo
 
-  func_expecting_geo_provider(constant_geo_provider)  # this works.
-  ```
+    def func_expecting_geo_provider(gp: GeometryProvider):
+      ... # do something with the provider.
+
+    func_expecting_geo_provider(constant_geo_provider)  # this works.
   """
 
   def __call__(

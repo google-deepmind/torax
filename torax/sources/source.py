@@ -289,32 +289,32 @@ class SingleProfileSource(Source):
   You can define custom sources inline when constructing the full list of
   sources to use in TORAX.
 
-  ```python
-  # Define an electron-density source with a Gaussian profile.
-  my_custom_source = source.SingleProfileSource(
-      supported_modes=(
-          runtime_params_lib.Mode.ZERO,
-          runtime_params_lib.Mode.FORMULA_BASED,
-      ),
-      affected_core_profiles=[source.AffectedCoreProfile.NE],
-      formula=formulas.Gaussian(my_custom_source_name),
-  )
-  # Define its runtime parameters (this could be done in the constructor as
-  # well).
-  my_custom_source.runtime_params = runtime_params_lib.RuntimeParams(
-      mode=runtime_params_lib.Mode.FORMULA_BASED,
-      formula=formula_config.Gaussian(
-          total=1.0,
-          c1=2.0,
-          c2=3.0,
-      ),
-  )
-  all_torax_sources = source_models_lib.SourceModels(
-      sources={
-          'my_custom_source': my_custom_source,
-      }
-  )
-  ```
+  .. code-block:: python
+
+    # Define an electron-density source with a Gaussian profile.
+    my_custom_source = source.SingleProfileSource(
+        supported_modes=(
+            runtime_params_lib.Mode.ZERO,
+            runtime_params_lib.Mode.FORMULA_BASED,
+        ),
+        affected_core_profiles=[source.AffectedCoreProfile.NE],
+        formula=formulas.Gaussian(my_custom_source_name),
+    )
+    # Define its runtime parameters (this could be done in the constructor as
+    # well).
+    my_custom_source.runtime_params = runtime_params_lib.RuntimeParams(
+        mode=runtime_params_lib.Mode.FORMULA_BASED,
+        formula=formula_config.Gaussian(
+            total=1.0,
+            c1=2.0,
+            c2=3.0,
+        ),
+    )
+    all_torax_sources = source_models_lib.SourceModels(
+        sources={
+            'my_custom_source': my_custom_source,
+        }
+    )
 
   If you want to create a subclass of SingleProfileSource with frozen
   parameters, you can provide default implementations/attributes. This is an
@@ -323,58 +323,59 @@ class SingleProfileSource(Source):
   this
   source:
 
-  ```python
-  @dataclasses.dataclass(kw_only=True)
-  class FooRuntimeParams(runtime_params_lib.RuntimeParams):
-    foo_param: runtime_params_lib.TimeDependentField
-    bar_param: float
+  .. code-block:: python
 
-    def build_dynamic_params(self, t: chex.Numeric) -> DynamicFooRuntimeParams:
-    return DynamicFooRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicFooRuntimeParams,
-            t=t,
-        )
-    )
+    @dataclasses.dataclass(kw_only=True)
+    class FooRuntimeParams(runtime_params_lib.RuntimeParams):
+      foo_param: runtime_params_lib.TimeDependentField
+      bar_param: float
 
-  @chex.dataclass(frozen=True)
-  class DynamicFooRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-    foo_param: float
-    bar_param: float
+      def (build_dynamic_params(self, t: chex.Numeric)
+      -> DynamicFooRuntimeParams):
+      return DynamicFooRuntimeParams(
+          **config_args.get_init_kwargs(
+              input_config=self,
+              output_type=DynamicFooRuntimeParams,
+              t=t,
+          )
+      )
 
-  def _my_foo_model(
-      dynamic_runtime_params_slice,
-      dynamic_source_runtime_params,
-      geo,
-      core_profiles,
-  ) -> jnp.ndarray:
-    assert isinstance(dynamic_source_runtime_params, DynamicFooRuntimeParams)
-    # implement your foo model.
+    @chex.dataclass(frozen=True)
+    class DynamicFooRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+      foo_param: float
+      bar_param: float
 
-  @dataclasses.dataclass(kw_only=True)
-  class FooSource(SingleProfileSource):
+    def _my_foo_model(
+        dynamic_runtime_params_slice,
+        dynamic_source_runtime_params,
+        geo,
+        core_profiles,
+    ) -> jnp.ndarray:
+      assert isinstance(dynamic_source_runtime_params, DynamicFooRuntimeParams)
+      # implement your foo model.
 
-    # Provide a default set of params.
-    runtime_params: FooRuntimeParams = dataclasses.field(
-        default_factory=lambda: FooRuntimeParams(
-            foo_param={0.0: 10.0, 1.0: 20.0, 2.0: 35.0},
-            bar_param: 1.234,
-        )
-    )
+    @dataclasses.dataclass(kw_only=True)
+    class FooSource(SingleProfileSource):
 
-    # By default, FooSource's can be model-based or set to 0.
-    supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.MODEL_BASED,
-    )
+      # Provide a default set of params.
+      runtime_params: FooRuntimeParams = dataclasses.field(
+          default_factory=lambda: FooRuntimeParams(
+              foo_param={0.0: 10.0, 1.0: 20.0, 2.0: 35.0},
+              bar_param: 1.234,
+          )
+      )
 
-    # Don't include model_func in the __init__ arguments and freeze it.
-    model_func: SourceProfileFunction = dataclasses.field(
-        init=False,
-        default_factory=lambda: _my_foo_model,
-    )
-  ```
+      # By default, FooSource's can be model-based or set to 0.
+      supported_modes: tuple[runtime_params_lib.Mode, ...] = (
+          runtime_params_lib.Mode.ZERO,
+          runtime_params_lib.Mode.MODEL_BASED,
+      )
+
+      # Don't include model_func in the __init__ arguments and freeze it.
+      model_func: SourceProfileFunction = dataclasses.field(
+          init=False,
+          default_factory=lambda: _my_foo_model,
+      )
   """
 
   # Don't include output_shape_getter in the __init__ arguments.

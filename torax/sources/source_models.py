@@ -526,19 +526,19 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
   Because this source requires access to the rest of the Sources, it must be
   added to the SourceModels object after creation:
 
-  ```python
-  source_models = SourceModels(sources={...})
-  # Now add the ohmic heat source and turn it on.
-  source_models.add_source(
-      source_name='ohmic_heat_source',
-      source=OhmicHeatSource(
-          source_models=source_models,
-          runtime_params=runtime_params.RuntimeParams(
-              mode=runtime_params.Mode.MODEL_BASED,  # turns the source on.
-          ),
-      ),
-  )
-  ```
+  .. code-block:: python
+
+    source_models = SourceModels(sources={...})
+    # Now add the ohmic heat source and turn it on.
+    source_models.add_source(
+        source_name='ohmic_heat_source',
+        source=OhmicHeatSource(
+            source_models=source_models,
+            runtime_params=runtime_params.RuntimeParams(
+                mode=runtime_params.Mode.MODEL_BASED,  # turns the source on.
+            ),
+        ),
+    )
   """
 
   # Users must pass in a pointer to the complete set of sources to this object.
@@ -616,30 +616,30 @@ class SourceModels:
   new custom sources inline when constructing this object. The example below
   shows how to define a new custom electron-density source.
 
-  ```python
-  # Define an electron-density source with a time-dependent Gaussian profile.
-  my_custom_source = source.SingleProfileSource(
-      supported_modes=(
-          runtime_params_lib.Mode.ZERO,
-          runtime_params_lib.Mode.FORMULA_BASED,
-      ),
-      affected_core_profiles=source.AffectedCoreProfile.NE,
-      formula=formulas.Gaussian(),
-      # Define (possibly) time-dependent parameters to feed to the formula.
-      runtime_params=runtime_params_lib.RuntimeParams(
-          formula=formula_config.Gaussian(
-              total={0.0: 1.0, 5.0: 2.0, 10.0: 1.0},  # time-dependent.
-              c1=2.0,
-              c2=3.0,
-          ),
-      ),
-  )
-  # Define the collection of sources here, which in this example only includes
-  # one source.
-  all_torax_sources = source_models_lib.SourceModels(
-      sources={'my_custom_source': my_custom_source}
-  )
-  ```
+  .. code-block:: python
+
+    # Define an electron-density source with a time-dependent Gaussian profile.
+    my_custom_source = source.SingleProfileSource(
+        supported_modes=(
+            runtime_params_lib.Mode.ZERO,
+            runtime_params_lib.Mode.FORMULA_BASED,
+        ),
+        affected_core_profiles=source.AffectedCoreProfile.NE,
+        formula=formulas.Gaussian(),
+        # Define (possibly) time-dependent parameters to feed to the formula.
+        runtime_params=runtime_params_lib.RuntimeParams(
+            formula=formula_config.Gaussian(
+                total={0.0: 1.0, 5.0: 2.0, 10.0: 1.0},  # time-dependent.
+                c1=2.0,
+                c2=3.0,
+            ),
+        ),
+    )
+    # Define the collection of sources here, which in this example only includes
+    # one source.
+    all_torax_sources = source_models_lib.SourceModels(
+        sources={'my_custom_source': my_custom_source}
+    )
 
   See runtime_params.py for more details on how to configure all the source/sink
   terms.

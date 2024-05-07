@@ -52,20 +52,21 @@ def build_sim_from_config(
   The dictionary has an expected set of keys and structure to it. If the input
   configuration does not match the expected structure, then an error is raised.
 
-  TODO( b/330172917): Link to torax.readthedocs.io once online.
+  See https://torax.readthedocs.io/en/latest/configuration.html for
+  documentation on all input variables.
 
   High-level, the input config has the following keys:
 
-  ```python
-  {
-      runtime_params: {...},
-      geometry: {...},
-      sources: {...},
-      transport: {...},
-      stepper: {...},
-      time_step_calculator: {...},  # Optional
-  }
-  ```
+  .. code-block:: python
+
+    {
+        runtime_params: {...},
+        geometry: {...},
+        sources: {...},
+        transport: {...},
+        stepper: {...},
+        time_step_calculator: {...},  # Optional
+    }
 
   See the following functions' docstrings to learn more about their expected
   input config structures and what parameters are available to use.

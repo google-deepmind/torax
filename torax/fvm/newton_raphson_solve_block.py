@@ -174,8 +174,8 @@ def newton_raphson_solve_block(
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
     error: int. 0 signifies residual < tol at exit, 1 signifies residual > tol,
-      2 signifies tol < residual < coarse_tol, deemed acceptable if the solver
-      steps became small.
+    2 signifies tol < residual < coarse_tol, deemed acceptable if the solver
+    steps became small.
     aux_output: Extra auxiliary output from calc_coeffs.
   """
   # pyformat: enable

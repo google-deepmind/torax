@@ -112,17 +112,17 @@ def get_default_sources() -> source_models_lib.SourceModels:
   If you plan to use them, please remember to update the default runtime
   parameters as needed. Here is an example of how to do so:
 
-  ```python
-  default_sources: SourceModels = get_default_sources()
-  # Turn off bootstrap current.
-  default_sources.j_bootstrap.runtime_params.mode = runtime_params.Mode.ZERO
-  # Change the Qei ion-electron heat exchange term.
-  default_sources.qei_source.runtime_params.Qei_mult = 2.0
-  # Turn off fusion power.
-  default_sources.sources['fusion_heat_source'].runtime_params.mode = (
-      runtime_params.Mode.ZERO
-  )
-  ```
+  .. code-block:: python
+
+    default_sources: SourceModels = get_default_sources()
+    # Turn off bootstrap current.
+    default_sources.j_bootstrap.runtime_params.mode = runtime_params.Mode.ZERO
+    # Change the Qei ion-electron heat exchange term.
+    default_sources.qei_source.runtime_params.Qei_mult = 2.0
+    # Turn off fusion power.
+    default_sources.sources['fusion_heat_source'].runtime_params.mode = (
+        runtime_params.Mode.ZERO
+    )
 
   More examples are located in the test config files under
   `torax/tests/test_data`.
