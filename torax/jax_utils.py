@@ -211,7 +211,7 @@ def select(
 
 
 def is_tracer(var: jax.Array) -> bool:
-  """Checks whether `var` is a kax tracer.
+  """Checks whether `var` is a jax tracer.
 
   Args:
     var: The jax variable to inspect.

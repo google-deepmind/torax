@@ -546,9 +546,8 @@ class Sim:
 
   The main purpose of the Sim object is to enable configuration via
   constructor arguments. Components are reused in subsequent simulation runs, so
-  if a component, like the `step_fn` is compiled, it will be reused for the next
-  `Sim.run()` call and will not be recompiled unless a static argument or shape
-  changes.
+  if a component is compiled, it will be reused for the next `Sim.run()` call
+  and will not be recompiled unless a static argument or shape changes.
   """
 
   def __init__(
@@ -771,29 +770,20 @@ def run_simulation(
   This function runs a variable number of time steps until the
   time_step_calculator determines the sim is done, using a Python while loop.
 
-  This function does not work with `jax.grad` because:
-  - the while loop checks the tracer of the `not_done()` bool.
-  - the function calls jit on the main loop, and this disrupts grad tracing.
-  - if the above issues were removed, jit on grad takes a prohibitively long
-  time to compile due to the large number of unrolled loop steps.
-
-  This cannot be implement with `jax.lax.while_loop` due to the appended
-  history.
-
   Args:
     static_runtime_params_slice: A static set of arguments to provide to the
-      step_fn. If step_fn is JAX-compiled, then these params are "compile-time
-      constant" meaning that they are considered static to the compiled
-      function. If they change (i.e. the same step_fn is called again with a
-      different static_runtime_params_slice), then the step_fn will be
-      recompiled. JAX determines if recompilation is necessary via the hash of
-      the static_runtime_params_slice.
+      step_fn. If internal functions in step_fn are JAX-compiled, then these
+      params are "compile-time constant" meaning that they are considered static
+      to the compiled functions. If they change (i.e. the same step_fn is called
+      again with a different static_runtime_params_slice), then internal
+      functions will be recompiled. JAX determines if recompilation is necessary
+      via the hash of static_runtime_params_slice.
     dynamic_runtime_params_slice_provider: Provides a DynamicRuntimeParamsSlice
       to use as input for each time step. See static_runtime_params_slice and
       the runtime_params_slice module docstring for runtime_params_slice to
       understand why we need the dynamic and static config slices and what they
       control.
-    geometry_provider: Provides the geometry of the torus for each time step
+    geometry_provider: Provides the magnetic geometry for each time step
       based on the ToraxSimState at the start of the time step. The geometry may
       change from time step to time step, so the sim needs a function to provide
       which geometry to use for a given time step. A GeometryProvider is any

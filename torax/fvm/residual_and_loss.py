@@ -64,50 +64,44 @@ def theta_method_matrix_equation(
   """Returns the left-hand and right-hand sides of the theta method equation.
 
   The theta method solves a differential equation
-  ```
-  tc_out partial (tc_in x) / partial t = F
-  ```
+
+    tc_out partial (tc_in x) / partial t = F
+
   where `tc` is the transient coefficient, with `tc_out`
   being outside the partial derivative and `tc_in` inside it.
 
   We rearrange this to
-  ```
-  partial tc_in x / partial t = F / tc_out
-  ```
+
+    partial tc_in x / partial t = F / tc_out
 
   The theta method calculates one discrete time step by solving:
-  ```
-  (tc_in_new x_new - tc_in_old x_old) / dt =
-  theta_imp F_new / tc_out_new + theta_exp F_old / tc_out_old
-  ```
+
+    | (tc_in_new x_new - tc_in_old x_old) / dt =
+    | theta_imp F_new / tc_out_new + theta_exp F_old / tc_out_old
 
   The equation is on the cell grid where `tc` is never zero. Therefore
   it's safe to multiply equation by `dt/tc_in_new` and scale the residual to
   `x`, which has O(1) values and thus the residual is scaled appropriately.
 
   We thus rearrange to:
-  ```
-  x_new - tc_in_old/tc_in_new x_old =
-  dt theta_imp F_new / (tc_out_new tc_in_new) +
-  dt theta_exp F_old / (tc_out_old tc_in_new)
-  ```
+
+    | x_new - tc_in_old/tc_in_new x_old =
+    | dt theta_imp F_new / (tc_out_new tc_in_new) +
+    | dt theta_exp F_old / (tc_out_old tc_in_new)
 
   Rearranging we obtain
-  ```
-  x_new - dt theta_imp F_new / (tc_out_new tc_in_new) =
-  tc_in_old/tc_in_new x_old + dt theta_exp F_old / (tc_out_old tc_in_new)
-  ```
+
+    | x_new - dt theta_imp F_new / (tc_out_new tc_in_new) =
+    | tc_in_old/tc_in_new x_old + dt theta_exp F_old / (tc_out_old tc_in_new)
 
   We now substitute in `F = Cu + c`:
 
-  ```
-  (I - dt theta_imp diag(1/(tc_out_new tc_in_new)) C_new) x_new
-  - dt theta_imp diag(1/(tc_out_new tc_in_new)) c_new
-  =
-  (diag(tc_in_old/tc_in_new)
-  + dt theta_exp diag(1/(tc_out_old tc_in_new)) C_old) x_old
-  + dt theta_exp diag(1/(tc_out_old tc_in_new)) c_old
-  ```
+    | (I - dt theta_imp diag(1/(tc_out_new tc_in_new)) C_new) x_new
+    | - dt theta_imp diag(1/(tc_out_new tc_in_new)) c_new
+    | =
+    | (diag(tc_in_old/tc_in_new)
+    | + dt theta_exp diag(1/(tc_out_old tc_in_new)) C_old) x_old
+    | + dt theta_exp diag(1/(tc_out_old tc_in_new)) c_old
 
   Args:
     dt: Time step duration.

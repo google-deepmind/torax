@@ -125,11 +125,11 @@ napolean_use_rtype = False
 #
 html_theme = 'sphinx_rtd_theme'
 
-enable_logo = False
+enable_logo = True
 if enable_logo:
   # The name of an image file (relative to this directory) to place at the top
   # of the sidebar.
-  html_logo = 'images/torax_logo_250px.png'
+  html_logo = 'images/torax_logo_cropped.png'
 
   html_favicon = 'images/favicon.png'
 

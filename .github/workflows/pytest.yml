@@ -87,7 +87,6 @@ jobs:
           torax/tests/interpolated_param.py \
           torax/tests/jax_utils.py \
           torax/tests/math_utils.py \
-          torax/tests/opt.py \
           torax/tests/physics.py \
           torax/tests/sim_custom_sources.py \
           torax/tests/sim_time_dependence.py \

@@ -80,8 +80,7 @@ class Grid1D:
 def face_to_cell(face: jax.Array) -> jax.Array:
   """Infers cell values corresponding to a vector of face values.
 
-  Reproduces the method in PINT, which is just linear interpolation
-    between face values.
+  Simply a linear interpolation between face values.
 
   Args:
     face: jnp.ndarray containing face values.
