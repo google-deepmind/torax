@@ -4,13 +4,19 @@
 version: 2
 
 # Set the OS, Python version and other tools you might need
+
+# Note:
+# Recommend setting the following env variable for local builds to suppress
+# unhelpful warnings when e.g. dataclass attributes are also documented in
+# docstrings:
+# `export SPHINX_APIDOC_OPTIONS=members,show-inheritance`
+# in readthedocs.org, this env variable is set through admin/Environment Variables
 build:
   os: ubuntu-22.04
   tools:
     python: "3.10"
   commands:
     - pip install -r docs/requirements.txt
-    - export SPHINX_APIDOC_OPTIONS=members,show-inheritance
     - cd docs && make html
     - mkdir $READTHEDOCS_OUTPUT
     - cp -r docs/_build/html $READTHEDOCS_OUTPUT/
