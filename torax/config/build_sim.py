@@ -207,7 +207,7 @@ def build_sources_from_config(
   -  `gas_puff_source`: `source.electron_density_sources.GasPuffRuntimeParams`
   -  `pellet_source`: `source.electron_density_sources.PelletRuntimeParams`
   -  `generic_ion_el_heat_source`:
-      `source.generic_ion_el_heat_source.RuntimeParams`
+     `source.generic_ion_el_heat_source.RuntimeParams`
   -  `fusion_heat_source`: `source.runtime_params.RuntimeParams`
   -  `ohmic_heat_source`: `source.runtime_params.RuntimeParams`
   -  `qei_source`: `source.qei_source.RuntimeParams`
