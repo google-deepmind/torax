@@ -200,17 +200,17 @@ def build_sources_from_config(
   parameters, so to know which parameters to use, see the following dataclass
   definitions (source names to dataclass):
 
-   -  `j_bootstrap`: `source.bootstrap_current_source.RuntimeParams`
-   -  `jext`: `source.external_current_source.RuntimeParams`
-   -  `nbi_particle_source`:
-   `source.electron_density_sources.NBIParticleRuntimeParams`
-   -  `gas_puff_source`: `source.electron_density_sources.GasPuffRuntimeParams`
-   -  `pellet_source`: `source.electron_density_sources.PelletRuntimeParams`
-   -  `generic_ion_el_heat_source`:
-   `source.generic_ion_el_heat_source.RuntimeParams`
-   -  `fusion_heat_source`: `source.runtime_params.RuntimeParams`
-   -  `ohmic_heat_source`: `source.runtime_params.RuntimeParams`
-   -  `qei_source`: `source.qei_source.RuntimeParams`
+  -  `j_bootstrap`: `source.bootstrap_current_source.RuntimeParams`
+  -  `jext`: `source.external_current_source.RuntimeParams`
+  -  `nbi_particle_source`:
+     `source.electron_density_sources.NBIParticleRuntimeParams`
+  -  `gas_puff_source`: `source.electron_density_sources.GasPuffRuntimeParams`
+  -  `pellet_source`: `source.electron_density_sources.PelletRuntimeParams`
+  -  `generic_ion_el_heat_source`:
+      `source.generic_ion_el_heat_source.RuntimeParams`
+  -  `fusion_heat_source`: `source.runtime_params.RuntimeParams`
+  -  `ohmic_heat_source`: `source.runtime_params.RuntimeParams`
+  -  `qei_source`: `source.qei_source.RuntimeParams`
 
   If the input config includes a key that does not match one of the keys listed
   above, an error is raised. Sources are turned off unless included in the input
@@ -218,37 +218,42 @@ def build_sources_from_config(
 
   For the source `Mode` enum, the string name can be provided as input:
 
-  ```
-  {
-      'j_bootstrap': {
-          'mode': 'zero',  # turns it off.
-      },
-  }
-  ```
+  .. code-block:: python
+
+    {
+        'j_bootstrap': {
+            'mode': 'zero',  # turns it off.
+        },
+    }
 
   If the `mode` is set to `formula_based`, then the you can provide a
   `formula_type` key which may have the following values:
 
-   -  `default`: Uses the default impl (if the source has one) (default)
-      -  The other config args are based on the source's RuntimeParams object
-         outlined above.
-   -  `exponential`: Exponential profile.
-      - The other config args are from `sources.formula_config.Exponential`.
-   -  `gaussian`: Gaussian profile.
-      - The other config args are from `sources.formula_config.Gaussian`.
+  -  `default`: Uses the default impl (if the source has one) (default)
+
+    -  The other config args are based on the source's RuntimeParams object
+       outlined above.
+
+  -  `exponential`: Exponential profile.
+
+    - The other config args are from `sources.formula_config.Exponential`.
+
+  -  `gaussian`: Gaussian profile.
+
+    - The other config args are from `sources.formula_config.Gaussian`.
 
   E.g. for an example heat source:
 
-  ```
-  {
-      mode: 'formula',
-      formula_type: 'gaussian',
-      total: 120e6,  # total heating
-      c1: 0.0,  # Source Gaussian central location (in normalized r)
-      c2: 0.25,  # Gaussian width in normalized radial coordinates
-      use_normalized_r: True,
-  }
-  ```
+  .. code-block:: python
+
+    {
+        mode: 'formula',
+        formula_type: 'gaussian',
+        total: 120e6,  # total heating
+        c1: 0.0,  # Source Gaussian central location (in normalized r)
+        c2: 0.25,  # Gaussian width in normalized radial coordinates
+        use_normalized_r: True,
+    }
 
   If you have custom source implementations, you may update this funtion to
   handle those new sources and keys, or you may use the "advanced" configuration
@@ -345,15 +350,20 @@ def build_transport_model_from_config(
   The input config has one required key, `transport_model`, which can have the
   following values:
 
-   -  `qlknn`: QLKNN transport.
-     -  See `transport_model.qlknn_wrapper.RuntimeParams` for model-specific
-        params.
-   -  `constant`: Constant transport
-     -  See `transport_model.constant.RuntimeParams` for model-specific
-        params.
-   -  `CGM`: Critical gradient transport
-     -  See `transport_model.critical_gradient.RuntimeParams` for model-specific
-        params.
+  -  `qlknn`: QLKNN transport.
+
+    -  See `transport_model.qlknn_wrapper.RuntimeParams` for model-specific
+       params.
+
+  -  `constant`: Constant transport
+
+    -  See `transport_model.constant.RuntimeParams` for model-specific
+       params.
+
+  -  `CGM`: Critical gradient transport
+ 
+    -  See `transport_model.critical_gradient.RuntimeParams` for model-specific
+       params.
 
   For all transport models, there are certain parameters which are shared
   amongst all models, as defined by
@@ -364,28 +374,28 @@ def build_transport_model_from_config(
 
   For example:
 
-  ```
-  {
-      'transport_model': 'qlknn',  # The QLKNN model will be built.
+  .. code-block:: python
 
-      # Some shared params.
-      chimin: 0.05,
-      chimax: 100.0,
+    {
+        'transport_model': 'qlknn',  # The QLKNN model will be built.
 
-      # QLKNN-specific params.
-      # These are used because transport_model='qlknn'.
-      qlknn_params: {
-          include_ITG: True,
-      }
+        # Some shared params.
+        chimin: 0.05,
+        chimax: 100.0,
 
-      # Constant-specific params.
-      # Ignored because of the transport_model value.
-      constant_params: {...},
-      # CGM-specific params.
-      # Ignored because of the transport_model value.
-      cgm_params: {...},
-  }
-  ```
+        # QLKNN-specific params.
+        # These are used because transport_model='qlknn'.
+        qlknn_params: {
+            include_ITG: True,
+        }
+
+        # Constant-specific params.
+        # Ignored because of the transport_model value.
+        constant_params: {...},
+        # CGM-specific params.
+        # Ignored because of the transport_model value.
+        cgm_params: {...},
+    }
 
   Args:
     transport_config: Python dict describing how to build a `TransportModel`
@@ -449,12 +459,17 @@ def build_stepper_builder_from_config(
   config has one required key, `stepper_type`, which must be one of the
   following values:
 
-   -  `linear`: Linear theta method.
-     - Additional config parameters are defined in `LinearRuntimeParams`.
-   -  `newton_raphson`: Newton-Raphson nonlinear stepper.
-     - Additional config parameters are defined in `NewtonRaphsonRuntimeParams`.
-   - `optimizer`: jaxopt-based nonlinear stepper.
-     - Additional config parameters are defined in `OptimizerRuntimeParams`.
+  -  `linear`: Linear theta method.
+
+    - Additional config parameters are defined in `LinearRuntimeParams`.
+
+  -  `newton_raphson`: Newton-Raphson nonlinear stepper.
+
+    - Additional config parameters are defined in `NewtonRaphsonRuntimeParams`.
+
+  - `optimizer`: jaxopt-based nonlinear stepper.
+
+    - Additional config parameters are defined in `OptimizerRuntimeParams`.
 
   All steppers share some common config parameters defined in
   `stepper.runtime_params.RuntimeParams`. Stepper-specific params are defined in
@@ -519,14 +534,14 @@ def build_time_step_calculator_from_config(
   If the time-step calculator chosen has any constructor arguments, those can be
   passed to the `init_kwargs` key in the input config:
 
-  ```
-  {
-      'calculator_type': 'array',
-      'init_kwargs': {
-          'array': [0, 0.1, 0.2, 0.4, 0.8],
-      }
-  }
-  ```
+  .. code-block:: python
+
+    {
+        'calculator_type': 'array',
+        'init_kwargs': {
+            'array': [0, 0.1, 0.2, 0.4, 0.8],
+        }
+    }
 
   Args:
     time_step_calculator_config: Python dictionary configuring a

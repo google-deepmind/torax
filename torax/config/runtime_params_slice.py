@@ -73,10 +73,11 @@ class DynamicRuntimeParamsSlice:
 
   This class contains "slices" of various RuntimeParams attributes defined
   throughout TORAX:
-   - from the "general" runtime params
-   - from the transport model's runtime params
-   - from the stepper's runtime params
-   - from each of the sources' runtime params
+  
+  - from the "general" runtime params
+  - from the transport model's runtime params
+  - from the stepper's runtime params
+  - from each of the sources' runtime params
 
   This class packages all these together for convenience, as it simplifies many
   of the internal APIs within TORAX.
