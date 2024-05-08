@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A wrapper around qlknn.
+"""A wrapper around qlknn_10d.
 
-The wrapper provides specifically the pretrained models used for heat
-diffusion. The role of the wrapper is send JAX tracers through the
-network.
+The wrapper calls the pretrained models trained on QuaLiKiz heat and
+particle transport. The wrapper calculates qlknn_10d inputs, infers the
+model, carries out post-processing, and returns a CoreTransport object
+with turbulent transport coefficients.
 """
 
 from __future__ import annotations
@@ -212,7 +213,7 @@ def _filter_model_output(
 
 
 class QLKNNTransportModel(transport_model.TransportModel):
-  """Calculates various coefficients related to particle transport."""
+  """Calculates turbulent transport coefficients."""
 
   def __init__(
       self,

@@ -35,13 +35,15 @@ class TimeStepCalculator(Protocol[State]):
 
   Usage follows this pattern:
 
-  ts = <TimeStepCalculator subclass constructor>
-  ts_state = ts.initial_state()
-  t = 0.
-  while ts.not_done(t):
-    dt, ts_state = ts.next_dt(geo, time_step_calculator_state)
-    t += dt
-    sim_state = <update sim_state with step of size dt>
+  .. code-block: python
+
+    ts = <TimeStepCalculator subclass constructor>
+    ts_state = ts.initial_state()
+    t = 0.
+    while ts.not_done(t):
+      dt, ts_state = ts.next_dt(geo, time_step_calculator_state)
+      t += dt
+      sim_state = <update sim_state with step of size dt>
   """
 
   @abc.abstractmethod
