@@ -40,10 +40,12 @@ def exponential_profile(
   """Returns an exponential profile on the cell grid.
 
   The profile is parameterized by (c1, c2, c3) like so:
-    cell = exp(-(c1 - r) / c2)
-    face = exp(-(c1 - r_face) / c2)
-    C = total / trapz(vpr_face * face, r_face)
-    profile = C * cell
+
+    | cell = exp(-(c1 - r) / c2)
+    | face = exp(-(c1 - r_face) / c2)
+    | C = total / trapz(vpr_face * face, r_face)
+    | profile = C * cell
+  
   The formula can use the normalized r and r_face if specified.
 
   Args:
@@ -76,10 +78,12 @@ def gaussian_profile(
   """Returns a gaussian profile on the cell grid.
 
   The profile is parameterized by (c1, c2, c3) like so:
-    cell = exp(-( (r - c1)**2 / (2 * c2**2) ))
-    face = exp(-( (r_face - c1)**2 / (2 * c2**2) ))
-    C = total / trazp(vpr_face * face, r_face)
-    profile = C * cell
+
+    | cell = exp(-( (r - c1)**2 / (2 * c2**2) ))
+    | face = exp(-( (r_face - c1)**2 / (2 * c2**2) ))
+    | C = total / trazp(vpr_face * face, r_face)
+    | profile = C * cell
+    
   The formula can use the normalized r and r_face if specified.
 
   Args:

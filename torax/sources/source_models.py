@@ -476,7 +476,7 @@ def calc_psidot(
   core_profiles.
 
   psidot = \partial psi / \partial t, and is derived from the same components
-  that form the psi block in the coupled PDE equations. This, a similar
+  that form the psi block in the coupled PDE equations. Thus, a similar
   (but abridged) formulation as in sim.calc_coeffs and fvm._calc_c is used here
 
   Args:
@@ -608,9 +608,6 @@ class SourceModels:
   terms. Their values are provided via model, file, prescribed function, etc.
   The specific approach used depends on how the source is initialized and what
   runtime configuration inputs are provided.
-
-  NOTE for RAPTOR users: Sources in TORAX are similar to actuators in RAPTOR and
-  provide a hook to provide custom profiles.
 
   You can both override the default set of sources in TORAX as well as define
   new custom sources inline when constructing this object. The example below

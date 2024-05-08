@@ -68,11 +68,12 @@ class BootstrapCurrentSource(source.Source):
   """Bootstrap current density source profile.
 
   Unlike other sources within TORAX, the BootstrapCurrentSource provides more
-  than just the bootstrap current. It uses neoclassical physics to determine
-  the following:
-    - sigmaneo
-    - bootstrap current (on cell and face grids)
-    - integrated bootstrap current
+  than just the bootstrap current. It uses a neoclassical physics model to
+  also determine the neoclassical conductivity. Outputs are as follows:
+
+  - sigmaneo: neoclassical conductivity
+  - bootstrap current (on cell and face grids)
+  - total integrated bootstrap current
   """
 
   runtime_params: RuntimeParams = dataclasses.field(
@@ -198,11 +199,12 @@ def calc_neoclassical(
     dynamic_runtime_params_slice: General configuration parameters.
     dynamic_source_runtime_params: Source-specific runtime parameters.
     geo: Torus geometry.
-    temp_ion: Ion temperature. We don't pass in a full `State` here because this
-      function is used to create the `Currents` in the initial `State`.
+    temp_ion: Ion temperature. We don't pass in a full `core_profiles`
+      here because this function is used to create the `Currents` in
+      the initial `State`.
     temp_el: Ion temperature.
     ne: Electron density.
-    ni: Main ion denisty.
+    ni: Main ion density.
     jtot_face: Total current density on face grid.
     psi: Poloidal flux.
 
@@ -213,7 +215,6 @@ def calc_neoclassical(
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
 
-  # should be compared later to RAPTOR with Zeff=1
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
