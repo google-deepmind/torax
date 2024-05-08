@@ -36,8 +36,6 @@ State = type(STATE)
 class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
   """TimeStepCalculator based on chi_max heuristic.
 
-  Reproduces the behavior from PINT.
-
   Attributes:
     config: General configuration parameters.
   """

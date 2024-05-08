@@ -14,7 +14,7 @@
 
 """Inputs to TORAX steppers and functions based on the input runtime parameters.
 
-When running a TORAX simulation, the steppers are (by default) JAX-compiled
+When running a TORAX simulation, the stepper is (by default) a JAX-compiled
 function, meaning it has two types of arguments: "dynamic" and "static".
 
 The "dynamic" arguments can change from call to call. These arguments must be
@@ -60,8 +60,8 @@ class DynamicRuntimeParamsSlice:
   This PyTree of params is input to the sim.SimulationStepFn, which updates
   the joint state and evolves the mesh state. This config includes various
   "dynamic" parameters which can change from step to step, or from
-  simulation run to simulation run, without requiring the SimulationStepFn to
-  recompile.
+  simulation run to simulation run, without requiring components in the
+  SimulationStepFn to recompile.
 
   Note that "dynamic" does NOT mean time dependent necessarily (though these
   params can be time dependent). Here "dynamic" means these params can change
@@ -73,10 +73,11 @@ class DynamicRuntimeParamsSlice:
 
   This class contains "slices" of various RuntimeParams attributes defined
   throughout TORAX:
-   - from the "general" runtime params
-   - from the transport model's runtime params
-   - from the stepper's runtime params
-   - from each of the sources' runtime params
+
+  - from the "general" runtime params
+  - from the transport model's runtime params
+  - from the stepper's runtime params
+  - from each of the sources' runtime params
 
   This class packages all these together for convenience, as it simplifies many
   of the internal APIs within TORAX.
@@ -216,10 +217,10 @@ class DynamicNumerics:
 class StaticRuntimeParamsSlice:
   """Static arguments to SimulationStepFn which cannot be changed.
 
-  If any changes are made to these arguments, then the SimulationStepFn must be
-  recompiled.
+  If any changes are made to these arguments, then components in
+  SimulationStepFn must be recompiled.
 
-  NOTE: These are not the only parameters which can trigger a recompile! For
+  NOTE: These are not the only parameters which can trigger recompilations! For
   instance, if the geometry changes its shape (i.e. nr or hires_fac change),
   that can also trigger a recompile. This is just to note that this list is not
   an exhaustive list of what can cause recompilations.

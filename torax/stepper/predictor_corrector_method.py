@@ -54,7 +54,7 @@ def predictor_corrector_method(
   Returns:
     x_new: Solution of evolving core profile state variables
     auxiliary_outputs: Extra outputs containing auxiliary information from the
-      coeffs_callback computed based on x_new.
+    coeffs_callback computed based on x_new.
   """
 
   # predictor-corrector loop. Will only be traversed once if not in

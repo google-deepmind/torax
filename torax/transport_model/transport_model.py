@@ -14,8 +14,8 @@
 
 """The TransportModel abstract base class.
 
-The transport model calculates various coefficients related to particle
-transport.
+The transport model calculates heat and particle turbulent transport
+coefficients.
 """
 import abc
 import jax
@@ -77,7 +77,7 @@ class TransportModel(abc.ABC):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       transport_coeffs: state.CoreTransport,
   ) -> state.CoreTransport:
-    """Gaussian smoothing of transport coefficients."""
+    """Gaussian smoothing of turbulent transport coefficients."""
     smoothing_matrix = build_smoothing_matrix(geo, dynamic_runtime_params_slice)
     smoothed_coeffs = {}
     for coeff in transport_coeffs:
@@ -90,7 +90,7 @@ def build_smoothing_matrix(
     geo: geometry.Geometry,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
 ) -> jax.Array:
-  """Builds a smoothing matrix for the transport model.
+  """Builds a smoothing matrix for the turbulent transport model.
 
   Uses a Gaussian kernel of HWHM defined in the transport config.
 
