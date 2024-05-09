@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fusion heat source for both ion and electron heat."""
+"""Fusion heat source for both ion and electron heat equations."""
 
 from __future__ import annotations
 
@@ -33,17 +33,17 @@ def calc_fusion(
     core_profiles: state.CoreProfiles,
     nref: float,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
-  """Computes power from ion temperature.
+  """Computes fusion power with the Bosch-Hale parameterization NF 1992.
 
   Assumes that core_profiles.ni is a 50-50% DT mix
 
   Args:
-    geo: Geometry describing the torus.
+    geo: Magnetic geometry.
     core_profiles: Core plasma profiles.
     nref: Reference density.
 
   Returns:
-    Ptot: fusion power in megawatts.
+    Ptot: fusion power in MW.
   """
 
   t_face = core_profiles.temp_ion.face_value()

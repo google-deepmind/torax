@@ -106,7 +106,7 @@ def get_default_sources() -> source_models_lib.SourceModels:
   """Returns a SourceModels containing default sources and runtime parameters.
 
   This set of sources and params are used by most of the TORAX test
-  configurations, including ITER-inpired configs, with additional changes to
+  configurations, including ITER-inspired configs, with additional changes to
   their runtime configurations on top.
 
   If you plan to use them, please remember to update the default runtime

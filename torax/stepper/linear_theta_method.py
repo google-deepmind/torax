@@ -137,7 +137,7 @@ LinearRuntimeParams = runtime_params_lib.RuntimeParams
 
 @dataclasses.dataclass(kw_only=True)
 class LinearThetaMethodBuilder(stepper_lib.StepperBuilder):
-  """Builds an LinearThetaMethod."""
+  """Builds a LinearThetaMethod."""
 
   builder: Callable[
       [
