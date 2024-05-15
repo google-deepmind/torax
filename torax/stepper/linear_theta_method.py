@@ -58,7 +58,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
       tuple[fvm.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      int,
+      state.StepperNumericOutputs,
   ]:
     """See Stepper._x_new docstring."""
 
@@ -107,7 +107,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
         ),
     )
 
-    x_new, (core_sources, core_transport) = (
+    x_new, (core_sources, core_transport), num_iterations = (
         predictor_corrector_method.predictor_corrector_method(
             dt=dt,
             static_runtime_params_slice=static_runtime_params_slice,
@@ -118,10 +118,11 @@ class LinearThetaMethod(stepper_lib.Stepper):
             coeffs_callback=coeffs_callback,
         )
     )
-
-    error = 0  # linear method always works
-
-    return x_new, core_sources, core_transport, error
+    stepper_numeric_outputs = state.StepperNumericOutputs(
+        solver_iterations=num_iterations,
+        stepper_error_state=0,  # linear method always works
+    )
+    return x_new, core_sources, core_transport, stepper_numeric_outputs
 
 
 def _default_linear_builder(

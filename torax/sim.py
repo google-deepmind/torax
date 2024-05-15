@@ -254,11 +254,7 @@ class SimulationStepFn:
         - the core profiles at the end of the time step.
         - time and time step calculator state info.
         - core_sources and core_transport at the end of the time step.
-        - stepper_error_state:
-           0 if solver converged with fine tolerance for this step
-           1 if solver did not converge for this step (was above coarse tol)
-           2 if solver converged within coarse tolerance. Allowed to pass with a
-             warning. Occasional error=2 has low impact on final sim state.
+        - stepper_numeric_outputs.
     """
     dynamic_runtime_params_slice_t = dynamic_runtime_params_slice_provider(
         input_state.t
@@ -324,7 +320,7 @@ class SimulationStepFn:
 
     # Initial trial for stepper. If did not converge (can happen for nonlinear
     # step with large dt) we apply the adaptive time step routine if requested.
-    core_profiles, core_sources, core_transport, stepper_error_state = (
+    core_profiles, core_sources, core_transport, stepper_numeric_outputs = (
         self._stepper_fn(
             dt=dt,
             static_runtime_params_slice=static_runtime_params_slice,
@@ -338,21 +334,22 @@ class SimulationStepFn:
     )
     stepper_iterations += 1
 
+    stepper_numeric_outputs.stepper_iterations = stepper_iterations
+
     output_state = state.ToraxSimState(
         t=input_state.t + dt,
         dt=dt,
         core_profiles=core_profiles,
         core_transport=core_transport,
         core_sources=core_sources,
-        stepper_iterations=stepper_iterations,
         time_step_calculator_state=time_step_calculator_state,
-        stepper_error_state=stepper_error_state,
+        stepper_numeric_outputs=stepper_numeric_outputs,
     )
 
     if static_runtime_params_slice.adaptive_dt:
       # Check if stepper converged. If not, proceed to body_fun
       def cond_fun(updated_output: state.ToraxSimState) -> bool:
-        if updated_output.stepper_error_state == 1:
+        if updated_output.stepper_numeric_outputs.stepper_error_state == 1:
           do_dt_backtrack = True
         else:
           do_dt_backtrack = False
@@ -385,7 +382,7 @@ class SimulationStepFn:
             static_runtime_params_slice=static_runtime_params_slice,
             geo=geo,
         )
-        core_profiles, core_sources, core_transport, stepper_error_state = (
+        core_profiles, core_sources, core_transport, stepper_numeric_outputs = (
             self._stepper_fn(
                 dt=dt,
                 static_runtime_params_slice=static_runtime_params_slice,
@@ -397,15 +394,17 @@ class SimulationStepFn:
                 explicit_source_profiles=explicit_source_profiles,
             )
         )
+        stepper_numeric_outputs.stepper_iterations = (
+            updated_output.stepper_numeric_outputs.stepper_iterations + 1
+        )
         return dataclasses.replace(
             updated_output,
             t=input_state.t + dt,
             dt=dt,
-            stepper_iterations=updated_output.stepper_iterations + 1,
             core_profiles=core_profiles,
             core_transport=core_transport,
             core_sources=core_sources,
-            stepper_error_state=stepper_error_state,
+            stepper_numeric_outputs=stepper_numeric_outputs,
         )
 
       output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
@@ -468,8 +467,11 @@ def get_initial_state(
       ),
       core_transport=state.CoreTransport.zeros(geo),
       time_step_calculator_state=time_step_calculator.initial_state(),
-      stepper_error_state=0,
-      stepper_iterations=0,
+      stepper_numeric_outputs=state.StepperNumericOutputs(
+          stepper_error_state=0,
+          stepper_iterations=0,
+          solver_iterations=0,
+      ),
   )
 
 
@@ -828,7 +830,6 @@ def run_simulation(
   torax_outputs = [
       initial_state,
   ]
-  stepper_error_state = 0
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
       initial_state.t
   )
@@ -860,10 +861,14 @@ def run_simulation(
     # Measure how long in wall clock time each simulation step takes.
     step_start_time = time.time()
     if log_timestep_info:
-      _log_timestep(sim_state.t, sim_state.dt, sim_state.stepper_iterations)
+      _log_timestep(
+          sim_state.t,
+          sim_state.dt,
+          sim_state.stepper_numeric_outputs.stepper_iterations,
+      )
       # TODO(b/330172917): once tol and coarse_tol are configurable in the
       # runtime_params, also log the value of tol and coarse_tol below
-      match stepper_error_state:
+      match sim_state.stepper_numeric_outputs.stepper_error_state:
         case 0:
           pass
         case 1:
@@ -909,7 +914,6 @@ def run_simulation(
         sim_state,
         explicit_source_profiles,
     )
-    stepper_error_state = sim_state.stepper_error_state
     # Update the runtime config for the next iteration.
     dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
         sim_state.t
@@ -920,7 +924,11 @@ def run_simulation(
   # Log final timestep
   if log_timestep_info:
     # The "sim_state" here has been updated by the loop above.
-    _log_timestep(sim_state.t, sim_state.dt, sim_state.stepper_iterations)
+    _log_timestep(
+        sim_state.t,
+        sim_state.dt,
+        sim_state.stepper_numeric_outputs.stepper_iterations,
+    )
 
   # Update the final time step's source profiles based on the explicit source
   # profiles computed based on the final state.

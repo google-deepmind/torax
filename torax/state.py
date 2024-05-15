@@ -201,6 +201,25 @@ class CoreTransport:
 
 
 @chex.dataclass
+class StepperNumericOutputs:
+  """Numerical quantities related to the stepper.
+
+  Attributes:
+    stepper_iterations: Number of iterations performed in the outer loop of the
+      stepper.
+    stepper_error_state: 0 if solver converged with fine tolerance for this step
+      1 if solver did not converge for this step (was above coarse tol) 2 if
+      solver converged within coarse tolerance. Allowed to pass with a warning.
+      Occasional error=2 has low impact on final sim state.
+    solver_iterations: Total number of iterations performed in the solver across
+      all iterations of the stepper.
+  """
+  stepper_iterations: int = 0
+  stepper_error_state: int = 0
+  solver_iterations: int = 0
+
+
+@chex.dataclass
 class ToraxSimState:
   """Full simulator state.
 
@@ -226,12 +245,8 @@ class ToraxSimState:
       at time t, but is not guaranteed to be. In case exact source profiles are
       required for each time step, they must be recomputed manually after
       running `run_simulation()`.
-    stepper_iterations: number of stepper iterations carried out in previous
-      step, i.e. the number of times dt was reduced when using the adaptive dt
-      method.
     time_step_calculator_state: the state of the TimeStepper
-    stepper_error_state: 0 for successful convergence of the PDE stepper, 1 for
-      unsuccessful convergence, leading to recalculation at reduced timestep
+    stepper_numeric_outputs: Numerical quantities related to the stepper.
   """
 
   # Time variables.
@@ -243,11 +258,9 @@ class ToraxSimState:
   core_transport: CoreTransport
   core_sources: source_profiles.SourceProfiles
 
-  # Other "side" states used for logging and feeding to other components of
-  # TORAX.
-  stepper_iterations: int
+  # Info related to the stepper.
   time_step_calculator_state: Any
-  stepper_error_state: int
+  stepper_numeric_outputs: StepperNumericOutputs
 
 
 def build_history_from_states(

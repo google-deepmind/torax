@@ -67,7 +67,7 @@ class Stepper(abc.ABC):
       state.CoreProfiles,
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      int,
+      state.StepperNumericOutputs,
   ]:
     """Applies a time step update.
 
@@ -103,9 +103,7 @@ class Stepper(abc.ABC):
         time t+dt, but rather they will be computed based on the final guess the
         solver used while calculating coeffs in the solver.
       core_transport: Transport coefficients for time t+dt.
-      error: 0 if step was successful (linear step, or nonlinear step with
-        residual or loss under tolerance at exit), or 1 if unsuccessful,
-        indicating that a rerun with a smaller timestep is needed
+      stepper_numeric_output: Error and iteration info.
     """
 
     # This base class method can be completely overriden by a subclass, but
@@ -125,7 +123,7 @@ class Stepper(abc.ABC):
 
     # Don't call solver functions on an empty list
     if evolving_names:
-      x_new, core_sources, core_transport, error = self._x_new(
+      x_new, core_sources, core_transport, stepper_numeric_output = self._x_new(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
@@ -143,7 +141,7 @@ class Stepper(abc.ABC):
           geo=geo,
       )
       core_transport = state.CoreTransport.zeros(geo)
-      error = 0
+      stepper_numeric_output = state.StepperNumericOutputs()
 
     core_profiles_t_plus_dt = (
         core_profile_setters.update_evolving_core_profiles(
@@ -158,7 +156,7 @@ class Stepper(abc.ABC):
         core_profiles_t_plus_dt,
         core_sources,
         core_transport,
-        error,
+        stepper_numeric_output,
     )
 
   def _x_new(
@@ -176,7 +174,7 @@ class Stepper(abc.ABC):
       tuple[fvm.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      int,
+      state.StepperNumericOutputs,
   ]:
     """Calculates new values of the changing variables.
 
@@ -206,9 +204,7 @@ class Stepper(abc.ABC):
       x_new: The values of the evolving variables at time t + dt.
       core_sources: see the docstring of __call__
       core_transport: Transport coefficients for time t+dt.
-      error: 0 if step was successful (linear step, or nonlinear step with
-        residual or loss under tolerance at exit), or 1 if unsuccessful,
-        indicating that a rerun with a smaller timestep is needed
+      stepper_numeric_output: Error and iteration info.
     """
 
     raise NotImplementedError(

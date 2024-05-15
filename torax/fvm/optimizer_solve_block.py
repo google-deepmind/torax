@@ -52,7 +52,11 @@ def optimizer_solve_block(
     initial_guess_mode: InitialGuessMode,
     maxiter: int,
     tol: float,
-) -> tuple[tuple[cell_variable.CellVariable, ...], int, AuxiliaryOutput]:
+) -> tuple[
+    tuple[cell_variable.CellVariable, ...],
+    state.StepperNumericOutputs,
+    AuxiliaryOutput,
+]:
   # pyformat: disable  # pyformat removes line breaks needed for readability
   """Runs one time step of an optimization-based solver on the equation defined by `coeffs`.
 
@@ -103,7 +107,8 @@ def optimizer_solve_block(
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
-    error: int. 0 signifies loss < tol at exit, 1 signifies loss > tol
+    stepper_numeric_outputs: StepperNumericOutputs. Info about iterations and
+    errors
     aux_output: Extra auxiliary output from the calc_coeffs.
   """
   # pyformat: enable
@@ -141,7 +146,7 @@ def optimizer_solve_block(
               state.CoreTransport.zeros(geo),
           ),
       )
-      init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
+      init_x_new, _, _ = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
@@ -157,9 +162,15 @@ def optimizer_solve_block(
       raise ValueError(
           f'Unknown option for first guess in iterations: {initial_guess_mode}'
       )
+  stepper_numeric_outputs = state.StepperNumericOutputs()
 
   # Advance jaxopt_solver by one timestep
-  x_new_vec, final_loss, aux_output = residual_and_loss.jaxopt_solver(
+  (
+      x_new_vec,
+      final_loss,
+      aux_output,
+      stepper_numeric_outputs.solver_iterations,
+  ) = residual_and_loss.jaxopt_solver(
       dt=dt,
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
@@ -183,11 +194,11 @@ def optimizer_solve_block(
   )
 
   # Tell the caller whether or not x_new successfully reduces the loss below
-  # the tolerance by providing an extra output, error.
-  error = jax.lax.cond(
+  # the tolerance.
+  stepper_numeric_outputs.stepper_error_state = jax.lax.cond(
       final_loss > tol,
       lambda: 1,  # Called when True
       lambda: 0,  # Called when False
   )
 
-  return x_new, error, aux_output
+  return x_new, stepper_numeric_outputs, aux_output
