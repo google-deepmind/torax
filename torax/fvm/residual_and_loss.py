@@ -121,7 +121,6 @@ def theta_method_matrix_equation(
      - left-hand side vector, a
      - right-hand side matrix B
      - right-hand side vector, b
-     - auxiliary output from calculating new coefficients for x_new.
   """
 
   x_new_guess_vec = fvm_conversions.cell_variable_tuple_to_vec(x_new_guess)
