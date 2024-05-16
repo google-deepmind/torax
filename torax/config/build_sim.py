@@ -361,7 +361,7 @@ def build_transport_model_from_config(
        params.
 
   -  `CGM`: Critical gradient transport
- 
+
     -  See `transport_model.critical_gradient.RuntimeParams` for model-specific
        params.
 

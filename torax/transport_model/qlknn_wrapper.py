@@ -98,14 +98,14 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 # Env variable name. See _MODEL_PATH description for how this is used.
-_MODEL_PATH_ENV_VAR = 'TORAX_QLKNN_MODEL_PATH'
+MODEL_PATH_ENV_VAR = 'TORAX_QLKNN_MODEL_PATH'
 
 # Path to the QKLNN models.
 _MODEL_PATH = flags.DEFINE_string(
     'torax_qlknn_model_path',
     None,
     'Path to the qlknn model network parameters. If None, then it defaults to '
-    f'the {_MODEL_PATH_ENV_VAR} environment variable, if set. If that env '
+    f'the {MODEL_PATH_ENV_VAR} environment variable, if set. If that env '
     'variable is also not set, then it defaults to "third_party/qlknn_hyper". '
     'Users may set the model path by flag or env variable.',
 )
@@ -114,6 +114,8 @@ _MODEL_PATH = flags.DEFINE_string(
 # Singleton instance for storing the QLKNN model. The params will be lazily
 # loaded once they are needed.
 _MODEL: base_qlknn_model.BaseQLKNNModel | None = None
+# Used to watch for change in model path.
+_CURRENT_MODEL_PATH: str | None = None
 _EPSILON_NN = 1 / 3  # fixed inverse aspect ratio used to train QLKNN10D
 
 
@@ -125,25 +127,28 @@ def _get_model_path() -> str:
     # This was likely called outside the context of an absl app, so ignore the
     # error and use the environment variable.
     pass
-  return os.environ.get(_MODEL_PATH_ENV_VAR, 'third_party/qlknn_hyper')
+  return os.environ.get(MODEL_PATH_ENV_VAR, 'third_party/qlknn_hyper')
 
 
 def _get_model() -> base_qlknn_model.BaseQLKNNModel:
   """Gets the Networks singleton instance."""
-  # The advantags of lazily loading the networks is we don't need to do file
+  # The advantage of lazily loading the networks is we don't need to do file
   # I/O operations at import time and only need to read these files when needed.
   global _MODEL
-  if _MODEL is None:
-    path = _get_model_path()
-    try:
-      _MODEL = qlknn_10d.QLKNN10D(path)
-    except FileNotFoundError as fnfe:
-      raise FileNotFoundError(
-          f'Failed to load model from {path}. Check that the path exists. If '
-          'the path is not correct, make sure you set '
-          f'--{_MODEL_PATH.name} or export the environment variable '
-          f'{_MODEL_PATH_ENV_VAR} with the correct path.'
-      ) from fnfe
+  global _CURRENT_MODEL_PATH
+  path = _get_model_path()
+  if path == _CURRENT_MODEL_PATH and _MODEL is not None:
+    return _MODEL
+  _CURRENT_MODEL_PATH = path
+  try:
+    _MODEL = qlknn_10d.QLKNN10D(path)
+  except FileNotFoundError as fnfe:
+    raise FileNotFoundError(
+        f'Failed to load model from {path}. Check that the path exists. If '
+        'the path is not correct, make sure you set '
+        f'--{_MODEL_PATH.name} or export the environment variable '
+        f'{MODEL_PATH_ENV_VAR} with the correct path.'
+    ) from fnfe
   return _MODEL
 
 

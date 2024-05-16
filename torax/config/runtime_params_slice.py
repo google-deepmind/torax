@@ -73,7 +73,7 @@ class DynamicRuntimeParamsSlice:
 
   This class contains "slices" of various RuntimeParams attributes defined
   throughout TORAX:
-  
+
   - from the "general" runtime params
   - from the transport model's runtime params
   - from the stepper's runtime params
@@ -217,8 +217,8 @@ class DynamicNumerics:
 class StaticRuntimeParamsSlice:
   """Static arguments to SimulationStepFn which cannot be changed.
 
-  If any changes are made to these arguments, then components in SimulationStepFn
-  must be recompiled.
+  If any changes are made to these arguments, then components in
+  SimulationStepFn must be recompiled.
 
   NOTE: These are not the only parameters which can trigger recompilations! For
   instance, if the geometry changes its shape (i.e. nr or hires_fac change),

@@ -45,7 +45,7 @@ def exponential_profile(
     | face = exp(-(c1 - r_face) / c2)
     | C = total / trapz(vpr_face * face, r_face)
     | profile = C * cell
-  
+
   The formula can use the normalized r and r_face if specified.
 
   Args:
@@ -83,7 +83,7 @@ def gaussian_profile(
     | face = exp(-( (r_face - c1)**2 / (2 * c2**2) ))
     | C = total / trazp(vpr_face * face, r_face)
     | profile = C * cell
-    
+
   The formula can use the normalized r and r_face if specified.
 
   Args:
