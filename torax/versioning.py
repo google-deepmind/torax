@@ -54,3 +54,4 @@ def calc_torax_hash() -> int:
 # We calculate this once on import so it can be reused many times, otherwise
 # hash functions of all the torax classes would be slow.
 torax_hash = calc_torax_hash()
+
