@@ -32,6 +32,3 @@ class BaseQLKNNModel(abc.ABC):
       inputs: jnp.ndarray,
   ) -> ModelOutput:
     raise NotImplementedError()
-
-  def required_inputs(self) -> list[str]:
-    raise NotImplementedError()
