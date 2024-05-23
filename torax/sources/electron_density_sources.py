@@ -79,7 +79,7 @@ def _calc_puff_source(
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GasPuffSource(source.SingleProfileNeSource):
   """Gas puff source for the ne equation."""
 
@@ -143,7 +143,7 @@ def _calc_nbi_source(
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class NBIParticleSource(source.SingleProfileNeSource):
   """Neutral-beam injection source for the ne equation."""
 
@@ -207,7 +207,7 @@ def _calc_pellet_source(
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class PelletSource(source.SingleProfileNeSource):
   """Pellet source for the ne equation."""
 
@@ -227,6 +227,6 @@ class PelletSource(source.SingleProfileNeSource):
 #  b) better readability and human-friendly error messages when debugging.
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class RecombinationDensitySink(source.SingleProfileNeSource):
   """Recombination sink for the electron density equation."""

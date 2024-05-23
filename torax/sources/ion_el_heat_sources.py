@@ -30,51 +30,51 @@ from torax.sources import source
 #  b) better readability and human-friendly error messages when debugging.
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BremsstrahlungHeatSink(source.SingleProfileTempElSource):
   """Bremsstrahlung loss sink for the electron temp equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ChargeExchangeHeatSink(source.SingleProfileTempIonSource):
   """Charge exchange loss term for the ion temp equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class CyclotronRadiationHeatSink(source.SingleProfileTempElSource):
   """Cyclotron radiation loss term for the electron temp equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ECRHHeatSource(source.SingleProfileTempElSource):
   """ECRH heat source for the electron temp equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ICRHHeatSource(source.SingleProfileTempIonSource):
   """ICRH heat source for the ion temp equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class LHHeatSource(source.SingleProfileTempElSource):
   """LH heat source for the electron temp equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class LineRadiationHeatSink(source.SingleProfileTempElSource):
   """Line radiation loss sink for the electron temp equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class NBIElectronHeatSource(source.SingleProfileTempElSource):
   """NBI heat source for the electron temp equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class NBIIonHeatSource(source.SingleProfileTempIonSource):
   """NBI heat source for the ion temp equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class RecombinationHeatSink(source.SingleProfileTempElSource):
   """Recombination loss sink for the electron temp equation."""

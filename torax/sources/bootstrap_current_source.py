@@ -63,7 +63,7 @@ def _default_output_shapes(geo) -> tuple[int, int, int, int]:
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BootstrapCurrentSource(source.Source):
   """Bootstrap current density source profile.
 

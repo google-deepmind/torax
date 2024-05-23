@@ -517,7 +517,7 @@ def calc_psidot(
 
 # OhmicHeatSource is a special case and defined here to avoid circular
 # dependencies, since it depends on the psi sources
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class OhmicHeatSource(source_lib.SingleProfileSource):
   """Ohmic heat source for electron heat equation.
 
@@ -557,25 +557,7 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
       )
   )
 
-  # The model function is fixed to self._model_func because that is the only
-  # supported implementation of this source.
-  # However, since this is a param in the parent dataclass, we need to (a)
-  # remove the parameter from the init args and (b) set it to the correct
-  # function in __post_init__().
-  #
-  # We cannot simply define a function `def model_func()` and use that because
-  # that definition would be overridden in this classes dataclass constructor.
-  # Also, the `__post_init__()` is required because it allows access to `self`,
-  # which is required for this model function implementation.
-  model_func: source_lib.SourceProfileFunction | None = dataclasses.field(
-      init=False,
-      default_factory=lambda: None,
-  )
-
-  def __post_init__(self):
-    self.model_func = self._model_func
-
-  def _model_func(
+  def model_func(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,

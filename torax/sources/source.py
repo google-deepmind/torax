@@ -88,7 +88,7 @@ class AffectedCoreProfile(enum.IntEnum):
   TEMP_EL = 4
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class Source:
   """Base class for a single source/sink term.
 
@@ -280,7 +280,7 @@ class Source:
     )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileSource(Source):
   """Source providing a single output profile on the cell grid.
 
@@ -499,7 +499,7 @@ def get_source_profiles(
 # sources defined in the other files in this folder.
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfilePsiSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -507,7 +507,7 @@ class SingleProfilePsiSource(SingleProfileSource):
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileNeSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -515,7 +515,7 @@ class SingleProfileNeSource(SingleProfileSource):
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileTempIonSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -523,7 +523,7 @@ class SingleProfileTempIonSource(SingleProfileSource):
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileTempElSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -535,7 +535,7 @@ def _get_ion_el_output_shape(geo):
   return (2,) + ProfileType.CELL.get_profile_shape(geo)
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class IonElectronSource(Source):
   """Base class for a source/sink that can be used for both ions / electrons.
 
