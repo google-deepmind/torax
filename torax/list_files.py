@@ -60,7 +60,10 @@ def _list_files(path: str, suffix: str = ""):
         flattened.append(elem)
     return flattened
   else:
-    assert os.path.exists(path), "couldn't find file '%s'" % path
+    # This happens legitimately due to other threads cleaning up .pyc files
+    # in the background on GitHub CI
+    if not os.path.exists(path):
+      return []
     if path.endswith(suffix):
       return [path]
     return []

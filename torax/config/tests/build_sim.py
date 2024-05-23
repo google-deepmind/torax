@@ -297,7 +297,7 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_missing_transport_model_raises_error(self):
     with self.assertRaises(ValueError):
-      build_sim.build_transport_model_from_config({})
+      build_sim.build_transport_model_builder_from_config({})
 
   @parameterized.named_parameters(
       dict(
@@ -318,27 +318,41 @@ class BuildSimTest(parameterized.TestCase):
   )
   def test_build_transport_models(self, name, expected_type):
     """Tests that we can build a transport model from the config."""
-    transport_model = build_sim.build_transport_model_from_config({
-        'transport_model': name,
-        'chimin': 1.23,
-        'constant_params': {
-            'chii_const': 4.56,
-        },
-        'cgm_params': {
-            'CGMalpha': 7.89,
-        },
-        'qlknn_params': {
-            'coll_mult': 10.11,
-        },
-    })
+    transport_model_builder = (
+        build_sim.build_transport_model_builder_from_config({
+            'transport_model': name,
+            'chimin': 1.23,
+            'constant_params': {
+                'chii_const': 4.56,
+            },
+            'cgm_params': {
+                'CGMalpha': 7.89,
+            },
+            'qlknn_params': {
+                'coll_mult': 10.11,
+            },
+        })
+    )
+    transport_model = transport_model_builder()
     self.assertIsInstance(transport_model, expected_type)
-    self.assertEqual(transport_model.runtime_params.chimin, 1.23)
+    self.assertEqual(transport_model_builder.runtime_params.chimin, 1.23)
     if name == 'constant':
-      self.assertEqual(transport_model.runtime_params.chii_const, 4.56)
+      assert isinstance(
+          transport_model_builder.runtime_params,
+          constant_transport.RuntimeParams,
+      )
+      self.assertEqual(transport_model_builder.runtime_params.chii_const, 4.56)
     elif name == 'CGM':
-      self.assertEqual(transport_model.runtime_params.CGMalpha, 7.89)
+      assert isinstance(
+          transport_model_builder.runtime_params,
+          critical_gradient_transport.RuntimeParams,
+      )
+      self.assertEqual(transport_model_builder.runtime_params.CGMalpha, 7.89)
     elif name == 'qlknn':
-      self.assertEqual(transport_model.runtime_params.coll_mult, 10.11)
+      assert isinstance(
+          transport_model_builder.runtime_params, qlknn_wrapper.RuntimeParams
+      )
+      self.assertEqual(transport_model_builder.runtime_params.coll_mult, 10.11)
     else:
       self.fail(f'Unknown transport model: {name}')
 
@@ -373,8 +387,12 @@ class BuildSimTest(parameterized.TestCase):
         'stepper_type': stepper_type,
         'theta_imp': 0.5,
     })
+    transport_model_builder = (
+        build_sim.build_transport_model_builder_from_config('constant')
+    )
+    transport_model = transport_model_builder()
     stepper = stepper_builder(
-        transport_model=build_sim.build_transport_model_from_config('constant'),
+        transport_model=transport_model,
         source_models=build_sim.build_sources_from_config({}),
     )
     self.assertIsInstance(stepper, expected_type)

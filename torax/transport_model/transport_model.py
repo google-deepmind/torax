@@ -18,6 +18,7 @@ The transport model calculates heat and particle turbulent transport
 coefficients.
 """
 import abc
+import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import constants
@@ -33,7 +34,32 @@ from torax.transport_model import runtime_params as runtime_params_lib
 # class. Note: this will slightly change some of the reference results, e.g.
 # there is presently no pedestal region clipping for the constant chi model.
 class TransportModel(abc.ABC):
-  """Calculates various coefficients related to heat and particle transport."""
+  """Calculates various coefficients related to heat and particle transport.
+
+  Subclass responsbilities:
+  - Must implement __hash__, __eq__, and be immutable, so that the class can
+    be used as a static argument (or a subcomponent of a larger static
+    argument) to jax.jit
+  - __hash__ and __eq__ must be invariant to copy-construction (e.g., no
+    hashing by `id`) so that the jax persistent cache will work between
+    runs of the python interpreter
+  - __hash__ must be a function of `torax.versioning.torax_hash` so that the
+    jax persistent cache will work correctly.
+  - Must set _frozen = True at the end of the subclass __init__ method to
+    activate immutability.
+  """
+
+  def __setattr__(self, attr, value):
+    # pylint: disable=g-doc-args
+    # pylint: disable=g-doc-return-or-yield
+    """Override __setattr__ to make the class (sort of) immutable.
+
+    Note that you can still do obj.field.subfield = x, so it is not true
+    immutability, but this to helps to avoid some careless errors.
+    """
+    if getattr(self, "_frozen", False):
+      raise AttributeError("TransportModels are immutable.")
+    return super().__setattr__(attr, value)
 
   def __call__(
       self,
@@ -41,6 +67,11 @@ class TransportModel(abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
+    if not getattr(self, "_frozen", False):
+      raise RuntimeError(
+          f"Subclass implementation {type(self)} forgot to "
+          "freeze at the end of __init__."
+      )
     return self.smooth_coeffs(
         geo,
         dynamic_runtime_params_slice,
@@ -48,19 +79,6 @@ class TransportModel(abc.ABC):
             dynamic_runtime_params_slice, geo, core_profiles
         ),
     )
-
-  @property
-  @abc.abstractmethod
-  def runtime_params(self) -> runtime_params_lib.RuntimeParams:
-    """Returns the runtime parameters for this model."""
-
-  @runtime_params.setter
-  @abc.abstractmethod
-  def runtime_params(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-  ) -> None:
-    """Sets the runtime parameters for this model."""
 
   @abc.abstractmethod
   def _call_implementation(
@@ -180,3 +198,19 @@ def build_smoothing_matrix(
   row_sums = jnp.sum(kernel, axis=1)
   kernel /= row_sums[:, jnp.newaxis]
   return kernel
+
+
+@dataclasses.dataclass(kw_only=True)
+class TransportModelBuilder(abc.ABC):
+  """Factory for Stepper objects."""
+
+  @abc.abstractmethod
+  def __call__(
+      self,
+  ) -> TransportModel:
+    """Builds a TransportModel instance."""
+
+  # Input parameters to the TransportModel built by this class.
+  runtime_params: runtime_params_lib.RuntimeParams = dataclasses.field(
+      default_factory=runtime_params_lib.RuntimeParams
+  )

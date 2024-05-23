@@ -22,8 +22,10 @@ with turbulent transport coefficients.
 
 from __future__ import annotations
 
+import dataclasses
 import functools
 import os
+from typing import Callable
 import warnings
 
 from absl import flags
@@ -35,6 +37,7 @@ from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax import versioning
 from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import base_qlknn_model
@@ -222,19 +225,10 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
   def __init__(
       self,
-      runtime_params: RuntimeParams | None = None,
   ):
-    self._runtime_params = runtime_params or RuntimeParams()
     super().__init__()
     self._cached_combined = functools.lru_cache(maxsize=10)(self._combined)
-
-  @property
-  def runtime_params(self) -> RuntimeParams:
-    return self._runtime_params
-
-  @runtime_params.setter
-  def runtime_params(self, runtime_params: RuntimeParams) -> None:
-    self._runtime_params = runtime_params
+    self._frozen = True
 
   def _call_implementation(
       self,
@@ -596,3 +590,33 @@ class QLKNNTransportModel(transport_model.TransportModel):
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )
+
+  def __hash__(self):
+    # All QLKNNTransportModels are equivalent and can thus hash the same
+    return hash(('QLKNNTransportModel', versioning.torax_hash))
+
+  def __eq__(self, other):
+    return isinstance(other, QLKNNTransportModel)
+
+
+def _default_qlknn_builder() -> QLKNNTransportModel:
+  return QLKNNTransportModel()
+
+
+@dataclasses.dataclass(kw_only=True)
+class QLKNNTransportModelBuilder(transport_model.TransportModelBuilder):
+  """Builds a class QLKNNTransportModel."""
+
+  runtime_params: RuntimeParams = dataclasses.field(
+      default_factory=RuntimeParams
+  )
+
+  builder: Callable[
+      [],
+      QLKNNTransportModel,
+  ] = _default_qlknn_builder
+
+  def __call__(
+      self,
+  ) -> QLKNNTransportModel:
+    return self.builder()

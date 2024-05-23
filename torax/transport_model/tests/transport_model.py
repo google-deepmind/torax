@@ -14,6 +14,8 @@
 
 """Unit tests for torax.transport_model."""
 
+import dataclasses
+from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -41,7 +43,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
     geo = geometry.build_circular_geometry()
     source_models = source_models_lib.SourceModels()
-    transport_model = FakeTransportModel(
+    transport_model_builder = FakeTransportModelBuilder(
         runtime_params=runtime_params_lib.RuntimeParams(
             apply_inner_patch=True,
             apply_outer_patch=True,
@@ -50,10 +52,11 @@ class TransportSmoothingTest(parameterized.TestCase):
             smoothing_sigma=0.05,
         )
     )
+    transport_model = transport_model_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            transport=transport_model.runtime_params,
+            transport=transport_model_builder.runtime_params,
             sources=source_models.runtime_params,
         )
     )
@@ -165,20 +168,9 @@ class TransportSmoothingTest(parameterized.TestCase):
 class FakeTransportModel(transport_model_lib.TransportModel):
   """Fake TransportModel for testing purposes."""
 
-  def __init__(self, runtime_params: runtime_params_lib.RuntimeParams):
-    self._runtime_params = runtime_params
-
-  @property
-  def runtime_params(self) -> runtime_params_lib.RuntimeParams:
-    """Returns the runtime parameters for this model."""
-    return self._runtime_params
-
-  @runtime_params.setter
-  def runtime_params(
-      self,
-      runtime_params: runtime_params_lib.RuntimeParams,
-  ) -> None:
-    self._runtime_params = runtime_params
+  def __init__(self):
+    super().__init__()
+    self._frozen = True
 
   def _call_implementation(
       self,
@@ -197,6 +189,25 @@ class FakeTransportModel(transport_model_lib.TransportModel):
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )
+
+
+def _default_fake_builder() -> FakeTransportModel:
+  return FakeTransportModel()
+
+
+@dataclasses.dataclass(kw_only=True)
+class FakeTransportModelBuilder(transport_model_lib.TransportModelBuilder):
+  """Builds a class FakeTransportModel."""
+
+  builder: Callable[
+      [],
+      FakeTransportModel,
+  ] = _default_fake_builder
+
+  def __call__(
+      self,
+  ) -> FakeTransportModel:
+    return self.builder()
 
 
 if __name__ == '__main__':

@@ -41,7 +41,7 @@ class QlknnWrapperTest(parameterized.TestCase):
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
-            transport=qlknn.runtime_params,
+            transport=qlknn_wrapper.RuntimeParams(),
             sources=source_models.runtime_params,
         )
     )
@@ -57,6 +57,16 @@ class QlknnWrapperTest(parameterized.TestCase):
         qlknn._cached_combined.cache_info().currsize,  # pylint: disable=protected-access
         1,
     )
+
+  def test_hash_and_eq(self):
+    # Test that hash and eq are invariant to copying, so that they will work
+    # correctly with jax's persistent cache
+    qlknn_1 = qlknn_wrapper.QLKNNTransportModel()
+    qlknn_2 = qlknn_wrapper.QLKNNTransportModel()
+    self.assertEqual(qlknn_1, qlknn_2)
+    self.assertEqual(hash(qlknn_1), hash(qlknn_2))
+    mock_persistent_jax_cache = set([qlknn_1])
+    self.assertIn(qlknn_2, mock_persistent_jax_cache)
 
 
 if __name__ == '__main__':

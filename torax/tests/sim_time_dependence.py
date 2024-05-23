@@ -15,6 +15,7 @@
 """Tests torax.sim for handling time dependent input runtime params."""
 
 import dataclasses
+from typing import Callable
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -31,7 +32,6 @@ from torax.sources import source_profiles
 from torax.stepper import runtime_params as stepper_runtime_params
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import fixed_time_step_calculator
-from torax.transport_model import runtime_params as transport_runtime_params
 from torax.transport_model import transport_model as transport_model_lib
 
 
@@ -61,6 +61,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         ),
     )
     geo = geometry.build_circular_geometry()
+    transport_builder = FakeTransportModelBuilder()
     transport = FakeTransportModel()
     source_models = source_models_lib.SourceModels()
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
@@ -80,7 +81,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     dynamic_runtime_params_slice_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport_getter=lambda: transport.runtime_params,
+            transport_getter=lambda: transport_builder.runtime_params,
             sources_getter=lambda: source_models.runtime_params,
             stepper_getter=stepper_runtime_params.RuntimeParams,
         )
@@ -192,15 +193,9 @@ class FakeStepper(stepper_lib.Stepper):
 class FakeTransportModel(transport_model_lib.TransportModel):
   """Dummy transport model that always returns zeros."""
 
-  @property
-  def runtime_params(self) -> transport_runtime_params.RuntimeParams:
-    return transport_runtime_params.RuntimeParams()
-
-  @runtime_params.setter
-  def runtime_params(
-      self, runtime_params: transport_runtime_params.RuntimeParams
-  ):
-    pass
+  def __init__(self):
+    super().__init__()
+    self._frozen = True
 
   def _call_implementation(
       self,
@@ -209,6 +204,25 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
     return state.CoreTransport.zeros(geo)
+
+
+def _default_fake_builder() -> FakeTransportModel:
+  return FakeTransportModel()
+
+
+@dataclasses.dataclass(kw_only=True)
+class FakeTransportModelBuilder(transport_model_lib.TransportModelBuilder):
+  """Builds a class FakeTransportModel."""
+
+  builder: Callable[
+      [],
+      FakeTransportModel,
+  ] = _default_fake_builder
+
+  def __call__(
+      self,
+  ) -> FakeTransportModel:
+    return self.builder()
 
 
 if __name__ == '__main__':

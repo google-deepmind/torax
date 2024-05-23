@@ -184,7 +184,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
                 predictor_corrector=False,
             )
         ),
-        transport_model=constant_transport_model.ConstantTransportModel(
+        transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(
             runtime_params=constant_transport_model.RuntimeParams(
                 De_const=0.5,
                 Ve_const=-0.2,

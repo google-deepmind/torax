@@ -369,12 +369,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
         theta_imp=theta_imp,
     )
     geo = geometry.build_circular_geometry(nr=num_cells)
-    transport_model = constant_transport_model.ConstantTransportModel(
-        runtime_params=constant_transport_model.RuntimeParams(
-            chimin=0,
-            chii_const=1,
-        ),
+    transport_model_builder = (
+        constant_transport_model.ConstantTransportModelBuilder(
+            runtime_params=constant_transport_model.RuntimeParams(
+                chimin=0,
+                chii_const=1,
+            ),
+        )
     )
+    transport_model = transport_model_builder()
     source_models = default_sources.get_default_sources()
     source_models.qei_source.runtime_params.Qei_mult = 0.0
     source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
@@ -389,7 +392,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            transport=transport_model.runtime_params,
+            transport=transport_model_builder.runtime_params,
             sources=source_models.runtime_params,
             stepper=stepper_params,
         )
@@ -493,12 +496,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
         predictor_corrector=False,
         theta_imp=1.0,
     )
-    transport_model = constant_transport_model.ConstantTransportModel(
-        runtime_params=constant_transport_model.RuntimeParams(
-            chimin=0,
-            chii_const=1,
-        ),
+    transport_model_builder = (
+        constant_transport_model.ConstantTransportModelBuilder(
+            runtime_params=constant_transport_model.RuntimeParams(
+                chimin=0,
+                chii_const=1,
+            ),
+        )
     )
+    transport_model = transport_model_builder()
     source_models = default_sources.get_default_sources()
     source_models.qei_source.runtime_params.Qei_mult = 0.0
     source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
@@ -513,7 +519,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            transport=transport_model.runtime_params,
+            transport=transport_model_builder.runtime_params,
             sources=source_models.runtime_params,
             stepper=stepper_params,
         )
@@ -622,12 +628,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
         theta_imp=0.0,
     )
     geo = geometry.build_circular_geometry(nr=num_cells)
-    transport_model = constant_transport_model.ConstantTransportModel(
-        runtime_params=constant_transport_model.RuntimeParams(
-            chimin=0,
-            chii_const=1,
-        ),
+    transport_model_builder = (
+        constant_transport_model.ConstantTransportModelBuilder(
+            runtime_params=constant_transport_model.RuntimeParams(
+                chimin=0,
+                chii_const=1,
+            ),
+        )
     )
+    transport_model = transport_model_builder()
     source_models = default_sources.get_default_sources()
     source_models.qei_source.runtime_params.Qei_mult = 0.0
     source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
@@ -642,7 +651,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            transport=transport_model.runtime_params,
+            transport=transport_model_builder.runtime_params,
             sources=source_models.runtime_params,
             stepper=stepper_params,
         )

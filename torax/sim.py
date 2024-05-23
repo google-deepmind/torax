@@ -684,7 +684,7 @@ def build_sim_object(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     geo: geometry.Geometry,
     stepper_builder: stepper_lib.StepperBuilder,
-    transport_model: transport_model_lib.TransportModel,
+    transport_model_builder: transport_model_lib.TransportModelBuilder,
     source_models: source_models_lib.SourceModels,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
 ) -> Sim:
@@ -702,7 +702,7 @@ def build_sim_object(
     geo: Describes the magnetic geometry.
     stepper_builder: A callable to build the stepper. The stepper has already
       been factored out of the config.
-    transport_model: Calculates diffusion and convection coefficients.
+    transport_model_builder: A callable to build the transport model.
     source_models: All TORAX sources/sink functions which provide profiles used
       as terms in the equations that evolve the core profiless.
     time_step_calculator: The time_step_calculator, if built, otherwise a
@@ -711,6 +711,8 @@ def build_sim_object(
   Returns:
     sim: The built Sim instance.
   """
+
+  transport_model = transport_model_builder()
 
   static_runtime_params_slice = (
       runtime_params_slice.build_static_runtime_params_slice(
@@ -721,7 +723,7 @@ def build_sim_object(
   dynamic_runtime_params_slice_provider = (
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
-          transport_getter=lambda: transport_model.runtime_params,
+          transport_getter=lambda: transport_model_builder.runtime_params,
           sources_getter=lambda: source_models.runtime_params,
           stepper_getter=lambda: stepper_builder.runtime_params,
       )

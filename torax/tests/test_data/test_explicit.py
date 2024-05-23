@@ -49,8 +49,10 @@ def get_geometry(
   return geometry.build_circular_geometry()
 
 
-def get_transport_model() -> constant_transport_model.ConstantTransportModel:
-  return constant_transport_model.ConstantTransportModel()
+def get_transport_model_builder() -> (
+    constant_transport_model.ConstantTransportModel
+):
+  return constant_transport_model.ConstantTransportModelBuilder()
 
 
 def get_sources() -> source_models_lib.SourceModels:
@@ -98,6 +100,6 @@ def get_sim() -> sim_lib.Sim:
       runtime_params=runtime_params,
       geo=geo,
       source_models=get_sources(),
-      transport_model=get_transport_model(),
+      transport_model_builder=get_transport_model_builder(),
       stepper_builder=get_stepper_builder(),
   )

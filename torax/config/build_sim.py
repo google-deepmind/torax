@@ -112,7 +112,9 @@ def build_sim_from_config(
       runtime_params=runtime_params,
       geo=build_geometry_from_config(config['geometry'], runtime_params),
       source_models=build_sources_from_config(config['sources']),
-      transport_model=build_transport_model_from_config(config['transport']),
+      transport_model_builder=build_transport_model_builder_from_config(
+          config['transport']
+      ),
       stepper_builder=build_stepper_builder_from_config(config['stepper']),
       time_step_calculator=build_time_step_calculator_from_config(
           config['time_step_calculator']
@@ -342,10 +344,10 @@ def _build_single_source_from_config(
   # pytype: enable=missing-parameter
 
 
-def build_transport_model_from_config(
+def build_transport_model_builder_from_config(
     transport_config: dict[str, Any] | str,
-) -> transport_model_lib.TransportModel:
-  """Builds a `TransportModel` from the input config.
+) -> transport_model_lib.TransportModelBuilder:
+  """Builds a `TransportModelBuilder` from the input config.
 
   The input config has one required key, `transport_model`, which can have the
   following values:
@@ -402,7 +404,7 @@ def build_transport_model_from_config(
       with the structure outlined above.
 
   Returns:
-    A `TransportModel` object.
+    A `TransportModelBuilder` object.
   """
   if isinstance(transport_config, str):
     transport_config = {'transport_model': transport_config}
@@ -417,7 +419,7 @@ def build_transport_model_from_config(
     # Remove params from the other models, if present.
     qlknn_params.pop('constant_params', None)
     qlknn_params.pop('cgm_params', None)
-    return qlknn_wrapper.QLKNNTransportModel(
+    return qlknn_wrapper.QLKNNTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
             qlknn_wrapper.RuntimeParams(),
             **qlknn_params,
@@ -429,7 +431,7 @@ def build_transport_model_from_config(
     # Remove params from the other models, if present.
     constant_params.pop('qlknn_params', None)
     constant_params.pop('cgm_params', None)
-    return constant_transport.ConstantTransportModel(
+    return constant_transport.ConstantTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
             constant_transport.RuntimeParams(),
             **constant_params,
@@ -441,7 +443,7 @@ def build_transport_model_from_config(
     # Remove params from the other models, if present.
     cgm_params.pop('qlknn_params', None)
     cgm_params.pop('constant_params', None)
-    return critical_gradient_transport.CriticalGradientModel(
+    return critical_gradient_transport.CriticalGradientModelBuilder(
         runtime_params=config_args.recursive_replace(
             critical_gradient_transport.RuntimeParams(),
             **cgm_params,

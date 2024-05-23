@@ -19,11 +19,15 @@ A simple model assuming constant transport.
 
 from __future__ import annotations
 
+import dataclasses
+from typing import Callable
+
 import chex
 from jax import numpy as jnp
 from torax import geometry
 from torax import jax_utils
 from torax import state
+from torax import versioning
 from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import runtime_params as runtime_params_lib
@@ -101,19 +105,9 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 class ConstantTransportModel(transport_model.TransportModel):
   """Calculates various coefficients related to particle transport."""
 
-  def __init__(
-      self,
-      runtime_params: RuntimeParams | None = None,
-  ):
-    self._runtime_params = runtime_params or RuntimeParams()
-
-  @property
-  def runtime_params(self) -> RuntimeParams:
-    return self._runtime_params
-
-  @runtime_params.setter
-  def runtime_params(self, runtime_params: RuntimeParams) -> None:
-    self._runtime_params = runtime_params
+  def __init__(self):
+    super().__init__()
+    self._frozen = True
 
   def _call_implementation(
       self,
@@ -154,3 +148,34 @@ class ConstantTransportModel(transport_model.TransportModel):
         d_face_el=d_face_el,
         v_face_el=v_face_el,
     )
+
+  def __hash__(self):
+    # All ConstantTransportModels are equivalent and can hash the same
+    return hash(('ConstrantTransportModel', versioning.torax_hash))
+
+  def __eq__(self, other):
+    # All ConstantTransportModels are equivalent
+    return isinstance(other, ConstantTransportModel)
+
+
+def _default_constant_builder() -> ConstantTransportModel:
+  return ConstantTransportModel()
+
+
+@dataclasses.dataclass(kw_only=True)
+class ConstantTransportModelBuilder(transport_model.TransportModelBuilder):
+  """Builds a class ConstantTransportModel."""
+
+  runtime_params: RuntimeParams = dataclasses.field(
+      default_factory=RuntimeParams
+  )
+
+  builder: Callable[
+      [],
+      ConstantTransportModel,
+  ] = _default_constant_builder
+
+  def __call__(
+      self,
+  ) -> ConstantTransportModel:
+    return self.builder()

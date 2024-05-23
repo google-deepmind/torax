@@ -114,10 +114,12 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # way that does not trigger recompiles. This way we only trace the code
     # once.
     geo = geometry.build_circular_geometry()
-    transport_model = constant_transport_model.ConstantTransportModel(
-        runtime_params=constant_transport_model.RuntimeParams(
-            De_const=0.5,
-            Ve_const=-0.2,
+    transport_model_builder = (
+        constant_transport_model.ConstantTransportModelBuilder(
+            runtime_params=constant_transport_model.RuntimeParams(
+                De_const=0.5,
+                Ve_const=-0.2,
+            )
         )
     )
     sim = sim_lib.build_sim_object(
@@ -128,7 +130,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
                 predictor_corrector=False,
             )
         ),
-        transport_model=transport_model,
+        transport_model_builder=transport_model_builder,
         source_models=source_models,
     )
 
