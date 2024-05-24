@@ -685,7 +685,7 @@ def build_sim_object(
     geo: geometry.Geometry,
     stepper_builder: stepper_lib.StepperBuilder,
     transport_model_builder: transport_model_lib.TransportModelBuilder,
-    source_models: source_models_lib.SourceModels,
+    source_models_builder: source_models_lib.SourceModelsBuilder,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
 ) -> Sim:
   """Builds a Sim object from the input runtime params and sim components.
@@ -703,8 +703,8 @@ def build_sim_object(
     stepper_builder: A callable to build the stepper. The stepper has already
       been factored out of the config.
     transport_model_builder: A callable to build the transport model.
-    source_models: All TORAX sources/sink functions which provide profiles used
-      as terms in the equations that evolve the core profiless.
+    source_models_builder: A callable to build the SourceModels and hold its
+      mutable RuntimeParams.
     time_step_calculator: The time_step_calculator, if built, otherwise a
       ChiTimeStepCalculator will be built by default.
 
@@ -728,6 +728,7 @@ def build_sim_object(
           stepper_getter=lambda: stepper_builder.runtime_params,
       )
   )
+  source_models = source_models_builder()
   stepper = stepper_builder(transport_model, source_models)
 
   if time_step_calculator is None:

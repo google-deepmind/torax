@@ -30,6 +30,7 @@ from torax.sources import default_sources
 from torax.sources import electron_density_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_models
 from torax.stepper import linear_theta_method
 from torax.tests.test_lib import sim_test_case
 from torax.transport_model import constant as constant_transport_model
@@ -46,7 +47,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 
     # For this example, use test_particle_sources_constant with the linear
     # stepper.
-    custom_source_name = 'custom_ne_source'
+    custom_source_name = 'single_profile_source:custom_ne_source'
 
     def custom_source_formula(
         dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -102,55 +103,50 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 
     # First instantiate the same default sources that test_particle_sources
     # constant starts with.
-    source_models = default_sources.get_default_sources()
-    source_models.j_bootstrap.runtime_params.bootstrap_mult = 1
-    source_models.qei_source.runtime_params.Qei_mult = 1
-    nbi_params = source_models.sources['nbi_particle_source'].runtime_params
-    assert isinstance(
-        nbi_params, electron_density_sources.NBIParticleRuntimeParams
-    )
+    source_models_config = default_sources.get_default_source_config()
+    source_models_config['j_bootstrap'].bootstrap_mult = 1
+    source_models_config['qei_source'].Qei_mult = 1
+    nbi_params = source_models_config['nbi_particle_source']
     nbi_params.S_nbi_tot = 0.0
-    pellet_params = source_models.sources['pellet_source'].runtime_params
-    assert isinstance(
-        pellet_params, electron_density_sources.PelletRuntimeParams
-    )
+    pellet_params = source_models_config['pellet_source']
     pellet_params.S_pellet_tot = 2.0e22
-    gas_puff_params = source_models.sources['gas_puff_source'].runtime_params
-    assert isinstance(
-        gas_puff_params, electron_density_sources.GasPuffRuntimeParams
-    )
+    gas_puff_params = source_models_config['gas_puff_source']
     gas_puff_params.S_puff_tot = 1.0e22
     # Turn off some sources.
-    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+    source_models_config['fusion_heat_source'].mode = (
         runtime_params_lib.Mode.ZERO
     )
-    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+    source_models_config['ohmic_heat_source'].mode = (
         runtime_params_lib.Mode.ZERO
     )
 
     # Add the custom source with the correct params, but keep it turned off to
     # start.
-    source_models.add_source(
-        source_name=custom_source_name,
-        source=source.SingleProfileSource(
-            supported_modes=(
-                runtime_params_lib.Mode.ZERO,
-                runtime_params_lib.Mode.FORMULA_BASED,
-            ),
-            affected_core_profiles=(source.AffectedCoreProfile.NE,),
-            formula=custom_source_formula,
-            runtime_params=_CustomSourceRuntimeParams(
-                mode=runtime_params_lib.Mode.ZERO,
-                puff_decay_length=gas_puff_params.puff_decay_length,
-                S_puff_tot=gas_puff_params.S_puff_tot,
-                nbi_particle_width=nbi_params.nbi_particle_width,
-                nbi_deposition_location=nbi_params.nbi_deposition_location,
-                S_nbi_tot=nbi_params.S_nbi_tot,
-                pellet_width=pellet_params.pellet_width,
-                pellet_deposition_location=pellet_params.pellet_deposition_location,
-                S_pellet_tot=pellet_params.S_pellet_tot,
-            ),
+
+    single_profile_source_kwargs = {
+        'supported_modes': (
+            runtime_params_lib.Mode.ZERO,
+            runtime_params_lib.Mode.FORMULA_BASED,
         ),
+        'affected_core_profiles': (source.AffectedCoreProfile.NE,),
+        'formula': custom_source_formula,
+        'runtime_params': _CustomSourceRuntimeParams(
+            mode=runtime_params_lib.Mode.ZERO,
+            puff_decay_length=gas_puff_params.puff_decay_length,
+            S_puff_tot=gas_puff_params.S_puff_tot,
+            nbi_particle_width=nbi_params.nbi_particle_width,
+            nbi_deposition_location=nbi_params.nbi_deposition_location,
+            S_nbi_tot=nbi_params.S_nbi_tot,
+            pellet_width=pellet_params.pellet_width,
+            pellet_deposition_location=pellet_params.pellet_deposition_location,
+            S_pellet_tot=pellet_params.S_pellet_tot,
+        ),
+    }
+
+    source_models_config[custom_source_name] = single_profile_source_kwargs
+
+    source_models_builder = source_models.SourceModelsBuilder(
+        source_models_config
     )
 
     # Copy the test_particle_sources_constant config in here for clarity.
@@ -190,7 +186,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
                 Ve_const=-0.2,
             ),
         ),
-        source_models=source_models,
+        source_models_builder=source_models_builder,
     )
 
     # Make sure the config copied here works with these references.
@@ -213,16 +209,20 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       nbi_params.mode = runtime_params_lib.Mode.ZERO
       pellet_params.mode = runtime_params_lib.Mode.ZERO
       gas_puff_params.mode = runtime_params_lib.Mode.ZERO
-      source_models.sources[custom_source_name].runtime_params.mode = (
-          runtime_params_lib.Mode.FORMULA_BASED
-      )
+      custom_source_params = source_models_builder.source_configs[
+          custom_source_name
+      ]
+      assert isinstance(custom_source_params, dict)
+      custom_source_params['mode'] = runtime_params_lib.Mode.FORMULA_BASED
       self._run_sim_and_check(sim, ref_profiles, ref_time)
 
     with self.subTest('without_defaults_and_without_custom_source'):
       # Confirm that the custom source actual has an effect.
-      source_models.sources[custom_source_name].runtime_params.mode = (
-          runtime_params_lib.Mode.ZERO
-      )
+      custom_source_params = source_models_builder.source_configs[
+          custom_source_name
+      ]
+      assert isinstance(custom_source_params, dict)
+      custom_source_params['mode'] = runtime_params_lib.Mode.ZERO
       with self.assertRaises(AssertionError):
         self._run_sim_and_check(sim, ref_profiles, ref_time)
 

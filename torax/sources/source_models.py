@@ -16,8 +16,10 @@
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import functools
+from typing import Any, Dict
 
 import jax.numpy as jnp
 from torax import constants
@@ -25,10 +27,16 @@ from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.fvm import diffusion_terms
 from torax.sources import bootstrap_current_source
+from torax.sources import electron_density_sources
 from torax.sources import external_current_source
+from torax.sources import formula_config
+from torax.sources import formulas
+from torax.sources import fusion_heat_source
+from torax.sources import generic_ion_el_heat_source as ion_el_heat
 from torax.sources import qei_source as qei_source_lib
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -634,7 +642,7 @@ class SourceModels:
     )
     # Define the collection of sources here, which in this example only includes
     # one source.
-    all_torax_sources = source_models_lib.SourceModels(
+    all_torax_sources = SourceModels(
         sources={'my_custom_source': my_custom_source}
     )
 
@@ -644,7 +652,7 @@ class SourceModels:
 
   def __init__(
       self,
-      sources: dict[str, source_lib.Source] | None = None,
+      sources: Dict[str, source_lib.Source] | None = None,
   ):
     """Constructs a collection of sources.
 
@@ -878,3 +886,276 @@ def build_all_zero_profiles(
       j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
       qei=source_profiles.QeiInfo.zeros(geo),
   )
+
+
+SourceConfig = Dict[str, Any] | runtime_params_lib.RuntimeParams
+
+
+class SourceModelsBuilder:
+  """Factory for SourceModels objects."""
+
+  def __init__(
+      self,
+      source_configs: Dict[str, SourceConfig] | None = None,
+  ):
+    # Pytype doesn't enforce this successfully
+    if source_configs:
+      for k, v in source_configs.items():
+        if not isinstance(v, (dict, runtime_params_lib.RuntimeParams)):
+          raise TypeError(
+              'Expected configuration dictionary but got'
+              f'{v} of type {type(v)} as config for {k}.'
+          )
+    self.source_configs = source_configs or {}
+
+  def __call__(
+      self,
+  ) -> SourceModels:
+    """Builds a SourceModels instance from the `source_configs` field.
+
+    The input config has an expected structure which maps onto TORAX sources.
+    Each key in the input config maps to a single source, and its value maps
+    onto
+    that source's input runtime parameters. Different sources have different
+    input
+    parameters, so to know which parameters to use, see the following dataclass
+    definitions (source names to dataclass):
+
+    -  `j_bootstrap`: `source.bootstrap_current_source.RuntimeParams`
+    -  `jext`: `source.external_current_source.RuntimeParams`
+    -  `nbi_particle_source`:
+       `source.electron_density_sources.NBIParticleRuntimeParams`
+    -  `gas_puff_source`: `source.electron_density_sources.GasPuffRuntimeParams`
+    -  `pellet_source`: `source.electron_density_sources.PelletRuntimeParams`
+    -  `generic_ion_el_heat_source`:
+       `source.generic_ion_el_heat_source.RuntimeParams`
+    -  `fusion_heat_source`: `source.runtime_params.RuntimeParams`
+    -  `ohmic_heat_source`: `source.runtime_params.RuntimeParams`
+    -  `qei_source`: `source.qei_source.RuntimeParams`
+
+    If the input config includes a key that does not match one of the keys
+    listed
+    above, an error is raised. Sources are turned off unless included in the
+    input
+    config.
+
+    For the source `Mode` enum, the string name can be provided as input:
+
+    .. code-block:: python
+
+      {
+          'j_bootstrap': {
+              'mode': 'zero',  # turns it off.
+          },
+      }
+
+    If the `mode` is set to `formula_based`, then the you can provide a
+    `formula_type` key which may have the following values:
+
+    -  `default`: Uses the default impl (if the source has one) (default)
+
+      -  The other config args are based on the source's RuntimeParams object
+         outlined above.
+
+    -  `exponential`: Exponential profile.
+
+      - The other config args are from `sources.formula_config.Exponential`.
+
+    -  `gaussian`: Gaussian profile.
+
+      - The other config args are from `sources.formula_config.Gaussian`.
+
+    E.g. for an example heat source:
+
+    .. code-block:: python
+
+      {
+          mode: 'formula',
+          formula_type: 'gaussian',
+          total: 120e6,  # total heating
+          c1: 0.0,  # Source Gaussian central location (in normalized r)
+          c2: 0.25,  # Gaussian width in normalized radial coordinates
+          use_normalized_r: True,
+      }
+
+    If you have custom source implementations, you may update this funtion to
+    handle those new sources and keys, or you may use the "advanced"
+    configuration
+    method and build your `SourceModel` object directly.
+
+    Returns:
+      A `SourceModels`.
+
+    Raises:
+      ValueError if an input key doesn't match one of the source names defined
+        above.
+    """
+
+    sources = {}
+    ohmic_name = 'ohmic_heat_source'
+    for source_name, source_config in self.source_configs.items():
+      if source_name == ohmic_name:
+        # The ohmic heat source requires a pointer to the fully constructed
+        # SourceModels object, so we add that source after the rest are built.
+        continue
+      sources[source_name] = _build_single_source_from_config(
+          source_name, source_config
+      )
+    source_models = SourceModels(sources=sources)
+    # Add the OhmicHeatSource if requested.
+    if ohmic_name in self.source_configs:
+      ohmic = _build_single_source_from_config(
+          source_name=ohmic_name,
+          source_config=self.source_configs[ohmic_name],
+          extra_init_kwargs={'source_models': source_models},
+      )
+      source_models.add_source(source_name=ohmic_name, source=ohmic)
+    return source_models
+
+
+def _build_single_source_from_config(
+    source_name: str,
+    source_config: Dict[str, Any] | runtime_params_lib.RuntimeParams,
+    extra_init_kwargs: Dict[str, Any] | None = None,
+) -> source_lib.Source:
+  """Builds a `Source` from the input config."""
+  # Yes, pytype fails to enforce this
+  assert isinstance(source_config, (dict, runtime_params_lib.RuntimeParams))
+
+  if source_name.startswith('single_profile_source:'):
+    return source_lib.SingleProfileSource(**source_config)
+
+  runtime_params = get_default_runtime_params(
+      source_name,
+  )
+  # Update the defaults with the config provided.
+  source_config = copy.copy(source_config)
+  if isinstance(source_config, runtime_params_lib.RuntimeParams):
+    runtime_params = source_config
+    formula = None
+    if hasattr(runtime_params, 'formula_type'):
+      func = runtime_params.formula_type
+      if func == 'default':
+        pass  # Nothing to do here
+      elif func == 'exponential':
+        assert isinstance(runtime_params.formula, formula_config.exponential)
+        formula = formulas.exponential
+      elif func == 'gaussian':
+        assert isinstance(runtime_params.formula, formula_config.Gaussian)
+        formula = formulas.Gaussian()
+      else:
+        raise ValueError(
+            f'Unknown formula type for source {source_name}: {func}'
+        )
+  else:
+    if 'mode' in source_config:
+      mode = runtime_params_lib.Mode[source_config.pop('mode').upper()]
+      runtime_params.mode = mode
+    formula = None
+    if 'formula_type' in source_config:
+      func = source_config.pop('formula_type').lower()
+      if func == 'default':
+        pass  # Nothing to do here.
+      elif func == 'exponential':
+        runtime_params.formula = config_args.recursive_replace(
+            formula_config.Exponential(),
+            ignore_extra_kwargs=True,
+            **source_config,
+        )
+        formula = formulas.Exponential()
+      elif func == 'gaussian':
+        runtime_params.formula = config_args.recursive_replace(
+            formula_config.Gaussian(),
+            ignore_extra_kwargs=True,
+            **source_config,
+        )
+        formula = formulas.Gaussian()
+      else:
+        raise ValueError(
+            f'Unknown formula_type for source {source_name}: {func}'
+        )
+    runtime_params = config_args.recursive_replace(
+        runtime_params, ignore_extra_kwargs=True, **source_config
+    )
+  kwargs = {'runtime_params': runtime_params}
+  if formula is not None:
+    kwargs['formula'] = formula
+  if extra_init_kwargs is not None:
+    kwargs.update(extra_init_kwargs)
+  # pylint: disable=missing-kwoa
+  # pytype: disable=missing-parameter
+  return get_source_type(source_name)(**kwargs)
+  # pylint: enable=missing-kwoa
+  # pytype: enable=missing-parameter
+
+
+def get_source_type(source_name: str) -> type[source_lib.Source]:
+  """Returns a constructor for the given source."""
+  match source_name:
+    case 'j_bootstrap':
+      return bootstrap_current_source.BootstrapCurrentSource
+    case 'jext':
+      return external_current_source.ExternalCurrentSource
+    case 'nbi_particle_source':
+      return electron_density_sources.NBIParticleSource
+    case 'gas_puff_source':
+      return electron_density_sources.GasPuffSource
+    case 'pellet_source':
+      return electron_density_sources.PelletSource
+    case 'generic_ion_el_heat_source':
+      return ion_el_heat.GenericIonElectronHeatSource
+    case 'fusion_heat_source':
+      return fusion_heat_source.FusionHeatSource
+    case 'qei_source':
+      return qei_source_lib.QeiSource
+    case 'ohmic_heat_source':
+      return OhmicHeatSource
+    case _:
+      if source_name.startswith('single_profile_source:'):
+        return source_lib.SingleProfileSource
+      raise ValueError(f'Unknown source name: {source_name}')
+
+
+def get_default_runtime_params(
+    source_name: str,
+) -> runtime_params_lib.RuntimeParams:
+  """Returns default RuntimeParams for the given source."""
+  match source_name:
+    case 'j_bootstrap':
+      return bootstrap_current_source.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
+    case 'jext':
+      return external_current_source.RuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'nbi_particle_source':
+      return electron_density_sources.NBIParticleRuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'gas_puff_source':
+      return electron_density_sources.GasPuffRuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'pellet_source':
+      return electron_density_sources.PelletRuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'generic_ion_el_heat_source':
+      return ion_el_heat.RuntimeParams(
+          mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'fusion_heat_source':
+      return runtime_params_lib.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
+    case 'qei_source':
+      return qei_source_lib.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
+    case 'ohmic_heat_source':
+      return runtime_params_lib.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
+    case _:
+      raise ValueError(f'Unknown source name: {source_name}')

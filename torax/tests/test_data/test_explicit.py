@@ -55,28 +55,23 @@ def get_transport_model_builder() -> (
   return constant_transport_model.ConstantTransportModelBuilder()
 
 
-def get_sources() -> source_models_lib.SourceModels:
+def get_sources_builder() -> source_models_lib.SourceModelsBuilder:
   """Returns the source models used in the simulation."""
-  source_models = default_sources.get_default_sources()
+  config = default_sources.get_default_source_config()
   # multiplier for ion-electron heat exchange term for sensitivity
-  source_models.qei_source.runtime_params.Qei_mult = 0.0
+  config['qei_source'].Qei_mult = 0.0
   # remove bootstrap current
-  source_models.j_bootstrap.runtime_params.bootstrap_mult = 0.0
-  source_models.sources['generic_ion_el_heat_source'].runtime_params = (
-      dataclasses.replace(
-          source_models.sources['generic_ion_el_heat_source'].runtime_params,
-          # total heating (including accounting for radiation) r
-          Ptot=200.0e6,  # pylint: disable=unexpected-keyword-arg
-          is_explicit=True,
-      )
+  config['j_bootstrap'].bootstrap_mult = 0.0
+  config['generic_ion_el_heat_source'] = dataclasses.replace(
+      config['generic_ion_el_heat_source'],
+      # total heating (including accounting for radiation) r
+      Ptot=200.0e6,  # pylint: disable=unexpected-keyword-arg
+      is_explicit=True,
   )
-  source_models.sources['fusion_heat_source'].runtime_params.mode = (
-      source_runtime_params.Mode.ZERO
-  )
-  source_models.sources['ohmic_heat_source'].runtime_params.mode = (
-      source_runtime_params.Mode.ZERO
-  )
-  return source_models
+  config['fusion_heat_source'].mode = source_runtime_params.Mode.ZERO
+  config['ohmic_heat_source'].mode = source_runtime_params.Mode.ZERO
+
+  return source_models_lib.SourceModelsBuilder(config)
 
 
 def get_stepper_builder() -> explicit_stepper.ExplicitStepperBuilder:
@@ -99,7 +94,7 @@ def get_sim() -> sim_lib.Sim:
   return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geo=geo,
-      source_models=get_sources(),
+      source_models_builder=get_sources_builder(),
       transport_model_builder=get_transport_model_builder(),
       stepper_builder=get_stepper_builder(),
   )

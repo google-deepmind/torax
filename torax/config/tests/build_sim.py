@@ -24,6 +24,7 @@ from torax.config import runtime_params_slice
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
+from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.time_step_calculator import array_time_step_calculator
@@ -211,7 +212,7 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_empty_source_config_only_has_defaults_turned_off(self):
     """Tests that an empty source config has all sources turned off."""
-    source_models = build_sim.build_sources_from_config({})
+    source_models = source_models_lib.SourceModelsBuilder({})()
     self.assertEqual(
         source_models.j_bootstrap.runtime_params.mode,
         source_runtime_params_lib.Mode.ZERO,
@@ -229,7 +230,7 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_adding_standard_source_via_config(self):
     """Tests that a source can be added with overriding defaults."""
-    source_models = build_sim.build_sources_from_config({
+    source_models = source_models_lib.SourceModelsBuilder({
         'gas_puff_source': {
             'puff_decay_length': 1.23,
         },
@@ -237,7 +238,7 @@ class BuildSimTest(parameterized.TestCase):
             'is_explicit': True,
             'mode': 'zero',  # turn it off.
         },
-    })
+    })()
     # The non-standard ones are still off.
     self.assertEqual(
         source_models.j_bootstrap.runtime_params.mode,
@@ -274,16 +275,14 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_updating_formula_via_source_config(self):
     """Tests that we can set the formula type and params via the config."""
-    source_models = build_sim.build_sources_from_config(
-        {
-            'gas_puff_source': {
-                'formula_type': 'gaussian',
-                'total': 1,
-                'c1': 2,
-                'c2': 3,
-            }
+    source_models = source_models_lib.SourceModelsBuilder({
+        'gas_puff_source': {
+            'formula_type': 'gaussian',
+            'total': 1,
+            'c1': 2,
+            'c2': 3,
         }
-    )
+    })()
     gas_source = source_models.sources['gas_puff_source']
     self.assertIsInstance(gas_source.formula, formulas.Gaussian)
     self.assertIsInstance(
@@ -393,7 +392,7 @@ class BuildSimTest(parameterized.TestCase):
     transport_model = transport_model_builder()
     stepper = stepper_builder(
         transport_model=transport_model,
-        source_models=build_sim.build_sources_from_config({}),
+        source_models=source_models_lib.SourceModelsBuilder({})(),
     )
     self.assertIsInstance(stepper, expected_type)
     self.assertEqual(stepper_builder.runtime_params.theta_imp, 0.5)

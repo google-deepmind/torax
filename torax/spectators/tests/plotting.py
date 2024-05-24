@@ -75,7 +75,7 @@ def _run_sim_with_sources(
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
       transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
-      source_models=default_sources.get_default_sources(),
+      source_models_builder=default_sources.get_default_sources_builder(),
       time_step_calculator=chi_time_step_calculator.ChiTimeStepCalculator(),
   ).run(
       spectator=observer,
@@ -92,7 +92,7 @@ def _run_sim_without_sources(
       geo=geo,
       stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
       transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
-      source_models=source_models_lib.SourceModels(),
+      source_models_builder=source_models_lib.SourceModelsBuilder(),
       time_step_calculator=chi_time_step_calculator.ChiTimeStepCalculator(),
   ).run(
       spectator=observer,

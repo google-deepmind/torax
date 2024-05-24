@@ -63,7 +63,8 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         ),
     )
     # Set the sources to match test_particle_sources_constant as well.
-    source_models = default_sources.get_default_sources()
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models = source_models_builder()
     source_models.sources['pellet_source'].runtime_params.S_pellet_tot = 2.0e22
     S_puff_tot = 1.0e22  # pylint: disable=invalid-name
     puff_decay_length = 0.05
@@ -131,7 +132,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
             )
         ),
         transport_model_builder=transport_model_builder,
-        source_models=source_models,
+        source_models_builder=source_models_builder,
     )
 
     # Make sure the config copied here works with these references.

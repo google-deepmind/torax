@@ -78,6 +78,7 @@ CANONICAL_ORDER = [
     'core_profiles',
     'psi',
     'transport_model',
+    'source_name',
     'source_profiles',
     'source_profile',
     'explicit_source_profiles',
