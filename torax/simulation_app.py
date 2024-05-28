@@ -256,7 +256,9 @@ def update_sim(
     sim: sim_lib.Sim,
     runtime_params: torax.GeneralRuntimeParams,
     geo: geometry.Geometry,
-    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    transport_runtime_params_getter: Callable[
+        [], transport_runtime_params_lib.RuntimeParams
+    ],
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
     stepper_runtime_params_getter: Callable[
         [], stepper_runtime_params_lib.RuntimeParams
@@ -269,7 +271,7 @@ def update_sim(
   #  - spectator
   #  - time step calculator
   #  - source objects (runtime params are updated)
-  sim.transport_model.runtime_params = transport_runtime_params
+
   _update_source_params(sim, source_runtime_params)
   static_runtime_params_slice = (
       runtime_params_slice.build_static_runtime_params_slice(
@@ -280,7 +282,7 @@ def update_sim(
   dynamic_runtime_params_slice_provider = (
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
-          transport_getter=lambda: sim.transport_model.runtime_params,
+          transport_getter=transport_runtime_params_getter,
           sources_getter=lambda: sim.source_models.runtime_params,
           stepper_getter=stepper_runtime_params_getter,
       )

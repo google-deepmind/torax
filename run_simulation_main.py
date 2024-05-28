@@ -220,8 +220,10 @@ def change_config(
     new_geo = build_sim.build_geometry_from_config(
         sim_config['geometry'], new_runtime_params
     )
-    new_transport_model = build_sim.build_transport_model_from_config(
-        sim_config['transport']
+    new_transport_model_builder = (
+        build_sim.build_transport_model_builder_from_config(
+            sim_config['transport']
+        )
     )
     source_models = build_sim.build_sources_from_config(sim_config['sources'])
     new_stepper_builder = build_sim.build_stepper_builder_from_config(
@@ -232,7 +234,7 @@ def change_config(
     # attributes (the "advanced", more Python-forward configuration method).
     new_runtime_params = config_module.get_runtime_params()
     new_geo = config_module.get_geometry(new_runtime_params)
-    new_transport_model = config_module.get_transport_model()
+    new_transport_model_builder = config_module.get_transport_model_builder()
     source_models = config_module.get_sources()
     new_stepper_builder = config_module.get_stepper_builder()
   new_source_params = {
@@ -241,20 +243,21 @@ def change_config(
   }
   # We pass the getter so that any changes to the objects runtime params after
   # the Sim object is created are picked up.
+  transport_params_getter = lambda: new_transport_model_builder.runtime_params
   stepper_params_getter = lambda: new_stepper_builder.runtime_params
   # Make sure the transport model has not changed.
   # TODO(b/330172917): Improve the check for updated configs.
-  if not isinstance(new_transport_model, type(sim.transport_model)):
+  if not isinstance(new_transport_model_builder(), type(sim.transport_model)):
     raise ValueError(
-        f'New transport model type {type(new_transport_model)} does not match'
-        f' the existing transport model {type(sim.transport_model)}. When using'
-        ' this option, you cannot change the transport model.'
+        f'New transport model type {type(new_transport_model_builder())} does'
+        f' not match the existing transport model {type(sim.transport_model)}.'
+        ' When using this option, you cannot change the transport model.'
     )
   sim = simulation_app.update_sim(
       sim=sim,
       runtime_params=new_runtime_params,
       geo=new_geo,
-      transport_runtime_params=new_transport_model.runtime_params,
+      transport_runtime_params_getter=transport_params_getter,
       source_runtime_params=new_source_params,
       stepper_runtime_params_getter=stepper_params_getter,
   )

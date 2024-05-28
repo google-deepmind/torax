@@ -74,7 +74,7 @@ def build_sim_from_config(
    -  `runtime_params`: `build_runtime_params_from_config()`
    -  `geometry`: `build_geometry_from_config()`
    -  `sources`: `build_sources_from_config()`
-   -  `transport`: `build_transport_model_from_config()`
+   -  `transport`: `build_transport_model_builder_from_config()`
    -  `stepper`: `build_stepper_builder_from_config()`
    -  `time_step_calculator`: `build_time_step_calculator_from_config()`
 
