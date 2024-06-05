@@ -733,14 +733,16 @@ def updated_prescribed_core_profiles(
       not static_runtime_params_slice.dens_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    ne, _ = _updated_dens(
+    ne, ni = _updated_dens(
         dynamic_runtime_params_slice, geo
     )
     ne = ne.value
+    ni = ni.value
   else:
     ne = core_profiles.ne.value
+    ni = core_profiles.ni.value
 
-  return {'temp_ion': temp_ion, 'temp_el': temp_el, 'ne': ne}
+  return {'temp_ion': temp_ion, 'temp_el': temp_el, 'ne': ne, 'ni': ni}
 
 
 def update_evolving_core_profiles(

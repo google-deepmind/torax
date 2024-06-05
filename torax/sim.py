@@ -1150,11 +1150,8 @@ def provide_core_profiles_t_plus_dt(
   )
   ni = dataclasses.replace(
       core_profiles_t.ni,
-      value=ne.value
-      * physics.get_main_ion_dilution_factor(
-          dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zimp,
-          dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zeff,
-      ),
+      value=updated_values['ni'],
+      **updated_boundary_conditions['ni'],
   )
   core_profiles_t_plus_dt = dataclasses.replace(
       core_profiles_t, temp_ion=temp_ion, temp_el=temp_el, psi=psi, ne=ne, ni=ni
