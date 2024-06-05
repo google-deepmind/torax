@@ -126,7 +126,7 @@ def simulation_output_to_xr(
       return name_map[name]
     return name
 
-  core_profile_history, core_transport_history, core_sources_history = (
+  core_profile_history, core_sources_history, core_transport_history = (
       state_lib.build_history_from_states(torax_outputs)
   )
   t = state_lib.build_time_history_from_states(torax_outputs)
