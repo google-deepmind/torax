@@ -142,6 +142,8 @@ both described below.
 The |Stepper|_ class is abstract and can be extended. Users may provide their
 own implementation and feed it to |torax.sim.run_simulation()|_.
 
+.. _structure-sources:
+
 Sources
 ^^^^^^^
 
@@ -156,6 +158,8 @@ all of which are configurable via the Python dict config, but users may also
 extend ``Source`` and add their own.
 
 More details on how to create new sources in :ref:`model-integration`.
+
+.. _structure-transport-model:
 
 Transport model
 ^^^^^^^^^^^^^^^
