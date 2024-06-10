@@ -31,6 +31,7 @@ apidoc: Makefile
 
 clean:
 	rm -rf api/
+	rm -rf _build/
 	@$(SPHINXBUILD) -M $@ "$(DOC_SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 # Catch-all target: route all unknown targets to Sphinx using the new
