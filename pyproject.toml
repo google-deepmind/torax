@@ -47,6 +47,12 @@ dev = [
     "pytest-shard",
     "pylint>=2.6.0",
     "pyink",
+    "sphinxcontrib-apidoc",
+    "sphinx-autodoc-typehints",
+    "sphinx-rtd-theme",
+    "sphinx_copybutton",
+    "sphinx_design",
+    "sphinx_remove_toctrees",
 ]
 
 [tool.pyink]
