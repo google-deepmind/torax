@@ -411,11 +411,6 @@ class SimulationStepFn:
       output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
 
     # Update total current, q, and s profiles based on new psi
-    dynamic_runtime_params_slice_t_plus_dt = (
-        dynamic_runtime_params_slice_provider(
-            input_state.t + output_state.dt,
-        )
-    )
     q_corr = dynamic_runtime_params_slice_t_plus_dt.numerics.q_correction_factor
     output_state.core_profiles = physics.update_jtot_q_face_s_face(
         geo=geo,
