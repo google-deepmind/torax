@@ -1,4 +1,4 @@
-.. running:
+.. _running:
 
 Running simulations
 ###################
@@ -92,6 +92,16 @@ For a combination of the above:
   --config='torax.examples.basic_config' \
   --log_progress --plot_progress
 
+reference_run
+^^^^^^^^^^^^^
+Provide a reference run to compare against in post-simulation plotting.
+
+.. code-block:: console
+
+  python3 run_simulation_main.py \
+  --config='torax.examples.basic_config' \
+  --reference_run=<path_to_reference_run>
+
 Post-simulation
 ---------------
 
@@ -108,6 +118,7 @@ simulation termination. Instead, the user is presented with the following menu.
   | tlp: toggle --log_progress
   | tpp: toggle --plot_progress
   | tlo: toggle --log_output
+  | pr: plot previous run(s) or against reference if provided
   | q: quit
 
 * **cc** will load a new config file, which optionally can be the same config file previously loaded, including any changes that the user has implemented in the interim. If in the new config file, the only different config variables compared to the previous run are `dynamic` variables (see :ref:`dynamic_vs_static`), then the new simulation can be run without recompilation. Static config variables which will trigger recompilation include variables related to:
@@ -121,4 +132,5 @@ simulation termination. Instead, the user is presented with the following menu.
 * **tlp** toggles the ``--log_progress`` flag for the next run.
 * **tpp** toggles the ``--plot_progress`` flag for the next run.
 * **tlo** toggles the ``--log_output`` flag for the next run, used for debugging purposes.
+* **pr** provides three options. Plot the last run (0), the last two runs (1), the last run against a reference run (2).
 * **q** quits the process.

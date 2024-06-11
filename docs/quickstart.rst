@@ -93,6 +93,16 @@ For a combination of the above:
   --config='torax.examples.basic_config' \
   --log_progress --plot_progress
 
+reference_run
+^^^^^^^^^^^^^
+Provide a reference run to compare against in post-simulation plotting.
+
+.. code-block:: console
+
+  python3 run_simulation_main.py \
+  --config='torax.examples.basic_config' \
+  --reference_run=<path_to_reference_run>
+
 Post-simulation
 ---------------
 
@@ -105,6 +115,7 @@ simulation termination. Instead, various options are provied to the user:
 * Modify the config
 * Rerun the simulation
 * Toggle the ``log_progress`` or ``plot_progress`` flags
+* Plot the output of the last simulation (against another) (see :ref:`running`)
 * Quit
 
 When modifying the config and then rerunning the simulation, most config modifications will not

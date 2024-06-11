@@ -207,7 +207,7 @@ def simulation_output_to_xr(
   return ds
 
 
-def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> None:
+def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> str:
   """Writes the state history and some geometry information to a NetCDF file."""
   if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
@@ -215,6 +215,8 @@ def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> None:
   output_file = os.path.join(output_dir, _STATE_HISTORY_FILENAME)
   ds.to_netcdf(output_file)
   log_to_stdout(f'Wrote simulation output to {output_file}', AnsiColors.GREEN)
+
+  return output_file
 
 
 def _log_single_state(
@@ -329,7 +331,7 @@ def main(
     log_sim_progress: bool = False,
     log_sim_output: bool = False,
     plot_sim_progress: bool = False,
-) -> xr.Dataset:
+) -> tuple[xr.Dataset, str]:
   """Runs a simulation obtained via `get_sim`.
 
   This function will always write files to a directory containing the
@@ -354,7 +356,7 @@ def main(
       the sim.
 
   Returns:
-    An xarray Dataset containing the simulated output.
+    An xarray Dataset containing the simulated output and the state file path.
   """
   output_dir = _get_output_dir(output_dir)
 
@@ -387,7 +389,7 @@ def main(
 
   ds = simulation_output_to_xr(torax_outputs, geo)
 
-  write_simulation_output_to_file(output_dir, ds)
+  output_file = write_simulation_output_to_file(output_dir, ds)
 
   if log_sim_output:
     core_profile_history, _, _ = state_lib.build_history_from_states(
@@ -396,4 +398,4 @@ def main(
     t = state_lib.build_time_history_from_states(torax_outputs)
     log_simulation_output_to_stdout(core_profile_history, geo, t)
 
-  return ds
+  return ds, output_file

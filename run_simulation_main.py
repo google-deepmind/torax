@@ -19,7 +19,7 @@ python3 run_simulation_main.py \
  --config='torax.tests.test_data.default_config' \
  --log_progress
 """
-
+from collections.abc import Sequence
 import enum
 import importlib
 
@@ -30,6 +30,7 @@ import jax
 import torax
 from torax import simulation_app
 from torax.config import build_sim
+from torax.plotting import plotruns_lib
 
 
 _PYTHON_CONFIG_MODULE = flags.DEFINE_string(
@@ -63,7 +64,14 @@ _PLOT_SIM_PROGRESS = flags.DEFINE_bool(
 _LOG_SIM_OUTPUT = flags.DEFINE_bool(
     'log_output',
     False,
-    'In True, logs extra information to stdout/stderr.',
+    'If True, logs extra information to stdout/stderr.',
+)
+
+_REFERENCE_RUN = flags.DEFINE_string(
+    'reference_run',
+    None,
+    'If provided, after the simulation is run, we can compare the last run to'
+    ' the reference run.',
 )
 
 jax.config.parse_flags_with_absl()
@@ -85,6 +93,7 @@ class _UserCommand(enum.Enum):
   TOGGLE_LOG_SIM_PROGRESS = ('toggle --log_progress', 'tlp')
   TOGGLE_PLOT_SIM_PROGRESS = ('toggle --plot_progress', 'tpp')
   TOGGLE_LOG_SIM_OUTPUT = ('toggle --log_output', 'tlo')
+  PLOT_RUN = ('plot previous run(s) or against reference if provided', 'pr')
   QUIT = ('quit', 'q', simulation_app.AnsiColors.RED)
 
 
@@ -400,6 +409,43 @@ def _toggle_log_output(log_sim_output: bool) -> bool:
   return log_sim_output
 
 
+def _post_run_plotting(
+    output_files: Sequence[str],
+) -> None:
+  """Helper to produce plots after a simulation run."""
+  input_text = input(
+      'Plot the last run (0), the last two runs (1), the last run against a'
+      ' reference run (2): '
+  )
+  if not output_files:
+    simulation_app.log_to_stdout(
+        'No output files found, skipping plotting.',
+        color=simulation_app.AnsiColors.RED,
+    )
+    return
+  match input_text:
+    case '0':
+      return plotruns_lib.plot_run(output_files[-1])
+    case '1':
+      if len(output_files) == 1:
+        simulation_app.log_to_stdout(
+            'Only one output run file found, only plotting the last run.',
+            color=simulation_app.AnsiColors.RED,
+        )
+        return plotruns_lib.plot_run(output_files[-1])
+      return plotruns_lib.plot_run(output_files[-1], output_files[-2])
+    case '2':
+      reference_run = _REFERENCE_RUN.value
+      if reference_run is None:
+        simulation_app.log_to_stdout(
+            'No reference run provided, only plotting the last run.',
+            color=simulation_app.AnsiColors.RED,
+        )
+      return plotruns_lib.plot_run(output_files[-1], reference_run)
+    case _:
+      raise ValueError('Unknown command')
+
+
 def main(_):
   config_module_str = _PYTHON_CONFIG_MODULE.value
   if config_module_str is None:
@@ -409,17 +455,19 @@ def main(_):
   log_sim_output = _LOG_SIM_OUTPUT.value
   sim = None
   new_runtime_params = None
+  output_files = []
   try:
     sim, new_runtime_params = _build_sim_and_runtime_params_from_config_module(
         config_module_str
     )
-    simulation_app.main(
+    _, output_file = simulation_app.main(
         lambda: sim,
         output_dir=new_runtime_params.output_dir,
         log_sim_progress=log_sim_progress,
         plot_sim_progress=plot_sim_progress,
         log_sim_output=log_sim_output,
     )
+    output_files.append(output_file)
   except ValueError as ve:
     simulation_app.log_to_stdout(
         f'Error ocurred: {ve}',
@@ -447,13 +495,14 @@ def main(_):
               color=simulation_app.AnsiColors.RED,
           )
         else:
-          simulation_app.main(
+          _, output_file = simulation_app.main(
               lambda: sim,
               output_dir=new_runtime_params.output_dir,
               log_sim_progress=log_sim_progress,
               plot_sim_progress=plot_sim_progress,
               log_sim_output=log_sim_output,
           )
+          output_files.append(output_file)
       case _UserCommand.CHANGE_CONFIG:
         # See docstring for detailed info on what recompiles.
         if sim is None or new_runtime_params is None:
@@ -503,6 +552,8 @@ def main(_):
         plot_sim_progress = _toggle_plot_progress(plot_sim_progress)
       case _UserCommand.TOGGLE_LOG_SIM_OUTPUT:
         log_sim_output = _toggle_log_output(log_sim_output)
+      case _UserCommand.PLOT_RUN:
+        _post_run_plotting(output_files)
       case _:
         raise ValueError('Unknown command')
     user_command = prompt_user(config_module_str)
