@@ -25,7 +25,7 @@ Plots:
 (6) s (magnetic shear)
 """
 from absl import app
-from absl import flags
+from absl.flags import argparse_flags
 import matplotlib
 from torax.plotting import plotruns_lib
 
@@ -33,22 +33,26 @@ from torax.plotting import plotruns_lib
 matplotlib.use('TkAgg')
 
 
-_OUTFILES = flags.DEFINE_spaceseplist(
-    'outfile',
-    None,
-    'Relative location of output files (if two are provided, a comparison is'
-    ' done)',
-    required=True,
-)
+def parse_flags(_):
+  parser = argparse_flags.ArgumentParser(description='Plot finished run')
+  parser.add_argument(
+      '--outfile',
+      nargs='*',
+      help=(
+          'Relative location of output files (if two are provided, a'
+          ' comparison is done)'
+      ),
+  )
+  parser.set_defaults(normalized=True)
+  return parser.parse_args()
 
 
-def main(_):
-  outfiles = _OUTFILES.value
-  if len(outfiles) == 1:
-    plotruns_lib.plot_run(outfiles[0])
+def main(args):
+  if len(args.outfile) == 1:
+    plotruns_lib.plot_run(args.outfile[0])
   else:
-    plotruns_lib.plot_run(outfiles[0], outfiles[1])
+    plotruns_lib.plot_run(args.outfile[0], args.outfile[1])
 
 
 if __name__ == '__main__':
-  app.run(main)
+  app.run(main, flags_parser=parse_flags)

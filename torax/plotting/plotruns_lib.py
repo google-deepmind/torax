@@ -65,6 +65,7 @@ class PlotData:
 
 def plot_run(outfile: str, outfile2: str | None = None):
   """Plots a single run or comparison of two runs."""
+  filename1, filename2 = outfile, outfile2
   if not path.exists(outfile):
     raise ValueError(f'File {outfile} does not exist.')
   if outfile2 is not None and not path.exists(outfile2):
@@ -77,9 +78,9 @@ def plot_run(outfile: str, outfile2: str | None = None):
   fig, subfigures = create_figure()
   ax2 = subfigures[1]
   if outfile2 is not None:
-    ax2.set_title('(1)=' + outfile + ', (2)=' + outfile2)
+    ax2.set_title('(1)=' + filename1 + ', (2)=' + filename2)
   else:
-    ax2.set_title('(1)=' + outfile)
+    ax2.set_title('(1)=' + filename1)
 
   lines1 = get_lines(
       plotdata1,
