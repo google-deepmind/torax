@@ -353,13 +353,19 @@ def _calc_coeffs_full(
 
   # Transient term coefficient vector (has radial dependence through r, n)
   toc_temp_ion = (
-      1.5 * geo.vpr * consts.keV2J * dynamic_runtime_params_slice.numerics.nref
+      1.5
+      * geo.vpr ** (-2.0 / 3.0)
+      * consts.keV2J
+      * dynamic_runtime_params_slice.numerics.nref
   )
-  tic_temp_ion = core_profiles.ni.value
+  tic_temp_ion = core_profiles.ni.value * geo.vpr ** (5.0 / 3.0)
   toc_temp_el = (
-      1.5 * geo.vpr * consts.keV2J * dynamic_runtime_params_slice.numerics.nref
+      1.5
+      * geo.vpr ** (-2.0 / 3.0)
+      * consts.keV2J
+      * dynamic_runtime_params_slice.numerics.nref
   )
-  tic_temp_el = core_profiles.ne.value
+  tic_temp_el = core_profiles.ne.value * geo.vpr ** (5.0 / 3.0)
   toc_psi = (
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
@@ -370,8 +376,8 @@ def _calc_coeffs_full(
       / geo.Rmaj
   )
   tic_psi = jnp.ones_like(toc_psi)
-  toc_dens_el = geo.vpr
-  tic_dens_el = jnp.ones_like(geo.vpr)
+  toc_dens_el = jnp.ones_like(geo.vpr)
+  tic_dens_el = geo.vpr
 
   # Diffusion term coefficients
   transport_coeffs = transport_model(
@@ -753,10 +759,10 @@ def _calc_coeffs_reduced(
   """Calculates only the transient_in_cell terms in Block1DCoeffs."""
 
   # Only transient_in_cell is used for explicit terms if theta_imp=1
-  tic_temp_ion = core_profiles.ni.value
-  tic_temp_el = core_profiles.ne.value
+  tic_temp_ion = core_profiles.ni.value * geo.vpr ** (5.0 / 3.0)
+  tic_temp_el = core_profiles.ne.value * geo.vpr ** (5.0 / 3.0)
   tic_psi = jnp.ones_like(geo.vpr)
-  tic_dens_el = jnp.ones_like(geo.vpr)
+  tic_dens_el = geo.vpr
 
   var_to_tic = {
       'temp_ion': tic_temp_ion,
