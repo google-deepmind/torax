@@ -61,6 +61,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         ),
     )
     geo = geometry.build_circular_geometry()
+    geometry_provider = sim_lib.ConstantGeometryProvider(geo)
     transport_builder = FakeTransportModelBuilder()
     transport = FakeTransportModel()
     source_models = source_models_lib.SourceModels()
@@ -100,7 +101,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
             runtime_params
         ),
         dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-        geo=geo,
+        geometry_provider=geometry_provider,
         input_state=input_state,
         explicit_source_profiles=source_models_lib.build_source_profiles(
             source_models=source_models,

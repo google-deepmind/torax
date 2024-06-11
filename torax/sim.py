@@ -227,7 +227,7 @@ class SimulationStepFn:
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
-      geo: geometry.Geometry,
+      geometry_provider: GeometryProvider,
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state.ToraxSimState:
@@ -240,10 +240,14 @@ class SimulationStepFn:
         runtime parameters which may change from time step to time step or
         simulation run to run. If these runtime parameters change, it does NOT
         trigger a JAX recompilation.
-      geo: The geometry of the torus during this time step of the simulation.
-        While the geometry may change, any changes to the grid size can trigger
-        recompilation of the stepper (if it is jitted) or an error (assuming it
-        is JAX-compiled and lowered).
+      geometry_provider: Provides the magnetic geometry for each time step based
+        on the ToraxSimState at the start of the time step. The geometry may
+        change from time step to time step, so the sim needs a function to
+        provide which geometry to use for a given time step. A GeometryProvider
+        is any callable (class or function) which takes the ToraxSimState at the
+        start of a time step and returns the Geometry for that time step. For
+        most use cases, only the time will be relevant from the ToraxSimState
+        (in order to support time-dependent geometries).
       input_state: State at the start of the time step, including the core
         profiles which are being evolved.
       explicit_source_profiles: Explicit source profiles computed based on the
@@ -263,6 +267,7 @@ class SimulationStepFn:
     dynamic_runtime_params_slice_t = dynamic_runtime_params_slice_provider(
         input_state.t
     )
+    geo = geometry_provider(input_state)
     # TODO(b/335598388): We call the transport model both here and in the the
     # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
     # calls fall within the same jit scope* because can use
@@ -907,7 +912,7 @@ def run_simulation(
     sim_state = step_fn(
         static_runtime_params_slice,
         dynamic_runtime_params_slice_provider,
-        geo,
+        geometry_provider,
         sim_state,
         explicit_source_profiles,
     )

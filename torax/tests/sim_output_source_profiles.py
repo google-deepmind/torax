@@ -303,10 +303,11 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
-      geo: geometry.Geometry,
+      geometry_provider: sim_lib.GeometryProvider,
       input_state: state_module.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state_module.ToraxSimState:
+    geo = geometry_provider(input_state)
     dt, ts_state = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
             input_state.t
