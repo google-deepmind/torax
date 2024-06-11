@@ -83,7 +83,7 @@ def predictor_corrector_method(
         ),
     )
 
-    return (x_new, coeffs_new.auxiliary_outputs)
+    return (x_new, coeffs_new.auxiliary_outputs, i)
 
   # jax.lax.fori_loop jits the function by default. Need to explicitly avoid
   # compilation and revert to a standard for loop if
