@@ -361,7 +361,7 @@ def main(
   output_dir = _get_output_dir(output_dir)
 
   sim = get_sim()
-  geo = sim.geometry_provider(sim.initial_state)
+  geo = sim.geometry_provider(sim.initial_state.t)
 
   spectator = None
   if plot_sim_progress:

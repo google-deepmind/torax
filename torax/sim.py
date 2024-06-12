@@ -31,6 +31,7 @@ import time
 from typing import Optional, Protocol
 
 from absl import logging
+import chex
 import jax
 import jax.numpy as jnp
 from torax import calc_coeffs
@@ -267,7 +268,7 @@ class SimulationStepFn:
     dynamic_runtime_params_slice_t = dynamic_runtime_params_slice_provider(
         input_state.t
     )
-    geo = geometry_provider(input_state)
+    geo_t = geometry_provider(input_state.t)
     # TODO(b/335598388): We call the transport model both here and in the the
     # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
     # calls fall within the same jit scope* because can use
@@ -276,13 +277,13 @@ class SimulationStepFn:
     # calculate transport coeffs at delta_t = 0 in only one place, so that we
     # have some flexibility in where to place the jit boundaries.
     transport_coeffs = self._jitted_transport_model(
-        dynamic_runtime_params_slice_t, geo, input_state.core_profiles
+        dynamic_runtime_params_slice_t, geo_t, input_state.core_profiles
     )
 
     # initialize new dt and reset stepper iterations.
     dt, time_step_calculator_state = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice_t,
-        geo,
+        geo_t,
         input_state.core_profiles,
         input_state.time_step_calculator_state,
         transport_coeffs,
@@ -321,7 +322,7 @@ class SimulationStepFn:
     core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-        geo=geo,
+        geo=geo_t,
         core_profiles_t=core_profiles_t,
     )
 
@@ -335,7 +336,7 @@ class SimulationStepFn:
             static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
             dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-            geo=geo,
+            geo=geo_t,
             core_profiles_t=core_profiles_t,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             explicit_source_profiles=explicit_source_profiles,
@@ -388,7 +389,7 @@ class SimulationStepFn:
             core_profiles_t=core_profiles_t,
             dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
             static_runtime_params_slice=static_runtime_params_slice,
-            geo=geo,
+            geo=geo_t,
         )
         core_profiles, core_sources, core_transport, stepper_error_state = (
             self._stepper_fn(
@@ -396,7 +397,7 @@ class SimulationStepFn:
                 static_runtime_params_slice=static_runtime_params_slice,
                 dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
                 dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-                geo=geo,
+                geo=geo_t,
                 core_profiles_t=core_profiles_t,
                 core_profiles_t_plus_dt=core_profiles_t_plus_dt,
                 explicit_source_profiles=explicit_source_profiles,
@@ -423,7 +424,7 @@ class SimulationStepFn:
     )
     q_corr = dynamic_runtime_params_slice_t_plus_dt.numerics.q_correction_factor
     output_state.core_profiles = physics.update_jtot_q_face_s_face(
-        geo=geo,
+        geo=geo_t,
         core_profiles=output_state.core_profiles,
         q_correction_factor=q_corr,
     )
@@ -432,7 +433,7 @@ class SimulationStepFn:
     output_state.core_profiles = update_current_distribution(
         source_models=self._stepper_fn.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        geo=geo,
+        geo=geo_t,
         core_profiles=output_state.core_profiles,
     )
 
@@ -440,7 +441,7 @@ class SimulationStepFn:
     output_state.core_profiles = update_psidot(
         source_models=self._stepper_fn.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        geo=geo,
+        geo=geo_t,
         core_profiles=output_state.core_profiles,
     )
 
@@ -482,8 +483,8 @@ class GeometryProvider(Protocol):
   """Returns the geometry to use during one time step of the simulation.
 
   A GeometryProvider is any callable (class or function) which takes the
-  ToraxSimState at the start of a time step and returns the Geometry for that
-  time step. See `run_simulation()` for how this callable is used.
+  time of a time step and returns the Geometry for that
+  time step. See `SimulationStepFn` for how this callable is used.
 
   This class is a typing.Protocol, meaning it defines an interface, but any
   function asking for a GeometryProvider as an argument can accept any function
@@ -495,7 +496,7 @@ class GeometryProvider(Protocol):
   .. code-block:: python
 
     geo = geometry.build_circular_geometry(...)
-    constant_geo_provider = lamdba input_state: geo
+    constant_geo_provider = lamdba t: geo
 
     def func_expecting_geo_provider(gp: GeometryProvider):
       ... # do something with the provider.
@@ -505,20 +506,16 @@ class GeometryProvider(Protocol):
 
   def __call__(
       self,
-      input_state: state.ToraxSimState,
+      t: chex.Numeric,
   ) -> geometry.Geometry:
     """Returns the geometry to use during one time step of the simulation.
 
     The geometry may change from time step to time step, so the sim needs a
     callable to provide which geometry to use for a given time step (this is
-    that callable). For most use cases, only the time will be relevant from the
-    ToraxSimState (in order to support time-dependent geometries), but access to
-    the full ToraxSimState is given to support any other use cases users may
-    come up with.
+    that callable).
 
     Args:
-      input_state: Full simulation state at the start of the time step. This
-        includes the time.
+      t: The time at which the geometry is being requested.
 
     Returns:
       Geometry of the torus to use for the time step.
@@ -533,11 +530,11 @@ class ConstantGeometryProvider(GeometryProvider):
 
   def __call__(
       self,
-      input_state: state.ToraxSimState,
+      t: chex.Numeric,
   ) -> geometry.Geometry:
-    # The API includes input_state as an arg even though it is unused in order
+    # The API includes time as an arg even though it is unused in order
     # to match the API of a GeometryProvider.
-    del input_state  # Ignored.
+    del t  # Ignored.
     return self._geo
 
 
@@ -839,7 +836,7 @@ def run_simulation(
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
       initial_state.t
   )
-  geo = geometry_provider(initial_state)
+  geo = geometry_provider(initial_state.t)
 
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
@@ -922,7 +919,7 @@ def run_simulation(
         sim_state.t
     )
     torax_outputs.append(sim_state)
-    geo = geometry_provider(sim_state)
+    geo = geometry_provider(sim_state.t)
     wall_clock_step_times.append(time.time() - step_start_time)
   # Log final timestep
   if log_timestep_info:

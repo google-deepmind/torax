@@ -307,12 +307,11 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
       input_state: state_module.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state_module.ToraxSimState:
-    geo = geometry_provider(input_state)
     dt, ts_state = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
             input_state.t
         ),
-        geo=geo,
+        geo=geometry_provider(input_state.t),
         core_profiles=input_state.core_profiles,
         time_step_calculator_state=input_state.time_step_calculator_state,
         core_transport=input_state.core_transport,
@@ -328,7 +327,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
             dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
                 new_t
             ),
-            geo=geo,
+            geo=geometry_provider(new_t),
             core_profiles=input_state.core_profiles,  # no state evolution.
             source_models=self.stepper.source_models,
             explicit=False,

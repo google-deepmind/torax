@@ -94,7 +94,7 @@ class BuildSimTest(parameterized.TestCase):
           0.2,
       )
     with self.subTest('geometry'):
-      geo = sim.geometry_provider(sim.initial_state)
+      geo = sim.geometry_provider(sim.initial_state.t)
       self.assertIsInstance(geo, geometry.CircularGeometry)
       self.assertEqual(geo.mesh.nx, 5)
     with self.subTest('sources'):
