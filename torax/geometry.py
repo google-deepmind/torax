@@ -251,11 +251,12 @@ def build_circular_geometry(
   delta_face = jnp.zeros(len(r_face))
 
   # uses <1/R^2> with circular geometry
-  G2 = vpr / (4 * jnp.pi**2 * Rmaj**2 * jnp.sqrt(1 - (r / Rmaj) ** 2))
+  # <1/R^2> = int_0^2pi (1/(Rmaj+r*cosx)^2)dx = 1/Rmaj^2 * (1 - (r/Rmaj)^2)
+  G2 = vpr / (4 * jnp.pi**2 * Rmaj**2 * (1 - (r / Rmaj) ** 2) ** (3.0 / 2.0))
 
   # generate G2_face by hand
   G2_outer_face = vpr_face[-1] / (
-      4 * jnp.pi**2 * Rmaj**2 * jnp.sqrt(1 - (r_face[-1] / Rmaj) ** 2)
+      4 * jnp.pi**2 * Rmaj**2 * (1 - (r_face[-1] / Rmaj) ** 2) ** (3.0 / 2.0)
   )
   G2_outer_face = jnp.expand_dims(G2_outer_face, 0)
   G2_face = jnp.concatenate(
@@ -311,7 +312,7 @@ def build_circular_geometry(
   )
 
   # uses <1/R^2> with circular geometry
-  denom = 4 * jnp.pi**2 * Rmaj**2 * jnp.sqrt(1 - (r_hires / Rmaj) ** 2)
+  denom = 4 * jnp.pi**2 * Rmaj**2 * (1 - (r_hires / Rmaj) ** 2) ** (3.0 / 2.0)
   G2_hires = vpr_hires / denom
 
   # terms applied in transport equations and dt calculation.

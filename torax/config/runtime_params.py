@@ -150,7 +150,7 @@ class Numerics:
   enable_prescribed_profile_evolution: bool = True
 
   # q-profile correction factor. Used only in ad-hoc circular geometry model
-  q_correction_factor: float = 1.38
+  q_correction_factor: float = 1.25
   # 1/multiplication factor for sigma (conductivity) to reduce current
   # diffusion timescale to be closer to heat diffusion timescale
   resistivity_mult: TimeDependentField = 1.0

@@ -107,7 +107,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
 
     # Load reference profiles
     ref_profiles, ref_time = self._get_refs(
-        'test_particle_sources_constant.h5', _ALL_PROFILES
+        'test_particle_sources_constant.nc', _ALL_PROFILES
     )
 
     # We set up the sim only once and update the config on each run below in a

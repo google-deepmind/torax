@@ -47,7 +47,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_explicit',
           'test_explicit.py',
-          'test_explicit.h5',
+          'test_explicit.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -56,7 +56,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_crank_nicolson',
           'test_crank_nicolson.py',
-          'test_implicit.h5',
+          'test_implicit.nc',
           ('temp_ion', 'temp_el'),
           2e-1,
       ),
@@ -64,7 +64,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_implicit',
           'test_implicit.py',
-          'test_implicit.h5',
+          'test_implicit.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -72,7 +72,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_qei',
           'test_qei.py',
-          'test_qei.h5',
+          'test_qei.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -80,7 +80,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_arraytimestepcalculator',
           'test_qei.py',
-          'test_qei.h5',
+          'test_qei.nc',
           _ALL_PROFILES,
           0,
           True,
@@ -89,7 +89,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_pedestal',
           'test_pedestal.py',
-          'test_pedestal.h5',
+          'test_pedestal.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -97,7 +97,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_cgmheat',
           'test_cgmheat.py',
-          'test_cgmheat.h5',
+          'test_cgmheat.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -106,7 +106,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_semiimplicit_convection',
           'test_semiimplicit_convection.py',
-          'test_semiimplicit_convection.h5',
+          'test_semiimplicit_convection.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -114,7 +114,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_qlknnheat',
           'test_qlknnheat.py',
-          'test_qlknnheat.h5',
+          'test_qlknnheat.nc',
           _ALL_PROFILES,
           0,
           1e-11,
@@ -124,7 +124,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_fixed_dt',
           'test_fixed_dt.py',
-          'test_fixed_dt.h5',
+          'test_fixed_dt.nc',
           _ALL_PROFILES,
           0,
           1e-11,
@@ -134,7 +134,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psiequation',
           'test_psiequation.py',
-          'test_psiequation.h5',
+          'test_psiequation.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -142,7 +142,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psi_and_heat',
           'test_psi_and_heat.py',
-          'test_psi_and_heat.h5',
+          'test_psi_and_heat.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -150,7 +150,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_absolute_jext',
           'test_absolute_jext.py',
-          'test_psi_and_heat.h5',
+          'test_psi_and_heat.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -162,7 +162,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_newton_raphson_zeroiter',
           'test_newton_raphson_zeroiter.py',
-          'test_psi_and_heat.h5',
+          'test_psi_and_heat.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -170,7 +170,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_bootstrap',
           'test_bootstrap.py',
-          'test_bootstrap.h5',
+          'test_bootstrap.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -178,7 +178,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psi_heat_dens',
           'test_psi_heat_dens.py',
-          'test_psi_heat_dens.h5',
+          'test_psi_heat_dens.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -186,7 +186,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_particle_sources_constant',
           'test_particle_sources_constant.py',
-          'test_particle_sources_constant.h5',
+          'test_particle_sources_constant.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -194,7 +194,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_particle_sources_cgm',
           'test_particle_sources_cgm.py',
-          'test_particle_sources_cgm.h5',
+          'test_particle_sources_cgm.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -202,7 +202,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_fusion_power',
           'test_fusion_power.py',
-          'test_fusion_power.h5',
+          'test_fusion_power.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -210,7 +210,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_all_transport_fusion_qlknn',
           'test_all_transport_fusion_qlknn.py',
-          'test_all_transport_fusion_qlknn.h5',
+          'test_all_transport_fusion_qlknn.nc',
           _ALL_PROFILES,
           0,
       ),
