@@ -117,6 +117,11 @@ class DynamicProfileConditions:
   # Prescribed values for r=0. When evolving, then is initial condition.
   Te_bound_left: float
   Ti_bound_left: float
+  # Prescribed values for values at cell centers.
+  Te: chex.Array | None
+  Ti: chex.Array | None
+  ne: chex.Array | None
+  ni: chex.Array | None
 
   # Peaking factor of density profile.
   # If density evolves with PDE (dens_eq=True), then is initial condition

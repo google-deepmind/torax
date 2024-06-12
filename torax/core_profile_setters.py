@@ -52,12 +52,15 @@ def _updated_ti(
       dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
       'Ti_bound_right',
   )
-  temp_ion_face = jnp.linspace(
-      start=Ti_bound_left,
-      stop=Ti_bound_right,
-      num=geo.mesh.nx + 1,
-  )
-  temp_ion = geometry.face_to_cell(temp_ion_face)
+  if dynamic_runtime_params_slice.profile_conditions.Ti is not None:
+    temp_ion = dynamic_runtime_params_slice.profile_conditions.Ti
+  else:
+    temp_ion_face = jnp.linspace(
+        start=Ti_bound_left,
+        stop=Ti_bound_right,
+        num=geo.mesh.nx + 1,
+    )
+    temp_ion = geometry.face_to_cell(temp_ion_face)
   temp_ion = fvm.CellVariable(
       value=temp_ion,
       left_face_grad_constraint=jnp.zeros(()),
@@ -83,12 +86,15 @@ def _updated_te(
       dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
       'Te_bound_right',
   )
-  temp_el_face = jnp.linspace(
-      start=Te_bound_left,
-      stop=Te_bound_right,
-      num=geo.mesh.nx + 1,
-  )
-  temp_el = geometry.face_to_cell(temp_el_face)
+  if dynamic_runtime_params_slice.profile_conditions.Te is not None:
+    temp_el = dynamic_runtime_params_slice.profile_conditions.Te
+  else:
+    temp_el_face = jnp.linspace(
+        start=Te_bound_left,
+        stop=Te_bound_right,
+        num=geo.mesh.nx + 1,
+    )
+    temp_el = geometry.face_to_cell(temp_el_face)
   temp_el = fvm.CellVariable(
       value=temp_el,
       left_face_grad_constraint=jnp.zeros(()),
@@ -112,11 +118,6 @@ def _updated_dens(
       * 1e20
       / dynamic_runtime_params_slice.numerics.nref
   )
-  nbar_unnorm = jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.nbar_is_fGW,
-      dynamic_runtime_params_slice.profile_conditions.nbar * nGW,
-      dynamic_runtime_params_slice.profile_conditions.nbar,
-  )
   # calculate ne_bound_right
   ne_bound_right = jnp.where(
       dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
@@ -124,21 +125,29 @@ def _updated_dens(
       dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
   )
 
-  # set peaking (limited to linear profile)
-  nshape_face = jnp.linspace(
-      dynamic_runtime_params_slice.profile_conditions.npeak,
-      1,
-      geo.mesh.nx + 1,
-  )
-  nshape = geometry.face_to_cell(nshape_face)
+  if dynamic_runtime_params_slice.profile_conditions.ne is not None:
+    ne_value = dynamic_runtime_params_slice.profile_conditions.ne
+  else:
+    nbar_unnorm = jnp.where(
+        dynamic_runtime_params_slice.profile_conditions.nbar_is_fGW,
+        dynamic_runtime_params_slice.profile_conditions.nbar * nGW,
+        dynamic_runtime_params_slice.profile_conditions.nbar,
+    )
+    # set peaking (limited to linear profile)
+    nshape_face = jnp.linspace(
+        dynamic_runtime_params_slice.profile_conditions.npeak,
+        1,
+        geo.mesh.nx + 1,
+    )
+    nshape = geometry.face_to_cell(nshape_face)
 
-  # find normalization factor such that desired line-averaged n is set
-  # Assumes line-averaged central chord on outer midplane
-  Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
-  C = nbar_unnorm / (_trapz(nshape_face, geo.Rout_face) / Rmin_out)
-  # pylint: enable=invalid-name
-
-  ne_value = C * nshape
+    # find normalization factor such that desired line-averaged n is set
+    # Assumes line-averaged central chord on outer midplane
+    # pylint: disable=invalid-name
+    Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
+    C = nbar_unnorm / (_trapz(nshape_face, geo.Rout_face) / Rmin_out)
+    # pylint: enable=invalid-name
+    ne_value = C * nshape
   ne = fvm.CellVariable(
       value=ne_value,
       dr=geo.dr_norm,
@@ -156,8 +165,13 @@ def _updated_dens(
       dynamic_runtime_params_slice.plasma_composition.Zeff,
   )
 
+  if dynamic_runtime_params_slice.profile_conditions.ni is not None:
+    ni_value = dynamic_runtime_params_slice.profile_conditions.ni
+  else:
+    ni_value = ne_value * dilution_factor
+
   ni = fvm.CellVariable(
-      value=ne_value * dilution_factor,
+      value=ni_value,
       dr=geo.dr_norm,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
