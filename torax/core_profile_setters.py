@@ -560,7 +560,7 @@ def initial_core_profiles(
 
   # set up initial psi profile based on current profile
   if (
-      isinstance(geo, geometry.CircularGeometry)
+      isinstance(geo, geometry.CircularAnalyticalGeometry)
       or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     # set up initial current profile without bootstrap current, to get
@@ -605,7 +605,7 @@ def initial_core_profiles(
     s_face = physics.calc_s_from_psi(geo, psi)
 
   elif (
-      isinstance(geo, geometry.CHEASEGeometry)
+      isinstance(geo, geometry.StandardGeometry)
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     # psi is already provided from the CHEASE equilibrium, so no need to first
@@ -619,7 +619,7 @@ def initial_core_profiles(
         * geo.rmax
     )
     psi = fvm.CellVariable(
-        value=geo.psi_from_chease_Ip,
+        value=geo.psi_from_Ip,
         right_face_grad_constraint=psi_constraint,
         dr=geo.dr_norm,
     )

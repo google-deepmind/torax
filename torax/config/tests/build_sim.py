@@ -95,7 +95,7 @@ class BuildSimTest(parameterized.TestCase):
       )
     with self.subTest('geometry'):
       geo = sim.geometry_provider(sim.initial_state.t)
-      self.assertIsInstance(geo, geometry.CircularGeometry)
+      self.assertIsInstance(geo, geometry.CircularAnalyticalGeometry)
       self.assertEqual(geo.mesh.nx, 5)
     with self.subTest('sources'):
       self.assertEqual(
@@ -181,7 +181,7 @@ class BuildSimTest(parameterized.TestCase):
         'geometry_type': 'circular',
         'nr': 5,  # override a default.
     })
-    self.assertIsInstance(geo, geometry.CircularGeometry)
+    self.assertIsInstance(geo, geometry.CircularAnalyticalGeometry)
     np.testing.assert_array_equal(geo.mesh.nx, 5)
     np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
 
@@ -193,7 +193,7 @@ class BuildSimTest(parameterized.TestCase):
         },
         runtime_params=runtime_params_lib.GeneralRuntimeParams(),
     )
-    self.assertIsInstance(geo, geometry.CHEASEGeometry)
+    self.assertIsInstance(geo, geometry.StandardGeometry)
     np.testing.assert_array_equal(geo.mesh.nx, 5)
 
   # pylint: disable=invalid-name
@@ -205,7 +205,7 @@ class BuildSimTest(parameterized.TestCase):
         'runtime_params': runtime_params,
         'Ip_from_parameters': False,  # this will force update runtime_params.Ip
     })
-    self.assertIsInstance(geo, geometry.CHEASEGeometry)
+    self.assertIsInstance(geo, geometry.StandardGeometry)
     self.assertNotEqual(runtime_params.profile_conditions.Ip, original_Ip)
     # pylint: enable=invalid-name
 

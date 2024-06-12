@@ -65,12 +65,12 @@ class GeometryTest(parameterized.TestCase):
     foo_jitted = jax.jit(foo)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
 
-    with self.subTest('CircularGeometry'):
+    with self.subTest('circular_geometry'):
       geo = geometry.build_circular_geometry()
       # Make sure you can call the function with geo as an arg.
       foo_jitted(geo)
 
-    with self.subTest('CHEASEGeometry'):
+    with self.subTest('CHEASE_geometry'):
       geo = geometry.build_chease_geometry(runtime_params)
       # Make sure you can call the function with geo as an arg.
       foo_jitted(geo)

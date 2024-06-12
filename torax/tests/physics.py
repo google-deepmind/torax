@@ -121,7 +121,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     geo = references.geo
 
     # pylint: disable=protected-access
-    if isinstance(geo, geometry.CircularGeometry):
+    if isinstance(geo, geometry.CircularAnalyticalGeometry):
       currents = core_profile_setters._prescribe_currents_no_bootstrap(
           dynamic_runtime_params_slice,
           geo,
@@ -130,8 +130,8 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
       psi = core_profile_setters._update_psi_from_j(
           dynamic_runtime_params_slice, geo, currents
       ).value
-    elif isinstance(geo, geometry.CHEASEGeometry):
-      psi = geo.psi_from_chease_Ip
+    elif isinstance(geo, geometry.StandardGeometry):
+      psi = geo.psi_from_Ip
     else:
       raise ValueError(f'Unknown geometry type: {geo.geometry_type}')
     # pylint: enable=protected-access

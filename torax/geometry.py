@@ -94,6 +94,11 @@ def face_to_cell(face: jax.Array) -> jax.Array:
 
 @enum.unique
 class GeometryType(enum.Enum):
+  """Integer enum for geometry type.
+
+  This type can be used within JAX expressions to access the geometry type
+  without having to call isinstance.
+  """
   CIRCULAR = 0
   CHEASE = 1
 
@@ -103,7 +108,11 @@ class GeometryType(enum.Enum):
 
 @chex.dataclass(frozen=True)
 class Geometry:
-  """Describes the magnetic geometry."""
+  """Describes the magnetic geometry.
+
+  Most users should default to using the StandardGeometry class, whether the
+  source of their geometry comes from CHEASE, MEQ, etc.
+  """
 
   geometry_type: int
   dr_norm: jax.Array
@@ -155,18 +164,27 @@ class Geometry:
 
 
 @chex.dataclass(frozen=True)
-class CircularGeometry(Geometry):
+class CircularAnalyticalGeometry(Geometry):
+  """Circular geometry type used for testing only.
+
+  Most users should default to using the Geometry class.
+  """
   kappa: jnp.ndarray
   kappa_face: jnp.ndarray
   kappa_hires: jnp.ndarray
 
 
 @chex.dataclass(frozen=True)
-class CHEASEGeometry(Geometry):
+class StandardGeometry(Geometry):
+  """Standard geometry object including additional useful attributes, like psi.
+
+  Most instances of Geometry should be of this type.
+  """
+
   g2: jnp.ndarray
   g3: jnp.ndarray
-  psi_chease: jnp.ndarray
-  psi_from_chease_Ip: jnp.ndarray
+  psi: jnp.ndarray
+  psi_from_Ip: jnp.ndarray
   jtot: jnp.ndarray
   jtot_face: jnp.ndarray
   delta_upper_face: jnp.ndarray
@@ -180,13 +198,13 @@ def build_circular_geometry(
     Rmin: float = 2.0,
     B0: float = 5.3,
     hires_fac: int = 4,
-) -> CircularGeometry:
-  """Constructs a CircularGeometry.
+) -> CircularAnalyticalGeometry:
+  """Constructs a CircularAnalyticalGeometry.
 
   This is the standard entrypoint for building a circular geometry, not
-  CircularGeometry.__init__(). chex.dataclasses do not allow overriding __init__
-  functions with different parameters than the attributes of the dataclass, so
-  this builder function lives outside the class.
+  CircularAnalyticalGeometry.__init__(). chex.dataclasses do not allow
+  overriding __init__ functions with different parameters than the attributes of
+  the dataclass, so this builder function lives outside the class.
 
   Args:
     nr: Radial grid points (num cells)
@@ -199,7 +217,7 @@ def build_circular_geometry(
       calculations.
 
   Returns:
-    A CircularGeometry instance.
+    A CircularAnalyticalGeometry instance.
   """
   # assumes that r/Rmin = rho_norm where rho is the toroidal flux coordinate
   # r_norm coordinate is r/Rmin in circular, and rho_norm in standard
@@ -329,7 +347,7 @@ def build_circular_geometry(
   g1_over_vpr_face = jnp.concatenate([jnp.zeros(1), g1_over_vpr_face])
   g1_over_vpr2_face = jnp.concatenate([jnp.ones(1), g1_over_vpr2_face])
 
-  return CircularGeometry(
+  return CircularAnalyticalGeometry(
       # Set the standard geometry params.
       geometry_type=GeometryType.CIRCULAR.value,
       dr_norm=dr_norm,
@@ -398,11 +416,11 @@ def build_chease_geometry(
     B0: float = 5.3,
     hires_fac: int = 4,
     Ip_from_parameters: bool = True,
-):
+) -> StandardGeometry:
   """Constructs a geometry based on a CHEASE file.
 
   This is the standard entrypoint for building a CHEASE geometry, not
-  CHEASEGeometry.__init__(). chex.dataclasses do not allow overriding __init__
+  Geometry.__init__(). chex.dataclasses do not allow overriding __init__
   functions with different parameters than the attributes of the dataclass, so
   this builder function lives outside the class.
 
@@ -425,7 +443,7 @@ def build_chease_geometry(
       Otherwise, Ip comes from CHEASE.
 
   Returns:
-    A CHEASEGeometry instance based on the input file.
+    A StanardGeometry instance based on the input file.
   """
 
   if geometry_dir is None:
@@ -452,7 +470,7 @@ def build_chease_geometry(
   Rmaj = jnp.array(Rmaj)
   B0 = jnp.array(B0)
   psiunnormfactor = (Rmaj**2 * B0) * 2 * jnp.pi
-  psi_chease = chease_data['PSIchease=psi/2pi'] * psiunnormfactor
+  psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor
   Ip_chease = chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * Rmaj * B0
 
   # toroidal flux coordinate
@@ -496,15 +514,15 @@ def build_chease_geometry(
   # needed because CHEASE psi profile has noisy second derivatives
   dpsidrho = Ip_chease[1:] * constants.CONSTANTS.mu0 / G2_chease[1:]
   dpsidrho = jnp.concatenate((jnp.zeros(1), dpsidrho))
-  psi_from_chease_Ip = jnp.zeros(len(psi_chease))
-  for i in range(1, len(psi_from_chease_Ip) + 1):
-    psi_from_chease_Ip = psi_from_chease_Ip.at[i - 1].set(
+  psi_from_Ip = jnp.zeros(len(psi))
+  for i in range(1, len(psi_from_Ip) + 1):
+    psi_from_Ip = psi_from_Ip.at[i - 1].set(
         jax.scipy.integrate.trapezoid(dpsidrho[:i], rho[:i])
     )
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
-  psi_from_chease_Ip = psi_from_chease_Ip.at[-1].set(
-      psi_from_chease_Ip[-2]
+  psi_from_Ip = psi_from_Ip.at[-1].set(
+      psi_from_Ip[-2]
       + constants.CONSTANTS.mu0
       * Ip_chease[-1]
       / G2_chease[-1]
@@ -516,7 +534,7 @@ def build_chease_geometry(
     Ip_scale_factor = (
         dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / Ip_chease[-1]
     )
-    psi_from_chease_Ip *= Ip_scale_factor
+    psi_from_Ip *= Ip_scale_factor
   else:
     # This overwrites the runtime_params.profile_conditions.Ip, even if it's
     # time dependent, to be consistent with the geometry file being processed.
@@ -599,11 +617,11 @@ def build_chease_geometry(
   # simplified (constant) version of the F=B*R function
   F_face = J_face * Rmaj * B0
 
-  interp_func = lambda x: jnp.interp(x, rhon, psi_chease)
-  psi_chease = interp_func(r_norm)
+  interp_func = lambda x: jnp.interp(x, rhon, psi)
+  psi = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, psi_from_chease_Ip)
-  psi_from_chease_Ip = interp_func(r_norm)
+  interp_func = lambda x: jnp.interp(x, rhon, psi_from_Ip)
+  psi_from_Ip = interp_func(r_norm)
 
   interp_func = lambda x: jnp.interp(x, rhon, jtot_chease)
   jtot_face = interp_func(r_face_norm)
@@ -658,7 +676,7 @@ def build_chease_geometry(
       jnp.ones(1),  # correct value is unity on-axis
       g1_face[1:] / vpr_face[1:] ** 2,  # avoid div by zero on-axis
   ))
-  return CHEASEGeometry(
+  return StandardGeometry(
       geometry_type=GeometryType.CHEASE.value,
       dr_norm=dr_norm,
       dr=dr,
@@ -702,8 +720,8 @@ def build_chease_geometry(
       # Set the CHEASE geometry-specific parameters.
       g2=g2,
       g3=g3,
-      psi_chease=psi_chease,
-      psi_from_chease_Ip=psi_from_chease_Ip,
+      psi=psi,
+      psi_from_Ip=psi_from_Ip,
       jtot=jtot,
       jtot_face=jtot_face,
       delta_upper_face=delta_upper_face,
