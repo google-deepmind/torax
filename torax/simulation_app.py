@@ -44,7 +44,7 @@ import datetime
 import enum
 import os
 import sys
-from typing import Callable
+from typing import Any, Callable
 
 from absl import logging
 import chex
@@ -87,6 +87,80 @@ def log_to_stdout(output: str, color: AnsiColors | None = None) -> None:
     logging.info('%s%s%s', color.value, output, _ANSI_END)
 
 
+# TODO(b/338033916): Modify to specify exactly which outputs we would like.
+def _path_to_name(path: tuple[Any, ...],) -> str:
+  """Converts paths to names of variables."""
+  # Aliases for the names of the variables.
+  name_map = {
+      'fusion_heat_source_el': 'Qfus_e',
+      'fusion_heat_source_ion': 'Qfus_i',
+      'generic_ion_el_heat_source_el': 'Qext_e',
+      'generic_ion_el_heat_source_ion': 'Qext_i',
+      'ohmic_heat_source': 'Qohm',
+      'qei_source': 'Qei',
+      'gas_puff_source': 's_puff',
+      'nbi_particle_source': 's_nbi',
+      'pellet_source': 's_pellet',
+  }
+  initial_cond_vars = ['temp_ion', 'temp_el', 'ni', 'ne',]
+
+  if isinstance(path[-1], jax.tree_util.DictKey):
+    name = path[-1].key
+  elif path[-1].name == 'value':
+    name = path[-2].name
+  # For the initial conditions we want to save the right face constraint.
+  elif (
+      isinstance(path[-2], jax.tree_util.GetAttrKey)
+      and path[-2].name in initial_cond_vars
+      and path[-1].name == 'right_face_constraint'
+  ):
+    name = path[-2].name + '_right_bc'
+  # For the psi variable we want to save the value and the right grad face
+  # constraints as well.
+  elif (
+      isinstance(path[-2], jax.tree_util.GetAttrKey)
+      and path[-2].name == 'psi'
+      and path[-1].name == 'right_face_grad_constraint'
+  ):
+    name = path[-2].name + '_right_grad_bc'
+  else:
+    name = path[-1].name
+
+  if name in name_map:
+    return name_map[name]
+
+  return name
+
+
+def _translate_leaf_with_path(
+    time: xr.DataArray,
+    geo: torax.Geometry,
+    path: tuple[Any, ...],
+    leaf: jax.Array,
+) -> tuple[str, xr.DataArray | None]:
+  """Logic for converting and filtering which paths we want to save."""
+  # Functions to check if a leaf is a face or cell variable
+  # Assume that all arrays with shape (time, rho_face) are face variables
+  # and all arrays with shape (time, rho_cell) are cell variables
+  is_face_var = lambda x: x.ndim == 2 and x.shape == (
+      len(time),
+      len(geo.r_face),
+  )
+  is_cell_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.r))
+  is_scalar = lambda x: x.ndim == 1 and x.shape == (len(time),)
+
+  name = _path_to_name(path)
+
+  if is_face_var(leaf):
+    return name, xr.DataArray(leaf, dims=['time', 'rho_face'], name=name)
+  elif is_cell_var(leaf):
+    return name, xr.DataArray(leaf, dims=['time', 'rho_cell'], name=name)
+  elif is_scalar(leaf):
+    return name, xr.DataArray(leaf, dims=['time'], name=name)
+  else:
+    return name, None
+
+
 def simulation_output_to_xr(
     torax_outputs: tuple[state_lib.ToraxSimState, ...],
     geo: torax.Geometry,
@@ -108,23 +182,6 @@ def simulation_output_to_xr(
       'implicit_ie',
       'qei_coef',
   }
-
-  name_map = {
-      'fusion_heat_source_el': 'Qfus_e',
-      'fusion_heat_source_ion': 'Qfus_i',
-      'generic_ion_el_heat_source_el': 'Qext_e',
-      'generic_ion_el_heat_source_ion': 'Qext_i',
-      'ohmic_heat_source': 'Qohm',
-      'qei_source': 'Qei',
-      'gas_puff_source': 's_puff',
-      'nbi_particle_source': 's_nbi',
-      'pellet_source': 's_pellet',
-  }
-
-  def name_mapper(name):
-    if name in name_map:
-      return name_map[name]
-    return name
 
   core_profile_history, core_sources_history, core_transport_history = (
       state_lib.build_history_from_states(torax_outputs)
@@ -149,34 +206,6 @@ def simulation_output_to_xr(
       tree, is_leaf=lambda x: isinstance(x, jax.Array)
   )
 
-  # Functions to check if a leaf is a face or cell variable
-  # Assume that all arrays with shape (time, rho_face) are face variables
-  # and all arrays with shape (time, rho_cell) are cell variables
-  is_face_var = lambda x: x.ndim == 2 and x.shape == (
-      len(time),
-      len(geo.r_face),
-  )
-  is_cell_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.r))
-
-  is_scalar = lambda x: x.ndim == 1 and x.shape == (len(time),)
-
-  def translate_leaf_with_path(path, leaf):
-    # Assume name is the last part of the path, unless the name is "value"
-    # in which case we use the second to last part of the path.
-    if isinstance(path[-1], jax.tree_util.DictKey):
-      name = path[-1].key
-    else:
-      name = path[-1].name if path[-1].name != 'value' else path[-2].name
-    name = name_mapper(name)
-    if is_face_var(leaf):
-      return name, xr.DataArray(leaf, dims=['time', 'rho_face'], name=name)
-    elif is_cell_var(leaf):
-      return name, xr.DataArray(leaf, dims=['time', 'rho_cell'], name=name)
-    elif is_scalar(leaf):
-      return name, xr.DataArray(leaf, dims=['time'], name=name)
-    else:
-      return name, None
-
   # Initialize dict with desired geometry and reference variables
   xr_dict = {
       'vpr': xr.DataArray(geo.vpr, dims=['rho_cell'], name='vpr'),
@@ -191,7 +220,7 @@ def simulation_output_to_xr(
 
   # Extend with desired core_profiles, core_sources, core_transport variables
   for path, leaf in leaves_with_path:
-    name, da = translate_leaf_with_path(path, leaf)
+    name, da = _translate_leaf_with_path(time, geo, path, leaf)
     if da is not None and name not in exclude_set:
       xr_dict[name] = da
   ds = xr.Dataset(
