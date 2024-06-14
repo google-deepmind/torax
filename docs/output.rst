@@ -14,6 +14,12 @@ corresponding to a subset of the TORAX internal ``Geometry``, ``core_profiles``,
 names and contents, these internal objects do not exactly correspond to IMAS
 objects.
 
+Also, note that, as of June 2024, TORAX does not have a specific COCOS it
+adheres to, yet. Our team is working on aligning to a specific standard COCOS
+on both the input and output. (CHEASE, which is COCOS 2 is still the supported
+way to provide geometric inputs to TORAX, and we will continue to support CHEASE
+as an input method, regardless of which COCOS we choose.)
+
 Dimensions
 ==========
 

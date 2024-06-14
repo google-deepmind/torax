@@ -56,8 +56,19 @@ class GeometryTest(parameterized.TestCase):
     with self.assertRaises(dataclasses.FrozenInstanceError):
       geo.dr = 1.0
 
-  def test_geometry_can_be_input_to_jitted_function(self):
-    """Test that the Geometry class can be input to a jitted function."""
+  def test_circular_geometry_can_be_input_to_jitted_function(self):
+    """Test that a circular geometry can be input to a jitted function."""
+
+    def foo(geo: geometry.Geometry):
+      _ = geo  # do nothing.
+
+    foo_jitted = jax.jit(foo)
+    geo = geometry.build_circular_geometry()
+    # Make sure you can call the function with geo as an arg.
+    foo_jitted(geo)
+
+  def test_standard_geometry_can_be_input_to_jitted_function(self):
+    """Test that a StandardGeometry can be input to a jitted function."""
 
     def foo(geo: geometry.Geometry):
       _ = geo  # do nothing.
@@ -65,15 +76,36 @@ class GeometryTest(parameterized.TestCase):
     foo_jitted = jax.jit(foo)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
 
-    with self.subTest('circular_geometry'):
-      geo = geometry.build_circular_geometry()
-      # Make sure you can call the function with geo as an arg.
-      foo_jitted(geo)
+    geo = geometry.build_geometry(
+        runtime_params=runtime_params,
+        nr=25,
+        Rmaj=6.2,
+        Rmin=2.0,
+        B0=5.3,
+        # Use the same dummy value for the rest.
+        psi=jnp.arange(0, 1.0, 0.01),
+        Ip=jnp.arange(0, 1.0, 0.01),
+        rho=jnp.arange(0, 1.0, 0.01),
+        rhon=jnp.arange(0, 1.0, 0.01),
+        Rin=jnp.arange(0, 1.0, 0.01),
+        Rout=jnp.arange(0, 1.0, 0.01),
+        RBPhi=jnp.arange(0, 1.0, 0.01),
+        int_Jdchi=jnp.arange(0, 1.0, 0.01),
+        flux_norm_1_over_R2=jnp.arange(0, 1.0, 0.01),
+        flux_norm_Bp2=jnp.arange(0, 1.0, 0.01),
+        flux_norm_dpsi=jnp.arange(0, 1.0, 0.01),
+        flux_norm_dpsi2=jnp.arange(0, 1.0, 0.01),
+        delta_upper_face=jnp.arange(0, 1.0, 0.01),
+        delta_lower_face=jnp.arange(0, 1.0, 0.01),
+        volume=jnp.arange(0, 1.0, 0.01),
+        area=jnp.arange(0, 1.0, 0.01),
+    )
+    foo_jitted(geo)
 
-    with self.subTest('CHEASE_geometry'):
-      geo = geometry.build_chease_geometry(runtime_params)
-      # Make sure you can call the function with geo as an arg.
-      foo_jitted(geo)
+  def test_build_geometry_from_chease(self):
+    """Test that the default CHEASE geometry can be built."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    geometry.build_geometry_from_chease(runtime_params)
 
 
 def face_to_cell(nr, face):

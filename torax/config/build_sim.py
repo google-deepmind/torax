@@ -162,7 +162,7 @@ def build_geometry_from_config(
   list of the arguments exposed:
 
    -  `geometry.build_circular_geometry()`
-   -  `geometry.build_chease_geometry()`
+   -  `geometry.build_geometry_from_chease()`
 
   Args:
     geometry_config: Python dictionary containing keys/values that map onto a
@@ -187,7 +187,7 @@ def build_geometry_from_config(
   elif geometry_type == 'chease':
     if runtime_params is not None:
       kwargs['runtime_params'] = runtime_params
-    return geometry.build_chease_geometry(**kwargs)
+    return geometry.build_geometry_from_chease(**kwargs)
   raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 

@@ -185,7 +185,7 @@ class BuildSimTest(parameterized.TestCase):
     np.testing.assert_array_equal(geo.mesh.nx, 5)
     np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
 
-  def test_build_chease_geometry(self):
+  def test_build_geometry_from_chease(self):
     geo = build_sim.build_geometry_from_config(
         {
             'geometry_type': 'chease',

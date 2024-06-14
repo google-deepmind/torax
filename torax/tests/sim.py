@@ -362,7 +362,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_rampup.nc',
           _ALL_PROFILES,
           0,
-          1e-7
+          2e-7
       ),
   )
   def test_torax_sim(

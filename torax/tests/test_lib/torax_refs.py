@@ -212,7 +212,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
           },
       },
   )
-  geo = geometry.build_chease_geometry(
+  geo = geometry.build_geometry_from_chease(
       runtime_params=runtime_params,
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
@@ -365,7 +365,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
           },
       },
   )
-  geo = geometry.build_chease_geometry(
+  geo = geometry.build_geometry_from_chease(
       runtime_params=runtime_params,
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
