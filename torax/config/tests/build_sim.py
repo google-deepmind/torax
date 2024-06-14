@@ -99,7 +99,7 @@ class BuildSimTest(parameterized.TestCase):
       self.assertEqual(geo.mesh.nx, 5)
     with self.subTest('sources'):
       self.assertEqual(
-          sim.source_models.sources['pellet_source'].runtime_params.mode,
+          sim.source_models_builder.runtime_params['pellet_source'].mode,
           source_runtime_params_lib.Mode.ZERO,
       )
     with self.subTest('transport'):
@@ -211,17 +211,18 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_empty_source_config_only_has_defaults_turned_off(self):
     """Tests that an empty source config has all sources turned off."""
-    source_models = build_sim.build_sources_from_config({})
+    source_models_builder = build_sim.build_sources_builder_from_config({})
+    source_models = source_models_builder()
     self.assertEqual(
-        source_models.j_bootstrap.runtime_params.mode,
+        source_models_builder.runtime_params['j_bootstrap'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models.jext.runtime_params.mode,
+        source_models_builder.runtime_params['jext'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models.qei_source.runtime_params.mode,
+        source_models_builder.runtime_params['qei_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertLen(source_models.sources, 3)
@@ -229,7 +230,7 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_adding_standard_source_via_config(self):
     """Tests that a source can be added with overriding defaults."""
-    source_models = build_sim.build_sources_from_config({
+    source_models_builder = build_sim.build_sources_builder_from_config({
         'gas_puff_source': {
             'puff_decay_length': 1.23,
         },
@@ -238,17 +239,18 @@ class BuildSimTest(parameterized.TestCase):
             'mode': 'zero',  # turn it off.
         },
     })
+    source_models = source_models_builder()
     # The non-standard ones are still off.
     self.assertEqual(
-        source_models.j_bootstrap.runtime_params.mode,
+        source_models_builder.runtime_params['j_bootstrap'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models.jext.runtime_params.mode,
+        source_models_builder.runtime_params['jext'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models.qei_source.runtime_params.mode,
+        source_models_builder.runtime_params['qei_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     # But these new sources have been added.
@@ -257,42 +259,45 @@ class BuildSimTest(parameterized.TestCase):
     # With the overriding params.
     # pytype: disable=attribute-error
     self.assertEqual(
-        source_models.sources[
+        source_models_builder.runtime_params[
             'gas_puff_source'
-        ].runtime_params.puff_decay_length,
+        ].puff_decay_length,
         1.23,
     )
     # pytype: enable=attribute-error
     self.assertEqual(
-        source_models.sources['gas_puff_source'].runtime_params.mode,
+        source_models_builder.runtime_params['gas_puff_source'].mode,
         source_runtime_params_lib.Mode.FORMULA_BASED,  # On by default.
     )
     self.assertEqual(
-        source_models.sources['ohmic_heat_source'].runtime_params.mode,
+        source_models_builder.runtime_params['ohmic_heat_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
 
   def test_updating_formula_via_source_config(self):
     """Tests that we can set the formula type and params via the config."""
-    source_models = build_sim.build_sources_from_config(
-        {
-            'gas_puff_source': {
-                'formula_type': 'gaussian',
-                'total': 1,
-                'c1': 2,
-                'c2': 3,
-            }
+    source_models_builder = build_sim.build_sources_builder_from_config({
+        'gas_puff_source': {
+            'formula_type': 'gaussian',
+            'total': 1,
+            'c1': 2,
+            'c2': 3,
         }
-    )
+    })
+    source_models = source_models_builder()
     gas_source = source_models.sources['gas_puff_source']
     self.assertIsInstance(gas_source.formula, formulas.Gaussian)
+    gas_source_runtime_params = source_models_builder.runtime_params[
+        'gas_puff_source'
+    ]
     self.assertIsInstance(
-        gas_source.runtime_params.formula, formula_config.Gaussian
+        gas_source_runtime_params.formula,
+        formula_config.Gaussian,
     )
     # pytype: disable=attribute-error
-    self.assertEqual(gas_source.runtime_params.formula.total, 1)
-    self.assertEqual(gas_source.runtime_params.formula.c1, 2)
-    self.assertEqual(gas_source.runtime_params.formula.c2, 3)
+    self.assertEqual(gas_source_runtime_params.formula.total, 1)
+    self.assertEqual(gas_source_runtime_params.formula.c1, 2)
+    self.assertEqual(gas_source_runtime_params.formula.c2, 3)
     # pytype: enable=attribute-error
 
   def test_missing_transport_model_raises_error(self):
@@ -391,9 +396,11 @@ class BuildSimTest(parameterized.TestCase):
         build_sim.build_transport_model_builder_from_config('constant')
     )
     transport_model = transport_model_builder()
+    source_models_builder = build_sim.build_sources_builder_from_config({})
+    source_models = source_models_builder()
     stepper = stepper_builder(
         transport_model=transport_model,
-        source_models=build_sim.build_sources_from_config({}),
+        source_models=source_models,
     )
     self.assertIsInstance(stepper, expected_type)
     self.assertEqual(stepper_builder.runtime_params.theta_imp, 0.5)

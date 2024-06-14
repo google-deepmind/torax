@@ -28,6 +28,7 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.GasPuffSource,
+        source_class_builder=eds.GasPuffSourceBuilder,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -42,6 +43,7 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.PelletSource,
+        source_class_builder=eds.PelletSourceBuilder,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -56,6 +58,7 @@ class NBISourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.NBIParticleSource,
+        source_class_builder=eds.NBIParticleSourceBuilder,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -70,6 +73,7 @@ class RecombinationDensitySinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.RecombinationDensitySink,
+        source_class_builder=eds.RecombinationDensitySinkBuilder,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],

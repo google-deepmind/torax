@@ -64,7 +64,8 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     geometry_provider = sim_lib.ConstantGeometryProvider(geo)
     transport_builder = FakeTransportModelBuilder()
     transport = FakeTransportModel()
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
     stepper = FakeStepper(
@@ -83,7 +84,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             transport_getter=lambda: transport_builder.runtime_params,
-            sources_getter=lambda: source_models.runtime_params,
+            sources_getter=lambda: source_models_builder.runtime_params,
             stepper_getter=stepper_runtime_params.RuntimeParams,
         )
     )

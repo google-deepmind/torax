@@ -62,10 +62,6 @@ class QeiSource(source.Source):
   explicit terms in our solver. See sim.py for how this is used.
   """
 
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.MODEL_BASED,
       runtime_params_lib.Mode.ZERO,
@@ -123,6 +119,11 @@ class QeiSource(source.Source):
       geo: geometry.Geometry,
   ) -> jnp.ndarray:
     raise NotImplementedError('This method is not valid for QeiSource.')
+
+
+QeiSourceBuilder = source.make_source_builder(
+    QeiSource, runtime_params_type=RuntimeParams
+)
 
 
 def _model_based_qei(

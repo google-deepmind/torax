@@ -48,11 +48,12 @@ class SourceProfilesTest(parameterized.TestCase):
     """Tests that you can compute source profiles with all defaults."""
     runtime_params = torax.GeneralRuntimeParams()
     geo = torax.build_circular_geometry()
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -83,7 +84,8 @@ class SourceProfilesTest(parameterized.TestCase):
     # fusion_heat_source, and ohmic_heat_source are included and produce
     # profiles for ion and electron heat.
     # temperature.
-    source_models = default_sources.get_default_sources()
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models = source_models_builder()
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo))
     profiles = source_profiles_lib.SourceProfiles(
@@ -136,7 +138,7 @@ class SourceProfilesTest(parameterized.TestCase):
           jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo)),
       ])
 
-    foo_source = source_lib.Source(
+    foo_source_builder = source_lib.SourceBuilder(
         # Test a fake source that somehow affects both electron temp and
         # electron density.
         affected_core_profiles=(
@@ -151,15 +153,18 @@ class SourceProfilesTest(parameterized.TestCase):
         formula=foo_formula,
     )
     # Set the source mode to FORMULA.
-    foo_source.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
-    source_models = source_models_lib.SourceModels(
-        sources={source_name: foo_source},
+    foo_source_builder.runtime_params.mode = (
+        runtime_params_lib.Mode.FORMULA_BASED
     )
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {source_name: foo_source_builder},
+    )
+    source_models = source_models_builder()
     runtime_params = torax.GeneralRuntimeParams()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     geo = torax.build_circular_geometry()

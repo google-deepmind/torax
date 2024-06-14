@@ -48,3 +48,8 @@ class LHCurrentSource(source.SingleProfilePsiSource):
 @dataclasses.dataclass(kw_only=True)
 class NBICurrentSource(source.SingleProfilePsiSource):
   """NBI current density source for the psi equation."""
+
+ECRHCurrentSourceBuilder = source.make_source_builder(ECRHCurrentSource)
+ICRHCurrentSourceBuilder = source.make_source_builder(ICRHCurrentSource)
+LHCurrentSourceBuilder = source.make_source_builder(LHCurrentSource)
+NBICurrentSourceBuilder = source.make_source_builder(NBICurrentSource)

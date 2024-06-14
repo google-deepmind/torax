@@ -76,9 +76,6 @@ class BootstrapCurrentSource(source.Source):
   - total integrated bootstrap current
   """
 
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams,
-  )
   output_shape_getter: source.SourceOutputShapeFunction = _default_output_shapes
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
@@ -110,7 +107,11 @@ class BootstrapCurrentSource(source.Source):
     # Make sure the input mode requested is supported.
     self.check_mode(dynamic_source_runtime_params.mode)
     # Make sure the input params are the correct type.
-    assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+    if not isinstance(dynamic_source_runtime_params, DynamicRuntimeParams):
+      raise TypeError(
+          'Expected DynamicRuntimeParams, got '
+          f'{type(dynamic_source_runtime_params)}.'
+      )
     # Make sure the appropriate input args have been populated.
     if not core_profiles and any([
         not temp_ion,
@@ -401,3 +402,8 @@ def calc_neoclassical(
       j_bootstrap_face=j_bootstrap_face,
       I_bootstrap=I_bootstrap,
   )
+
+
+BootstrapCurrentSourceBuilder = source.make_source_builder(
+    BootstrapCurrentSource, runtime_params_type=RuntimeParams
+)

@@ -127,8 +127,9 @@ def _default_formula(
 class GenericIonElectronHeatSource(source.IonElectronSource):
   """Generic heat source for both ion and electron heat."""
 
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-
   formula: source.SourceProfileFunction = _default_formula
+
+
+GenericIonElectronHeatSourceBuilder = source.make_source_builder(
+    GenericIonElectronHeatSource, runtime_params_type=RuntimeParams
+)

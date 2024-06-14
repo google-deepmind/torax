@@ -39,12 +39,13 @@ class QlknnWrapperTest(parameterized.TestCase):
     qlknn_jitted = jax.jit(qlknn)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
             transport=qlknn_wrapper.RuntimeParams(),
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -74,12 +75,13 @@ class QlknnWrapperTest(parameterized.TestCase):
     """Tests that the Qualikiz inputs are properly prepared."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
             transport=qlknn_wrapper.RuntimeParams(),
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     runtime_config_inputs = (
@@ -123,12 +125,13 @@ class QlknnWrapperTest(parameterized.TestCase):
     """Tests that the model output is properly converted to core transport."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
             transport=qlknn_wrapper.RuntimeParams(),
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     runtime_config_inputs = (

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
-from typing import Callable
+from typing import Any, Callable, Protocol
 
 import chex
 from jax import numpy as jnp
@@ -123,14 +123,6 @@ class Source:
   """
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...]
-
-  # Implementation detail: the DynamicConfigSliceProvider reads and interpolates
-  # these params via the SourceModels obj. This note is to help any code tracing
-  # someone might do if investigating how the parameters here are actually
-  # interpolated and packaged into the DynamicConfigSlice.
-  runtime_params: runtime_params_lib.RuntimeParams = dataclasses.field(
-      default_factory=runtime_params_lib.RuntimeParams
-  )
 
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
@@ -601,3 +593,232 @@ class IonElectronSource(Source):
     chex.assert_rank(profile, 2)
     chex.assert_shape(profile, output_shape)
     return profile
+
+
+class SourceBuilderProtocol(Protocol):
+  """Make a best effort to define what SourceBuilders are with type hints.
+
+  Note that these can't be used with `isinstance` or any other runtime
+  evaluation, just static analysis.
+
+  Attributes:
+    runtime_params: Mutable runtime params that will continue to control the
+      immutable Source after the Source has been built.
+    links_back: If True, the Source will have a `source_models` field linking
+      back to its SourceModels.
+  """
+
+  runtime_params: Any
+  links_back: bool
+
+  def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    # pylint: disable = g-doc-args
+    """When called, the SourceBuilder builds a Source.
+
+    This signature is used just to make pytype recognize SourceBuilders are
+    callable. Actual SourceBuilders take either no args or if `links_back`
+    they take a `source_models` argument.
+    """
+    ...
+
+
+def is_source_builder(obj, raise_if_false: bool = False) -> bool:
+  """Runtime type guard function for source builders.
+
+  Args:
+    obj: The object to type check.
+    raise_if_false: If true, raises a TypeError explaining why the object is not
+      a Source Builder.
+
+  Returns:
+    bool: True if `obj` is a valid source builder
+  """
+  if not dataclasses.is_dataclass(obj):
+    if raise_if_false:
+      raise TypeError('Not a dataclass')
+    return False
+  if not hasattr(obj, 'runtime_params'):
+    if raise_if_false:
+      raise TypeError('Has no runtime_params')
+    return False
+  if not callable(obj):
+    if raise_if_false:
+      raise TypeError('Not callable')
+    return False
+  return True
+
+
+def _convert_source_builder_to_init_kwargs(
+    source_builder: ...,
+) -> dict[str, Any]:
+  """Returns a dict of init kwargs for the source builder."""
+  source_init_kwargs = {}
+  for field in dataclasses.fields(source_builder):
+    if field.name == 'runtime_params':
+      continue
+    # for loop with getattr copies each field exactly as it exists.
+    # dataclasses.asdict will recursivesly convert fields to dicts,
+    # including turning custom dataclasses with __call__ methods into
+    # plain Python dictionaries.
+    source_init_kwargs[field.name] = getattr(source_builder, field.name)
+  return source_init_kwargs
+
+
+def make_source_builder(
+    source_type: ...,
+    runtime_params_type: ... = runtime_params_lib.RuntimeParams,
+    links_back=False,
+) -> SourceBuilderProtocol:
+  """Given a Source type, returns a Builder for that type.
+
+  Builders are factories that also hold dynamic runtime parameters.
+
+  Args:
+    source_type: The Source class to make a builder for.
+    runtime_params_type: The type of `runtime_params` field which will be added
+      to the builder dataclass.
+    links_back: If True, the Source class has a `source_models` field linking
+      back to the SourceModels object. This must be passed to the builder's
+      __call__ method.
+
+  Returns:
+    builder: a Builder dataclass for the given Source dataclass.
+  """
+
+  source_fields = dataclasses.fields(source_type)
+
+  # Runtime params are mutable and must be in the builder only.
+  # We have this check because earlier Sources held their runtime params so
+  # a common problem is Sources that haven't removed theirs yet.
+  for field in source_fields:
+    if field.name == 'runtime_params':
+      raise ValueError(
+          'Source dataclasses must not have a `runtime_params` '
+          f'field but {source_type} does.'
+      )
+
+  # Filter out fields that shouldn't be passed to constructor
+  source_fields = [f for f in source_fields if f.init]
+
+  if links_back:
+    assert sum([f.name == 'source_models' for f in source_fields]) == 1
+    source_fields = [f for f in source_fields if f.name != 'source_models']
+
+  name_type_field_tuples = [
+      (field.name, field.type, field) for field in source_fields
+  ]
+
+  runtime_params_ntf = (
+      'runtime_params',
+      runtime_params_type,
+      dataclasses.field(default_factory=runtime_params_type),
+  )
+
+  new_field_ntfs = [runtime_params_ntf]
+  builder_ntfs = name_type_field_tuples + new_field_ntfs
+  builder_type_name = source_type.__name__ + 'Builder'
+
+  def check_kwargs(source_init_kwargs, context_msg):
+    for f in source_fields:
+      v = source_init_kwargs[f.name]
+      if isinstance(f.type, str):
+        if f.type == 'tuple[AffectedCoreProfile, ...]':
+          assert isinstance(v, tuple)
+          assert all([isinstance(var, AffectedCoreProfile) for var in v])
+        elif f.type == 'tuple[runtime_params_lib.Mode, ...]':
+          assert isinstance(v, tuple)
+          assert all([isinstance(var, runtime_params_lib.Mode) for var in v])
+        elif f.type == 'SourceProfileFunction | None':
+          assert v is None or callable(v)
+        elif f.type == 'source.SourceProfileFunction':
+          if not callable(v):
+            raise TypeError(
+                f'While {context_msg} {source_type} got field '
+                f'{f.name} of type source.SoureProfileFunction '
+                ' but was passed constructor argument with value '
+                f'{v} of type {type(v)}. It is not callable, so '
+                'it cannot be a SourceProfileFunction.'
+            )
+        elif f.type in [
+            'source.SourceOutputShapeFunction',
+            'SourceOutputShapeFunction',
+        ]:
+          if not callable(v):
+            raise TypeError(
+                f'While {context_msg} {source_type} got field '
+                f'{f.name} of type source.SoureProfileFunction '
+                ' but was passed constructor argument with value '
+                f'{v} of type {type(v)}. It is not callable, so '
+                'it cannot be a SourceProfileFunction.'
+            )
+        else:
+          raise TypeError(f'Unrecognized type string: {f.type}')
+      else:
+        try:
+          type_works = isinstance(v, f.type)
+        except TypeError as exc:
+          raise TypeError(
+              f'While {context_msg} {source_type} got field '
+              f'{f.name} whose type is {f.type} of type'
+              f'{type(f.type)}. This is not a valid type.'
+          ) from exc
+        if not type_works:
+          raise TypeError(
+              f'While {context_msg} {source_type} got argument '
+              f'{f.name} of type {type(v)} but expected '
+              f'{f.type}).'
+          )
+
+  # pylint doesn't like this function name because it doesn't realize
+  # this function is to be installed in a class
+  def __post_init__(self):  # pylint:disable=invalid-name
+    source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
+    check_kwargs(source_init_kwargs, 'making builder')
+    # check_kwargs checks only the kwargs to Source, not SourceBuilder,
+    # so it doesn't check "runtime_params"
+    runtime_params = self.runtime_params
+    if not isinstance(runtime_params, runtime_params_type):
+      raise TypeError(
+          f'Expected {runtime_params_type}, got {type(runtime_params)}'
+      )
+
+  if links_back:
+
+    def build_source(self, source_models):
+      source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
+      source_init_kwargs['source_models'] = source_models
+      check_kwargs(source_init_kwargs, 'building')
+      return source_type(**source_init_kwargs)
+
+  else:
+
+    def build_source(self):
+      source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
+      check_kwargs(source_init_kwargs, 'building')
+      return source_type(**source_init_kwargs)
+
+  return dataclasses.make_dataclass(
+      builder_type_name,
+      builder_ntfs,
+      namespace={
+          '__call__': build_source,
+          'links_back': links_back,
+          '__post_init__': __post_init__,
+      },
+      frozen=False,  # One role of the Builder class is to hold
+      # the mutable runtime params
+      kw_only=True,
+  )
+
+
+SourceBuilder = make_source_builder(Source)
+SingleProfileSourceBuilder = make_source_builder(SingleProfileSource)
+SingleProfilePsiSourceBuilder = make_source_builder(SingleProfilePsiSource)
+SingleProfileNeSourceBuilder = make_source_builder(SingleProfileNeSource)
+SingleProfileTempIonSourceBuilder = make_source_builder(
+    SingleProfileTempIonSource
+)
+SingleProfileTempElSourceBuilder = make_source_builder(
+    SingleProfileTempElSource
+)
+IonElectronSourceBuilder = make_source_builder(IonElectronSource)

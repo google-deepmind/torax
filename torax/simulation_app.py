@@ -314,7 +314,7 @@ def update_sim(
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           transport_getter=transport_runtime_params_getter,
-          sources_getter=lambda: sim.source_models.runtime_params,
+          sources_getter=lambda: sim.source_models_builder.runtime_params,
           stepper_getter=stepper_runtime_params_getter,
       )
   )
@@ -333,6 +333,7 @@ def update_sim(
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       static_runtime_params_slice=static_runtime_params_slice,
       step_fn=sim.step_fn,
+      source_models_builder=sim.source_models_builder,
   )
 
 

@@ -56,11 +56,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     """Tests that the implicit and explicit source profiles merge correctly."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    source_models = default_sources.get_default_sources()
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models = source_models_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     # Technically, the _merge_source_profiles() function should be called with
@@ -131,34 +132,33 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
       return jnp.ones_like(geo.r) * source_conf.foo
 
     # Include 2 versions of this source, one implicit and one explicit.
-    source_models = source_models_lib.SourceModels(
-        sources={
-            'implicit_ne_source': source.SingleProfileSource(
-                supported_modes=(
-                    runtime_params_lib.Mode.ZERO,
-                    runtime_params_lib.Mode.FORMULA_BASED,
-                ),
-                affected_core_profiles=(source.AffectedCoreProfile.NE,),
-                formula=custom_source_formula,
-                runtime_params=_FakeSourceRuntimeParams(
-                    mode=runtime_params_lib.Mode.FORMULA_BASED,
-                    foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
-                ),
+    source_models_builder = source_models_lib.SourceModelsBuilder({
+        'implicit_ne_source': source.SingleProfileSourceBuilder(
+            supported_modes=(
+                runtime_params_lib.Mode.ZERO,
+                runtime_params_lib.Mode.FORMULA_BASED,
             ),
-            'explicit_ne_source': source.SingleProfileSource(
-                supported_modes=(
-                    runtime_params_lib.Mode.ZERO,
-                    runtime_params_lib.Mode.FORMULA_BASED,
-                ),
-                affected_core_profiles=(source.AffectedCoreProfile.NE,),
-                formula=custom_source_formula,
-                runtime_params=_FakeSourceRuntimeParams(
-                    mode=runtime_params_lib.Mode.FORMULA_BASED,
-                    foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
-                ),
+            affected_core_profiles=(source.AffectedCoreProfile.NE,),
+            formula=custom_source_formula,
+            runtime_params=_FakeSourceRuntimeParams(
+                mode=runtime_params_lib.Mode.FORMULA_BASED,
+                foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
             ),
-        }
-    )
+        ),
+        'explicit_ne_source': source.SingleProfileSourceBuilder(
+            supported_modes=(
+                runtime_params_lib.Mode.ZERO,
+                runtime_params_lib.Mode.FORMULA_BASED,
+            ),
+            affected_core_profiles=(source.AffectedCoreProfile.NE,),
+            formula=custom_source_formula,
+            runtime_params=_FakeSourceRuntimeParams(
+                mode=runtime_params_lib.Mode.FORMULA_BASED,
+                foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
+            ),
+        ),
+    })
+    source_models = source_models_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     time_stepper = _FakeTimeStepCalculator()
@@ -167,7 +167,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             transport_getter=constant_transport_model.RuntimeParams,
-            sources_getter=lambda: source_models.runtime_params,
+            sources_getter=lambda: source_models_builder.runtime_params,
             stepper_getter=stepper_runtime_params.RuntimeParams,
         )
     )

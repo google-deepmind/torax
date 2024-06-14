@@ -243,7 +243,9 @@ def change_config(
             sim_config['transport']
         )
     )
-    source_models = build_sim.build_sources_from_config(sim_config['sources'])
+    source_models_builder = build_sim.build_sources_builder_from_config(
+        sim_config['sources']
+    )
     new_stepper_builder = build_sim.build_stepper_builder_from_config(
         sim_config['stepper']
     )
@@ -253,11 +255,11 @@ def change_config(
     new_runtime_params = config_module.get_runtime_params()
     new_geo = config_module.get_geometry(new_runtime_params)
     new_transport_model_builder = config_module.get_transport_model_builder()
-    source_models = config_module.get_sources()
+    source_models_builder = config_module.get_sources_builder()
     new_stepper_builder = config_module.get_stepper_builder()
   new_source_params = {
-      name: source.runtime_params
-      for name, source in source_models.sources.items()
+      name: runtime_params
+      for name, runtime_params in source_models_builder.runtime_params.items()
   }
   # We pass the getter so that any changes to the objects runtime params after
   # the Sim object is created are picked up.

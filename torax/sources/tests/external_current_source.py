@@ -34,6 +34,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=external_current_source.ExternalCurrentSource,
+        source_class_builder=external_current_source.ExternalCurrentSourceBuilder,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
@@ -42,12 +43,13 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
 
   def test_source_value(self):
     """Tests that a formula-based source provides values."""
-    source = external_current_source.ExternalCurrentSource()
+    source_builder = external_current_source.ExternalCurrentSourceBuilder()
+    source = source_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
         runtime_params,
         sources={
-            'jext': source.runtime_params,
+            'jext': source_builder.runtime_params,
         },
     )
     self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
@@ -71,16 +73,17 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
   def test_invalid_source_types_raise_errors(self):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    source = external_current_source.ExternalCurrentSource()
+    source_builder = external_current_source.ExternalCurrentSourceBuilder()
+    source = source_builder()
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
-          source.runtime_params.mode = unsupported_mode
+          source_builder.runtime_params.mode = unsupported_mode
           dynamic_slice = (
               runtime_params_slice.build_dynamic_runtime_params_slice(
                   runtime_params,
                   sources={
-                      'jext': source.runtime_params,
+                      'jext': source_builder.runtime_params,
                   },
               )
           )

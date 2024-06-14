@@ -36,6 +36,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=bootstrap_current_source.BootstrapCurrentSource,
+        source_class_builder=bootstrap_current_source.BootstrapCurrentSourceBuilder,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
@@ -43,16 +44,18 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     )
 
   def test_source_value(self):
-    source = bootstrap_current_source.BootstrapCurrentSource()
+    source_builder = bootstrap_current_source.BootstrapCurrentSourceBuilder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    source_models = source_models_lib.SourceModels(
-        sources={'j_bootstrap': source}
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'j_bootstrap': source_builder}
     )
+    source_models = source_models_builder()
+    source = source_models.sources['j_bootstrap']
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -60,6 +63,10 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
         geo=geo,
         source_models=source_models,
     )
+    # Use this assert to get pytype to see this is always BootstrapCurrentSource
+    assert isinstance(source, bootstrap_current_source.BootstrapCurrentSource)
+    # In the get_value call we use args that are supported by
+    # BootstrapCurrentSource but not other sources
     self.assertIsNotNone(
         source.get_value(
             dynamic_runtime_params_slice=dynamic_runtime_params_slice,

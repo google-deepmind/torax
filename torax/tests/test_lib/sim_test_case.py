@@ -263,6 +263,7 @@ class SimTestCase(parameterized.TestCase):
           stepper=sim.stepper,
           transport_model=sim.transport_model,
           step_fn=sim.step_fn,
+          source_models_builder=sim.source_models_builder,
       )
 
     # Build geo needed for output generation
@@ -292,6 +293,7 @@ class SimTestCase(parameterized.TestCase):
 
 def make_frozen_optimizer_stepper(
     transport_model: transport_model_lib.TransportModel,
+    source_models_builder: source_models_lib.SourceModelsBuilder,
     source_models: source_models_lib.SourceModels,
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     transport_params: transport_params_lib.RuntimeParams,
@@ -303,6 +305,7 @@ def make_frozen_optimizer_stepper(
 
   Args:
     transport_model: Transport model.
+    source_models_builder: Holds the runtime_params for source_models
     source_models: TORAX sources/sinks used to compute profile terms in the
       state evolution equations.
     runtime_params: General TORAX runtime input parameters.
@@ -316,7 +319,7 @@ def make_frozen_optimizer_stepper(
       runtime_params_slice.build_dynamic_runtime_params_slice(
           runtime_params=runtime_params,
           transport=transport_params,
-          sources=source_models.runtime_params,
+          sources=source_models_builder.runtime_params,
       )
   )
   callback_builder = functools.partial(

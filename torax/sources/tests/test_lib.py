@@ -41,6 +41,7 @@ class SourceTestCase(parameterized.TestCase):
   """
 
   _source_class: Type[source_lib.Source]
+  _source_class_builder: source_lib.SourceBuilderProtocol
   _config_attr_name: str
   _unsupported_modes: Sequence[runtime_params_lib.Mode]
   _expected_affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...]
@@ -49,6 +50,7 @@ class SourceTestCase(parameterized.TestCase):
   def setUpClass(
       cls,
       source_class: Type[source_lib.Source],
+      source_class_builder: source_lib.SourceBuilderProtocol,
       unsupported_modes: Sequence[runtime_params_lib.Mode],
       expected_affected_core_profiles: tuple[
           source_lib.AffectedCoreProfile, ...
@@ -56,6 +58,7 @@ class SourceTestCase(parameterized.TestCase):
   ):
     super().setUpClass()
     cls._source_class = source_class
+    cls._source_class_builder = source_class_builder
     cls._unsupported_modes = unsupported_modes
     cls._expected_affected_core_profiles = expected_affected_core_profiles
 
@@ -79,19 +82,23 @@ class SingleProfileSourceTestCase(SourceTestCase):
     # SingleProfileSource subclasses should have default names and be
     # instantiable without any __init__ arguments.
     # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
+    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
+    if not source_lib.is_source_builder(source_builder):
+      raise TypeError(f'{type(self)} has a bad _source_class_builder')
     # pylint: enable=missing-kwoa
-    self.assertIsInstance(source, source_lib.SingleProfileSource)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    source.runtime_params.mode = source.supported_modes[0]
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
+    source_builder.runtime_params.mode = source.supported_modes[0]
+    self.assertIsInstance(source, source_lib.SingleProfileSource)
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -114,16 +121,18 @@ class SingleProfileSourceTestCase(SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
+    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
-    self.assertIsInstance(source, source_lib.SingleProfileSource)
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
+    self.assertIsInstance(source, source_lib.SingleProfileSource)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -132,11 +141,11 @@ class SingleProfileSourceTestCase(SourceTestCase):
         source_models=source_models,
     )
     for unsupported_mode in self._unsupported_modes:
-      source.runtime_params.mode = unsupported_mode
+      source_builder.runtime_params.mode = unsupported_mode
       dynamic_runtime_params_slice = (
           runtime_params_slice.build_dynamic_runtime_params_slice(
               runtime_params=runtime_params,
-              sources=source_models.runtime_params,
+              sources=source_models_builder.runtime_params,
           )
       )
       with self.subTest(unsupported_mode.name):
@@ -157,18 +166,20 @@ class IonElSourceTestCase(SourceTestCase):
   def test_source_value(self):
     """Tests that the source can provide a value by default."""
     # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
+    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
-    self.assertIsInstance(source, source_lib.IonElectronSource)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
+    self.assertIsInstance(source, source_lib.IonElectronSource)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -191,16 +202,18 @@ class IonElSourceTestCase(SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
+    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
-    self.assertIsInstance(source, source_lib.IonElectronSource)
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
+    self.assertIsInstance(source, source_lib.IonElectronSource)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -209,11 +222,11 @@ class IonElSourceTestCase(SourceTestCase):
         source_models=source_models,
     )
     for unsupported_mode in self._unsupported_modes:
-      source.runtime_params.mode = unsupported_mode
+      source_builder.runtime_params.mode = unsupported_mode
       dynamic_runtime_params_slice = (
           runtime_params_slice.build_dynamic_runtime_params_slice(
               runtime_params=runtime_params,
-              sources=source_models.runtime_params,
+              sources=source_models_builder.runtime_params,
           )
       )
       with self.subTest(unsupported_mode.name):

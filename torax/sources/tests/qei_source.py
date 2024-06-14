@@ -35,6 +35,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=qei_source.QeiSource,
+        source_class_builder=qei_source.QeiSourceBuilder,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
@@ -46,10 +47,12 @@ class QeiSourceTest(test_lib.SourceTestCase):
 
   def test_source_value(self):
     """Checks that the default implementation from Sources gives values."""
-    source = qei_source.QeiSource()
-    source_models = source_models_lib.SourceModels(
-        sources={'qei_source': source}
+    source_builder = qei_source.QeiSourceBuilder()
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'qei_source': source_builder}
     )
+    source_models = source_models_builder()
+    source = source_models.sources['qei_source']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
@@ -57,7 +60,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     )
     dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
         runtime_params,
-        sources=source_models.runtime_params,
+        sources=source_models_builder.runtime_params,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_slice,
@@ -75,10 +78,12 @@ class QeiSourceTest(test_lib.SourceTestCase):
     self.assertIsNotNone(qei)
 
   def test_invalid_source_types_raise_errors(self):
-    source = qei_source.QeiSource()
-    source_models = source_models_lib.SourceModels(
-        sources={'qei_source': source}
+    source_builder = qei_source.QeiSourceBuilder()
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'qei_source': source_builder}
     )
+    source_models = source_models_builder()
+    source = source_models.sources['qei_source']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
@@ -86,7 +91,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     )
     dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
         runtime_params,
-        sources=source_models.runtime_params,
+        sources=source_models_builder.runtime_params,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_slice,
@@ -102,12 +107,15 @@ class QeiSourceTest(test_lib.SourceTestCase):
                   sources={
                       'qei_source': (
                           dataclasses.replace(
-                              source.runtime_params, mode=unsupported_mode
+                              source_builder.runtime_params,
+                              mode=unsupported_mode,
                           )
                       )
                   },
               )
           )
+          # Force pytype to recognize `source` has `get_qei`
+          assert isinstance(source, qei_source.QeiSource)
           source.get_qei(
               static_slice,
               dynamic_slice,

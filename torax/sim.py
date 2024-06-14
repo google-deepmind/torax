@@ -561,6 +561,7 @@ class Sim:
       geometry_provider: GeometryProvider,
       initial_state: state.ToraxSimState,
       time_step_calculator: ts.TimeStepCalculator,
+      source_models_builder: source_models_lib.SourceModelsBuilder,
       transport_model: transport_model_lib.TransportModel | None = None,
       stepper: stepper_lib.Stepper | None = None,
       step_fn: SimulationStepFn | None = None,
@@ -572,6 +573,7 @@ class Sim:
     self._geometry_provider = geometry_provider
     self._initial_state = initial_state
     self._time_step_calculator = time_step_calculator
+    self.source_models_builder = source_models_builder
     if step_fn is None:
       if stepper is None or transport_model is None:
         raise ValueError(
@@ -689,7 +691,7 @@ def build_sim_object(
     geo: geometry.Geometry,
     stepper_builder: stepper_lib.StepperBuilder,
     transport_model_builder: transport_model_lib.TransportModelBuilder,
-    source_models: source_models_lib.SourceModels,
+    source_models_builder: source_models_lib.SourceModelsBuilder,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
 ) -> Sim:
   """Builds a Sim object from the input runtime params and sim components.
@@ -707,8 +709,7 @@ def build_sim_object(
     stepper_builder: A callable to build the stepper. The stepper has already
       been factored out of the config.
     transport_model_builder: A callable to build the transport model.
-    source_models: All TORAX sources/sink functions which provide profiles used
-      as terms in the equations that evolve the core profiless.
+    source_models_builder: Builds the SourceModels and holds its runtime_params.
     time_step_calculator: The time_step_calculator, if built, otherwise a
       ChiTimeStepCalculator will be built by default.
 
@@ -728,10 +729,11 @@ def build_sim_object(
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           transport_getter=lambda: transport_model_builder.runtime_params,
-          sources_getter=lambda: source_models.runtime_params,
+          sources_getter=lambda: source_models_builder.runtime_params,
           stepper_getter=lambda: stepper_builder.runtime_params,
       )
   )
+  source_models = source_models_builder()
   stepper = stepper_builder(transport_model, source_models)
 
   if time_step_calculator is None:
@@ -756,6 +758,7 @@ def build_sim_object(
       time_step_calculator=time_step_calculator,
       transport_model=transport_model,
       stepper=stepper,
+      source_models_builder=source_models_builder,
   )
 
 

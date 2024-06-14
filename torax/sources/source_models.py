@@ -599,6 +599,10 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
     pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
     return pohm
 
+OhmicHeatSourceBuilder = source_lib.make_source_builder(
+    OhmicHeatSource, links_back=True
+)
+
 
 class SourceModels:
   """Source/sink models for the different equations being evolved in Torax.
@@ -634,7 +638,7 @@ class SourceModels:
     )
     # Define the collection of sources here, which in this example only includes
     # one source.
-    all_torax_sources = source_models_lib.SourceModels(
+    all_torax_sources = SourceModels(
         sources={'my_custom_source': my_custom_source}
     )
 
@@ -854,12 +858,92 @@ class SourceModels:
         self._qei_source_name: self.qei_source,
     }
 
+
+class SourceModelsBuilder:
+  """Builds a SourceModels and also holds its runtime_params.
+
+  The SourceModels is a collection of many smaller Source models.
+
+  Attributes:
+    source_builders: Dict mapping the name of each Source to its builder.
+  """
+
+  def __init__(
+      self,
+      source_builders: (
+          dict[str, source_lib.SourceBuilderProtocol] | None
+      ) = None,
+  ):
+
+    # Note: this runtime type checking isn't needed just because of the
+    # dynamically created builder classes, pytype seems to have a bug that
+    # prevents it from checking this arg in general.
+    # In an alternate version of SourceModelsBuilder it had a dict of dict of
+    # configs and pytype failed to enforce that the values of the outer dict
+    # were dicts.
+    if source_builders:
+      for name, builder in source_builders.items():
+        if not source_lib.is_source_builder(builder):
+          raise TypeError(
+              f'Expected source builder, got {type(builder)}for "{name}"'
+          )
+
+    source_builders = source_builders or {}
+
+    # Validate that these sources are found
+    bootstrap_found = False
+    qei_found = False
+    jext_found = False
+    for builder in source_builders.values():
+      # pytype thinks that SourceBuilderProtocols can't be passed to isinstance.
+      # It doesn't seem to understand that builders will always be specific
+      # instantiations of the protocol, not the protocol itself.
+      if isinstance(
+          builder, bootstrap_current_source.BootstrapCurrentSourceBuilder  # pytype: disable=wrong-arg-types
+      ):
+        bootstrap_found = True
+      elif isinstance(
+          builder, external_current_source.ExternalCurrentSourceBuilder  # pytype: disable=wrong-arg-types
+      ):
+        jext_found = True
+      elif isinstance(builder, qei_source_lib.QeiSourceBuilder):  # pytype: disable=wrong-arg-types
+        qei_found = True
+
+    # If these sources are missing, we need to include builders for them.
+    # The SourceModels would also build them, but then there'd be no
+    # user-editable runtime params for them.
+    if not bootstrap_found:
+      source_builders['j_bootstrap'] = (
+          bootstrap_current_source.BootstrapCurrentSourceBuilder()
+      )
+    if not qei_found:
+      source_builders['qei_source'] = qei_source_lib.QeiSourceBuilder()
+    if not jext_found:
+      source_builders['jext'] = (
+          external_current_source.ExternalCurrentSourceBuilder()
+      )
+
+    self.source_builders = source_builders
+
+  def __call__(self) -> SourceModels:
+
+    unlinked_sources = {
+        name: builder()
+        for name, builder in self.source_builders.items()
+        if not builder.links_back
+    }
+    initial_model = SourceModels(unlinked_sources)
+    for name, builder in self.source_builders.items():
+      if builder.links_back:
+        initial_model.add_source(name, builder(initial_model))
+    return initial_model
+
   @property
   def runtime_params(self) -> dict[str, runtime_params_lib.RuntimeParams]:
     """Returns all the runtime params for all sources."""
     return {
-        source_name: source.runtime_params
-        for source_name, source in self.sources.items()
+        source_name: builder.runtime_params
+        for source_name, builder in self.source_builders.items()
     }
 
 

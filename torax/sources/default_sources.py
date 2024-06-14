@@ -21,6 +21,7 @@ Many TORAX test files and example configurations use these defaults with minor
 tweaks added on top.
 """
 
+from typing import Any
 from torax.sources import bootstrap_current_source
 from torax.sources import electron_density_sources
 from torax.sources import external_current_source
@@ -102,8 +103,8 @@ def get_source_type(source_name: str) -> type[source.Source]:
       raise ValueError(f'Unknown source name: {source_name}')
 
 
-def get_default_sources() -> source_models_lib.SourceModels:
-  """Returns a SourceModels containing default sources and runtime parameters.
+def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
+  """Returns a SourceModelsBuilder containing default sources and runtime parameters.
 
   This set of sources and params are used by most of the TORAX test
   configurations, including ITER-inspired configs, with additional changes to
@@ -139,12 +140,14 @@ def get_default_sources() -> source_models_lib.SourceModels:
       'generic_ion_el_heat_source',
       'fusion_heat_source',
       'qei_source',
+      # Ohmic heat source
+      'ohmic_heat_source',
   ]
   # pylint: disable=missing-kwoa
   # pytype: disable=missing-parameter
-  source_models = source_models_lib.SourceModels(
-      sources={
-          name: get_source_type(name)(
+  source_models_builder = source_models_lib.SourceModelsBuilder(
+      source_builders={
+          name: get_source_builder_type(name)(
               runtime_params=get_default_runtime_params(name)
           )
           for name in names
@@ -152,12 +155,37 @@ def get_default_sources() -> source_models_lib.SourceModels:
   )
   # pylint: enable=missing-kwoa
   # pytype: enable=missing-parameter
-  # Add OhmicHeatSource after because it requires a pointer to the SourceModels.
-  source_models.add_source(
-      source_name='ohmic_heat_source',
-      source=source_models_lib.OhmicHeatSource(
-          source_models=source_models,
-          runtime_params=get_default_runtime_params('ohmic_heat_source'),
-      ),
-  )
-  return source_models
+  return source_models_builder
+
+
+def get_source_builder_type(source_name: str) -> Any:
+  """Returns a builder type for the given source."""
+  match source_name:
+    case 'j_bootstrap':
+      return bootstrap_current_source.BootstrapCurrentSourceBuilder
+    case 'jext':
+      return external_current_source.ExternalCurrentSourceBuilder
+
+    case 'nbi_particle_source':
+      return electron_density_sources.NBIParticleSourceBuilder
+
+    case 'gas_puff_source':
+      return electron_density_sources.GasPuffSourceBuilder
+
+    case 'pellet_source':
+      return electron_density_sources.PelletSourceBuilder
+
+    case 'generic_ion_el_heat_source':
+      return ion_el_heat.GenericIonElectronHeatSourceBuilder
+
+    case 'fusion_heat_source':
+      return fusion_heat_source.FusionHeatSourceBuilder
+
+    case 'qei_source':
+      return qei_source.QeiSourceBuilder
+
+    case 'ohmic_heat_source':
+      return source_models_lib.OhmicHeatSourceBuilder
+
+    case _:
+      raise ValueError(f'Unknown source name: {source_name}')

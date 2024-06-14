@@ -378,22 +378,23 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     transport_model = transport_model_builder()
-    source_models = default_sources.get_default_sources()
-    source_models.qei_source.runtime_params.Qei_mult = 0.0
-    source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
+    source_models_builder.runtime_params['generic_ion_el_heat_source'].Ptot = (
         0.0
     )
-    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['fusion_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
-    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
+    source_models = source_models_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             transport=transport_model_builder.runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
             stepper=stepper_params,
         )
     )
@@ -505,22 +506,23 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     transport_model = transport_model_builder()
-    source_models = default_sources.get_default_sources()
-    source_models.qei_source.runtime_params.Qei_mult = 0.0
-    source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
+    source_models_builder.runtime_params['generic_ion_el_heat_source'].Ptot = (
         0.0
     )
-    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['fusion_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
-    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
+    source_models = source_models_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             transport=transport_model_builder.runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
             stepper=stepper_params,
         )
     )
@@ -637,22 +639,22 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     transport_model = transport_model_builder()
-    source_models = default_sources.get_default_sources()
-    source_models.qei_source.runtime_params.Qei_mult = 0.0
-    source_models.sources['generic_ion_el_heat_source'].runtime_params.Ptot = (
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
+    source_models_builder.runtime_params['generic_ion_el_heat_source'].Ptot = (
         0.0
     )
-    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['fusion_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
-    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             transport=transport_model_builder.runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
             stepper=stepper_params,
         )
     )

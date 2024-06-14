@@ -177,10 +177,6 @@ def _calculate_Iext(
 class ExternalCurrentSource(source.Source):
   """External current density source profile."""
 
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-
   supported_types: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.FORMULA_BASED,
@@ -253,3 +249,8 @@ class ExternalCurrentSource(source.Source):
         profile[0],  # the jext profile
         jnp.zeros_like(geo.r),
     )
+
+
+ExternalCurrentSourceBuilder = source.make_source_builder(
+    ExternalCurrentSource, runtime_params_type=RuntimeParams
+)

@@ -63,31 +63,30 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         ),
     )
     # Set the sources to match test_particle_sources_constant as well.
-    source_models = default_sources.get_default_sources()
-    source_models.sources['pellet_source'].runtime_params.S_pellet_tot = 2.0e22
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models_builder.runtime_params['pellet_source'].S_pellet_tot = 2.0e22
     S_puff_tot = 1.0e22  # pylint: disable=invalid-name
     puff_decay_length = 0.05
-    source_models.sources['gas_puff_source'].runtime_params.S_puff_tot = (
+    source_models_builder.runtime_params['gas_puff_source'].S_puff_tot = (
         S_puff_tot
     )
-    source_models.sources[
+    source_models_builder.runtime_params[
         'gas_puff_source'
-    ].runtime_params.puff_decay_length = puff_decay_length
-    source_models.sources['nbi_particle_source'].runtime_params.S_nbi_tot = 0.0
+    ].puff_decay_length = puff_decay_length
+    source_models_builder.runtime_params['nbi_particle_source'].S_nbi_tot = 0.0
     # We need to turn off some other sources for test_particle_sources_constant
     # that are unrelated to our test for the ne custom source.
-    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['fusion_heat_source'].mode = (
         runtime_params_lib.Mode.ZERO
     )
-    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         runtime_params_lib.Mode.ZERO
     )
 
     # Add the custom source to the source_models, but keep it turned off for the
     # first run.
-    source_models.add_source(
-        custom_source_name,
-        source.SingleProfileSource(
+    source_models_builder.source_builders[custom_source_name] = (
+        source.SingleProfileSourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
@@ -102,7 +101,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
                 # with the correct params.
                 formula=formula_config.Exponential(),
             ),
-        ),
+        )
     )
 
     # Load reference profiles
@@ -131,7 +130,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
             )
         ),
         transport_model_builder=transport_model_builder,
-        source_models=source_models,
+        source_models_builder=source_models_builder,
     )
 
     # Make sure the config copied here works with these references.
@@ -151,10 +150,10 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
 
     with self.subTest('without_puff_and_with_custom_source'):
       # Now turn on the custom source.
-      source_models.sources[custom_source_name].runtime_params.mode = (
+      source_models_builder.runtime_params[custom_source_name].mode = (
           runtime_params_lib.Mode.FORMULA_BASED
       )
-      source_models.sources[custom_source_name].runtime_params.formula = (
+      source_models_builder.runtime_params[custom_source_name].formula = (
           formula_config.Exponential(
               total=(
                   S_puff_tot
@@ -166,7 +165,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
           )
       )
       # And turn off the gas puff source it is replacing.
-      source_models.sources['gas_puff_source'].runtime_params.mode = (
+      source_models_builder.runtime_params['gas_puff_source'].mode = (
           runtime_params_lib.Mode.ZERO
       )
       self._run_sim_and_check(sim, ref_profiles, ref_time)
@@ -174,7 +173,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     with self.subTest('without_puff_and_without_custom_source'):
       # Confirm that the custom source actual has an effect.
       # Turn it off as well, and the check shouldn't pass.
-      source_models.sources[custom_source_name].runtime_params.mode = (
+      source_models_builder.runtime_params[custom_source_name].mode = (
           runtime_params_lib.Mode.ZERO
       )
       with self.assertRaises(AssertionError):

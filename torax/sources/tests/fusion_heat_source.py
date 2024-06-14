@@ -37,6 +37,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=fusion_heat_source.FusionHeatSource,
+        source_class_builder=fusion_heat_source.FusionHeatSourceBuilder,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
@@ -63,13 +64,14 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     geo = references.geo
     nref = runtime_params.numerics.nref
 
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
+    source_models = source_models_builder()
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,

@@ -83,10 +83,6 @@ def _calc_puff_source(
 class GasPuffSource(source.SingleProfileNeSource):
   """Gas puff source for the ne equation."""
 
-  runtime_params: GasPuffRuntimeParams = dataclasses.field(
-      default_factory=GasPuffRuntimeParams
-  )
-
   formula: source.SourceProfileFunction = _calc_puff_source
 
 
@@ -146,10 +142,6 @@ def _calc_nbi_source(
 @dataclasses.dataclass(kw_only=True)
 class NBIParticleSource(source.SingleProfileNeSource):
   """Neutral-beam injection source for the ne equation."""
-
-  runtime_params: NBIParticleRuntimeParams = dataclasses.field(
-      default_factory=NBIParticleRuntimeParams
-  )
 
   formula: source.SourceProfileFunction = _calc_nbi_source
 
@@ -211,10 +203,6 @@ def _calc_pellet_source(
 class PelletSource(source.SingleProfileNeSource):
   """Pellet source for the ne equation."""
 
-  runtime_params: PelletRuntimeParams = dataclasses.field(
-      default_factory=PelletRuntimeParams
-  )
-
   formula: source.SourceProfileFunction = _calc_pellet_source
 
 
@@ -230,3 +218,17 @@ class PelletSource(source.SingleProfileNeSource):
 @dataclasses.dataclass(kw_only=True)
 class RecombinationDensitySink(source.SingleProfileNeSource):
   """Recombination sink for the electron density equation."""
+
+
+PelletSourceBuilder = source.make_source_builder(
+    PelletSource, runtime_params_type=PelletRuntimeParams
+)
+GasPuffSourceBuilder = source.make_source_builder(
+    GasPuffSource, runtime_params_type=GasPuffRuntimeParams
+)
+NBIParticleSourceBuilder = source.make_source_builder(
+    NBIParticleSource, runtime_params_type=NBIParticleRuntimeParams
+)
+RecombinationDensitySinkBuilder = source.make_source_builder(
+    RecombinationDensitySink
+)

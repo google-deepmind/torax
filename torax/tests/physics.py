@@ -108,14 +108,15 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     runtime_params = references.runtime_params
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
     # Turn on the external current source.
-    source_models.jext.runtime_params.mode = (
+    source_models_builder.runtime_params['jext'].mode = (
         source_runtime_params.Mode.FORMULA_BASED
     )
+    source_models = source_models_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params, sources=source_models.runtime_params
+            runtime_params, sources=source_models_builder.runtime_params
         )
     )
     geo = references.geo

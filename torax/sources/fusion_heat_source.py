@@ -145,3 +145,6 @@ class FusionHeatSource(source.IonElectronSource):
   )
 
   model_func: source.SourceProfileFunction = fusion_heat_model_func
+
+
+FusionHeatSourceBuilder = source.make_source_builder(FusionHeatSource)

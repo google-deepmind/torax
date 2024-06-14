@@ -418,7 +418,7 @@ class SimTest(sim_test_case.SimTestCase):
         geo=geo,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
         transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
-        source_models=source_models_lib.SourceModels(),
+        source_models_builder=source_models_lib.SourceModelsBuilder(),
         time_step_calculator=time_step_calculator,
     )
 
@@ -481,7 +481,7 @@ class SimTest(sim_test_case.SimTestCase):
         geo=geo,
         stepper_builder=stepper_builder,
         transport_model_builder=config_module.get_transport_model_builder(),
-        source_models=config_module.get_sources(),
+        source_models_builder=config_module.get_sources_builder(),
         time_step_calculator=time_step_calculator,
     )
     sim.run(

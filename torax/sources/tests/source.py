@@ -32,21 +32,80 @@ from torax.sources import source_models as source_models_lib
 class SourceTest(parameterized.TestCase):
   """Tests for the base class Source."""
 
+  def test_is_source_builder(self):
+    """Test that is_source_builder works correctly."""
+
+    @dataclasses.dataclass
+    class MySource:
+      pass
+
+    @dataclasses.dataclass
+    class NoRuntimeParams:
+
+      def __call__(self) -> MySource:
+        return MySource()
+
+    obj_without_runtime_params = NoRuntimeParams()
+
+    self.assertFalse(source_lib.is_source_builder(obj_without_runtime_params))
+
+    @dataclasses.dataclass
+    class NotCallable:
+      runtime_params: int
+
+    obj_without_call = NotCallable(runtime_params=1)
+
+    self.assertFalse(source_lib.is_source_builder(obj_without_call))
+
+    @dataclasses.dataclass
+    class ValidBuilder:
+      runtime_params: int
+
+      def __call__(self) -> MySource:
+        return MySource()
+
+    valid_builder = ValidBuilder(runtime_params=1)
+    source_lib.is_source_builder(valid_builder, raise_if_false=True)
+
+  def test_source_builder_type_checking(self):
+    """Tests that source builders check types on construction."""
+
+    @dataclasses.dataclass
+    class MySource:
+      my_field: int
+
+    # pylint doesn't realize this is a class
+    MySourceBuilder = source_lib.make_source_builder(  # pylint: disable=invalid-name
+        MySource,
+        links_back=False,
+        runtime_params_type=int,
+    )
+
+    valid = MySourceBuilder(my_field=1, runtime_params=2)
+    valid()  # Check that it allows constructing the source too
+
+    with self.assertRaises(TypeError):
+      MySourceBuilder(my_field='hello', runtime_params=2)
+    with self.assertRaises(TypeError):
+      MySourceBuilder(my_field=1, runtime_params={})
+
   def test_zero_profile_works_by_default(self):
     """The default source impl should support profiles with all zeros."""
-    source = source_lib.Source(
+    source_builder = source_lib.SourceBuilder(
         output_shape_getter=source_lib.get_cell_profile_shape,
         affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -69,7 +128,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_unsupported_modes_raise_errors(self):
     """Calling with an unsupported type should raise an error."""
-    source = source_lib.Source(
+    source_builder = source_lib.SourceBuilder(
         supported_modes=(
             # Only support formula-based profiles.
             runtime_params_lib.Mode.FORMULA_BASED,
@@ -78,16 +137,18 @@ class SourceTest(parameterized.TestCase):
         affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
     # But set the runtime params of the source to use ZERO as the mode.
-    source.runtime_params.mode = runtime_params_lib.Mode.ZERO
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_builder.runtime_params.mode = runtime_params_lib.Mode.ZERO
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -108,7 +169,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_defaults_output_zeros(self):
     """The default model and formula implementations should output zeros."""
-    source = source_lib.Source(
+    source_builder = source_lib.SourceBuilder(
         supported_modes=(
             runtime_params_lib.Mode.MODEL_BASED,
             runtime_params_lib.Mode.FORMULA_BASED,
@@ -116,15 +177,17 @@ class SourceTest(parameterized.TestCase):
         output_shape_getter=source_lib.get_cell_profile_shape,
         affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -139,7 +202,7 @@ class SourceTest(parameterized.TestCase):
               sources={
                   'foo': (
                       dataclasses.replace(
-                          source.runtime_params,
+                          source_builder.runtime_params,
                           mode=runtime_params_lib.Mode.MODEL_BASED,
                       )
                   )
@@ -165,7 +228,7 @@ class SourceTest(parameterized.TestCase):
               sources={
                   'foo': (
                       dataclasses.replace(
-                          source.runtime_params,
+                          source_builder.runtime_params,
                           mode=runtime_params_lib.Mode.FORMULA_BASED,
                       )
                   )
@@ -189,7 +252,7 @@ class SourceTest(parameterized.TestCase):
     """The user-specified formula should override the default formula."""
     output_shape = (2, 4)  # Some arbitrary shape.
     expected_output = jnp.ones(output_shape)
-    source = source_lib.Source(
+    source_builder = source_lib.SourceBuilder(
         output_shape_getter=lambda _0: output_shape,
         formula=lambda _0, _1, _2, _3: expected_output,
         affected_core_profiles=(
@@ -197,16 +260,18 @@ class SourceTest(parameterized.TestCase):
             source_lib.AffectedCoreProfile.TEMP_EL,
         ),
     )
-    source.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_builder.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -228,7 +293,7 @@ class SourceTest(parameterized.TestCase):
     """The user-specified model should override the default model."""
     output_shape = (2, 4)  # Some arbitrary shape.
     expected_output = jnp.ones(output_shape)
-    source = source_lib.Source(
+    source_builder = source_lib.SourceBuilder(
         supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
         output_shape_getter=lambda _0: output_shape,
         model_func=lambda _0, _1, _2, _3: expected_output,
@@ -237,16 +302,18 @@ class SourceTest(parameterized.TestCase):
             source_lib.AffectedCoreProfile.TEMP_EL,
         ),
     )
-    source.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -304,18 +371,20 @@ class SingleProfileSourceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry(nr=5)
     expected_output = jnp.ones(5)  # 5 matches the geo.
-    source = source_lib.SingleProfileSource(
+    source_builder = source_lib.SingleProfileSourceBuilder(
         formula=lambda _0, _1, _2, _3: expected_output,
         affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
-    source.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_builder.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -335,23 +404,25 @@ class SingleProfileSourceTest(parameterized.TestCase):
 
   def test_multiple_profiles_raises_error(self):
     """A formula which outputs the wrong shape will raise an error."""
-    source = source_lib.SingleProfileSource(
+    source_builder = source_lib.SingleProfileSourceBuilder(
         formula=lambda _0, _1, _2, _3: jnp.ones((2, 5)),
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.TEMP_ION,
             source_lib.AffectedCoreProfile.NE,
         ),
     )
-    source.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
-    source_models = source_models_lib.SourceModels(
-        sources={'foo': source},
+    source_builder.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
     )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry(nr=5)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(

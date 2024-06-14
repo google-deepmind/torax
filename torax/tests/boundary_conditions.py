@@ -46,11 +46,12 @@ class BoundaryConditionsTest(absltest.TestCase):
     )
 
     geo = geometry.build_circular_geometry()
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
     initial_dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -61,7 +62,7 @@ class BoundaryConditionsTest(absltest.TestCase):
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
-            sources=source_models.runtime_params,
+            sources=source_models_builder.runtime_params,
             t=0.5,
         )
     )

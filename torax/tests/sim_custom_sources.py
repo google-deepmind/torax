@@ -102,37 +102,36 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 
     # First instantiate the same default sources that test_particle_sources
     # constant starts with.
-    source_models = default_sources.get_default_sources()
-    source_models.j_bootstrap.runtime_params.bootstrap_mult = 1
-    source_models.qei_source.runtime_params.Qei_mult = 1
-    nbi_params = source_models.sources['nbi_particle_source'].runtime_params
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 1
+    source_models_builder.runtime_params['qei_source'].Qei_mult = 1
+    nbi_params = source_models_builder.runtime_params['nbi_particle_source']
     assert isinstance(
         nbi_params, electron_density_sources.NBIParticleRuntimeParams
     )
     nbi_params.S_nbi_tot = 0.0
-    pellet_params = source_models.sources['pellet_source'].runtime_params
+    pellet_params = source_models_builder.runtime_params['pellet_source']
     assert isinstance(
         pellet_params, electron_density_sources.PelletRuntimeParams
     )
     pellet_params.S_pellet_tot = 2.0e22
-    gas_puff_params = source_models.sources['gas_puff_source'].runtime_params
+    gas_puff_params = source_models_builder.runtime_params['gas_puff_source']
     assert isinstance(
         gas_puff_params, electron_density_sources.GasPuffRuntimeParams
     )
     gas_puff_params.S_puff_tot = 1.0e22
     # Turn off some sources.
-    source_models.sources['fusion_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['fusion_heat_source'].mode = (
         runtime_params_lib.Mode.ZERO
     )
-    source_models.sources['ohmic_heat_source'].runtime_params.mode = (
+    source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         runtime_params_lib.Mode.ZERO
     )
 
     # Add the custom source with the correct params, but keep it turned off to
     # start.
-    source_models.add_source(
-        source_name=custom_source_name,
-        source=source.SingleProfileSource(
+    source_models_builder.source_builders[custom_source_name] = (
+        source.SingleProfileSourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
@@ -150,7 +149,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
                 pellet_deposition_location=pellet_params.pellet_deposition_location,
                 S_pellet_tot=pellet_params.S_pellet_tot,
             ),
-        ),
+        )
     )
 
     # Copy the test_particle_sources_constant config in here for clarity.
@@ -190,7 +189,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
                 Ve_const=-0.2,
             ),
         ),
-        source_models=source_models,
+        source_models_builder=source_models_builder,
     )
 
     # Make sure the config copied here works with these references.
@@ -213,14 +212,14 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       nbi_params.mode = runtime_params_lib.Mode.ZERO
       pellet_params.mode = runtime_params_lib.Mode.ZERO
       gas_puff_params.mode = runtime_params_lib.Mode.ZERO
-      source_models.sources[custom_source_name].runtime_params.mode = (
+      source_models_builder.runtime_params[custom_source_name].mode = (
           runtime_params_lib.Mode.FORMULA_BASED
       )
       self._run_sim_and_check(sim, ref_profiles, ref_time)
 
     with self.subTest('without_defaults_and_without_custom_source'):
       # Confirm that the custom source actual has an effect.
-      source_models.sources[custom_source_name].runtime_params.mode = (
+      source_models_builder.runtime_params[custom_source_name].mode = (
           runtime_params_lib.Mode.ZERO
       )
       with self.assertRaises(AssertionError):

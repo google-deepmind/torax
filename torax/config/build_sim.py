@@ -111,7 +111,9 @@ def build_sim_from_config(
   return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geo=build_geometry_from_config(config['geometry'], runtime_params),
-      source_models=build_sources_from_config(config['sources']),
+      source_models_builder=build_sources_builder_from_config(
+          config['sources']
+      ),
       transport_model_builder=build_transport_model_builder_from_config(
           config['transport']
       ),
@@ -191,10 +193,10 @@ def build_geometry_from_config(
   raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 
-def build_sources_from_config(
+def build_sources_builder_from_config(
     source_configs: dict[str, Any],
-) -> source_models_lib.SourceModels:
-  """Builds a `SourceModels` from the input config.
+) -> source_models_lib.SourceModelsBuilder:
+  """Builds a `SourceModelsBuilder` from the input config.
 
   The input config has an expected structure which maps onto TORAX sources.
   Each key in the input config maps to a single source, and its value maps onto
@@ -266,40 +268,27 @@ def build_sources_from_config(
       described above.
 
   Returns:
-    A `SourceModels`.
+    A `SourceModelsBuilder`.
 
   Raises:
     ValueError if an input key doesn't match one of the source names defined
       above.
   """
-  sources = {}
-  ohmic_name = 'ohmic_heat_source'
-  for source_name, source_config in source_configs.items():
-    if source_name == ohmic_name:
-      # The ohmic heat source requires a pointer to the fully constructed
-      # SourceModels object, so we add that source after the rest are built.
-      continue
-    sources[source_name] = _build_single_source_from_config(
-        source_name, source_config
-    )
-  source_models = source_models_lib.SourceModels(sources=sources)
-  # Add the OhmicHeatSource if requested.
-  if ohmic_name in source_configs:
-    ohmic = _build_single_source_from_config(
-        source_name=ohmic_name,
-        source_config=source_configs[ohmic_name],
-        extra_init_kwargs={'source_models': source_models},
-    )
-    source_models.add_source(source_name=ohmic_name, source=ohmic)
-  return source_models
+
+  source_builders = {
+      name: _build_single_source_builder_from_config(name, config)
+      for name, config in source_configs.items()
+  }
+
+  return source_models_lib.SourceModelsBuilder(source_builders)
 
 
-def _build_single_source_from_config(
+def _build_single_source_builder_from_config(
     source_name: str,
     source_config: dict[str, Any],
     extra_init_kwargs: dict[str, Any] | None = None,
-) -> source_lib.Source:
-  """Builds a `Source` from the input config."""
+) -> source_lib.SourceBuilderProtocol:
+  """Builds a source builder from the input config."""
   runtime_params = default_sources.get_default_runtime_params(
       source_name,
   )
@@ -339,7 +328,10 @@ def _build_single_source_from_config(
     kwargs.update(extra_init_kwargs)
   # pylint: disable=missing-kwoa
   # pytype: disable=missing-parameter
-  return default_sources.get_source_type(source_name)(**kwargs)
+  assert not isinstance(formula, dict)
+  if 'formula' in kwargs:
+    assert not isinstance(kwargs['formula'], dict)
+  return default_sources.get_source_builder_type(source_name)(**kwargs)
   # pylint: enable=missing-kwoa
   # pytype: enable=missing-parameter
 

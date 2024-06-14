@@ -40,7 +40,8 @@ class StateTest(torax_refs.ReferenceValueTest):
 
     # Make a State object in history mode, output by scan
     self.history_length = 2
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
 
     def make_hist(runtime_params, geo):
       initial_counter = jnp.array(0)
@@ -48,7 +49,7 @@ class StateTest(torax_refs.ReferenceValueTest):
       def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
         core_profiles = core_profile_setters.initial_core_profiles(
             dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
-                runtime_params, sources=source_models.runtime_params
+                runtime_params, sources=source_models_builder.runtime_params
             ),
             geo=geo,
             source_models=source_models,
@@ -88,10 +89,12 @@ class StateTest(torax_refs.ReferenceValueTest):
   ):
     """Make sure State.sanity_check can be called."""
     references = references_getter()
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
     basic_core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
-            references.runtime_params, sources=source_models.runtime_params
+            references.runtime_params,
+            sources=source_models_builder.runtime_params,
         ),
         geo=references.geo,
         source_models=source_models,
@@ -163,10 +166,11 @@ class InitialStatesTest(parameterized.TestCase):
             ),
         ),
     )
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params, sources=source_models.runtime_params
+            runtime_params, sources=source_models_builder.runtime_params
         ),
         geo=geometry.build_circular_geometry(),
         source_models=source_models,
@@ -220,39 +224,41 @@ class InitialStatesTest(parameterized.TestCase):
         ),
     )
     geo = geo_builder(config1)
-    source_models = source_models_lib.SourceModels()
-    source_models.j_bootstrap.runtime_params.bootstrap_mult = 0.0
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
+    source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
     dcs1 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config1, sources=source_models.runtime_params
+        config1, sources=source_models_builder.runtime_params
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
         geo=geo,
         source_models=source_models,
     )
-    source_models.j_bootstrap.runtime_params.bootstrap_mult = 0.0
+    source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
     dcs2 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config2, sources=source_models.runtime_params
+        config2, sources=source_models_builder.runtime_params
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,
         geo=geo,
         source_models=source_models,
     )
-    source_models.j_bootstrap.runtime_params.bootstrap_mult = 1.0
-    source_models.jext.runtime_params.fext = 0.0
+    source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 1.0
+    source_models_builder.runtime_params['jext'].fext = 0.0
+    source_models = source_models_builder()
     dcs3 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config3, sources=source_models.runtime_params
+        config3, sources=source_models_builder.runtime_params
     )
     core_profiles3 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3,
         geo=geo,
         source_models=source_models,
     )
-    source_models.j_bootstrap.runtime_params.bootstrap_mult = 0.0
-    source_models.jext.runtime_params.fext = 0.0
+    source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
+    source_models_builder.runtime_params['jext'].fext = 0.0
     dcs3_helper = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config3_helper, sources=source_models.runtime_params
+        config3_helper, sources=source_models_builder.runtime_params
     )
     core_profiles3_helper = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3_helper,
@@ -330,14 +336,15 @@ class InitialStatesTest(parameterized.TestCase):
 
   def test_initial_psi_from_geo_noop_circular(self):
     """Tests expected behaviour of initial psi and current options."""
-    source_models = source_models_lib.SourceModels()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
     config1 = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
             initial_psi_from_j=False,
         ),
     )
     dcs1 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config1, sources=source_models.runtime_params
+        config1, sources=source_models_builder.runtime_params
     )
     config2 = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
@@ -345,7 +352,7 @@ class InitialStatesTest(parameterized.TestCase):
         ),
     )
     dcs2 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config2, sources=source_models.runtime_params
+        config2, sources=source_models_builder.runtime_params
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
