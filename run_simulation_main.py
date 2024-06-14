@@ -21,6 +21,7 @@ python3 run_simulation_main.py \
 """
 from collections.abc import Sequence
 import enum
+import functools
 import importlib
 
 from absl import app
@@ -72,6 +73,14 @@ _REFERENCE_RUN = flags.DEFINE_string(
     None,
     'If provided, after the simulation is run, we can compare the last run to'
     ' the reference run.',
+)
+
+_USE_JAX_PROFILER = flags.DEFINE_bool(
+    'use_jax_profiler',
+    False,
+    'If True, use Jax profiler. Processing will stop and a URL to visualise'
+    ' results will be generated. Processing will resume when the URL is opened.'
+    'See https://jax.readthedocs.io/en/latest/profiling.html.',
 )
 
 jax.config.parse_flags_with_absl()
@@ -460,8 +469,8 @@ def main(_):
     sim, new_runtime_params = _build_sim_and_runtime_params_from_config_module(
         config_module_str
     )
-    _, output_file = simulation_app.main(
-        lambda: sim,
+    _, output_file = _call_sim_app_main(
+        sim=sim,
         output_dir=new_runtime_params.output_dir,
         log_sim_progress=log_sim_progress,
         plot_sim_progress=plot_sim_progress,
@@ -495,8 +504,8 @@ def main(_):
               color=simulation_app.AnsiColors.RED,
           )
         else:
-          _, output_file = simulation_app.main(
-              lambda: sim,
+          _, output_file = _call_sim_app_main(
+              sim=sim,
               output_dir=new_runtime_params.output_dir,
               log_sim_progress=log_sim_progress,
               plot_sim_progress=plot_sim_progress,
@@ -557,6 +566,39 @@ def main(_):
       case _:
         raise ValueError('Unknown command')
     user_command = prompt_user(config_module_str)
+
+
+def use_jax_profiler_if_enabled(f):
+  """Decorator that runs `func` with profiling if the flag is enabled."""
+
+  @functools.wraps(f)
+  def decorated(*args, **kwargs):
+    if _USE_JAX_PROFILER.value:
+      with jax.profiler.trace(
+          '/tmp/torax-jax-trace', create_perfetto_link=True
+      ):
+        return f(*args, **kwargs)
+    else:
+      return f(*args, **kwargs)
+
+  return decorated
+
+
+@use_jax_profiler_if_enabled
+def _call_sim_app_main(
+    sim,
+    output_dir: str,
+    log_sim_progress: bool,
+    plot_sim_progress: bool,
+    log_sim_output: bool,
+):
+  return simulation_app.main(
+      lambda: sim,
+      output_dir=output_dir,
+      log_sim_progress=log_sim_progress,
+      plot_sim_progress=plot_sim_progress,
+      log_sim_output=log_sim_output,
+  )
 
 
 if __name__ == '__main__':
