@@ -218,7 +218,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_chease',
           'test_chease.py',
-          'test_chease.h5',
+          'test_chease.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -226,7 +226,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_ohmic_power',
           'test_ohmic_power.py',
-          'test_ohmic_power.h5',
+          'test_ohmic_power.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -234,7 +234,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_qei_chease_highdens',
           'test_qei_chease_highdens.py',
-          'test_qei_chease_highdens.h5',
+          'test_qei_chease_highdens.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -242,7 +242,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psichease_ip_parameters',
           'test_psichease_ip_parameters.py',
-          'test_psichease_ip_parameters.h5',
+          'test_psichease_ip_parameters.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -250,7 +250,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psichease_ip_chease',
           'test_psichease_ip_chease.py',
-          'test_psichease_ip_chease.h5',
+          'test_psichease_ip_chease.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -258,7 +258,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psichease_prescribed_jtot',
           'test_psichease_prescribed_jtot.py',
-          'test_psichease_prescribed_jtot.h5',
+          'test_psichease_prescribed_jtot.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -266,7 +266,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psichease_prescribed_johm',
           'test_psichease_prescribed_johm.py',
-          'test_psichease_prescribed_johm.h5',
+          'test_psichease_prescribed_johm.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -274,7 +274,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_timedependence',
           'test_timedependence.py',
-          'test_timedependence.h5',
+          'test_timedependence.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -291,7 +291,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_ne_qlknn_defromchie',
           'test_ne_qlknn_defromchie.py',
-          'test_ne_qlknn_defromchie.h5',
+          'test_ne_qlknn_defromchie.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -299,7 +299,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_ne_qlknn_deff_veff',
           'test_ne_qlknn_deff_veff.py',
-          'test_ne_qlknn_deff_veff.h5',
+          'test_ne_qlknn_deff_veff.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -307,7 +307,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_all_transport_crank_nicolson',
           'test_all_transport_crank_nicolson.py',
-          'test_all_transport_crank_nicolson.h5',
+          'test_all_transport_crank_nicolson.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -316,7 +316,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_pc_method_ne',
           'test_pc_method_ne.py',
-          'test_pc_method_ne.h5',
+          'test_pc_method_ne.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -324,7 +324,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterbaseline_mockup',
           'test_iterbaseline_mockup.py',
-          'test_iterbaseline_mockup.h5',
+          'test_iterbaseline_mockup.nc',
           _ALL_PROFILES,
           1e-10,
       ),
@@ -332,7 +332,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_mockup',
           'test_iterhybrid_mockup.py',
-          'test_iterhybrid_mockup.h5',
+          'test_iterhybrid_mockup.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -341,7 +341,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector',
           'test_iterhybrid_predictor_corrector.py',
-          'test_iterhybrid_predictor_corrector.h5',
+          'test_iterhybrid_predictor_corrector.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -349,7 +349,7 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_newton',
           'test_iterhybrid_newton.py',
-          'test_iterhybrid_newton.h5',
+          'test_iterhybrid_newton.nc',
           _ALL_PROFILES,
           0,
       ),
