@@ -574,10 +574,14 @@ def use_jax_profiler_if_enabled(f):
   @functools.wraps(f)
   def decorated(*args, **kwargs):
     if _USE_JAX_PROFILER.value:
-      with jax.profiler.trace(
-          '/tmp/torax-jax-trace', create_perfetto_link=True
-      ):
-        return f(*args, **kwargs)
+      with jax.profiler.trace('/tmp/torax-jax-trace'):
+        result = f(*args, **kwargs)
+        simulation_app.log_to_stdout(
+            'Profiling: to display results go to'
+            ' https://ui.perfetto.dev/#!/viewer and open the trace file shown'
+            ' below.'
+        )
+        return result
     else:
       return f(*args, **kwargs)
 
