@@ -26,6 +26,7 @@ import jax.numpy as jnp
 import numpy as np
 import torax
 from torax import sim as sim_lib
+from torax import simulation_app
 from torax import state as state_lib
 from torax.config import build_sim
 from torax.config import runtime_params as general_runtime_params
@@ -40,6 +41,7 @@ import xarray as xr
 
 _PYTHON_MODULE_PREFIX = '.tests.test_data.'
 _PYTHON_CONFIG_PACKAGE = 'torax'
+_FAILED_TEST_OUTPUT_DIR = '/tmp/torax_failed_sim_test_outputs/'
 
 
 class SimTestCase(parameterized.TestCase):
@@ -114,17 +116,19 @@ class SimTestCase(parameterized.TestCase):
 
   def _check_profiles_vs_expected(
       self,
-      state_history,
+      core_profiles,
       t,
       ref_time,
       ref_profiles,
       rtol,
       atol,
+      output_dir=None,
+      ds=None,
   ):
     """Raises an error if the input states and time do not match the refs."""
     chex.assert_rank(t, 1)
     history_length = t.shape[0]
-    self.assertEqual(state_history.temp_el.value.shape[0], t.shape[0])
+    self.assertEqual(core_profiles.temp_el.value.shape[0], t.shape[0])
 
     msgs = []
     mismatch_found = False
@@ -139,7 +143,7 @@ class SimTestCase(parameterized.TestCase):
       ref = [jnp.expand_dims(ref_t, axis=0)]
       names = ['t']
       for profile_name, ref_profile in ref_profiles.items():
-        torax_var_history = state_history[profile_name]
+        torax_var_history = core_profiles[profile_name]
         if isinstance(torax_var_history, torax.CellVariable):
           actual_value_history = torax_var_history.value
         else:
@@ -208,6 +212,10 @@ class SimTestCase(parameterized.TestCase):
       msgs.insert(0, msg)
 
       final_msg = '\n'.join(msgs)
+      # Write all outputs to tmp dirs, used for automated comparisons and
+      # updates of references.
+      if output_dir is not None and ds is not None:
+        _ = simulation_app.write_simulation_output_to_file(output_dir, ds)
 
       raise AssertionError(final_msg)
 
@@ -257,17 +265,28 @@ class SimTestCase(parameterized.TestCase):
           step_fn=sim.step_fn,
       )
 
+    # Build geo needed for output generation
+    geo = sim.geometry_provider(sim.initial_state.t)
+
+    # Run full simulation
     torax_outputs = sim.run()
-    state_history, _, _ = state_lib.build_history_from_states(torax_outputs)
+
+    # Extract core profiles history for analysis against references
+    core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
     t = state_lib.build_time_history_from_states(torax_outputs)
 
+    ds = simulation_app.simulation_output_to_xr(torax_outputs, geo)
+    output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
+
     self._check_profiles_vs_expected(
-        state_history=state_history,
+        core_profiles=core_profiles,
         t=t,
         ref_time=ref_time,
         ref_profiles=ref_profiles,
         rtol=rtol,
         atol=atol,
+        output_dir=output_dir,
+        ds=ds,
     )
 
 

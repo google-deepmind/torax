@@ -423,16 +423,16 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     torax_outputs = sim.run()
-    state_history, _, _ = state_lib.build_history_from_states(torax_outputs)
+    core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
     t = state_lib.build_time_history_from_states(torax_outputs)
 
     chex.assert_rank(t, 1)
-    history_length = state_history.temp_ion.value.shape[0]
+    history_length = core_profiles.temp_ion.value.shape[0]
     self.assertEqual(history_length, t.shape[0])
     self.assertGreater(t[-1], runtime_params.numerics.t_final)
 
     for torax_profile in _ALL_PROFILES:
-      profile_history = state_history[torax_profile]
+      profile_history = core_profiles[torax_profile]
       # This is needed for CellVariable but not face variables
       if hasattr(profile_history, 'value'):
         profile_history = profile_history.value
