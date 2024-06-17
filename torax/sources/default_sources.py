@@ -31,7 +31,7 @@ from torax.sources import qei_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models as source_models_lib
-
+from torax.sources import radiation_source
 
 def get_default_runtime_params(
     source_name: str,
@@ -74,6 +74,10 @@ def get_default_runtime_params(
       return runtime_params_lib.RuntimeParams(
           mode=runtime_params_lib.Mode.MODEL_BASED,
       )
+    case 'bremsstrahlung_heat_sink':
+      return runtime_params_lib.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
 
@@ -99,6 +103,8 @@ def get_source_type(source_name: str) -> type[source.Source]:
       return qei_source.QeiSource
     case 'ohmic_heat_source':
       return source_models_lib.OhmicHeatSource
+    case 'bremsstrahlung_heat_sink':
+      return radiation_source.BremsstrahlungHeatSink
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
 
@@ -142,6 +148,7 @@ def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
       'qei_source',
       # Ohmic heat source
       'ohmic_heat_source',
+      'bremsstrahlung_heat_sink'
   ]
   # pylint: disable=missing-kwoa
   # pytype: disable=missing-parameter
@@ -186,6 +193,9 @@ def get_source_builder_type(source_name: str) -> Any:
 
     case 'ohmic_heat_source':
       return source_models_lib.OhmicHeatSourceBuilder
+
+    case 'bremsstrahlung_heat_sink':
+      return radiation_source.BremsstrahlungHeatSinkBuilder
 
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
