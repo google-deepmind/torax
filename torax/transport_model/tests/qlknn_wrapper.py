@@ -16,7 +16,6 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 import jax.numpy as jnp
 import numpy.testing as npt
 from torax import core_profile_setters
@@ -35,8 +34,6 @@ class QlknnWrapperTest(parameterized.TestCase):
     # This test can uncover and changes to the data structures which break the
     # caching.
     qlknn = qlknn_wrapper.QLKNNTransportModel()
-    # Caching only works when compiled.
-    qlknn_jitted = jax.jit(qlknn)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
@@ -53,13 +50,17 @@ class QlknnWrapperTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
     )
-    qlknn_jitted(dynamic_runtime_params_slice, geo, core_profiles)
-    # The call should be cached. If there was an error, the cache size would be
-    # 0.
-    self.assertGreaterEqual(
-        qlknn._cached_combined.cache_info().currsize,  # pylint: disable=protected-access
-        1,
-    )
+
+    # Executing once should lead to a cache entry being created.
+    qlknn(dynamic_runtime_params_slice, geo, core_profiles)
+    cache_size = qlknn._combined._cache_size()  # pylint: disable=protected-access
+    self.assertGreaterEqual(cache_size, 1)
+
+    # Executing again should lead to the same cache entry being used.
+    qlknn(dynamic_runtime_params_slice, geo, core_profiles)
+    self.assertEqual(
+        qlknn._combined._cache_size(),  # pylint: disable=protected-access
+        cache_size)
 
   def test_hash_and_eq(self):
     # Test that hash and eq are invariant to copying, so that they will work

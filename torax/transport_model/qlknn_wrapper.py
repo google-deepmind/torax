@@ -26,7 +26,6 @@ import dataclasses
 import functools
 import os
 from typing import Callable
-import warnings
 
 from absl import flags
 import chex
@@ -34,7 +33,6 @@ import jax
 from jax import numpy as jnp
 from torax import constants as constants_module
 from torax import geometry
-from torax import jax_utils
 from torax import physics
 from torax import state
 from torax import versioning
@@ -537,7 +535,6 @@ class QLKNNTransportModel(transport_model.TransportModel):
       self,
   ):
     super().__init__()
-    self._cached_combined = functools.lru_cache(maxsize=10)(self._combined)
     self._frozen = True
 
   def _call_implementation(
@@ -573,20 +570,11 @@ class QLKNNTransportModel(transport_model.TransportModel):
     runtime_config_inputs = QLKNNRuntimeConfigInputs.from_runtime_params_slice(
         dynamic_runtime_params_slice
     )
-    try:
-      return self._cached_combined(runtime_config_inputs, geo, core_profiles)
-    except TypeError as e:
-      if jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True):
-        raise
-      warnings.warn(
-          "Couldn't cache QLKNN call. This happens when compilation is off "
-          ' because concrete arrays are not hashable, but it causes repeat '
-          ' computation of QLKNN when normally it would only be traced once.'
-          f' Original exception {e}.'
-      )
-
     return self._combined(runtime_config_inputs, geo, core_profiles)
 
+  # Wrap in JIT here in order to cache the tracing/compilation of this function.
+  # We mark self as static because it is a singleton. Other args are pytrees.
+  @functools.partial(jax.jit, static_argnames=['self'])
   def _combined(
       self,
       runtime_config_inputs: QLKNNRuntimeConfigInputs,
