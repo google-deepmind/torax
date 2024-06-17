@@ -197,7 +197,7 @@ def theta_method_block_residual(
     dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
+    geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
     transport_model: transport_model_lib.TransportModel,
@@ -221,7 +221,7 @@ def theta_method_block_residual(
       (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
       explicit method.
     dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
-    geo: Geometry object.
+    geo_t_plus_dt: The geometry at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
@@ -254,7 +254,7 @@ def theta_method_block_residual(
   coeffs_new = calc_coeffs.calc_coeffs(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-      geo=geo,
+      geo=geo_t_plus_dt,
       core_profiles=core_profiles_t_plus_dt,
       transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
@@ -309,7 +309,7 @@ def theta_method_block_loss(
     dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
+    geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
     transport_model: transport_model_lib.TransportModel,
@@ -333,7 +333,7 @@ def theta_method_block_loss(
       (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
       explicit method.
     dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
-    geo: geometry object
+    geo_t_plus_dt: geometry object at time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
@@ -356,7 +356,7 @@ def theta_method_block_loss(
       dt=dt,
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-      geo=geo,
+      geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       x_new_guess_vec=x_new_guess_vec,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -383,7 +383,7 @@ def jaxopt_solver(
     dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
+    geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
     init_x_new_vec: jax.Array,
     core_profiles_t_plus_dt: state.CoreProfiles,
@@ -408,7 +408,7 @@ def jaxopt_solver(
       (default). theta_imp = 0.5: Crank-Nicolson. theta_imp = 0: Forward Euler
       explicit method.
     dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t + dt.
-    geo: geometry object.
+    geo_t_plus_dt: geometry object for time t + dt.
     x_old: The starting x defined as a tuple of CellVariables.
     init_x_new_vec: Flattened array of initial guess of x_new for all evolving
       core profiles.
@@ -437,7 +437,7 @@ def jaxopt_solver(
       dt=dt,
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-      geo=geo,
+      geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,
       transport_model=transport_model,

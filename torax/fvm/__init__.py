@@ -19,10 +19,3 @@ built using the finite volume method. This module is meant to be somewhat
 problem-independent, with other modules providing the coefficients on relatively
 generic differential equations.
 """
-
-# pylint: disable=g-importing-member
-
-from torax.fvm.block_1d_coeffs import Block1DCoeffs
-from torax.fvm.cell_variable import CellVariable
-from torax.fvm.cell_variable import CellVariableUpdateFn
-from torax.fvm.enums import InitialGuessMode

@@ -36,7 +36,6 @@ import jax
 import jax.numpy as jnp
 from torax import calc_coeffs
 from torax import core_profile_setters
-from torax import fvm
 from torax import geometry
 from torax import jax_utils
 from torax import physics
@@ -44,6 +43,7 @@ from torax import state
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.spectators import spectator as spectator_lib
@@ -69,9 +69,6 @@ class CoeffsCallback:
 
   Attributes:
     static_runtime_params_slice: See the docstring for `stepper.Stepper`.
-    geo: See the docstring for `stepper.Stepper`.
-    core_profiles_t: The core plasma profiles at the start of the time step.
-    core_profiles_t_plus_dt: Core plasma profiles at the end of the time step.
     transport_model: See the docstring for `stepper.Stepper`.
     explicit_source_profiles: See the docstring for `stepper.Stepper`.
     source_models: See the docstring for `stepper.Stepper`.
@@ -81,18 +78,12 @@ class CoeffsCallback:
   def __init__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      geo: geometry.Geometry,
-      core_profiles_t: state.CoreProfiles,
-      core_profiles_t_plus_dt: state.CoreProfiles,
       transport_model: transport_model_lib.TransportModel,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       source_models: source_models_lib.SourceModels,
       evolving_names: tuple[str, ...],
   ):
     self.static_runtime_params_slice = static_runtime_params_slice
-    self.geo = geo
-    self.core_profiles_t = core_profiles_t
-    self.core_profiles_t_plus_dt = core_profiles_t_plus_dt
     self.transport_model = transport_model
     self.explicit_source_profiles = explicit_source_profiles
     self.source_models = source_models
@@ -101,21 +92,16 @@ class CoeffsCallback:
   def __call__(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      x: tuple[fvm.CellVariable, ...],
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      x: tuple[cell_variable.CellVariable, ...],
       allow_pereverzev: bool = False,
       # Checks if reduced calc_coeffs for explicit terms when theta_imp=1
       # should be called
       explicit_call: bool = False,
   ):
     replace = {k: v for k, v in zip(self.evolving_names, x)}
-    if explicit_call:
-      core_profiles = config_args.recursive_replace(
-          self.core_profiles_t, **replace
-      )
-    else:
-      core_profiles = config_args.recursive_replace(
-          self.core_profiles_t_plus_dt, **replace
-      )
+    core_profiles = config_args.recursive_replace(core_profiles, **replace)
     # update ion density in core_profiles if ne is being evolved.
     # Necessary for consistency in iterative nonlinear solutions
     if 'ne' in self.evolving_names:
@@ -137,7 +123,7 @@ class CoeffsCallback:
     return calc_coeffs.calc_coeffs(
         static_runtime_params_slice=self.static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=self.geo,
+        geo=geo,
         core_profiles=core_profiles,
         transport_model=self.transport_model,
         explicit_source_profiles=self.explicit_source_profiles,
@@ -159,10 +145,14 @@ class FrozenCoeffsCallback(CoeffsCallback):
     if 'dynamic_runtime_params_slice' not in kwargs:
       raise ValueError('dynamic_runtime_params_slice must be provided.')
     dynamic_runtime_params_slice = kwargs.pop('dynamic_runtime_params_slice')
+    geo = kwargs.pop('geo')
+    core_profiles = kwargs.pop('core_profiles')
     super().__init__(*args, **kwargs)
-    x = tuple([self.core_profiles_t[name] for name in self.evolving_names])
+    x = tuple([core_profiles[name] for name in self.evolving_names])
     self.frozen_coeffs = super().__call__(
         dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
         x,
         allow_pereverzev=False,
         explicit_call=False,
@@ -171,6 +161,8 @@ class FrozenCoeffsCallback(CoeffsCallback):
   def __call__(
       self,
       dynamic_runtime_params_slice,
+      geo,
+      core_profiles,
       x,
       allow_pereverzev=False,
       explicit_call=False,
@@ -426,9 +418,11 @@ class SimulationStepFn:
             input_state.t + output_state.dt,
         )
     )
+    geo_t_plus_dt = geometry_provider(input_state.t + output_state.dt)
+
     q_corr = dynamic_runtime_params_slice_t_plus_dt.numerics.q_correction_factor
     output_state.core_profiles = physics.update_jtot_q_face_s_face(
-        geo=geo_t,
+        geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
         q_correction_factor=q_corr,
     )
@@ -437,7 +431,7 @@ class SimulationStepFn:
     output_state.core_profiles = update_current_distribution(
         source_models=self._stepper_fn.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        geo=geo_t,
+        geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
     )
 
@@ -445,7 +439,7 @@ class SimulationStepFn:
     output_state.core_profiles = update_psidot(
         source_models=self._stepper_fn.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        geo=geo_t,
+        geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
     )
 
@@ -925,8 +919,8 @@ def run_simulation(
     dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
         sim_state.t
     )
-    torax_outputs.append(sim_state)
     geo = geometry_provider(sim_state.t)
+    torax_outputs.append(sim_state)
     wall_clock_step_times.append(time.time() - step_start_time)
   # Log final timestep
   if log_timestep_info:

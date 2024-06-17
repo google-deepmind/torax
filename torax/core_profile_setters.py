@@ -23,13 +23,13 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import fvm
 from torax import geometry
 from torax import jax_utils
 from torax import math_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
 from torax.sources import external_current_source
 from torax.sources import source_models as source_models_lib
@@ -41,7 +41,7 @@ _trapz = jax.scipy.integrate.trapezoid
 def _updated_ti(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-) -> fvm.CellVariable:
+) -> cell_variable.CellVariable:
   """Updated ion temp. Used upon initialization and if temp_ion=False."""
   # pylint: disable=invalid-name
   Ti_bound_left = jax_utils.error_if_not_positive(
@@ -58,7 +58,7 @@ def _updated_ti(
       num=geo.mesh.nx + 1,
   )
   temp_ion = geometry.face_to_cell(temp_ion_face)
-  temp_ion = fvm.CellVariable(
+  temp_ion = cell_variable.CellVariable(
       value=temp_ion,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
@@ -72,7 +72,7 @@ def _updated_ti(
 def _updated_te(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-) -> fvm.CellVariable:
+) -> cell_variable.CellVariable:
   """Updated electron temp. Used upon initialization and if temp_el=False."""
   # pylint: disable=invalid-name
   Te_bound_left = jax_utils.error_if_not_positive(
@@ -89,7 +89,7 @@ def _updated_te(
       num=geo.mesh.nx + 1,
   )
   temp_el = geometry.face_to_cell(temp_el_face)
-  temp_el = fvm.CellVariable(
+  temp_el = cell_variable.CellVariable(
       value=temp_el,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
@@ -103,7 +103,7 @@ def _updated_te(
 def _updated_dens(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-) -> tuple[fvm.CellVariable, fvm.CellVariable]:
+) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
   """Updated particle density. Used upon initialization and if dens_eq=False."""
   # pylint: disable=invalid-name
   nGW = (
@@ -139,7 +139,7 @@ def _updated_dens(
   # pylint: enable=invalid-name
 
   ne_value = C * nshape
-  ne = fvm.CellVariable(
+  ne = cell_variable.CellVariable(
       value=ne_value,
       dr=geo.dr_norm,
       right_face_grad_constraint=None,
@@ -156,7 +156,7 @@ def _updated_dens(
       dynamic_runtime_params_slice.plasma_composition.Zeff,
   )
 
-  ni = fvm.CellVariable(
+  ni = cell_variable.CellVariable(
       value=ne_value * dilution_factor,
       dr=geo.dr_norm,
       right_face_grad_constraint=None,
@@ -258,12 +258,12 @@ def _prescribe_currents_no_bootstrap(
 def _prescribe_currents_with_bootstrap(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-    temp_ion: fvm.CellVariable,
-    temp_el: fvm.CellVariable,
-    ne: fvm.CellVariable,
-    ni: fvm.CellVariable,
+    temp_ion: cell_variable.CellVariable,
+    temp_el: cell_variable.CellVariable,
+    ne: cell_variable.CellVariable,
+    ni: cell_variable.CellVariable,
     jtot_face: jax.Array,
-    psi: fvm.CellVariable,
+    psi: cell_variable.CellVariable,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
   """Creates the initial Currents.
@@ -369,11 +369,11 @@ def _prescribe_currents_with_bootstrap(
 def _calculate_currents_from_psi(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-    temp_ion: fvm.CellVariable,
-    temp_el: fvm.CellVariable,
-    ne: fvm.CellVariable,
-    ni: fvm.CellVariable,
-    psi: fvm.CellVariable,
+    temp_ion: cell_variable.CellVariable,
+    temp_el: cell_variable.CellVariable,
+    ne: cell_variable.CellVariable,
+    ni: cell_variable.CellVariable,
+    psi: cell_variable.CellVariable,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
   """Creates the initial Currents using psi to calculate jtot.
@@ -474,7 +474,7 @@ def _update_psi_from_j(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     currents: state.Currents,
-) -> fvm.CellVariable:
+) -> cell_variable.CellVariable:
   """Calculates poloidal flux (psi) consistent with plasma current.
 
   For increased accuracy of psi, a hi-res grid is used, due to the double
@@ -519,7 +519,7 @@ def _update_psi_from_j(
 
   psi_value = jnp.interp(geo.r, geo.r_hires, psi_hires)
 
-  psi = fvm.CellVariable(
+  psi = cell_variable.CellVariable(
       value=psi_value,
       dr=geo.dr_norm,
       right_face_grad_constraint=psi_constraint,
@@ -618,7 +618,7 @@ def initial_core_profiles(
         / geo.G2_face[-1]
         * geo.rmax
     )
-    psi = fvm.CellVariable(
+    psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
         right_face_grad_constraint=psi_constraint,
         dr=geo.dr_norm,
@@ -647,7 +647,7 @@ def initial_core_profiles(
 
   # the psidot calculation needs core profiles. So psidot first initialized
   # with zeros.
-  psidot = fvm.CellVariable(
+  psidot = cell_variable.CellVariable(
       value=jnp.zeros_like(psi.value),
       dr=geo.dr_norm,
   )
@@ -746,7 +746,7 @@ def updated_prescribed_core_profiles(
 
 
 def update_evolving_core_profiles(
-    x_new: tuple[fvm.cell_variable.CellVariable, ...],
+    x_new: tuple[cell_variable.CellVariable, ...],
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],

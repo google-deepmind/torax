@@ -17,12 +17,12 @@ See function docstring for details.
 """
 
 import jax
-from torax import fvm
 from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
+from torax.fvm import enums
 from torax.fvm import fvm_conversions
 from torax.fvm import residual_and_loss
 from torax.sources import source_models as source_models_lib
@@ -33,7 +33,6 @@ from torax.transport_model import transport_model as transport_model_lib
 
 AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
-InitialGuessMode = fvm.InitialGuessMode
 
 
 def optimizer_solve_block(
@@ -41,15 +40,17 @@ def optimizer_solve_block(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
+    geo_t: geometry.Geometry,
+    geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
+    core_profiles_t: state.CoreProfiles,
     core_profiles_t_plus_dt: state.CoreProfiles,
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
     source_models: source_models_lib.SourceModels,
     coeffs_callback: Block1DCoeffsCallback,
     evolving_names: tuple[str, ...],
-    initial_guess_mode: InitialGuessMode,
+    initial_guess_mode: enums.InitialGuessMode,
     maxiter: int,
     tol: float,
 ) -> tuple[tuple[cell_variable.CellVariable, ...], int, AuxiliaryOutput]:
@@ -77,9 +78,15 @@ def optimizer_solve_block(
       the step). These runtime params can change from step to step without
       triggering a recompilation.
     dynamic_runtime_params_slice_t_plus_dt: Runtime params for time t + dt.
-    geo: Geometry object used to initialize auxiliary outputs.
+    geo_t: Geometry object used to initialize auxiliary outputs at time t.
+    geo_t_plus_dt: Geometry object used to initialize auxiliary outputs at time
+      t + dt.
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
+    core_profiles_t: Core plasma profiles which contain all available
+      prescribed quantities at the start of the time step. This includes
+      evolving boundary conditions and prescribed time-dependent profiles that
+      are not being evolved by the PDE system.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
@@ -109,18 +116,21 @@ def optimizer_solve_block(
   # pyformat: enable
 
   coeffs_old = coeffs_callback(
-      dynamic_runtime_params_slice_t, x_old, explicit_call=True
+      dynamic_runtime_params_slice_t,
+      geo_t, core_profiles_t, x_old, explicit_call=True
   )
 
   match initial_guess_mode:
     # LINEAR initial guess will provide the initial guess using the predictor-
     # corrector method if predictor_corrector=True in the stepper runtime params
-    case InitialGuessMode.LINEAR:
+    case enums.InitialGuessMode.LINEAR:
       # returns transport coefficients with additional pereverzev terms
       # if set by runtime_params, needed if stiff transport models (e.g. qlknn)
       # are used.
       coeffs_exp_linear = coeffs_callback(
           dynamic_runtime_params_slice_t,
+          geo_t,
+          core_profiles_t,
           x_old,
           allow_pereverzev=True,
           explicit_call=True,
@@ -135,23 +145,25 @@ def optimizer_solve_block(
           # this is jitted.
           (
               source_models_lib.build_all_zero_profiles(
-                  geo,
+                  geo_t,
                   source_models,
               ),
-              state.CoreTransport.zeros(geo),
+              state.CoreTransport.zeros(geo_t),
           ),
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-          init_val=init_val,
+          geo_t_plus_dt=geo_t_plus_dt,
           x_old=x_old,
+          core_profiles_t_plus_dt=core_profiles_t_plus_dt,
+          init_val=init_val,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
       )
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(init_x_new)
-    case InitialGuessMode.X_OLD:
+    case enums.InitialGuessMode.X_OLD:
       init_x_new_vec = fvm_conversions.cell_variable_tuple_to_vec(x_old)
     case _:
       raise ValueError(
@@ -163,7 +175,7 @@ def optimizer_solve_block(
       dt=dt,
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-      geo=geo,
+      geo_t_plus_dt=geo_t_plus_dt,
       x_old=x_old,
       init_x_new_vec=init_x_new_vec,
       core_profiles_t_plus_dt=core_profiles_t_plus_dt,

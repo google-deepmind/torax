@@ -25,11 +25,11 @@ import jax
 from jax import numpy as jnp
 from torax import constants
 from torax import core_profile_setters
-from torax import fvm
 from torax import geometry
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import diffusion_terms
 from torax.sources import source_models
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
@@ -102,7 +102,7 @@ class ExplicitStepper(stepper_lib.Stepper):
         / geo_t.rmax**2
     )
 
-    c_mat, c = fvm.diffusion_terms.make_diffusion_terms(
+    c_mat, c = diffusion_terms.make_diffusion_terms(
         d_face_ion, core_profiles_t.temp_ion
     )
 

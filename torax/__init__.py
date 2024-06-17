@@ -55,7 +55,7 @@ assert precision == 'f64' or precision == 'f32', (
 if precision == 'f64':
   jax.config.update('jax_enable_x64', True)
 
-CellVariable = fvm.CellVariable
+CellVariable = fvm.cell_variable.CellVariable
 
 # Throughout TORAX, we maintain the following canonical argument order for
 # common argument names passed to many functions. This is a stylistic
@@ -72,10 +72,14 @@ CANONICAL_ORDER = [
     'unused_config',
     'dynamic_source_runtime_params',
     'geo',
+    'geo_t',
+    'geo_t_plus_dt',
     'x_old',
     'state',
     'unused_state',
     'core_profiles',
+    'core_profiles_t',
+    'core_profiles_t_plus_dt',
     'psi',
     'transport_model',
     'source_profiles',

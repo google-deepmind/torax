@@ -23,12 +23,13 @@ from typing import Type
 
 import chex
 import jax
-from torax import fvm
 from torax import geometry
 from torax import sim
 from torax import state
 from torax.config import config_args
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
+from torax.fvm import enums
 from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
 from torax.sources import source_models as source_models_lib
@@ -75,7 +76,7 @@ class NonlinearThetaMethod(stepper.Stepper):
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
-      tuple[fvm.CellVariable, ...],
+      tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
       int,
@@ -84,9 +85,6 @@ class NonlinearThetaMethod(stepper.Stepper):
 
     coeffs_callback = self.callback_class(
         static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo_t,
-        core_profiles_t=core_profiles_t,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
@@ -97,7 +95,8 @@ class NonlinearThetaMethod(stepper.Stepper):
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-        geo=geo_t,
+        geo_t=geo_t,
+        geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,
@@ -114,14 +113,15 @@ class NonlinearThetaMethod(stepper.Stepper):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
       coeffs_callback: sim.CoeffsCallback,
       evolving_names: tuple[str, ...],
   ) -> tuple[
-      tuple[fvm.CellVariable, ...],
+      tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
       int,
@@ -134,7 +134,7 @@ class NonlinearThetaMethod(stepper.Stepper):
 class OptimizerRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters used inside the OptimizerThetaMethod stepper."""
 
-  initial_guess_mode: fvm.InitialGuessMode = fvm.InitialGuessMode.LINEAR
+  initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   maxiter: int = 100
   tol: float = 1e-12
 
@@ -174,14 +174,15 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
       coeffs_callback: sim.CoeffsCallback,
       evolving_names: tuple[str, ...],
   ) -> tuple[
-      tuple[fvm.CellVariable, ...],
+      tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
       int,
@@ -196,15 +197,17 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
             static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
             dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-            geo=geo,
+            geo_t=geo_t,
+            geo_t_plus_dt=geo_t_plus_dt,
             x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+            core_profiles_t=core_profiles_t,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             transport_model=self.transport_model,
             explicit_source_profiles=explicit_source_profiles,
             source_models=self.source_models,
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
-            initial_guess_mode=fvm.InitialGuessMode(
+            initial_guess_mode=enums.InitialGuessMode(
                 int(stepper_params.initial_guess_mode)
             ),
             maxiter=stepper_params.maxiter,
@@ -251,7 +254,7 @@ class NewtonRaphsonRuntimeParams(runtime_params_lib.RuntimeParams):
 
   # If True, log internal iterations in Newton-Raphson solver.
   log_iterations: bool = False
-  initial_guess_mode: fvm.InitialGuessMode = fvm.InitialGuessMode.LINEAR
+  initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   maxiter: int = 30
   tol: float = 1e-5
   coarse_tol: float = 1e-2
@@ -297,14 +300,15 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
       coeffs_callback: sim.CoeffsCallback,
       evolving_names: tuple[str, ...],
   ) -> tuple[
-      tuple[fvm.CellVariable, ...],
+      tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
       int,
@@ -322,8 +326,10 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
             dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-            geo=geo,
+            geo_t=geo_t,
+            geo_t_plus_dt=geo_t_plus_dt,
             x_old=tuple([core_profiles_t[name] for name in evolving_names]),
+            core_profiles_t=core_profiles_t,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             transport_model=self.transport_model,
             explicit_source_profiles=explicit_source_profiles,
@@ -331,7 +337,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
             log_iterations=stepper_params.log_iterations,
-            initial_guess_mode=fvm.InitialGuessMode(
+            initial_guess_mode=enums.InitialGuessMode(
                 int(stepper_params.initial_guess_mode)
             ),
             maxiter=stepper_params.maxiter,

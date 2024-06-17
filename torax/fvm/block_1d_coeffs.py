@@ -24,6 +24,8 @@ from typing import Any, Optional, Protocol
 
 import chex
 import jax
+from torax import geometry
+from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 
@@ -104,6 +106,8 @@ class Block1DCoeffsCallback(Protocol):
   def __call__(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
       x: tuple[cell_variable.CellVariable, ...],
       allow_pereverzev: bool = False,
       explicit_call: bool = False,
@@ -127,6 +131,8 @@ class Block1DCoeffsCallback(Protocol):
       dynamic_runtime_params_slice: Runtime configuration parameters. These
         values are potentially time-dependent and should correspond to the time
         step of the state x.
+      geo: The geometry of the system at this time step.
+      core_profiles: The core profiles of the system at this time step.
       x: The state.
       allow_pereverzev: If True, then the coeffs are being called for an initial
         guess based on a linear step as opposed to just passing the iniitial

@@ -21,9 +21,12 @@ standard linear solution.
 from typing import Any
 import chex
 import jax
-from torax import fvm
+from torax import geometry
 from torax import jax_utils
+from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import block_1d_coeffs
+from torax.fvm import cell_variable
 from torax.fvm import implicit_solve_block
 
 
@@ -31,11 +34,13 @@ def predictor_corrector_method(
     dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-    x_old: tuple[fvm.CellVariable, ...],
-    init_val: tuple[tuple[fvm.CellVariable, ...], chex.ArrayTree],
-    coeffs_exp: fvm.block_1d_coeffs.Block1DCoeffs,
-    coeffs_callback: fvm.block_1d_coeffs.Block1DCoeffsCallback,
-) -> tuple[tuple[fvm.CellVariable, ...], Any]:
+    geo_t_plus_dt: geometry.Geometry,
+    x_old: tuple[cell_variable.CellVariable, ...],
+    core_profiles_t_plus_dt: state.CoreProfiles,
+    init_val: tuple[tuple[cell_variable.CellVariable, ...], chex.ArrayTree],
+    coeffs_exp: block_1d_coeffs.Block1DCoeffs,
+    coeffs_callback: block_1d_coeffs.Block1DCoeffsCallback,
+) -> tuple[tuple[cell_variable.CellVariable, ...], Any]:
   """Predictor-corrector method.
 
   Args:
@@ -44,9 +49,11 @@ def predictor_corrector_method(
       through a simulation run, and if changed, would trigger a recompile.
     dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters
       corresponding to the next time step, needed for the implicit PDE
-      coefficients
+      coefficients.
+    geo_t_plus_dt: Geometry at the next time step.
     x_old: Tuple of CellVariables correspond to the evolving core profiles at
       time t.
+    core_profiles_t_plus_dt: Core profiles at the next time step.
     init_val: Initial guess for the predictor corrector output.
     coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep
     coeffs_callback: coefficient callback function
@@ -64,6 +71,8 @@ def predictor_corrector_method(
 
     coeffs_new = coeffs_callback(
         dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt,
+        core_profiles_t_plus_dt,
         x_new_guess,
         allow_pereverzev=True,
     )

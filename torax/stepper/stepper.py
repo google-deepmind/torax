@@ -22,10 +22,10 @@ import dataclasses
 
 import jax
 from torax import core_profile_setters
-from torax import fvm
 from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import runtime_params as runtime_params_lib
@@ -177,7 +177,7 @@ class Stepper(abc.ABC):
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
-      tuple[fvm.CellVariable, ...],
+      tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
       int,

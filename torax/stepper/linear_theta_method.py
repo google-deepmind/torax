@@ -18,11 +18,11 @@ from collections.abc import Callable
 import dataclasses
 from typing import Type
 import jax
-from torax import fvm
 from torax import geometry
 from torax import sim
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
@@ -56,7 +56,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
       explicit_source_profiles: source_profiles.SourceProfiles,
       evolving_names: tuple[str, ...],
   ) -> tuple[
-      tuple[fvm.CellVariable, ...],
+      tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
       int,
@@ -71,9 +71,6 @@ class LinearThetaMethod(stepper_lib.Stepper):
     # Instantiate coeffs_callback class
     coeffs_callback = self.callback_class(
         static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo_t,
-        core_profiles_t=core_profiles_t,
-        core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
@@ -84,6 +81,8 @@ class LinearThetaMethod(stepper_lib.Stepper):
     # runtime parameters at time t.
     coeffs_exp = coeffs_callback(
         dynamic_runtime_params_slice_t,
+        geo_t,
+        core_profiles_t,
         x_old,
         allow_pereverzev=True,
         explicit_call=True,
@@ -113,7 +112,9 @@ class LinearThetaMethod(stepper_lib.Stepper):
             dt=dt,
             static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+            geo_t_plus_dt=geo_t_plus_dt,
             x_old=x_old,
+            core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             init_val=init_val,
             coeffs_exp=coeffs_exp,
             coeffs_callback=coeffs_callback,

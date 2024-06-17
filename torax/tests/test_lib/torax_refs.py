@@ -38,7 +38,7 @@ class References:
 
   runtime_params: general_runtime_params.GeneralRuntimeParams
   geo: geometry.Geometry
-  psi: fvm.CellVariable
+  psi: fvm.cell_variable.CellVariable
   psi_face_grad: np.ndarray
   jtot: np.ndarray
   s: np.ndarray
@@ -71,7 +71,7 @@ def circular_references() -> References:
   )
   # ground truth values copied from example executions using
   # array.astype(str),which allows fully lossless reloading
-  psi = fvm.CellVariable(
+  psi = fvm.cell_variable.CellVariable(
       value=jnp.array(
           np.array([
               5.20759356768568e-02,
@@ -224,7 +224,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
   )
   # ground truth values copied from an example PINT execution using
   # array.astype(str),which allows fully lossless reloading
-  psi = fvm.CellVariable(
+  psi = fvm.cell_variable.CellVariable(
       value=jnp.array(
           np.array([
               '0.028269200893290054',
@@ -377,7 +377,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
   )
   # ground truth values copied from an example executions using
   # array.astype(str),which allows fully lossless reloading
-  psi = fvm.CellVariable(
+  psi = fvm.cell_variable.CellVariable(
       value=jnp.array(
           np.array([
               '0.03602782820394983',
