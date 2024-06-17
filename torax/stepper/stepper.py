@@ -59,7 +59,8 @@ class Stepper(abc.ABC):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -81,7 +82,8 @@ class Stepper(abc.ABC):
         without triggering a recompilation.
       dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
         dt, used for implicit calculations in the solver.
-      geo: Geometry of the torus.
+      geo_t: Geometry of the torus at time t.
+      geo_t_plus_dt: Geometry of the torus at time t + dt.
       core_profiles_t: Core plasma profiles at the beginning of the time step.
       core_profiles_t_plus_dt: Core plasma profiles which contain all available
         prescribed quantities at the end of the time step. This includes
@@ -130,7 +132,8 @@ class Stepper(abc.ABC):
           static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-          geo=geo,
+          geo_t=geo_t,
+          geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
           explicit_source_profiles=explicit_source_profiles,
@@ -140,9 +143,9 @@ class Stepper(abc.ABC):
       x_new = tuple()
       core_sources = source_models_lib.build_all_zero_profiles(
           source_models=self.source_models,
-          geo=geo,
+          geo=geo_t,
       )
-      core_transport = state.CoreTransport.zeros(geo)
+      core_transport = state.CoreTransport.zeros(geo_t)
       error = 0
 
     core_profiles_t_plus_dt = (
@@ -167,7 +170,8 @@ class Stepper(abc.ABC):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -193,7 +197,8 @@ class Stepper(abc.ABC):
         without triggering a recompilation.
       dynamic_runtime_params_slice_t_plus_dt: Runtime parameters for time t +
         dt, used for implicit calculations in the solver.
-      geo: Geometry of the torus.
+      geo_t: Geometry of the torus for time t.
+      geo_t_plus_dt: Geometry of the torus for time t + dt.
       core_profiles_t: Core plasma profiles at the beginning of the time step.
       core_profiles_t_plus_dt: Core plasma profiles which contain all available
         prescribed quantities at the end of the time step. This includes

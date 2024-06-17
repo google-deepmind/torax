@@ -156,7 +156,8 @@ class FakeStepper(stepper_lib.Stepper):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -172,17 +173,17 @@ class FakeStepper(stepper_lib.Stepper):
         dynamic_runtime_params_slice_t_plus_dt.profile_conditions, self._param
     )
     transport = self.transport_model(
-        dynamic_runtime_params_slice_t, geo, core_profiles_t
+        dynamic_runtime_params_slice_t, geo_t, core_profiles_t
     )
     # Use Qei as a hacky way to extract what the combined value was.
     core_sources = source_models_lib.build_all_zero_profiles(
-        geo=geo,
+        geo=geo_t,
         source_models=self.source_models,
     )
     core_sources = dataclasses.replace(
         core_sources,
         qei=dataclasses.replace(
-            core_sources.qei, qei_coef=jnp.ones_like(geo.r) * combined
+            core_sources.qei, qei_coef=jnp.ones_like(geo_t.r) * combined
         ),
     )
     return jax.lax.cond(

@@ -68,7 +68,8 @@ class NonlinearThetaMethod(stepper.Stepper):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -83,7 +84,7 @@ class NonlinearThetaMethod(stepper.Stepper):
 
     coeffs_callback = self.callback_class(
         static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo,
+        geo=geo_t,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         transport_model=self.transport_model,
@@ -96,7 +97,7 @@ class NonlinearThetaMethod(stepper.Stepper):
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-        geo=geo,
+        geo=geo_t,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         explicit_source_profiles=explicit_source_profiles,

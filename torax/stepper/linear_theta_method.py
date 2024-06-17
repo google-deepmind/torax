@@ -49,7 +49,8 @@ class LinearThetaMethod(stepper_lib.Stepper):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -70,7 +71,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
     # Instantiate coeffs_callback class
     coeffs_callback = self.callback_class(
         static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo,
+        geo=geo_t,
         core_profiles_t=core_profiles_t,
         core_profiles_t_plus_dt=core_profiles_t_plus_dt,
         transport_model=self.transport_model,
@@ -100,10 +101,10 @@ class LinearThetaMethod(stepper_lib.Stepper):
         x_new_init,
         (
             source_models_lib.build_all_zero_profiles(
-                geo,
+                geo_t,
                 self.source_models,
             ),
-            state.CoreTransport.zeros(geo),
+            state.CoreTransport.zeros(geo_t),
         ),
     )
 

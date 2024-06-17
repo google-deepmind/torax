@@ -54,7 +54,8 @@ class ExplicitStepper(stepper_lib.Stepper):
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
+      geo_t: geometry.Geometry,
+      geo_t_plus_dt: geometry.Geometry,
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
@@ -86,7 +87,7 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     # Transient term coefficient vectors for ion heat equation
     # (has radial dependence through r, n)
-    cti = 1.5 * geo.vpr * true_ni * consts.keV2J
+    cti = 1.5 * geo_t.vpr * true_ni * consts.keV2J
 
     # Diffusion term coefficient
     assert isinstance(
@@ -94,11 +95,11 @@ class ExplicitStepper(stepper_lib.Stepper):
         constant_transport_model.DynamicRuntimeParams,
     )
     d_face_ion = (
-        geo.g1_over_vpr_face
+        geo_t.g1_over_vpr_face
         * true_ni_face
         * consts.keV2J
         * dynamic_runtime_params_slice_t.transport.chii_const
-        / geo.rmax**2
+        / geo_t.rmax**2
     )
 
     c_mat, c = fvm.diffusion_terms.make_diffusion_terms(
@@ -107,7 +108,7 @@ class ExplicitStepper(stepper_lib.Stepper):
 
     # Source term
     c += source_models.sum_sources_temp_ion(
-        geo,
+        geo_t,
         explicit_source_profiles,
         self.source_models,
     )
@@ -120,7 +121,7 @@ class ExplicitStepper(stepper_lib.Stepper):
     updated_boundary_conditions = (
         core_profile_setters.compute_boundary_conditions(
             dynamic_runtime_params_slice_t_plus_dt,
-            geo,
+            geo_t,
         )
     )
     temp_ion_new = dataclasses.replace(
@@ -130,12 +131,12 @@ class ExplicitStepper(stepper_lib.Stepper):
     )
 
     q_face, _ = physics.calc_q_from_jtot_psi(
-        geo=geo,
+        geo=geo_t,
         psi=core_profiles_t.psi,
         jtot_face=core_profiles_t.currents.jtot,
         q_correction_factor=dynamic_runtime_params_slice_t.numerics.q_correction_factor,
     )
-    s_face = physics.calc_s_from_psi(geo, core_profiles_t.psi)
+    s_face = physics.calc_s_from_psi(geo_t, core_profiles_t.psi)
 
     # error isn't used for timestep adaptation for this method.
     # However, too large a timestep will lead to numerical instabilities.
@@ -150,10 +151,10 @@ class ExplicitStepper(stepper_lib.Stepper):
             s_face=s_face,
         ),
         source_models.build_all_zero_profiles(
-            geo=geo,
+            geo=geo_t,
             source_models=self.source_models,
         ),
-        state.CoreTransport.zeros(geo),
+        state.CoreTransport.zeros(geo_t),
         error,
     )
 
