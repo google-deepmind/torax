@@ -18,23 +18,24 @@ from torax import jax_utils
     ],
 )
 def calc_bremsstrahlung(
-    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     Zeff: float,
     nref: float,
     use_relativistic_correction: bool = False,
 ) -> jax.Array:
-    """
+    """ Calculate the bremsstrahlung radiation power profile using the model from
+    Wesson, John, and David J. Campbell. Tokamaks. Vol. 149. An optional correction
+    for relativistic effects from Stott PPCF 2005 can be enabled with the flag
+    "use_relativistic_correction".
 
     Args:
-        geo (geometry.Geometry): _description_
-        core_profiles (state.CoreProfiles): _description_
-        Zeff (float): _description_
-        nref (float): _description_
-        use_relativistic_correction (bool, optional): _description_. Defaults to False.
+        core_profiles (state.CoreProfiles): core plasma profiles.
+        Zeff (float): effective charge number.
+        nref (float): reference density.
+        use_relativistic_correction (bool, optional): Set to true to include the relativistic correction from Stott. Defaults to False.
 
     Returns:
-        jax.Array: _description_
+        jax.Array: bremsstrahlung radiation power profile [MW/m^3]
     """
     ne20 = (nref / 1e20) * core_profiles.ne.face_value()
 
@@ -58,9 +59,8 @@ def bremsstrahlung_model_func(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
-    del dynamic_source_runtime_params  # Unused.
+    del dynamic_source_runtime_params, geo  # Unused.
     P_brem_profile = calc_bremsstrahlung(
-        geo,
         core_profiles,
         dynamic_runtime_params_slice.runtime_params.plasma_composition.Zeff,
         dynamic_runtime_params_slice.numerics.nref,
