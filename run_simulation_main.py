@@ -83,6 +83,12 @@ _USE_JAX_PROFILER = flags.DEFINE_bool(
     'See https://jax.readthedocs.io/en/latest/profiling.html.',
 )
 
+_QUIT = flags.DEFINE_bool(
+    'quit',
+    False,
+    'If True, quits after the first operation (no interactive mode).',
+)
+
 jax.config.parse_flags_with_absl()
 
 
@@ -488,6 +494,8 @@ def main(_):
         'Not running sim. Update config and try again.',
         color=simulation_app.AnsiColors.RED,
     )
+  if _QUIT.value:
+    return
   user_command = prompt_user(config_module_str)
   while user_command != _UserCommand.QUIT:
     match user_command:
