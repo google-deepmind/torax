@@ -407,6 +407,10 @@ def build_transport_model_builder_from_config(
   transport_model = transport_config.pop('transport_model')
   if transport_model == 'qlknn':
     qlknn_params = transport_config.pop('qlknn_params', {})
+    if 'model_path' in qlknn_params:
+      model_path = qlknn_params.pop('model_path')
+    else:
+      model_path = ''
     qlknn_params.update(transport_config)
     # Remove params from the other models, if present.
     qlknn_params.pop('constant_params', None)
@@ -415,7 +419,8 @@ def build_transport_model_builder_from_config(
         runtime_params=config_args.recursive_replace(
             qlknn_wrapper.RuntimeParams(),
             **qlknn_params,
-        )
+        ),
+        model_path=model_path
     )
   elif transport_model == 'constant':
     constant_params = transport_config.pop('constant_params', {})

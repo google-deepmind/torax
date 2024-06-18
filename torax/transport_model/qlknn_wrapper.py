@@ -24,10 +24,10 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import logging
 import os
 from typing import Callable
 
-from absl import flags
 import chex
 import jax
 from jax import numpy as jnp
@@ -44,6 +44,18 @@ from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
 
+# Environment variable for the QLKNN model. Used if the model path
+# is not set in the config.
+MODEL_PATH_ENV_VAR = 'TORAX_QLKNN_MODEL_PATH'
+# If no path is set in either the config or the environment variable, use
+# this path.
+DEFAULT_MODEL_PATH = '~/qlknn_hyper'
+
+
+def get_default_model_path() -> str:
+  return os.environ.get(MODEL_PATH_ENV_VAR, DEFAULT_MODEL_PATH)
+
+
 # pylint: disable=invalid-name
 @chex.dataclass
 class RuntimeParams(runtime_params_lib.RuntimeParams):
@@ -52,7 +64,6 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   See base class runtime_params.RuntimeParams docstring for more info.
   """
 
-  # QLKNN model configuration
   # Collisionality multiplier in QLKNN for sensitivity testing.
   # Default is 0.25 (correction factor to a more recent QLK collision operator)
   coll_mult: float = 0.25
@@ -98,59 +109,20 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   q_sawtooth_proxy: bool
 
 
-# Env variable name. See _MODEL_PATH description for how this is used.
-MODEL_PATH_ENV_VAR = 'TORAX_QLKNN_MODEL_PATH'
-
-# Path to the QKLNN models.
-_MODEL_PATH = flags.DEFINE_string(
-    'torax_qlknn_model_path',
-    None,
-    'Path to the qlknn model network parameters. If None, then it defaults to '
-    f'the {MODEL_PATH_ENV_VAR} environment variable, if set. If that env '
-    'variable is also not set, then it defaults to "third_party/qlknn_hyper". '
-    'Users may set the model path by flag or env variable.',
-)
-
-
-# Singleton instance for storing the QLKNN model. The params will be lazily
-# loaded once they are needed.
-_MODEL: base_qlknn_model.BaseQLKNNModel | None = None
-# Used to watch for change in model path.
-_CURRENT_MODEL_PATH: str | None = None
 _EPSILON_NN = 1 / 3  # fixed inverse aspect ratio used to train QLKNN10D
 
 
-def _get_model_path() -> str:
+# Memoize, but evict the old model if a new path is given.
+@functools.lru_cache(maxsize=1)
+def _get_model(path: str) -> base_qlknn_model.BaseQLKNNModel:
+  """Load the model."""
+  logging.info('Loading model from %s', path)
   try:
-    if _MODEL_PATH.value is not None:
-      return _MODEL_PATH.value
-  except flags.Error:
-    # This was likely called outside the context of an absl app, so ignore the
-    # error and use the environment variable.
-    pass
-  return os.environ.get(MODEL_PATH_ENV_VAR, 'third_party/qlknn_hyper')
-
-
-def _get_model() -> base_qlknn_model.BaseQLKNNModel:
-  """Gets the Networks singleton instance."""
-  # The advantage of lazily loading the networks is we don't need to do file
-  # I/O operations at import time and only need to read these files when needed.
-  global _MODEL
-  global _CURRENT_MODEL_PATH
-  path = _get_model_path()
-  if path == _CURRENT_MODEL_PATH and _MODEL is not None:
-    return _MODEL
-  _CURRENT_MODEL_PATH = path
-  try:
-    _MODEL = qlknn_10d.QLKNN10D(path)
+    return qlknn_10d.QLKNN10D(path)
   except FileNotFoundError as fnfe:
     raise FileNotFoundError(
-        f'Failed to load model from {path}. Check that the path exists. If '
-        'the path is not correct, make sure you set '
-        f'--{_MODEL_PATH.name} or export the environment variable '
-        f'{MODEL_PATH_ENV_VAR} with the correct path.'
+        f'Failed to load model from {path}. Check that the path exists.'
     ) from fnfe
-  return _MODEL
 
 
 @chex.dataclass(frozen=True)
@@ -533,9 +505,15 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
   def __init__(
       self,
+      model_path: str,
   ):
     super().__init__()
+    self._model_path = model_path
     self._frozen = True
+
+  @property
+  def model_path(self) -> str:
+    return self._model_path
 
   def _call_implementation(
       self,
@@ -602,8 +580,9 @@ class QLKNNTransportModel(transport_model.TransportModel):
         geo=geo,
         core_profiles=core_profiles,
     )
-    model = _get_model()
-    if model.version == '10D':
+    model = _get_model(self._model_path)
+    version = model.version
+    if version == '10D':
       # To take into account a different aspect ratio compared to the qlknn10D
       # training set, the qlknn input normalized radius needs to be rescaled by
       # the aspect ratio ratio. This ensures that the model is evaluated with
@@ -621,7 +600,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
           'log_nu_star_face',
       ]
     else:
-      raise ValueError(f'Unknown model version: {model.version}')
+      raise ValueError(f'Unknown model version: {version}')
     feature_scan = jnp.array([prepared_data[key] for key in keys]).T
     model_output = model.predict(feature_scan)
     model_output = filter_model_output(
@@ -655,15 +634,19 @@ class QLKNNTransportModel(transport_model.TransportModel):
     )
 
   def __hash__(self):
-    # All QLKNNTransportModels are equivalent and can thus hash the same
-    return hash(('QLKNNTransportModel', versioning.torax_hash))
+    return hash(
+        ('QLKNNTransportModel' + self._model_path, versioning.torax_hash)
+    )
 
   def __eq__(self, other):
-    return isinstance(other, QLKNNTransportModel)
+    return (
+        isinstance(other, QLKNNTransportModel)
+        and self.model_path == other.model_path
+    )
 
 
-def _default_qlknn_builder() -> QLKNNTransportModel:
-  return QLKNNTransportModel()
+def _default_qlknn_builder(model_path: str) -> QLKNNTransportModel:
+  return QLKNNTransportModel(model_path)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -673,13 +656,16 @@ class QLKNNTransportModelBuilder(transport_model.TransportModelBuilder):
   runtime_params: RuntimeParams = dataclasses.field(
       default_factory=RuntimeParams
   )
+  model_path: str | None = None
 
-  builder: Callable[
-      [],
+  _builder: Callable[
+      [str],
       QLKNNTransportModel,
   ] = _default_qlknn_builder
 
   def __call__(
       self,
   ) -> QLKNNTransportModel:
-    return self.builder()
+    if not self.model_path:
+      self.model_path = get_default_model_path()
+    return self._builder(self.model_path)

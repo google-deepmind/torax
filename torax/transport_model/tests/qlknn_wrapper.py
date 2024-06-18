@@ -33,7 +33,9 @@ class QlknnWrapperTest(parameterized.TestCase):
     """Tests that QLKNN calls are properly cached."""
     # This test can uncover and changes to the data structures which break the
     # caching.
-    qlknn = qlknn_wrapper.QLKNNTransportModel()
+    qlknn = qlknn_wrapper.QLKNNTransportModel(
+        qlknn_wrapper.get_default_model_path()
+    )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
@@ -65,12 +67,20 @@ class QlknnWrapperTest(parameterized.TestCase):
   def test_hash_and_eq(self):
     # Test that hash and eq are invariant to copying, so that they will work
     # correctly with jax's persistent cache
-    qlknn_1 = qlknn_wrapper.QLKNNTransportModel()
-    qlknn_2 = qlknn_wrapper.QLKNNTransportModel()
+    qlknn_1 = qlknn_wrapper.QLKNNTransportModel('foo')
+    qlknn_2 = qlknn_wrapper.QLKNNTransportModel('foo')
     self.assertEqual(qlknn_1, qlknn_2)
     self.assertEqual(hash(qlknn_1), hash(qlknn_2))
     mock_persistent_jax_cache = set([qlknn_1])
     self.assertIn(qlknn_2, mock_persistent_jax_cache)
+
+  def test_hash_and_eq_different(self):
+    qlknn_1 = qlknn_wrapper.QLKNNTransportModel('foo')
+    qlknn_2 = qlknn_wrapper.QLKNNTransportModel('bar')
+    self.assertNotEqual(qlknn_1, qlknn_2)
+    self.assertNotEqual(hash(qlknn_1), hash(qlknn_2))
+    mock_persistent_jax_cache = set([qlknn_1])
+    self.assertNotIn(qlknn_2, mock_persistent_jax_cache)
 
   def test_prepare_qualikiz_inputs(self):
     """Tests that the Qualikiz inputs are properly prepared."""

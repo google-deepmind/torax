@@ -411,6 +411,11 @@ qlknn
 
 Runtime parameters for the QLKNN10D model.
 
+``model_path`` (str = '')
+  Path to the model. If not provided, the path will be set from
+  the ``TORAX_QLKNN_MODEL_PATH`` environment variable. If this environment
+  variable is not set, then the default is ``~/qlknn_hyper``.
+
 ``coll_mult`` (float = 0.25)
   Collisionality multiplier. The default 0.25 is a proxy for the upgraded collision operator
   in QuaLiKiz, in place since QLKNN10D was developed.

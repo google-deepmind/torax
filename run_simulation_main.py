@@ -23,6 +23,7 @@ from collections.abc import Sequence
 import enum
 import functools
 import importlib
+from typing import Any
 
 from absl import app
 from absl import flags
@@ -32,6 +33,7 @@ import torax
 from torax import simulation_app
 from torax.config import build_sim
 from torax.plotting import plotruns_lib
+from torax.transport_model import qlknn_wrapper
 
 
 _PYTHON_CONFIG_MODULE = flags.DEFINE_string(
@@ -87,6 +89,17 @@ _QUIT = flags.DEFINE_bool(
     'quit',
     False,
     'If True, quits after the first operation (no interactive mode).',
+)
+
+_QLKNN_MODEL_PATH = flags.DEFINE_string(
+    'qlknn_model_path',
+    None,
+    'Path to the qlknn model network parameters (if using a QLKNN transport'
+    ' model). If not set, then it will use the value from the config in the'
+    ' "model_path" field in the qlknn_params. If that is not set, it will look'
+    f' for the "{qlknn_wrapper.MODEL_PATH_ENV_VAR}" env variable.'
+    ' Finally, if this is also not set, it uses a hardcoded default path'
+    f' "{qlknn_wrapper.DEFAULT_MODEL_PATH}".'
 )
 
 jax.config.parse_flags_with_absl()
@@ -189,6 +202,7 @@ def maybe_update_config_module(
 def change_config(
     sim: torax.Sim,
     config_module_str: str,
+    qlknn_model_path: str | None,
 ) -> tuple[torax.Sim, torax.GeneralRuntimeParams] | None:
   """Returns a new Sim with the updated config but same SimulationStepFn.
 
@@ -203,6 +217,7 @@ def change_config(
   Args:
     sim: Sim object used in the previous run.
     config_module_str: Config module being used.
+    qlknn_model_path: QLKNN model path set by flag.
 
   Returns:
     Tuple with:
@@ -238,6 +253,7 @@ def change_config(
   if hasattr(config_module, 'CONFIG'):
     # Assume that the config module uses the basic config dict to build Sim.
     sim_config = config_module.CONFIG
+    _maybe_update_config_with_qlknn_model_path(sim_config, qlknn_model_path)
     new_runtime_params = build_sim.build_runtime_params_from_config(
         sim_config['runtime_params']
     )
@@ -291,7 +307,7 @@ def change_config(
 
 
 def change_sim_obj(
-    config_module_str: str,
+    config_module_str: str, qlknn_model_path: str | None
 ) -> tuple[torax.Sim, torax.GeneralRuntimeParams, str]:
   """Builds a new Sim from the config module.
 
@@ -302,6 +318,7 @@ def change_sim_obj(
   Args:
     config_module_str: Config module used previously. User will have the
       opportunity to update which module to load.
+    qlknn_model_path: QLKNN model path set by flag.
 
   Returns:
     Tuple with:
@@ -317,13 +334,40 @@ def change_sim_obj(
   )
   input('Press Enter when done changing the module.')
   sim, new_runtime_params = _build_sim_and_runtime_params_from_config_module(
-      config_module_str
+      config_module_str, qlknn_model_path
   )
   return sim, new_runtime_params, config_module_str
 
 
+def _maybe_update_config_with_qlknn_model_path(
+    config: dict[str, Any], qlknn_model_path: str | None
+) -> None:
+  """Sets the qlknn_model_path in the config if needed."""
+  if qlknn_model_path is None:
+    return
+  if (
+      'transport' not in config
+      or 'transport_model' not in config['transport']
+      or config['transport']['transport_model'] != 'qlknn'
+  ):
+    return
+  qlknn_params = config['transport'].get('qlknn_params', {})
+  config_model_path = qlknn_params.get('model_path', '')
+  if config_model_path:
+    logging.info(
+        'Overriding QLKNN model path from "%s" to "%s"',
+        config_model_path,
+        qlknn_model_path,
+    )
+  else:
+    logging.info('Setting QLKNN model path to "%s".', qlknn_model_path)
+  qlknn_params['model_path'] = qlknn_model_path
+  config['transport']['qlknn_params'] = qlknn_params
+
+
 def _build_sim_and_runtime_params_from_config_module(
     config_module_str: str,
+    qlknn_model_path: str | None,
 ) -> tuple[torax.Sim, torax.GeneralRuntimeParams]:
   """Returns a Sim and RuntimeParams from the config module."""
   config_module = _import_module(config_module_str)
@@ -331,6 +375,7 @@ def _build_sim_and_runtime_params_from_config_module(
     # The module likely uses the "basic" config setup which has a single CONFIG
     # dictionary defining the full simulation.
     config = config_module.CONFIG
+    _maybe_update_config_with_qlknn_model_path(config, qlknn_model_path)
     new_runtime_params = build_sim.build_runtime_params_from_config(
         config['runtime_params']
     )
@@ -340,6 +385,8 @@ def _build_sim_and_runtime_params_from_config_module(
   ):
     # The module is likely using the "advances", more Python-forward
     # configuration setup.
+    if qlknn_model_path is not None:
+      logging.warning('Cannot override qlknn model for this type of config.')
     new_runtime_params = config_module.get_runtime_params()
     sim = config_module.get_sim()
   else:
@@ -470,12 +517,13 @@ def main(_):
   log_sim_progress = _LOG_SIM_PROGRESS.value
   plot_sim_progress = _PLOT_SIM_PROGRESS.value
   log_sim_output = _LOG_SIM_OUTPUT.value
+  qlknn_model_path = _QLKNN_MODEL_PATH.value
   sim = None
   new_runtime_params = None
   output_files = []
   try:
     sim, new_runtime_params = _build_sim_and_runtime_params_from_config_module(
-        config_module_str
+        config_module_str, qlknn_model_path
     )
     _, output_file = _call_sim_app_main(
         sim=sim,
@@ -537,7 +585,7 @@ def main(_):
         else:
           try:
             sim_and_runtime_params_or_none = change_config(
-                sim, config_module_str
+                sim, config_module_str, qlknn_model_path
             )
             if sim_and_runtime_params_or_none is not None:
               sim, new_runtime_params = sim_and_runtime_params_or_none
@@ -554,7 +602,7 @@ def main(_):
         # This always builds a new object and requires recompilation.
         try:
           sim, new_runtime_params, config_module_str = change_sim_obj(
-              config_module_str
+              config_module_str, qlknn_model_path
           )
         except ValueError as ve:
           simulation_app.log_to_stdout(
