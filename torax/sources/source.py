@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import types
+import typing
 from typing import Any, Callable, Protocol
 
 import chex
@@ -753,6 +755,25 @@ def make_source_builder(
             )
         else:
           raise TypeError(f'Unrecognized type string: {f.type}')
+
+      # Check if the field is a parameterized generic.
+      # Python cannot check isinstance for parameterized generics, so we need
+      # to handle those cases differently.
+      # For instance, if a field type is `tuple[float, ...]` and the value is
+      # valid, like `(1, 2, 3)`, then `isinstance(v, f.type)` would raise a
+      # TypeError.
+      elif (
+          type(f.type) == types.GenericAlias
+          or typing.get_origin(f.type) is not None
+      ):
+        # Do a superficial check in these instances. Only check that the origin
+        # type matches the value. Don't look into the rest of the object.
+        if not isinstance(v, typing.get_origin(f.type)):
+          raise TypeError(
+              f'While {context_msg} {source_type} got field {f.name} with '
+              f'input type {type(v)} but an expected type {f.type}.'
+          )
+
       else:
         try:
           type_works = isinstance(v, f.type)
