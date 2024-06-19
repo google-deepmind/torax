@@ -28,15 +28,15 @@ from __future__ import annotations
 
 import dataclasses
 import time
-from typing import Optional, Protocol
+from typing import Optional
 
 from absl import logging
-import chex
 import jax
 import jax.numpy as jnp
 from torax import calc_coeffs
 from torax import core_profile_setters
 from torax import geometry
+from torax import geometry_provider as geometry_provider_lib
 from torax import jax_utils
 from torax import physics
 from torax import state
@@ -220,7 +220,7 @@ class SimulationStepFn:
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
-      geometry_provider: GeometryProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state.ToraxSimState:
@@ -477,65 +477,6 @@ def get_initial_state(
   )
 
 
-class GeometryProvider(Protocol):
-  """Returns the geometry to use during one time step of the simulation.
-
-  A GeometryProvider is any callable (class or function) which takes the
-  time of a time step and returns the Geometry for that
-  time step. See `SimulationStepFn` for how this callable is used.
-
-  This class is a typing.Protocol, meaning it defines an interface, but any
-  function asking for a GeometryProvider as an argument can accept any function
-  or class that implements this API without specifically extending this class.
-
-  For instance, the following is an equivalent implementation of the
-  ConstantGeometryProvider without actually creating a class, and equally valid.
-
-  .. code-block:: python
-
-    geo = geometry.build_circular_geometry(...)
-    constant_geo_provider = lamdba t: geo
-
-    def func_expecting_geo_provider(gp: GeometryProvider):
-      ... # do something with the provider.
-
-    func_expecting_geo_provider(constant_geo_provider)  # this works.
-  """
-
-  def __call__(
-      self,
-      t: chex.Numeric,
-  ) -> geometry.Geometry:
-    """Returns the geometry to use during one time step of the simulation.
-
-    The geometry may change from time step to time step, so the sim needs a
-    callable to provide which geometry to use for a given time step (this is
-    that callable).
-
-    Args:
-      t: The time at which the geometry is being requested.
-
-    Returns:
-      Geometry of the torus to use for the time step.
-    """
-
-
-class ConstantGeometryProvider(GeometryProvider):
-  """Returns the same Geometry for all calls."""
-
-  def __init__(self, geo: geometry.Geometry):
-    self._geo = geo
-
-  def __call__(
-      self,
-      t: chex.Numeric,
-  ) -> geometry.Geometry:
-    # The API includes time as an arg even though it is unused in order
-    # to match the API of a GeometryProvider.
-    del t  # Ignored.
-    return self._geo
-
-
 # This class is read-only but not a frozen dataclass to allow us to set the
 # SimulationStepFn attribute lazily when run() is called.
 class Sim:
@@ -554,7 +495,7 @@ class Sim:
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
-      geometry_provider: GeometryProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
       initial_state: state.ToraxSimState,
       time_step_calculator: ts.TimeStepCalculator,
       source_models_builder: source_models_lib.SourceModelsBuilder,
@@ -604,7 +545,7 @@ class Sim:
     return self._initial_state
 
   @property
-  def geometry_provider(self) -> GeometryProvider:
+  def geometry_provider(self) -> geometry_provider_lib.GeometryProvider:
     return self._geometry_provider
 
   @property
@@ -749,7 +690,7 @@ def build_sim_object(
   return Sim(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-      geometry_provider=ConstantGeometryProvider(geo),
+      geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       initial_state=initial_state,
       time_step_calculator=time_step_calculator,
       transport_model=transport_model,
@@ -761,7 +702,7 @@ def build_sim_object(
 def run_simulation(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
-    geometry_provider: GeometryProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
     initial_state: state.ToraxSimState,
     time_step_calculator: ts.TimeStepCalculator,
     step_fn: SimulationStepFn,

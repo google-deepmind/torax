@@ -28,6 +28,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
 from torax import geometry
+from torax import geometry_provider as geometry_provider_lib
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.config import config_args
@@ -184,7 +185,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             source_models=source_models,
         ),
         step_fn=step_fn,
-        geometry_provider=sim_lib.ConstantGeometryProvider(geo),
+        geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
         dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
         static_runtime_params_slice=static_runtime_params_slice,
         time_step_calculator=time_stepper,
@@ -303,7 +304,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
-      geometry_provider: sim_lib.GeometryProvider,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state_module.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state_module.ToraxSimState:

@@ -53,6 +53,7 @@ from jax import numpy as jnp
 from matplotlib import pyplot as plt
 import torax
 from torax import geometry
+from torax import geometry_provider
 from torax import sim as sim_lib
 from torax import state as state_lib
 from torax.config import runtime_params_slice
@@ -329,7 +330,7 @@ def update_sim(
   return sim_lib.Sim(
       time_step_calculator=sim.time_step_calculator,
       initial_state=initial_state,
-      geometry_provider=sim_lib.ConstantGeometryProvider(geo),
+      geometry_provider=geometry_provider.ConstantGeometryProvider(geo),
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       static_runtime_params_slice=static_runtime_params_slice,
       step_fn=sim.step_fn,

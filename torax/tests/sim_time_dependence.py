@@ -23,6 +23,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax import geometry
+from torax import geometry_provider as geometry_provider_lib
 from torax import sim as sim_lib
 from torax import state
 from torax.config import runtime_params as general_runtime_params
@@ -61,7 +62,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         ),
     )
     geo = geometry.build_circular_geometry()
-    geometry_provider = sim_lib.ConstantGeometryProvider(geo)
+    geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
     transport_builder = FakeTransportModelBuilder()
     transport = FakeTransportModel()
     source_models_builder = source_models_lib.SourceModelsBuilder()
