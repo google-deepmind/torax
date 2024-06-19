@@ -20,7 +20,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from torax import core_profile_setters
 from torax.config import runtime_params_slice
-from torax.sources import radiation_source
+from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models as source_models_lib
@@ -34,8 +34,8 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   @classmethod
   def setUpClass(cls):
     super().setUpClass(
-        source_class=radiation_source.BremsstrahlungHeatSink,
-        source_class_builder=radiation_source.BremsstrahlungHeatSinkBuilder,
+        source_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
+        source_class_builder=bremsstrahlung_heat_sink.BremsstrahlungHeatSinkBuilder,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
@@ -73,8 +73,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         source_models=source_models,
     )
 
-    P_brems_calc = radiation_source.calc_bremsstrahlung(
-        geo,
+    P_brems_calc = bremsstrahlung_heat_sink.calc_bremsstrahlung(
         core_profiles,
         dynamic_runtime_params_slice.plasma_composition.Zeff,
         dynamic_runtime_params_slice.numerics.nref,

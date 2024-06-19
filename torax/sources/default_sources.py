@@ -31,7 +31,7 @@ from torax.sources import qei_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models as source_models_lib
-from torax.sources import radiation_source
+from torax.sources import bremsstrahlung_heat_sink
 
 def get_default_runtime_params(
     source_name: str,
@@ -104,7 +104,7 @@ def get_source_type(source_name: str) -> type[source.Source]:
     case 'ohmic_heat_source':
       return source_models_lib.OhmicHeatSource
     case 'bremsstrahlung_heat_sink':
-      return radiation_source.BremsstrahlungHeatSink
+      return bremsstrahlung_heat_sink.BremsstrahlungHeatSink
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
 
@@ -195,7 +195,7 @@ def get_source_builder_type(source_name: str) -> Any:
       return source_models_lib.OhmicHeatSourceBuilder
 
     case 'bremsstrahlung_heat_sink':
-      return radiation_source.BremsstrahlungHeatSinkBuilder
+      return bremsstrahlung_heat_sink.BremsstrahlungHeatSinkBuilder
 
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
