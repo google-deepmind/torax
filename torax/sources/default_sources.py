@@ -33,6 +33,7 @@ from torax.sources import source
 from torax.sources import source_models as source_models_lib
 from torax.sources import bremsstrahlung_heat_sink
 
+
 def get_default_runtime_params(
     source_name: str,
 ) -> runtime_params_lib.RuntimeParams:
@@ -75,7 +76,7 @@ def get_default_runtime_params(
           mode=runtime_params_lib.Mode.MODEL_BASED,
       )
     case 'bremsstrahlung_heat_sink':
-      return runtime_params_lib.RuntimeParams(
+      return bremsstrahlung_heat_sink.RuntimeParams(
           mode=runtime_params_lib.Mode.MODEL_BASED,
       )
     case _:
@@ -148,7 +149,7 @@ def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
       'qei_source',
       # Ohmic heat source
       'ohmic_heat_source',
-      'bremsstrahlung_heat_sink'
+      'bremsstrahlung_heat_sink',
   ]
   # pylint: disable=missing-kwoa
   # pytype: disable=missing-parameter
