@@ -53,7 +53,8 @@ def calc_bremsstrahlung(
     )
     P_brem_profile *= correction
 
-  return P_brem_profile
+  P_brem_profile_cell = geometry.face_to_cell(P_brem_profile)
+  return P_brem_profile_cell
 
 
 def bremsstrahlung_model_func(
@@ -62,7 +63,7 @@ def bremsstrahlung_model_func(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
-  del dynamic_source_runtime_params, geo  # Unused.
+  del dynamic_source_runtime_params  # Unused.
   P_brem_profile = calc_bremsstrahlung(
       core_profiles,
       dynamic_runtime_params_slice.plasma_composition.Zeff,
