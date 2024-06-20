@@ -31,12 +31,8 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
     )
 
 
-@functools.partial(
-    jax_utils.jit,
-    static_argnames=[
-        'use_relativistic_correction',
-    ],
-)
+
+@jax_utils.jit
 def calc_bremsstrahlung(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
@@ -67,13 +63,21 @@ def calc_bremsstrahlung(
       5.35e-3 * Zeff * ne20**2 * jnp.sqrt(Te_kev)
   )  # MW/m^3
 
-  if use_relativistic_correction:
+
+  def calc_relativistic_correction() -> jax.Array:
     # Apply the Stott relativistic correction.
     Tm = 511.0  # m_e * c**2 in keV
     correction = (1.0 + 2.0 * Te_kev / Tm) * (
         1.0 + (2.0 / Zeff) * (1.0 - 1.0 / (1.0 + Te_kev / Tm))
     )
-    P_brem_profile_face *= correction
+    return correction
+
+
+  P_brem_profile_face = jnp.where(
+    use_relativistic_correction,
+    P_brem_profile_face * calc_relativistic_correction(),
+    P_brem_profile_face,
+  )
 
   P_brem_profile_cell = geometry.face_to_cell(P_brem_profile_face)
   P_brem_total = jax.scipy.integrate.trapezoid(
