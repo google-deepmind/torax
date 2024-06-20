@@ -35,6 +35,7 @@ CONFIG = {
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
         'generic_ion_el_heat_source': {},
         'fusion_heat_source': {},
+        'bremsstrahlung_heat_sink': {},
         'qei_source': {},
         'ohmic_heat_source': {},
     },

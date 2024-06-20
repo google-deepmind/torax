@@ -50,6 +50,7 @@ CONFIG = {
             'Ptot': 53.0e6,
         },
         'fusion_heat_source': {},
+        'bremsstrahlung_heat_sink': {},
         'qei_source': {},
         'nbi_particle_source': {
             'S_nbi_tot': 0.3e22,
