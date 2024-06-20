@@ -14,6 +14,7 @@
 
 """Unit tests for torax.run_simulation_main."""
 
+from unittest import mock
 from absl.testing import absltest
 from absl.testing import flagsaver
 from absl.testing import parameterized
@@ -33,6 +34,30 @@ class RunSimulationMainTest(parameterized.TestCase):
         ".tests.test_data.test_iterhybrid_newton"
     )
     assert hasattr(module, "CONFIG")
+
+  @mock.patch("builtins.input", side_effect=["r"])
+  def test_prompt_user_good_input(self, mock_input):
+    """Test that prompt_user accepts the 'r' command."""
+    del mock_input  # Needed for @patch interface but not used in this test
+    config_str = ".tests.test_data.test_implicit"
+    # The @patch decorator overrides the `input` function so that when
+    # `prompt_user` calls `input`, it will receive an "r". That is a valid
+    # command and it should return it.
+    user_command = run_simulation_main.prompt_user(config_str)
+    self.assertEqual(user_command, run_simulation_main._UserCommand.RUN)
+
+  @mock.patch("builtins.input", side_effect=["invalid", "q"])
+  def test_prompt_user_bad_input(self, mock_input):
+    """Test that prompt_user rejects invalid input."""
+    del mock_input  # Needed for @patch interface but not used in this test
+    config_str = ".tests.test_data.test_implicit"
+    # The @patch decorator overrides the `input` function so that when
+    # `prompt_user` calls `input`, it will receive "invalid". That is not
+    # a valid command so it should be rejected. The `prompt_user` function
+    # re-prompts forever until a valid input is received so we next send
+    # a valid "q" for quit.
+    user_command = run_simulation_main.prompt_user(config_str)
+    self.assertEqual(user_command, run_simulation_main._UserCommand.QUIT)
 
 
 if __name__ == "__main__":
