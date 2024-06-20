@@ -1,14 +1,34 @@
 import dataclasses
 
 import jax
+import chex
 from jax import numpy as jnp
 from torax import geometry
 from torax import state
-from torax.config import runtime_params_slice
+from torax.config import runtime_params_slice, config_args
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 import functools
 from torax import jax_utils
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  use_relativistic_correction: bool
+
+
+@dataclasses.dataclass(kw_only=True)
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  use_relativistic_correction: bool = False
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        **config_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicRuntimeParams,
+            t=t,
+        )
+    )
 
 
 @functools.partial(
@@ -63,11 +83,12 @@ def bremsstrahlung_model_func(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
-  del dynamic_source_runtime_params  # Unused.
+  del geo  # Unused.
   P_brem_profile = calc_bremsstrahlung(
       core_profiles,
       dynamic_runtime_params_slice.plasma_composition.Zeff,
       dynamic_runtime_params_slice.numerics.nref,
+      use_relativistic_correction=dynamic_source_runtime_params.use_relativistic_correction,
   )
   # As a sink, the power is negative.
   return -1.0 * P_brem_profile
@@ -86,5 +107,5 @@ class BremsstrahlungHeatSink(source.SingleProfileTempElSource):
 
 
 BremsstrahlungHeatSinkBuilder = source.make_source_builder(
-    BremsstrahlungHeatSink
+    BremsstrahlungHeatSink, runtime_params_type=RuntimeParams
 )
