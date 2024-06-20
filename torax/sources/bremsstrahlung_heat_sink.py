@@ -39,6 +39,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 )
 def calc_bremsstrahlung(
     core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
     Zeff: float,
     nref: float,
     use_relativistic_correction: bool = False,
@@ -50,6 +51,7 @@ def calc_bremsstrahlung(
 
   Args:
       core_profiles (state.CoreProfiles): core plasma profiles.
+      geo (geometry.Geometry): geometry object.
       Zeff (float): effective charge number.
       nref (float): reference density.
       use_relativistic_correction (bool, optional): Set to true to include the relativistic correction from Stott. Defaults to False.
@@ -61,7 +63,7 @@ def calc_bremsstrahlung(
 
   Te_kev = core_profiles.temp_el.face_value()
 
-  P_brem_profile: jax.Array = (
+  P_brem_profile_face: jax.Array = (
       5.35e-3 * Zeff * ne20**2 * jnp.sqrt(Te_kev)
   )  # MW/m^3
 
@@ -71,10 +73,13 @@ def calc_bremsstrahlung(
     correction = (1.0 + 2.0 * Te_kev / Tm) * (
         1.0 + (2.0 / Zeff) * (1.0 - 1.0 / (1.0 + Te_kev / Tm))
     )
-    P_brem_profile *= correction
+    P_brem_profile_face *= correction
 
-  P_brem_profile_cell = geometry.face_to_cell(P_brem_profile)
-  return P_brem_profile_cell
+  P_brem_profile_cell = geometry.face_to_cell(P_brem_profile_face)
+  P_brem_total = jax.scipy.integrate.trapezoid(
+      P_brem_profile_face * geo.vpr_face, geo.r_face
+  )
+  return P_brem_total, P_brem_profile_cell
 
 
 def bremsstrahlung_model_func(
@@ -83,9 +88,9 @@ def bremsstrahlung_model_func(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
-  del geo  # Unused.
-  P_brem_profile = calc_bremsstrahlung(
+  _, P_brem_profile = calc_bremsstrahlung(
       core_profiles,
+      geo,
       dynamic_runtime_params_slice.plasma_composition.Zeff,
       dynamic_runtime_params_slice.numerics.nref,
       use_relativistic_correction=dynamic_source_runtime_params.use_relativistic_correction,

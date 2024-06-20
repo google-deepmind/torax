@@ -39,9 +39,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
-        expected_affected_core_profiles=(
-            source.AffectedCoreProfile.TEMP_EL,
-        ),
+        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
     )
 
   @parameterized.parameters([
@@ -73,11 +71,33 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         source_models=source_models,
     )
 
-    P_brems_calc = bremsstrahlung_heat_sink.calc_bremsstrahlung(
-        core_profiles,
-        dynamic_runtime_params_slice.plasma_composition.Zeff,
-        dynamic_runtime_params_slice.numerics.nref,
+    P_brem_total, P_brems_profile = (
+        bremsstrahlung_heat_sink.calc_bremsstrahlung(
+            core_profiles,
+            geo,
+            dynamic_runtime_params_slice.plasma_composition.Zeff,
+            dynamic_runtime_params_slice.numerics.nref,
+        )
     )
+
+    self.assertIsNotNone(P_brem_total)
+    self.assertIsNotNone(P_brems_profile)
+
+    P_brem_total_stott, P_brems_profile_stott = (
+        bremsstrahlung_heat_sink.calc_bremsstrahlung(
+            core_profiles,
+            geo,
+            dynamic_runtime_params_slice.plasma_composition.Zeff,
+            dynamic_runtime_params_slice.numerics.nref,
+            use_relativistic_correction=True,
+        )
+    )
+
+    self.assertIsNotNone(P_brem_total_stott)
+    self.assertIsNotNone(P_brems_profile_stott)
+
+    # Expect the relativistic correction to increase the total power.
+    self.assertGreater(P_brem_total_stott, P_brem_total)
 
 
 if __name__ == '__main__':
