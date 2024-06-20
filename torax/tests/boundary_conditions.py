@@ -37,7 +37,7 @@ class BoundaryConditionsTest(absltest.TestCase):
         profile_conditions=general_runtime_params.ProfileConditions(
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
-            ne_bound_right=general_runtime_params.InterpolationParam(
+            ne_bound_right=general_runtime_params.InterpolatedVar1d(
                 {0.0: 0.1, 0.1: 2.0},
                 interpolation_mode=general_runtime_params.InterpolationMode.STEP,
             ),

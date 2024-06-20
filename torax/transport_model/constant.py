@@ -43,13 +43,13 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   """
 
   # coefficient in ion heat equation diffusion term in m^2/s
-  chii_const: runtime_params_lib.TimeDependentField = 1.0
+  chii_const: runtime_params_lib.TimeInterpolatedScalar = 1.0
   # coefficient in electron heat equation diffusion term in m^2/s
-  chie_const: runtime_params_lib.TimeDependentField = 1.0
+  chie_const: runtime_params_lib.TimeInterpolatedScalar = 1.0
   # diffusion coefficient in electron density equation in m^2/s
-  De_const: runtime_params_lib.TimeDependentField = 1.0
+  De_const: runtime_params_lib.TimeInterpolatedScalar = 1.0
   # convection coefficient in electron density equation in m^2/s
-  Ve_const: runtime_params_lib.TimeDependentField = -0.33
+  Ve_const: runtime_params_lib.TimeInterpolatedScalar = -0.33
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(

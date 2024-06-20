@@ -40,13 +40,13 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   # external heat source parameters
   # Gaussian width in normalized radial coordinate
-  w: runtime_params_lib.TimeDependentField = 0.25
+  w: runtime_params_lib.TimeInterpolatedScalar = 0.25
   # Source Gaussian central location (in normalized r)
-  rsource: runtime_params_lib.TimeDependentField = 0.0
+  rsource: runtime_params_lib.TimeInterpolatedScalar = 0.0
   # total heating
-  Ptot: runtime_params_lib.TimeDependentField = 120e6
+  Ptot: runtime_params_lib.TimeInterpolatedScalar = 120e6
   # electron heating fraction
-  el_heat_fraction: runtime_params_lib.TimeDependentField = 0.66666
+  el_heat_fraction: runtime_params_lib.TimeInterpolatedScalar = 0.66666
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(

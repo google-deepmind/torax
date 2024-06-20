@@ -24,10 +24,7 @@ from torax import interpolated_param
 from torax.config import config_args
 
 
-# Type-alias for clarity. While the InterpolatedParams can vary across any
-# field, in runtime_params, we mainly use it to handle time-dependent
-# parameters.
-TimeDependentField = interpolated_param.InterpParamOrInterpParamInput
+TimeInterpolatedScalar = interpolated_param.TimeInterpolatedScalar
 
 
 @dataclasses.dataclass(kw_only=True)

@@ -77,7 +77,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         profile_conditions=general_runtime_params.ProfileConditions(
             Ti_bound_right={0.0: 2.0, 4.0: 4.0},
             Te_bound_right=4.5,  # not time-dependent.
-            ne_bound_right=general_runtime_params.InterpolationParam(
+            ne_bound_right=general_runtime_params.InterpolatedVar1d(
                 {5.0: 6.0, 7.0: 8.0},
                 interpolation_mode=general_runtime_params.InterpolationMode.STEP,
             ),

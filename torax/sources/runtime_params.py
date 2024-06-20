@@ -25,8 +25,7 @@ from torax.config import config_args
 from torax.sources import formula_config
 
 
-# Type-alias for clarity.
-TimeDependentField = interpolated_param.InterpParamOrInterpParamInput
+TimeInterpolatedScalar = interpolated_param.TimeInterpolatedScalar
 
 
 @enum.unique

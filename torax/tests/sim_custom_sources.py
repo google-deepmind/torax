@@ -259,14 +259,14 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime params for the custom source defined in the test case above."""
 
-  puff_decay_length: runtime_params_lib.TimeDependentField
-  S_puff_tot: runtime_params_lib.TimeDependentField
-  nbi_particle_width: runtime_params_lib.TimeDependentField
-  nbi_deposition_location: runtime_params_lib.TimeDependentField
-  S_nbi_tot: runtime_params_lib.TimeDependentField
-  pellet_width: runtime_params_lib.TimeDependentField
-  pellet_deposition_location: runtime_params_lib.TimeDependentField
-  S_pellet_tot: runtime_params_lib.TimeDependentField
+  puff_decay_length: runtime_params_lib.TimeInterpolatedScalar
+  S_puff_tot: runtime_params_lib.TimeInterpolatedScalar
+  nbi_particle_width: runtime_params_lib.TimeInterpolatedScalar
+  nbi_deposition_location: runtime_params_lib.TimeInterpolatedScalar
+  S_nbi_tot: runtime_params_lib.TimeInterpolatedScalar
+  pellet_width: runtime_params_lib.TimeInterpolatedScalar
+  pellet_deposition_location: runtime_params_lib.TimeInterpolatedScalar
+  S_pellet_tot: runtime_params_lib.TimeInterpolatedScalar
 
   def build_dynamic_params(
       self, t: chex.Numeric

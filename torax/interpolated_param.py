@@ -15,6 +15,7 @@
 """Classes and functions for defining interpolated parameters."""
 
 import abc
+from collections.abc import Mapping
 import enum
 import chex
 import jax.numpy as jnp
@@ -64,7 +65,7 @@ class InterpolationMode(enum.Enum):
 class JaxFriendlyInterpolatedParam(InterpolatedParamBase):
   """Base class for JAX-friendly interpolated params.
 
-  Any InterpolatedParam implementation that is used within a jitted function or
+  Any InterpolatedVar1d implementation that is used within a jitted function or
   used as an argument to a jitted function should inherit from this class.
   """
 
@@ -127,17 +128,17 @@ class StepInterpolatedParam(JaxFriendlyInterpolatedParam):
 
 
 # Config input types convertible to InterpolatedParam objects.
-InterpolatedParamInput = float | dict[float, float] | bool | dict[float, bool]
+InterpolatedVar1dInput = float | dict[float, float] | bool | dict[float, bool]
 
 
 def _convert_input_to_xs_ys(
-    interp_input: InterpolatedParamInput,
+    interp_input: InterpolatedVar1dInput,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
   """Converts config inputs into inputs suitable for constructors."""
   # This function does NOT need to be jittable.
   if isinstance(interp_input, dict):
     if not interp_input:
-      raise ValueError('InterpolatedParamInput must include values.')
+      raise ValueError('InterpolatedVar1dInput must include values.')
     sorted_keys = sorted(interp_input.keys())
     values = [interp_input[key] for key in sorted_keys]
     return jnp.array(sorted_keys), jnp.array(values)
@@ -146,24 +147,24 @@ def _convert_input_to_xs_ys(
     return jnp.array([0]), jnp.array([interp_input])
 
 
-def _is_bool(interp_input: InterpolatedParamInput) -> bool:
+def _is_bool(interp_input: InterpolatedVar1dInput) -> bool:
   if isinstance(interp_input, dict):
     if not interp_input:
-      raise ValueError('InterpolatedParamInput must include values.')
+      raise ValueError('InterpolatedVar1dInput must include values.')
     value = list(interp_input.values())[0]
     return isinstance(value, bool)
   return isinstance(interp_input, bool)
 
 
 def _convert_value_to_floats(
-    interp_input: InterpolatedParamInput,
-) -> InterpolatedParamInput:
+    interp_input: InterpolatedVar1dInput,
+) -> InterpolatedVar1dInput:
   if isinstance(interp_input, dict):
     return {key: float(value) for key, value in interp_input.items()}
   return float(interp_input)
 
 
-class InterpolatedParam(InterpolatedParamBase):
+class InterpolatedVar1d(InterpolatedParamBase):
   """Parameter that may vary based on an input coordinate.
 
   This class is useful for defining time-dependent runtime parameters, but can
@@ -176,12 +177,12 @@ class InterpolatedParam(InterpolatedParamBase):
 
   def __init__(
       self,
-      value: InterpolatedParamInput,
+      value: InterpolatedVar1dInput,
       interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
   ):
-    """Initializes InterpolatedParam.
+    """Initializes InterpolatedVar1d.
 
     Args:
       value: A single float or a dictionary mapping input coordinates (e.g.
@@ -223,11 +224,80 @@ class InterpolatedParam(InterpolatedParamBase):
     return self._is_bool_param
 
 
+class InterpolatedVar2d:
+  """Interpolates on a grid (time, rho).
+
+  - Given `values` that map from time-values to `InterpolatedVar1d`s that tell
+  you how to interpolate along rho for different time values this class linearly
+  interpolates along time to provide a value at any (time, rho) pair.
+  - For time values that are outside the range of `values` the closest defined
+  `InterpolatedVar1d` is used.
+  """
+
+  def __init__(
+      self,
+      values: Mapping[float, InterpolatedVar1dInput],
+      rho_interpolation_mode: InterpolationMode = (
+          InterpolationMode.PIECEWISE_LINEAR
+      ),
+  ):
+    if len(set(values.keys())) != len(values):
+      raise ValueError('Indicies in values mapping must be unique.')
+    if not values:
+      raise ValueError('Values mapping must not be empty.')
+    self.values = {
+        v: InterpolatedVar1d(values[v], rho_interpolation_mode)
+        for v in values.keys()
+    }
+    self.sorted_indices = jnp.array(sorted(values.keys()))
+
+  def get_value(
+      self,
+      time: chex.Numeric,
+      rho: chex.Numeric,
+  ) -> jnp.ndarray:
+    """Returns the value of this parameter interpolated at the given (time,rho).
+
+    This method is not jittable as it is.
+
+    Args:
+      time: The time-coordinate to interpolate at.
+      rho: The rho-coordinate to interpolate at.
+    Returns:
+      The value of the interpolated at the given (time,rho).
+    """
+    # Find the index that is left of value which time is closest to.
+    left = jnp.searchsorted(self.sorted_indices, time, side='left')
+
+    # If time is either smaller or larger, than smallest and largest values
+    # we know how to interpolate for, use the boundary interpolater.
+    if left == 0:
+      return self.values[float(self.sorted_indices[0])].get_value(rho)
+    if left == len(self.sorted_indices):
+      return self.values[float(self.sorted_indices[-1])].get_value(rho)
+
+    # Interpolate between the two closest defined interpolaters.
+    left_time = float(self.sorted_indices[left - 1])
+    right_time = float(self.sorted_indices[left])
+    return self.values[left_time].get_value(rho) * (right_time - time) / (
+        right_time - left_time
+    ) + self.values[right_time].get_value(rho) * (time - left_time) / (
+        right_time - left_time
+    )
+
+
 # In runtime_params, users should be able to either specify the
-# InterpolatedParam object directly or the values that go in the constructor.
-# This helps with brevity since a lot of these params are fixed floats.
-InterpParamOrInterpParamInput = (
-    InterpolatedParam
-    | InterpolatedParamInput
-    | tuple[InterpolatedParamInput, str]
+# InterpolatedVar1d/InterpolatedVar2d object directly or the values that go in
+# the constructor. This helps with brevity since a lot of these params are fixed
+# floats.
+# Type-alias for a scalar variable (in rho_norm) to be interpolated in time.
+TimeInterpolatedScalar = (
+    InterpolatedVar1d
+    | InterpolatedVar1dInput
+    | tuple[InterpolatedVar1dInput, str]
+)
+
+# Type-alias for a 1D variable (in rho_norm) to be interpolated in time.
+TimeInterpolatedArray = (
+    InterpolatedVar2d | Mapping[float, InterpolatedVar1dInput]
 )

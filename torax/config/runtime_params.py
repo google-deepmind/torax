@@ -22,12 +22,12 @@ import chex
 from torax import interpolated_param
 
 
-# Type-alias for clarity. While the InterpolatedParams can vary across any
+# Type-alias for clarity. While the InterpolatedVar1ds can vary across any
 # field, in here, we mainly use it to handle time-dependent parameters.
-TimeDependentField = interpolated_param.InterpParamOrInterpParamInput
+TimeInterpolatedScalar = interpolated_param.TimeInterpolatedScalar
 # Type-alias for brevity.
 InterpolationMode = interpolated_param.InterpolationMode
-InterpolationParam = interpolated_param.InterpolatedParam
+InterpolatedVar1d = interpolated_param.InterpolatedVar1d
 
 
 # pylint: disable=invalid-name
@@ -40,8 +40,10 @@ class PlasmaComposition:
   # charge of main ion
   Zi: float = 1.0
   # needed for qlknn and fusion power
-  Zeff: TimeDependentField = 1.0
-  Zimp: TimeDependentField = 10.0  # impurity charge state assumed for dilution
+  Zeff: TimeInterpolatedScalar = 1.0
+  Zimp: TimeInterpolatedScalar = (
+      10.0  # impurity charge state assumed for dilution
+  )
 
 
 @chex.dataclass
@@ -51,47 +53,47 @@ class ProfileConditions:
   # total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data
-  Ip: TimeDependentField = 15.0
+  Ip: TimeInterpolatedScalar = 15.0
 
   # Temperature boundary conditions at r=Rmin
-  Ti_bound_right: TimeDependentField = 1.0
-  Te_bound_right: TimeDependentField = 1.0
+  Ti_bound_right: TimeInterpolatedScalar = 1.0
+  Te_bound_right: TimeInterpolatedScalar = 1.0
   # Prescribed values for r=0. When evolving, then is initial condition.
-  Te_bound_left: TimeDependentField = 15.0
-  Ti_bound_left: TimeDependentField = 15.0
+  Te_bound_left: TimeInterpolatedScalar = 15.0
+  Ti_bound_left: TimeInterpolatedScalar = 15.0
 
   # Peaking factor of density profile.
   # If density evolves with PDE (dens_eq=True), then is initial condition
-  npeak: TimeDependentField = 1.5
+  npeak: TimeInterpolatedScalar = 1.5
 
   # Initial line averaged density.
   # In units of reference density if nbar_is_fGW = False.
   # In Greenwald fraction if nbar_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: TimeDependentField = 0.85
+  nbar: TimeInterpolatedScalar = 0.85
   # Toggle units of nbar
   nbar_is_fGW: bool = True
 
   # Density boundary condition for r=Rmin.
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: TimeDependentField = 0.5
+  ne_bound_right: TimeInterpolatedScalar = 0.5
   ne_bound_right_is_fGW: bool = False
 
   # Internal boundary condition (pedestal)
   # Do not set internal boundary condition if this is False
-  set_pedestal: TimeDependentField = True
+  set_pedestal: TimeInterpolatedScalar = True
   # ion pedestal top temperature in keV
-  Tiped: TimeDependentField = 5.0
+  Tiped: TimeInterpolatedScalar = 5.0
   # electron pedestal top temperature in keV
-  Teped: TimeDependentField = 5.0
+  Teped: TimeInterpolatedScalar = 5.0
   # pedestal top electron density
   # In units of reference density if neped_is_fGW = False.
   # In Greenwald fraction if neped_is_fGW = True.
-  neped: TimeDependentField = 0.7
+  neped: TimeInterpolatedScalar = 0.7
   neped_is_fGW: bool = False
   # Set ped top location.
-  Ped_top: TimeDependentField = 0.91
+  Ped_top: TimeInterpolatedScalar = 0.91
 
   # current profiles (broad "Ohmic" + localized "external" currents)
   # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
@@ -153,7 +155,7 @@ class Numerics:
   q_correction_factor: float = 1.25
   # 1/multiplication factor for sigma (conductivity) to reduce current
   # diffusion timescale to be closer to heat diffusion timescale
-  resistivity_mult: TimeDependentField = 1.0
+  resistivity_mult: TimeInterpolatedScalar = 1.0
 
   # density profile info
   # Reference value for normalization

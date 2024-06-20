@@ -38,13 +38,13 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for the external current source."""
 
   # total "external" current in MA. Used if use_absolute_jext=True.
-  Iext: runtime_params_lib.TimeDependentField = 3.0
+  Iext: runtime_params_lib.TimeInterpolatedScalar = 3.0
   # total "external" current fraction. Used if use_absolute_jext=False.
-  fext: runtime_params_lib.TimeDependentField = 0.2
+  fext: runtime_params_lib.TimeInterpolatedScalar = 0.2
   # width of "external" Gaussian current profile
-  wext: runtime_params_lib.TimeDependentField = 0.05
+  wext: runtime_params_lib.TimeInterpolatedScalar = 0.05
   # normalized radius of "external" Gaussian current profile
-  rext: runtime_params_lib.TimeDependentField = 0.4
+  rext: runtime_params_lib.TimeInterpolatedScalar = 0.4
 
   # Toggles if external current is provided absolutely or as a fraction of Ip.
   use_absolute_jext: bool = False
