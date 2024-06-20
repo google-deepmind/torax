@@ -101,6 +101,7 @@ def _path_to_name(path: tuple[Any, ...],) -> str:
       'gas_puff_source': 's_puff',
       'nbi_particle_source': 's_nbi',
       'pellet_source': 's_pellet',
+      'bremsstrahlung_heat_sink': 'Qbrem'
   }
   initial_cond_vars = ['temp_ion', 'temp_el', 'ni', 'ne',]
 
