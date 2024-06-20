@@ -22,7 +22,6 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import geometry
-from torax.config import runtime_params as general_runtime_params
 
 
 class GeometryTest(parameterized.TestCase):
@@ -74,14 +73,11 @@ class GeometryTest(parameterized.TestCase):
       _ = geo  # do nothing.
 
     foo_jitted = jax.jit(foo)
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-
-    geo = geometry.build_geometry(
-        runtime_params=runtime_params,
+    geo = geometry.build_standard_geometry(
         nr=25,
         Rmaj=6.2,
         Rmin=2.0,
-        B0=5.3,
+        B=5.3,
         # Use the same dummy value for the rest.
         psi=jnp.arange(0, 1.0, 0.01),
         Ip=jnp.arange(0, 1.0, 0.01),
@@ -99,13 +95,13 @@ class GeometryTest(parameterized.TestCase):
         delta_lower_face=jnp.arange(0, 1.0, 0.01),
         volume=jnp.arange(0, 1.0, 0.01),
         area=jnp.arange(0, 1.0, 0.01),
+        hires_fac=4,
     )
     foo_jitted(geo)
 
   def test_build_geometry_from_chease(self):
     """Test that the default CHEASE geometry can be built."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geometry.build_geometry_from_chease(runtime_params)
+    geometry.build_geometry_from_chease()
 
 
 def face_to_cell(nr, face):

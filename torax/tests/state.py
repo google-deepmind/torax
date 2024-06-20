@@ -184,14 +184,12 @@ class InitialStatesTest(parameterized.TestCase):
     np.testing.assert_allclose(core_profiles.ne.right_face_constraint, 0.1)
 
   @parameterized.parameters([
-      dict(geo_builder=lambda unused_arg: geometry.build_circular_geometry()),
+      dict(geo_builder=geometry.build_circular_geometry),
       dict(geo_builder=geometry.build_geometry_from_chease),
   ])
   def test_initial_psi_from_j(
       self,
-      geo_builder: Callable[
-          [general_runtime_params.GeneralRuntimeParams], geometry.Geometry
-      ],
+      geo_builder: Callable[[], geometry.Geometry],
   ):
     """Tests expected behaviour of initial psi and current options."""
     config1 = general_runtime_params.GeneralRuntimeParams(
@@ -223,7 +221,7 @@ class InitialStatesTest(parameterized.TestCase):
             nu=2,
         ),
     )
-    geo = geo_builder(config1)
+    geo = geo_builder()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0

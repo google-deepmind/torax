@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """File I/O for loading geometry files."""
+import os
 
 import jax.numpy as jnp
 
@@ -40,3 +41,22 @@ def initialize_CHEASE_dict(  # pylint: disable=invalid-name
   return {
       var_label: jnp.array(chease_data[var_label]) for var_label in chease_data
   }
+
+
+def load_chease_data(
+    geometry_dir: str | None,
+    geometry_file: str,
+) -> dict[str, jnp.ndarray]:
+  """Loads the data from a CHEASE file into a dictionary."""
+  # The code below does not use os.environ.get() in order to support an internal
+  # version of the code.
+  if geometry_dir is None:
+    if 'TORAX_GEOMETRY_DIR' in os.environ:
+      geometry_dir = os.environ['TORAX_GEOMETRY_DIR']
+    else:
+      geometry_dir = 'torax/data/third_party/geo'
+
+  # initialize geometry from file
+  return initialize_CHEASE_dict(
+      file_path=os.path.join(geometry_dir, geometry_file)
+  )

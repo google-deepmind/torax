@@ -189,7 +189,7 @@ def build_geometry_from_config(
   elif geometry_type == 'chease':
     if runtime_params is not None:
       kwargs['runtime_params'] = runtime_params
-    return geometry.build_geometry_from_chease(**kwargs)
+    return geometry.build_and_update_geometry_from_chease(**kwargs)
   raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 

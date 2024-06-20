@@ -16,8 +16,8 @@
 
 from __future__ import annotations
 
+import dataclasses
 import enum
-import os
 
 import chex
 import jax
@@ -406,8 +406,9 @@ def build_circular_geometry(
 # pylint: disable=invalid-name
 
 
-def build_geometry_from_chease(
+def build_and_update_geometry_from_chease(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
+    Ip_from_parameters: bool = True,
     geometry_dir: str | None = None,
     geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
     nr: int = 25,
@@ -415,17 +416,17 @@ def build_geometry_from_chease(
     Rmin: float = 2.0,
     B0: float = 5.3,
     hires_fac: int = 4,
-    Ip_from_parameters: bool = True,
 ) -> StandardGeometry:
-  """Constructs a geometry based on a CHEASE file.
+  """Constructs a geometry from CHEASE file and updates geometry/runtime params.
 
-  This is the standard entrypoint for building a CHEASE geometry, not
-  Geometry.__init__(). chex.dataclasses do not allow overriding __init__
-  functions with different parameters than the attributes of the dataclass, so
-  this builder function lives outside the class.
+  If `Ip_from_parameters` is True, the Ip from the config file is used and
+  geometry values are rescaled accordingly. Otherwise, Ip from the CHEASE file
+  is used and the runtime params are updated accordingly.
 
   Args:
-    runtime_params: General TORAX runtime input parameters.
+    runtime_params: General runtime parameters.
+    Ip_from_parameters: If True, take Ip from parameter file and rescale psi.
+      Otherwise, Ip comes from CHEASE.
     geometry_dir: Directory where to find the CHEASE file describing the
       magnetic geometry. If None, uses the environment variable
       TORAX_GEOMETRY_DIR if available. If that variable is not set and
@@ -439,31 +440,64 @@ def build_geometry_from_chease(
     B0: Toroidal magnetic field on axis [T].
     hires_fac: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
-    Ip_from_parameters: If True, take Ip from parameter file and rescale psi.
-      Otherwise, Ip comes from CHEASE.
+
+  Returns:
+    A constructed Chease `StandardGeometry` object.
+  """
+  geo = build_geometry_from_chease(
+      geometry_dir=geometry_dir,
+      geometry_file=geometry_file,
+      nr=nr,
+      Rmaj=Rmaj,
+      Rmin=Rmin,
+      B0=B0,
+      hires_fac=hires_fac,
+  )
+  return update_chease_geometry_or_runtime_params(
+      runtime_params=runtime_params,
+      Ip_from_parameters=Ip_from_parameters,
+      geo=geo,
+      geometry_dir=geometry_dir,
+      geometry_file=geometry_file,
+  )
+
+
+def build_geometry_from_chease(
+    geometry_dir: str | None = None,
+    geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+    nr: int = 25,
+    Rmaj: float = 6.2,
+    Rmin: float = 2.0,
+    B0: float = 5.3,
+    hires_fac: int = 4,
+) -> StandardGeometry:
+  """Constructs a geometry based on a CHEASE file.
+
+  This is the standard entrypoint for building a CHEASE geometry, not
+  Geometry.__init__(). chex.dataclasses do not allow overriding __init__
+  functions with different parameters than the attributes of the dataclass, so
+  this builder function lives outside the class.
+
+  Args:
+    geometry_dir: Directory where to find the CHEASE file describing the
+      magnetic geometry. If None, uses the environment variable
+      TORAX_GEOMETRY_DIR if available. If that variable is not set and
+      geometry_dir is not provided, then it defaults to another dir. See
+      implementation.
+    geometry_file: CHEASE file name.
+    nr: Radial grid points (num cells)
+    Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
+      is used as an unnormalization factor.
+    Rmin: minor radius (a) in meters
+    B0: Toroidal magnetic field on axis [T].
+    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      calculations.
 
   Returns:
     A StandardGeometry instance based on the input file.
   """
 
-  # The code below does not use os.environ.get() in order to support an internal
-  # version of the code.
-  if geometry_dir is None:
-    if 'TORAX_GEOMETRY_DIR' in os.environ:
-      geometry_dir = os.environ['TORAX_GEOMETRY_DIR']
-    else:
-      geometry_dir = 'torax/data/third_party/geo'
-
-  # initialize geometry from file
-  chease_data = geometry_loader.initialize_CHEASE_dict(
-      file_path=os.path.join(geometry_dir, geometry_file)
-  )
-
-  # TODO(b/326406367): incorporate time dependent geometry
-  # build t_initial runtime_params_slice
-  dynamic_runtime_params_slice = (
-      runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
-  )
+  chease_data = geometry_loader.load_chease_data(geometry_dir, geometry_file)
 
   # Prepare variables from CHEASE to be interpolated into our simulation
   # grid. CHEASE variables are normalized. Need to unnormalize them with
@@ -496,7 +530,7 @@ def build_geometry_from_chease(
   volume = chease_data['VOLUMEprofile'] * Rmaj**3
   area = chease_data['areaprofile'] * Rmaj**2
 
-  geo, updated_Ip = _build_standard_geometry(
+  geo = build_standard_geometry(
       Rmaj=Rmaj,
       Rmin=Rmin,
       B=B0,
@@ -514,133 +548,72 @@ def build_geometry_from_chease(
       flux_norm_dpsi2=flux_norm_dpsi2,
       delta_upper_face=chease_data['delta_upper'],
       delta_lower_face=chease_data['delta_bottom'],
-      config_Ip=(
-          dynamic_runtime_params_slice.profile_conditions.Ip
-          if Ip_from_parameters
-          else None
-      ),
       volume=volume,
       area=area,
       nr=nr,
       hires_fac=hires_fac,
   )
-  if updated_Ip is not None:
-    # TODO(b/326406367): Do not rely on writing back to the config to
-    # make this work. We should not rely on the geometry being computed for the
-    # config to have the correct Ip.
-    runtime_params.profile_conditions.Ip = updated_Ip
   return geo
 
 
-def build_geometry(
-    *,
+def update_chease_geometry_or_runtime_params(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
-    nr: int,
-    Rmaj: chex.Numeric,
-    Rmin: chex.Numeric,
-    B0: chex.Numeric,
-    psi: jnp.ndarray,
-    Ip: jnp.ndarray,
-    rho: jnp.ndarray,
-    rhon: jnp.ndarray,
-    Rin: jnp.ndarray,
-    Rout: jnp.ndarray,
-    RBPhi: jnp.ndarray,
-    int_Jdchi: jnp.ndarray,
-    flux_norm_1_over_R2: jnp.ndarray,
-    flux_norm_Bp2: jnp.ndarray,
-    flux_norm_dpsi: jnp.ndarray,
-    flux_norm_dpsi2: jnp.ndarray,
-    delta_upper_face: jnp.ndarray,
-    delta_lower_face: jnp.ndarray,
-    volume: jnp.ndarray,
-    area: jnp.ndarray,
+    *,
     Ip_from_parameters: bool = True,
-    hires_fac: int = 4,
+    geo: StandardGeometry,
+    geometry_dir: str | None = None,
+    geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
 ) -> StandardGeometry:
-  """Build geometry object based on set of profiles from an EQ solution.
+  """Updates geometry/runtime params to be consistent.
 
-  TODO(b/323504363): Specify the expected COCOS format.
-  NOTE: Right now, TORAX does not have a specified COCOS format. Our team is
-  working on adding this and updating documentation to make that clear. Of
-  course, the CHEASE input data is COCOS 2, still.
-
-  All inputs are 1D profiles vs normalized rho toroidal (rhon).
+  If `Ip_from_parameters` is True, the Ip from the config file is used and
+  geometry values are rescaled accordingly. Otherwise, Ip from the CHEASE file
+  is used and the runtime params are updated accordingly.
 
   Args:
-    runtime_params: General TORAX runtime input parameters.
-    nr: Radial grid points (num cells)
-    Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
-      is used as an unnormalization factor.
-    Rmin: minor radius (a) in meters
-    B0: Toroidal magnetic field on axis [T].
-    psi: Poloidal flux profile
-    Ip: Plasma current profile
-    rho: Midplane radii
-    rhon: Toroidal flux coordinate
-    Rin: Midplane radii
-    Rout: Midplane radii
-    RBPhi: Toroidal field flux function
-    int_Jdchi: <|grad(psi)|>
-    flux_norm_1_over_R2: <1/R**2>
-    flux_norm_Bp2: <Bp**2>
-    flux_norm_dpsi: <|grad(psi)|>
-    flux_norm_dpsi2: <|grad(psi)|**2>
-    delta_upper_face: Triangularity on upper face
-    delta_lower_face: Triangularity on lower face
-    volume: Volume profile
-    area: Area profile
-    Ip_from_parameters: If True, take Ip from runtime _params. If False, the
-      runtime_params.profile_conditions.Ip is updated with the Ip passed here.
-    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
-      calculations.
+    runtime_params: General runtime parameters.
+    Ip_from_parameters: Whether to use the Ip from the parameters file.
+    geo: Chease geometry object.
+    geometry_dir: Directory where to find the CHEASE file describing the
+      magnetic geometry. If None, uses the environment variable
+      TORAX_GEOMETRY_DIR if available. If that variable is not set and
+      geometry_dir is not provided, then it defaults to another dir. See
+      implementation.
+    geometry_file: CHEASE file name.
 
   Returns:
-    A StandardGeometry object.
+    A potentially updated StandardGeometry instance.
   """
-  # TODO(b/326406367): incorporate time dependent geometry
-  # build t_initial runtime_params_slice
-  dynamic_runtime_params_slice = (
-      runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+  chease_data = geometry_loader.load_chease_data(geometry_dir, geometry_file)
+  Ip_chease = (
+      chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * geo.Rmaj * geo.B0
   )
+  # if Ip from parameter file, renormalize psi to match desired current
+  if Ip_from_parameters:
+    # build t_initial runtime_params_slice
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+    )
+    config_Ip = dynamic_runtime_params_slice.profile_conditions.Ip
+    Ip_scale_factor = config_Ip * 1e6 / Ip_chease[-1]
+    psi_from_Ip = geo.psi_from_Ip * Ip_scale_factor
+    jtot = geo.jtot * Ip_scale_factor
+    jtot_face = geo.jtot_face * Ip_scale_factor
+    geo = dataclasses.replace(
+        geo,
+        psi_from_Ip=psi_from_Ip,
+        jtot=jtot,
+        jtot_face=jtot_face,
+    )
+  else:
+    # Update the runtime_params with the CHEASE Ip value.
+    runtime_params.profile_conditions.Ip = Ip_chease[-1] / 1e6
 
-  geo, updated_Ip = _build_standard_geometry(
-      Rmaj=Rmaj,
-      Rmin=Rmin,
-      B=B0,
-      psi=psi,
-      Ip=Ip,
-      rho=rho,
-      rhon=rhon,
-      Rin=Rin,
-      Rout=Rout,
-      RBPhi=RBPhi,
-      int_Jdchi=int_Jdchi,
-      flux_norm_1_over_R2=flux_norm_1_over_R2,
-      flux_norm_Bp2=flux_norm_Bp2,
-      flux_norm_dpsi=flux_norm_dpsi,
-      flux_norm_dpsi2=flux_norm_dpsi2,
-      delta_upper_face=delta_upper_face,
-      delta_lower_face=delta_lower_face,
-      volume=volume,
-      area=area,
-      nr=nr,
-      config_Ip=(
-          dynamic_runtime_params_slice.profile_conditions.Ip
-          if Ip_from_parameters
-          else None
-      ),
-      hires_fac=hires_fac,
-  )
-  if updated_Ip is not None:
-    # TODO(b/326406367): Do not rely on writing back to the config to
-    # make this work. We should not rely on the geometry being computed for the
-    # config to have the correct Ip.
-    runtime_params.profile_conditions.Ip = updated_Ip
   return geo
 
 
-def _build_standard_geometry(
+def build_standard_geometry(
+    *,
     Rmaj: chex.Numeric,
     Rmin: chex.Numeric,
     B: chex.Numeric,
@@ -658,13 +631,48 @@ def _build_standard_geometry(
     flux_norm_dpsi2: jnp.ndarray,
     delta_upper_face: jnp.ndarray,
     delta_lower_face: jnp.ndarray,
-    config_Ip: float | None,
     volume: jnp.ndarray,
     area: jnp.ndarray,
     nr: int,
     hires_fac: int,
-) -> tuple[StandardGeometry, jnp.ndarray | None]:
-  """Returns a new StandardGeometry based on the inputs."""
+) -> StandardGeometry:
+  """Build geometry object based on set of profiles from an EQ solution.
+
+  TODO(b/323504363): Specify the expected COCOS format.
+  NOTE: Right now, TORAX does not have a specified COCOS format. Our team is
+  working on adding this and updating documentation to make that clear. Of
+  course, the CHEASE input data is COCOS 2, still.
+
+  All inputs are 1D profiles vs normalized rho toroidal (rhon).
+
+  Args:
+    Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
+      is used as an unnormalization factor.
+    Rmin: minor radius (a) in meters
+    B: Toroidal magnetic field on axis [T].
+    psi: Poloidal flux profile
+    Ip: Plasma current profile
+    rho: Midplane radii
+    rhon: Toroidal flux coordinate
+    Rin: Midplane radii
+    Rout: Midplane radii
+    RBPhi: Toroidal field flux function
+    int_Jdchi: <|grad(psi)|>
+    flux_norm_1_over_R2: <1/R**2>
+    flux_norm_Bp2: <Bp**2>
+    flux_norm_dpsi: <|grad(psi)|>
+    flux_norm_dpsi2: <|grad(psi)|**2>
+    delta_upper_face: Triangularity on upper face
+    delta_lower_face: Triangularity on lower face
+    volume: Volume profile
+    area: Area profile
+    nr: Radial grid points (num cells)
+    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      calculations.
+
+  Returns:
+    A StandardGeometry object.
+  """
   # flux surface integrals of various geometry quantities
   C1 = int_Jdchi
   C2 = flux_norm_1_over_R2 * C1
@@ -705,20 +713,6 @@ def _build_standard_geometry(
       + constants.CONSTANTS.mu0 * Ip[-1] / G2_chease[-1] * (rho[-1] - rho[-2])
   )
 
-  # if Ip from parameter file, renormalize psi to match desired current
-  if config_Ip is not None:
-    Ip_scale_factor = config_Ip * 1e6 / Ip[-1]
-    psi_from_Ip *= Ip_scale_factor
-    updated_config_Ip = None
-  else:
-    # This overwrites the runtime_params.profile_conditions.Ip, even if it's
-    # time dependent, to be consistent with the geometry file being processed.
-    # TODO(b/326406367): Do not rely on writing back to the config to
-    # make this work. We should not rely on the geometry being computed for the
-    # config to have the correct Ip.
-    updated_config_Ip = Ip[-1] / 1e6
-    Ip_scale_factor = 1
-
   # volume, area, and dV/drho, dS/drho
   volume_chease = volume
   area_chease = area
@@ -734,7 +728,6 @@ def _build_standard_geometry(
       * jnp.pi
       * Rmaj
       * math_utils.gradient(Ip, volume_chease)
-      * Ip_scale_factor
   )
 
   # fill geometry structure
@@ -851,66 +844,63 @@ def _build_standard_geometry(
       jnp.ones(1),  # correct value is unity on-axis
       g1_face[1:] / vpr_face[1:] ** 2,  # avoid div by zero on-axis
   ))
-  return (
-      StandardGeometry(
-          geometry_type=GeometryType.CHEASE.value,
-          dr_norm=dr_norm,
-          dr=dr,
-          mesh=mesh,
-          rmax=rmax,
-          r_face_norm=r_face_norm,
-          r_norm=r_norm,
-          r_face=r_face,
-          r=r,
-          Rmaj=jnp.array(Rmaj),
-          Rmin=jnp.array(Rmin),
-          B0=jnp.array(B),
-          volume=volume,
-          volume_face=volume_face,
-          area=area,
-          area_face=area_face,
-          vpr=vpr,
-          vpr_face=vpr_face,
-          spr_cell=spr_cell,
-          spr_face=spr_face,
-          delta_face=delta_face,
-          G2=G2,
-          G2_face=G2_face,
-          g0=g0,
-          g0_face=g0_face,
-          g1=g1,
-          g1_face=g1_face,
-          g0_over_vpr_face=g0_over_vpr_face,
-          g1_over_vpr=g1_over_vpr,
-          g1_over_vpr_face=g1_over_vpr_face,
-          g1_over_vpr2=g1_over_vpr2,
-          g1_over_vpr2_face=g1_over_vpr2_face,
-          J=J,
-          J_face=J_face,
-          F=F,
-          F_face=F_face,
-          Rin=Rin,
-          Rin_face=Rin_face,
-          Rout=Rout,
-          Rout_face=Rout_face,
-          # Set the CHEASE geometry-specific parameters.
-          g2=g2,
-          g3=g3,
-          psi=psi,
-          psi_from_Ip=psi_from_Ip,
-          jtot=jtot,
-          jtot_face=jtot_face,
-          delta_upper_face=delta_upper_face,
-          delta_lower_face=delta_lower_face,
-          volume_hires=volume_hires,
-          area_hires=area_hires,
-          G2_hires=G2_hires,
-          spr_hires=spr_hires,
-          r_hires_norm=r_hires_norm,
-          r_hires=r_hires,
-          vpr_hires=vpr_hires,
-      ),
-      updated_config_Ip,
+  return StandardGeometry(
+      geometry_type=GeometryType.CHEASE.value,
+      dr_norm=dr_norm,
+      dr=dr,
+      mesh=mesh,
+      rmax=rmax,
+      r_face_norm=r_face_norm,
+      r_norm=r_norm,
+      r_face=r_face,
+      r=r,
+      Rmaj=jnp.array(Rmaj),
+      Rmin=jnp.array(Rmin),
+      B0=jnp.array(B),
+      volume=volume,
+      volume_face=volume_face,
+      area=area,
+      area_face=area_face,
+      vpr=vpr,
+      vpr_face=vpr_face,
+      spr_cell=spr_cell,
+      spr_face=spr_face,
+      delta_face=delta_face,
+      G2=G2,
+      G2_face=G2_face,
+      g0=g0,
+      g0_face=g0_face,
+      g1=g1,
+      g1_face=g1_face,
+      g0_over_vpr_face=g0_over_vpr_face,
+      g1_over_vpr=g1_over_vpr,
+      g1_over_vpr_face=g1_over_vpr_face,
+      g1_over_vpr2=g1_over_vpr2,
+      g1_over_vpr2_face=g1_over_vpr2_face,
+      J=J,
+      J_face=J_face,
+      F=F,
+      F_face=F_face,
+      Rin=Rin,
+      Rin_face=Rin_face,
+      Rout=Rout,
+      Rout_face=Rout_face,
+      # Set the CHEASE geometry-specific parameters.
+      g2=g2,
+      g3=g3,
+      psi=psi,
+      psi_from_Ip=psi_from_Ip,
+      jtot=jtot,
+      jtot_face=jtot_face,
+      delta_upper_face=delta_upper_face,
+      delta_lower_face=delta_lower_face,
+      volume_hires=volume_hires,
+      area_hires=area_hires,
+      G2_hires=G2_hires,
+      spr_hires=spr_hires,
+      r_hires_norm=r_hires_norm,
+      r_hires=r_hires,
+      vpr_hires=vpr_hires,
   )
 
 
