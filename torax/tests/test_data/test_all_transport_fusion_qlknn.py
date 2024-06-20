@@ -63,7 +63,6 @@ CONFIG = {
             'Ptot': 53.0e6,
         },
         'fusion_heat_source': {},
-        'bremsstrahlung_heat_sink': {},
         'qei_source': {
             'Qei_mult': 1.0,
         },

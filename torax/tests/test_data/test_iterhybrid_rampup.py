@@ -148,7 +148,6 @@ CONFIG = {
             'el_heat_fraction': 1.0,
         },
         'fusion_heat_source': {},
-        'bremsstrahlung_heat_sink': {},
         'qei_source': {
             # multiplier for ion-electron heat exchange term for sensitivity
             'Qei_mult': 1.0,
