@@ -174,10 +174,10 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_missing_geometry_type_raises_error(self):
     with self.assertRaises(ValueError):
-      build_sim.build_geometry_from_config({})
+      build_sim.build_consistent_geometry_runtime_params_from_config({})
 
   def test_build_circular_geometry(self):
-    geo = build_sim.build_geometry_from_config({
+    geo, _ = build_sim.build_consistent_geometry_runtime_params_from_config({
         'geometry_type': 'circular',
         'nr': 5,  # override a default.
     })
@@ -186,7 +186,7 @@ class BuildSimTest(parameterized.TestCase):
     np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
 
   def test_build_geometry_from_chease(self):
-    geo = build_sim.build_geometry_from_config(
+    geo, _ = build_sim.build_consistent_geometry_runtime_params_from_config(
         {
             'geometry_type': 'chease',
             'nr': 5,  # override a default.
@@ -198,14 +198,20 @@ class BuildSimTest(parameterized.TestCase):
 
   # pylint: disable=invalid-name
   def test_chease_geometry_updates_Ip(self):
+    """Tests that the Ip is updated when using chease geometry."""
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
     original_Ip = runtime_params.profile_conditions.Ip
-    geo = build_sim.build_geometry_from_config({
-        'geometry_type': 'chease',
-        'runtime_params': runtime_params,
-        'Ip_from_parameters': False,  # this will force update runtime_params.Ip
-    })
+    geo, runtime_params = (
+        build_sim.build_consistent_geometry_runtime_params_from_config({
+            'geometry_type': 'chease',
+            'runtime_params': runtime_params,
+            'Ip_from_parameters': (
+                False
+            ),  # this will force update runtime_params.Ip
+        })
+    )
     self.assertIsInstance(geo, geometry.StandardGeometry)
+    self.assertIsNotNone(runtime_params)
     self.assertNotEqual(runtime_params.profile_conditions.Ip, original_Ip)
     # pylint: enable=invalid-name
 

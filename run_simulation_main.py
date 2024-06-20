@@ -257,8 +257,10 @@ def change_config(
     new_runtime_params = build_sim.build_runtime_params_from_config(
         sim_config['runtime_params']
     )
-    new_geo = build_sim.build_geometry_from_config(
-        sim_config['geometry'], new_runtime_params
+    new_geo, new_runtime_params = (
+        build_sim.build_geometry_from_config_and_maybe_update_runtime_params(
+            sim_config['geometry'], new_runtime_params
+        )
     )
     new_transport_model_builder = (
         build_sim.build_transport_model_builder_from_config(

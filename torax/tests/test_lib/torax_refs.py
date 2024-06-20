@@ -21,6 +21,7 @@ import chex
 from jax import numpy as jnp
 import numpy as np
 import torax
+from torax.config import build_sim
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 
@@ -212,15 +213,17 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
           },
       },
   )
-  geo = geometry.build_and_update_geometry_from_chease(
-      runtime_params=runtime_params,
-      geometry_dir=_GEO_DIRECTORY,
-      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-      nr=25,
-      Ip_from_parameters=False,
-      Rmaj=6.2,
-      Rmin=2.0,
-      B0=5.3,
+  geo, runtime_params = (
+      build_sim.build_consistent_chease_geometry_and_runtime_params(
+          runtime_params=runtime_params,
+          geometry_dir=_GEO_DIRECTORY,
+          geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+          nr=25,
+          Ip_from_parameters=False,
+          Rmaj=6.2,
+          Rmin=2.0,
+          B0=5.3,
+      )
   )
   # ground truth values copied from an example PINT execution using
   # array.astype(str),which allows fully lossless reloading
@@ -365,15 +368,17 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
           },
       },
   )
-  geo = geometry.build_and_update_geometry_from_chease(
-      runtime_params=runtime_params,
-      geometry_dir=_GEO_DIRECTORY,
-      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-      nr=25,
-      Ip_from_parameters=True,
-      Rmaj=6.2,
-      Rmin=2.0,
-      B0=5.3,
+  geo, runtime_params = (
+      build_sim.build_consistent_chease_geometry_and_runtime_params(
+          runtime_params=runtime_params,
+          geometry_dir=_GEO_DIRECTORY,
+          geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+          nr=25,
+          Ip_from_parameters=True,
+          Rmaj=6.2,
+          Rmin=2.0,
+          B0=5.3,
+      )
   )
   # ground truth values copied from an example executions using
   # array.astype(str),which allows fully lossless reloading

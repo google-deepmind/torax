@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 import enum
 
 import chex
@@ -26,8 +25,6 @@ from torax import constants
 from torax import geometry_loader
 from torax import jax_utils
 from torax import math_utils
-from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 
 
 @chex.dataclass(frozen=True)
@@ -406,62 +403,6 @@ def build_circular_geometry(
 # pylint: disable=invalid-name
 
 
-def build_and_update_geometry_from_chease(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-    Ip_from_parameters: bool = True,
-    geometry_dir: str | None = None,
-    geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-    nr: int = 25,
-    Rmaj: float = 6.2,
-    Rmin: float = 2.0,
-    B0: float = 5.3,
-    hires_fac: int = 4,
-) -> StandardGeometry:
-  """Constructs a geometry from CHEASE file and updates geometry/runtime params.
-
-  If `Ip_from_parameters` is True, the Ip from the config file is used and
-  geometry values are rescaled accordingly. Otherwise, Ip from the CHEASE file
-  is used and the runtime params are updated accordingly.
-
-  Args:
-    runtime_params: General runtime parameters.
-    Ip_from_parameters: If True, take Ip from parameter file and rescale psi.
-      Otherwise, Ip comes from CHEASE.
-    geometry_dir: Directory where to find the CHEASE file describing the
-      magnetic geometry. If None, uses the environment variable
-      TORAX_GEOMETRY_DIR if available. If that variable is not set and
-      geometry_dir is not provided, then it defaults to another dir. See
-      implementation.
-    geometry_file: CHEASE file name.
-    nr: Radial grid points (num cells)
-    Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
-      is used as an unnormalization factor.
-    Rmin: minor radius (a) in meters
-    B0: Toroidal magnetic field on axis [T].
-    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
-      calculations.
-
-  Returns:
-    A constructed Chease `StandardGeometry` object.
-  """
-  geo = build_geometry_from_chease(
-      geometry_dir=geometry_dir,
-      geometry_file=geometry_file,
-      nr=nr,
-      Rmaj=Rmaj,
-      Rmin=Rmin,
-      B0=B0,
-      hires_fac=hires_fac,
-  )
-  return update_chease_geometry_or_runtime_params(
-      runtime_params=runtime_params,
-      Ip_from_parameters=Ip_from_parameters,
-      geo=geo,
-      geometry_dir=geometry_dir,
-      geometry_file=geometry_file,
-  )
-
-
 def build_geometry_from_chease(
     geometry_dir: str | None = None,
     geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
@@ -553,62 +494,6 @@ def build_geometry_from_chease(
       nr=nr,
       hires_fac=hires_fac,
   )
-  return geo
-
-
-def update_chease_geometry_or_runtime_params(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-    *,
-    Ip_from_parameters: bool = True,
-    geo: StandardGeometry,
-    geometry_dir: str | None = None,
-    geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-) -> StandardGeometry:
-  """Updates geometry/runtime params to be consistent.
-
-  If `Ip_from_parameters` is True, the Ip from the config file is used and
-  geometry values are rescaled accordingly. Otherwise, Ip from the CHEASE file
-  is used and the runtime params are updated accordingly.
-
-  Args:
-    runtime_params: General runtime parameters.
-    Ip_from_parameters: Whether to use the Ip from the parameters file.
-    geo: Chease geometry object.
-    geometry_dir: Directory where to find the CHEASE file describing the
-      magnetic geometry. If None, uses the environment variable
-      TORAX_GEOMETRY_DIR if available. If that variable is not set and
-      geometry_dir is not provided, then it defaults to another dir. See
-      implementation.
-    geometry_file: CHEASE file name.
-
-  Returns:
-    A potentially updated StandardGeometry instance.
-  """
-  chease_data = geometry_loader.load_chease_data(geometry_dir, geometry_file)
-  Ip_chease = (
-      chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * geo.Rmaj * geo.B0
-  )
-  # if Ip from parameter file, renormalize psi to match desired current
-  if Ip_from_parameters:
-    # build t_initial runtime_params_slice
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
-    )
-    config_Ip = dynamic_runtime_params_slice.profile_conditions.Ip
-    Ip_scale_factor = config_Ip * 1e6 / Ip_chease[-1]
-    psi_from_Ip = geo.psi_from_Ip * Ip_scale_factor
-    jtot = geo.jtot * Ip_scale_factor
-    jtot_face = geo.jtot_face * Ip_scale_factor
-    geo = dataclasses.replace(
-        geo,
-        psi_from_Ip=psi_from_Ip,
-        jtot=jtot,
-        jtot_face=jtot_face,
-    )
-  else:
-    # Update the runtime_params with the CHEASE Ip value.
-    runtime_params.profile_conditions.Ip = Ip_chease[-1] / 1e6
-
   return geo
 
 

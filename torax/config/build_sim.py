@@ -15,12 +15,16 @@
 """Functions to build sim.Sim objects, which are used to run TORAX."""
 
 import copy
+import dataclasses
 from typing import Any
 
+from torax import constants
 from torax import geometry
+from torax import geometry_loader
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
+from torax.config import runtime_params_slice
 from torax.sources import default_sources
 from torax.sources import formula_config
 from torax.sources import formulas
@@ -38,6 +42,130 @@ from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_wrapper
 from torax.transport_model import transport_model as transport_model_lib
+
+
+# pylint: disable=invalid-name
+
+
+def update_chease_geometry_or_runtime_params(
+    runtime_params: runtime_params_lib.GeneralRuntimeParams,
+    *,
+    Ip_from_parameters: bool = True,
+    geo: geometry.StandardGeometry,
+    geometry_dir: str | None = None,
+    geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+) -> tuple[geometry.StandardGeometry, runtime_params_lib.GeneralRuntimeParams]:
+  """Updates geometry/runtime params to be consistent.
+
+  If `Ip_from_parameters` is True, the Ip from the config file is used and
+  geometry values are rescaled accordingly. Otherwise, Ip from the CHEASE file
+  is used and the runtime params are updated accordingly.
+
+  Args:
+    runtime_params: General runtime parameters.
+    Ip_from_parameters: Whether to use the Ip from the parameters file.
+    geo: Chease geometry object.
+    geometry_dir: Directory where to find the CHEASE file describing the
+      magnetic geometry. If None, uses the environment variable
+      TORAX_GEOMETRY_DIR if available. If that variable is not set and
+      geometry_dir is not provided, then it defaults to another dir. See
+      implementation.
+    geometry_file: CHEASE file name.
+
+  Returns:
+    A consistent geometry and runtime params where one will have been updated
+    depending on the value of `Ip_from_parameters`.
+  """
+  chease_data = geometry_loader.load_chease_data(geometry_dir, geometry_file)
+  Ip_chease = (
+      chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * geo.Rmaj * geo.B0
+  )
+  # if Ip from parameter file, renormalize psi to match desired current
+  if Ip_from_parameters:
+    # build t_initial runtime_params_slice
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+    )
+    config_Ip = dynamic_runtime_params_slice.profile_conditions.Ip
+    Ip_scale_factor = config_Ip * 1e6 / Ip_chease[-1]
+    psi_from_Ip = geo.psi_from_Ip * Ip_scale_factor
+    jtot = geo.jtot * Ip_scale_factor
+    jtot_face = geo.jtot_face * Ip_scale_factor
+    geo = dataclasses.replace(
+        geo,
+        psi_from_Ip=psi_from_Ip,
+        jtot=jtot,
+        jtot_face=jtot_face,
+    )
+  else:
+    # Update the runtime_params with the CHEASE Ip value.
+    runtime_params = config_args.recursive_replace(
+        runtime_params,
+        **{
+            'profile_conditions': {
+                'Ip': Ip_chease[-1] / 1e6,
+            },
+        },
+    )
+
+  return geo, runtime_params
+
+
+def build_consistent_chease_geometry_and_runtime_params(
+    runtime_params: runtime_params_lib.GeneralRuntimeParams,
+    Ip_from_parameters: bool = True,
+    geometry_dir: str | None = None,
+    geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+    nr: int = 25,
+    Rmaj: float = 6.2,
+    Rmin: float = 2.0,
+    B0: float = 5.3,
+    hires_fac: int = 4,
+) -> tuple[geometry.StandardGeometry, runtime_params_lib.GeneralRuntimeParams]:
+  """Constructs a geometry from CHEASE file and updates geometry/runtime params.
+
+  If `Ip_from_parameters` is True, the Ip from the config file is used and
+  geometry values are rescaled accordingly. Otherwise, Ip from the CHEASE file
+  is used and the runtime params are updated accordingly.
+
+  Args:
+    runtime_params: General runtime parameters.
+    Ip_from_parameters: If True, take Ip from parameter file and rescale psi.
+      Otherwise, Ip comes from CHEASE.
+    geometry_dir: Directory where to find the CHEASE file describing the
+      magnetic geometry. If None, uses the environment variable
+      TORAX_GEOMETRY_DIR if available. If that variable is not set and
+      geometry_dir is not provided, then it defaults to another dir. See
+      implementation.
+    geometry_file: CHEASE file name.
+    nr: Radial grid points (num cells)
+    Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
+      is used as an unnormalization factor.
+    Rmin: minor radius (a) in meters
+    B0: Toroidal magnetic field on axis [T].
+    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      calculations.
+
+  Returns:
+    A constructed Chease `StandardGeometry` object that is consistent with the
+    `runtime_params` returned depending on the value of `Ip_from_parameters`.
+  """
+  geo = geometry.build_geometry_from_chease(
+      geometry_dir=geometry_dir,
+      geometry_file=geometry_file,
+      nr=nr,
+      Rmaj=Rmaj,
+      Rmin=Rmin,
+      B0=B0,
+      hires_fac=hires_fac,
+  )
+  return update_chease_geometry_or_runtime_params(
+      runtime_params=runtime_params,
+      Ip_from_parameters=Ip_from_parameters,
+      geo=geo,
+      geometry_dir=geometry_dir,
+      geometry_file=geometry_file,
+  )
 
 
 def build_sim_from_config(
@@ -108,9 +236,13 @@ def build_sim_from_config(
         f'The following required keys are not in the input dict: {missing_keys}'
     )
   runtime_params = build_runtime_params_from_config(config['runtime_params'])
+  geo, runtime_params = build_consistent_geometry_runtime_params_from_config(
+      config['geometry'],
+      runtime_params,
+  )
   return sim_lib.build_sim_object(
       runtime_params=runtime_params,
-      geo=build_geometry_from_config(config['geometry'], runtime_params),
+      geo=geo,
       source_models_builder=build_sources_builder_from_config(
           config['sources']
       ),
@@ -147,10 +279,10 @@ def build_runtime_params_from_config(
   )
 
 
-def build_geometry_from_config(
+def build_consistent_geometry_runtime_params_from_config(
     geometry_config: dict[str, Any] | str,
     runtime_params: runtime_params_lib.GeneralRuntimeParams | None = None,
-) -> geometry.Geometry:
+) -> tuple[geometry.Geometry, runtime_params_lib.GeneralRuntimeParams | None]:
   """Builds a `Geometry` from the input config.
 
   The input config has one required key: `geometry_type`. Its value must be one
@@ -173,7 +305,8 @@ def build_geometry_from_config(
       `runtime_params` for chease geometry.
 
   Returns:
-    A `Geometry` based on the input config.
+    A `Geometry` based on the input config that and `runtime_params` that is
+    consistent with the geometry.
   """
   if isinstance(geometry_config, str):
     kwargs = {'geometry_type': geometry_config}
@@ -185,11 +318,11 @@ def build_geometry_from_config(
     kwargs = copy.copy(geometry_config)
   geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
   if geometry_type == 'circular':
-    return geometry.build_circular_geometry(**kwargs)
+    return geometry.build_circular_geometry(**kwargs), runtime_params
   elif geometry_type == 'chease':
     if runtime_params is not None:
       kwargs['runtime_params'] = runtime_params
-    return geometry.build_and_update_geometry_from_chease(**kwargs)
+    return build_consistent_chease_geometry_and_runtime_params(**kwargs)
   raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 
