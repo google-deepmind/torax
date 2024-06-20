@@ -549,9 +549,9 @@ class IonElectronSource(Source):
 
   # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
-      AffectedCoreProfile.TEMP_ION,
-      AffectedCoreProfile.TEMP_EL,
+  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
+      init=False,
+      default=(AffectedCoreProfile.TEMP_ION, AffectedCoreProfile.TEMP_EL,),
   )
 
   # Don't include output_shape_getter in the __init__ arguments.
