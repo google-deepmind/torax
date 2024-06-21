@@ -25,6 +25,10 @@ from torax import interpolated_param
 # Type-alias for clarity. While the InterpolatedVar1ds can vary across any
 # field, in here, we mainly use it to handle time-dependent parameters.
 TimeInterpolatedScalar = interpolated_param.TimeInterpolatedScalar
+# Type-alias for clarity for time-and-rho-dependent parameters.
+TimeInterpolatedArray = (
+    interpolated_param.TimeInterpolatedArray
+)
 # Type-alias for brevity.
 InterpolationMode = interpolated_param.InterpolationMode
 InterpolatedVar1d = interpolated_param.InterpolatedVar1d
@@ -61,6 +65,9 @@ class ProfileConditions:
   # Prescribed values for r=0. When evolving, then is initial condition.
   Te_bound_left: TimeInterpolatedScalar = 15.0
   Ti_bound_left: TimeInterpolatedScalar = 15.0
+  # Prescribed or evolving values for r.
+  Ti: TimeInterpolatedArray | None = None
+  Te: TimeInterpolatedArray | None = None
 
   # Peaking factor of density profile.
   # If density evolves with PDE (dens_eq=True), then is initial condition

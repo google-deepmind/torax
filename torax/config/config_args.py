@@ -24,6 +24,7 @@ from typing import Any
 
 import chex
 from jax import numpy as jnp
+from torax import geometry
 from torax import interpolated_param
 
 
@@ -109,10 +110,65 @@ def interpolate_var_1d(
   return param_or_param_input.get_value(t)
 
 
+def input_is_an_interpolated_var_2d(
+    field_name: str,
+    input_config_fields_to_types: dict[str, Any],
+) -> bool:
+  """Returns True if the input config field is a TimeInterpolatedArray."""
+  if field_name not in input_config_fields_to_types:
+    return False
+
+  def _check(ft):
+    """Checks if the input field type is an InterpolatedVar2d."""
+    try:
+      return (
+          # If the type comes as a string rather than an object, the Union check
+          # below won't work, so we check for the full name here.
+          ft == 'TimeInterpolatedArray'
+          or
+          # Common alias for TimeInterpolatedArray in a few files.
+          (isinstance(ft, str) and 'TimeInterpolatedArray' in ft)
+          or
+          # Otherwise, only check if it is actually the InterpolatedVar2d.
+          ft == 'interpolated_param.InterpolatedVar2d'
+          or issubclass(ft, interpolated_param.InterpolatedVar2d)
+      )
+    except:  # pylint: disable=bare-except
+      # issubclass does not play nicely with generics, but if a type is a
+      # generic at this stage, it is not an InterpolatedVar2d.
+      return False
+
+  field_type = input_config_fields_to_types[field_name]
+  if isinstance(field_type, types.UnionType):
+    # Look at all the args of the union and see if any match properly
+    for arg in typing.get_args(field_type):
+      if _check(arg):
+        return True
+  else:
+    return _check(field_type)
+
+
+def interpolate_var_2d(
+    param_or_param_input: interpolated_param.TimeInterpolatedArray,
+    t: chex.Numeric,
+    geo: geometry.Geometry,
+) -> jnp.ndarray:
+  """Interpolates the input param at time t and rho_norm for the current geo."""
+  if not isinstance(
+      param_or_param_input, interpolated_param.InterpolatedVar2d
+  ):
+    # Dealing with a param input so convert it first.
+    param_or_param_input = interpolated_param.InterpolatedVar2d(
+        values=param_or_param_input,
+    )
+  return param_or_param_input.get_value(t, geo.mesh.cell_centers)
+
+
 def get_init_kwargs(
     input_config: ...,
     output_type: ...,
     t: chex.Numeric | None = None,
+    geo: geometry.Geometry | None = None,
     skip: tuple[str, ...] = (),
 ) -> dict[str, Any]:
   """Builds init() kwargs based on the input config for all non-dict fields."""
@@ -136,6 +192,15 @@ def get_init_kwargs(
       if t is None:
         raise ValueError('t must be specified for interpolated params')
       config_val = interpolate_var_1d(config_val, t)
+    elif input_is_an_interpolated_var_2d(
+        field.name, input_config_fields_to_types
+    ):
+      if config_val is not None:
+        if t is None:
+          raise ValueError('t must be specified for interpolated params')
+        if geo is None:
+          raise ValueError('geo must be specified for interpolated params')
+        config_val = interpolate_var_2d(config_val, t, geo)
     elif input_is_a_float_field(field.name, input_config_fields_to_types):
       config_val = float(config_val)
     elif isinstance(config_val, enum.Enum):

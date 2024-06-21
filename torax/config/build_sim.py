@@ -84,7 +84,10 @@ def update_chease_geometry_or_runtime_params(
   if Ip_from_parameters:
     # build t_initial runtime_params_slice
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            geo=geo,
+        )
     )
     config_Ip = dynamic_runtime_params_slice.profile_conditions.Ip
     Ip_scale_factor = config_Ip * 1e6 / Ip_chease[-1]

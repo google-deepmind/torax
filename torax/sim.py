@@ -257,10 +257,11 @@ class SimulationStepFn:
            2 if solver converged within coarse tolerance. Allowed to pass with a
              warning. Occasional error=2 has low impact on final sim state.
     """
-    dynamic_runtime_params_slice_t = dynamic_runtime_params_slice_provider(
-        input_state.t
-    )
     geo_t = geometry_provider(input_state.t)
+    dynamic_runtime_params_slice_t = dynamic_runtime_params_slice_provider(
+        input_state.t,
+        geo_t,
+    )
     # TODO(b/335598388): We call the transport model both here and in the the
     # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
     # calls fall within the same jit scope* because can use
@@ -300,12 +301,12 @@ class SimulationStepFn:
 
     # The stepper needs the dynamic_runtime_params_slice at time t + dt for
     # implicit computations in the solver.
+    geo_t_plus_dt = geometry_provider(input_state.t + dt)
     dynamic_runtime_params_slice_t_plus_dt = (
         dynamic_runtime_params_slice_provider(
-            input_state.t + dt,
+            input_state.t + dt, geo_t_plus_dt,
         )
     )
-    geo_t_plus_dt = geometry_provider(input_state.t + dt)
 
     core_profiles_t = input_state.core_profiles
 
@@ -374,12 +375,13 @@ class SimulationStepFn:
         if dt < dynamic_runtime_params_slice_t.numerics.mindt:
           raise ValueError('dt below minimum timestep following adaptation')
 
+        geo_t_plus_dt = geometry_provider(input_state.t + dt)
         dynamic_runtime_params_slice_t_plus_dt = (
             dynamic_runtime_params_slice_provider(
                 input_state.t + dt,
+                geo_t_plus_dt,
             )
         )
-        geo_t_plus_dt = geometry_provider(input_state.t + dt)
         core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
             core_profiles_t=core_profiles_t,
             dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
@@ -415,7 +417,7 @@ class SimulationStepFn:
     # Update total current, q, and s profiles based on new psi
     dynamic_runtime_params_slice_t_plus_dt = (
         dynamic_runtime_params_slice_provider(
-            input_state.t + output_state.dt,
+            input_state.t + output_state.dt, geo_t_plus_dt,
         )
     )
     geo_t_plus_dt = geometry_provider(input_state.t + output_state.dt)
@@ -678,7 +680,7 @@ def build_sim_object(
 
   # build dynamic_runtime_params_slice at t_initial for initial conditions
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      runtime_params.numerics.t_initial
+      runtime_params.numerics.t_initial, geo=geo,
   )
   initial_state = get_initial_state(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -775,10 +777,10 @@ def run_simulation(
       initial_state,
   ]
   stepper_error_state = 0
-  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      initial_state.t
-  )
   geo = geometry_provider(initial_state.t)
+  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
+      initial_state.t, geo=geo,
+  )
 
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
@@ -857,8 +859,9 @@ def run_simulation(
     )
     stepper_error_state = sim_state.stepper_error_state
     # Update the runtime config for the next iteration.
+    geo = geometry_provider(sim_state.t)
     dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-        sim_state.t
+        sim_state.t, geo=geo,
     )
     geo = geometry_provider(sim_state.t)
     torax_outputs.append(sim_state)

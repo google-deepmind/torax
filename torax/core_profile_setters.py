@@ -52,12 +52,15 @@ def _updated_ti(
       dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
       'Ti_bound_right',
   )
-  temp_ion_face = jnp.linspace(
-      start=Ti_bound_left,
-      stop=Ti_bound_right,
-      num=geo.mesh.nx + 1,
-  )
-  temp_ion = geometry.face_to_cell(temp_ion_face)
+  if dynamic_runtime_params_slice.profile_conditions.Ti is not None:
+    temp_ion = dynamic_runtime_params_slice.profile_conditions.Ti
+  else:
+    temp_ion_face = jnp.linspace(
+        start=Ti_bound_left,
+        stop=Ti_bound_right,
+        num=geo.mesh.nx + 1,
+    )
+    temp_ion = geometry.face_to_cell(temp_ion_face)
   temp_ion = cell_variable.CellVariable(
       value=temp_ion,
       left_face_grad_constraint=jnp.zeros(()),
@@ -83,12 +86,15 @@ def _updated_te(
       dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
       'Te_bound_right',
   )
-  temp_el_face = jnp.linspace(
-      start=Te_bound_left,
-      stop=Te_bound_right,
-      num=geo.mesh.nx + 1,
-  )
-  temp_el = geometry.face_to_cell(temp_el_face)
+  if dynamic_runtime_params_slice.profile_conditions.Te is not None:
+    temp_el = dynamic_runtime_params_slice.profile_conditions.Te
+  else:
+    temp_el_face = jnp.linspace(
+        start=Te_bound_left,
+        stop=Te_bound_right,
+        num=geo.mesh.nx + 1,
+    )
+    temp_el = geometry.face_to_cell(temp_el_face)
   temp_el = cell_variable.CellVariable(
       value=temp_el,
       left_face_grad_constraint=jnp.zeros(()),

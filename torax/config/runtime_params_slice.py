@@ -41,6 +41,7 @@ from collections.abc import Mapping
 from typing import Callable
 
 import chex
+from torax import geometry
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.sources import runtime_params as sources_params
@@ -162,6 +163,9 @@ class DynamicProfileConditions:
   # or from the psi available in the numerical geometry file. This setting is
   # ignored for the ad-hoc circular geometry, which has no numerical geometry.
   initial_psi_from_j: bool
+  # Prescribed values for r.
+  Te: chex.Array | None = None
+  Ti: chex.Array | None = None
 
 
 @chex.dataclass
@@ -255,6 +259,7 @@ def build_dynamic_runtime_params_slice(
     sources: dict[str, sources_params.RuntimeParams] | None = None,
     stepper: stepper_params.RuntimeParams | None = None,
     t: chex.Numeric | None = None,
+    geo: geometry.Geometry | None = None,
 ) -> DynamicRuntimeParamsSlice:
   """Builds a DynamicRuntimeParamsSlice."""
   transport = transport or transport_model_params.RuntimeParams()
@@ -280,6 +285,7 @@ def build_dynamic_runtime_params_slice(
               input_config=runtime_params.profile_conditions,
               output_type=DynamicProfileConditions,
               t=t,
+              geo=geo,
           )
       ),
       numerics=DynamicNumerics(
@@ -359,6 +365,7 @@ class DynamicRuntimeParamsSliceProvider:
   def __call__(
       self,
       t: chex.Numeric,
+      geo: geometry.Geometry | None = None,
   ) -> DynamicRuntimeParamsSlice:
     """Returns a DynamicRuntimeParamsSlice to use during time t of the sim."""
     return build_dynamic_runtime_params_slice(
@@ -367,4 +374,5 @@ class DynamicRuntimeParamsSliceProvider:
         sources=self._sources_getter(),
         stepper=self._stepper_getter(),
         t=t,
+        geo=geo,
     )

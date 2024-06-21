@@ -321,7 +321,7 @@ def update_sim(
   )
   initial_state = sim_lib.get_initial_state(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-          t=runtime_params.numerics.t_initial
+          t=runtime_params.numerics.t_initial, geo=geo,
       ),
       geo=geo,
       time_step_calculator=sim.time_step_calculator,

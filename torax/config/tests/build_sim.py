@@ -81,7 +81,7 @@ class BuildSimTest(parameterized.TestCase):
         )
     )
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        sim.initial_state.t
+        sim.initial_state.t, geo=sim.geometry_provider(sim.initial_state.t)
     )
     with self.subTest('runtime_params'):
       self.assertEqual(dynamic_runtime_params_slice.plasma_composition.Ai, 0.1)
