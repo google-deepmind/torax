@@ -53,7 +53,7 @@ class GeometryTest(parameterized.TestCase):
     """Test that the Geometry class is frozen."""
     geo = geometry.build_circular_geometry()
     with self.assertRaises(dataclasses.FrozenInstanceError):
-      geo.dr = 1.0
+      geo.dr_norm = 0.1
 
   def test_circular_geometry_can_be_input_to_jitted_function(self):
     """Test that a circular geometry can be input to a jitted function."""

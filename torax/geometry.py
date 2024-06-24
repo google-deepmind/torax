@@ -113,13 +113,10 @@ class Geometry:
 
   geometry_type: int
   dr_norm: jax.Array
-  dr: jax.Array
   mesh: Grid1D
   rmax: jnp.ndarray
   r_face_norm: jnp.ndarray
   r_norm: jnp.ndarray
-  r_face: jnp.ndarray
-  r: jnp.ndarray
   Rmaj: jnp.ndarray
   Rmin: jnp.ndarray
   B0: jnp.ndarray
@@ -138,11 +135,6 @@ class Geometry:
   g0_face: jnp.ndarray
   g1: jnp.ndarray
   g1_face: jnp.ndarray
-  g0_over_vpr_face: jnp.ndarray
-  g1_over_vpr: jnp.ndarray
-  g1_over_vpr_face: jnp.ndarray
-  g1_over_vpr2: jnp.ndarray
-  g1_over_vpr2_face: jnp.ndarray
   J: jnp.ndarray
   J_face: jnp.ndarray
   F: jnp.ndarray
@@ -158,6 +150,47 @@ class Geometry:
   r_hires_norm: jnp.ndarray
   r_hires: jnp.ndarray
   vpr_hires: jnp.ndarray
+
+  @property
+  def r_face(self) -> jnp.ndarray:
+    return self.r_face_norm * self.rmax
+
+  @property
+  def r(self) -> jnp.ndarray:
+    return self.r_norm * self.rmax
+
+  @property
+  def dr(self) -> jnp.ndarray:
+    return self.dr_norm * self.rmax
+
+  @property
+  def g1_over_vpr(self) -> jnp.ndarray:
+    return self.g1 / self.vpr
+
+  @property
+  def g1_over_vpr2(self) -> jnp.ndarray:
+    return self.g1 / self.vpr**2
+
+  @property
+  def g0_over_vpr_face(self) -> jnp.ndarray:
+    return jnp.concatenate((
+        jnp.ones(1),  # correct value is unity on-axis
+        self.g0_face[1:] / self.vpr_face[1:],  # avoid div by zero on-axis
+    ))
+
+  @property
+  def g1_over_vpr_face(self) -> jnp.ndarray:
+    return jnp.concatenate((
+        jnp.zeros(1),  # correct value is zero on-axis
+        self.g1_face[1:] / self.vpr_face[1:],  # avoid div by zero on-axis
+    ))
+
+  @property
+  def g1_over_vpr2_face(self) -> jnp.ndarray:
+    return jnp.concatenate((
+        jnp.ones(1),  # correct value is unity on-axis
+        self.g1_face[1:] / self.vpr_face[1:] ** 2,  # avoid div by zero on-axis
+    ))
 
 
 @chex.dataclass(frozen=True)
@@ -229,7 +262,6 @@ def build_circular_geometry(
   # r coordinate of cell centers
   r_norm = mesh.cell_centers
 
-  dr = dr_norm * rmax
   r_face = r_face_norm * rmax
   r = r_norm * rmax
   Rmaj = jnp.array(Rmaj)
@@ -330,31 +362,14 @@ def build_circular_geometry(
   denom = 4 * jnp.pi**2 * Rmaj**2 * (1 - (r_hires / Rmaj) ** 2) ** (3.0 / 2.0)
   G2_hires = vpr_hires / denom
 
-  # terms applied in transport equations and dt calculation.
-  g1_over_vpr = g1 / vpr
-  g1_over_vpr2 = g1 / vpr**2
-
-  # initialization with zero to avoid div by zero on-axis (r=0)
-
-  g0_over_vpr_face = g0_face[1:] / vpr_face[1:]
-  g0_over_vpr_face = jnp.concatenate([jnp.ones(1), g0_over_vpr_face])
-
-  g1_over_vpr_face = g1_face[1:] / vpr_face[1:]
-  g1_over_vpr2_face = g1_face[1:] / vpr_face[1:] ** 2
-  g1_over_vpr_face = jnp.concatenate([jnp.zeros(1), g1_over_vpr_face])
-  g1_over_vpr2_face = jnp.concatenate([jnp.ones(1), g1_over_vpr2_face])
-
   return CircularAnalyticalGeometry(
       # Set the standard geometry params.
       geometry_type=GeometryType.CIRCULAR.value,
       dr_norm=dr_norm,
-      dr=dr,
       mesh=mesh,
       rmax=rmax,
       r_face_norm=r_face_norm,
       r_norm=r_norm,
-      r_face=r_face,
-      r=r,
       Rmaj=Rmaj,
       Rmin=rmax,
       B0=B0,
@@ -373,11 +388,6 @@ def build_circular_geometry(
       g0_face=g0_face,
       g1=g1,
       g1_face=g1_face,
-      g0_over_vpr_face=g0_over_vpr_face,
-      g1_over_vpr=g1_over_vpr,
-      g1_over_vpr_face=g1_over_vpr_face,
-      g1_over_vpr2=g1_over_vpr2,
-      g1_over_vpr2_face=g1_over_vpr2_face,
       J=J,
       J_face=J_face,
       F=F,
@@ -625,10 +635,6 @@ def build_standard_geometry(
   r_face_norm = mesh.face_centers
   r_norm = mesh.cell_centers
 
-  dr = dr_norm * rmax
-  r_face = r_face_norm * rmax
-  r = r_norm * rmax
-
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
   r_hires_norm = jnp.linspace(0, 1, nr * hires_fac)
@@ -712,33 +718,13 @@ def build_standard_geometry(
   area_hires = interp_func(r_hires_norm)
   area = interp_func(r_norm)
 
-  # repeated terms in transport equations. Efficient to preevaluate
-
-  g0_over_vpr_face = jnp.concatenate((
-      jnp.ones(1),  # correct value is unity on-axis
-      g0_face[1:] / vpr_face[1:],  # avoid div by zero on-axis
-  ))
-
-  g1_over_vpr = g1 / vpr
-  g1_over_vpr2 = g1 / vpr**2
-  g1_over_vpr_face = jnp.concatenate((
-      jnp.zeros(1),  # correct value is zero on-axis
-      g1_face[1:] / vpr_face[1:],  # avoid div by zero on-axis
-  ))
-  g1_over_vpr2_face = jnp.concatenate((
-      jnp.ones(1),  # correct value is unity on-axis
-      g1_face[1:] / vpr_face[1:] ** 2,  # avoid div by zero on-axis
-  ))
   return StandardGeometry(
       geometry_type=GeometryType.CHEASE.value,
       dr_norm=dr_norm,
-      dr=dr,
       mesh=mesh,
       rmax=rmax,
       r_face_norm=r_face_norm,
       r_norm=r_norm,
-      r_face=r_face,
-      r=r,
       Rmaj=jnp.array(Rmaj),
       Rmin=jnp.array(Rmin),
       B0=jnp.array(B),
@@ -757,11 +743,6 @@ def build_standard_geometry(
       g0_face=g0_face,
       g1=g1,
       g1_face=g1_face,
-      g0_over_vpr_face=g0_over_vpr_face,
-      g1_over_vpr=g1_over_vpr,
-      g1_over_vpr_face=g1_over_vpr_face,
-      g1_over_vpr2=g1_over_vpr2,
-      g1_over_vpr2_face=g1_over_vpr2_face,
       J=J,
       J_face=J_face,
       F=F,
