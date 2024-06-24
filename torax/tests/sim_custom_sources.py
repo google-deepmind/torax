@@ -127,6 +127,9 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         runtime_params_lib.Mode.ZERO
     )
+    source_models_builder.runtime_params['bremsstrahlung_heat_sink'].mode = (
+        runtime_params_lib.Mode.ZERO
+    )
 
     # Add the custom source with the correct params, but keep it turned off to
     # start.

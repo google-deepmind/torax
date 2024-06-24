@@ -96,6 +96,7 @@ class SourceProfilesTest(parameterized.TestCase):
         profiles={
             'generic_ion_el_heat_source': jnp.stack([ones, ones * 2]),
             'fusion_heat_source': jnp.stack([ones * 3, ones * 4]),
+            'bremsstrahlung_heat_sink': -ones,
             'ohmic_heat_source': ones * 5,  # only used for electron temp.
         },
     )
@@ -107,7 +108,7 @@ class SourceProfilesTest(parameterized.TestCase):
       summed_temp_el = source_models_lib.sum_sources_temp_el(
           geo, profiles, source_models
       )
-      np.testing.assert_allclose(summed_temp_el, ones * 11 * geo.vpr)
+      np.testing.assert_allclose(summed_temp_el, ones * 10 * geo.vpr)
 
     with self.subTest('with_jit'):
       sum_temp_ion = jax.jit(
@@ -121,7 +122,7 @@ class SourceProfilesTest(parameterized.TestCase):
           static_argnames=['source_models'],
       )
       jitted_temp_el = sum_temp_el(geo, profiles, source_models)
-      np.testing.assert_allclose(jitted_temp_el, ones * 11 * geo.vpr)
+      np.testing.assert_allclose(jitted_temp_el, ones * 10 * geo.vpr)
 
   def test_custom_source_profiles_dont_change_when_jitted(self):
     """Test that custom source profiles don't change profiles when jitted."""

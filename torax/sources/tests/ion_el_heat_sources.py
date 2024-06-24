@@ -21,21 +21,6 @@ from torax.sources import source
 from torax.sources.tests import test_lib
 
 
-class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
-  """Tests for BremsstrahlungHeatSink."""
-
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=ion_el_heat_sources.BremsstrahlungHeatSink,
-        source_class_builder=ion_el_heat_sources.BremsstrahlungHeatSinkBuilder,
-        unsupported_modes=[
-            runtime_params.Mode.MODEL_BASED,
-        ],
-        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
-    )
-
-
 class ChargeExchangeHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   """Tests for ChargeExchangeHeatSink."""
 

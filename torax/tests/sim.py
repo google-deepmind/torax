@@ -230,6 +230,14 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests Bremsstrahlung heat sink. CHEASE geometry.
+      (
+          'test_bremsstrahlung',
+          'test_bremsstrahlung.py',
+          'test_bremsstrahlung.nc',
+          _ALL_PROFILES,
+          0,
+      ),
       # Tests ion-electron heat exchange test at high density. CHEASE geometry.
       (
           'test_qei_chease_highdens',

@@ -294,5 +294,11 @@ Future work envisages coupling physics-based models and/or ML-surrogates.
 
 Radiation
 ---------
-Currently, TORAX does not include dedicated models e.g. for cyclotron radiation,
-Bremsstrahlung, recombination, or line radiation are yet coupled to TORAX. This is left for future work.
+Currently, TORAX only has a dedicated model for Bremsstrahlung. Models for cyclotron radiation,
+recombination, and line radiation are still left for future work.
+
+Bremsstrahlung
+^^^^^^^^^^^^^^
+
+Uses the model from Wesson, John, and David J. Campbell. Tokamaks. Vol. 149.
+An optional correction for relativistic effects from Stott PPCF 2005 can be enabled with the flag "use_relativistic_correction".

@@ -375,7 +375,8 @@ model are defined.
 constant
 ^^^^^^^^
 
-Runtime parameters for the constant chi transport model
+Runtime parameters for the constant chi transport model, defined within a
+``constant_params`` dict nested within the transport dict.
 
 ``chii_const`` (float = 1.0), **time-varying**
   Ion heat conductivity. In units of :math:`m^2/s`.
@@ -392,7 +393,8 @@ Runtime parameters for the constant chi transport model
 CGM
 ^^^
 
-Runtime parameters for the Critical Gradient Model (CGM).
+Runtime parameters for the Critical Gradient Model (CGM), defined within a
+``cgm_params`` dict nested within the transport dict.
 
 ``CGMalpha`` (float = 2.0)
   Exponent of chi power law: :math:`\chi \propto (R/L_{Ti} - R/L_{Ti_crit})^\alpha`.
@@ -409,7 +411,8 @@ Runtime parameters for the Critical Gradient Model (CGM).
 qlknn
 ^^^^^
 
-Runtime parameters for the QLKNN10D model.
+Runtime parameters for the QLKNN10D model, defined within a
+``qlknn_params`` dict nested within the transport dict
 
 ``model_path`` (str = '')
   Path to the model. If not provided, the path will be set from
@@ -650,6 +653,15 @@ Generic external current profile, parameterized as a Gaussian (e.g. ECCD).
 ``use_absolute_jext`` (bool = False)
   Toggles relative vs absolute external current setting.
 
+bremsstrahlung_heat_sink
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Bremsstrahlung model from Wesson, with an optional correction for relativistic effects from Stott PPCF 2005.
+
+``mode`` (str = 'model')
+
+``use_relativistic_correction`` (bool = False)
+
 The following sources defined in TORAX but not yet implemented. They are listed here for completeness.
 
 ECRHHeatSource
@@ -669,9 +681,6 @@ NBIIonHeatSource
 
 LineRadiationHeatSink
 ^^^^^^^^^^^^^^^^^^^^^
-
-BremsstrahlungHeatSink
-^^^^^^^^^^^^^^^^^^^^^^
 
 CyclotronRadiationHeatSink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

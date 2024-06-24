@@ -31,11 +31,6 @@ from torax.sources import source
 
 
 @dataclasses.dataclass(kw_only=True)
-class BremsstrahlungHeatSink(source.SingleProfileTempElSource):
-  """Bremsstrahlung loss sink for the electron temp equation."""
-
-
-@dataclasses.dataclass(kw_only=True)
 class ChargeExchangeHeatSink(source.SingleProfileTempIonSource):
   """Charge exchange loss term for the ion temp equation."""
 
@@ -79,9 +74,6 @@ class NBIIonHeatSource(source.SingleProfileTempIonSource):
 class RecombinationHeatSink(source.SingleProfileTempElSource):
   """Recombination loss sink for the electron temp equation."""
 
-BremsstrahlungHeatSinkBuilder = source.make_source_builder(
-    BremsstrahlungHeatSink
-)
 ChargeExchangeHeatSinkBuilder = source.make_source_builder(
     ChargeExchangeHeatSink
 )

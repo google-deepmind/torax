@@ -23,6 +23,7 @@ tweaks added on top.
 
 from typing import Any
 from torax.sources import bootstrap_current_source
+from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import electron_density_sources
 from torax.sources import external_current_source
 from torax.sources import fusion_heat_source
@@ -74,6 +75,10 @@ def get_default_runtime_params(
       return runtime_params_lib.RuntimeParams(
           mode=runtime_params_lib.Mode.MODEL_BASED,
       )
+    case 'bremsstrahlung_heat_sink':
+      return bremsstrahlung_heat_sink.RuntimeParams(
+          mode=runtime_params_lib.Mode.MODEL_BASED,
+      )
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
 
@@ -99,6 +104,8 @@ def get_source_type(source_name: str) -> type[source.Source]:
       return qei_source.QeiSource
     case 'ohmic_heat_source':
       return source_models_lib.OhmicHeatSource
+    case 'bremsstrahlung_heat_sink':
+      return bremsstrahlung_heat_sink.BremsstrahlungHeatSink
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
 
@@ -142,6 +149,7 @@ def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
       'qei_source',
       # Ohmic heat source
       'ohmic_heat_source',
+      'bremsstrahlung_heat_sink',
   ]
   # pylint: disable=missing-kwoa
   # pytype: disable=missing-parameter
@@ -186,6 +194,9 @@ def get_source_builder_type(source_name: str) -> Any:
 
     case 'ohmic_heat_source':
       return source_models_lib.OhmicHeatSourceBuilder
+
+    case 'bremsstrahlung_heat_sink':
+      return bremsstrahlung_heat_sink.BremsstrahlungHeatSinkBuilder
 
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
