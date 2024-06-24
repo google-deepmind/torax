@@ -549,6 +549,7 @@ def main(_):
     simulation_app.log_to_stdout(
         f'Error ocurred: {ve}',
         color=simulation_app.AnsiColors.RED,
+        exc_info=True,
     )
     simulation_app.log_to_stdout(
         'Not running sim. Update config and try again.',

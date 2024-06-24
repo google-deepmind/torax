@@ -196,7 +196,7 @@ def prepare_qualikiz_inputs(
     runtime_config_inputs: QLKNNRuntimeConfigInputs,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> dict[str, jnp.ndarray]:
+) -> dict[str, chex.Array]:
   """Prepare Qualikiz inputs."""
   constants = constants_module.CONSTANTS
 

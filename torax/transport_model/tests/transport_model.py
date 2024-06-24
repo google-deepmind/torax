@@ -149,10 +149,12 @@ class TransportSmoothingTest(parameterized.TestCase):
     self.assertAlmostEqual(
         transport_coeffs['chi_face_ion'][inner_patch_idx + test_idx],
         chi_face_ion_orig_smoothed_test_r.sum(),
+        places=6,
     )
     self.assertAlmostEqual(
         transport_coeffs['chi_face_el'][inner_patch_idx + test_idx],
         chi_face_el_orig_smoothed_test_r.sum(),
+        places=6,
     )
     self.assertAlmostEqual(
         transport_coeffs['d_face_el'][inner_patch_idx + test_idx],

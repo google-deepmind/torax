@@ -18,8 +18,9 @@ This module contains problem-specific calculations that set up e.g.
 coefficients on terms in a differential equation, as opposed to more
 general differential equation solver functionality.
 """
-
 import dataclasses
+
+import chex
 import jax
 from jax import numpy as jnp
 from torax import constants
@@ -140,7 +141,7 @@ def calc_q_from_jtot_psi(
     psi: cell_variable.CellVariable,
     jtot_face: jax.Array,
     q_correction_factor: float,
-) -> tuple[jnp.ndarray, jnp.ndarray]:
+) -> tuple[chex.Array, chex.Array]:
   """Calculates the q-profile (q) given current (jtot) and poloidal flux (psi).
 
   We don't simply pass a `CoreProfiles` instance because this needs to be called
@@ -181,7 +182,7 @@ def calc_q_from_jtot_psi(
 def calc_jtot_from_psi(
     geo: Geometry,
     psi: cell_variable.CellVariable,
-) -> tuple[jnp.ndarray, jnp.ndarray]:
+) -> tuple[chex.Array, chex.Array]:
   """Calculates current (jtot) from poloidal flux (psi).
 
   Args:

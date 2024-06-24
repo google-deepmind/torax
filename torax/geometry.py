@@ -21,10 +21,11 @@ import enum
 import chex
 import jax
 import jax.numpy as jnp
+import numpy as np
+import scipy
 from torax import constants
 from torax import geometry_loader
 from torax import jax_utils
-from torax import math_utils
 
 
 @chex.dataclass(frozen=True)
@@ -41,9 +42,9 @@ class Grid1D:
   """
 
   nx: int
-  dx: jax.Array
-  face_centers: jax.Array
-  cell_centers: jax.Array
+  dx: chex.Array
+  face_centers: chex.Array
+  cell_centers: chex.Array
 
   def __post_init__(self):
     jax_utils.assert_rank(self.nx, 0)
@@ -52,7 +53,7 @@ class Grid1D:
     jax_utils.assert_rank(self.cell_centers, 1)
 
   @classmethod
-  def construct(cls, nx: int, dx: jnp.ndarray) -> Grid1D:
+  def construct(cls, nx: int, dx: chex.Array) -> Grid1D:
     """Constructs a Grid1D.
 
     Args:
@@ -69,21 +70,21 @@ class Grid1D:
     return Grid1D(
         nx=nx,
         dx=dx,
-        face_centers=jnp.linspace(0, nx * dx, nx + 1),
-        cell_centers=jnp.linspace(dx * 0.5, (nx - 0.5) * dx, nx),
+        face_centers=np.linspace(0, nx * dx, nx + 1),
+        cell_centers=np.linspace(dx * 0.5, (nx - 0.5) * dx, nx),
     )
 
 
-def face_to_cell(face: jax.Array) -> jax.Array:
+def face_to_cell(face: chex.Array) -> chex.Array:
   """Infers cell values corresponding to a vector of face values.
 
   Simply a linear interpolation between face values.
 
   Args:
-    face: jnp.ndarray containing face values.
+    face: An array containing face values.
 
   Returns:
-    cell: A jnp.ndarray containing cell values.
+    cell: An array containing cell values.
   """
 
   return 0.5 * (face[:-1] + face[1:])
@@ -112,81 +113,81 @@ class Geometry:
   """
 
   geometry_type: int
-  dr_norm: jax.Array
+  dr_norm: chex.Array
   mesh: Grid1D
-  rmax: jnp.ndarray
-  r_face_norm: jnp.ndarray
-  r_norm: jnp.ndarray
-  Rmaj: jnp.ndarray
-  Rmin: jnp.ndarray
-  B0: jnp.ndarray
-  volume: jnp.ndarray
-  volume_face: jnp.ndarray
-  area: jnp.ndarray
-  area_face: jnp.ndarray
-  vpr: jnp.ndarray
-  vpr_face: jnp.ndarray
-  spr_cell: jnp.ndarray
-  spr_face: jnp.ndarray
-  delta_face: jnp.ndarray
-  G2: jnp.ndarray
-  G2_face: jnp.ndarray
-  g0: jnp.ndarray
-  g0_face: jnp.ndarray
-  g1: jnp.ndarray
-  g1_face: jnp.ndarray
-  J: jnp.ndarray
-  J_face: jnp.ndarray
-  F: jnp.ndarray
-  F_face: jnp.ndarray
-  Rin: jnp.ndarray
-  Rin_face: jnp.ndarray
-  Rout: jnp.ndarray
-  Rout_face: jnp.ndarray
-  volume_hires: jnp.ndarray
-  area_hires: jnp.ndarray
-  G2_hires: jnp.ndarray
-  spr_hires: jnp.ndarray
-  r_hires_norm: jnp.ndarray
-  r_hires: jnp.ndarray
-  vpr_hires: jnp.ndarray
+  rmax: chex.Array
+  r_face_norm: chex.Array
+  r_norm: chex.Array
+  Rmaj: chex.Array
+  Rmin: chex.Array
+  B0: chex.Array
+  volume: chex.Array
+  volume_face: chex.Array
+  area: chex.Array
+  area_face: chex.Array
+  vpr: chex.Array
+  vpr_face: chex.Array
+  spr_cell: chex.Array
+  spr_face: chex.Array
+  delta_face: chex.Array
+  G2: chex.Array
+  G2_face: chex.Array
+  g0: chex.Array
+  g0_face: chex.Array
+  g1: chex.Array
+  g1_face: chex.Array
+  J: chex.Array
+  J_face: chex.Array
+  F: chex.Array
+  F_face: chex.Array
+  Rin: chex.Array
+  Rin_face: chex.Array
+  Rout: chex.Array
+  Rout_face: chex.Array
+  volume_hires: chex.Array
+  area_hires: chex.Array
+  G2_hires: chex.Array
+  spr_hires: chex.Array
+  r_hires_norm: chex.Array
+  r_hires: chex.Array
+  vpr_hires: chex.Array
 
   @property
-  def r_face(self) -> jnp.ndarray:
+  def r_face(self) -> chex.Array:
     return self.r_face_norm * self.rmax
 
   @property
-  def r(self) -> jnp.ndarray:
+  def r(self) -> chex.Array:
     return self.r_norm * self.rmax
 
   @property
-  def dr(self) -> jnp.ndarray:
+  def dr(self) -> chex.Array:
     return self.dr_norm * self.rmax
 
   @property
-  def g1_over_vpr(self) -> jnp.ndarray:
+  def g1_over_vpr(self) -> chex.Array:
     return self.g1 / self.vpr
 
   @property
-  def g1_over_vpr2(self) -> jnp.ndarray:
+  def g1_over_vpr2(self) -> chex.Array:
     return self.g1 / self.vpr**2
 
   @property
-  def g0_over_vpr_face(self) -> jnp.ndarray:
+  def g0_over_vpr_face(self) -> jax.Array:
     return jnp.concatenate((
         jnp.ones(1),  # correct value is unity on-axis
         self.g0_face[1:] / self.vpr_face[1:],  # avoid div by zero on-axis
     ))
 
   @property
-  def g1_over_vpr_face(self) -> jnp.ndarray:
+  def g1_over_vpr_face(self) -> jax.Array:
     return jnp.concatenate((
         jnp.zeros(1),  # correct value is zero on-axis
         self.g1_face[1:] / self.vpr_face[1:],  # avoid div by zero on-axis
     ))
 
   @property
-  def g1_over_vpr2_face(self) -> jnp.ndarray:
+  def g1_over_vpr2_face(self) -> jax.Array:
     return jnp.concatenate((
         jnp.ones(1),  # correct value is unity on-axis
         self.g1_face[1:] / self.vpr_face[1:] ** 2,  # avoid div by zero on-axis
@@ -199,9 +200,9 @@ class CircularAnalyticalGeometry(Geometry):
 
   Most users should default to using the Geometry class.
   """
-  kappa: jnp.ndarray
-  kappa_face: jnp.ndarray
-  kappa_hires: jnp.ndarray
+  kappa: jax.Array
+  kappa_face: jax.Array
+  kappa_hires: jax.Array
 
 
 @chex.dataclass(frozen=True)
@@ -211,14 +212,14 @@ class StandardGeometry(Geometry):
   Most instances of Geometry should be of this type.
   """
 
-  g2: jnp.ndarray
-  g3: jnp.ndarray
-  psi: jnp.ndarray
-  psi_from_Ip: jnp.ndarray
-  jtot: jnp.ndarray
-  jtot_face: jnp.ndarray
-  delta_upper_face: jnp.ndarray
-  delta_lower_face: jnp.ndarray
+  g2: chex.Array
+  g3: chex.Array
+  psi: chex.Array
+  psi_from_Ip: chex.Array
+  jtot: chex.Array
+  jtot_face: chex.Array
+  delta_upper_face: chex.Array
+  delta_lower_face: chex.Array
 
 
 def build_circular_geometry(
@@ -253,9 +254,9 @@ def build_circular_geometry(
   # r_norm coordinate is r/Rmin in circular, and rho_norm in standard
   # geometry (CHEASE/EQDSK)
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  dr_norm = jnp.array(1) / nr
+  dr_norm = np.array(1) / nr
   mesh = Grid1D.construct(nx=nr, dx=dr_norm)
-  rmax = jnp.array(Rmin)
+  rmax = np.asarray(Rmin)
   # helper variables for mesh cells and faces
   # r coordinate of faces
   r_face_norm = mesh.face_centers
@@ -264,8 +265,8 @@ def build_circular_geometry(
 
   r_face = r_face_norm * rmax
   r = r_norm * rmax
-  Rmaj = jnp.array(Rmaj)
-  B0 = jnp.array(B0)
+  Rmaj = np.array(Rmaj)
+  B0 = np.array(B0)
 
   # assumed elongation profile on cell grid
   kappa_param = kappa
@@ -273,42 +274,42 @@ def build_circular_geometry(
   # assumed elongation profile on cell grid
   kappa_face = 1 + r_face_norm * (kappa_param - 1)
 
-  volume = 2 * jnp.pi**2 * Rmaj * r**2 * kappa
-  volume_face = 2 * jnp.pi**2 * Rmaj * r_face**2 * kappa_face
-  area = jnp.pi * r**2 * kappa
-  area_face = jnp.pi * r_face**2 * kappa_face
+  volume = 2 * np.pi**2 * Rmaj * r**2 * kappa
+  volume_face = 2 * np.pi**2 * Rmaj * r_face**2 * kappa_face
+  area = np.pi * r**2 * kappa
+  area_face = np.pi * r_face**2 * kappa_face
 
   # V' for volume integrations
   vpr = (
-      4 * jnp.pi**2 * Rmaj * r * kappa
+      4 * np.pi**2 * Rmaj * r * kappa
       + volume / kappa * (kappa_param - 1) / rmax
   )
   vpr_face = (
-      4 * jnp.pi**2 * Rmaj * r_face * kappa_face
+      4 * np.pi**2 * Rmaj * r_face * kappa_face
       + volume_face / kappa_face * (kappa_param - 1) / rmax
   )
   # pylint: disable=invalid-name
   # S' for area integrals on cell grid
-  spr_cell = 2 * jnp.pi * r * kappa + area / kappa * (kappa_param - 1) / rmax
+  spr_cell = 2 * np.pi * r * kappa + area / kappa * (kappa_param - 1) / rmax
   spr_face = (
-      2 * jnp.pi * r_face * kappa_face
+      2 * np.pi * r_face * kappa_face
       + area_face / kappa_face * (kappa_param - 1) / rmax
   )
 
-  delta_face = jnp.zeros(len(r_face))
+  delta_face = np.zeros(len(r_face))
 
   # uses <1/R^2> with circular geometry
   # <1/R^2> = int_0^2pi (1/(Rmaj+r*cosx)^2)dx = 1/Rmaj^2 * (1 - (r/Rmaj)^2)
-  G2 = vpr / (4 * jnp.pi**2 * Rmaj**2 * (1 - (r / Rmaj) ** 2) ** (3.0 / 2.0))
+  G2 = vpr / (4 * np.pi**2 * Rmaj**2 * (1 - (r / Rmaj) ** 2) ** (3.0 / 2.0))
 
   # generate G2_face by hand
   G2_outer_face = vpr_face[-1] / (
-      4 * jnp.pi**2 * Rmaj**2 * (1 - (r_face[-1] / Rmaj) ** 2) ** (3.0 / 2.0)
+      4 * np.pi**2 * Rmaj**2 * (1 - (r_face[-1] / Rmaj) ** 2) ** (3.0 / 2.0)
   )
-  G2_outer_face = jnp.expand_dims(G2_outer_face, 0)
-  G2_face = jnp.concatenate(
+  G2_outer_face = np.expand_dims(G2_outer_face, 0)
+  G2_face = np.concatenate(
       (
-          jnp.zeros((1,)),
+          np.zeros((1,)),
           0.5 * (G2[:-1] + G2[1:]),
           G2_outer_face,
       ),
@@ -323,16 +324,16 @@ def build_circular_geometry(
   g1_face = vpr_face**2
 
   # simplifying assumption for now, for J=R*B/(R0*B0)
-  J = jnp.ones(len(r))
-  J_face = jnp.ones(len(r_face))
+  J = np.ones(len(r))
+  J_face = np.ones(len(r_face))
   # simplified (constant) version of the F=B*R function
-  F = jnp.ones(len(r)) * Rmaj * B0
-  F_face = jnp.ones(len(r_face)) * Rmaj * B0
+  F = np.ones(len(r)) * Rmaj * B0
+  F_face = np.ones(len(r_face)) * Rmaj * B0
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
   # the only option for ad-hoc circular geometry.
-  r_hires_norm = jnp.linspace(0, 1, nr * hires_fac)
+  r_hires_norm = np.linspace(0, 1, nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
   Rout = Rmaj + r
@@ -344,22 +345,22 @@ def build_circular_geometry(
   # assumed elongation profile on hires grid
   kappa_hires = 1 + r_hires_norm * (kappa_param - 1)
 
-  volume_hires = 2 * jnp.pi**2 * Rmaj * r_hires**2 * kappa_hires
-  area_hires = jnp.pi * r_hires**2 * kappa_hires
+  volume_hires = 2 * np.pi**2 * Rmaj * r_hires**2 * kappa_hires
+  area_hires = np.pi * r_hires**2 * kappa_hires
 
   # V' for volume integrations on hires grid
   vpr_hires = (
-      4 * jnp.pi**2 * Rmaj * r_hires * kappa_hires
+      4 * np.pi**2 * Rmaj * r_hires * kappa_hires
       + volume_hires / kappa_hires * (kappa_param - 1) / rmax
   )
   # S' for area integrals on hires grid
   spr_hires = (
-      2 * jnp.pi * r_hires * kappa_hires
+      2 * np.pi * r_hires * kappa_hires
       + area_hires / kappa_hires * (kappa_param - 1) / rmax
   )
 
   # uses <1/R^2> with circular geometry
-  denom = 4 * jnp.pi**2 * Rmaj**2 * (1 - (r_hires / Rmaj) ** 2) ** (3.0 / 2.0)
+  denom = 4 * np.pi**2 * Rmaj**2 * (1 - (r_hires / Rmaj) ** 2) ** (3.0 / 2.0)
   G2_hires = vpr_hires / denom
 
   return CircularAnalyticalGeometry(
@@ -454,9 +455,7 @@ def build_geometry_from_chease(
   # grid. CHEASE variables are normalized. Need to unnormalize them with
   # reference values poloidal flux and CHEASE-internal-calculated plasma
   # current.
-  Rmaj = jnp.array(Rmaj)
-  B0 = jnp.array(B0)
-  psiunnormfactor = (Rmaj**2 * B0) * 2 * jnp.pi
+  psiunnormfactor = (Rmaj**2 * B0) * 2 * np.pi
   psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor
   Ip_chease = chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * Rmaj * B0
 
@@ -471,10 +470,10 @@ def build_geometry_from_chease(
 
   int_Jdchi = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
   flux_norm_1_over_R2 = chease_data['<1/R**2>'] / Rmaj**2
-  flux_norm_Bp2 = chease_data['<Bp**2>'] * B0**2 * 4 * jnp.pi**2
-  flux_norm_dpsi = chease_data['<|grad(psi)|>'] * Rmaj * B0 * 2 * jnp.pi
+  flux_norm_Bp2 = chease_data['<Bp**2>'] * B0**2 * 4 * np.pi**2
+  flux_norm_dpsi = chease_data['<|grad(psi)|>'] * Rmaj * B0 * 2 * np.pi
   flux_norm_dpsi2 = (
-      chease_data['<|grad(psi)|**2>'] * (Rmaj * B0) ** 2 * 4 * jnp.pi**2
+      chease_data['<|grad(psi)|**2>'] * (Rmaj * B0) ** 2 * 4 * np.pi**2
   )
 
   # volume, area, and dV/drho, dS/drho
@@ -512,22 +511,22 @@ def build_standard_geometry(
     Rmaj: chex.Numeric,
     Rmin: chex.Numeric,
     B: chex.Numeric,
-    psi: jnp.ndarray,
-    Ip: jnp.ndarray,
-    rho: jnp.ndarray,
-    rhon: jnp.ndarray,
-    Rin: jnp.ndarray,
-    Rout: jnp.ndarray,
-    RBPhi: jnp.ndarray,
-    int_Jdchi: jnp.ndarray,
-    flux_norm_1_over_R2: jnp.ndarray,
-    flux_norm_Bp2: jnp.ndarray,
-    flux_norm_dpsi: jnp.ndarray,
-    flux_norm_dpsi2: jnp.ndarray,
-    delta_upper_face: jnp.ndarray,
-    delta_lower_face: jnp.ndarray,
-    volume: jnp.ndarray,
-    area: jnp.ndarray,
+    psi: chex.Array,
+    Ip: chex.Array,
+    rho: chex.Array,
+    rhon: chex.Array,
+    Rin: chex.Array,
+    Rout: chex.Array,
+    RBPhi: chex.Array,
+    int_Jdchi: chex.Array,
+    flux_norm_1_over_R2: chex.Array,
+    flux_norm_Bp2: chex.Array,
+    flux_norm_dpsi: chex.Array,
+    flux_norm_dpsi2: chex.Array,
+    delta_upper_face: chex.Array,
+    delta_lower_face: chex.Array,
+    volume: chex.Array,
+    area: chex.Array,
     nr: int,
     hires_fac: int,
 ) -> StandardGeometry:
@@ -580,30 +579,28 @@ def build_standard_geometry(
   g1_chease = C1 * C4  # <(\nabla V)**2>
   g2_chease = C1 * C3  # <(\nabla V)**2 / R**2>
   g3_chease = C2[1:] / C1[1:]  # <1/R**2>
-  g3_chease = jnp.concatenate((jnp.array([1 / Rin[0] ** 2]), g3_chease))
+  g3_chease = np.concatenate((np.asarray([1 / Rin[0] ** 2]), g3_chease))
   G2_chease = (
       1
-      / (16 * jnp.pi**4)
+      / (16 * np.pi**4)
       / B
       * RBPhi[1:]
       * g2_chease[1:]
       * g3_chease[1:]
       / rho[1:]
   )
-  G2_chease = jnp.concatenate((jnp.zeros(1), G2_chease))
+  G2_chease = np.concatenate((np.zeros(1), G2_chease))
 
   # make an alternative initial psi, self-consistent with CHEASE Ip profile
   # needed because CHEASE psi profile has noisy second derivatives
   dpsidrho = Ip[1:] * constants.CONSTANTS.mu0 / G2_chease[1:]
-  dpsidrho = jnp.concatenate((jnp.zeros(1), dpsidrho))
-  psi_from_Ip = jnp.zeros(len(psi))
+  dpsidrho = np.concatenate((np.zeros(1), dpsidrho))
+  psi_from_Ip = np.zeros(len(psi))
   for i in range(1, len(psi_from_Ip) + 1):
-    psi_from_Ip = psi_from_Ip.at[i - 1].set(
-        jax.scipy.integrate.trapezoid(dpsidrho[:i], rho[:i])
-    )
+    psi_from_Ip[i - 1] = scipy.integrate.trapezoid(dpsidrho[:i], rho[:i])
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
-  psi_from_Ip = psi_from_Ip.at[-1].set(
+  psi_from_Ip[-1] = (
       psi_from_Ip[-2]
       + constants.CONSTANTS.mu0 * Ip[-1] / G2_chease[-1] * (rho[-1] - rho[-2])
   )
@@ -611,23 +608,23 @@ def build_standard_geometry(
   # volume, area, and dV/drho, dS/drho
   volume_chease = volume
   area_chease = area
-  vpr_chease = math_utils.gradient(volume_chease, rho)
-  spr_chease = math_utils.gradient(area_chease, rho)
+  vpr_chease = np.gradient(volume_chease, rho)
+  spr_chease = np.gradient(area_chease, rho)
   # gradient boundary approximation not appropriate here
-  vpr_chease = vpr_chease.at[0].set(0)
-  spr_chease = spr_chease.at[0].set(0)
+  vpr_chease[0] = 0
+  spr_chease[0] = 0
 
   # plasma current density
   jtot_chease = (
       2
-      * jnp.pi
+      * np.pi
       * Rmaj
-      * math_utils.gradient(Ip, volume_chease)
+      * np.gradient(Ip, volume_chease)
   )
 
   # fill geometry structure
   # r_norm coordinate is rho_tor_norm
-  dr_norm = jnp.array(rhon[-1]) / nr
+  dr_norm = rhon[-1] / nr
   # normalized grid
   mesh = Grid1D.construct(nx=nr, dx=dr_norm)
   rmax = rho[-1]  # radius denormalization constant
@@ -637,17 +634,17 @@ def build_standard_geometry(
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  r_hires_norm = jnp.linspace(0, 1, nr * hires_fac)
+  r_hires_norm = np.linspace(0, 1, nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
-  interp_func = lambda x: jnp.interp(x, rhon, vpr_chease)
+  interp_func = lambda x: np.interp(x, rhon, vpr_chease)
   # V' for volume integrations on face grid
   vpr_face = interp_func(r_face_norm)
   # V' for volume integrations on cell grid
   vpr_hires = interp_func(r_hires_norm)
   vpr = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, spr_chease)
+  interp_func = lambda x: np.interp(x, rhon, spr_chease)
   # S' for area integrals on face grid
   spr_face = interp_func(r_face_norm)
   # S' for area integrals on cell grid
@@ -655,20 +652,20 @@ def build_standard_geometry(
   spr_hires = interp_func(r_hires_norm)
 
   # triangularity on cell grid
-  interp_func = lambda x: jnp.interp(x, rhon, delta_upper_face)
+  interp_func = lambda x: np.interp(x, rhon, delta_upper_face)
   delta_upper_face = interp_func(r_face_norm)
-  interp_func = lambda x: jnp.interp(x, rhon, delta_lower_face)
+  interp_func = lambda x: np.interp(x, rhon, delta_lower_face)
   delta_lower_face = interp_func(r_face_norm)
 
   # average triangularity
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
-  interp_func = lambda x: jnp.interp(x, rhon, G2_chease)
+  interp_func = lambda x: np.interp(x, rhon, G2_chease)
   G2_face = interp_func(r_face_norm)
   G2_hires = interp_func(r_hires_norm)
   G2 = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, RBPhi)
+  interp_func = lambda x: np.interp(x, rhon, RBPhi)
   F_face = interp_func(r_face_norm)
   F = interp_func(r_norm)
   # simplified (constant) version of the F=B*R function
@@ -676,44 +673,44 @@ def build_standard_geometry(
   # simplified (constant) version of the F=B*R function
   J_face = F_face / Rmaj / B
 
-  interp_func = lambda x: jnp.interp(x, rhon, psi)
+  interp_func = lambda x: np.interp(x, rhon, psi)
   psi = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, psi_from_Ip)
+  interp_func = lambda x: np.interp(x, rhon, psi_from_Ip)
   psi_from_Ip = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, jtot_chease)
+  interp_func = lambda x: np.interp(x, rhon, jtot_chease)
   jtot_face = interp_func(r_face_norm)
   jtot = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, Rin)
+  interp_func = lambda x: np.interp(x, rhon, Rin)
   Rin_face = interp_func(r_face_norm)
   Rin = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, Rout)
+  interp_func = lambda x: np.interp(x, rhon, Rout)
   Rout_face = interp_func(r_face_norm)
   Rout = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, g0_chease)
+  interp_func = lambda x: np.interp(x, rhon, g0_chease)
   g0_face = interp_func(r_face_norm)
   g0 = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, g1_chease)
+  interp_func = lambda x: np.interp(x, rhon, g1_chease)
   g1_face = interp_func(r_face_norm)
   g1 = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, g2_chease)
+  interp_func = lambda x: np.interp(x, rhon, g2_chease)
   g2 = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, g3_chease)
+  interp_func = lambda x: np.interp(x, rhon, g3_chease)
   g3 = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, volume_chease)
+  interp_func = lambda x: np.interp(x, rhon, volume_chease)
   volume_face = interp_func(r_face_norm)
   volume_hires = interp_func(r_hires_norm)
   volume = interp_func(r_norm)
 
-  interp_func = lambda x: jnp.interp(x, rhon, area_chease)
+  interp_func = lambda x: np.interp(x, rhon, area_chease)
   area_face = interp_func(r_face_norm)
   area_hires = interp_func(r_hires_norm)
   area = interp_func(r_norm)
@@ -725,9 +722,9 @@ def build_standard_geometry(
       rmax=rmax,
       r_face_norm=r_face_norm,
       r_norm=r_norm,
-      Rmaj=jnp.array(Rmaj),
-      Rmin=jnp.array(Rmin),
-      B0=jnp.array(B),
+      Rmaj=Rmaj,
+      Rmin=Rmin,
+      B0=B,
       volume=volume,
       volume_face=volume_face,
       area=area,

@@ -128,15 +128,6 @@ class CellVariable:
           raise TypeError(
               f'Expected dtype float32, got dtype {value.dtype} for `{name}`'
           )
-
-      else:
-        # Not using isinstance because we don't want to import numpy.
-        # However pytype seems to allow passing numpy for jax.Array so we do
-        # want to guard against it.
-        if 'numpy' in str(type(value)):
-          raise TypeError(
-              f'Expected a pure jax.Array, got numpy for argument {name}'
-          )
     if self.history is None:
       # jax compilation seems to need to make a dummy version of this class with
       # (,) passed in for the value, so unfortunately we can't include this

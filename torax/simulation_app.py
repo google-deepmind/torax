@@ -81,11 +81,12 @@ _DEFAULT_OUTPUT_DIR_PREFIX = '/tmp/torax_results_'
 _STATE_HISTORY_FILENAME = 'state_history.nc'
 
 
-def log_to_stdout(output: str, color: AnsiColors | None = None) -> None:
+def log_to_stdout(output: str, color: AnsiColors | None = None,
+                  exc_info: bool = False,) -> None:
   if not color or not sys.stderr.isatty():
-    logging.info(output)
+    logging.info(output, exc_info=exc_info)
   else:
-    logging.info('%s%s%s', color.value, output, _ANSI_END)
+    logging.info('%s%s%s', color.value, output, _ANSI_END, exc_info=exc_info)
 
 
 # TODO(b/338033916): Modify to specify exactly which outputs we would like.

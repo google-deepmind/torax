@@ -18,15 +18,14 @@ Builds the diffusion terms of the discrete matrix equation.
 """
 
 import chex
-import jax
 from jax import numpy as jnp
 from torax import math_utils
 from torax.fvm import cell_variable
 
 
 def make_diffusion_terms(
-    d_face: jax.Array, var: cell_variable.CellVariable
-) -> tuple[jax.Array, jax.Array]:
+    d_face: chex.Array, var: cell_variable.CellVariable
+) -> tuple[chex.Array, chex.Array]:
   """Makes the terms of the matrix equation derived from the diffusion term.
 
   The diffusion term is of the form
@@ -40,12 +39,10 @@ def make_diffusion_terms(
     mat: Tridiagonal matrix of coefficients on u
     c: Vector of terms not dependent on u
   """
-  # pytype doesn't catch passing numpy for this type annotation
-  assert isinstance(d_face, jax.Array), type(d_face)
 
   # Start by using the formula for the interior rows everywhere
   denom = var.dr**2
-  diag = -d_face[1:] - d_face[:-1]
+  diag = jnp.asarray(-d_face[1:] - d_face[:-1])
 
   off = d_face[1:-1]
   vec = jnp.zeros_like(diag)
