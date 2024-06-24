@@ -23,6 +23,7 @@ from collections.abc import Sequence
 import enum
 import functools
 import importlib
+import time
 from typing import Any
 
 from absl import app
@@ -524,9 +525,12 @@ def main(_):
   new_runtime_params = None
   output_files = []
   try:
+    start_time = time.time()
     sim, new_runtime_params = _build_sim_and_runtime_params_from_config_module(
         config_module_str, qlknn_model_path
     )
+    build_time = time.time() - start_time
+    start_time = time.time()
     _, output_file = _call_sim_app_main(
         sim=sim,
         output_dir=new_runtime_params.output_dir,
@@ -534,7 +538,13 @@ def main(_):
         plot_sim_progress=plot_sim_progress,
         log_sim_output=log_sim_output,
     )
+    simulation_time = time.time() - start_time
     output_files.append(output_file)
+    simulation_app.log_to_stdout(
+        f'Sim and params build time: {build_time:.2f}s, simulation time:'
+        f' {simulation_time:.2f}s',
+        color=simulation_app.AnsiColors.GREEN,
+    )
   except ValueError as ve:
     simulation_app.log_to_stdout(
         f'Error ocurred: {ve}',
@@ -564,6 +574,7 @@ def main(_):
               color=simulation_app.AnsiColors.RED,
           )
         else:
+          start_time = time.time()
           _, output_file = _call_sim_app_main(
               sim=sim,
               output_dir=new_runtime_params.output_dir,
@@ -572,6 +583,10 @@ def main(_):
               log_sim_output=log_sim_output,
           )
           output_files.append(output_file)
+          simulation_time = time.time() - start_time
+          simulation_app.log_to_stdout(
+              f'Simulation time: {simulation_time:.2f}s'
+          )
       case _UserCommand.CHANGE_CONFIG:
         # See docstring for detailed info on what recompiles.
         if sim is None or new_runtime_params is None:
@@ -586,11 +601,16 @@ def main(_):
           )
         else:
           try:
+            start_time = time.time()
             sim_and_runtime_params_or_none = change_config(
                 sim, config_module_str, qlknn_model_path
             )
             if sim_and_runtime_params_or_none is not None:
               sim, new_runtime_params = sim_and_runtime_params_or_none
+            config_change_time = time.time() - start_time
+            simulation_app.log_to_stdout(
+                f'Config change time: {config_change_time:.2f}s'
+            )
           except ValueError as ve:
             simulation_app.log_to_stdout(
                 f'Error ocurred: {ve}',
@@ -603,8 +623,13 @@ def main(_):
       case _UserCommand.CHANGE_SIM_OBJ:
         # This always builds a new object and requires recompilation.
         try:
+          start_time = time.time()
           sim, new_runtime_params, config_module_str = change_sim_obj(
               config_module_str, qlknn_model_path
+          )
+          sim_change_time = time.time() - start_time
+          simulation_app.log_to_stdout(
+              f'Sim change time: {sim_change_time:.2f}s'
           )
         except ValueError as ve:
           simulation_app.log_to_stdout(
