@@ -33,6 +33,7 @@ from typing import Optional
 from absl import logging
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax import calc_coeffs
 from torax import core_profile_setters
 from torax import geometry
@@ -896,8 +897,8 @@ def run_simulation(
   # have to do with tracing the jitted step_fn.
   std_devs = 2  # Check if the first step is more than 2 std devs longer.
   if wall_clock_step_times and wall_clock_step_times[0] > (
-      jnp.mean(jnp.array(wall_clock_step_times))
-      + std_devs * jnp.std(jnp.array(wall_clock_step_times))
+      np.mean(wall_clock_step_times)
+      + std_devs * np.std(wall_clock_step_times)
   ):
     long_first_step = True
     logging.info(
