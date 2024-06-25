@@ -50,7 +50,7 @@ class BuildSimTest(parameterized.TestCase):
                     Ai=0.1,
                 ),
                 profile_conditions=dict(
-                    nbar_is_fGW=False,
+                    ne_is_fGW=False,
                 ),
                 numerics=dict(
                     q_correction_factor=0.2,
@@ -86,7 +86,7 @@ class BuildSimTest(parameterized.TestCase):
     with self.subTest('runtime_params'):
       self.assertEqual(dynamic_runtime_params_slice.plasma_composition.Ai, 0.1)
       self.assertEqual(
-          dynamic_runtime_params_slice.profile_conditions.nbar_is_fGW,
+          dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
           False,
       )
       self.assertEqual(
@@ -143,7 +143,7 @@ class BuildSimTest(parameterized.TestCase):
             'Zeff': {0: 0.1, 1: 0.2, 2: 0.3},  # time-dependent.
         },
         'profile_conditions': {
-            'nbar_is_fGW': False,  # scalar fields.
+            'ne_is_fGW': False,  # scalar fields.
             'Ip': {0: 0.2, 1: 0.4, 2: 0.6},  # time-dependent.
         },
         'numerics': {
@@ -154,7 +154,7 @@ class BuildSimTest(parameterized.TestCase):
         'output_dir': '/tmp/this/is/a/test',
     })
     self.assertEqual(runtime_params.plasma_composition.Ai, 0.1)
-    self.assertEqual(runtime_params.profile_conditions.nbar_is_fGW, False)
+    self.assertEqual(runtime_params.profile_conditions.ne_is_fGW, False)
     self.assertEqual(runtime_params.numerics.q_correction_factor, 0.2)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
     geo = geometry.build_circular_geometry()

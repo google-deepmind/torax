@@ -112,30 +112,32 @@ class DynamicProfileConditions:
   # overwritten by values from the geometry data
   Ip: float
 
-  # Temperature boundary conditions at r=Rmin
-  Ti_bound_right: float
-  Te_bound_right: float
+  # Temperature boundary conditions at r=Rmin.
+  Ti_bound_right: float | None
+  Te_bound_right: float | None
   # Radial array used for initial conditions, and prescribed time-dependent
-  # conditions when not evolving variable with PDE.
+  # conditions when not evolving variable with PDE defined on the face grid.
   Te: chex.Array
   Ti: chex.Array
 
-  # Peaking factor of density profile.
+  # Electron density profile on the face grid.
   # If density evolves with PDE (dens_eq=True), then is initial condition
-  npeak: float
+  ne: chex.Array
+  # Whether to renormalize the density profile.
+  normalize_to_nbar: bool
 
   # Initial line averaged density.
-  # In units of reference density if nbar_is_fGW = False.
-  # In Greenwald fraction if nbar_is_fGW = True.
+  # In units of reference density if ne_is_fGW = False.
+  # In Greenwald fraction if ne_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
   nbar: float
   # Toggle units of nbar
-  nbar_is_fGW: bool
+  ne_is_fGW: bool
 
   # Density boundary condition for r=Rmin, units of nref
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: float
+  ne_bound_right: float | None
   ne_bound_right_is_fGW: bool
 
   # Internal boundary condition (pedestal)

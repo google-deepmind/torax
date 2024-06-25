@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import dataclasses
 
 import chex
@@ -59,9 +60,11 @@ class ProfileConditions:
   # overwritten by values from the geometry data
   Ip: TimeInterpolatedScalar = 15.0
 
-  # Temperature boundary conditions at r=Rmin
-  Ti_bound_right: TimeInterpolatedScalar = 1.0
-  Te_bound_right: TimeInterpolatedScalar = 1.0
+  # Temperature boundary conditions at r=Rmin. If provided this will override
+  # the temperature boundary conditions being taken from the
+  # `TimeInterpolatedArray`s.
+  Ti_bound_right: TimeInterpolatedScalar | None = None
+  Te_bound_right: TimeInterpolatedScalar | None = None
   # Prescribed or evolving values for temperature at different times.
   # The outer mapping is for times and the inner mapping is for values of
   # temperature along the rho grid.
@@ -72,22 +75,28 @@ class ProfileConditions:
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
   )
 
-  # Peaking factor of density profile.
-  # If density evolves with PDE (dens_eq=True), then is initial condition
-  npeak: TimeInterpolatedScalar = 1.5
+  # Prescribed or evolving values for electron density at different times.
+  # The outer mapping is for times and the inner mapping is for values of
+  # density along the rho grid.
+  ne: TimeInterpolatedArray = dataclasses.field(
+      default_factory=lambda: {0: {0: 1.5, 1: 1.0}}
+  )
+  # Whether to renormalize the density profile to have the desired line averaged
+  # density `nbar`.
+  normalize_to_nbar: bool = True
 
-  # Initial line averaged density.
-  # In units of reference density if nbar_is_fGW = False.
-  # In Greenwald fraction if nbar_is_fGW = True.
+  # Line averaged density.
+  # In units of reference density if ne_is_fGW = False.
+  # In Greenwald fraction if ne_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
   nbar: TimeInterpolatedScalar = 0.85
   # Toggle units of nbar
-  nbar_is_fGW: bool = True
+  ne_is_fGW: bool = True
 
   # Density boundary condition for r=Rmin.
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: TimeInterpolatedScalar = 0.5
+  ne_bound_right: TimeInterpolatedScalar | None = 0.5
   ne_bound_right_is_fGW: bool = False
 
   # Internal boundary condition (pedestal)
@@ -199,6 +208,29 @@ class GeneralRuntimeParams:
 
   # pylint: enable=invalid-name
 
+  def _sanity_check_profile_boundary_conditions(
+      self, var: TimeInterpolatedArray, var_name: str,
+  ):
+    """Check that the profile is defined at rho=1.0."""
+    if isinstance(var, interpolated_param.InterpolatedVar2d):
+      values = var.values
+    else:
+      values = var
+
+    for time in values:
+      if isinstance(values[time], Mapping):
+        if 1.0 not in values[time]:
+          raise ValueError(
+              f'As no right boundary condition was set for {var_name}, the'
+              f' profile for {var_name} must include a value at rho=1.0 for'
+              ' every provided time.'
+          )
+      else:
+        raise ValueError(
+            f'As no right boundary condition was set for {var_name}, the '
+            f'profile for {var_name} must include a rho=1.0 boundary condition.'
+        )
+
   def sanity_check(self) -> None:
     """Checks that various configuration parameters are valid."""
     # TODO(b/330172917) do more extensive config parameter sanity checking
@@ -207,6 +239,21 @@ class GeneralRuntimeParams:
     assert self.numerics.dtmult > 0.0
     assert isinstance(self.plasma_composition, PlasmaComposition)
     assert isinstance(self.numerics, Numerics)
+    if self.profile_conditions.Ti_bound_right is None:
+      self._sanity_check_profile_boundary_conditions(
+          self.profile_conditions.Ti,
+          'Ti',
+      )
+    if self.profile_conditions.Te_bound_right is None:
+      self._sanity_check_profile_boundary_conditions(
+          self.profile_conditions.Te,
+          'Te',
+      )
+    if self.profile_conditions.ne_bound_right is None:
+      self._sanity_check_profile_boundary_conditions(
+          self.profile_conditions.ne,
+          'ne',
+      )
 
   def __post_init__(self):
     self.sanity_check()

@@ -151,38 +151,50 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``Ip`` (float = 15.0), **time-varying-scalar**
   Plasma current in MA. Boundary condition for the :math:`\psi` equation.
 
-``Ti_bound_right`` (float = 1.0), **time-varying-scalar**
+``Ti_bound_right`` (float | None [default]), **time-varying-scalar**
   Ion temperature boundary condition at :math:`\hat{\rho}=1` in units of keV.
+  If not provided or set to `None` then the boundary condition is taken from the
+  :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
 
-``Te_bound_right`` (float = 1.0), **time-varying-scalar**
+``Te_bound_right`` (None), **time-varying-scalar**
   Electron temperature boundary condition at :math:`\hat{\rho}=1`, in units of keV.
+  If not provided or set to `None` then the boundary condition is taken from the
+  :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
 
 ``Ti`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` ion temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
-  and there is no enforcement that ``Ti[t][1.0] == Ti_bound_right``. In future we will
-  be adding a change to allow taking the right boundary condition from the defined ``Ti`` but for
-  now ``Ti_bound_right`` is not set by ``Ti``.
+  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at face centers.
+  If `Ti_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
+  is taken from the :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
+  In this c
+  Note that if the `Ti` profile does not contain a :math:`\hat{\rho}=1` point
+  for all provided times, an error will be raised.
 
 ``Te`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` electron temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
-  and there is no enforcement that ``Te[t][1.0] == Te_bound_right``. In future we will
-  be adding a change to allow taking the right boundary condition from the defined ``Te`` but for
-  now ``Te_bound_right`` is not set by ``Te``.
+  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at face centers.
+  If `Te_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
+  is taken from the :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
+  Note that if the `Te` profile does not contain a :math:`\hat{\rho}=1` point,
+  for all provided times, an error will be raised.
 
-``npeak`` (float = 1.5), **time-varying-scalar**
-  Peaking factor of density profile. ``npeak`` :math:`=\frac{n_e(\hat{\rho}=0)}{n_e(\hat{\rho}=1)}`.
-  If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``npeak`` is ignored, and only the initial value is used.
+
+``ne`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
+  Electron density profile.
+  If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``ne`` is ignored, and only the initial value is used.
+
+``normalize_to_nbar`` (bool = False)
+  If True, then the electron density profile is normalized to have the desired line averaged density
+  :math:`\bar{n}`.
 
 ``nbar`` (float = 0.5), **time-varying-scalar**
-  Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``nbar_is_fGW==False``.
-  In units of Greenwald fraction :math:`n_{GW}` if ``nbar_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
+  Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``ne_is_fGW==False``.
+  In units of Greenwald fraction :math:`n_{GW}` if ``ne_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
   is the tokamak minor radius in meters, and :math:`I_p` is the plasma current in MA.
 
-``nbar_is_fGW`` (bool = True)
+``ne_is_fGW`` (bool = True)
   Toggles units of ``nbar``.
 
 ``ne_bound_right`` (float = 0.5), **time-varying-scalar**
@@ -940,9 +952,9 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'Te_bound_right': 0.1,  # boundary condition electron temp for r=Rmin
               'ne_bound_right_is_fGW': True,
               'ne_bound_right': {0: 0.1, 80: 0.3},
-              'nbar_is_fGW': True,
+              'ne_is_fGW': True,
               'nbar': 1,
-              'npeak': 1.5,
+              'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
               'set_pedestal': True,
               'Tiped': 1.0,
               'Teped': 1.0,

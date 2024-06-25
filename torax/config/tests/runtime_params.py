@@ -19,8 +19,10 @@ import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import config_args
+from torax.config import runtime_params as general_runtime_params
 
 
+# pylint: disable=invalid-name
 class RuntimeParamsTest(parameterized.TestCase):
   """Unit tests for the `torax.config.runtime_params` module."""
 
@@ -89,6 +91,31 @@ class RuntimeParamsTest(parameterized.TestCase):
     self.assertIsInstance(result.a4.b4, C)
     self.assertEqual(result.a4.b4.c1, 19)
     self.assertEqual(result.a4.b4.c2, 20)
+
+  def test_runtime_params_raises_for_invalid_temp_boundary_conditions(self,):
+    """Tests that runtime params validate boundary conditions."""
+    with self.assertRaises(ValueError):
+      general_runtime_params.GeneralRuntimeParams(
+          profile_conditions=general_runtime_params.ProfileConditions(
+              Ti={0.0: {0.0: 12.0, 0.95: 2.0}}
+          )
+      )
+
+  @parameterized.parameters(
+      ({0.0: {0.0: 12.0, 1.0: 2.0}}, None,),  # Ti includes 1.0.
+      ({0.0: {0.0: 12.0, 1.0: 2.0}}, 1.0,),  # Both provided.
+      ({0.0: {0.0: 12.0, 0.95: 2.0}}, 1.0,)  # Ti_bound_right provided.
+  )
+  def test_runtime_params_constructs_with_valid_profile_conditions(
+      self, Ti, Ti_bound_right,
+  ):
+    """Tests that runtime params validate boundary conditions."""
+    general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            Ti=Ti,
+            Ti_bound_right=Ti_bound_right,
+        )
+    )
 
 
 @dataclasses.dataclass
