@@ -106,6 +106,7 @@ class SourceTest(parameterized.TestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -149,6 +150,7 @@ class SourceTest(parameterized.TestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -188,6 +190,7 @@ class SourceTest(parameterized.TestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -207,6 +210,7 @@ class SourceTest(parameterized.TestCase):
                       )
                   )
               },
+              geo=geo,
           )
       )
       profile = source.get_value(
@@ -233,6 +237,7 @@ class SourceTest(parameterized.TestCase):
                       )
                   )
               },
+              geo=geo,
           )
       )
       profile = source.get_value(
@@ -272,6 +277,7 @@ class SourceTest(parameterized.TestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -314,6 +320,7 @@ class SourceTest(parameterized.TestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -385,6 +392,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -423,6 +431,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(

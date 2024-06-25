@@ -32,6 +32,10 @@ from torax.transport_model import runtime_params as transport_params_lib
 class RuntimeParamsSliceTest(parameterized.TestCase):
   """Unit tests for the `runtime_params_slice` module."""
 
+  def setUp(self):
+    super().setUp()
+    self._geo = geometry.build_circular_geometry()
+
   def test_dynamic_slice_can_be_input_to_jitted_function(self):
     """Tests that the slice can be input to a jitted function."""
 
@@ -43,7 +47,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     foo_jitted = jax.jit(foo)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params,
+        runtime_params, geo=self._geo,
     )
     # Make sure you can call the function with dynamic_slice as an arg.
     foo_jitted(dynamic_slice)
@@ -61,11 +65,11 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
     )
-    dynamic_runtime_params_slice = provider(t=1.0)
+    dynamic_runtime_params_slice = provider(t=1.0, geo=self._geo)
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 2.5
     )
-    dynamic_runtime_params_slice = provider(t=2.0)
+    dynamic_runtime_params_slice = provider(t=2.0, geo=self._geo)
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 3.0
     )
@@ -86,19 +90,19 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-            runtime_params, t=2.0
+            runtime_params, t=2.0, geo=self._geo,
         ).profile_conditions.Ti_bound_right,
         3.0,
     )
     np.testing.assert_allclose(
         runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-            runtime_params, t=4.0
+            runtime_params, t=4.0, geo=self._geo,
         ).profile_conditions.Te_bound_right,
         4.5,
     )
     np.testing.assert_allclose(
         runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-            runtime_params, t=6.0
+            runtime_params, t=6.0, geo=self._geo,
         ).profile_conditions.ne_bound_right,
         6.0,
     )
@@ -116,7 +120,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     # Check at time 0.
     dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params, t=0.0
+        runtime_params, t=0.0, geo=self._geo,
     )
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, True)
@@ -126,7 +130,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     np.testing.assert_allclose(profile_conditions.Ped_top, 3.0)
     # And check after the time limit.
     dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params, t=1.0
+        runtime_params, t=1.0, geo=self._geo,
     )
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, False)
@@ -162,6 +166,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
               ),
           },
           t=0.5,
+          geo=self._geo,
       )
       assert isinstance(
           dcs.sources['pellet_source'],
@@ -208,6 +213,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
               ),
           },
           t=0.25,
+          geo=self._geo,
       )
       assert isinstance(
           dcs.sources['gas_puff_source'].formula,
@@ -235,6 +241,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
               ),
           },
           t=0.25,
+          geo=self._geo,
       )
       assert isinstance(
           dcs.sources['gas_puff_source'].formula, formula_config.DynamicGaussian
@@ -261,20 +268,20 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         stepper_getter=stepper_params_lib.RuntimeParams,
     )
     # While wext is positive, this should be fine.
-    dcs = dcs_provider(t=0.0)
+    dcs = dcs_provider(t=0.0, geo=self._geo,)
     assert isinstance(
         dcs.sources['jext'], external_current_source.DynamicRuntimeParams
     )
     np.testing.assert_allclose(dcs.sources['jext'].wext, 1.0)
     # Even 0 should be fine.
-    dcs = dcs_provider(t=0.5)
+    dcs = dcs_provider(t=0.5, geo=self._geo,)
     assert isinstance(
         dcs.sources['jext'], external_current_source.DynamicRuntimeParams
     )
     np.testing.assert_allclose(dcs.sources['jext'].wext, 0.0)
     # But negative values will cause an error.
     with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
-      dcs_provider(t=1.0)
+      dcs_provider(t=1.0, geo=self._geo,)
 
   @parameterized.parameters(
       (0.0, np.array([10.5, 7.5, 4.5, 1.5])),
@@ -309,21 +316,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         rtol=1e-6,
         atol=1e-6,
     )
-
-  def test_empty_temperature_rho_and_time(self,):
-    """Tests that not setting the temperature returns `None`."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
-        ),
-    )
-    geo = geometry.build_circular_geometry(nr=4)
-    dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params,
-        t=10.0,
-        geo=geo,
-    )
-    self.assertIsNone(dynamic_slice.profile_conditions.Ti)
-    self.assertIsNone(dynamic_slice.profile_conditions.Te)
 
   def test_time_dependent_provider_with_temperature_is_time_dependent(self):
     """Tests that the runtime_params slice provider is time dependent for T."""

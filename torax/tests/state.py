@@ -43,14 +43,12 @@ class StateTest(torax_refs.ReferenceValueTest):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
 
-    def make_hist(runtime_params, geo):
+    def make_hist(geo, dynamic_runtime_params_slice):
       initial_counter = jnp.array(0)
 
       def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
         core_profiles = core_profile_setters.initial_core_profiles(
-            dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
-                runtime_params, sources=source_models_builder.runtime_params
-            ),
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
             geo=geo,
             source_models=source_models,
         )
@@ -71,7 +69,14 @@ class StateTest(torax_refs.ReferenceValueTest):
 
     def make_history(runtime_params, geo):
       # Bind non-JAX arguments so it can be jitted
-      bound = functools.partial(make_hist, runtime_params, geo)
+      dynamic_runtime_params_slice = (
+          runtime_params_slice.build_dynamic_runtime_params_slice(
+              runtime_params,
+              sources=source_models_builder.runtime_params,
+              geo=geo,
+          )
+      )
+      bound = functools.partial(make_hist, geo, dynamic_runtime_params_slice,)
       return jax.jit(bound)()
 
     self._make_history = make_history
@@ -95,6 +100,7 @@ class StateTest(torax_refs.ReferenceValueTest):
         dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
             references.runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=references.geo,
         ),
         geo=references.geo,
         source_models=source_models,
@@ -168,11 +174,14 @@ class InitialStatesTest(parameterized.TestCase):
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
+    geo = geometry.build_circular_geometry()
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params, sources=source_models_builder.runtime_params
+            runtime_params,
+            sources=source_models_builder.runtime_params,
+            geo=geo,
         ),
-        geo=geometry.build_circular_geometry(),
+        geo=geo,
         source_models=source_models,
     )
     np.testing.assert_allclose(
@@ -226,7 +235,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models = source_models_builder()
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
     dcs1 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config1, sources=source_models_builder.runtime_params
+        config1, sources=source_models_builder.runtime_params, geo=geo,
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
@@ -235,7 +244,7 @@ class InitialStatesTest(parameterized.TestCase):
     )
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
     dcs2 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config2, sources=source_models_builder.runtime_params
+        config2, sources=source_models_builder.runtime_params, geo=geo,
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,
@@ -246,7 +255,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder.runtime_params['jext'].fext = 0.0
     source_models = source_models_builder()
     dcs3 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config3, sources=source_models_builder.runtime_params
+        config3, sources=source_models_builder.runtime_params, geo=geo,
     )
     core_profiles3 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3,
@@ -256,7 +265,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
     source_models_builder.runtime_params['jext'].fext = 0.0
     dcs3_helper = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config3_helper, sources=source_models_builder.runtime_params
+        config3_helper, sources=source_models_builder.runtime_params, geo=geo,
     )
     core_profiles3_helper = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3_helper,
@@ -341,8 +350,9 @@ class InitialStatesTest(parameterized.TestCase):
             initial_psi_from_j=False,
         ),
     )
+    geo = geometry.build_circular_geometry()
     dcs1 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config1, sources=source_models_builder.runtime_params
+        config1, sources=source_models_builder.runtime_params, geo=geo,
     )
     config2 = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
@@ -350,7 +360,7 @@ class InitialStatesTest(parameterized.TestCase):
         ),
     )
     dcs2 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config2, sources=source_models_builder.runtime_params
+        config2, sources=source_models_builder.runtime_params, geo=geo,
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,

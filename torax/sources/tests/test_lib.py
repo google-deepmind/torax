@@ -99,6 +99,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -133,6 +134,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -146,6 +148,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
           runtime_params_slice.build_dynamic_runtime_params_slice(
               runtime_params=runtime_params,
               sources=source_models_builder.runtime_params,
+              geo=geo,
           )
       )
       with self.subTest(unsupported_mode.name):
@@ -180,6 +183,7 @@ class IonElSourceTestCase(SourceTestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -214,6 +218,7 @@ class IonElSourceTestCase(SourceTestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -227,6 +232,7 @@ class IonElSourceTestCase(SourceTestCase):
           runtime_params_slice.build_dynamic_runtime_params_slice(
               runtime_params=runtime_params,
               sources=source_models_builder.runtime_params,
+              geo=geo,
           )
       )
       with self.subTest(unsupported_mode.name):

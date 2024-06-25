@@ -397,6 +397,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
+            geo=geo,
         )
     )
     static_runtime_params_slice = (
@@ -518,13 +519,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
-    source_models = source_models_builder()
+    geo = geometry.build_circular_geometry(nr=num_cells)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
+            geo=geo,
         )
     )
     static_runtime_params_slice = (
@@ -657,6 +659,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
+            geo=geo,
         )
     )
     static_runtime_params_slice_theta0 = (

@@ -46,15 +46,17 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     source_builder = external_current_source.ExternalCurrentSourceBuilder()
     source = source_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
+    # Must be circular for jext_hires call.
+    geo = geometry.build_circular_geometry()
     dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
         runtime_params,
         sources={
             'jext': source_builder.runtime_params,
         },
+        geo=geo,
     )
     self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
-    # Must be circular for jext_hires call.
-    geo = geometry.build_circular_geometry()
+
     self.assertIsNotNone(
         source.get_value(
             dynamic_runtime_params_slice=dynamic_slice,
@@ -85,6 +87,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
                   sources={
                       'jext': source_builder.runtime_params,
                   },
+                  geo=geo,
               )
           )
           source.get_value(

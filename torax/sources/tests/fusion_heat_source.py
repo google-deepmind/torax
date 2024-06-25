@@ -69,6 +69,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     source_models = source_models_builder()

@@ -35,6 +35,8 @@ class BoundaryConditionsTest(absltest.TestCase):
     # state, we want to grab the boundary condition params at time 0.
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
+            Ti={0.0: {0.0: 27.7, 1.0: 1.0}},
+            Te={0.0: {0.0: 42.0, 1.0: 0.0}, 1.0: 0},
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
             ne_bound_right=general_runtime_params.InterpolatedVar1d(
@@ -52,6 +54,7 @@ class BoundaryConditionsTest(absltest.TestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -64,6 +67,7 @@ class BoundaryConditionsTest(absltest.TestCase):
             runtime_params,
             sources=source_models_builder.runtime_params,
             t=0.5,
+            geo=geo,
         )
     )
 

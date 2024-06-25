@@ -47,7 +47,10 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
 
     runtime_params = references.runtime_params
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            geo=references.geo,
+        )
     )
     geo = references.geo
 
@@ -116,7 +119,9 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     source_models = source_models_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params, sources=source_models_builder.runtime_params
+            runtime_params,
+            sources=source_models_builder.runtime_params,
+            geo=references.geo,
         )
     )
     geo = references.geo

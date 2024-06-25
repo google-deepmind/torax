@@ -33,16 +33,21 @@ For various definitions, see :ref:`glossary`.
 Time dependence and parameter interpolation
 ===========================================
 Some TORAX parameters are allowed to temporally vary. Parameters where time dependence is enabled are
-are labelled with **time-varying** in :ref:`config_details`. Time dependence is set by assigning
-a dict to the parameter, instead of a single value. The dict defines a time-series with ``{time: value}`` pairs.
-The keys do not need to be sorted in order of time. Ordering is carried out internally. For each evaluation of
-the TORAX stepper (PDE solver), time-dependent variables are interpolated at both time :math:`t` and time :math:`t+dt`.
+are labelled with **time-varying-scalar** and **time-varying-array** in :ref:`config_details`.
+
+Time-varying scalars
+--------------------
+For fields labelled with **time-varying-scalar** time dependence is set by assigning a dict to the parameter,
+instead of a single value. The dict defines a time-series with ``{time: value}`` pairs.
+The keys do not need to be sorted in order of time. Ordering is carried out internally.
+For each evaluation of the TORAX stepper (PDE solver), time-dependent variables
+are interpolated at both time :math:`t` and time :math:`t+dt`.
 There are two interpolation modes:
 
 * **PIECEWISE_LINEAR**: linear interpolation of the input time-series (default)
 * **STEP**: stepwise change in values following each traversal above a time value in the time-series.
 
-The following inputs are valid for time-dependent parameters:
+The following inputs are valid for **time-varying-scalar** parameters:
 
 * Single integer, float, or boolean. The parameter is then not time dependent
 * A time-series dict with ``{time: value}`` pairs, using the default ``interpolation_mode='PIECEWISE_LINEAR'``.
@@ -55,7 +60,7 @@ Examples:
 
 .. code-block:: python
 
-  Zeff = ({2: 2.8, 5: 2.0, 8: 1.5, 15: 1.5}, 'PIECEWISE_LINEAR)
+  Zeff = ({2: 2.8, 5: 2.0, 8: 1.5, 15: 1.5}, 'PIECEWISE_LINEAR')
 
 or more simply, taking advantage of the default.
 
@@ -72,6 +77,42 @@ to :math:`1~keV` at :math:`t=20s`:
   Tiped= ({2: 1.0, 8: 3.0, 20: 1.0}, 'STEP')
 
 To extend configuration parameters where time-dependence is not enabled, to have time-dependence, see :ref:`developer-guides`.
+
+Time-varying arrays
+-------------------
+For fields labelled with **time-varying-array** time dependence is set by assigning a dict of dicts or single values to the parameter.
+The outer dict defines a time-series with ``{time: value}`` pairs.  The ``value`` itself is interpreted as a radial profile,
+being made up of {rho: value} pairs. It behaves similarly to the **time-varying-scalar** but
+any interpolation will happen along the :math:`\hat{\rho}` axis and can take any of the formats
+defined for a **time-varying-scalar** above.
+
+Note: :math:`\hat{\rho}` is normalized and will take values between 0 and 1.
+
+None of the keys need to be sorted in order of time. Ordering is carried out internally.
+In the case of non-evolving parameters for each evaluation of the TORAX stepper (PDE solver), time-dependent variables
+are interpolated first along the :math:`\hat{\rho}` axis at the cell grid centers and then linearly interpolated in time
+at both time :math:`t` and time :math:`t+dt`..
+
+For :math:`t` greater than or less than the largest or smallest defined time then the interpolation scheme
+will be applied from the closest time value.
+
+Examples:
+
+1. Define an initial profile (at :math:`t=0.0`) for :math:`T_{i}` with a pedestal.
+
+.. code-block:: python
+
+  Ti = {0.0: {0.0: 15.0, 0.95: 3.0, 1.0: 1.0}}
+
+Note: due to constant extrapolation the t=0.0 here is an arbitrary number and could be anything.
+
+2. Define a time-dependent :math:`T_{i}` profile initialised with a pedestal and, if the ion equation is not being
+evolved by the PDE, to have a prescribed time evolution which decays to a
+constant :math:`T_{i}=1` by :math:`t=80.0`.
+
+.. code-block:: python
+
+  Ti = {0.0: {0.0: 15.0, 0.95: 3.0, 1.0: 1.0}, 80: 1.0}
 
 .. _config_details:
 
@@ -94,10 +135,10 @@ Defines the distribution of ion species. Currently restricted to a single main i
 ``Zi`` (float = 1.0):
   Charge of main ion in units of electron charge.
 
-``Zimp`` (float = 10.0), **time-varying**
+``Zimp`` (float = 10.0), **time-varying-scalar**
   Impurity charge state.
 
-``Zeff`` (float = 1.0), **time-varying**
+``Zeff`` (float = 1.0), **time-varying-scalar**
   Plasma effective charge, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is
   the normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and :math:`Z_{imp}`, a consistent :math:`\hat{n}_i` is calculated,
   with the appropriate degree of main ion dilution.
@@ -107,30 +148,36 @@ Profile conditions
 
 Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
 
-``Ip`` (float = 15.0), **time-varying**
+``Ip`` (float = 15.0), **time-varying-scalar**
   Plasma current in MA. Boundary condition for the :math:`\psi` equation.
 
-``Ti_bound_right`` (float = 1.0), **time-varying**
+``Ti_bound_right`` (float = 1.0), **time-varying-scalar**
   Ion temperature boundary condition at :math:`\hat{\rho}=1` in units of keV.
 
-``Te_bound_right`` (float = 1.0), **time-varying**
+``Te_bound_right`` (float = 1.0), **time-varying-scalar**
   Electron temperature boundary condition at :math:`\hat{\rho}=1`, in units of keV.
 
-``Ti_bound_left`` (float = 15.0), **time-varying**
-  Initial and (if time evolving) prescribed :math:`\hat{\rho}=0` ion temperature, in units of keV.
-  The initial and prescribed ion temperature is a linear interpolation between ``Ti_bound_left`` and ``Ti_bound_right``. If ``ion_heat_eq==True``
-  (see :ref:`numerics_dataclass`), then time dependent `Ti_bound_left` is ignored, and only the initial value is used.
+``Ti`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
+  Initial and (if not time evolving) prescribed :math:`\hat{\rho}` ion temperature, in units of keV.
 
-``Te_bound_left`` (float = 15.0), **time-varying**
-  Initial and (if time evolving) prescribed :math:`\hat{\rho}=0` electron temperature, in units of keV.
-  The initial and prescribed electron temperature is a linear interpolation between ``Te_bound_left`` and ``Te_bound_right``. If ``el_heat_eq==True``
-  (see :ref:`numerics_dataclass`), then time dependent `Te_bound_left` is ignored, and only the initial value is used.
+  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
+  and there is no enforcement that ``Ti[t][1.0] == Ti_bound_right``. In future we will
+  be adding a change to allow taking the right boundary condition from the defined ``Ti`` but for
+  now ``Ti_bound_right`` is not set by ``Ti``.
 
-``npeak`` (float = 1.5), **time-varying**
+``Te`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
+  Initial and (if not time evolving) prescribed :math:`\hat{\rho}` electron temperature, in units of keV.
+
+  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
+  and there is no enforcement that ``Te[t][1.0] == Te_bound_right``. In future we will
+  be adding a change to allow taking the right boundary condition from the defined ``Te`` but for
+  now ``Te_bound_right`` is not set by ``Te``.
+
+``npeak`` (float = 1.5), **time-varying-scalar**
   Peaking factor of density profile. ``npeak`` :math:`=\frac{n_e(\hat{\rho}=0)}{n_e(\hat{\rho}=1)}`.
   If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``npeak`` is ignored, and only the initial value is used.
 
-``nbar`` (float = 0.5), **time-varying**
+``nbar`` (float = 0.5), **time-varying-scalar**
   Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``nbar_is_fGW==False``.
   In units of Greenwald fraction :math:`n_{GW}` if ``nbar_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
   is the tokamak minor radius in meters, and :math:`I_p` is the plasma current in MA.
@@ -138,32 +185,32 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``nbar_is_fGW`` (bool = True)
   Toggles units of ``nbar``.
 
-``ne_bound_right`` (float = 0.5), **time-varying**
+``ne_bound_right`` (float = 0.5), **time-varying-scalar**
   Density boundary condition at :math:`\hat{\rho}=1`. In units of ``nref`` if ``ne_bound_right_is_fGW==False``.
   In units of Greenwald fraction :math:`n_{GW}` if ``ne_bound_right_is_fGW==True``.
 
 ``ne_bound_right_is_fGW`` (bool = False)
   Toggles units of ``ne_bound_right``.
 
-``set_pedestal`` (bool = True), **time-varying**
+``set_pedestal`` (bool = True), **time-varying-scalar**
   Set internal boundary conditions if True. Do not set internal boundary conditions if False.
   Internal boundary conditions are set using an adaptive localized source term. While a common use-case is to mock up a pedestal, this feature
   can also be used for L-mode modeling with a desired internal boundary condition below :math:`\hat{\rho}=1`.
 
-``Tiped`` (float = 5.0), **time-varying**
+``Tiped`` (float = 5.0), **time-varying-scalar**
   Internal boundary condition for ion temperature at :math:`\hat{\rho}` = ``Ped_top``, in units of keV.
 
-``Teped`` (float = 5.0), **time-varying**
+``Teped`` (float = 5.0), **time-varying-scalar**
   Internal boundary condition for electron temperature at :math:`\hat{\rho}` = ``Ped_top``, in units of keV.
 
-``neped`` (float = 0.7), **time-varying**
+``neped`` (float = 0.7), **time-varying-scalar**
   Internal boundary condition for electron density at  :math:`\hat{\rho}` = ``Ped_top``, in units of keV.
   In units of reference density if ``neped_is_fGW==False``. In units of Greenwald fraction if ``neped_is_fGW==True``.
 
 ``neped_is_fGW`` (bool = False)
   Toggles units of ``neped``.
 
-``Ped_top`` (float = 0.91), **time-varying**
+``Ped_top`` (float = 0.91), **time-varying-scalar**
   Location of internal boundary condition, in units of :math:`\hat{\rho}`. In practice, the closest cell
   gridpoint to ``Ped_top`` will be used.
 
@@ -224,7 +271,7 @@ Configures simulation control such as time settings and timestep calculation, eq
 
 ``enable_prescribed_profile_evolution`` (bool = True)
   Enable time-dependent prescribed profiles. If False, then time-dependent ``numerics``
-  quantities such as ``nbar`` and ``Ti_bound_left`` will be ignored, even if their respective core_profile equation is not being solved by the PDE.
+  quantities such as ``nbar`` and ``Ti`` will be ignored, even if their respective core_profile equation is not being solved by the PDE.
   This option is provided to allow initialization of density profiles scaled to a Greenwald fraction, and freeze this density even if the current
   is time evolving. Otherwise the density will evolve to always maintain that GW fraction.
 
@@ -331,39 +378,39 @@ model are defined.
 ``Vemax`` (float = 50.0)
   Upper allowed bound for particle convection :math:`V`, in units of :math:`m^2/s`.
 
-``apply_inner_patch`` (bool = False), **time-varying**
+``apply_inner_patch`` (bool = False), **time-varying-scalar**
   If True, set a patch for inner core transport coefficients below `rho_inner`.
   Typically used as an ad-hoc measure for MHD (e.g. sawteeth) or EM (e.g. KBM) transport in the inner-core.
 
-``De_inner``  (float = 0.2), **time-varying**
+``De_inner``  (float = 0.2), **time-varying-scalar**
   Particle diffusivity value for inner transport patch.
 
-``Ve_inner``  (float = 0.0), **time-varying**
+``Ve_inner``  (float = 0.0), **time-varying-scalar**
   Particle convection value for inner transport patch.
 
-``chii_inner``  (float = 1.0), **time-varying**
+``chii_inner``  (float = 1.0), **time-varying-scalar**
   Ion heat conduction value for inner transport patch.
 
-``chie_inner`` (float = 1.0), **time-varying**
+``chie_inner`` (float = 1.0), **time-varying-scalar**
   Electron heat conduction value for inner transport patch.
 
 ``rho_inner`` (float = 0.3)
   :math:`\hat{\rho}` below which inner patch is applied.
 
-``apply_outer_patch`` (bool = False), **time-varying**
+``apply_outer_patch`` (bool = False), **time-varying-scalar**
   If True, set a patch for outer core transport coefficients above ``rho_outer``.
   Useful for the L-mode near-edge region where models like QLKNN10D are not applicable. Only used if ``set_pedestal==False``.
 
-``De_outer``  (float = 0.2), **time-varying**
+``De_outer``  (float = 0.2), **time-varying-scalar**
   Particle diffusivity value for outer transport patch.
 
-``Ve_outer``  (float = 0.0), **time-varying**
+``Ve_outer``  (float = 0.0), **time-varying-scalar**
   Particle convection value for outer transport patch.
 
-``chii_outer``  (float = 1.0), **time-varying**
+``chii_outer``  (float = 1.0), **time-varying-scalar**
   Ion heat conduction value for outer transport patch.
 
-``chie_outer`` (float = 1.0), **time-varying**
+``chie_outer`` (float = 1.0), **time-varying-scalar**
   Electron heat conduction value for outer transport patch.
 
 ``rho_outer`` (float = 0.9)
@@ -378,16 +425,16 @@ constant
 Runtime parameters for the constant chi transport model, defined within a
 ``constant_params`` dict nested within the transport dict.
 
-``chii_const`` (float = 1.0), **time-varying**
+``chii_const`` (float = 1.0), **time-varying-scalar**
   Ion heat conductivity. In units of :math:`m^2/s`.
 
-``chie_const`` (float = 1.0), **time-varying**
+``chie_const`` (float = 1.0), **time-varying-scalar**
   Electron heat conductivity. In units of :math:`m^2/s`.
 
-``De_const`` (float = 1.0), **time-varying**
+``De_const`` (float = 1.0), **time-varying-scalar**
   Electron particle diffusion. In units of :math:`m^2/s`.
 
-``Ve_const`` (float = -0.33), **time-varying**
+``Ve_const`` (float = -0.33), **time-varying-scalar**
   Electron particle convection. In units of :math:`m^2/s`.
 
 CGM
@@ -527,16 +574,16 @@ A utility source module that allows for a time dependent Gaussian ion and electr
 ``formula_type`` (str = 'default')
   Uses the Gaussian formula with ``use_normalized_r=True``.
 
-``rsource`` (float = 0.0), **time-varying**
+``rsource`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
 
-``w`` (float = 0.25), **time-varying**
+``w`` (float = 0.25), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``Ptot`` (float = 120e6), **time-varying**
+``Ptot`` (float = 120e6), **time-varying-scalar**
   Total source power in MW.
 
-``el_heat_fraction`` (float = 0.66666), **time-varying**
+``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
 
 qei_source
@@ -573,10 +620,10 @@ Formula based exponential gas puff source. No first-principle-based model is yet
 ``formula_type`` (str = 'default')
   Uses the exponential formula with ``use_normalized_r=True``, and ``c1=1``.
 
-``puff_decay_length`` (float = 0.05), **time-varying**
+``puff_decay_length`` (float = 0.05), **time-varying-scalar**
   Gas puff decay length from edge in units of :math:`\hat{\rho}`.
 
-``S_puff_tot`` (float = 1e22), **time-varying**
+``S_puff_tot`` (float = 1e22), **time-varying-scalar**
   Total number of particle source in units of particles/s.
 
 pellet_source
@@ -589,13 +636,13 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
 ``formula_type`` (str = 'default')
   Uses the Gaussian formula with ``use_normalized_r=True``.
 
-``pellet_deposition_location`` (float = 0.85), **time-varying**
+``pellet_deposition_location`` (float = 0.85), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
 
-``pellet_width`` (float = 0.1), **time-varying**
+``pellet_width`` (float = 0.1), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``S_pellet_tot`` (float = 2e22), **time-varying**
+``S_pellet_tot`` (float = 2e22), **time-varying-scalar**
   Total particle source in units of particles/s
 
 nbi_particle_source
@@ -608,13 +655,13 @@ Time dependent NBI Gaussian particle source. No first-principle-based model is y
 ``formula_type`` (str = 'default')
   Uses the Gaussian formula with ``use_normalized_r=True``.
 
-``nbi_deposition_location`` (float = 0.0), **time-varying**
+``nbi_deposition_location`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
 
-``nbi_particle_width`` (float = 0.25), **time-varying**
+``nbi_particle_width`` (float = 0.25), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``S_nbi_tot`` (float = 1e22), **time-varying**
+``S_nbi_tot`` (float = 1e22), **time-varying-scalar**
   Total particle source.
 
 j_bootstrap
@@ -637,16 +684,16 @@ Generic external current profile, parameterized as a Gaussian (e.g. ECCD).
 ``formula_type`` (str = 'default')
   Uses the Gaussian formula with ``use_normalized_r=True``.
 
-``rext`` (float = 0.4), **time-varying**
+``rext`` (float = 0.4), **time-varying-scalar**
   Gaussian center of current profile in units of :math:`\hat{\rho}`.
 
-``wext`` (float = 0.05), **time-varying**
+``wext`` (float = 0.05), **time-varying-scalar**
   Gaussian width of current profile in units of :math:`\hat{\rho}`.
 
-``Iext`` (float = 3.0), **time-varying**
+``Iext`` (float = 3.0), **time-varying-scalar**
   Total current in MA. Only used if ``use_absolute_jext==True``.
 
-``fext`` (float = 0.2), **time-varying**
+``fext`` (float = 0.2), **time-varying-scalar**
   Sets total ``j_ext`` to be a fraction ``fext`` of the total plasma current.
   Only used if ``use_absolute_jext==False``.
 
@@ -885,10 +932,12 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           },
           'profile_conditions': {
               'Ip': {0: 3, 80: 10.5},
-              'Ti_bound_left': 6.0,
-              'Ti_bound_right': 0.1,
-              'Te_bound_left': 6.0,
-              'Te_bound_right': 0.1,
+              # initial condition ion temperature for r=0 and r=Rmin
+              'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
+              'Ti_bound_right': 0.1,  # boundary condition ion temp for r=Rmin
+              # initial condition electron temperature between r=0 and r=Rmin
+              'Te': {0.0: {0.0: 6.0, 1.0: 0.1}},
+              'Te_bound_right': 0.1,  # boundary condition electron temp for r=Rmin
               'ne_bound_right_is_fGW': True,
               'ne_bound_right': {0: 0.1, 80: 0.3},
               'nbar_is_fGW': True,

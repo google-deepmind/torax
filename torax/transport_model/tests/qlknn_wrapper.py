@@ -45,6 +45,7 @@ class QlknnWrapperTest(parameterized.TestCase):
             runtime_params=runtime_params,
             transport=qlknn_wrapper.RuntimeParams(),
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -93,6 +94,7 @@ class QlknnWrapperTest(parameterized.TestCase):
             runtime_params=runtime_params,
             transport=qlknn_wrapper.RuntimeParams(),
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     runtime_config_inputs = (
@@ -143,6 +145,7 @@ class QlknnWrapperTest(parameterized.TestCase):
             runtime_params=runtime_params,
             transport=qlknn_wrapper.RuntimeParams(),
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     runtime_config_inputs = (

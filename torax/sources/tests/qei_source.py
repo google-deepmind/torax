@@ -61,6 +61,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
         runtime_params,
         sources=source_models_builder.runtime_params,
+        geo=geo,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_slice,
@@ -92,6 +93,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
         runtime_params,
         sources=source_models_builder.runtime_params,
+        geo=geo,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_slice,
@@ -112,6 +114,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
                           )
                       )
                   },
+                  geo=geo,
               )
           )
           # Force pytype to recognize `source` has `get_qei`

@@ -59,6 +59,7 @@ class TransportSmoothingTest(parameterized.TestCase):
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()

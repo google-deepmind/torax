@@ -63,6 +63,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            geo=geo,
         )
     )
     # Technically, the _merge_source_profiles() function should be called with
@@ -172,7 +173,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             stepper_getter=stepper_runtime_params.RuntimeParams,
         )
     )
-    initial_dcs = dynamic_runtime_params_slice_provider(0.0)
+    initial_dcs = dynamic_runtime_params_slice_provider(0.0, geo)
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
@@ -265,7 +266,7 @@ class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   foo: runtime_params_lib.TimeInterpolatedScalar
 
   def build_dynamic_params(
-      self, t: chex.Numeric
+      self, t: chex.Numeric,
   ) -> _FakeSourceDynamicRuntimeParams:
     return _FakeSourceDynamicRuntimeParams(
         **config_args.get_init_kwargs(
@@ -310,7 +311,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
   ) -> state_module.ToraxSimState:
     dt, ts_state = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-            input_state.t
+            input_state.t, geometry_provider(input_state.t)
         ),
         geo=geometry_provider(input_state.t),
         core_profiles=input_state.core_profiles,
@@ -326,7 +327,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
         # The returned source profiles include only the implicit sources.
         core_sources=source_models_lib.build_source_profiles(
             dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-                new_t
+                new_t, geometry_provider(new_t),
             ),
             geo=geometry_provider(new_t),
             core_profiles=input_state.core_profiles,  # no state evolution.

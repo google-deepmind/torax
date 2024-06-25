@@ -62,12 +62,15 @@ class ProfileConditions:
   # Temperature boundary conditions at r=Rmin
   Ti_bound_right: TimeInterpolatedScalar = 1.0
   Te_bound_right: TimeInterpolatedScalar = 1.0
-  # Prescribed values for r=0. When evolving, then is initial condition.
-  Te_bound_left: TimeInterpolatedScalar = 15.0
-  Ti_bound_left: TimeInterpolatedScalar = 15.0
-  # Prescribed or evolving values for r.
-  Ti: TimeInterpolatedArray | None = None
-  Te: TimeInterpolatedArray | None = None
+  # Prescribed or evolving values for temperature at different times.
+  # The outer mapping is for times and the inner mapping is for values of
+  # temperature along the rho grid.
+  Ti: TimeInterpolatedArray = dataclasses.field(
+      default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
+  )
+  Te: TimeInterpolatedArray = dataclasses.field(
+      default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
+  )
 
   # Peaking factor of density profile.
   # If density evolves with PDE (dens_eq=True), then is initial condition

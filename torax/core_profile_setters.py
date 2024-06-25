@@ -44,23 +44,11 @@ def _updated_ti(
 ) -> cell_variable.CellVariable:
   """Updated ion temp. Used upon initialization and if temp_ion=False."""
   # pylint: disable=invalid-name
-  Ti_bound_left = jax_utils.error_if_not_positive(
-      dynamic_runtime_params_slice.profile_conditions.Ti_bound_left,
-      'Ti_bound_left',
-  )
   Ti_bound_right = jax_utils.error_if_not_positive(
       dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
       'Ti_bound_right',
   )
-  if dynamic_runtime_params_slice.profile_conditions.Ti is not None:
-    temp_ion = dynamic_runtime_params_slice.profile_conditions.Ti
-  else:
-    temp_ion_face = jnp.linspace(
-        start=Ti_bound_left,
-        stop=Ti_bound_right,
-        num=geo.mesh.nx + 1,
-    )
-    temp_ion = geometry.face_to_cell(temp_ion_face)
+  temp_ion = dynamic_runtime_params_slice.profile_conditions.Ti
   temp_ion = cell_variable.CellVariable(
       value=temp_ion,
       left_face_grad_constraint=jnp.zeros(()),
@@ -78,23 +66,11 @@ def _updated_te(
 ) -> cell_variable.CellVariable:
   """Updated electron temp. Used upon initialization and if temp_el=False."""
   # pylint: disable=invalid-name
-  Te_bound_left = jax_utils.error_if_not_positive(
-      dynamic_runtime_params_slice.profile_conditions.Te_bound_left,
-      'Te_bound_left',
-  )
   Te_bound_right = jax_utils.error_if_not_positive(
       dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
       'Te_bound_right',
   )
-  if dynamic_runtime_params_slice.profile_conditions.Te is not None:
-    temp_el = dynamic_runtime_params_slice.profile_conditions.Te
-  else:
-    temp_el_face = jnp.linspace(
-        start=Te_bound_left,
-        stop=Te_bound_right,
-        num=geo.mesh.nx + 1,
-    )
-    temp_el = geometry.face_to_cell(temp_el_face)
+  temp_el = dynamic_runtime_params_slice.profile_conditions.Te
   temp_el = cell_variable.CellVariable(
       value=temp_el,
       left_face_grad_constraint=jnp.zeros(()),

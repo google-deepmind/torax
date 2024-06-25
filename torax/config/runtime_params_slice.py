@@ -115,9 +115,10 @@ class DynamicProfileConditions:
   # Temperature boundary conditions at r=Rmin
   Ti_bound_right: float
   Te_bound_right: float
-  # Prescribed values for r=0. When evolving, then is initial condition.
-  Te_bound_left: float
-  Ti_bound_left: float
+  # Radial array used for initial conditions, and prescribed time-dependent
+  # conditions when not evolving variable with PDE.
+  Te: chex.Array
+  Ti: chex.Array
 
   # Peaking factor of density profile.
   # If density evolves with PDE (dens_eq=True), then is initial condition
@@ -163,9 +164,6 @@ class DynamicProfileConditions:
   # or from the psi available in the numerical geometry file. This setting is
   # ignored for the ad-hoc circular geometry, which has no numerical geometry.
   initial_psi_from_j: bool
-  # Prescribed values for r.
-  Te: chex.Array | None = None
-  Ti: chex.Array | None = None
 
 
 @chex.dataclass

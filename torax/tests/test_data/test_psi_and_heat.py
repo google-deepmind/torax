@@ -21,8 +21,9 @@ pedestal, chi from qlknn.
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
-            'Ti_bound_left': 8,
-            'Te_bound_left': 8,
+            # initial condition ion temperature for r=0 and r=Rmin
+            'Ti': {0.0: {0.0: 8.0, 1.0: 1.0}},
+            'Te': {0.0: {0.0: 8.0, 1.0: 1.0}},
             'nu': 0,
         },
         'numerics': {

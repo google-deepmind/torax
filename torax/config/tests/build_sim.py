@@ -157,9 +157,10 @@ class BuildSimTest(parameterized.TestCase):
     self.assertEqual(runtime_params.profile_conditions.nbar_is_fGW, False)
     self.assertEqual(runtime_params.numerics.q_correction_factor, 0.2)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
+    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params, t=1.5
+            runtime_params, t=1.5, geo=geo,
         )
     )
     np.testing.assert_allclose(

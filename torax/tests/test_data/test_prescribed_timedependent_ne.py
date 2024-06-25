@@ -23,8 +23,8 @@ CONFIG = {
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
-            'Ti_bound_left': 10,
-            'Te_bound_left': 10,
+            'Ti': {0.0: {0.0: 10.0, 1.0: 1.0}},
+            'Te': {0.0: {0.0: 10.0, 1.0: 1.0}},
             'Ip': {0: 5, 4: 15, 6: 12, 8: 12},
             'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
             'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
