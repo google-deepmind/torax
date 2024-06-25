@@ -21,11 +21,15 @@ import enum
 import types
 import typing
 from typing import Any
+from typing import TypeVar
 
 import chex
 from jax import numpy as jnp
 from torax import geometry
 from torax import interpolated_param
+
+# TypeVar for generic dataclass types.
+_T = TypeVar('_T')
 
 
 def input_is_a_float_field(
@@ -85,9 +89,7 @@ def interpolate_var_1d(
     t: chex.Numeric,
 ) -> jnp.ndarray:
   """Interpolates the input param at time t."""
-  if not isinstance(
-      param_or_param_input, interpolated_param.InterpolatedVar1d
-  ):
+  if not isinstance(param_or_param_input, interpolated_param.InterpolatedVar1d):
     # The param is a InterpolatedVar1dInput, so we need to convert it to an
     # InterpolatedVar1d first.
     if isinstance(param_or_param_input, tuple):
@@ -154,9 +156,7 @@ def interpolate_var_2d(
     geo: geometry.Geometry,
 ) -> jnp.ndarray:
   """Interpolates the input param at time t and rho_norm for the current geo."""
-  if not isinstance(
-      param_or_param_input, interpolated_param.InterpolatedVar2d
-  ):
+  if not isinstance(param_or_param_input, interpolated_param.InterpolatedVar2d):
     # Dealing with a param input so convert it first.
     param_or_param_input = interpolated_param.InterpolatedVar2d(
         values=param_or_param_input,
@@ -212,8 +212,8 @@ def get_init_kwargs(
 
 
 def recursive_replace(
-    obj: ..., ignore_extra_kwargs: bool = False, **changes
-) -> ...:
+    obj: _T, ignore_extra_kwargs: bool = False, **changes
+) -> _T:
   """Recursive version of `dataclasses.replace`.
 
   This allows updating of nested dataclasses.
