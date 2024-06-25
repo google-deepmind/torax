@@ -26,9 +26,12 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config.config_args import recursive_replace
 from torax.constants import CONSTANTS
 from torax.geometry import build_circular_geometry
-from torax.geometry import build_geometry_from_chease
+from torax.geometry import build_standard_geometry
+from torax.geometry import CircularAnalyticalGeometry
 from torax.geometry import Geometry
 from torax.geometry import Grid1D
+from torax.geometry import StandardGeometry
+from torax.geometry import StandardGeometryIntermediates
 from torax.physics import internal_boundary
 from torax.sim import build_sim_object
 from torax.sim import run_simulation

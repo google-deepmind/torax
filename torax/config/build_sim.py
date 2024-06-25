@@ -153,7 +153,7 @@ def build_consistent_chease_geometry_and_runtime_params(
     A constructed Chease `StandardGeometry` object that is consistent with the
     `runtime_params` returned depending on the value of `Ip_from_parameters`.
   """
-  geo = geometry.build_geometry_from_chease(
+  intermediates = geometry.StandardGeometryIntermediates.from_chease(
       geometry_dir=geometry_dir,
       geometry_file=geometry_file,
       nr=nr,
@@ -162,6 +162,7 @@ def build_consistent_chease_geometry_and_runtime_params(
       B0=B0,
       hires_fac=hires_fac,
   )
+  geo = geometry.build_standard_geometry(intermediates)
   return update_chease_geometry_or_runtime_params(
       runtime_params=runtime_params,
       Ip_from_parameters=Ip_from_parameters,

@@ -194,7 +194,8 @@ class InitialStatesTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(geo_builder=geometry.build_circular_geometry),
-      dict(geo_builder=geometry.build_geometry_from_chease),
+      dict(geo_builder=lambda: geometry.build_standard_geometry(
+          geometry.StandardGeometryIntermediates.from_chease())),
   ])
   def test_initial_psi_from_j(
       self,

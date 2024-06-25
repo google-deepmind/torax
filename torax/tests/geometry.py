@@ -73,7 +73,7 @@ class GeometryTest(parameterized.TestCase):
       _ = geo  # do nothing.
 
     foo_jitted = jax.jit(foo)
-    geo = geometry.build_standard_geometry(
+    intermediate = geometry.StandardGeometryIntermediates(
         nr=25,
         Rmaj=6.2,
         Rmin=2.0,
@@ -97,11 +97,13 @@ class GeometryTest(parameterized.TestCase):
         area=jnp.arange(0, 1.0, 0.01),
         hires_fac=4,
     )
+    geo = geometry.build_standard_geometry(intermediate)
     foo_jitted(geo)
 
   def test_build_geometry_from_chease(self):
     """Test that the default CHEASE geometry can be built."""
-    geometry.build_geometry_from_chease()
+    intermediate = geometry.StandardGeometryIntermediates.from_chease()
+    geometry.build_standard_geometry(intermediate)
 
 
 def face_to_cell(nr, face):

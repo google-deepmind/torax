@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import enum
 
 import chex
@@ -449,123 +450,12 @@ def build_circular_geometry(
 # pylint: disable=invalid-name
 
 
-def build_geometry_from_chease(
-    geometry_dir: str | None = None,
-    geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-    nr: int = 25,
-    Rmaj: float = 6.2,
-    Rmin: float = 2.0,
-    B0: float = 5.3,
-    hires_fac: int = 4,
-) -> StandardGeometry:
-  """Constructs a geometry based on a CHEASE file.
+@dataclasses.dataclass(frozen=True)
+class StandardGeometryIntermediates:
+  """Holds the intermediate values used to build a StandardGeometry.
 
-  This is the standard entrypoint for building a CHEASE geometry, not
-  Geometry.__init__(). chex.dataclasses do not allow overriding __init__
-  functions with different parameters than the attributes of the dataclass, so
-  this builder function lives outside the class.
-
-  Args:
-    geometry_dir: Directory where to find the CHEASE file describing the
-      magnetic geometry. If None, uses the environment variable
-      TORAX_GEOMETRY_DIR if available. If that variable is not set and
-      geometry_dir is not provided, then it defaults to another dir. See
-      implementation.
-    geometry_file: CHEASE file name.
-    nr: Radial grid points (num cells)
-    Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
-      is used as an unnormalization factor.
-    Rmin: minor radius (a) in meters
-    B0: Toroidal magnetic field on axis [T].
-    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
-      calculations.
-
-  Returns:
-    A StandardGeometry instance based on the input file.
-  """
-
-  chease_data = geometry_loader.load_chease_data(geometry_dir, geometry_file)
-
-  # Prepare variables from CHEASE to be interpolated into our simulation
-  # grid. CHEASE variables are normalized. Need to unnormalize them with
-  # reference values poloidal flux and CHEASE-internal-calculated plasma
-  # current.
-  psiunnormfactor = (Rmaj**2 * B0) * 2 * np.pi
-  psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor
-  Ip_chease = chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * Rmaj * B0
-
-  # toroidal flux coordinate
-  rho = chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * Rmaj
-  rhon = chease_data['RHO_TOR_NORM']
-  # midplane radii
-  Rin_chease = chease_data['R_INBOARD'] * Rmaj
-  Rout_chease = chease_data['R_OUTBOARD'] * Rmaj
-  # toroidal field flux function
-  RBphi = chease_data['T=RBphi'] * Rmaj * B0
-
-  int_Jdchi = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
-  flux_norm_1_over_R2 = chease_data['<1/R**2>'] / Rmaj**2
-  flux_norm_Bp2 = chease_data['<Bp**2>'] * B0**2 * 4 * np.pi**2
-  flux_norm_dpsi = chease_data['<|grad(psi)|>'] * Rmaj * B0 * 2 * np.pi
-  flux_norm_dpsi2 = (
-      chease_data['<|grad(psi)|**2>'] * (Rmaj * B0) ** 2 * 4 * np.pi**2
-  )
-
-  # volume, area, and dV/drho, dS/drho
-  volume = chease_data['VOLUMEprofile'] * Rmaj**3
-  area = chease_data['areaprofile'] * Rmaj**2
-
-  geo = build_standard_geometry(
-      Rmaj=Rmaj,
-      Rmin=Rmin,
-      B=B0,
-      psi=psi,
-      Ip=Ip_chease,
-      rho=rho,
-      rhon=rhon,
-      Rin=Rin_chease,
-      Rout=Rout_chease,
-      RBphi=RBphi,
-      int_Jdchi=int_Jdchi,
-      flux_norm_1_over_R2=flux_norm_1_over_R2,
-      flux_norm_Bp2=flux_norm_Bp2,
-      flux_norm_dpsi=flux_norm_dpsi,
-      flux_norm_dpsi2=flux_norm_dpsi2,
-      delta_upper_face=chease_data['delta_upper'],
-      delta_lower_face=chease_data['delta_bottom'],
-      volume=volume,
-      area=area,
-      nr=nr,
-      hires_fac=hires_fac,
-  )
-  return geo
-
-
-def build_standard_geometry(
-    *,
-    Rmaj: chex.Numeric,
-    Rmin: chex.Numeric,
-    B: chex.Numeric,
-    psi: chex.Array,
-    Ip: chex.Array,
-    rho: chex.Array,
-    rhon: chex.Array,
-    Rin: chex.Array,
-    Rout: chex.Array,
-    RBphi: chex.Array,
-    int_Jdchi: chex.Array,
-    flux_norm_1_over_R2: chex.Array,
-    flux_norm_Bp2: chex.Array,
-    flux_norm_dpsi: chex.Array,
-    flux_norm_dpsi2: chex.Array,
-    delta_upper_face: chex.Array,
-    delta_lower_face: chex.Array,
-    volume: chex.Array,
-    area: chex.Array,
-    nr: int,
-    hires_fac: int,
-) -> StandardGeometry:
-  """Build geometry object based on set of profiles from an EQ solution.
+  In particular these are the values that are used when interpolating different
+  geometries.
 
   TODO(b/323504363): Specify the expected COCOS format.
   NOTE: Right now, TORAX does not have a specified COCOS format. Our team is
@@ -574,102 +464,233 @@ def build_standard_geometry(
 
   All inputs are 1D profiles vs normalized rho toroidal (rhon).
 
+  Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
+    is used as an unnormalization factor.
+  Rmin: minor radius (a) in meters
+  B: Toroidal magnetic field on axis [T].
+  psi: Poloidal flux profile
+  Ip: Plasma current profile
+  rho: Midplane radii
+  rhon: Toroidal flux coordinate
+  Rin: Midplane radii
+  Rout: Midplane radii
+  RBphi: Toroidal field flux function
+  int_Jdchi: <|grad(psi)|>
+  flux_norm_1_over_R2: <1/R**2>
+  flux_norm_Bp2: <Bp**2>
+  flux_norm_dpsi: <|grad(psi)|>
+  flux_norm_dpsi2: <|grad(psi)|**2>
+  delta_upper_face: Triangularity on upper face
+  delta_lower_face: Triangularity on lower face
+  volume: Volume profile
+  area: Area profile
+  nr: Radial grid points (num cells)
+  hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+    calculations.
+  """
+  Rmaj: chex.Numeric
+  Rmin: chex.Numeric
+  B: chex.Numeric
+  psi: chex.Array
+  Ip: chex.Array
+  rho: chex.Array
+  rhon: chex.Array
+  Rin: chex.Array
+  Rout: chex.Array
+  RBphi: chex.Array
+  int_Jdchi: chex.Array
+  flux_norm_1_over_R2: chex.Array
+  flux_norm_Bp2: chex.Array
+  flux_norm_dpsi: chex.Array
+  flux_norm_dpsi2: chex.Array
+  delta_upper_face: chex.Array
+  delta_lower_face: chex.Array
+  volume: chex.Array
+  area: chex.Array
+  nr: int
+  hires_fac: int
+
+  @classmethod
+  def from_chease(
+      cls,
+      geometry_dir: str | None = None,
+      geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      nr: int = 25,
+      Rmaj: float = 6.2,
+      Rmin: float = 2.0,
+      B0: float = 5.3,
+      hires_fac: int = 4,
+  ) -> StandardGeometryIntermediates:
+    """Constructs a StandardGeometryIntermediates from a CHEASE file.
+
+    Args:
+      geometry_dir: Directory where to find the CHEASE file describing the
+        magnetic geometry. If None, uses the environment variable
+        TORAX_GEOMETRY_DIR if available. If that variable is not set and
+        geometry_dir is not provided, then it defaults to another dir. See
+        implementation.
+      geometry_file: CHEASE file name.
+      nr: Radial grid points (num cells)
+      Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so
+        this is used as an unnormalization factor.
+      Rmin: minor radius (a) in meters
+      B0: Toroidal magnetic field on axis [T].
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+
+    Returns:
+      A StandardGeometry instance based on the input file. This can then be
+      used to build a StandardGeometry by passing to `build_standard_geometry`.
+    """
+    chease_data = geometry_loader.load_chease_data(geometry_dir, geometry_file)
+
+    # Prepare variables from CHEASE to be interpolated into our simulation
+    # grid. CHEASE variables are normalized. Need to unnormalize them with
+    # reference values poloidal flux and CHEASE-internal-calculated plasma
+    # current.
+    psiunnormfactor = (Rmaj**2 * B0) * 2 * np.pi
+    psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor
+    Ip_chease = chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * Rmaj * B0
+
+    # toroidal flux coordinate
+    rho = chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * Rmaj
+    rhon = chease_data['RHO_TOR_NORM']
+    # midplane radii
+    Rin_chease = chease_data['R_INBOARD'] * Rmaj
+    Rout_chease = chease_data['R_OUTBOARD'] * Rmaj
+    # toroidal field flux function
+    RBphi = chease_data['T=RBphi'] * Rmaj * B0
+
+    int_Jdchi = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
+    flux_norm_1_over_R2 = chease_data['<1/R**2>'] / Rmaj**2
+    flux_norm_Bp2 = chease_data['<Bp**2>'] * B0**2 * 4 * np.pi**2
+    flux_norm_dpsi = chease_data['<|grad(psi)|>'] * Rmaj * B0 * 2 * np.pi
+    flux_norm_dpsi2 = (
+        chease_data['<|grad(psi)|**2>'] * (Rmaj * B0) ** 2 * 4 * np.pi**2
+    )
+
+    # volume, area, and dV/drho, dS/drho
+    volume = chease_data['VOLUMEprofile'] * Rmaj**3
+    area = chease_data['areaprofile'] * Rmaj**2
+
+    return cls(
+        Rmaj=Rmaj,
+        Rmin=Rmin,
+        B=B0,
+        psi=psi,
+        Ip=Ip_chease,
+        rho=rho,
+        rhon=rhon,
+        Rin=Rin_chease,
+        Rout=Rout_chease,
+        RBphi=RBphi,
+        int_Jdchi=int_Jdchi,
+        flux_norm_1_over_R2=flux_norm_1_over_R2,
+        flux_norm_Bp2=flux_norm_Bp2,
+        flux_norm_dpsi=flux_norm_dpsi,
+        flux_norm_dpsi2=flux_norm_dpsi2,
+        delta_upper_face=chease_data['delta_upper'],
+        delta_lower_face=chease_data['delta_bottom'],
+        volume=volume,
+        area=area,
+        nr=nr,
+        hires_fac=hires_fac,
+    )
+
+
+def build_standard_geometry(
+    intermediate: StandardGeometryIntermediates
+) -> StandardGeometry:
+  """Build geometry object based on set of profiles from an EQ solution.
+
   Args:
-    Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
-      is used as an unnormalization factor.
-    Rmin: minor radius (a) in meters
-    B: Toroidal magnetic field on axis [T].
-    psi: Poloidal flux profile
-    Ip: Plasma current profile
-    rho: Midplane radii
-    rhon: Toroidal flux coordinate
-    Rin: Midplane radii
-    Rout: Midplane radii
-    RBphi: Toroidal field flux function
-    int_Jdchi: <|grad(psi)|>
-    flux_norm_1_over_R2: <1/R**2>
-    flux_norm_Bp2: <Bp**2>
-    flux_norm_dpsi: <|grad(psi)|>
-    flux_norm_dpsi2: <|grad(psi)|**2>
-    delta_upper_face: Triangularity on upper face
-    delta_lower_face: Triangularity on lower face
-    volume: Volume profile
-    area: Area profile
-    nr: Radial grid points (num cells)
-    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
-      calculations.
+    intermediate: A StandardGeometryIntermediates object that holds the
+      intermediate values used to build a StandardGeometry for this timeslice.
+      These can either be direct or interpolated values.
 
   Returns:
     A StandardGeometry object.
   """
   # flux surface integrals of various geometry quantities
-  C1 = int_Jdchi
-  C2 = flux_norm_1_over_R2 * C1
-  C3 = flux_norm_Bp2 * C1
-  C4 = flux_norm_dpsi2 * C1
+  C1 = intermediate.int_Jdchi
+  C2 = intermediate.flux_norm_1_over_R2 * C1
+  C3 = intermediate.flux_norm_Bp2 * C1
+  C4 = intermediate.flux_norm_dpsi2 * C1
 
   # derived quantities for transport equations and transformations
 
-  g0 = flux_norm_dpsi * C1  # <\nabla V>
+  g0 = intermediate.flux_norm_dpsi * C1  # <\nabla V>
   g1 = C1 * C4  # <(\nabla V)**2>
   g2 = C1 * C3  # <(\nabla V)**2 / R**2>
   g3 = C2[1:] / C1[1:]  # <1/R**2>
-  g3 = np.concatenate((np.array([1 / Rin[0] ** 2]), g3))
-  g2g3_over_rho = g2[1:] * g3[1:] / rho[1:]
+  g3 = np.concatenate((np.array([1 / intermediate.Rin[0] ** 2]), g3))
+  g2g3_over_rho = g2[1:] * g3[1:] / intermediate.rho[1:]
   g2g3_over_rho = np.concatenate((np.zeros(1), g2g3_over_rho))
 
-  J = RBphi / (Rmaj * B)
+  J = intermediate.RBphi / (intermediate.Rmaj * intermediate.B)
 
   # make an alternative initial psi, self-consistent with CHEASE Ip profile
   # needed because CHEASE psi profile has noisy second derivatives
   dpsidrho = (
-      Ip[1:]
+      intermediate.Ip[1:]
       * (16 * constants.CONSTANTS.mu0 * np.pi**4)
-      / (g2g3_over_rho[1:] * Rmaj * J[1:])
+      / (g2g3_over_rho[1:] * intermediate.Rmaj * J[1:])
   )
   dpsidrho = np.concatenate((np.zeros(1), dpsidrho))
-  psi_from_Ip = np.zeros(len(psi))
+  psi_from_Ip = np.zeros(len(intermediate.psi))
   for i in range(1, len(psi_from_Ip) + 1):
-    psi_from_Ip[i - 1] = scipy.integrate.trapezoid(dpsidrho[:i], rho[:i])
+    psi_from_Ip[i - 1] = scipy.integrate.trapezoid(
+        dpsidrho[:i], intermediate.rho[:i]
+    )
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
   psi_from_Ip[-1] = psi_from_Ip[-2] + (
       16 * constants.CONSTANTS.mu0 * np.pi**4
-  ) * Ip[-1] / (g2g3_over_rho[-1] * Rmaj * J[-1]) * (rho[-1] - rho[-2])
+  ) * intermediate.Ip[-1] / (g2g3_over_rho[-1] * intermediate.Rmaj * J[-1]) * (
+      intermediate.rho[-1] - intermediate.rho[-2]
+  )
 
   # dV/drho, dS/drho
-  vpr = np.gradient(volume, rho)
-  spr = np.gradient(area, rho)
+  vpr = np.gradient(intermediate.volume, intermediate.rho)
+  spr = np.gradient(intermediate.area, intermediate.rho)
   # gradient boundary approximation not appropriate here
   vpr[0] = 0
   spr[0] = 0
 
   # plasma current density
-  jtot = 2 * np.pi * Rmaj * np.gradient(Ip, volume)
+  jtot = (
+      2
+      * np.pi
+      * intermediate.Rmaj
+      * np.gradient(intermediate.Ip, intermediate.volume)
+  )
 
   # fill geometry structure
   # r_norm coordinate is rho_tor_norm
-  dr_norm = rhon[-1] / nr
+
+  # fill geometry structure
+  # r_norm coordinate is rho_tor_norm
+  dr_norm = intermediate.rhon[-1] / intermediate.nr
   # normalized grid
-  mesh = Grid1D.construct(nx=nr, dx=dr_norm)
-  rmax = rho[-1]  # radius denormalization constant
+  mesh = Grid1D.construct(nx=intermediate.nr, dx=dr_norm)
+  rmax = intermediate.rho[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   r_face_norm = mesh.face_centers
   r_norm = mesh.cell_centers
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  r_hires_norm = np.linspace(0, 1, nr * hires_fac)
+  r_hires_norm = np.linspace(0, 1, intermediate.nr * intermediate.hires_fac)
   r_hires = r_hires_norm * rmax
 
-  interp_func = lambda x: np.interp(x, rhon, vpr)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, vpr)
   # V' for volume integrations on face grid
   vpr_face = interp_func(r_face_norm)
   # V' for volume integrations on cell grid
   vpr_hires = interp_func(r_hires_norm)
   vpr = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, spr)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, spr)
   # S' for area integrals on face grid
   spr_face = interp_func(r_face_norm)
   # S' for area integrals on cell grid
@@ -677,68 +698,70 @@ def build_standard_geometry(
   spr_hires = interp_func(r_hires_norm)
 
   # triangularity on cell grid
-  interp_func = lambda x: np.interp(x, rhon, delta_upper_face)
+  interp_func = lambda x: np.interp(x, intermediate.rhon,
+                                    intermediate.delta_upper_face)
   delta_upper_face = interp_func(r_face_norm)
-  interp_func = lambda x: np.interp(x, rhon, delta_lower_face)
+  interp_func = lambda x: np.interp(x, intermediate.rhon,
+                                    intermediate.delta_lower_face)
   delta_lower_face = interp_func(r_face_norm)
 
   # average triangularity
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
-  interp_func = lambda x: np.interp(x, rhon, RBphi)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.RBphi)
   F_face = interp_func(r_face_norm)
   F_hires = interp_func(r_hires_norm)
   F = interp_func(r_norm)
   # Normalized toroidal flux function
-  J = F / Rmaj / B
-  J_face = F_face / Rmaj / B
-  J_hires = F_hires / Rmaj / B
+  J = F / intermediate.Rmaj / intermediate.B
+  J_face = F_face / intermediate.Rmaj / intermediate.B
+  J_hires = F_hires / intermediate.Rmaj / intermediate.B
 
-  interp_func = lambda x: np.interp(x, rhon, psi)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.psi)
   psi = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, psi_from_Ip)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, psi_from_Ip)
   psi_from_Ip = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, jtot)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, jtot)
   jtot_face = interp_func(r_face_norm)
   jtot = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, Rin)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.Rin)
   Rin_face = interp_func(r_face_norm)
   Rin = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, Rout)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.Rout)
   Rout_face = interp_func(r_face_norm)
   Rout = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, g0)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, g0)
   g0_face = interp_func(r_face_norm)
   g0 = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, g1)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, g1)
   g1_face = interp_func(r_face_norm)
   g1 = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, g2)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, g2)
   g2_face = interp_func(r_face_norm)
   g2 = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, g3)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, g3)
   g3_face = interp_func(r_face_norm)
   g3 = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, g2g3_over_rho)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, g2g3_over_rho)
   g2g3_over_rho_face = interp_func(r_face_norm)
   g2g3_over_rho_hires = interp_func(r_hires_norm)
   g2g3_over_rho = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, volume)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.volume)
   volume_face = interp_func(r_face_norm)
   volume_hires = interp_func(r_hires_norm)
   volume = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, area)
+  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.area)
   area_face = interp_func(r_face_norm)
   area_hires = interp_func(r_hires_norm)
   area = interp_func(r_norm)
@@ -750,9 +773,9 @@ def build_standard_geometry(
       rmax=rmax,
       r_face_norm=r_face_norm,
       r_norm=r_norm,
-      Rmaj=Rmaj,
-      Rmin=Rmin,
-      B0=B,
+      Rmaj=intermediate.Rmaj,
+      Rmin=intermediate.Rmin,
+      B0=intermediate.B,
       volume=volume,
       volume_face=volume_face,
       area=area,
