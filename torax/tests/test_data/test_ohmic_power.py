@@ -22,7 +22,7 @@ CONFIG = {
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': False,
-            'nbar_is_fGW': True,
+            'ne_is_fGW': True,
             'nbar': 0.5,  # initial density (Greenwald fraction units)
         },
         'numerics': {

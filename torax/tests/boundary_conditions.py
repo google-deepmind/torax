@@ -16,6 +16,7 @@
 
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import numpy as np
 from torax import constants
 from torax import core_profile_setters
@@ -26,10 +27,30 @@ from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 
 
-class BoundaryConditionsTest(absltest.TestCase):
+class BoundaryConditionsTest(parameterized.TestCase):
   """Unit tests for the `torax.boundary_conditions` module."""
 
-  def test_setting_boundary_conditions(self):
+  @parameterized.parameters(
+      dict(
+          ne={0.0: {0.0: 1.5, 1.0: 1.0}},
+          ne_bound_right=None,
+          expected_ne_bound_right=0.327923,  # Value from profile.
+      ),
+      dict(
+          ne={0.0: {0.0: 1.5, 1.0: 1.0}},
+          ne_bound_right=general_runtime_params.InterpolatedVar1d(
+              {0.0: 0.1, 0.1: 2.0},
+              interpolation_mode=general_runtime_params.InterpolationMode.STEP,
+          ),
+          expected_ne_bound_right=2.0,  # Value from boundary condition.
+      ),
+  )
+  def test_setting_boundary_conditions(
+      self,
+      ne_bound_right,
+      ne,
+      expected_ne_bound_right,
+  ):
     """Tests that setting boundary conditions works."""
     # Boundary conditions can be time-dependent, but when creating the initial
     # state, we want to grab the boundary condition params at time 0.
@@ -39,10 +60,8 @@ class BoundaryConditionsTest(absltest.TestCase):
             Te={0.0: {0.0: 42.0, 1.0: 0.0}, 1.0: 0},
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
-            ne_bound_right=general_runtime_params.InterpolatedVar1d(
-                {0.0: 0.1, 0.1: 2.0},
-                interpolation_mode=general_runtime_params.InterpolationMode.STEP,
-            ),
+            ne_bound_right=ne_bound_right,
+            ne=ne,
             Ip={0.0: 5, 1.0: 7},
         ),
     )
@@ -86,7 +105,12 @@ class BoundaryConditionsTest(absltest.TestCase):
     )
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
     np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)
-    np.testing.assert_allclose(updated.ne.right_face_constraint, 2.0)
+    np.testing.assert_allclose(
+        updated.ne.right_face_constraint,
+        expected_ne_bound_right,
+        atol=1e-6,
+        rtol=1e-6,
+    )
     np.testing.assert_allclose(
         updated.psi.right_face_grad_constraint, psi_constraint
     )

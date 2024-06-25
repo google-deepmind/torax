@@ -26,6 +26,7 @@ import chex
 from jax import numpy as jnp
 from torax import geometry
 from torax import interpolated_param
+import xarray as xr
 
 
 def input_is_a_float_field(
@@ -161,7 +162,7 @@ def interpolate_var_2d(
     param_or_param_input = interpolated_param.InterpolatedVar2d(
         values=param_or_param_input,
     )
-  return param_or_param_input.get_value(t, geo.mesh.cell_centers)
+  return param_or_param_input.get_value(t, geo.mesh.face_centers)
 
 
 def get_init_kwargs(
@@ -191,7 +192,8 @@ def get_init_kwargs(
     ):
       if t is None:
         raise ValueError('t must be specified for interpolated params')
-      config_val = interpolate_var_1d(config_val, t)
+      if config_val is not None:
+        config_val = interpolate_var_1d(config_val, t)
     elif input_is_an_interpolated_var_2d(
         field.name, input_config_fields_to_types
     ):
@@ -304,3 +306,26 @@ def recursive_replace(
         pass
       flattened_changes[key] = value
   return dataclasses.replace(obj, **flattened_changes)
+
+
+def load_time_interpolated_array(
+    ds: xr.Dataset, attr: str
+) -> interpolated_param.InterpolatedVar2d:
+  time_and_rho_values = dict()
+  for t in ds.time.data:
+    time_and_rho_values[t] = {
+        rho: val
+        for rho, val in zip(
+            ds.r_cell_norm.data, ds.data_vars[attr].sel(time=t).values
+        )
+    }
+  return interpolated_param.InterpolatedVar2d(time_and_rho_values)
+
+
+def load_time_interpolated_scalar(
+    ds: xr.Dataset, attr: str
+) -> interpolated_param.InterpolatedVar1d:
+  time_and_rho_values = dict()
+  for t in ds.time.data:
+    time_and_rho_values[t] = float(ds.data_vars[attr].sel(time=t).values)
+  return interpolated_param.InterpolatedVar1d(time_and_rho_values)

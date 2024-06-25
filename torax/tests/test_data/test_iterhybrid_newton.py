@@ -44,9 +44,9 @@ CONFIG = {
             ),  # boundary condition electron temp for r=Rmin
             'ne_bound_right': 0.2,  # boundary condition density for r=Rmin
             # set initial condition density according to Greenwald fraction.
-            'nbar_is_fGW': True,
+            'ne_is_fGW': True,
             'nbar': 0.8,  # original simulation goes up to ~0.9
-            'npeak': 1.5,  # Peaking factor of density profile
+            'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
             # internal boundary condition (pedestal)
             # do not set internal boundary condition if this is False
             'set_pedestal': True,
