@@ -150,8 +150,12 @@ def build_consistent_chease_geometry_and_runtime_params(
       calculations.
 
   Returns:
-    A constructed Chease `StandardGeometry` object that is consistent with the
-    `runtime_params` returned depending on the value of `Ip_from_parameters`.
+    geo: A constructed Chease `StandardGeometry` object.
+    runtime_params: Either the original runtime_params or runtime_params that
+      have been updated as necessary to make a Geometry object and
+      runtime_params
+      that are consistent with each other.
+      TODO(b/323504363): I didn't understand the role of `Ip_from_parameters`.
   """
   intermediates = geometry.StandardGeometryIntermediates.from_chease(
       geometry_dir=geometry_dir,
@@ -309,8 +313,9 @@ def build_consistent_geometry_runtime_params_from_config(
       `runtime_params` for chease geometry.
 
   Returns:
-    A `Geometry` based on the input config that and `runtime_params` that is
-    consistent with the geometry.
+    geo: A `Geometry` based on the input config.
+    runtime_params: Either the original runtime_params passed through or updated
+      as needed to be consistent with the geometry.
   """
   if isinstance(geometry_config, str):
     kwargs = {'geometry_type': geometry_config}

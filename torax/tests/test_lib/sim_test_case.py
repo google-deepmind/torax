@@ -19,7 +19,6 @@ import importlib
 import os
 from typing import Optional, Sequence
 
-from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
@@ -35,6 +34,7 @@ from torax.sources import source_models as source_models_lib
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
 from torax.tests import test_lib
+from torax.tests.test_lib import paths
 from torax.time_step_calculator import array_time_step_calculator
 from torax.transport_model import runtime_params as transport_params_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -58,9 +58,7 @@ class SimTestCase(parameterized.TestCase):
   def setUp(self):
     super().setUp()
 
-    src_dir = absltest.TEST_SRCDIR.value
-    torax_dir = 'torax/'
-    self.test_data_dir = os.path.join(src_dir, torax_dir, 'tests/test_data')
+    self.test_data_dir = paths.test_data_dir()
 
   def _expected_results_path(self, test_name: str) -> str:
     return os.path.join(self.test_data_dir, f'{test_name}')
