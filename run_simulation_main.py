@@ -259,7 +259,7 @@ def change_config(
         sim_config['runtime_params']
     )
     new_geo, new_runtime_params = (
-        build_sim.build_geometry_from_config_and_maybe_update_runtime_params(
+        build_sim.build_consistent_geometry_runtime_params_from_config(
             sim_config['geometry'], new_runtime_params
         )
     )
