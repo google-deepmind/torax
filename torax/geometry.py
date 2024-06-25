@@ -207,9 +207,9 @@ class CircularAnalyticalGeometry(Geometry):
   Most users should default to using the Geometry class.
   """
 
-  kappa: jax.Array
-  kappa_face: jax.Array
-  kappa_hires: jax.Array
+  kappa: chex.Array
+  kappa_face: chex.Array
+  kappa_hires: chex.Array
 
 
 @chex.dataclass(frozen=True)
