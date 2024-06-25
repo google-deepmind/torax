@@ -20,7 +20,9 @@ from typing import Sequence
 from absl import app
 from absl import flags
 import numpy as np
+from torax.tests import test_lib
 import xarray as xr
+
 
 _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     'failed_test_output_dir',
@@ -28,7 +30,12 @@ _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     'File path to the directory containing failed sim test output'
     ' subdirectories.',
 )
-_REFERENCE_TEST_DATA_DIR = 'torax/tests/test_data'
+
+_REFERENCE_TEST_DATA_DIR = flags.DEFINE_string(
+    'reference_dir',
+    'torax/tests/test_data',
+    'File path to the directory containing reference data files',
+)
 
 
 def main(argv: Sequence[str]) -> None:
@@ -62,8 +69,11 @@ def _compare_sim_test_outputs(failed_test_dir: str) -> None:
     failed_test_dir: Name of the failed test directory.
   """
   failed_test_output_dir = _FAILED_TEST_OUTPUT_DIR.value
+  reference_test_data_dir = _REFERENCE_TEST_DATA_DIR.value
 
-  old_file = os.path.join(_REFERENCE_TEST_DATA_DIR, failed_test_dir + '.nc')
+  old_file = os.path.join(
+      reference_test_data_dir, test_lib.get_data_file(failed_test_dir)
+  )
   new_file = os.path.join(
       failed_test_output_dir, failed_test_dir, 'state_history.nc'
   )

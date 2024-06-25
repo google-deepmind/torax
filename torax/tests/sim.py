@@ -39,6 +39,9 @@ from torax.transport_model import constant as constant_transport_model
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
 
+# Sim tests. Note that if any test data file does not have the same name as the
+# test name, then the nonstandard mapping must be added to _REF_MAP_OVERRIDES in
+# tests/test_lib/__init__.py
 class SimTest(sim_test_case.SimTestCase):
   """Integration tests for torax.sim."""
 
@@ -47,7 +50,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_explicit',
           'test_explicit.py',
-          'test_explicit.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -56,7 +58,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_crank_nicolson',
           'test_crank_nicolson.py',
-          'test_implicit.nc',
           ('temp_ion', 'temp_el'),
           2e-1,
       ),
@@ -64,7 +65,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_implicit',
           'test_implicit.py',
-          'test_implicit.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -72,7 +72,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_qei',
           'test_qei.py',
-          'test_qei.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -80,7 +79,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_arraytimestepcalculator',
           'test_qei.py',
-          'test_qei.nc',
           _ALL_PROFILES,
           0,
           True,
@@ -89,7 +87,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_pedestal',
           'test_pedestal.py',
-          'test_pedestal.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -97,7 +94,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_cgmheat',
           'test_cgmheat.py',
-          'test_cgmheat.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -106,7 +102,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_semiimplicit_convection',
           'test_semiimplicit_convection.py',
-          'test_semiimplicit_convection.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -114,7 +109,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_qlknnheat',
           'test_qlknnheat.py',
-          'test_qlknnheat.nc',
           _ALL_PROFILES,
           0,
           1e-11,
@@ -124,7 +118,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_fixed_dt',
           'test_fixed_dt.py',
-          'test_fixed_dt.nc',
           _ALL_PROFILES,
           0,
           1e-11,
@@ -134,7 +127,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psiequation',
           'test_psiequation.py',
-          'test_psiequation.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -142,7 +134,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psi_and_heat',
           'test_psi_and_heat.py',
-          'test_psi_and_heat.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -150,7 +141,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_absolute_jext',
           'test_absolute_jext.py',
-          'test_psi_and_heat.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -162,7 +152,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_newton_raphson_zeroiter',
           'test_newton_raphson_zeroiter.py',
-          'test_psi_and_heat.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -170,7 +159,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_bootstrap',
           'test_bootstrap.py',
-          'test_bootstrap.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -178,7 +166,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psi_heat_dens',
           'test_psi_heat_dens.py',
-          'test_psi_heat_dens.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -186,7 +173,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_particle_sources_constant',
           'test_particle_sources_constant.py',
-          'test_particle_sources_constant.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -194,7 +180,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_particle_sources_cgm',
           'test_particle_sources_cgm.py',
-          'test_particle_sources_cgm.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -202,7 +187,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_fusion_power',
           'test_fusion_power.py',
-          'test_fusion_power.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -210,7 +194,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_all_transport_fusion_qlknn',
           'test_all_transport_fusion_qlknn.py',
-          'test_all_transport_fusion_qlknn.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -218,7 +201,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_chease',
           'test_chease.py',
-          'test_chease.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -226,7 +208,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_ohmic_power',
           'test_ohmic_power.py',
-          'test_ohmic_power.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -234,7 +215,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_bremsstrahlung',
           'test_bremsstrahlung.py',
-          'test_bremsstrahlung.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -242,7 +222,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_qei_chease_highdens',
           'test_qei_chease_highdens.py',
-          'test_qei_chease_highdens.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -250,7 +229,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psichease_ip_parameters',
           'test_psichease_ip_parameters.py',
-          'test_psichease_ip_parameters.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -258,7 +236,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psichease_ip_chease',
           'test_psichease_ip_chease.py',
-          'test_psichease_ip_chease.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -266,7 +243,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psichease_prescribed_jtot',
           'test_psichease_prescribed_jtot.py',
-          'test_psichease_prescribed_jtot.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -274,7 +250,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_psichease_prescribed_johm',
           'test_psichease_prescribed_johm.py',
-          'test_psichease_prescribed_johm.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -282,7 +257,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_timedependence',
           'test_timedependence.py',
-          'test_timedependence.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -290,7 +264,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_prescribed_timedependent_ne',
           'test_prescribed_timedependent_ne.py',
-          'test_prescribed_timedependent_ne.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -299,7 +272,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_ne_qlknn_defromchie',
           'test_ne_qlknn_defromchie.py',
-          'test_ne_qlknn_defromchie.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -307,7 +279,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_ne_qlknn_deff_veff',
           'test_ne_qlknn_deff_veff.py',
-          'test_ne_qlknn_deff_veff.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -315,7 +286,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_all_transport_crank_nicolson',
           'test_all_transport_crank_nicolson.py',
-          'test_all_transport_crank_nicolson.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -324,7 +294,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_pc_method_ne',
           'test_pc_method_ne.py',
-          'test_pc_method_ne.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -332,7 +301,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterbaseline_mockup',
           'test_iterbaseline_mockup.py',
-          'test_iterbaseline_mockup.nc',
           _ALL_PROFILES,
           1e-10,
       ),
@@ -340,7 +308,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_mockup',
           'test_iterhybrid_mockup.py',
-          'test_iterhybrid_mockup.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -349,7 +316,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector',
           'test_iterhybrid_predictor_corrector.py',
-          'test_iterhybrid_predictor_corrector.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -357,7 +323,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_newton',
           'test_iterhybrid_newton.py',
-          'test_iterhybrid_newton.nc',
           _ALL_PROFILES,
           0,
       ),
@@ -367,7 +332,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_rampup',
           'test_iterhybrid_rampup.py',
-          'test_iterhybrid_rampup.nc',
           _ALL_PROFILES,
           0,
           2e-7
@@ -376,7 +340,6 @@ class SimTest(sim_test_case.SimTestCase):
   def test_torax_sim(
       self,
       config_name: str,
-      ref_name: str,
       profiles: Sequence[str],
       rtol: Optional[float] = None,
       atol: Optional[float] = None,
@@ -388,22 +351,21 @@ class SimTest(sim_test_case.SimTestCase):
     # not be removed.
     self._test_torax_sim(
         config_name,
-        ref_name,
         profiles,
-        rtol,
-        atol,
-        use_ref_time,
+        rtol=rtol,
+        atol=atol,
+        use_ref_time=use_ref_time,
     )
 
   def test_fail(self):
     """Test that the integration tests can actually fail."""
 
-    # Run test3 but pass in the reference result from test2
+    # Run test_qei but pass in the reference result from test_implicit.
     with self.assertRaises(AssertionError):
       self._test_torax_sim(
           'test_qei.py',
-          'test_implicit',
           ('temp_ion', 'temp_el'),
+          ref_name='test_implicit.nc',
       )
 
   def test_no_op(self):

@@ -85,7 +85,7 @@ class GeometryTest(parameterized.TestCase):
         rhon=jnp.arange(0, 1.0, 0.01),
         Rin=jnp.arange(0, 1.0, 0.01),
         Rout=jnp.arange(0, 1.0, 0.01),
-        RBPhi=jnp.arange(0, 1.0, 0.01),
+        RBphi=jnp.arange(0, 1.0, 0.01),
         int_Jdchi=jnp.arange(0, 1.0, 0.01),
         flux_norm_1_over_R2=jnp.arange(0, 1.0, 0.01),
         flux_norm_Bp2=jnp.arange(0, 1.0, 0.01),

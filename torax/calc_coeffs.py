@@ -387,7 +387,9 @@ def _calc_coeffs_full(
   chi_face_el = transport_coeffs.chi_face_el
   d_face_el = transport_coeffs.d_face_el
   v_face_el = transport_coeffs.v_face_el
-  d_face_psi = geo.G2_face / geo.J_face / geo.rmax**2
+  d_face_psi = (
+      geo.g2g3_over_rho_face * geo.Rmaj / (16 * jnp.pi**4 * geo.rmax**2)
+  )
 
   if static_runtime_params_slice.dens_eq:
     if d_face_el is None or v_face_el is None:

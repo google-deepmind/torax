@@ -21,13 +21,20 @@ from typing import Sequence
 from absl import app
 from absl import flags
 
+from torax.tests import test_lib
+
 _FAILED_TEST_OUTPUT_DIR = flags.DEFINE_string(
     'failed_test_output_dir',
     '/tmp/torax_failed_sim_test_outputs/',
     'File path to the directory containing failed sim test output'
     ' subdirectories.',
 )
-_REFERENCE_TEST_DATA_DIR = 'torax/tests/test_data'
+
+_REFERENCE_TEST_DATA_DIR = flags.DEFINE_string(
+    'reference_dir',
+    'torax/tests/test_data',
+    'File path to the directory containing reference data files',
+)
 
 
 def main(argv: Sequence[str]) -> None:
@@ -61,14 +68,17 @@ def _copy_sim_test_outputs(failed_test_dir: str) -> None:
     failed_test_dir: Name of the failed test directory.
   """
   failed_test_output_dir = _FAILED_TEST_OUTPUT_DIR.value
-  old_file = os.path.join(_REFERENCE_TEST_DATA_DIR, failed_test_dir + '.nc')
+  reference_test_data_dir = _REFERENCE_TEST_DATA_DIR.value
+  old_file = os.path.join(reference_test_data_dir, failed_test_dir + '.nc')
   new_file = os.path.join(
       failed_test_output_dir, failed_test_dir, 'state_history.nc'
   )
 
   # Copy old_file to new_file, overwriting new_file if it exists.
-  shutil.copy(new_file, old_file)
-  print(f'Copied {new_file} to {old_file}')
+  # Only copy references where the test name matches the reference name.
+  if failed_test_dir == test_lib.get_data_file(failed_test_dir)[:-3]:
+    shutil.copy(new_file, old_file)
+    print(f'\nCopied {new_file} to {old_file}\n')
 
 
 if __name__ == '__main__':

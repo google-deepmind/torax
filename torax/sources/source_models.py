@@ -505,7 +505,9 @@ def calc_psidot(
       / geo.J**2
       / geo.Rmaj
   )
-  d_face_psi = geo.G2_face / geo.J_face / geo.rmax**2
+  d_face_psi = (
+      geo.g2g3_over_rho_face * geo.Rmaj / (16 * jnp.pi**4 * geo.rmax**2)
+  )
 
   c_mat, c = diffusion_terms.make_diffusion_terms(d_face_psi, core_profiles.psi)
   c += psi_sources

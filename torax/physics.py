@@ -199,7 +199,13 @@ def calc_jtot_from_psi(
 
   # inside flux sur_face on face grid
   # pylint: disable=invalid-name
-  I_tot = dpsi_dr * geo.G2_face / constants.CONSTANTS.mu0
+  I_tot = (
+      dpsi_dr
+      * geo.g2g3_over_rho_face
+      * geo.Rmaj
+      * geo.J_face
+      / (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
+  )
 
   jtot_face = (
       2 * jnp.pi * geo.Rmaj * math_utils.gradient(I_tot, geo.volume_face)

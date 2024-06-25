@@ -97,6 +97,7 @@ class GeometryType(enum.Enum):
   This type can be used within JAX expressions to access the geometry type
   without having to call isinstance.
   """
+
   CIRCULAR = 0
   CHEASE = 1
 
@@ -130,14 +131,20 @@ class Geometry:
   spr_cell: chex.Array
   spr_face: chex.Array
   delta_face: chex.Array
-  G2: chex.Array
-  G2_face: chex.Array
   g0: chex.Array
   g0_face: chex.Array
   g1: chex.Array
   g1_face: chex.Array
+  g2: chex.Array
+  g2_face: chex.Array
+  g3: chex.Array
+  g3_face: chex.Array
+  g2g3_over_rho: chex.Array
+  g2g3_over_rho_face: chex.Array
+  g2g3_over_rho_hires: chex.Array
   J: chex.Array
   J_face: chex.Array
+  J_hires: chex.Array
   F: chex.Array
   F_face: chex.Array
   Rin: chex.Array
@@ -146,7 +153,6 @@ class Geometry:
   Rout_face: chex.Array
   volume_hires: chex.Array
   area_hires: chex.Array
-  G2_hires: chex.Array
   spr_hires: chex.Array
   r_hires_norm: chex.Array
   r_hires: chex.Array
@@ -200,6 +206,7 @@ class CircularAnalyticalGeometry(Geometry):
 
   Most users should default to using the Geometry class.
   """
+
   kappa: jax.Array
   kappa_face: jax.Array
   kappa_hires: jax.Array
@@ -298,30 +305,42 @@ def build_circular_geometry(
 
   delta_face = np.zeros(len(r_face))
 
-  # uses <1/R^2> with circular geometry
-  # <1/R^2> = int_0^2pi (1/(Rmaj+r*cosx)^2)dx = 1/Rmaj^2 * (1 - (r/Rmaj)^2)
-  G2 = vpr / (4 * np.pi**2 * Rmaj**2 * (1 - (r / Rmaj) ** 2) ** (3.0 / 2.0))
+  # Geometry variables for general geometry form of transport equations.
+  # With circular geometry approximation.
 
-  # generate G2_face by hand
-  G2_outer_face = vpr_face[-1] / (
-      4 * np.pi**2 * Rmaj**2 * (1 - (r_face[-1] / Rmaj) ** 2) ** (3.0 / 2.0)
-  )
-  G2_outer_face = np.expand_dims(G2_outer_face, 0)
-  G2_face = np.concatenate(
-      (
-          np.zeros((1,)),
-          0.5 * (G2[:-1] + G2[1:]),
-          G2_outer_face,
-      ),
-  )
-
-  # g0 variable needed for general geometry form of transport equations
+  # g0: <\nabla V>
   g0 = vpr
   g0_face = vpr_face
 
-  # g1 variable needed for general geometry form of transport equations
+  # g1: <\nabla V^2>
   g1 = vpr**2
   g1_face = vpr_face**2
+
+  # g2: <(\nabla V)^2 / R^2>
+  # V = 2*pi^2*R*r^2*kappa
+  # Expand with small kappa expansion
+
+  g2 = (
+      16
+      * np.pi**4
+      * r**2
+      * kappa**2
+      * (1 + 0.5 * r_norm * (kappa_param - 1) / kappa_param) ** 2
+  )
+  g2_face = (
+      16
+      * np.pi**4
+      * r_face**2
+      * kappa_face**2
+      * (1 + 0.5 * r_face_norm * (kappa_param - 1) / kappa_param) ** 2
+  )
+
+  # g3: <1/R^2> (done without a kappa correction)
+  # <1/R^2> =
+  # 1/2pi*int_0^2pi (1/(Rmaj+r*cosx)^2)dx =
+  # 1/( Rmaj^2 * (1 - (r/Rmaj)^2)^3/2 )
+  g3 = 1 / (Rmaj**2 * (1 - (r / Rmaj) ** 2) ** (3.0 / 2.0))
+  g3_face = 1 / (Rmaj**2 * (1 - (r_face / Rmaj) ** 2) ** (3.0 / 2.0))
 
   # simplifying assumption for now, for J=R*B/(R0*B0)
   J = np.ones(len(r))
@@ -329,6 +348,17 @@ def build_circular_geometry(
   # simplified (constant) version of the F=B*R function
   F = np.ones(len(r)) * Rmaj * B0
   F_face = np.ones(len(r_face)) * Rmaj * B0
+
+  # Using an approximation where:
+  # g2g3_over_rho = 16 * pi**4 * G2 / (J * R) where:
+  # G2 = vpr / (4 * pi**2) * <1/R^2>
+  # This is done due to our ad-hoc kappa assumption, which leads to more
+  # reasonable values for g2g3_over_rho through the G2 definition.
+  # In the future, a more rigorous analytical geometry will be developed and
+  # the direct definition of g2g3_over_rho will be used.
+
+  g2g3_over_rho = 4 * np.pi**2 * vpr * g3 / (J * Rmaj)
+  g2g3_over_rho_face = 4 * np.pi**2 * vpr_face * g3_face / (J_face * Rmaj)
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
@@ -359,9 +389,9 @@ def build_circular_geometry(
       + area_hires / kappa_hires * (kappa_param - 1) / rmax
   )
 
-  # uses <1/R^2> with circular geometry
-  denom = 4 * np.pi**2 * Rmaj**2 * (1 - (r_hires / Rmaj) ** 2) ** (3.0 / 2.0)
-  G2_hires = vpr_hires / denom
+  g3_hires = 1 / (Rmaj**2 * (1 - (r_hires / Rmaj) ** 2) ** (3.0 / 2.0))
+  J_hires = np.ones(len(r_hires))
+  g2g3_over_rho_hires = 4 * np.pi**2 * vpr_hires * g3_hires / (J_hires * Rmaj)
 
   return CircularAnalyticalGeometry(
       # Set the standard geometry params.
@@ -383,14 +413,20 @@ def build_circular_geometry(
       spr_cell=spr_cell,
       spr_face=spr_face,
       delta_face=delta_face,
-      G2=G2,
-      G2_face=G2_face,
       g0=g0,
       g0_face=g0_face,
       g1=g1,
       g1_face=g1_face,
+      g2=g2,
+      g2_face=g2_face,
+      g3=g3,
+      g3_face=g3_face,
+      g2g3_over_rho=g2g3_over_rho,
+      g2g3_over_rho_face=g2g3_over_rho_face,
+      g2g3_over_rho_hires=g2g3_over_rho_hires,
       J=J,
       J_face=J_face,
+      J_hires=J_hires,
       F=F,
       F_face=F_face,
       Rin=Rin,
@@ -402,7 +438,6 @@ def build_circular_geometry(
       kappa_face=kappa_face,
       volume_hires=volume_hires,
       area_hires=area_hires,
-      G2_hires=G2_hires,
       spr_hires=spr_hires,
       r_hires_norm=r_hires_norm,
       r_hires=r_hires,
@@ -490,7 +525,7 @@ def build_geometry_from_chease(
       rhon=rhon,
       Rin=Rin_chease,
       Rout=Rout_chease,
-      RBPhi=RBphi,
+      RBphi=RBphi,
       int_Jdchi=int_Jdchi,
       flux_norm_1_over_R2=flux_norm_1_over_R2,
       flux_norm_Bp2=flux_norm_Bp2,
@@ -517,7 +552,7 @@ def build_standard_geometry(
     rhon: chex.Array,
     Rin: chex.Array,
     Rout: chex.Array,
-    RBPhi: chex.Array,
+    RBphi: chex.Array,
     int_Jdchi: chex.Array,
     flux_norm_1_over_R2: chex.Array,
     flux_norm_Bp2: chex.Array,
@@ -550,7 +585,7 @@ def build_standard_geometry(
     rhon: Toroidal flux coordinate
     Rin: Midplane radii
     Rout: Midplane radii
-    RBPhi: Toroidal field flux function
+    RBphi: Toroidal field flux function
     int_Jdchi: <|grad(psi)|>
     flux_norm_1_over_R2: <1/R**2>
     flux_norm_Bp2: <Bp**2>
@@ -575,52 +610,42 @@ def build_standard_geometry(
 
   # derived quantities for transport equations and transformations
 
-  g0_chease = flux_norm_dpsi * C1  # <\nabla V>
-  g1_chease = C1 * C4  # <(\nabla V)**2>
-  g2_chease = C1 * C3  # <(\nabla V)**2 / R**2>
-  g3_chease = C2[1:] / C1[1:]  # <1/R**2>
-  g3_chease = np.concatenate((np.asarray([1 / Rin[0] ** 2]), g3_chease))
-  G2_chease = (
-      1
-      / (16 * np.pi**4)
-      / B
-      * RBPhi[1:]
-      * g2_chease[1:]
-      * g3_chease[1:]
-      / rho[1:]
-  )
-  G2_chease = np.concatenate((np.zeros(1), G2_chease))
+  g0 = flux_norm_dpsi * C1  # <\nabla V>
+  g1 = C1 * C4  # <(\nabla V)**2>
+  g2 = C1 * C3  # <(\nabla V)**2 / R**2>
+  g3 = C2[1:] / C1[1:]  # <1/R**2>
+  g3 = np.concatenate((np.array([1 / Rin[0] ** 2]), g3))
+  g2g3_over_rho = g2[1:] * g3[1:] / rho[1:]
+  g2g3_over_rho = np.concatenate((np.zeros(1), g2g3_over_rho))
+
+  J = RBphi / (Rmaj * B)
 
   # make an alternative initial psi, self-consistent with CHEASE Ip profile
   # needed because CHEASE psi profile has noisy second derivatives
-  dpsidrho = Ip[1:] * constants.CONSTANTS.mu0 / G2_chease[1:]
+  dpsidrho = (
+      Ip[1:]
+      * (16 * constants.CONSTANTS.mu0 * np.pi**4)
+      / (g2g3_over_rho[1:] * Rmaj * J[1:])
+  )
   dpsidrho = np.concatenate((np.zeros(1), dpsidrho))
   psi_from_Ip = np.zeros(len(psi))
   for i in range(1, len(psi_from_Ip) + 1):
     psi_from_Ip[i - 1] = scipy.integrate.trapezoid(dpsidrho[:i], rho[:i])
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
-  psi_from_Ip[-1] = (
-      psi_from_Ip[-2]
-      + constants.CONSTANTS.mu0 * Ip[-1] / G2_chease[-1] * (rho[-1] - rho[-2])
-  )
+  psi_from_Ip[-1] = psi_from_Ip[-2] + (
+      16 * constants.CONSTANTS.mu0 * np.pi**4
+  ) * Ip[-1] / (g2g3_over_rho[-1] * Rmaj * J[-1]) * (rho[-1] - rho[-2])
 
-  # volume, area, and dV/drho, dS/drho
-  volume_chease = volume
-  area_chease = area
-  vpr_chease = np.gradient(volume_chease, rho)
-  spr_chease = np.gradient(area_chease, rho)
+  # dV/drho, dS/drho
+  vpr = np.gradient(volume, rho)
+  spr = np.gradient(area, rho)
   # gradient boundary approximation not appropriate here
-  vpr_chease[0] = 0
-  spr_chease[0] = 0
+  vpr[0] = 0
+  spr[0] = 0
 
   # plasma current density
-  jtot_chease = (
-      2
-      * np.pi
-      * Rmaj
-      * np.gradient(Ip, volume_chease)
-  )
+  jtot = 2 * np.pi * Rmaj * np.gradient(Ip, volume)
 
   # fill geometry structure
   # r_norm coordinate is rho_tor_norm
@@ -637,14 +662,14 @@ def build_standard_geometry(
   r_hires_norm = np.linspace(0, 1, nr * hires_fac)
   r_hires = r_hires_norm * rmax
 
-  interp_func = lambda x: np.interp(x, rhon, vpr_chease)
+  interp_func = lambda x: np.interp(x, rhon, vpr)
   # V' for volume integrations on face grid
   vpr_face = interp_func(r_face_norm)
   # V' for volume integrations on cell grid
   vpr_hires = interp_func(r_hires_norm)
   vpr = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, spr_chease)
+  interp_func = lambda x: np.interp(x, rhon, spr)
   # S' for area integrals on face grid
   spr_face = interp_func(r_face_norm)
   # S' for area integrals on cell grid
@@ -660,18 +685,14 @@ def build_standard_geometry(
   # average triangularity
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
-  interp_func = lambda x: np.interp(x, rhon, G2_chease)
-  G2_face = interp_func(r_face_norm)
-  G2_hires = interp_func(r_hires_norm)
-  G2 = interp_func(r_norm)
-
-  interp_func = lambda x: np.interp(x, rhon, RBPhi)
+  interp_func = lambda x: np.interp(x, rhon, RBphi)
   F_face = interp_func(r_face_norm)
+  F_hires = interp_func(r_hires_norm)
   F = interp_func(r_norm)
-  # simplified (constant) version of the F=B*R function
+  # Normalized toroidal flux function
   J = F / Rmaj / B
-  # simplified (constant) version of the F=B*R function
   J_face = F_face / Rmaj / B
+  J_hires = F_hires / Rmaj / B
 
   interp_func = lambda x: np.interp(x, rhon, psi)
   psi = interp_func(r_norm)
@@ -679,7 +700,7 @@ def build_standard_geometry(
   interp_func = lambda x: np.interp(x, rhon, psi_from_Ip)
   psi_from_Ip = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, jtot_chease)
+  interp_func = lambda x: np.interp(x, rhon, jtot)
   jtot_face = interp_func(r_face_norm)
   jtot = interp_func(r_norm)
 
@@ -691,26 +712,33 @@ def build_standard_geometry(
   Rout_face = interp_func(r_face_norm)
   Rout = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, g0_chease)
+  interp_func = lambda x: np.interp(x, rhon, g0)
   g0_face = interp_func(r_face_norm)
   g0 = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, g1_chease)
+  interp_func = lambda x: np.interp(x, rhon, g1)
   g1_face = interp_func(r_face_norm)
   g1 = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, g2_chease)
+  interp_func = lambda x: np.interp(x, rhon, g2)
+  g2_face = interp_func(r_face_norm)
   g2 = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, g3_chease)
+  interp_func = lambda x: np.interp(x, rhon, g3)
+  g3_face = interp_func(r_face_norm)
   g3 = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, volume_chease)
+  interp_func = lambda x: np.interp(x, rhon, g2g3_over_rho)
+  g2g3_over_rho_face = interp_func(r_face_norm)
+  g2g3_over_rho_hires = interp_func(r_hires_norm)
+  g2g3_over_rho = interp_func(r_norm)
+
+  interp_func = lambda x: np.interp(x, rhon, volume)
   volume_face = interp_func(r_face_norm)
   volume_hires = interp_func(r_hires_norm)
   volume = interp_func(r_norm)
 
-  interp_func = lambda x: np.interp(x, rhon, area_chease)
+  interp_func = lambda x: np.interp(x, rhon, area)
   area_face = interp_func(r_face_norm)
   area_hires = interp_func(r_hires_norm)
   area = interp_func(r_norm)
@@ -734,23 +762,26 @@ def build_standard_geometry(
       spr_cell=spr_cell,
       spr_face=spr_face,
       delta_face=delta_face,
-      G2=G2,
-      G2_face=G2_face,
       g0=g0,
       g0_face=g0_face,
       g1=g1,
       g1_face=g1_face,
+      g2=g2,
+      g2_face=g2_face,
+      g3=g3,
+      g3_face=g3_face,
+      g2g3_over_rho=g2g3_over_rho,
+      g2g3_over_rho_face=g2g3_over_rho_face,
+      g2g3_over_rho_hires=g2g3_over_rho_hires,
       J=J,
       J_face=J_face,
+      J_hires=J_hires,
       F=F,
       F_face=F_face,
       Rin=Rin,
       Rin_face=Rin_face,
       Rout=Rout,
       Rout_face=Rout_face,
-      # Set the CHEASE geometry-specific parameters.
-      g2=g2,
-      g3=g3,
       psi=psi,
       psi_from_Ip=psi_from_Ip,
       jtot=jtot,
@@ -759,7 +790,6 @@ def build_standard_geometry(
       delta_lower_face=delta_lower_face,
       volume_hires=volume_hires,
       area_hires=area_hires,
-      G2_hires=G2_hires,
       spr_hires=spr_hires,
       r_hires_norm=r_hires_norm,
       r_hires=r_hires,

@@ -18,7 +18,6 @@ Set of routines that initializes core_profiles, updates time-dependent boundary
 conditions, and updates time-dependent prescribed core_profiles that are not
 evolved by the PDE system.
 """
-
 import dataclasses
 import jax
 from jax import numpy as jnp
@@ -474,8 +473,8 @@ def _update_psi_from_j(
   psi_constraint = (
       dynamic_runtime_params_slice.profile_conditions.Ip
       * 1e6
-      * constants.CONSTANTS.mu0
-      / geo.G2_face[-1]
+      * (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
+      / (geo.g2g3_over_rho_face[-1] * geo.J_face[-1] * geo.Rmaj)
       * geo.rmax
   )
 
@@ -487,7 +486,8 @@ def _update_psi_from_j(
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
-      constants.CONSTANTS.mu0 / (2 * jnp.pi * geo.Rmaj * geo.G2_hires[1:]),
+      (8 * jnp.pi**3 * constants.CONSTANTS.mu0)
+      / (geo.J_hires[1:] * geo.Rmaj**2 * geo.g2g3_over_rho_hires[1:]),
   ))
   # dpsi_dr on the cell grid
   dpsi_dr_hires = scale * integrated
@@ -530,15 +530,9 @@ def initial_core_profiles(
   # To set initial values and compute the boundary conditions, we need to handle
   # potentially time-varying inputs from the users.
   # The default time in build_dynamic_runtime_params_slice is t_initial
-  temp_ion = _updated_ti(
-      dynamic_runtime_params_slice, geo
-  )
-  temp_el = _updated_te(
-      dynamic_runtime_params_slice, geo
-  )
-  ne, ni = _updated_dens(
-      dynamic_runtime_params_slice, geo
-  )
+  temp_ion = _updated_ti(dynamic_runtime_params_slice, geo)
+  temp_el = _updated_te(dynamic_runtime_params_slice, geo)
+  ne, ni = _updated_dens(dynamic_runtime_params_slice, geo)
 
   # set up initial psi profile based on current profile
   if (
@@ -596,8 +590,8 @@ def initial_core_profiles(
     psi_constraint = (
         dynamic_runtime_params_slice.profile_conditions.Ip
         * 1e6
-        * constants.CONSTANTS.mu0
-        / geo.G2_face[-1]
+        * (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
+        / (geo.g2g3_over_rho_face[-1] *geo.J_face[-1] * geo.Rmaj)
         * geo.rmax
     )
     psi = cell_variable.CellVariable(
@@ -697,27 +691,21 @@ def updated_prescribed_core_profiles(
       not static_runtime_params_slice.ion_heat_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    temp_ion = _updated_ti(
-        dynamic_runtime_params_slice, geo
-    ).value
+    temp_ion = _updated_ti(dynamic_runtime_params_slice, geo).value
   else:
     temp_ion = core_profiles.temp_ion.value
   if (
       not static_runtime_params_slice.el_heat_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    temp_el = _updated_te(
-        dynamic_runtime_params_slice, geo
-    ).value
+    temp_el = _updated_te(dynamic_runtime_params_slice, geo).value
   else:
     temp_el = core_profiles.temp_el.value
   if (
       not static_runtime_params_slice.dens_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    ne, ni = _updated_dens(
-        dynamic_runtime_params_slice, geo
-    )
+    ne, ni = _updated_dens(dynamic_runtime_params_slice, geo)
     ne = ne.value
     ni = ni.value
   else:
@@ -844,8 +832,8 @@ def compute_boundary_conditions(
       'psi': dict(
           right_face_grad_constraint=Ip
           * 1e6
-          * constants.CONSTANTS.mu0
-          / geo.G2_face[-1]
+          * (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
+          / (geo.g2g3_over_rho_face[-1] * geo.J_face[-1] * geo.Rmaj)
           * geo.rmax,
           right_face_constraint=None,
       ),

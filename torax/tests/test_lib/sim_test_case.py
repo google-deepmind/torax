@@ -34,6 +34,7 @@ from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
+from torax.tests import test_lib
 from torax.time_step_calculator import array_time_step_calculator
 from torax.transport_model import runtime_params as transport_params_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -222,8 +223,8 @@ class SimTestCase(parameterized.TestCase):
   def _test_torax_sim(
       self,
       config_name: str,
-      ref_name: str,
       profiles: Sequence[str],
+      ref_name: Optional[str] = None,
       rtol: Optional[float] = None,
       atol: Optional[float] = None,
       use_ref_time: bool = False,
@@ -233,8 +234,8 @@ class SimTestCase(parameterized.TestCase):
     Args:
       config_name: Name of py config to load. (Leave off dir path, include
         ".py")
-      ref_name: Name of reference filename to load. (Leave off dir path)
       profiles: List of names of variables to check.
+      ref_name: Name of reference filename to load. (Leave off dir path)
       rtol: Optional float, to override the class level rtol.
       atol: Optional float, to override the class level atol.
       use_ref_time: If True, locks to time steps calculated by reference.
@@ -246,6 +247,9 @@ class SimTestCase(parameterized.TestCase):
       atol = self.atol
 
     sim = self._get_sim(config_name)
+
+    if ref_name is None:
+      ref_name = test_lib.get_data_file(config_name[:-3])
 
     # Load reference profiles
     ref_profiles, ref_time = self._get_refs(ref_name, profiles)

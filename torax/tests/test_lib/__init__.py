@@ -13,3 +13,18 @@
 # limitations under the License.
 
 """A library with test functionality shared across tests."""
+
+# Mapping function from sim test names to sim reference file name.
+# By default the test name and file names match. However, several
+# cases are nonstandard. The following dict defines the nonstandard
+# mappings.
+_REF_MAP_OVERRIDES = {
+    'test_crank_nicolson': 'test_implicit.nc',
+    'test_arraytimestepcalculator': 'test_qei.nc',
+    'test_absolute_jext': 'test_psi_and_heat.nc',
+    'test_newton_raphson_zeroiter': 'test_psi_and_heat.nc',
+}
+
+
+def get_data_file(test_name: str) -> str:
+  return _REF_MAP_OVERRIDES.get(test_name, f'{test_name}.nc')

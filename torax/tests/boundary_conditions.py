@@ -78,7 +78,12 @@ class BoundaryConditionsTest(absltest.TestCase):
 
     updated = config_args.recursive_replace(core_profiles, **bc)
 
-    psi_constraint = 6e6 * constants.CONSTANTS.mu0 / geo.G2_face[-1] * geo.rmax
+    psi_constraint = (
+        6e6
+        * (16 * np.pi**4 * constants.CONSTANTS.mu0)
+        / (geo.g2g3_over_rho_face[-1] * geo.J_face[-1] * geo.Rmaj)
+        * geo.rmax
+    )
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
     np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)
     np.testing.assert_allclose(updated.ne.right_face_constraint, 2.0)

@@ -32,7 +32,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_implicit_optimizer_no_compile',
           'test_implicit_short_optimizer.py',
-          'test_implicit_short_optimizer.nc',
           _ALL_PROFILES,
           1e-5,
           None,
@@ -43,7 +42,6 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_qlknnheat',
           'test_qlknnheat.py',
-          'test_qlknnheat.nc',
           _ALL_PROFILES,
           0,
           1e-11,
@@ -53,7 +51,6 @@ class SimTest(sim_test_case.SimTestCase):
   def test_torax_sim(
       self,
       config_name: str,
-      ref_name: str,
       profiles: Sequence[str],
       rtol: Optional[float] = None,
       atol: Optional[float] = None,
@@ -64,11 +61,10 @@ class SimTest(sim_test_case.SimTestCase):
 
     self._test_torax_sim(
         config_name,
-        ref_name,
         profiles,
-        rtol,
-        atol,
-        use_ref_time,
+        rtol=rtol,
+        atol=atol,
+        use_ref_time=use_ref_time,
     )
 
 
