@@ -321,7 +321,7 @@ class SingleProfileSource(Source):
 
     @dataclasses.dataclass(kw_only=True)
     class FooRuntimeParams(runtime_params_lib.RuntimeParams):
-      foo_param: runtime_params_lib.TimeDependentField
+      foo_param: runtime_params_lib.TimeInterpolatedScalar
       bar_param: float
 
       def (build_dynamic_params(self, t: chex.Numeric)
