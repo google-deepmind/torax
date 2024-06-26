@@ -80,11 +80,12 @@ To extend configuration parameters where time-dependence is not enabled, to have
 
 Time-varying arrays
 -------------------
-For fields labelled with **time-varying-array** time dependence is set by assigning a dict of dicts or single values to the parameter.
-The outer dict defines a time-series with ``{time: value}`` pairs.  The ``value`` itself is interpreted as a radial profile,
-being made up of {rho: value} pairs. It behaves similarly to the **time-varying-scalar** but
-any interpolation will happen along the :math:`\hat{\rho}` axis and can take any of the formats
-defined for a **time-varying-scalar** above.
+For fields labelled with **time-varying-array** time dependence is set by assigning a dict of dicts to the parameter.
+
+The outer dict defines a time-series with ``{time: value}`` pairs.
+The ``value`` itself is interpreted as a radial profile, being made up of {rho: value} pairs.
+It behaves similarly to the **time-varying-scalar** but any interpolation will happen along the
+:math:`\hat{\rho}` axis and can take any of the formats defined for a **time-varying-scalar** above.
 
 Note: :math:`\hat{\rho}` is normalized and will take values between 0 and 1.
 
@@ -95,6 +96,17 @@ at both time :math:`t` and time :math:`t+dt`..
 
 For :math:`t` greater than or less than the largest or smallest defined time then the interpolation scheme
 will be applied from the closest time value.
+
+Shortcuts:
+
+Passing a single float value is interpreted as defining a constant profile for all times and
+For example ``Ti: 6.0`` would be equivalent to passing in ``Ti: {0.0: {0.0: 6.0}}``.
+
+Passing a single dict (instead of dict of dicts) is a shortcut for defining the rho profile
+for :math:`t=0.0`. For example ``Ti: {0.0: 18.0, 0.95: 5.0, 1.0: 0.2}`` is a shortcut for
+``Ti: {0.0: {0: 18.0, 0.95: 5.0, 1.0: 0.2}}`` where :math:`t=0.0` is arbitrary
+(due to constant extrapolation for any input :math:`t=0.0`).
+
 
 Examples:
 

@@ -129,6 +129,7 @@ class StepInterpolatedParam(JaxFriendlyInterpolatedParam):
 
 # Config input types convertible to InterpolatedParam objects.
 InterpolatedVar1dInput = float | dict[float, float] | bool | dict[float, bool]
+InterpolatedVar2dInput = Mapping[float, InterpolatedVar1dInput] | float
 
 
 def _convert_input_to_xs_ys(
@@ -236,11 +237,21 @@ class InterpolatedVar2d:
 
   def __init__(
       self,
-      values: Mapping[float, InterpolatedVar1dInput],
+      values: InterpolatedVar2dInput,
       rho_interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
   ):
+    # If a float is passed in, will describe constant initial condition profile.
+    if isinstance(values, float):
+
+      values = {0.0: {0.0: values}}
+    # If a non-nested dict is passed in, it will describe the radial profile for
+    # the initial condition."
+    if isinstance(values, Mapping) and all(
+        isinstance(v, float) for v in values.values()
+    ):
+      values = {0.0: values}
     if len(set(values.keys())) != len(values):
       raise ValueError('Indicies in values mapping must be unique.')
     if not values:
@@ -298,6 +309,4 @@ TimeInterpolatedScalar = (
 )
 
 # Type-alias for a 1D variable (in rho_norm) to be interpolated in time.
-TimeInterpolatedArray = (
-    InterpolatedVar2d | Mapping[float, InterpolatedVar1dInput]
-)
+TimeInterpolatedArray = InterpolatedVar2d | InterpolatedVar2dInput

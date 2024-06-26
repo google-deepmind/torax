@@ -326,7 +326,7 @@ class InterpolatedParamTest(parameterized.TestCase):
           'expected_output': np.array([0.88, 0.4, 0.32,])
       }
   )
-  def test_doubly_interpolated_param(self, values, x, y, expected_output):
+  def test_interpolated_var_2d(self, values, x, y, expected_output):
     """Tests the doubly interpolated param gives correct outputs on 2D mesh."""
     interpolated_var_2d = interpolated_param.InterpolatedVar2d(
         values
@@ -334,6 +334,39 @@ class InterpolatedParamTest(parameterized.TestCase):
 
     output = interpolated_var_2d.get_value(time=x, rho=y)
     np.testing.assert_allclose(output, expected_output)
+
+  def test_interpolated_var_2d_parses_float_input(self):
+    """Tests that InterpolatedVar2d parses float inputs correctly."""
+    interpolated_var_2d = interpolated_param.InterpolatedVar2d(
+        values=1.0,
+    )
+    np.testing.assert_allclose(
+        interpolated_var_2d.get_value(time=0.0, rho=0.0), 1.0
+    )
+    np.testing.assert_allclose(
+        interpolated_var_2d.get_value(time=0.0, rho=1.0), 1.0
+    )
+    self.assertLen(interpolated_var_2d.values, 1)
+    self.assertIn(0.0, interpolated_var_2d.values)
+
+  def test_interpolated_var_2d_parses_single_dict_input(self):
+    """Tests that InterpolatedVar2d parses float inputs correctly."""
+    interpolated_var_2d = interpolated_param.InterpolatedVar2d(
+        values={0: 18.0, 0.95: 5.0,},
+    )
+    np.testing.assert_allclose(
+        interpolated_var_2d.get_value(time=0.0, rho=0.0), 18.0
+    )
+    np.testing.assert_allclose(
+        interpolated_var_2d.get_value(time=0.5, rho=0.0), 18.0
+    )
+
+    np.testing.assert_allclose(
+        interpolated_var_2d.get_value(time=0.0, rho=0.95), 5.0
+    )
+    np.testing.assert_allclose(
+        interpolated_var_2d.get_value(time=0.5, rho=0.95), 5.0
+    )
 
 
 if __name__ == '__main__':
