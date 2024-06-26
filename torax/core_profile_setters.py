@@ -99,7 +99,7 @@ def updated_electron_temperature(
   return temp_el
 
 
-def _updated_dens(
+def updated_density(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
 ) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
@@ -123,12 +123,7 @@ def _updated_dens(
       dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
   )
 
-  # set peaking (limited to linear profile)
-  nshape_face = jnp.linspace(
-      dynamic_runtime_params_slice.profile_conditions.npeak,
-      1,
-      geo.mesh.nx + 1,
-  )
+  nshape_face = dynamic_runtime_params_slice.profile_conditions.ne
   nshape = geometry.face_to_cell(nshape_face)
 
   # find normalization factor such that desired line-averaged n is set
@@ -550,7 +545,7 @@ def initial_core_profiles(
   # The default time in build_dynamic_runtime_params_slice is t_initial
   temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo)
   temp_el = updated_electron_temperature(dynamic_runtime_params_slice, geo)
-  ne, ni = _updated_dens(dynamic_runtime_params_slice, geo)
+  ne, ni = updated_density(dynamic_runtime_params_slice, geo)
 
   # set up initial psi profile based on current profile
   if (
@@ -727,7 +722,9 @@ def updated_prescribed_core_profiles(
       not static_runtime_params_slice.dens_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    ne, ni = _updated_dens(dynamic_runtime_params_slice, geo)
+    ne, ni = updated_density(
+        dynamic_runtime_params_slice, geo
+    )
     ne = ne.value
     ni = ni.value
   else:

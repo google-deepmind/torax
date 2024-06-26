@@ -75,9 +75,12 @@ class ProfileConditions:
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
   )
 
-  # Peaking factor of density profile.
-  # If density evolves with PDE (dens_eq=True), then is initial condition
-  npeak: TimeInterpolatedScalar = 1.5
+  # Prescribed or evolving values for electron density at different times.
+  # The outer mapping is for times and the inner mapping is for values of
+  # density along the rho grid.
+  ne: TimeInterpolatedArray = dataclasses.field(
+      default_factory=lambda: {0: {0: 1.5, 1: 1.0}}
+  )
 
   # Initial line averaged density.
   # In units of reference density if nbar_is_fGW = False.

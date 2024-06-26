@@ -120,9 +120,9 @@ class DynamicProfileConditions:
   Te: chex.Array
   Ti: chex.Array
 
-  # Peaking factor of density profile.
+  # Electron density profile on the face grid.
   # If density evolves with PDE (dens_eq=True), then is initial condition
-  npeak: float
+  ne: chex.Array
 
   # Initial line averaged density.
   # In units of reference density if nbar_is_fGW = False.

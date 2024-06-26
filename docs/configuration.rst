@@ -191,9 +191,10 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Note that if the `Te` profile does not contain a :math:`\hat{\rho}=1` point,
   for all provided times, an error will be raised.
 
-``npeak`` (float = 1.5), **time-varying-scalar**
-  Peaking factor of density profile. ``npeak`` :math:`=\frac{n_e(\hat{\rho}=0)}{n_e(\hat{\rho}=1)}`.
-  If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``npeak`` is ignored, and only the initial value is used.
+
+``ne`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
+  Electron density profile.
+  If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``ne`` is ignored, and only the initial value is used.
 
 ``nbar`` (float = 0.5), **time-varying-scalar**
   Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``nbar_is_fGW==False``.
@@ -960,7 +961,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'ne_bound_right': {0: 0.1, 80: 0.3},
               'nbar_is_fGW': True,
               'nbar': 1,
-              'npeak': 1.5,
+              'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
               'set_pedestal': True,
               'Tiped': 1.0,
               'Teped': 1.0,

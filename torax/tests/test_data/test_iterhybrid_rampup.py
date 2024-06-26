@@ -48,7 +48,7 @@ CONFIG = {
             # set initial condition density according to Greenwald fraction.
             'nbar_is_fGW': True,
             'nbar': 1,
-            'npeak': 1.5,  # Initial peaking factor of density profile
+            'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
             # internal boundary condition (pedestal)
             # do not set internal boundary condition if this is False
             'set_pedestal': True,

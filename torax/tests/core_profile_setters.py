@@ -14,12 +14,12 @@
 
 """Tests for module torax.boundary_conditions."""
 
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import core_profile_setters
 from torax import geometry
+from torax import physics
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.stepper import runtime_params as stepper_params_lib
@@ -32,6 +32,10 @@ SMALL_VALUE = 1e-6
 # pylint: disable=invalid-name
 class CoreProfileSettersTest(parameterized.TestCase):
   """Unit tests for setting the core profiles."""
+
+  def setUp(self):
+    super().setUp()
+    self.geo = geometry.build_circular_geometry(nr=4)
 
   @parameterized.parameters(
       (0.0, np.array([10.5, 7.5, 4.5, 1.5])),
@@ -64,7 +68,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
         runtime_params,
         t=t,
-        geo=geo,
+        geo=self.geo,
     )
     Ti = core_profile_setters.updated_ion_temperature(dynamic_slice, geo)
     Te = core_profile_setters.updated_electron_temperature(dynamic_slice, geo)
@@ -112,7 +116,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
         runtime_params,
         t=t,
-        geo=geo,
+        geo=self.geo,
     )
     Ti_bound_right = core_profile_setters.updated_ion_temperature(
         dynamic_slice, geo
@@ -188,6 +192,44 @@ class CoreProfileSettersTest(parameterized.TestCase):
         rtol=1e-6,
     )
 
+  def test_ne_core_profile_setter(self):
+    """Tests that setting ne works."""
+    expected_value = np.array([1.15, 1.05, 0.95, 0.85])
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            ne={0: {0: 1.5, 1: 1}},
+            nbar_is_fGW=False,
+            ne_bound_right_is_fGW=False,
+            nbar=1,
+        )
+    )
 
-if __name__ == '__main__':
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: {},
+        stepper_getter=stepper_params_lib.RuntimeParams,
+    )
+    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+
+    ne, ni = core_profile_setters.updated_density(
+        dynamic_runtime_params_slice,
+        self.geo,
+    )
+    dilution_factor = physics.get_main_ion_dilution_factor(
+        dynamic_runtime_params_slice.plasma_composition.Zimp,
+        dynamic_runtime_params_slice.plasma_composition.Zeff,
+    )
+    np.testing.assert_allclose(
+        ne.value,
+        expected_value,
+        atol=1e-6,
+        rtol=1e-6,
+    )
+    np.testing.assert_allclose(
+        ni.value, expected_value * dilution_factor, atol=1e-6, rtol=1e-6,
+    )
+
+
+if __name__ == "__main__":
   absltest.main()
