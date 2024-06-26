@@ -36,6 +36,10 @@ from torax.config import build_sim
 from torax.plotting import plotruns_lib
 from torax.transport_model import qlknn_wrapper
 
+# String used when prompting the user to make a choice of command
+CHOICE_PROMPT = 'Your choice: '
+# String used when prompting the user to make a yes / no choice
+Y_N_PROMPT = 'y/n: '
 
 _PYTHON_CONFIG_MODULE = flags.DEFINE_string(
     'config',
@@ -166,7 +170,7 @@ def prompt_user(config_module_str: str) -> _UserCommand:
       else:
         color = simulation_app.AnsiColors.BLUE
       simulation_app.log_to_stdout(f'{uc.value[1]}: {uc.value[0]}', color)
-    input_text = input('Your choice: ')
+    input_text = input(CHOICE_PROMPT)
     text_to_uc = {uc.value[1]: uc for uc in _UserCommand}
     input_text = input_text.lower().strip()
     if input_text in text_to_uc:
@@ -404,7 +408,7 @@ def _get_yes_or_no() -> bool:
   """Returns a boolean indicating yes depending on user input."""
   input_text = None
   while input_text is None:
-    input_text = input('y/n: ')
+    input_text = input(Y_N_PROMPT)
     input_text = input_text.lower().strip()
     if input_text not in ('y', 'n'):
       simulation_app.log_to_stdout(

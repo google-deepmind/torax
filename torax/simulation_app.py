@@ -65,6 +65,10 @@ import xarray as xr
 import shutil
 
 
+# String printed before printing the output file path
+WRITE_PREFIX = 'Wrote simulation output to '
+
+
 # For logging.
 # ANSI color codes for pretty-printing
 @enum.unique
@@ -246,7 +250,7 @@ def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> str:
   os.makedirs(output_dir)
   output_file = os.path.join(output_dir, _STATE_HISTORY_FILENAME)
   ds.to_netcdf(output_file)
-  log_to_stdout(f'Wrote simulation output to {output_file}', AnsiColors.GREEN)
+  log_to_stdout(f'{WRITE_PREFIX}{output_file}', AnsiColors.GREEN)
 
   return output_file
 
