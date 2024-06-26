@@ -127,12 +127,12 @@ class DynamicProfileConditions:
   normalize_to_nbar: bool
 
   # Initial line averaged density.
-  # In units of reference density if nbar_is_fGW = False.
-  # In Greenwald fraction if nbar_is_fGW = True.
+  # In units of reference density if ne_is_fGW = False.
+  # In Greenwald fraction if ne_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
   nbar: float
   # Toggle units of nbar
-  nbar_is_fGW: bool
+  ne_is_fGW: bool
 
   # Density boundary condition for r=Rmin, units of nref
   # In units of reference density if ne_bound_right_is_fGW = False.

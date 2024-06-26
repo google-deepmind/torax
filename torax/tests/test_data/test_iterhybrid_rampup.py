@@ -46,7 +46,7 @@ CONFIG = {
             # boundary condition density for r=Rmin
             'ne_bound_right': {0: 0.1, 80: 0.3},
             # set initial condition density according to Greenwald fraction.
-            'nbar_is_fGW': True,
+            'ne_is_fGW': True,
             'nbar': 1,
             'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
             # internal boundary condition (pedestal)

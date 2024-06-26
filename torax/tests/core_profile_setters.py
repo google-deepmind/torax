@@ -198,7 +198,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
-            nbar_is_fGW=False,
+            ne_is_fGW=False,
             ne_bound_right_is_fGW=False,
             nbar=1,
         )
@@ -237,7 +237,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
-            nbar_is_fGW=False,
+            ne_is_fGW=False,
             nbar=1,
             normalize_to_nbar=True,
         ),
@@ -263,6 +263,43 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     ratio = ne_unnormalized.value / ne_normalized.value
+    np.all(np.isclose(ratio, ratio[0]))
+    self.assertNotEqual(ratio[0], 1.0)
+
+  @parameterized.parameters(True, False,)
+  def test_ne_core_profile_setter_with_fGW(
+      self, normalize_to_nbar: bool,
+  ):
+    """Tests setting the Greenwald fraction vs. not gives consistent results."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            ne={0: {0: 1.5, 1: 1}},
+            ne_is_fGW=True,
+            nbar=1,
+            normalize_to_nbar=normalize_to_nbar,
+        ),
+    )
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: {},
+        stepper_getter=stepper_params_lib.RuntimeParams,
+    )
+    dynamic_runtime_params_slice_fGW = provider(t=1.0, geo=self.geo)
+
+    ne_fGW, _ = core_profile_setters.updated_density(
+        dynamic_runtime_params_slice_fGW,
+        self.geo,
+    )
+
+    runtime_params.profile_conditions.ne_is_fGW = False
+    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+    ne, _ = core_profile_setters.updated_density(
+        dynamic_runtime_params_slice,
+        self.geo,
+    )
+
+    ratio = ne.value / ne_fGW.value
     np.all(np.isclose(ratio, ratio[0]))
     self.assertNotEqual(ratio[0], 1.0)
 

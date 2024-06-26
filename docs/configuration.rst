@@ -201,11 +201,11 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   :math:`\bar{n}`.
 
 ``nbar`` (float = 0.5), **time-varying-scalar**
-  Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``nbar_is_fGW==False``.
-  In units of Greenwald fraction :math:`n_{GW}` if ``nbar_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
+  Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``ne_is_fGW==False``.
+  In units of Greenwald fraction :math:`n_{GW}` if ``ne_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`
   is the tokamak minor radius in meters, and :math:`I_p` is the plasma current in MA.
 
-``nbar_is_fGW`` (bool = True)
+``ne_is_fGW`` (bool = True)
   Toggles units of ``nbar``.
 
 ``ne_bound_right`` (float = 0.5), **time-varying-scalar**
@@ -963,7 +963,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'Te_bound_right': 0.1,  # boundary condition electron temp for r=Rmin
               'ne_bound_right_is_fGW': True,
               'ne_bound_right': {0: 0.1, 80: 0.3},
-              'nbar_is_fGW': True,
+              'ne_is_fGW': True,
               'nbar': 1,
               'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
               'set_pedestal': True,
