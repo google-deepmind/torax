@@ -112,11 +112,11 @@ class DynamicProfileConditions:
   # overwritten by values from the geometry data
   Ip: float
 
-  # Temperature boundary conditions at r=Rmin
-  Ti_bound_right: float
-  Te_bound_right: float
+  # Temperature boundary conditions at r=Rmin.
+  Ti_bound_right: float | None
+  Te_bound_right: float | None
   # Radial array used for initial conditions, and prescribed time-dependent
-  # conditions when not evolving variable with PDE.
+  # conditions when not evolving variable with PDE defined on the face grid.
   Te: chex.Array
   Ti: chex.Array
 

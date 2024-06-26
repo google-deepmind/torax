@@ -252,11 +252,12 @@ class InterpolatedVar2d:
         isinstance(v, float) for v in values.values()
     ):
       values = {0.0: values}
+    self.values = values
     if len(set(values.keys())) != len(values):
       raise ValueError('Indicies in values mapping must be unique.')
     if not values:
       raise ValueError('Values mapping must not be empty.')
-    self.values = {
+    self.times_values = {
         v: InterpolatedVar1d(values[v], rho_interpolation_mode)
         for v in values.keys()
     }
@@ -283,16 +284,16 @@ class InterpolatedVar2d:
     # If time is either smaller or larger, than smallest and largest values
     # we know how to interpolate for, use the boundary interpolater.
     if left == 0:
-      return self.values[float(self.sorted_indices[0])].get_value(rho)
+      return self.times_values[float(self.sorted_indices[0])].get_value(rho)
     if left == len(self.sorted_indices):
-      return self.values[float(self.sorted_indices[-1])].get_value(rho)
+      return self.times_values[float(self.sorted_indices[-1])].get_value(rho)
 
     # Interpolate between the two closest defined interpolaters.
     left_time = float(self.sorted_indices[left - 1])
     right_time = float(self.sorted_indices[left])
-    return self.values[left_time].get_value(rho) * (right_time - time) / (
+    return self.times_values[left_time].get_value(rho) * (right_time - time) / (
         right_time - left_time
-    ) + self.values[right_time].get_value(rho) * (time - left_time) / (
+    ) + self.times_values[right_time].get_value(rho) * (time - left_time) / (
         right_time - left_time
     )
 

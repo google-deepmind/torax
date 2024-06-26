@@ -161,7 +161,7 @@ def interpolate_var_2d(
     param_or_param_input = interpolated_param.InterpolatedVar2d(
         values=param_or_param_input,
     )
-  return param_or_param_input.get_value(t, geo.mesh.cell_centers)
+  return param_or_param_input.get_value(t, geo.mesh.face_centers)
 
 
 def get_init_kwargs(
@@ -191,7 +191,8 @@ def get_init_kwargs(
     ):
       if t is None:
         raise ValueError('t must be specified for interpolated params')
-      config_val = interpolate_var_1d(config_val, t)
+      if config_val is not None:
+        config_val = interpolate_var_1d(config_val, t)
     elif input_is_an_interpolated_var_2d(
         field.name, input_config_fields_to_types
     ):

@@ -163,27 +163,33 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``Ip`` (float = 15.0), **time-varying-scalar**
   Plasma current in MA. Boundary condition for the :math:`\psi` equation.
 
-``Ti_bound_right`` (float = 1.0), **time-varying-scalar**
+``Ti_bound_right`` (float | None [default]), **time-varying-scalar**
   Ion temperature boundary condition at :math:`\hat{\rho}=1` in units of keV.
+  If not provided or set to `None` then the boundary condition is taken from the
+  :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
 
-``Te_bound_right`` (float = 1.0), **time-varying-scalar**
+``Te_bound_right`` (float | None [default]), **time-varying-scalar**
   Electron temperature boundary condition at :math:`\hat{\rho}=1`, in units of keV.
+  If not provided or set to `None` then the boundary condition is taken from the
+  :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
 
 ``Ti`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` ion temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
-  and there is no enforcement that ``Ti[t][1.0] == Ti_bound_right``. In future we will
-  be adding a change to allow taking the right boundary condition from the defined ``Ti`` but for
-  now ``Ti_bound_right`` is not set by ``Ti``.
+  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at face centers.
+  If `Ti_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
+  is taken from the :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
+  Note that if the `Ti` profile does not contain a :math:`\hat{\rho}=1` point
+  for all provided times, an error will be raised.
 
 ``Te`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` electron temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
-  and there is no enforcement that ``Te[t][1.0] == Te_bound_right``. In future we will
-  be adding a change to allow taking the right boundary condition from the defined ``Te`` but for
-  now ``Te_bound_right`` is not set by ``Te``.
+  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at face centers.
+  If `Te_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
+  is taken from the :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
+  Note that if the `Te` profile does not contain a :math:`\hat{\rho}=1` point,
+  for all provided times, an error will be raised.
 
 ``npeak`` (float = 1.5), **time-varying-scalar**
   Peaking factor of density profile. ``npeak`` :math:`=\frac{n_e(\hat{\rho}=0)}{n_e(\hat{\rho}=1)}`.
