@@ -123,6 +123,8 @@ class DynamicProfileConditions:
   # Electron density profile on the face grid.
   # If density evolves with PDE (dens_eq=True), then is initial condition
   ne: chex.Array
+  # Whether to renormalize the density profile.
+  normalize_to_nbar: bool
 
   # Initial line averaged density.
   # In units of reference density if nbar_is_fGW = False.

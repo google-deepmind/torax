@@ -230,6 +230,42 @@ class CoreProfileSettersTest(parameterized.TestCase):
         ni.value, expected_value * dilution_factor, atol=1e-6, rtol=1e-6,
     )
 
+  def test_ne_core_profile_setter_with_normalization(
+      self,
+  ):
+    """Tests that normalizing vs. not by nbar gives consistent results."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            ne={0: {0: 1.5, 1: 1}},
+            nbar_is_fGW=False,
+            nbar=1,
+            normalize_to_nbar=True,
+        ),
+    )
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: {},
+        stepper_getter=stepper_params_lib.RuntimeParams,
+    )
+    dynamic_runtime_params_slice_normalized = provider(t=1.0, geo=self.geo)
+
+    ne_normalized, _ = core_profile_setters.updated_density(
+        dynamic_runtime_params_slice_normalized,
+        self.geo,
+    )
+
+    runtime_params.profile_conditions.normalize_to_nbar = False
+    dynamic_runtime_params_slice_unnormalized = provider(t=1.0, geo=self.geo)
+    ne_unnormalized, _ = core_profile_setters.updated_density(
+        dynamic_runtime_params_slice_unnormalized,
+        self.geo,
+    )
+
+    ratio = ne_unnormalized.value / ne_normalized.value
+    np.all(np.isclose(ratio, ratio[0]))
+    self.assertNotEqual(ratio[0], 1.0)
+
 
 if __name__ == "__main__":
   absltest.main()

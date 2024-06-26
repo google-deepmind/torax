@@ -81,8 +81,11 @@ class ProfileConditions:
   ne: TimeInterpolatedArray = dataclasses.field(
       default_factory=lambda: {0: {0: 1.5, 1: 1.0}}
   )
+  # Whether to renormalize the density profile to have the desired line averaged
+  # density `nbar`.
+  normalize_to_nbar: bool = True
 
-  # Initial line averaged density.
+  # Line averaged density.
   # In units of reference density if nbar_is_fGW = False.
   # In Greenwald fraction if nbar_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA

@@ -196,6 +196,10 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Electron density profile.
   If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``ne`` is ignored, and only the initial value is used.
 
+``normalize_to_nbar`` (bool = False)
+  If True, then the electron density profile is normalized to have the desired line averaged density
+  :math:`\bar{n}`.
+
 ``nbar`` (float = 0.5), **time-varying-scalar**
   Line averaged density. In units of reference density ``nref`` (see :ref:`numerics_dataclass`) if ``nbar_is_fGW==False``.
   In units of Greenwald fraction :math:`n_{GW}` if ``nbar_is_fGW==True``. :math:`n_{GW}=I_p/(\pi a^2)` in units of :math:`10^{20} m^{-3}`, where :math:`a`

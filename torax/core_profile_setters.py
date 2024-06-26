@@ -111,11 +111,6 @@ def updated_density(
       * 1e20
       / dynamic_runtime_params_slice.numerics.nref
   )
-  nbar_unnorm = jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.nbar_is_fGW,
-      dynamic_runtime_params_slice.profile_conditions.nbar * nGW,
-      dynamic_runtime_params_slice.profile_conditions.nbar,
-  )
   # calculate ne_bound_right
   ne_bound_right = jnp.where(
       dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
@@ -126,13 +121,21 @@ def updated_density(
   nshape_face = dynamic_runtime_params_slice.profile_conditions.ne
   nshape = geometry.face_to_cell(nshape_face)
 
-  # find normalization factor such that desired line-averaged n is set
-  # Assumes line-averaged central chord on outer midplane
-  Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
-  C = nbar_unnorm / (_trapz(nshape_face, geo.Rout_face) / Rmin_out)
-  # pylint: enable=invalid-name
+  if dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar:
+    nbar_unnorm = jnp.where(
+        dynamic_runtime_params_slice.profile_conditions.nbar_is_fGW,
+        dynamic_runtime_params_slice.profile_conditions.nbar * nGW,
+        dynamic_runtime_params_slice.profile_conditions.nbar,
+    )
+    # find normalization factor such that desired line-averaged n is set
+    # Assumes line-averaged central chord on outer midplane
+    Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
+    C = nbar_unnorm / (_trapz(nshape_face, geo.Rout_face) / Rmin_out)
+    # pylint: enable=invalid-name
+    ne_value = C * nshape
+  else:
+    ne_value = nshape
 
-  ne_value = C * nshape
   ne = cell_variable.CellVariable(
       value=ne_value,
       dr=geo.dr_norm,
