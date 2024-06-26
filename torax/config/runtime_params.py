@@ -96,7 +96,7 @@ class ProfileConditions:
   # Density boundary condition for r=Rmin.
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: TimeInterpolatedScalar = 0.5
+  ne_bound_right: TimeInterpolatedScalar | None = 0.5
   ne_bound_right_is_fGW: bool = False
 
   # Internal boundary condition (pedestal)
@@ -248,6 +248,11 @@ class GeneralRuntimeParams:
       self._sanity_check_profile_boundary_conditions(
           self.profile_conditions.Te,
           'Te',
+      )
+    if self.profile_conditions.ne_bound_right is None:
+      self._sanity_check_profile_boundary_conditions(
+          self.profile_conditions.ne,
+          'ne',
       )
 
   def __post_init__(self):

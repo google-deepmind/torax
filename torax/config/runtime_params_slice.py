@@ -137,7 +137,7 @@ class DynamicProfileConditions:
   # Density boundary condition for r=Rmin, units of nref
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: float
+  ne_bound_right: float | None
   ne_bound_right_is_fGW: bool
 
   # Internal boundary condition (pedestal)

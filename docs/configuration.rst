@@ -99,7 +99,7 @@ will be applied from the closest time value.
 
 Shortcuts:
 
-Passing a single float value is interpreted as defining a constant profile for all times and
+Passing a single float value is interpreted as defining a constant profile for all times.
 For example ``Ti: 6.0`` would be equivalent to passing in ``Ti: {0.0: {0.0: 6.0}}``.
 
 Passing a single dict (instead of dict of dicts) is a shortcut for defining the rho profile
@@ -194,7 +194,13 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 
 ``ne`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
   Electron density profile.
+
   If ``dens_eq==True`` (see :ref:`numerics_dataclass`), then time dependent ``ne`` is ignored, and only the initial value is used.
+
+  If ``ne_bound_right=None``, the boundary condition at :math:`\hat{\rho}=1`
+  is taken from the :math:`\hat{\rho}=1` value derived from the provided ``ne`` profile.
+  Note that if the ``ne`` profile does not contain a :math:`\hat{\rho}=1` point
+  for all provided times, an error will be raised.
 
 ``normalize_to_nbar`` (bool = False)
   If True, then the electron density profile is normalized to have the desired line averaged density
@@ -211,6 +217,8 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``ne_bound_right`` (float = 0.5), **time-varying-scalar**
   Density boundary condition at :math:`\hat{\rho}=1`. In units of ``nref`` if ``ne_bound_right_is_fGW==False``.
   In units of Greenwald fraction :math:`n_{GW}` if ``ne_bound_right_is_fGW==True``.
+  If not provided or set to `None` then the boundary condition is taken from the
+  :math:`\hat{\rho}=1` value derived from the provided `ne` profile.
 
 ``ne_bound_right_is_fGW`` (bool = False)
   Toggles units of ``ne_bound_right``.

@@ -99,25 +99,13 @@ def updated_electron_temperature(
   return temp_el
 
 
-def updated_density(
+# pylint: disable=invalid-name
+def _get_ne(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
-  """Updated particle density. Used upon initialization and if dens_eq=False."""
-  # pylint: disable=invalid-name
-  nGW = (
-      dynamic_runtime_params_slice.profile_conditions.Ip
-      / (jnp.pi * geo.Rmin**2)
-      * 1e20
-      / dynamic_runtime_params_slice.numerics.nref
-  )
-  # calculate ne_bound_right
-  ne_bound_right = jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
-  )
-
+    nGW: float,
+) -> jax.Array:
+  """Helper to get the electron density profile at the current timestep."""
   nshape_face = dynamic_runtime_params_slice.profile_conditions.ne
   nshape = geometry.face_to_cell(nshape_face)
 
@@ -138,6 +126,33 @@ def updated_density(
       ne_value * nGW,
       ne_value,
   )
+  return ne_value
+
+
+def updated_density(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
+) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
+  """Updated particle density. Used upon initialization and if dens_eq=False."""
+  # pylint: disable=invalid-name
+  nGW = (
+      dynamic_runtime_params_slice.profile_conditions.Ip
+      / (jnp.pi * geo.Rmin**2)
+      * 1e20
+      / dynamic_runtime_params_slice.numerics.nref
+  )
+
+  ne_value = _get_ne(dynamic_runtime_params_slice, geo, nGW,)
+
+  # Calculate ne_bound_right.
+  if dynamic_runtime_params_slice.profile_conditions.ne_bound_right is not None:
+    ne_bound_right = jnp.where(
+        dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
+        dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
+        dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
+    )
+  else:
+    ne_bound_right = ne_value[-1]
 
   ne = cell_variable.CellVariable(
       value=ne_value,
@@ -831,11 +846,16 @@ def compute_boundary_conditions(
       / dynamic_runtime_params_slice.numerics.nref
   )
   # pylint: enable=invalid-name
-  ne_bound_right = jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
-  )
+  if dynamic_runtime_params_slice.profile_conditions.ne_bound_right is not None:
+    ne_bound_right = jnp.where(
+        dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
+        dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
+        dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
+    )
+  else:
+    ne_value = _get_ne(dynamic_runtime_params_slice, geo, nGW)
+    ne_bound_right = ne_value[-1]
+
   # define ion profile based on (flat) Zeff and single assumed impurity
   # with Zimp. main ion limited to hydrogenic species for now.
   # Assume isotopic balance for DT fusion power. Solve for ni based on:

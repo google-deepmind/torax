@@ -230,6 +230,45 @@ class CoreProfileSettersTest(parameterized.TestCase):
         ni.value, expected_value * dilution_factor, atol=1e-6, rtol=1e-6,
     )
 
+  @parameterized.parameters(
+      (None, 0.85,),
+      (1.0, 1.0,),
+  )
+  def test_density_boundary_condition_override(
+      self,
+      ne_bound_right: float | None,
+      expected_value: float,
+  ):
+    """Tests that setting ne works."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            ne={0: {0: 1.5, 1: 1}},
+            ne_is_fGW=False,
+            ne_bound_right_is_fGW=False,
+            nbar=1,
+            ne_bound_right=ne_bound_right,
+        )
+    )
+
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: {},
+        stepper_getter=stepper_params_lib.RuntimeParams,
+    )
+    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+
+    ne, _ = core_profile_setters.updated_density(
+        dynamic_runtime_params_slice,
+        self.geo,
+    )
+    np.testing.assert_allclose(
+        ne.right_face_constraint,
+        expected_value,
+        atol=1e-6,
+        rtol=1e-6,
+    )
+
   def test_ne_core_profile_setter_with_normalization(
       self,
   ):
