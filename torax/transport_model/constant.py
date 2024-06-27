@@ -132,14 +132,8 @@ class ConstantTransportModel(transport_model.TransportModel):
     d_face_el = dynamic_runtime_params_slice.transport.De_const * jnp.ones_like(
         geo.r_face
     )
-    v_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-            geo.r_face_norm
-            > dynamic_runtime_params_slice.profile_conditions.Ped_top,
-        ),
-        0,
-        dynamic_runtime_params_slice.transport.Ve_const,
+    v_face_el = dynamic_runtime_params_slice.transport.Ve_const * jnp.ones_like(
+        geo.r_face
     )
 
     return state.CoreTransport(

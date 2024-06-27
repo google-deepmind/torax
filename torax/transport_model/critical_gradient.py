@@ -187,60 +187,6 @@ class CriticalGradientModel(transport_model.TransportModel):
         dynamic_runtime_params_slice.transport.chimax,
     )
 
-    # set minimum and maximum chi for PDE stability
-    chi_face_el = jnp.clip(
-        chi_face_el,
-        dynamic_runtime_params_slice.transport.chimin,
-        dynamic_runtime_params_slice.transport.chimax,
-    )
-
-    d_face_el = jnp.clip(
-        d_face_el,
-        dynamic_runtime_params_slice.transport.Demin,
-        dynamic_runtime_params_slice.transport.Demax,
-    )
-    v_face_el = jnp.clip(
-        v_face_el,
-        dynamic_runtime_params_slice.transport.Vemin,
-        dynamic_runtime_params_slice.transport.Vemax,
-    )
-
-    # set low transport in pedestal region to facilitate PDE solver
-    # (more consistency between desired profile and transport coefficients)
-    # if runtime_params.profile_conditions.set_pedestal:
-    mask = (
-        geo.r_face_norm
-        >= dynamic_runtime_params_slice.profile_conditions.Ped_top
-    )
-    chi_face_ion = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
-        dynamic_runtime_params_slice.transport.chimin,
-        chi_face_ion,
-    )
-    chi_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
-        dynamic_runtime_params_slice.transport.chimin,
-        chi_face_el,
-    )
-    d_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
-        dynamic_runtime_params_slice.transport.Demin,
-        d_face_el,
-    )
-    v_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
-        0.0,
-        v_face_el,
-    )
-
     return state.CoreTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,

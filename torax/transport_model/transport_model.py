@@ -72,12 +72,24 @@ class TransportModel(abc.ABC):
           f"Subclass implementation {type(self)} forgot to "
           "freeze at the end of __init__."
       )
+
+    # Calculate the transport coefficients
+    transport_coeffs = self._call_implementation(
+        dynamic_runtime_params_slice, geo, core_profiles
+    )
+
+    # Apply min/max clipping and pedestal region clipping
+    transport_coeffs = self.apply_clipping(
+        dynamic_runtime_params_slice,
+        geo,
+        transport_coeffs,
+    )
+
+    # Return smoothed coefficients if smoothing is enabled
     return self.smooth_coeffs(
         geo,
         dynamic_runtime_params_slice,
-        self._call_implementation(
-            dynamic_runtime_params_slice, geo, core_profiles
-        ),
+        transport_coeffs,
     )
 
   @abc.abstractmethod
@@ -88,6 +100,83 @@ class TransportModel(abc.ABC):
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
     pass
+
+  def apply_clipping(
+      self,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      transport_coeffs: state.CoreTransport,
+  ) -> state.CoreTransport:
+    """Applies min/max and pedestal region clipping to transport coefficients."""
+
+    # set minimum and maximum transport coefficents for PDE stability
+    chi_face_ion = jnp.clip(
+        transport_coeffs.chi_face_ion,
+        dynamic_runtime_params_slice.transport.chimin,
+        dynamic_runtime_params_slice.transport.chimax,
+    )
+
+    # set minimum and maximum chi for PDE stability
+    chi_face_el = jnp.clip(
+        transport_coeffs.chi_face_el,
+        dynamic_runtime_params_slice.transport.chimin,
+        dynamic_runtime_params_slice.transport.chimax,
+    )
+
+    d_face_el = jnp.clip(
+        transport_coeffs.d_face_el,
+        dynamic_runtime_params_slice.transport.Demin,
+        dynamic_runtime_params_slice.transport.Demax,
+    )
+    v_face_el = jnp.clip(
+        transport_coeffs.v_face_el,
+        dynamic_runtime_params_slice.transport.Vemin,
+        dynamic_runtime_params_slice.transport.Vemax,
+    )
+
+    # set low transport in pedestal region to facilitate PDE solver
+    # (more consistency between desired profile and transport coefficients)
+    # if runtime_params.profile_conditions.set_pedestal:
+    mask = (
+        geo.r_face_norm
+        >= dynamic_runtime_params_slice.profile_conditions.Ped_top
+    )
+    chi_face_ion = jnp.where(
+        jnp.logical_and(
+            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+        ),
+        dynamic_runtime_params_slice.transport.chimin,
+        chi_face_ion,
+    )
+    chi_face_el = jnp.where(
+        jnp.logical_and(
+            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+        ),
+        dynamic_runtime_params_slice.transport.chimin,
+        chi_face_el,
+    )
+    d_face_el = jnp.where(
+        jnp.logical_and(
+            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+        ),
+        dynamic_runtime_params_slice.transport.Demin,
+        d_face_el,
+    )
+    v_face_el = jnp.where(
+        jnp.logical_and(
+            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+        ),
+        0.0,
+        v_face_el,
+    )
+
+    return dataclasses.replace(
+        transport_coeffs,
+        chi_face_ion=chi_face_ion,
+        chi_face_el=chi_face_el,
+        d_face_el=d_face_el,
+        v_face_el=v_face_el,
+    )
 
   def smooth_coeffs(
       self,

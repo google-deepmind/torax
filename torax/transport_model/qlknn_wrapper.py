@@ -400,17 +400,6 @@ def make_core_transport(
       ((prepared_data['Rmaj'] / prepared_data['Rmin']) * qe)
       / prepared_data['Ate']
   ) * prepared_data['chiGB']
-  # enforce chi bounds (sometimes needed for PDE stability)
-  chi_face_ion = jnp.clip(
-      chi_face_ion,
-      runtime_config_inputs.transport.chimin,
-      runtime_config_inputs.transport.chimax,
-  )
-  chi_face_el = jnp.clip(
-      chi_face_el,
-      runtime_config_inputs.transport.chimin,
-      runtime_config_inputs.transport.chimax,
-  )
 
   # Effective D / Effective V approach.
   # For small density gradients or up-gradient transport, set pure effective
@@ -451,43 +440,6 @@ def make_core_transport(
       runtime_config_inputs.transport.DVeff,
       DVeff_approach,
       Dscaled_approach,
-  )
-
-  # enforce D and V bounds (sometimes needed for PDE stability)
-  d_face_el = jnp.clip(
-      d_face_el,
-      runtime_config_inputs.transport.Demin,
-      runtime_config_inputs.transport.Demax,
-  )
-  v_face_el = jnp.clip(
-      v_face_el,
-      runtime_config_inputs.transport.Vemin,
-      runtime_config_inputs.transport.Vemax,
-  )
-
-  # set low transport in pedestal region to facilitate PDE solver
-  # (more consistency between desired profile and transport coefficients)
-  # if runtime_params.profile_conditions.set_pedestal:
-  mask = geo.r_face_norm >= runtime_config_inputs.Ped_top
-  chi_face_ion = jnp.where(
-      jnp.logical_and(runtime_config_inputs.set_pedestal, mask),
-      runtime_config_inputs.transport.chimin,
-      chi_face_ion,
-  )
-  chi_face_el = jnp.where(
-      jnp.logical_and(runtime_config_inputs.set_pedestal, mask),
-      runtime_config_inputs.transport.chimin,
-      chi_face_el,
-  )
-  d_face_el = jnp.where(
-      jnp.logical_and(runtime_config_inputs.set_pedestal, mask),
-      runtime_config_inputs.transport.Demin,
-      d_face_el,
-  )
-  v_face_el = jnp.where(
-      jnp.logical_and(runtime_config_inputs.set_pedestal, mask),
-      0.0,
-      v_face_el,
   )
 
   # pylint: enable=invalid-name
