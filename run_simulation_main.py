@@ -19,6 +19,7 @@ python3 run_simulation_main.py \
  --config='torax.tests.test_data.default_config' \
  --log_progress
 """
+print("In run_simulation_main, starting imports")
 from collections.abc import Sequence
 import enum
 import functools
@@ -35,6 +36,7 @@ from torax import simulation_app
 from torax.config import build_sim
 from torax.plotting import plotruns_lib
 from torax.transport_model import qlknn_wrapper
+print("In run_simulation_main, done with imports")
 
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '
@@ -50,12 +52,14 @@ _PYTHON_CONFIG_MODULE = flags.DEFINE_string(
     'information on how to use this flag and --config_package.',
 )
 
+print("About to define _PYTHON_CONFIG_PACKAGE")
 _PYTHON_CONFIG_PACKAGE = flags.DEFINE_string(
     'config_package',
     None,
     'If provided, it is the base package the --config is imported from. '
     'This is required if --config is a relative path.',
 )
+print("Done defining _PYTHON_CONFIG_PACKAGE")
 
 _LOG_SIM_PROGRESS = flags.DEFINE_bool(
     'log_progress',

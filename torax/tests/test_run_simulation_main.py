@@ -12,7 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.run_simulation_main."""
+"""Unit tests for torax.run_simulation_main.
+
+Our other files don't have the "test_" prefix in their name and just match
+the name of the file they are testing. This one can't be named
+"run_simulation_main" or `import run_simulation_main" will pick up this file
+rather than the executable run_simulation_main. The test directory takes
+precedence over the cwd when resolving imports. No other test file has this
+problem because all other files we import are inside the torax module so
+we do `from torax import foo`.
+"""
+
 
 import io
 import os
@@ -24,7 +34,15 @@ from absl import logging
 from absl.testing import absltest
 from absl.testing import flagsaver
 from absl.testing import parameterized
-from torax import run_simulation_main
+# pytest will be run from the repo root, so this script outside the library
+# can be imported without being installed / being under sys.path
+print("In test file, about to import run_simulation main")
+import run_simulation_main
+print("In test file, done importing run_simulation main")
+print("os.getcwd():", os.getcwd())
+print("run_simulation_main.__file__", run_simulation_main.__file__)
+import importlib
+assert hasattr(run_simulation_main, '_PYTHON_CONFIG_PACKAGE')
 from torax import simulation_app
 from torax.tests.test_lib import paths
 

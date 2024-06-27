@@ -88,6 +88,7 @@ jobs:
           torax/tests/jax_utils.py \
           torax/tests/math_utils.py \
           torax/tests/physics.py \
+          torax/tests/test_run_simulation_main.py \
           torax/tests/sim_custom_sources.py \
           torax/tests/sim_time_dependence.py \
           torax/tests/sim.py \
