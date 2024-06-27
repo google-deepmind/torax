@@ -635,6 +635,7 @@ def build_stepper_builder_from_config(
         runtime_params=config_args.recursive_replace(
             linear_theta_method.LinearRuntimeParams(),
             **stepper_config,
+            ignore_extra_kwargs=True,
         )
     )
   elif stepper_type == 'newton_raphson':
@@ -642,6 +643,7 @@ def build_stepper_builder_from_config(
         runtime_params=config_args.recursive_replace(
             nonlinear_theta_method.NewtonRaphsonRuntimeParams(),
             **stepper_config,
+            ignore_extra_kwargs=True,
         )
     )
   elif stepper_type == 'optimizer':
@@ -649,6 +651,7 @@ def build_stepper_builder_from_config(
         runtime_params=config_args.recursive_replace(
             nonlinear_theta_method.OptimizerRuntimeParams(),
             **stepper_config,
+            ignore_extra_kwargs=True,
         )
     )
   raise ValueError(f'Unknown stepper type: {stepper_type}')
