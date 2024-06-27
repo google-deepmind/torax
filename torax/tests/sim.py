@@ -366,6 +366,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_qei.py',
           ('temp_ion', 'temp_el'),
           ref_name='test_implicit.nc',
+          write_output=False,
       )
 
   def test_no_op(self):

@@ -123,6 +123,7 @@ class SimTestCase(parameterized.TestCase):
       atol,
       output_dir=None,
       ds=None,
+      write_output=True,
   ):
     """Raises an error if the input states and time do not match the refs."""
     chex.assert_rank(t, 1)
@@ -213,7 +214,7 @@ class SimTestCase(parameterized.TestCase):
       final_msg = '\n'.join(msgs)
       # Write all outputs to tmp dirs, used for automated comparisons and
       # updates of references.
-      if output_dir is not None and ds is not None:
+      if output_dir is not None and ds is not None and write_output:
         _ = simulation_app.write_simulation_output_to_file(output_dir, ds)
 
       raise AssertionError(final_msg)
@@ -226,6 +227,7 @@ class SimTestCase(parameterized.TestCase):
       rtol: Optional[float] = None,
       atol: Optional[float] = None,
       use_ref_time: bool = False,
+      write_output: bool = True,
   ):
     """Integration test comparing to TORAX reference output.
 
@@ -237,6 +239,7 @@ class SimTestCase(parameterized.TestCase):
       rtol: Optional float, to override the class level rtol.
       atol: Optional float, to override the class level atol.
       use_ref_time: If True, locks to time steps calculated by reference.
+      write_output: If True, writes output to tmp dir if test fails.
     """
 
     if rtol is None:
@@ -290,6 +293,7 @@ class SimTestCase(parameterized.TestCase):
         atol=atol,
         output_dir=output_dir,
         ds=ds,
+        write_output=write_output,
     )
 
 

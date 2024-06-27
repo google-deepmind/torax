@@ -138,7 +138,7 @@ def build_smoothing_matrix(
   # 2. Masking: we do not want transport coefficients calculated in pedestal
   # region or in inner and outer transport patch regions, to impact
   # transport_model calculated coefficients
-  mask_outer_edge = jax.lax.cond(
+  mask_outer_edge_ped = jax.lax.cond(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
       lambda: dynamic_runtime_params_slice.profile_conditions.Ped_top
       - consts.eps,
@@ -153,7 +153,7 @@ def build_smoothing_matrix(
           dynamic_runtime_params_slice.transport.apply_outer_patch,
       ),
       lambda: dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
-      lambda: mask_outer_edge,
+      lambda: mask_outer_edge_ped,
   )
 
   mask_inner_edge = jax.lax.cond(

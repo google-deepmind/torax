@@ -157,38 +157,13 @@ class CriticalGradientModel(transport_model.TransportModel):
     # R/LTi profile from current timestep temp_ion
     rlti = -geo.Rmaj * temp_ion_face_grad / temp_ion_face
 
-    # set minimum chi for PDE stability
-    chi_ion = dynamic_runtime_params_slice.transport.chimin * jnp.ones_like(
-        geo.mesh.face_centers
-    )
-
-    # built CGM model ion heat transport coefficient
-    chi_ion = jnp.where(
+    # build CGM model ion heat transport coefficient
+    chi_face_ion = jnp.where(
         rlti >= rlti_crit,
         chiGB
         * dynamic_runtime_params_slice.transport.CGMchistiff
         * (rlti - rlti_crit) ** dynamic_runtime_params_slice.transport.CGMalpha,
-        chi_ion,
-    )
-
-    # set (high) ceiling to CGM flux for PDE stability
-    # (might not be necessary with Perezerev)
-    chi_ion = jnp.where(
-        chi_ion > dynamic_runtime_params_slice.transport.chimax,
-        dynamic_runtime_params_slice.transport.chimax,
-        chi_ion,
-    )
-
-    # set low transport in pedestal region to facilitate PDE solver
-    # (more consistency between desired profile and transport coefficients)
-    chi_face_ion = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-            geo.r_face_norm
-            >= dynamic_runtime_params_slice.profile_conditions.Ped_top,
-        ),
-        dynamic_runtime_params_slice.transport.chimin,
-        chi_ion,
+        0.0,
     )
 
     # set electron heat transport coefficient to user-defined ratio of ion heat
@@ -204,6 +179,67 @@ class CriticalGradientModel(transport_model.TransportModel):
     # No convection in this critical gradient model.
     # (Not a realistic model for particle transport anyway).
     v_face_el = jnp.zeros_like(d_face_el)
+
+    # set minimum and maximum transport coefficents for PDE stability
+    chi_face_ion = jnp.clip(
+        chi_face_ion,
+        dynamic_runtime_params_slice.transport.chimin,
+        dynamic_runtime_params_slice.transport.chimax,
+    )
+
+    # set minimum and maximum chi for PDE stability
+    chi_face_el = jnp.clip(
+        chi_face_el,
+        dynamic_runtime_params_slice.transport.chimin,
+        dynamic_runtime_params_slice.transport.chimax,
+    )
+
+    d_face_el = jnp.clip(
+        d_face_el,
+        dynamic_runtime_params_slice.transport.Demin,
+        dynamic_runtime_params_slice.transport.Demax,
+    )
+    v_face_el = jnp.clip(
+        v_face_el,
+        dynamic_runtime_params_slice.transport.Vemin,
+        dynamic_runtime_params_slice.transport.Vemax,
+    )
+
+    # set low transport in pedestal region to facilitate PDE solver
+    # (more consistency between desired profile and transport coefficients)
+    # if runtime_params.profile_conditions.set_pedestal:
+    mask = (
+        geo.r_face_norm
+        >= dynamic_runtime_params_slice.profile_conditions.Ped_top
+    )
+    chi_face_ion = jnp.where(
+        jnp.logical_and(
+            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+        ),
+        dynamic_runtime_params_slice.transport.chimin,
+        chi_face_ion,
+    )
+    chi_face_el = jnp.where(
+        jnp.logical_and(
+            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+        ),
+        dynamic_runtime_params_slice.transport.chimin,
+        chi_face_el,
+    )
+    d_face_el = jnp.where(
+        jnp.logical_and(
+            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+        ),
+        dynamic_runtime_params_slice.transport.Demin,
+        d_face_el,
+    )
+    v_face_el = jnp.where(
+        jnp.logical_and(
+            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+        ),
+        0.0,
+        v_face_el,
+    )
 
     return state.CoreTransport(
         chi_face_ion=chi_face_ion,
