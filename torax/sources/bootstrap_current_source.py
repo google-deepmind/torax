@@ -200,9 +200,9 @@ def calc_neoclassical(
     dynamic_runtime_params_slice: General configuration parameters.
     dynamic_source_runtime_params: Source-specific runtime parameters.
     geo: Torus geometry.
-    temp_ion: Ion temperature. We don't pass in a full `core_profiles`
-      here because this function is used to create the `Currents` in
-      the initial `State`.
+    temp_ion: Ion temperature. We don't pass in a full `core_profiles` here
+      because this function is used to create the `Currents` in the initial
+      `State`.
     temp_el: Ion temperature.
     ne: Electron density.
     ni: Main ion density.
@@ -233,14 +233,14 @@ def calc_neoclassical(
 
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Zeff)
-  # TODO(b/335599537): expand the log to get rid of the exponentiation,
-  # sqrt, etc.
-  lnLame = 31.3 - jnp.log(jnp.sqrt(true_ne_face) / (temp_el.face_value() * 1e3))
-  # TODO(b/335599537) use ni instead of ne
-  lnLami = 30 - jnp.log(
-      dynamic_runtime_params_slice.plasma_composition.Zi**3
-      * jnp.sqrt(true_ne_face)
-      / ((temp_ion.face_value() * 1e3) ** 1.5)
+  lnLame = (
+      31.3 - 0.5 * jnp.log(true_ne_face) + jnp.log(temp_el.face_value() * 1e3)
+  )
+  lnLami = (
+      30
+      - 3 * jnp.log(dynamic_runtime_params_slice.plasma_composition.Zi)
+      - 0.5 * jnp.log(true_ni_face)
+      + 1.5 * jnp.log(temp_ion.face_value() * 1e3)
   )
 
   sigsptz = 1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Zeff / NZ / lnLame

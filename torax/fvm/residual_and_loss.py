@@ -136,13 +136,16 @@ def theta_method_matrix_equation(
 
   eps = 1e-7
   # adding sanity checks for values in denominators
+  # TODO(b/326577625) remove abs in checks once x_new range is restricted
   tc_in_new = jax_utils.error_if(
-      tc_in_new, jnp.any(tc_in_new < eps), msg='tc_in_new unexpectedly < eps'
+      tc_in_new,
+      jnp.any(jnp.abs(tc_in_new) < eps),
+      msg='|tc_in_new| unexpectedly < eps',
   )
   tc_in_new = jax_utils.error_if(
       tc_in_new,
-      jnp.any(tc_out_new * tc_in_new < eps),
-      msg='tc_out_new*tc_in_new unexpectedly < eps',
+      jnp.any(jnp.abs(tc_out_new * tc_in_new) < eps),
+      msg='|tc_out_new*tc_in_new| unexpectedly < eps',
   )
 
   left_transient = jnp.identity(len(x_new_guess_vec))
@@ -164,8 +167,8 @@ def theta_method_matrix_equation(
     tc_out_old = jnp.concatenate(coeffs_old.transient_out_cell)
     tc_in_new = jax_utils.error_if(
         tc_in_new,
-        jnp.any(tc_out_old * tc_in_new < eps),
-        msg='tc_out_old*tc_in_new unexpectedly < eps',
+        jnp.any(jnp.abs(tc_out_old * tc_in_new) < eps),
+        msg='|tc_out_old*tc_in_new| unexpectedly < eps',
     )
     c_mat_old, c_old = discrete_system.calc_c(
         x_old,
