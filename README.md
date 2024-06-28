@@ -244,7 +244,7 @@ Under construction
 
 # Citing TORAX
 
-A TORAX paper is available on arXiv. Cite this paper to cite TORAX:
+A TORAX paper is [available on arXiv](https://arxiv.org/abs/2406.06718). Cite this paper to cite TORAX:
 
 ```
 @article{torax2024arxiv,
