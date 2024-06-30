@@ -36,6 +36,7 @@ from torax.config import build_sim
 from torax.plotting import plotruns_lib
 from torax.transport_model import qlknn_wrapper
 
+
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '
 # String used when prompting the user to make a yes / no choice
