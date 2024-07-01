@@ -215,6 +215,14 @@ class Source:
         if self.formula is None
         else self.formula
     )
+    # TODO This is not robust (e.g. what if output_shape_getter is neither face
+    # or cell?).
+    prescribed_values = (
+      geometry.face_to_cell(dynamic_source_runtime_params.prescribed_values)
+      if self.output_shape_getter == get_cell_profile_shape
+      else dynamic_source_runtime_params.prescribed_values
+    )
+
     return get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
@@ -222,7 +230,7 @@ class Source:
         core_profiles=core_profiles,
         model_func=model_func,
         formula=formula,
-        prescribed_values=dynamic_source_runtime_params.prescribed_values,
+        prescribed_values=prescribed_values,
         output_shape=output_shape,
     )
 
@@ -496,7 +504,6 @@ def get_source_profiles(
       zeros,
   )
   # PRESCRIBED
-  print(prescribed_values.shape, zeros.shape)
   output += jnp.where(
     mode == runtime_params_lib.Mode.PRESCRIBED.value,
     prescribed_values,
