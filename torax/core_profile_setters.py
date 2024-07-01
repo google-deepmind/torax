@@ -411,7 +411,6 @@ def _calculate_currents_from_psi(
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
 
   jtot, jtot_face = physics.calc_jtot_from_psi(
       geo,
@@ -436,12 +435,6 @@ def _calculate_currents_from_psi(
   dynamic_jext_params = _get_jext_params(
       dynamic_runtime_params_slice, source_models
   )
-  if dynamic_jext_params.use_absolute_jext:
-    Iext = dynamic_jext_params.Iext
-  else:
-    Iext = Ip * dynamic_jext_params.fext
-
-  Iohm = Ip - Iext - bootstrap_profile.I_bootstrap
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
@@ -451,26 +444,17 @@ def _calculate_currents_from_psi(
       geo=geo,
   )
 
-  johm = jtot - jext - bootstrap_profile.j_bootstrap
-  johm_face = jtot_face - jext_face - bootstrap_profile.j_bootstrap_face
-
   # TODO(b/336995925): TORAX currently only uses the external current source,
   # jext, when computing the jtot initial currents from psi. Really, though, we
   # should be summing over all sources that can contribute current i.e. ECCD,
   # ICRH, NBI, LHCD.
-  jtot_hires = _get_jtot_hires(
-      dynamic_runtime_params_slice,
-      dynamic_jext_params,
-      geo,
-      bootstrap_profile,
-      Iohm,
-      source_models.jext,
-  )
+  johm = jtot - jext - bootstrap_profile.j_bootstrap
+  johm_face = jtot_face - jext_face - bootstrap_profile.j_bootstrap_face
 
   currents = state.Currents(
       jtot=jtot,
       jtot_face=jtot_face,
-      jtot_hires=jtot_hires,
+      jtot_hires=None,
       johm=johm,
       johm_face=johm_face,
       jext=jext,
@@ -641,7 +625,7 @@ def initial_core_profiles(
     )
     s_face = physics.calc_s_from_psi(geo, psi)
 
-    # calculation external currents
+    # Calculate external currents
     currents = _calculate_currents_from_psi(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
