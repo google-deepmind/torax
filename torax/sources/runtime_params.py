@@ -44,15 +44,19 @@ class Mode(enum.Enum):
   # on the config and geometry of the system.
   FORMULA_BASED = 2
 
+  # Source values come from a pre-determined set of values, that may evolve in
+  # time. Values can be drawn from a file or an array. These sources are always
+  # explicit.
+  PRESCRIBED = 3
+
 
 @dataclasses.dataclass
 class RuntimeParams:
   """Configures a single source/sink term.
 
   This is a RUNTIME runtime_params, meaning its values can change from run to
-  run
-  without trigerring a recompile. This config defines the runtime config for the
-  entire simulation run. The DynamicRuntimeParams, which is derived from
+  run without triggering a recompile. This config defines the runtime config for
+  the entire simulation run. The DynamicRuntimeParams, which is derived from
   this class, only contains information for a single time step.
 
   Any compile-time configurations for the Sources should go into the Source
@@ -80,6 +84,12 @@ class RuntimeParams:
       default_factory=formula_config.FormulaConfig
   )
 
+  # Prescribed values for the source. Used only when the source is fully
+  # prescribed.
+  prescribed_values: TimeInterpolated = dataclasses.field(
+    default_factory=lambda: {0: {0: 0, 1: 0}}
+  )
+
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
         **config_args.get_init_kwargs(
@@ -104,3 +114,5 @@ class DynamicRuntimeParams:
   mode: int
   is_explicit: bool
   formula: formula_config.DynamicFormula
+  # Prescribed values on the face grid.
+  prescribed_values: chex.Array

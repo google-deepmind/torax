@@ -446,8 +446,8 @@ def get_source_profiles(
 ) -> jax.Array:
   """Returns source profiles requested by the runtime_params_lib.
 
-  This function handles MODEL_BASED, FORMULA_BASED, and ZERO sources. All other
-  source types will be ignored.
+  This function handles MODEL_BASED, FORMULA_BASED, PRESCRIBED and ZERO sources.
+  All other source types will be ignored.
 
   Args:
     dynamic_runtime_params_slice: Slice of the general TORAX config that can be
@@ -467,6 +467,8 @@ def get_source_profiles(
   mode = dynamic_source_runtime_params.mode
   zeros = jnp.zeros(output_shape)
   output = jnp.zeros(output_shape)
+
+  # MODEL_BASED
   output += jnp.where(
       mode == runtime_params_lib.Mode.MODEL_BASED.value,
       model_func(
@@ -477,6 +479,7 @@ def get_source_profiles(
       ),
       zeros,
   )
+  # FORMULA_BASED
   output += jnp.where(
       mode == runtime_params_lib.Mode.FORMULA_BASED.value,
       formula(
@@ -486,6 +489,12 @@ def get_source_profiles(
           core_profiles,
       ),
       zeros,
+  )
+  # PRESCRIBED
+  output += jnp.where(
+    mode == runtime_params_lib.Mode.PRESCRIBED.value,
+    dynamic_source_runtime_params.prescribed_values,
+    zeros,
   )
   return output
 
