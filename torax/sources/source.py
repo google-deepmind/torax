@@ -110,9 +110,9 @@ class Source:
       the output shape returned by output_shape_getter. Subclasses may override
       this requirement.
     supported_modes: Defines how the source computes its profile. Can be set to
-      zero, model-based, etc. At runtime, the input runtime config (the Config
-      or the DynamicConfigSlice) will specify which supported type the Source is
-      running with. If the runtime config specifies an unsupported type, an
+      zero, model-based, etc. At runtime, the input config (the RuntimeParams
+      or the DynamicRuntimeParams) will specify which supported type the Source
+      is running with. If the runtime config specifies an unsupported type, an
       error will raise.
     output_shape_getter: Callable which returns the shape of the profiles given
       by this source.

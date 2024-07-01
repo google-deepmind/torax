@@ -15,7 +15,7 @@
 """Dataclass representing runtime parameter inputs to the transport models.
 
 This is the dataclass runtime config exposed to the user. The actual model gets
-a time-interpolated version of this config via the DynamicConfigSlice.
+a time-interpolated version of this config via the DynamicRuntimeParams.
 """
 
 from __future__ import annotations
