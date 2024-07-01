@@ -223,6 +223,7 @@ class Source:
         core_profiles=core_profiles,
         model_func=model_func,
         formula=formula,
+        prescribed_values=dynamic_source_runtime_params.prescribed_values,
         output_shape=output_shape,
     )
 
@@ -442,12 +443,15 @@ def get_source_profiles(
     core_profiles: state.CoreProfiles | None,
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
+    prescribed_values: chex.Array | None,
     output_shape: tuple[int, ...],
 ) -> jax.Array:
   """Returns source profiles requested by the runtime_params_lib.
 
   This function handles MODEL_BASED, FORMULA_BASED, PRESCRIBED and ZERO sources.
   All other source types will be ignored.
+  This function exists to simplify the creation of the profile to a set of
+  jnp.where calls.
 
   Args:
     dynamic_runtime_params_slice: Slice of the general TORAX config that can be
@@ -459,7 +463,9 @@ def get_source_profiles(
       functions.
     model_func: Model function.
     formula: Formula implementation.
-    output_shape: Expected shape of the outut array.
+    prescribed_values: Array of values for this timeslice, interpolated onto
+      the grid (ie with shape output_shape)
+    output_shape: Expected shape of the output array.
 
   Returns:
     Output array of a profile or concatenated/stacked profiles.
@@ -491,9 +497,10 @@ def get_source_profiles(
       zeros,
   )
   # PRESCRIBED
+  print(prescribed_values.shape, zeros.shape)
   output += jnp.where(
     mode == runtime_params_lib.Mode.PRESCRIBED.value,
-    dynamic_source_runtime_params.prescribed_values,
+    prescribed_values,
     zeros,
   )
   return output

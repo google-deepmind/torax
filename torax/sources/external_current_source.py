@@ -218,6 +218,7 @@ class ExternalCurrentSource(source.Source):
             lambda _0, _1, _2, _3: source.ProfileType.FACE.get_zero_profile(geo)
         ),
         formula=self.formula,
+        prescribed_values=dynamic_source_runtime_params.prescribed_values,
         output_shape=source.ProfileType.FACE.get_profile_shape(geo),
     )
     return profile, geometry.face_to_cell(profile)
@@ -231,16 +232,28 @@ class ExternalCurrentSource(source.Source):
     """Return the external current density profile along the hires cell grid."""
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
     self.check_mode(dynamic_source_runtime_params.mode)
+
+    # Interpolate prescribed values onto the hires grid
+    if dynamic_source_runtime_params.mode == runtime_params_lib.Mode.PRESCRIBED:
+      hires_prescribed_values = jnp.interp(
+        geo.r_hires_norm,
+        geo.r_norm,
+        dynamic_source_runtime_params.prescribed_values
+      )
+    else:
+      hires_prescribed_values = jnp.zeros_like(geo.r_hires_norm)
+
     return source.get_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_source_runtime_params,
-        geo=geo,
-        core_profiles=None,
-        # There is no model for this source.
-        model_func=(lambda _0, _1, _2, _3: jnp.zeros_like(geo.r_hires_norm)),
-        formula=self.hires_formula,
-        output_shape=geo.r_hires_norm.shape,
-    )
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          dynamic_source_runtime_params=dynamic_source_runtime_params,
+          geo=geo,
+          core_profiles=None,
+          # There is no model for this source.
+          model_func=(lambda _0, _1, _2, _3: jnp.zeros_like(geo.r_hires_norm)),
+          formula=self.hires_formula,
+          prescribed_values=hires_prescribed_values,
+          output_shape=geo.r_hires_norm.shape,
+      )
 
   def get_source_profile_for_affected_core_profile(
       self,
