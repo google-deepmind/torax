@@ -391,7 +391,7 @@ def _calculate_currents_from_psi(
     psi: cell_variable.CellVariable,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
-  """Creates the initial currents using psi to calculate jtot.
+  """Creates the initial Currents using psi to calculate jtot.
 
   Args:
     dynamic_runtime_params_slice: General runtime parameters at t_initial.
