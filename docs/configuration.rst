@@ -848,7 +848,7 @@ parent ``Stepper`` class.
 newton_raphson
 ^^^^^^^^^^^^^^
 
-Dict containing the following configuration parameters for the Newton Raphson stepper.
+``newton_raphson_params`` dict containing the following configuration parameters for the Newton Raphson stepper.
 
 ``log_iterations`` (bool = False)
   Log the internal iterations in the Newton-Raphson solver.
@@ -888,7 +888,7 @@ Dict containing the following configuration parameters for the Newton Raphson st
 optimizer
 ^^^^^^^^^
 
-Dictionary containing the following configuration parameters for the Optimizer stepper.
+``optimizer_params`` dict containing the following configuration parameters for the Optimizer stepper.
 
 ``initial_guess_mode`` (str = 'linear_step')
   Sets the approach taken for the initial guess into the Newton-Raphson solver for the first iteration.

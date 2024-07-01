@@ -631,6 +631,9 @@ def build_stepper_builder_from_config(
     stepper_config = copy.copy(stepper_config)
   stepper_type = stepper_config.pop('stepper_type')
   if stepper_type == 'linear':
+    # Remove params from steppers with nested configs, if present.
+    stepper_config.pop('newton_raphson_params', None)
+    stepper_config.pop('optimizer_params', None)
     return linear_theta_method.LinearThetaMethodBuilder(
         runtime_params=config_args.recursive_replace(
             linear_theta_method.LinearRuntimeParams(),
@@ -638,17 +641,25 @@ def build_stepper_builder_from_config(
         )
     )
   elif stepper_type == 'newton_raphson':
+    newton_raphson_params = stepper_config.pop('newton_raphson_params', {})
+    newton_raphson_params.update(stepper_config)
+    # Remove params from other steppers with nested configs, if present.
+    newton_raphson_params.pop('optimizer_params', None)
     return nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder(
         runtime_params=config_args.recursive_replace(
             nonlinear_theta_method.NewtonRaphsonRuntimeParams(),
-            **stepper_config,
+            **newton_raphson_params,
         )
     )
   elif stepper_type == 'optimizer':
+    optimizer_params = stepper_config.pop('optimizer_params', {})
+    optimizer_params.update(stepper_config)
+    # Remove params from other steppers with nested configs, if present.
+    optimizer_params.pop('newton_raphson_params', None)
     return nonlinear_theta_method.OptimizerThetaMethodBuilder(
         runtime_params=config_args.recursive_replace(
             nonlinear_theta_method.OptimizerRuntimeParams(),
-            **stepper_config,
+            **optimizer_params,
         )
     )
   raise ValueError(f'Unknown stepper type: {stepper_type}')

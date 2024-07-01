@@ -62,7 +62,9 @@ CONFIG = {
         'initial_guess_mode': 'linear',
         'predictor_corrector': False,
         'use_pereverzev': True,
-        'maxiter': 0,
+        'optimizer_params': {
+            'maxiter': 0,
+        },
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

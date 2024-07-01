@@ -67,7 +67,9 @@ CONFIG = {
         'stepper_type': 'newton_raphson',
         'predictor_corrector': False,
         'use_pereverzev': True,
-        'maxiter': 0,
+        'newton_raphson_params': {
+            'maxiter': 0,
+        },
     },
     'time_step_calculator': {
         'calculator_type': 'chi',
