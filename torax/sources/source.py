@@ -216,6 +216,10 @@ class Source:
         if self.formula is None
         else self.formula
     )
+    # dynamic_source_runtime_params.prescribed_values will be an array
+    # interpolated on the face grid (see config.config_args.interpolate_var_2d)
+    prescribed_values = geometry.face_to_cell(dynamic_source_runtime_params.prescribed_values)
+
     return get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
@@ -223,7 +227,7 @@ class Source:
         core_profiles=core_profiles,
         model_func=model_func,
         formula=formula,
-        prescribed_values=dynamic_source_runtime_params.prescribed_values,
+        prescribed_values=prescribed_values,
         output_shape=output_shape,
     )
 
@@ -497,7 +501,6 @@ def get_source_profiles(
       zeros,
   )
   # PRESCRIBED
-  print(prescribed_values.shape, zeros.shape)
   output += jnp.where(
     mode == runtime_params_lib.Mode.PRESCRIBED.value,
     prescribed_values,
