@@ -52,12 +52,14 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   def build_dynamic_params(
       self,
       t: chex.Numeric,
+      geo: geometry.Geometry | None = None,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 
@@ -180,6 +182,7 @@ class ExternalCurrentSource(source.Source):
   supported_types: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.FORMULA_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
   )
 
   # Don't include affected_core_profiles in the __init__ arguments.

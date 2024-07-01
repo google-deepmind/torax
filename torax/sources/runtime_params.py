@@ -21,6 +21,7 @@ import enum
 
 import chex
 from torax import interpolated_param
+from torax import geometry
 from torax.config import config_args
 from torax.sources import formula_config
 
@@ -90,12 +91,17 @@ class RuntimeParams:
     default_factory=lambda: {0: {0: 0, 1: 0}}
   )
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+  def build_dynamic_params(
+    self,
+    t: chex.Numeric,
+    geo: geometry.Geometry,
+  ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 
