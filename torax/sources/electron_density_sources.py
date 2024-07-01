@@ -40,8 +40,9 @@ class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
   S_puff_tot: runtime_params_lib.TimeInterpolated = 1e22
 
   def build_dynamic_params(
-      self,
-      t: chex.Numeric,
+    self,
+    t: chex.Numeric,
+    geo: geometry.Geometry | None = None,
   ) -> DynamicGasPuffRuntimeParams:
     return DynamicGasPuffRuntimeParams(
         **config_args.get_init_kwargs(
@@ -100,6 +101,7 @@ class NBIParticleRuntimeParams(runtime_params_lib.RuntimeParams):
   def build_dynamic_params(
       self,
       t: chex.Numeric,
+      geo: geometry.Geometry | None = None,
   ) -> DynamicNBIParticleRuntimeParams:
     return DynamicNBIParticleRuntimeParams(
         **config_args.get_init_kwargs(
@@ -162,12 +164,14 @@ class PelletRuntimeParams(runtime_params_lib.RuntimeParams):
   def build_dynamic_params(
       self,
       t: chex.Numeric,
+      geo: geometry.Geometry | None = None,
   ) -> DynamicPelletRuntimeParams:
     return DynamicPelletRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicPelletRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 

@@ -48,7 +48,11 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # electron heating fraction
   el_heat_fraction: runtime_params_lib.TimeInterpolated = 0.66666
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+      geo: geometry.Geometry | None = None,
+    ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
