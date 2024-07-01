@@ -474,17 +474,22 @@ CGM
 Runtime parameters for the Critical Gradient Model (CGM), defined within a
 ``cgm_params`` dict nested within the transport dict.
 
-``CGMalpha`` (float = 2.0)
+``alpha`` (float = 2.0)
   Exponent of chi power law: :math:`\chi \propto (R/L_{Ti} - R/L_{Ti_crit})^\alpha`.
 
-``CGMchistiff`` (float = 2.0)
+``chistiff`` (float = 2.0)
   Stiffness parameter.
 
-``CGMchiei_ratio`` (float = 2.0)
+``chiei_ratio`` (float = 2.0), **time-varying-scalar**
   Ratio of ion to electron heat conductivity. ITG turbulence has values above 1.
 
-``CGM_D_ratio`` (float = 5.0)
+``chi_D_ratio`` (float = 5.0), **time-varying-scalar**
   Ratio of ion heat conductivity to electron particle diffusion.
+
+``VR_D_ratio`` (float = 0.0), **time-varying-scalar**
+  Ratio of major radius * electron particle convection to electron particle diffusion.
+  Sets the electron particle convection in the model. Negative values will set a peaked
+  electron density profile in the absence of sources.
 
 qlknn
 ^^^^^

@@ -41,12 +41,16 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   """
 
   # Exponent of chi power law: chi \propto (R/LTi - R/LTi_crit)^alpha
-  CGMalpha: float = 2.0
+  alpha: float = 2.0
   # Stiffness parameter
-  CGMchistiff: float = 2.0
-  # Ratio of electron to ion transport coefficient (ion higher: ITG)
-  CGMchiei_ratio: float = 2.0
-  CGM_D_ratio: float = 5.0
+  chistiff: float = 2.0
+  # Ratio of electron to ion heat transport coefficient (ion higher for ITG)
+  chiei_ratio: runtime_params_lib.TimeInterpolatedScalar = 2.0
+  # Ratio of electron particle to ion heat transport coefficient
+  chi_D_ratio: runtime_params_lib.TimeInterpolatedScalar = 5.0
+  # Ratio of major radius * electron particle convection, to electron diffusion.
+  # Sets the value of electron particle convection in the model.
+  VR_D_ratio: runtime_params_lib.TimeInterpolatedScalar = 0.0
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
@@ -62,10 +66,11 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the CGM transport model."""
 
-  CGMalpha: float
-  CGMchistiff: float
-  CGMchiei_ratio: float
-  CGM_D_ratio: float
+  alpha: float
+  chistiff: float
+  chiei_ratio: float
+  chi_D_ratio: float
+  VR_D_ratio: float
 
   def sanity_check(self):
     runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
@@ -73,8 +78,8 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     # dataclass is frozen.
     object.__setattr__(
         self,
-        'CGM_D_ratio',
-        jax_utils.error_if_negative(self.CGM_D_ratio, 'CGM_D_ratio'),
+        'chi_D_ratio',
+        jax_utils.error_if_negative(self.chi_D_ratio, 'chi_D_ratio'),
     )
 
   def __post_init__(self):
@@ -161,30 +166,26 @@ class CriticalGradientModel(transport_model.TransportModel):
     chi_face_ion = jnp.where(
         rlti >= rlti_crit,
         chiGB
-        * dynamic_runtime_params_slice.transport.CGMchistiff
-        * (rlti - rlti_crit) ** dynamic_runtime_params_slice.transport.CGMalpha,
+        * dynamic_runtime_params_slice.transport.chistiff
+        * (rlti - rlti_crit) ** dynamic_runtime_params_slice.transport.alpha,
         0.0,
     )
 
     # set electron heat transport coefficient to user-defined ratio of ion heat
     # transport coefficient
     chi_face_el = (
-        chi_face_ion / dynamic_runtime_params_slice.transport.CGMchiei_ratio
+        chi_face_ion / dynamic_runtime_params_slice.transport.chiei_ratio
     )
 
+    # set electron particle transport coefficient to user-defined ratio of ion
+    # heat transport coefficient
     d_face_el = (
-        chi_face_ion / dynamic_runtime_params_slice.transport.CGM_D_ratio
+        chi_face_ion / dynamic_runtime_params_slice.transport.chi_D_ratio
     )
 
-    # No convection in this critical gradient model.
-    # (Not a realistic model for particle transport anyway).
-    v_face_el = jnp.zeros_like(d_face_el)
-
-    # set minimum and maximum transport coefficents for PDE stability
-    chi_face_ion = jnp.clip(
-        chi_face_ion,
-        dynamic_runtime_params_slice.transport.chimin,
-        dynamic_runtime_params_slice.transport.chimax,
+    # User-provided convection coefficient
+    v_face_el = (
+        d_face_el * dynamic_runtime_params_slice.transport.VR_D_ratio / geo.Rmaj
     )
 
     return state.CoreTransport(

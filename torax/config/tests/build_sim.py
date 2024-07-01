@@ -338,7 +338,7 @@ class BuildSimTest(parameterized.TestCase):
                 'chii_const': 4.56,
             },
             'cgm_params': {
-                'CGMalpha': 7.89,
+                'alpha': 7.89,
             },
             'qlknn_params': {
                 'coll_mult': 10.11,
@@ -359,7 +359,7 @@ class BuildSimTest(parameterized.TestCase):
           transport_model_builder.runtime_params,
           critical_gradient_transport.RuntimeParams,
       )
-      self.assertEqual(transport_model_builder.runtime_params.CGMalpha, 7.89)
+      self.assertEqual(transport_model_builder.runtime_params.alpha, 7.89)
     elif name == 'qlknn':
       assert isinstance(
           transport_model_builder.runtime_params, qlknn_wrapper.RuntimeParams
