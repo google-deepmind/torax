@@ -40,12 +40,17 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool = False
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+  def build_dynamic_params(
+    self,
+    t: chex.Numeric,
+    geo: geometry.Geometry | None = None,
+  ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 

@@ -215,6 +215,14 @@ class Source:
         if self.formula is None
         else self.formula
     )
+    # TODO This is not robust (e.g. what if output_shape_getter is neither face
+    # or cell?).
+    prescribed_values = (
+      geometry.face_to_cell(dynamic_source_runtime_params.prescribed_values)
+      if self.output_shape_getter == get_cell_profile_shape
+      else dynamic_source_runtime_params.prescribed_values
+    )
+
     return get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
@@ -222,6 +230,7 @@ class Source:
         core_profiles=core_profiles,
         model_func=model_func,
         formula=formula,
+        prescribed_values=prescribed_values,
         output_shape=output_shape,
     )
 
@@ -441,12 +450,15 @@ def get_source_profiles(
     core_profiles: state.CoreProfiles | None,
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
+    prescribed_values: chex.Array | None,
     output_shape: tuple[int, ...],
 ) -> jnp.ndarray:
   """Returns source profiles requested by the runtime_params_lib.
 
-  This function handles MODEL_BASED, FORMULA_BASED, and ZERO sources. All other
-  source types will be ignored.
+  This function handles MODEL_BASED, FORMULA_BASED, PRESCRIBED and ZERO sources.
+  All other source types will be ignored.
+  This function exists to simplify the creation of the profile to a set of
+  jnp.where calls.
 
   Args:
     dynamic_runtime_params_slice: Slice of the general TORAX config that can be
@@ -458,7 +470,9 @@ def get_source_profiles(
       functions.
     model_func: Model function.
     formula: Formula implementation.
-    output_shape: Expected shape of the outut array.
+    prescribed_values: Array of values for this timeslice, interpolated onto
+      the grid (ie with shape output_shape)
+    output_shape: Expected shape of the output array.
 
   Returns:
     Output array of a profile or concatenated/stacked profiles.
@@ -466,6 +480,8 @@ def get_source_profiles(
   mode = dynamic_source_runtime_params.mode
   zeros = jnp.zeros(output_shape)
   output = jnp.zeros(output_shape)
+
+  # MODEL_BASED
   output += jnp.where(
       mode == runtime_params_lib.Mode.MODEL_BASED.value,
       model_func(
@@ -476,6 +492,7 @@ def get_source_profiles(
       ),
       zeros,
   )
+  # FORMULA_BASED
   output += jnp.where(
       mode == runtime_params_lib.Mode.FORMULA_BASED.value,
       formula(
@@ -485,6 +502,12 @@ def get_source_profiles(
           core_profiles,
       ),
       zeros,
+  )
+  # PRESCRIBED
+  output += jnp.where(
+    mode == runtime_params_lib.Mode.PRESCRIBED.value,
+    prescribed_values,
+    zeros,
   )
   return output
 
