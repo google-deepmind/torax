@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import Any, Optional
 
 import chex
 import jax
 from jax import numpy as jnp
+
 from torax import geometry
 from torax.config import config_args
 from torax.fvm import cell_variable
@@ -40,7 +41,6 @@ class Currents:
 
   jtot: jax.Array
   jtot_face: jax.Array
-  jtot_hires: jax.Array
   johm: jax.Array
   johm_face: jax.Array
   jext: jax.Array
@@ -51,6 +51,7 @@ class Currents:
   # Using physics notation naming convention
   I_bootstrap: jax.Array
   sigma: jax.Array
+  jtot_hires: Optional[jax.Array] = None
 
 
 @chex.dataclass(frozen=True, eq=False)
