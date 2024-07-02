@@ -255,7 +255,8 @@ class SourceTest(parameterized.TestCase):
 
   def test_overriding_default_formula(self):
     """The user-specified formula should override the default formula."""
-    output_shape = (2, 4)  # Some arbitrary shape.
+    geo = geometry.build_circular_geometry()
+    output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
     source_builder = source_lib.SourceBuilder(
         output_shape_getter=lambda _0: output_shape,
@@ -272,7 +273,6 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
@@ -297,7 +297,8 @@ class SourceTest(parameterized.TestCase):
 
   def test_overriding_model(self):
     """The user-specified model should override the default model."""
-    output_shape = (2, 4)  # Some arbitrary shape.
+    geo = geometry.build_circular_geometry()
+    output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
     source_builder = source_lib.SourceBuilder(
         supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
