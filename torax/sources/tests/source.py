@@ -252,6 +252,33 @@ class SourceTest(parameterized.TestCase):
           profile,
           source_lib.ProfileType.CELL.get_zero_profile(geo),
       )
+    with self.subTest("prescribed"):
+      dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            sources={
+                'foo': (
+                    dataclasses.replace(
+                        source_builder.runtime_params,
+                        mode=runtime_params_lib.Mode.PRESCRIBED,
+                    )
+                )
+            },
+            geo=geo,
+        )
+      )
+      profile = source.get_value(
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+              'foo'
+          ],
+          geo=geo,
+          core_profiles=core_profiles,
+      )
+      np.testing.assert_allclose(
+          profile,
+          source_lib.ProfileType.CELL.get_zero_profile(geo),
+      )
 
   def test_overriding_default_formula(self):
     """The user-specified formula should override the default formula."""
