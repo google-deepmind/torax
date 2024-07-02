@@ -18,9 +18,7 @@ import copy
 import dataclasses
 from typing import Any
 
-from torax import constants
 from torax import geometry
-from torax import geometry_loader
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
@@ -52,8 +50,7 @@ def update_chease_geometry_or_runtime_params(
     *,
     Ip_from_parameters: bool = True,
     geo: geometry.StandardGeometry,
-    geometry_dir: str | None = None,
-    geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+    intermediates: geometry.StandardGeometryIntermediates,
 ) -> tuple[geometry.StandardGeometry, runtime_params_lib.GeneralRuntimeParams]:
   """Updates geometry/runtime params to be consistent.
 
@@ -65,21 +62,12 @@ def update_chease_geometry_or_runtime_params(
     runtime_params: General runtime parameters.
     Ip_from_parameters: Whether to use the Ip from the parameters file.
     geo: Chease geometry object.
-    geometry_dir: Directory where to find the CHEASE file describing the
-      magnetic geometry. If None, uses the environment variable
-      TORAX_GEOMETRY_DIR if available. If that variable is not set and
-      geometry_dir is not provided, then it defaults to another dir. See
-      implementation.
-    geometry_file: CHEASE file name.
+    intermediates: Chease geometry intermediates object.
 
   Returns:
     A consistent geometry and runtime params where one will have been updated
     depending on the value of `Ip_from_parameters`.
   """
-  chease_data = geometry_loader.load_chease_data(geometry_dir, geometry_file)
-  Ip_chease = (
-      chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * geo.Rmaj * geo.B0
-  )
   # if Ip from parameter file, renormalize psi to match desired current
   if Ip_from_parameters:
     # build t_initial runtime_params_slice
@@ -90,7 +78,7 @@ def update_chease_geometry_or_runtime_params(
         )
     )
     config_Ip = dynamic_runtime_params_slice.profile_conditions.Ip
-    Ip_scale_factor = config_Ip * 1e6 / Ip_chease[-1]
+    Ip_scale_factor = config_Ip * 1e6 / intermediates.Ip[-1]
     psi_from_Ip = geo.psi_from_Ip * Ip_scale_factor
     jtot = geo.jtot * Ip_scale_factor
     jtot_face = geo.jtot_face * Ip_scale_factor
@@ -106,7 +94,7 @@ def update_chease_geometry_or_runtime_params(
         runtime_params,
         **{
             'profile_conditions': {
-                'Ip': Ip_chease[-1] / 1e6,
+                'Ip': intermediates.Ip[-1] / 1e6,
             },
         },
     )
@@ -167,8 +155,7 @@ def build_consistent_chease_geometry_and_runtime_params(
       runtime_params=runtime_params,
       Ip_from_parameters=Ip_from_parameters,
       geo=geo,
-      geometry_dir=geometry_dir,
-      geometry_file=geometry_file,
+      intermediates=intermediates,
   )
 
 
