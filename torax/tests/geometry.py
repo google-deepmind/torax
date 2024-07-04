@@ -74,7 +74,7 @@ class GeometryTest(parameterized.TestCase):
 
     foo_jitted = jax.jit(foo)
     intermediate = geometry.StandardGeometryIntermediates(
-        nr=25,
+        torax_mesh=geometry.Grid1D.construct(25, np.array(1./25)),
         Rmaj=6.2,
         Rmin=2.0,
         B=5.3,

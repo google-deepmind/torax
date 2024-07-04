@@ -464,6 +464,7 @@ class StandardGeometryIntermediates:
 
   All inputs are 1D profiles vs normalized rho toroidal (rhon).
 
+  torax_mesh: The mesh used for the simulation.
   Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
     is used as an unnormalization factor.
   Rmin: minor radius (a) in meters
@@ -484,10 +485,10 @@ class StandardGeometryIntermediates:
   delta_lower_face: Triangularity on lower face
   volume: Volume profile
   area: Area profile
-  nr: Radial grid points (num cells)
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
   """
+  torax_mesh: Grid1D
   Rmaj: chex.Numeric
   Rmin: chex.Numeric
   B: chex.Numeric
@@ -507,7 +508,6 @@ class StandardGeometryIntermediates:
   delta_lower_face: chex.Array
   volume: chex.Array
   area: chex.Array
-  nr: int
   hires_fac: int
 
   @classmethod
@@ -530,7 +530,8 @@ class StandardGeometryIntermediates:
         geometry_dir is not provided, then it defaults to another dir. See
         implementation.
       geometry_file: CHEASE file name.
-      nr: Radial grid points (num cells)
+      nr: Radial grid points (num cells) to use for the simulation. Note this
+        must be the same throughout the simulation.
       Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so
         this is used as an unnormalization factor.
       Rmin: minor radius (a) in meters
@@ -573,7 +574,12 @@ class StandardGeometryIntermediates:
     volume = chease_data['VOLUMEprofile'] * Rmaj**3
     area = chease_data['areaprofile'] * Rmaj**2
 
+    dr_norm = np.asarray(1.) / nr
+    # normalized grid
+    mesh = Grid1D.construct(nx=nr, dx=dr_norm)
+
     return cls(
+        torax_mesh=mesh,
         Rmaj=Rmaj,
         Rmin=Rmin,
         B=B0,
@@ -593,7 +599,6 @@ class StandardGeometryIntermediates:
         delta_lower_face=chease_data['delta_bottom'],
         volume=volume,
         area=area,
-        nr=nr,
         hires_fac=hires_fac,
     )
 
@@ -669,18 +674,16 @@ def build_standard_geometry(
   # r_norm coordinate is rho_tor_norm
 
   # fill geometry structure
-  # r_norm coordinate is rho_tor_norm
-  dr_norm = intermediate.rhon[-1] / intermediate.nr
-  # normalized grid
-  mesh = Grid1D.construct(nx=intermediate.nr, dx=dr_norm)
   rmax = intermediate.rho[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
-  r_face_norm = mesh.face_centers
-  r_norm = mesh.cell_centers
+  dr_norm = intermediate.torax_mesh.dx
+  r_face_norm = intermediate.torax_mesh.face_centers
+  r_norm = intermediate.torax_mesh.cell_centers
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  r_hires_norm = np.linspace(0, 1, intermediate.nr * intermediate.hires_fac)
+  r_hires_norm = np.linspace(
+      0, 1, intermediate.torax_mesh.nx * intermediate.hires_fac)
   r_hires = r_hires_norm * rmax
 
   interp_func = lambda x: np.interp(x, intermediate.rhon, vpr)
@@ -769,7 +772,7 @@ def build_standard_geometry(
   return StandardGeometry(
       geometry_type=GeometryType.CHEASE.value,
       dr_norm=dr_norm,
-      mesh=mesh,
+      mesh=intermediate.torax_mesh,
       rmax=rmax,
       r_face_norm=r_face_norm,
       r_norm=r_norm,
