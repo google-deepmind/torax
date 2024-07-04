@@ -171,6 +171,11 @@ class Geometry:
   def dr(self) -> chex.Array:
     return self.dr_norm * self.rmax
 
+  # Toroidal flux at boundary (LCFS)
+  @property
+  def Phib(self) -> chex.Array:
+    return self.rmax**2 * np.pi * self.B0
+
   @property
   def g1_over_vpr(self) -> chex.Array:
     return self.g1 / self.vpr
@@ -488,6 +493,7 @@ class StandardGeometryIntermediates:
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
   """
+
   Rmaj: chex.Numeric
   Rmin: chex.Numeric
   B: chex.Numeric
@@ -599,7 +605,7 @@ class StandardGeometryIntermediates:
 
 
 def build_standard_geometry(
-    intermediate: StandardGeometryIntermediates
+    intermediate: StandardGeometryIntermediates,
 ) -> StandardGeometry:
   """Build geometry object based on set of profiles from an EQ solution.
 
@@ -698,11 +704,13 @@ def build_standard_geometry(
   spr_hires = interp_func(r_hires_norm)
 
   # triangularity on cell grid
-  interp_func = lambda x: np.interp(x, intermediate.rhon,
-                                    intermediate.delta_upper_face)
+  interp_func = lambda x: np.interp(
+      x, intermediate.rhon, intermediate.delta_upper_face
+  )
   delta_upper_face = interp_func(r_face_norm)
-  interp_func = lambda x: np.interp(x, intermediate.rhon,
-                                    intermediate.delta_lower_face)
+  interp_func = lambda x: np.interp(
+      x, intermediate.rhon, intermediate.delta_lower_face
+  )
   delta_lower_face = interp_func(r_face_norm)
 
   # average triangularity
