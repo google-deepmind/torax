@@ -17,7 +17,6 @@
 import abc
 from typing import Any
 import jax
-from jax import numpy as jnp
 
 
 class Spectator(abc.ABC):
@@ -95,5 +94,5 @@ class InMemoryJaxArraySpectator(Spectator):
 def get_data_at_index(
     spectator: InMemoryJaxArraySpectator,
     index: int,
-) -> dict[str, jnp.ndarray]:
+) -> dict[str, jax.Array]:
   return {key: data[index] for key, data in spectator.arrays.items()}

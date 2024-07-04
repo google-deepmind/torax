@@ -36,7 +36,7 @@ def exponential_profile(
     c2: float,
     total: float,
     use_normalized_r: bool = False,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Returns an exponential profile on the cell grid.
 
   The profile is parameterized by (c1, c2, c3) like so:
@@ -74,7 +74,7 @@ def gaussian_profile(
     c2: float,
     total: float,
     use_normalized_r: bool = False,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Returns a gaussian profile on the cell grid.
 
   The profile is parameterized by (c1, c2, c3) like so:
@@ -122,7 +122,7 @@ class Exponential:
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     exp_config = dynamic_source_runtime_params.formula
     assert isinstance(exp_config, formula_config.DynamicExponential)
     return exponential_profile(
@@ -144,7 +144,7 @@ class Gaussian:
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     gaussian_config = dynamic_source_runtime_params.formula
     assert isinstance(gaussian_config, formula_config.DynamicGaussian)
     return gaussian_profile(

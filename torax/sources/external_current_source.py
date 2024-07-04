@@ -19,6 +19,7 @@ from __future__ import annotations
 import dataclasses
 
 import chex
+import jax
 from jax import numpy as jnp
 from jax.scipy import integrate
 from torax import geometry
@@ -91,7 +92,7 @@ def _calculate_jext_face(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Calculates the external current density profiles.
 
   Args:
@@ -127,7 +128,7 @@ def _calculate_jext_hires(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Calculates the external current density profile along the hires grid.
 
   Args:
@@ -200,7 +201,7 @@ class ExternalCurrentSource(source.Source):
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
-  ) -> tuple[jnp.ndarray, jnp.ndarray]:
+  ) -> tuple[jax.Array, jax.Array]:
     """Return the external current density profile along face and cell grids."""
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
     self.check_mode(dynamic_source_runtime_params.mode)
@@ -223,7 +224,7 @@ class ExternalCurrentSource(source.Source):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """Return the external current density profile along the hires cell grid."""
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
     self.check_mode(dynamic_source_runtime_params.mode)
@@ -243,7 +244,7 @@ class ExternalCurrentSource(source.Source):
       profile: chex.ArrayTree,
       affected_core_profile: int,
       geo: geometry.Geometry,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
         profile[0],  # the jext profile

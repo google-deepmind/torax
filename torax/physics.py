@@ -85,7 +85,7 @@ def coll_exchange(
     nref: float,
     Ai: float,
     Qei_mult: float,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Computes collisional ion-electron heat exchange coefficient.
 
   Args:
@@ -126,7 +126,7 @@ def internal_boundary(
     geo: Geometry,
     Ped_top: float,
     set_pedestal: bool,
-) -> jnp.ndarray:
+) -> jax.Array:
   # Create Boolean mask FiPy CellVariable with True where the internal boundary
   # condition is
   # find index closest to pedestal top.
@@ -218,7 +218,7 @@ def calc_jtot_from_psi(
 
 def calc_s_from_psi(
     geo: Geometry, psi: cell_variable.CellVariable
-) -> jnp.ndarray:
+) -> jax.Array:
   """Calculates magnetic shear (s) from poloidal flux (psi).
 
   Args:
@@ -259,7 +259,7 @@ def calc_nu_star(
     nref: float,
     Zeff: float,
     coll_mult: float,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Calculates nu star.
 
   Args:

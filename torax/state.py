@@ -175,7 +175,7 @@ class CoreTransport:
   def chi_max(
       self,
       geo: geometry.Geometry,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """Calculates the maximum value of chi.
 
     Args:
@@ -267,6 +267,6 @@ def build_history_from_states(
 
 def build_time_history_from_states(
     states: tuple[ToraxSimState, ...],
-) -> jnp.ndarray:
+) -> jax.Array:
   times = [state.t for state in states]
   return jnp.array(times)

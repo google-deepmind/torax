@@ -49,7 +49,6 @@ from typing import Any, Callable
 from absl import logging
 import chex
 import jax
-from jax import numpy as jnp
 from matplotlib import pyplot as plt
 import torax
 from torax import geometry
@@ -257,7 +256,7 @@ def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> str:
 
 def _log_single_state(
     core_profiles: torax.CoreProfiles,
-    t: float | jnp.ndarray,
+    t: float | jax.Array,
 ) -> None:
   log_to_stdout('At time t = %.4f\n' % float(t), color=AnsiColors.GREEN)
   logging.info('temp_ion: %s', core_profiles.temp_ion.value)
@@ -272,7 +271,7 @@ def _log_single_state(
 def log_simulation_output_to_stdout(
     core_profile_history: torax.CoreProfiles,
     geo: torax.Geometry,
-    t: jnp.ndarray,
+    t: jax.Array,
 ) -> None:
   del geo
   _log_single_state(core_profile_history.index(0), t[0])

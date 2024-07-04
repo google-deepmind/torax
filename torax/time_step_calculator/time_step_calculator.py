@@ -21,7 +21,6 @@ import abc
 from typing import Protocol, TypeVar, Union
 
 import jax
-from jax import numpy as jnp
 from torax import geometry
 from torax import state as state_module
 from torax.config import runtime_params_slice
@@ -67,7 +66,7 @@ class TimeStepCalculator(Protocol[State]):
       core_profiles: state_module.CoreProfiles,
       time_step_calculator_state: State,
       core_transport: state_module.CoreTransport,
-  ) -> tuple[jnp.ndarray, State]:
+  ) -> tuple[jax.Array, State]:
     """Returns the next time step duration and internal time stepper state.
 
     Args:

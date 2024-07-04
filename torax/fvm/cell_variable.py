@@ -42,7 +42,7 @@ class CellVariable:
   CellVariables are hashable by id, and compare equal only to themselves.
 
   Attributes:
-    value: A jnp.ndarray containing the value of this variable at each cell.
+    value: A jax.Array containing the value of this variable at each cell.
     dr: Distance between cell centers.
     left_face_constraint: An optional jax scalar specifying the value of the
       leftmost face. Defaults to None, signifying no constraint. The user can
@@ -146,7 +146,7 @@ class CellVariable:
       )
       assert num_right_constraints == 1
 
-  def face_grad(self, x: jax.Array | None = None) -> jnp.ndarray:
+  def face_grad(self, x: jax.Array | None = None) -> jax.Array:
     """Returns the gradient of this value with respect to the faces.
 
     Implemented using forward differencing of cells. Leftmost and rightmost
@@ -157,7 +157,7 @@ class CellVariable:
       x: (optional) coordinates over which differentiation is carried out
 
     Returns:
-      A jnp.ndarray of shape (num_faces,) containing the gradient.
+      A jax.Array of shape (num_faces,) containing the gradient.
     """
     self.assert_not_history()
     if x is None:
@@ -166,11 +166,11 @@ class CellVariable:
       forward_difference = jnp.diff(self.value) / jnp.diff(x)
 
     def constrained_grad(
-        face: Optional[jnp.ndarray],
-        grad: Optional[jnp.ndarray],
-        cell: jnp.ndarray,
+        face: Optional[jax.Array],
+        grad: Optional[jax.Array],
+        cell: jax.Array,
         right: bool,
-    ) -> jnp.ndarray:
+    ) -> jax.Array:
       """Calculates the constrained gradient entry for an outer face.
 
       Args:

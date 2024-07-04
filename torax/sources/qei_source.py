@@ -117,7 +117,7 @@ class QeiSource(source.Source):
       profile: chex.ArrayTree,
       affected_mesh_state: int,
       geo: geometry.Geometry,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     raise NotImplementedError('This method is not valid for QeiSource.')
 
 

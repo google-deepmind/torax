@@ -25,8 +25,8 @@ from torax.fvm import cell_variable
 
 
 def make_convection_terms(
-    v_face: jnp.ndarray,
-    d_face: jnp.ndarray,
+    v_face: jax.Array,
+    d_face: jax.Array,
     var: cell_variable.CellVariable,
     dirichlet_mode: str = 'ghost',
     neumann_mode: str = 'ghost',

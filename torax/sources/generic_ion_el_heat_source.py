@@ -72,7 +72,7 @@ def calc_generic_heat_source(
     w: float,
     Ptot: float,
     el_heat_fraction: float,
-) -> tuple[jnp.ndarray, jnp.ndarray]:
+) -> tuple[jax.Array, jax.Array]:
   """Computes ion/electron heat source terms.
 
   Flexible prescribed heat source term.
@@ -106,7 +106,7 @@ def _default_formula(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Returns the default formula-based ion/electron heat source profile."""
   del dynamic_runtime_params_slice, core_profiles  # Unused.
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)

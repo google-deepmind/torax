@@ -125,7 +125,7 @@ def fusion_heat_model_func(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> jnp.ndarray:
+) -> jax.Array:
   del dynamic_source_runtime_params  # Unused.
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(

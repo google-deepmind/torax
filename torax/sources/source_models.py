@@ -19,6 +19,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 
+import jax
 import jax.numpy as jnp
 from torax import constants
 from torax import geometry
@@ -199,7 +200,7 @@ def _build_psi_profiles(
     source_models: SourceModels,
     explicit: bool = True,
     calculate_anyway: bool = False,
-) -> dict[str, jnp.ndarray]:
+) -> dict[str, jax.Array]:
   """Computes psi sources and builds a kwargs dict for SourceProfiles.
 
   Args:
@@ -261,7 +262,7 @@ def _build_ne_profiles(
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
     explicit: bool,
-) -> dict[str, jnp.ndarray]:
+) -> dict[str, jax.Array]:
   """Computes ne sources and builds a kwargs dict for SourceProfiles.
 
   Args:
@@ -307,7 +308,7 @@ def _build_temp_ion_el_profiles(
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
     explicit: bool,
-) -> dict[str, jnp.ndarray]:
+) -> dict[str, jax.Array]:
   """Computes ion and el sources and builds a kwargs dict for SourceProfiles.
 
   Args:
@@ -354,7 +355,7 @@ def sum_sources_psi(
     geo: geometry.Geometry,
     source_profile: source_profiles.SourceProfiles,
     source_models: SourceModels,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Computes psi source values for sim.calc_coeffs."""
   total = (
       source_profile.j_bootstrap.j_bootstrap
@@ -375,7 +376,7 @@ def sum_sources_ne(
     geo: geometry.Geometry,
     source_profile: source_profiles.SourceProfiles,
     source_models: SourceModels,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Computes ne source values for sim.calc_coeffs."""
   total = jnp.zeros_like(geo.r)
   for source_name, source in source_models.ne_sources.items():
@@ -391,7 +392,7 @@ def sum_sources_temp_ion(
     geo: geometry.Geometry,
     source_profile: source_profiles.SourceProfiles,
     source_models: SourceModels,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Computes temp_ion source values for sim.calc_coeffs."""
   total = jnp.zeros_like(geo.r)
   for source_name, source in source_models.temp_ion_sources.items():
@@ -407,7 +408,7 @@ def sum_sources_temp_el(
     geo: geometry.Geometry,
     source_profile: source_profiles.SourceProfiles,
     source_models: SourceModels,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Computes temp_el source values for sim.calc_coeffs."""
   total = jnp.zeros_like(geo.r)
   for source_name, source in source_models.temp_el_sources.items():
@@ -424,7 +425,7 @@ def calc_and_sum_sources_psi(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
-) -> tuple[jnp.ndarray, jnp.ndarray]:
+) -> tuple[jax.Array, jax.Array]:
   """Computes sum of psi sources for psi_dot calculation."""
 
   # TODO(b/335597108): Revisit how to calculate this once we enable more
@@ -469,7 +470,7 @@ def calc_psidot(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
-) -> jnp.ndarray:
+) -> jax.Array:
   r"""Calculates psidot (loop voltage). Used for the Ohmic electron heat source.
 
   psidot is an interesting TORAX output, and is thus also saved in
@@ -583,7 +584,7 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """Returns the Ohmic source for electron heat equation."""
     del dynamic_source_runtime_params
     jtot, _ = physics.calc_jtot_from_psi(

@@ -19,7 +19,7 @@ from __future__ import annotations
 import dataclasses
 
 import chex
-from jax import numpy as jnp
+import jax
 from torax import geometry
 from torax import state
 from torax.config import config_args
@@ -64,7 +64,7 @@ def _calc_puff_source(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Calculates external source term for n from puffs."""
   assert isinstance(dynamic_source_runtime_params, DynamicGasPuffRuntimeParams)
   return formulas.exponential_profile(
@@ -122,7 +122,7 @@ def _calc_nbi_source(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Calculates external source term for n from SBI."""
   assert isinstance(
       dynamic_source_runtime_params, DynamicNBIParticleRuntimeParams
@@ -184,7 +184,7 @@ def _calc_pellet_source(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
-) -> jnp.ndarray:
+) -> jax.Array:
   """Calculates external source term for n from pellets."""
   assert isinstance(dynamic_source_runtime_params, DynamicPelletRuntimeParams)
   return formulas.gaussian_profile(

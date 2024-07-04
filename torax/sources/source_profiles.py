@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import chex
+import jax
 import jax.numpy as jnp
 from torax import geometry
 
@@ -36,11 +37,11 @@ class SourceProfiles:
   that IDS.
   """
 
-  profiles: dict[str, jnp.ndarray]
+  profiles: dict[str, jax.Array]
   j_bootstrap: BootstrapCurrentProfile
   qei: QeiInfo
 
-  def get_profile(self, name: str) -> jnp.ndarray:
+  def get_profile(self, name: str) -> jax.Array:
     """Returns the profile, returning zeroes if profile name doesn't exist."""
     if name in self.profiles:
       return self.profiles[name]
@@ -59,10 +60,10 @@ class BootstrapCurrentProfile:
       purposes.
   """
 
-  sigma: jnp.ndarray
-  j_bootstrap: jnp.ndarray
-  j_bootstrap_face: jnp.ndarray
-  I_bootstrap: jnp.ndarray  # pylint: disable=invalid-name
+  sigma: jax.Array
+  j_bootstrap: jax.Array
+  j_bootstrap_face: jax.Array
+  I_bootstrap: jax.Array  # pylint: disable=invalid-name
 
   @classmethod
   def zero_profile(cls, geo: geometry.Geometry) -> BootstrapCurrentProfile:
@@ -78,13 +79,13 @@ class BootstrapCurrentProfile:
 class QeiInfo:
   """Represents the source values coming from a QeiSource."""
 
-  qei_coef: jnp.ndarray
-  implicit_ii: jnp.ndarray
-  explicit_i: jnp.ndarray
-  implicit_ee: jnp.ndarray
-  explicit_e: jnp.ndarray
-  implicit_ie: jnp.ndarray
-  implicit_ei: jnp.ndarray
+  qei_coef: jax.Array
+  implicit_ii: jax.Array
+  explicit_i: jax.Array
+  implicit_ee: jax.Array
+  explicit_e: jax.Array
+  implicit_ie: jax.Array
+  implicit_ei: jax.Array
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> QeiInfo:

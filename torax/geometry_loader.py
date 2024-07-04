@@ -15,12 +15,13 @@
 """File I/O for loading geometry files."""
 import os
 
+import jax
 import jax.numpy as jnp
 
 
 def initialize_CHEASE_dict(  # pylint: disable=invalid-name
     file_path: str,
-) -> dict[str, jnp.ndarray]:
+) -> dict[str, jax.Array]:
   """Loads the data from a CHEASE file into a dictionary."""
   # pyformat: disable
   with open(file_path, 'r') as file:
@@ -46,7 +47,7 @@ def initialize_CHEASE_dict(  # pylint: disable=invalid-name
 def load_chease_data(
     geometry_dir: str | None,
     geometry_file: str,
-) -> dict[str, jnp.ndarray]:
+) -> dict[str, jax.Array]:
   """Loads the data from a CHEASE file into a dictionary."""
   # The code below does not use os.environ.get() in order to support an internal
   # version of the code.

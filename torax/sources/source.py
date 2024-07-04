@@ -30,6 +30,7 @@ import typing
 from typing import Any, Callable, Protocol
 
 import chex
+import jax
 from jax import numpy as jnp
 from torax import geometry
 from torax import jax_utils
@@ -143,8 +144,8 @@ class Source:
 
   def check_mode(
       self,
-      mode: int | jnp.ndarray,
-  ) -> jnp.ndarray:
+      mode: int | jax.Array,
+  ) -> jax.Array:
     """Raises an error if the source type is not supported."""
     # This function is really just a wrapper around jax_utils.error_if with the
     # custom error message coming from this class.
@@ -158,8 +159,8 @@ class Source:
 
   def _is_type_supported(
       self,
-      mode: int | jnp.ndarray,
-  ) -> jnp.ndarray:
+      mode: int | jax.Array,
+  ) -> jax.Array:
     """Returns whether the source type is supported."""
     mode = jnp.array(mode)
     return jnp.any(
@@ -171,7 +172,7 @@ class Source:
 
   def _unsupported_mode_error_msg(
       self,
-      mode: runtime_params_lib.Mode | int | jnp.ndarray,
+      mode: runtime_params_lib.Mode | int | jax.Array,
   ) -> str:
     return (
         f'This source supports the following modes: {self.supported_modes}.'
@@ -230,7 +231,7 @@ class Source:
       profile: chex.ArrayTree,
       affected_core_profile: int,
       geo: geometry.Geometry,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """Returns the part of the profile to use for the given core profile.
 
     A single source can output profiles used as terms in more than one equation
@@ -344,7 +345,7 @@ class SingleProfileSource(Source):
         dynamic_source_runtime_params,
         geo,
         core_profiles,
-    ) -> jnp.ndarray:
+    ) -> jax.Array:
       assert isinstance(dynamic_source_runtime_params, DynamicFooRuntimeParams)
       # implement your foo model.
 
@@ -385,7 +386,7 @@ class SingleProfileSource(Source):
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """Returns the profile for this source during one time step."""
     output_shape = self.output_shape_getter(geo)
     profile = super().get_value(
@@ -394,7 +395,7 @@ class SingleProfileSource(Source):
         geo=geo,
         core_profiles=core_profiles,
     )
-    assert isinstance(profile, jnp.ndarray)
+    assert isinstance(profile, jax.Array)
     chex.assert_rank(profile, 1)
     chex.assert_shape(profile, output_shape)
     return profile
@@ -404,7 +405,7 @@ class SingleProfileSource(Source):
       profile: chex.ArrayTree,
       affected_core_profile: int,
       geo: geometry.Geometry,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
         profile,
@@ -429,7 +430,7 @@ class ProfileType(enum.Enum):
     }
     return profile_type_to_len[self]
 
-  def get_zero_profile(self, geo: geometry.Geometry) -> jnp.ndarray:
+  def get_zero_profile(self, geo: geometry.Geometry) -> jax.Array:
     """Returns a source profile with all zeros."""
     return jnp.zeros(self.get_profile_shape(geo))
 
@@ -442,7 +443,7 @@ def get_source_profiles(
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
     output_shape: tuple[int, ...],
-) -> jnp.ndarray:
+) -> jax.Array:
   """Returns source profiles requested by the runtime_params_lib.
 
   This function handles MODEL_BASED, FORMULA_BASED, and ZERO sources. All other
@@ -569,7 +570,7 @@ class IonElectronSource(Source):
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles | None = None,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """Computes the ion and electron values of the source.
 
     Args:
@@ -591,7 +592,7 @@ class IonElectronSource(Source):
         geo=geo,
         core_profiles=core_profiles,
     )
-    assert isinstance(profile, jnp.ndarray)
+    assert isinstance(profile, jax.Array)
     chex.assert_rank(profile, 2)
     chex.assert_shape(profile, output_shape)
     return profile

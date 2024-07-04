@@ -182,7 +182,7 @@ def filter_model_output(
   }
   zeros = jnp.zeros(zeros_shape)
 
-  def filter_flux(flux_name: str, value: jnp.ndarray) -> jnp.ndarray:
+  def filter_flux(flux_name: str, value: jax.Array) -> jax.Array:
     return jax.lax.cond(
         filter_map.get(flux_name, True),
         lambda: value,
@@ -370,10 +370,10 @@ def prepare_qualikiz_inputs(
 
 
 def make_core_transport(
-    qi: jnp.ndarray,
-    qe: jnp.ndarray,
-    pfe: jnp.ndarray,
-    prepared_data: dict[str, jnp.ndarray],
+    qi: jax.Array,
+    qe: jax.Array,
+    pfe: jax.Array,
+    prepared_data: dict[str, jax.Array],
     runtime_config_inputs: QLKNNRuntimeConfigInputs,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -404,7 +404,7 @@ def make_core_transport(
   # Effective D / Effective V approach.
   # For small density gradients or up-gradient transport, set pure effective
   # convection. Otherwise pure effective diffusion.
-  def DVeff_approach() -> tuple[jnp.ndarray, jnp.ndarray]:
+  def DVeff_approach() -> tuple[jax.Array, jax.Array]:
     Deff = -pfe_SI / (
         core_profiles.ne.face_grad() * geo.g1_over_vpr2_face / geo.rmax
         + constants.eps
@@ -424,7 +424,7 @@ def make_core_transport(
   # Scaled D approach. Scale electron diffusivity to electron heat
   # conductivity (this has some physical motivations),
   # and set convection to then match total particle transport
-  def Dscaled_approach() -> tuple[jnp.ndarray, jnp.ndarray]:
+  def Dscaled_approach() -> tuple[jax.Array, jax.Array]:
     chex.assert_rank(pfe, 1)
     d_face_el = jnp.where(jnp.abs(pfe_SI) > 0.0, chi_face_el, 0.0)
     v_face_el = (

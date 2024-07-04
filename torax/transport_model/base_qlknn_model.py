@@ -14,10 +14,10 @@
 """Base class for QLKNN Models."""
 
 import abc
-from jax import numpy as jnp
+import jax
 
 
-ModelOutput = dict[str, jnp.ndarray]
+ModelOutput = dict[str, jax.Array]
 
 
 class BaseQLKNNModel(abc.ABC):
@@ -29,6 +29,6 @@ class BaseQLKNNModel(abc.ABC):
   @abc.abstractmethod
   def predict(
       self,
-      inputs: jnp.ndarray,
+      inputs: jax.Array,
   ) -> ModelOutput:
     raise NotImplementedError()

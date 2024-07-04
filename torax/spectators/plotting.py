@@ -18,6 +18,7 @@ import dataclasses
 import math
 from typing import Any, Callable, Sequence
 
+import jax
 from jax import numpy as jnp
 from matplotlib import pyplot as plt
 import numpy as np
@@ -44,13 +45,13 @@ class PlotKey:
   # While plotting, the X-axis will not change but rather remain fixed with
   # these values throughout the duration of the sim and therefore the duration
   # of the plots.
-  x_axis: jnp.ndarray | np.ndarray
+  x_axis: jax.Array | np.ndarray
 
   # Label to apply to the data.
   label: str | None = None
 
   # Data transform to apply to all data plotted on the y-axis.
-  y_data_transform: Callable[[jnp.ndarray], jnp.ndarray] | None = None
+  y_data_transform: Callable[[jax.Array], jax.Array] | None = None
 
 
 @dataclasses.dataclass
@@ -140,7 +141,7 @@ class Plotter:
 
   def update_data(
       self,
-      data: dict[str, jnp.ndarray],
+      data: dict[str, jax.Array],
   ) -> None:
     """Updates the data drawn in the plots."""
     for plot, axes_lines in zip(self._plots, self._lines):
@@ -198,7 +199,7 @@ class PlotSpectator(spectator.Spectator):
     self.update_plots()
     plt.pause(0.01)
 
-  def observe(self, key: str, data: jnp.ndarray) -> None:
+  def observe(self, key: str, data: jax.Array) -> None:
     self._spectator.observe(key, data)
 
   def update_plots(self):
@@ -219,7 +220,7 @@ class PlotSpectator(spectator.Spectator):
 
 
 def _get_y_min(
-    data: Sequence[jnp.ndarray | np.ndarray],
+    data: Sequence[jax.Array | np.ndarray],
 ) -> float:
   min_val = np.min(data)
   if min_val < 0:
@@ -230,7 +231,7 @@ def _get_y_min(
 
 
 def _get_y_max(
-    data: Sequence[jnp.ndarray | np.ndarray],
+    data: Sequence[jax.Array | np.ndarray],
 ) -> float:
   max_val = np.max(data)
   if max_val < 0:
@@ -274,12 +275,12 @@ def get_default_plot_config(
 
   def get_plot(
       keys: Sequence[str],
-      x_axis: jnp.ndarray | np.ndarray,
+      x_axis: jax.Array | np.ndarray,
       x_label: str,
       y_label: str,
       labels: Sequence[str] | None = None,
       custom_data_transforms: (
-          dict[str, Callable[[jnp.ndarray], jnp.ndarray]] | None
+          dict[str, Callable[[jax.Array], jax.Array]] | None
       ) = None,
   ) -> Plot:
     plot_keys = []

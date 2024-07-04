@@ -19,6 +19,7 @@ from __future__ import annotations
 import dataclasses
 
 import chex
+import jax
 from jax import numpy as jnp
 from jax.scipy import integrate
 from torax import constants
@@ -101,7 +102,7 @@ class BootstrapCurrentSource(source.Source):
       temp_el: cell_variable.CellVariable | None = None,
       ne: cell_variable.CellVariable | None = None,
       ni: cell_variable.CellVariable | None = None,
-      jtot_face: jnp.ndarray | None = None,
+      jtot_face: jax.Array | None = None,
       psi: cell_variable.CellVariable | None = None,
   ) -> source_profiles.BootstrapCurrentProfile:
     # Make sure the input mode requested is supported.
@@ -174,7 +175,7 @@ class BootstrapCurrentSource(source.Source):
       profile: chex.ArrayTree,
       affected_core_profile: int,
       geo: geometry.Geometry,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
         profile['j_bootstrap'],
@@ -191,7 +192,7 @@ def calc_neoclassical(
     temp_el: cell_variable.CellVariable,
     ne: cell_variable.CellVariable,
     ni: cell_variable.CellVariable,
-    jtot_face: jnp.ndarray,
+    jtot_face: jax.Array,
     psi: cell_variable.CellVariable,
 ) -> source_profiles.BootstrapCurrentProfile:
   """Calculates sigmaneo, j_bootstrap, and I_bootstrap.

@@ -18,6 +18,7 @@ import abc
 from collections.abc import Mapping
 import enum
 import chex
+import jax
 import jax.numpy as jnp
 from torax import jax_utils
 
@@ -34,7 +35,7 @@ class InterpolatedParamBase(abc.ABC):
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """Returns a single value for this parameter at the given coordinate."""
 
 
@@ -74,8 +75,8 @@ class JaxFriendlyInterpolatedParam(InterpolatedParamBase):
 class PiecewiseLinearInterpolatedParam(JaxFriendlyInterpolatedParam):
   """Parameter using piecewise-linear interpolation to compute its value."""
 
-  xs: jnp.ndarray  # must be sorted.
-  ys: jnp.ndarray
+  xs: jax.Array  # must be sorted.
+  ys: jax.Array
 
   def __post_init__(self):
     jax_utils.assert_rank(self.xs, 1)
@@ -86,7 +87,7 @@ class PiecewiseLinearInterpolatedParam(JaxFriendlyInterpolatedParam):
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     return jnp.interp(x, self.xs, self.ys)
 
 
@@ -94,8 +95,8 @@ class PiecewiseLinearInterpolatedParam(JaxFriendlyInterpolatedParam):
 class StepInterpolatedParam(JaxFriendlyInterpolatedParam):
   """Parameter using step interpolation to compute its value."""
 
-  xs: jnp.ndarray  # must be sorted.
-  ys: jnp.ndarray
+  xs: jax.Array  # must be sorted.
+  ys: jax.Array
 
   def __post_init__(self):
     jax_utils.assert_rank(self.xs, 1)
@@ -120,7 +121,7 @@ class StepInterpolatedParam(JaxFriendlyInterpolatedParam):
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     # pytype: disable=attribute-error
     idx = jnp.max(jnp.argwhere(self._padded_xs < x).flatten())
     return self._padded_ys[idx]
@@ -134,7 +135,7 @@ InterpolatedVar2dInput = Mapping[float, InterpolatedVar1dInput] | float
 
 def _convert_input_to_xs_ys(
     interp_input: InterpolatedVar1dInput,
-) -> tuple[jnp.ndarray, jnp.ndarray]:
+) -> tuple[jax.Array, jax.Array]:
   """Converts config inputs into inputs suitable for constructors."""
   # This function does NOT need to be jittable.
   if isinstance(interp_input, dict):
@@ -207,7 +208,7 @@ class InterpolatedVar1d(InterpolatedParamBase):
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """Returns a single value for this range at the given coordinate."""
     value = self._param.get_value(x)
     if self._is_bool_param:
@@ -267,7 +268,7 @@ class InterpolatedVar2d:
       self,
       time: chex.Numeric,
       rho: chex.Numeric,
-  ) -> jnp.ndarray:
+  ) -> jax.Array:
     """Returns the value of this parameter interpolated at the given (time,rho).
 
     This method is not jittable as it is.

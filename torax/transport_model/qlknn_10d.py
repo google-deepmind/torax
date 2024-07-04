@@ -19,7 +19,7 @@ from typing import Any
 
 import flax.linen as nn
 import immutabledict
-import jax.numpy as jnp
+import jax
 import numpy as np
 from torax.transport_model import base_qlknn_model
 
@@ -93,7 +93,7 @@ class QuaLiKizNDNN:
 
   def get_output(
       self,
-      inputs: jnp.ndarray,
+      inputs: jax.Array,
   ):
     """Calculate the outputs given specific inputs."""
 
@@ -124,7 +124,7 @@ class _WrappedQLKNN:
   def __init__(self, network: QuaLiKizNDNN):
     self.network = network
 
-  def __call__(self, x: jnp.ndarray):
+  def __call__(self, x: jax.Array):
     """Call the network, with a JAX argument."""
     return self.network.get_output(x)
 
@@ -163,7 +163,7 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
 
   def predict(
       self,
-      inputs: jnp.ndarray,
+      inputs: jax.Array,
   ) -> base_qlknn_model.ModelOutput:
     """Feed forward through the network and compute fluxes."""
 

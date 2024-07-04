@@ -18,12 +18,13 @@ Math operations that are needed for Torax, but are not specific to plasma
 physics or differential equation solvers.
 """
 from typing import Optional
+import jax
 from jax import numpy as jnp
 
 
 def tridiag(
-    diag: jnp.ndarray, above: jnp.ndarray, below: jnp.ndarray
-) -> jnp.ndarray:
+    diag: jax.Array, above: jax.Array, below: jax.Array
+) -> jax.Array:
   """Builds a tridiagonal matrix.
 
   Args:
@@ -39,8 +40,8 @@ def tridiag(
 
 
 def cumulative_trapezoid(
-    x: jnp.ndarray, y: jnp.ndarray, initial: Optional[jnp.ndarray] = None
-) -> jnp.ndarray:
+    x: jax.Array, y: jax.Array, initial: Optional[jax.Array] = None
+) -> jax.Array:
   """Cumulatively integrate y = f(x) using the trapezoid rule.
 
   Jax equivalent of scipy.integrate.cumulative_trapezoid.
@@ -67,7 +68,7 @@ def cumulative_trapezoid(
 
 
 # TODO(b/335681410) extend jnp.gradient itself
-def gradient(y: jnp.ndarray, x: jnp.ndarray) -> jnp.ndarray:
+def gradient(y: jax.Array, x: jax.Array) -> jax.Array:
   """Make effective jnp.gradient function, 2nd order like numpy.
 
   Needed since jnp.gradient does not currently support nonuniform spacing.

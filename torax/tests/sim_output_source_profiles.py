@@ -24,6 +24,7 @@ from typing import Any
 
 from absl.testing import absltest
 import chex
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
@@ -244,10 +245,10 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
 
   def not_done(
       self,
-      t: float | jnp.ndarray,
+      t: float | jax.Array,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       state,
-  ) -> bool | jnp.ndarray:
+  ) -> bool | jax.Array:
     return t < 2
 
   def next_dt(
@@ -257,7 +258,7 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
       core_profiles: state_module.CoreProfiles,
       time_step_calculator_state,
       core_transport: state_module.CoreTransport,
-  ) -> tuple[jnp.ndarray, tuple[Any, ...]]:
+  ) -> tuple[jax.Array, tuple[Any, ...]]:
     return jnp.ones(()), ()
 
 
