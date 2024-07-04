@@ -343,7 +343,54 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.build_dynamic_runtime_params_slice(
+            runtime_params,
+            sources=source_models_builder.runtime_params,
+            geo=geo,
+        )
+    )
+    core_profiles = core_profile_setters.initial_core_profiles(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        source_models=source_models,
+    )
+    profile = source.get_value(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+            'foo'
+        ],
+        geo=geo,
+        core_profiles=core_profiles,
+    )
+    np.testing.assert_allclose(profile, expected_output)
+
+  def test_overriding_prescribed_values(self):
+    """Providing prescribed values results in the correct profile."""
     geo = geometry.build_circular_geometry()
+    output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
+    # Define the expected output
+    expected_output = jnp.ones(output_shape)
+    # Create the source
+    source_builder = source_lib.SourceBuilder(
+        supported_modes=(runtime_params_lib.Mode.PRESCRIBED,),
+        output_shape_getter=lambda _0: output_shape,
+        affected_core_profiles=(
+            source_lib.AffectedCoreProfile.TEMP_ION,
+            source_lib.AffectedCoreProfile.TEMP_EL,
+        ),
+    )
+    # Prescribe the source output to something that should be equal to the
+    # expected output after interpolation
+    source_builder.runtime_params.mode = runtime_params_lib.Mode.PRESCRIBED
+    source_builder.runtime_params.prescribed_values = {0: {0: 1, 1: 1}}
+    # Build the test scenario
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
+    )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
