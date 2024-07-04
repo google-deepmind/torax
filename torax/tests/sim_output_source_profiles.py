@@ -66,7 +66,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             geo=geo,
         )
     )
-    # Technically, the _merge_source_profiles() function should be called with
+    # Technically, the merge_source_profiles() function should be called with
     # source profiles where, for every source, only one of the implicit or
     # explicit profiles has non-zero values. That is what makes the summing
     # correct. For this test though, we are simply checking that things are
@@ -99,7 +99,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             dr=geo.dr,
         ),
     )
-    merged_profiles = sim_lib._merge_source_profiles(  # pylint: disable=protected-access
+    merged_profiles = sim_lib.merge_source_profiles(  # pylint: disable=protected-access
         source_models=source_models,
         implicit_source_profiles=fake_implicit_source_profiles,
         explicit_source_profiles=fake_explicit_source_profiles,
