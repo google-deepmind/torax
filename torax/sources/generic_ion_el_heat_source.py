@@ -58,6 +58,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 

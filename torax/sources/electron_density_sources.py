@@ -49,6 +49,7 @@ class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
             input_config=self,
             output_type=DynamicGasPuffRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 
@@ -108,6 +109,7 @@ class NBIParticleRuntimeParams(runtime_params_lib.RuntimeParams):
             input_config=self,
             output_type=DynamicNBIParticleRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 
