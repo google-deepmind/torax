@@ -32,7 +32,7 @@ from torax import interpolated_param
 _T = TypeVar('_T')
 
 
-def input_is_a_float_field(
+def _input_is_a_float_field(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
@@ -46,7 +46,7 @@ def input_is_a_float_field(
     return False
 
 
-def input_is_an_interpolated_var_1d(
+def _input_is_an_interpolated_var_1d(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
@@ -84,7 +84,7 @@ def input_is_an_interpolated_var_1d(
     return _check(field_type)
 
 
-def interpolate_var_1d(
+def _interpolate_var_1d(
     param_or_param_input: interpolated_param.TimeInterpolatedScalar,
     t: chex.Numeric,
 ) -> jnp.ndarray:
@@ -112,7 +112,7 @@ def interpolate_var_1d(
   return param_or_param_input.get_value(t)
 
 
-def input_is_an_interpolated_var_2d(
+def _input_is_an_interpolated_var_2d(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
@@ -150,7 +150,7 @@ def input_is_an_interpolated_var_2d(
     return _check(field_type)
 
 
-def interpolate_var_2d(
+def _interpolate_var_2d(
     param_or_param_input: interpolated_param.TimeInterpolatedArray,
     t: chex.Numeric,
     geo: geometry.Geometry,
@@ -186,14 +186,14 @@ def get_init_kwargs(
     # it at time t to populate the correct values in the output config.
     # dataclass fields can either be the actual type OR the string name of the
     # type. Check for both.
-    if input_is_an_interpolated_var_1d(
+    if _input_is_an_interpolated_var_1d(
         field.name, input_config_fields_to_types
     ):
       if t is None:
         raise ValueError('t must be specified for interpolated params')
       if config_val is not None:
-        config_val = interpolate_var_1d(config_val, t)
-    elif input_is_an_interpolated_var_2d(
+        config_val = _interpolate_var_1d(config_val, t)
+    elif _input_is_an_interpolated_var_2d(
         field.name, input_config_fields_to_types
     ):
       if config_val is not None:
@@ -201,8 +201,8 @@ def get_init_kwargs(
           raise ValueError('t must be specified for interpolated params')
         if geo is None:
           raise ValueError('geo must be specified for interpolated params')
-        config_val = interpolate_var_2d(config_val, t, geo)
-    elif input_is_a_float_field(field.name, input_config_fields_to_types):
+        config_val = _interpolate_var_2d(config_val, t, geo)
+    elif _input_is_a_float_field(field.name, input_config_fields_to_types):
       config_val = float(config_val)
     elif isinstance(config_val, enum.Enum):
       config_val = config_val.value

@@ -26,6 +26,7 @@ import numpy as np
 import scipy
 from torax import constants
 from torax import geometry_loader
+from torax import interpolated_param
 from torax import jax_utils
 
 
@@ -464,6 +465,7 @@ class StandardGeometryIntermediates:
 
   All inputs are 1D profiles vs normalized rho toroidal (rhon).
 
+  torax_mesh: The mesh used for the simulation.
   Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
     is used as an unnormalization factor.
   Rmin: minor radius (a) in meters
@@ -484,10 +486,10 @@ class StandardGeometryIntermediates:
   delta_lower_face: Triangularity on lower face
   volume: Volume profile
   area: Area profile
-  nr: Radial grid points (num cells)
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
   """
+  torax_mesh: Grid1D
   Rmaj: chex.Numeric
   Rmin: chex.Numeric
   B: chex.Numeric
@@ -507,7 +509,6 @@ class StandardGeometryIntermediates:
   delta_lower_face: chex.Array
   volume: chex.Array
   area: chex.Array
-  nr: int
   hires_fac: int
 
   @classmethod
@@ -530,7 +531,8 @@ class StandardGeometryIntermediates:
         geometry_dir is not provided, then it defaults to another dir. See
         implementation.
       geometry_file: CHEASE file name.
-      nr: Radial grid points (num cells)
+      nr: Radial grid points (num cells) to use for the simulation. Note this
+        must be the same throughout the simulation.
       Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so
         this is used as an unnormalization factor.
       Rmin: minor radius (a) in meters
@@ -573,7 +575,12 @@ class StandardGeometryIntermediates:
     volume = chease_data['VOLUMEprofile'] * Rmaj**3
     area = chease_data['areaprofile'] * Rmaj**2
 
+    dr_norm = np.asarray(1.) / nr
+    # normalized grid
+    mesh = Grid1D.construct(nx=nr, dx=dr_norm)
+
     return cls(
+        torax_mesh=mesh,
         Rmaj=Rmaj,
         Rmin=Rmin,
         B=B0,
@@ -593,13 +600,77 @@ class StandardGeometryIntermediates:
         delta_lower_face=chease_data['delta_bottom'],
         volume=volume,
         area=area,
-        nr=nr,
         hires_fac=hires_fac,
     )
 
 
+@dataclasses.dataclass(frozen=True)
+class StandardGeometryProvider:
+  """Holds the geometry values used for the simulation."""
+
+  torax_mesh: Grid1D
+  Rmaj: interpolated_param.InterpolatedVar1d
+  Rmin: interpolated_param.InterpolatedVar1d
+  B: interpolated_param.InterpolatedVar1d
+  psi: interpolated_param.InterpolatedVar2d
+  Ip: interpolated_param.InterpolatedVar2d
+  rho: interpolated_param.InterpolatedVar2d
+  rhon: interpolated_param.InterpolatedVar2d
+  Rin: interpolated_param.InterpolatedVar2d
+  Rout: interpolated_param.InterpolatedVar2d
+  RBphi: interpolated_param.InterpolatedVar2d
+  int_Jdchi: interpolated_param.InterpolatedVar2d
+  flux_norm_1_over_R2: interpolated_param.InterpolatedVar2d
+  flux_norm_Bp2: interpolated_param.InterpolatedVar2d
+  flux_norm_dpsi: interpolated_param.InterpolatedVar2d
+  flux_norm_dpsi2: interpolated_param.InterpolatedVar2d
+  delta_upper_face: interpolated_param.InterpolatedVar2d
+  delta_lower_face: interpolated_param.InterpolatedVar2d
+  volume: interpolated_param.InterpolatedVar2d
+  area: interpolated_param.InterpolatedVar2d
+  hires_fac: int
+
+  def get_intermediate(self, time: int) -> StandardGeometryIntermediates:
+    """Creates a StandardGeometryIntermediates at the given time."""
+    return StandardGeometryIntermediates(
+        torax_mesh=self.torax_mesh,
+        Rmaj=self.Rmaj.get_value(time),
+        Rmin=self.Rmin.get_value(time),
+        B=self.B.get_value(time),
+        psi=self.psi.get_value(time, self.torax_mesh.cell_centers),
+        Ip=self.Ip.get_value(time, self.torax_mesh.cell_centers),
+        rho=self.rho.get_value(time, self.torax_mesh.cell_centers),
+        rhon=self.rhon.get_value(time, self.torax_mesh.cell_centers),
+        Rin=self.Rin.get_value(time, self.torax_mesh.cell_centers),
+        Rout=self.Rout.get_value(time, self.torax_mesh.cell_centers),
+        RBphi=self.RBphi.get_value(time, self.torax_mesh.cell_centers),
+        int_Jdchi=self.int_Jdchi.get_value(time, self.torax_mesh.cell_centers),
+        flux_norm_1_over_R2=self.flux_norm_1_over_R2.get_value(
+            time, self.torax_mesh.cell_centers
+        ),
+        flux_norm_Bp2=self.flux_norm_Bp2.get_value(
+            time, self.torax_mesh.cell_centers
+        ),
+        flux_norm_dpsi=self.flux_norm_dpsi.get_value(
+            time, self.torax_mesh.cell_centers
+        ),
+        flux_norm_dpsi2=self.flux_norm_dpsi2.get_value(
+            time, self.torax_mesh.cell_centers
+        ),
+        delta_upper_face=self.delta_upper_face.get_value(
+            time, self.torax_mesh.cell_centers
+        ),
+        delta_lower_face=self.delta_lower_face.get_value(
+            time, self.torax_mesh.cell_centers
+        ),
+        volume=self.volume.get_value(time, self.torax_mesh.cell_centers),
+        area=self.area.get_value(time, self.torax_mesh.cell_centers),
+        hires_fac=self.hires_fac,
+    )
+
+
 def build_standard_geometry(
-    intermediate: StandardGeometryIntermediates
+    intermediate: StandardGeometryIntermediates,
 ) -> StandardGeometry:
   """Build geometry object based on set of profiles from an EQ solution.
 
@@ -669,18 +740,16 @@ def build_standard_geometry(
   # r_norm coordinate is rho_tor_norm
 
   # fill geometry structure
-  # r_norm coordinate is rho_tor_norm
-  dr_norm = intermediate.rhon[-1] / intermediate.nr
-  # normalized grid
-  mesh = Grid1D.construct(nx=intermediate.nr, dx=dr_norm)
   rmax = intermediate.rho[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
-  r_face_norm = mesh.face_centers
-  r_norm = mesh.cell_centers
+  dr_norm = intermediate.torax_mesh.dx
+  r_face_norm = intermediate.torax_mesh.face_centers
+  r_norm = intermediate.torax_mesh.cell_centers
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  r_hires_norm = np.linspace(0, 1, intermediate.nr * intermediate.hires_fac)
+  r_hires_norm = np.linspace(
+      0, 1, intermediate.torax_mesh.nx * intermediate.hires_fac)
   r_hires = r_hires_norm * rmax
 
   interp_func = lambda x: np.interp(x, intermediate.rhon, vpr)
@@ -769,7 +838,7 @@ def build_standard_geometry(
   return StandardGeometry(
       geometry_type=GeometryType.CHEASE.value,
       dr_norm=dr_norm,
-      mesh=mesh,
+      mesh=intermediate.torax_mesh,
       rmax=rmax,
       r_face_norm=r_face_norm,
       r_norm=r_norm,
