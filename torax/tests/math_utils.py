@@ -21,7 +21,7 @@ import scipy.integrate
 from torax import math_utils
 
 
-class HeatTransportTest(parameterized.TestCase):
+class MathUtilsTest(parameterized.TestCase):
   """Unit tests for the `torax.math_utils` module."""
 
   @parameterized.parameters([
