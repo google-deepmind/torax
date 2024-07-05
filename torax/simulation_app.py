@@ -23,21 +23,32 @@ if directed to.
 
 See run_simulation_main.py for a ready-made entrypoint for running simulations.
 You can also implement your own main with a different implementation as
-long as you pass in your sim-getter to this module, as shown below.
+long as you pass in your sim-getter to this module. This is shown below using
+the existing TORAX sim-getter and an example TORAX config. The example below
+also enables optional output logging.
+Note that `app.run` cannot be directly run on the `main()` function in this
+module, due to the tuple return type.
 
 .. code-block:: python
 
   # In my_runnable_sim.py:
 
   from absl import app
-  import torax
+  from absl import logging
   from torax import simulation_app
+  from torax.examples import basic_config
+  from torax.config import build_sim
 
-  def get_sim():
-    return torax.Sim(<your args here>)
+  def run(_):
+    sim_builder = lambda: build_sim.build_sim_from_config(basic_config.CONFIG)
+    simulation_app.main(
+      sim_builder,
+      log_sim_progress=True,
+      )
 
   if __name__ == '__main__':
-    app.run(simulation_app.main(get_sim()))
+    logging.set_verbosity(logging.INFO)
+    app.run(run)
 """
 
 import datetime
