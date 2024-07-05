@@ -131,6 +131,18 @@ class InterpolatedParamTest(parameterized.TestCase):
           True,
           interpolated_param.InterpolationMode.STEP,
       ),
+      (
+          (np.array([0.0, 1.0, 2.0, 3.0]), np.array([1.0, 2.0, 4.0, 8.0])),
+          1.5,
+          3.0,
+          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+      ),
+      (
+          (np.array([0.0, 2.0, 1.0, 3.0]), np.array([1.0, 4.0, 2.0, 8.0])),
+          1.5,
+          3.0,
+          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+      )
   )
   def test_multi_value_range_returns_expected_output(
       self,

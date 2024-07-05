@@ -95,16 +95,22 @@ def _interpolate_var_1d(
     if isinstance(param_or_param_input, tuple):
       if len(param_or_param_input) != 2:
         raise ValueError(
-            '1D interpolated var tuple length must be 2. The first element are'
-            ' the values and the second element is the interpolation mode.'
+            '1D interpolated var tuple length must be 2. The first element are '
+            'the values and the second element is the interpolation mode or '
+            'both values should be arrays to be directly interpolated.'
             f' Given: {param_or_param_input}.'
         )
-      param_or_param_input = interpolated_param.InterpolatedVar1d(
-          value=param_or_param_input[0],
-          interpolation_mode=interpolated_param.InterpolationMode[
-              param_or_param_input[1].upper()
-          ],
-      )
+      if isinstance(param_or_param_input[1], str):
+        param_or_param_input = interpolated_param.InterpolatedVar1d(
+            value=param_or_param_input[0],
+            interpolation_mode=interpolated_param.InterpolationMode[
+                param_or_param_input[1].upper()
+            ],
+        )
+      else:
+        param_or_param_input = interpolated_param.InterpolatedVar1d(
+            value=param_or_param_input,
+        )
     else:
       param_or_param_input = interpolated_param.InterpolatedVar1d(
           value=param_or_param_input,

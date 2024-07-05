@@ -20,6 +20,7 @@ import enum
 import chex
 import jax
 import jax.numpy as jnp
+import numpy as np
 from torax import jax_utils
 
 
@@ -129,15 +130,36 @@ class StepInterpolatedParam(JaxFriendlyInterpolatedParam):
 
 
 # Config input types convertible to InterpolatedParam objects.
-InterpolatedVar1dInput = float | dict[float, float] | bool | dict[float, bool]
-InterpolatedVar2dInput = Mapping[float, InterpolatedVar1dInput] | float
+InterpolatedVar1dInput = (
+    float
+    | dict[float, float]
+    | bool
+    | dict[float, bool]
+    | tuple[chex.Array, chex.Array]
+)
+InterpolatedVar2dInput = (
+    # Mapping from time to rho, value interpolated in rho
+    Mapping[float, InterpolatedVar1dInput]
+    | float
+)
 
 
 def _convert_input_to_xs_ys(
     interp_input: InterpolatedVar1dInput,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[chex.Array, chex.Array]:
   """Converts config inputs into inputs suitable for constructors."""
   # This function does NOT need to be jittable.
+  if isinstance(interp_input, tuple):
+    if len(interp_input) != 2:
+      raise ValueError(
+          'InterpolatedVar1dInput tuple must be length 2. Given: '
+          f'{interp_input}.'
+      )
+    xs, ys = interp_input
+    sort_order = np.argsort(xs)
+    xs = xs[sort_order]
+    ys = ys[sort_order]
+    return np.asarray(xs), np.asarray(ys)
   if isinstance(interp_input, dict):
     if not interp_input:
       raise ValueError('InterpolatedVar1dInput must include values.')
@@ -304,6 +326,8 @@ class InterpolatedVar2d:
 # the constructor. This helps with brevity since a lot of these params are fixed
 # floats.
 # Type-alias for a scalar variable (in rho_norm) to be interpolated in time.
+# If a string is provided, it is assumed to be an InterpolationMode else, the
+# default piecewise linear interpolation is used.
 TimeInterpolatedScalar = (
     InterpolatedVar1d
     | InterpolatedVar1dInput
