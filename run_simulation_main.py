@@ -22,9 +22,7 @@ python3 run_simulation_main.py \
 from collections.abc import Sequence
 import enum
 import functools
-import importlib
 import time
-from typing import Any
 
 from absl import app
 from absl import flags
@@ -33,6 +31,7 @@ import jax
 import torax
 from torax import simulation_app
 from torax.config import build_sim
+from torax.config import config_loader
 from torax.plotting import plotruns_lib
 from torax.transport_model import qlknn_wrapper
 
@@ -105,7 +104,7 @@ _QLKNN_MODEL_PATH = flags.DEFINE_string(
     ' "model_path" field in the qlknn_params. If that is not set, it will look'
     f' for the "{qlknn_wrapper.MODEL_PATH_ENV_VAR}" env variable.'
     ' Finally, if this is also not set, it uses a hardcoded default path'
-    f' "{qlknn_wrapper.DEFAULT_MODEL_PATH}".'
+    f' "{qlknn_wrapper.DEFAULT_MODEL_PATH}".',
 )
 
 jax.config.parse_flags_with_absl()
@@ -129,26 +128,6 @@ class _UserCommand(enum.Enum):
   TOGGLE_LOG_SIM_OUTPUT = ('toggle --log_output', 'tlo')
   PLOT_RUN = ('plot previous run(s) or against reference if provided', 'pr')
   QUIT = ('quit', 'q', simulation_app.AnsiColors.RED)
-
-
-# Tracks all the modules imported so far. Maps the name to the module object.
-_ALL_MODULES = {}
-
-
-def _import_module(module_name: str):
-  """Imports a module."""
-  try:
-    if module_name in _ALL_MODULES:
-      return importlib.reload(_ALL_MODULES[module_name])
-    else:
-      module = importlib.import_module(
-          module_name, _PYTHON_CONFIG_PACKAGE.value
-      )
-      _ALL_MODULES[module_name] = module
-      return module
-  except Exception as e:
-    simulation_app.log_to_stdout(f'Exception raised: {e}')
-    raise ValueError('Exception while importing.') from e
 
 
 def prompt_user(config_module_str: str) -> _UserCommand:
@@ -255,11 +234,15 @@ def change_config(
   proceed_with_run = _get_yes_or_no()
   if not proceed_with_run:
     return None
-  config_module = _import_module(config_module_str)
+  config_module = config_loader.import_module(
+      config_module_str, _PYTHON_CONFIG_PACKAGE.value
+  )
   if hasattr(config_module, 'CONFIG'):
     # Assume that the config module uses the basic config dict to build Sim.
     sim_config = config_module.CONFIG
-    _maybe_update_config_with_qlknn_model_path(sim_config, qlknn_model_path)
+    config_loader.maybe_update_config_with_qlknn_model_path(
+        sim_config, qlknn_model_path
+    )
     new_runtime_params = build_sim.build_runtime_params_from_config(
         sim_config['runtime_params']
     )
@@ -341,68 +324,12 @@ def change_sim_obj(
       color=simulation_app.AnsiColors.BLUE,
   )
   input('Press Enter when done changing the module.')
-  sim, new_runtime_params = _build_sim_and_runtime_params_from_config_module(
-      config_module_str, qlknn_model_path
+  sim, new_runtime_params = (
+      config_loader.build_sim_and_runtime_params_from_config_module(
+          config_module_str, qlknn_model_path, _PYTHON_CONFIG_PACKAGE.value
+      )
   )
   return sim, new_runtime_params, config_module_str
-
-
-def _maybe_update_config_with_qlknn_model_path(
-    config: dict[str, Any], qlknn_model_path: str | None
-) -> None:
-  """Sets the qlknn_model_path in the config if needed."""
-  if qlknn_model_path is None:
-    return
-  if (
-      'transport' not in config
-      or 'transport_model' not in config['transport']
-      or config['transport']['transport_model'] != 'qlknn'
-  ):
-    return
-  qlknn_params = config['transport'].get('qlknn_params', {})
-  config_model_path = qlknn_params.get('model_path', '')
-  if config_model_path:
-    logging.info(
-        'Overriding QLKNN model path from "%s" to "%s"',
-        config_model_path,
-        qlknn_model_path,
-    )
-  else:
-    logging.info('Setting QLKNN model path to "%s".', qlknn_model_path)
-  qlknn_params['model_path'] = qlknn_model_path
-  config['transport']['qlknn_params'] = qlknn_params
-
-
-def _build_sim_and_runtime_params_from_config_module(
-    config_module_str: str,
-    qlknn_model_path: str | None,
-) -> tuple[torax.Sim, torax.GeneralRuntimeParams]:
-  """Returns a Sim and RuntimeParams from the config module."""
-  config_module = _import_module(config_module_str)
-  if hasattr(config_module, 'CONFIG'):
-    # The module likely uses the "basic" config setup which has a single CONFIG
-    # dictionary defining the full simulation.
-    config = config_module.CONFIG
-    _maybe_update_config_with_qlknn_model_path(config, qlknn_model_path)
-    new_runtime_params = build_sim.build_runtime_params_from_config(
-        config['runtime_params']
-    )
-    sim = build_sim.build_sim_from_config(config)
-  elif hasattr(config_module, 'get_runtime_params') and hasattr(
-      config_module, 'get_sim'
-  ):
-    # The module is likely using the "advances", more Python-forward
-    # configuration setup.
-    if qlknn_model_path is not None:
-      logging.warning('Cannot override qlknn model for this type of config.')
-    new_runtime_params = config_module.get_runtime_params()
-    sim = config_module.get_sim()
-  else:
-    raise ValueError(
-        f'Config module {config_module_str} must either define a get_sim() '
-        'method or a CONFIG dictionary.'
-    )
-  return sim, new_runtime_params
 
 
 def _get_yes_or_no() -> bool:
@@ -531,8 +458,10 @@ def main(_):
   output_files = []
   try:
     start_time = time.time()
-    sim, new_runtime_params = _build_sim_and_runtime_params_from_config_module(
-        config_module_str, qlknn_model_path
+    sim, new_runtime_params = (
+        config_loader.build_sim_and_runtime_params_from_config_module(
+            config_module_str, qlknn_model_path, _PYTHON_CONFIG_PACKAGE.value
+        )
     )
     build_time = time.time() - start_time
     start_time = time.time()

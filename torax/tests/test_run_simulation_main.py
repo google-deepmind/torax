@@ -57,14 +57,6 @@ class RunSimulationMainTest(parameterized.TestCase):
   # run_simulation_main module.
   # pylint: disable=protected-access
 
-  @flagsaver.flagsaver((run_simulation_main._PYTHON_CONFIG_PACKAGE, "torax"))
-  def test_import_module(self):
-    """test the import_module function."""
-    module = run_simulation_main._import_module(
-        ".tests.test_data.test_iterhybrid_newton"
-    )
-    assert hasattr(module, "CONFIG")
-
   @mock.patch("builtins.input", side_effect=["r"])
   def test_prompt_user_good_input(self, mock_input):
     """Test that prompt_user accepts the 'r' command."""
