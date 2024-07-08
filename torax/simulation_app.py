@@ -361,7 +361,7 @@ def _update_source_params(
   for source_name, source_runtime_params in source_runtime_params.items():
     if source_name not in sim.source_models.sources:
       raise ValueError(f'Source {source_name} not found in sim.')
-    sim.source_models.sources[source_name].runtime_params = (
+    sim.source_models_builder.source_builders[source_name].runtime_params = (
         source_runtime_params
     )
 
