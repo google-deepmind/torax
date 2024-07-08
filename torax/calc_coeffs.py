@@ -369,11 +369,11 @@ def _calc_coeffs_full(
   toc_psi = (
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
-      * geo.r
+      * geo.r_norm
       * sigma
       * consts.mu0
-      / geo.J**2
-      / geo.Rmaj
+      * 16 * jnp.pi**2 * geo.Phib**2
+      / geo.F**2
   )
   tic_psi = jnp.ones_like(toc_psi)
   toc_dens_el = jnp.ones_like(geo.vpr)
@@ -387,9 +387,9 @@ def _calc_coeffs_full(
   chi_face_el = transport_coeffs.chi_face_el
   d_face_el = transport_coeffs.d_face_el
   v_face_el = transport_coeffs.v_face_el
-  d_face_psi = (
-      geo.g2g3_over_rho_face * geo.Rmaj / (16 * jnp.pi**4 * geo.rmax**2)
-  )
+  # TODO(b/351356977): remove rmax from TORAX by normalizing other quantities
+  # like g2g3_over_rho_face, vpr, spr
+  d_face_psi = geo.g2g3_over_rho_face * geo.rmax
 
   if static_runtime_params_slice.dens_eq:
     if d_face_el is None or v_face_el is None:

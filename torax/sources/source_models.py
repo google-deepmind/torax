@@ -367,8 +367,11 @@ def sum_sources_psi(
         affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
         geo=geo,
     )
-  denom = 2 * jnp.pi * geo.Rmaj * geo.J**2
-  scale_source = lambda src: -geo.vpr * src * constants.CONSTANTS.mu0 / denom
+  mu0 = constants.CONSTANTS.mu0
+  prefactor = (
+      8 * geo.vpr * geo.rmax * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
+  )
+  scale_source = lambda src: -src * prefactor
   return scale_source(total)
 
 
@@ -601,6 +604,7 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
 
     pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
     return pohm
+
 
 OhmicHeatSourceBuilder = source_lib.make_source_builder(
     OhmicHeatSource, links_back=True
