@@ -689,90 +689,71 @@ def build_standard_geometry(
   r_hires_norm = np.linspace(0, 1, intermediate.nr * intermediate.hires_fac)
   r_hires = r_hires_norm * rmax
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, vpr)
+  rhon_interpolation_func = lambda x, y: np.interp(x, intermediate.rhon, y)
   # V' for volume integrations on face grid
-  vpr_face = interp_func(r_face_norm)
+  vpr_face = rhon_interpolation_func(r_face_norm, vpr)
   # V' for volume integrations on cell grid
-  vpr_hires = interp_func(r_hires_norm)
-  vpr = interp_func(r_norm)
+  vpr_hires = rhon_interpolation_func(r_hires_norm, vpr)
+  vpr = rhon_interpolation_func(r_norm, vpr)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, spr)
   # S' for area integrals on face grid
-  spr_face = interp_func(r_face_norm)
+  spr_face = rhon_interpolation_func(r_face_norm, spr)
   # S' for area integrals on cell grid
-  spr_cell = interp_func(r_norm)
-  spr_hires = interp_func(r_hires_norm)
+  spr_cell = rhon_interpolation_func(r_norm, spr)
+  spr_hires = rhon_interpolation_func(r_hires_norm, spr)
 
   # triangularity on cell grid
-  interp_func = lambda x: np.interp(
-      x, intermediate.rhon, intermediate.delta_upper_face
-  )
-  delta_upper_face = interp_func(r_face_norm)
-  interp_func = lambda x: np.interp(
-      x, intermediate.rhon, intermediate.delta_lower_face
-  )
-  delta_lower_face = interp_func(r_face_norm)
+  delta_upper_face = rhon_interpolation_func(
+      r_face_norm, intermediate.delta_upper_face)
+  delta_lower_face = rhon_interpolation_func(
+      r_face_norm, intermediate.delta_lower_face)
 
   # average triangularity
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.RBphi)
-  F_face = interp_func(r_face_norm)
-  F_hires = interp_func(r_hires_norm)
-  F = interp_func(r_norm)
+  F_face = rhon_interpolation_func(r_face_norm, intermediate.RBphi)
+  F = rhon_interpolation_func(r_norm, intermediate.RBphi)
+  F_hires = rhon_interpolation_func(r_hires_norm, intermediate.RBphi)
   # Normalized toroidal flux function
   J = F / intermediate.Rmaj / intermediate.B
   J_face = F_face / intermediate.Rmaj / intermediate.B
   J_hires = F_hires / intermediate.Rmaj / intermediate.B
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.psi)
-  psi = interp_func(r_norm)
+  psi = rhon_interpolation_func(r_norm, intermediate.psi)
+  psi_from_Ip = rhon_interpolation_func(r_norm, psi_from_Ip)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, psi_from_Ip)
-  psi_from_Ip = interp_func(r_norm)
+  jtot_face = rhon_interpolation_func(r_face_norm, jtot)
+  jtot = rhon_interpolation_func(r_norm, jtot)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, jtot)
-  jtot_face = interp_func(r_face_norm)
-  jtot = interp_func(r_norm)
+  Rin_face = rhon_interpolation_func(r_face_norm, intermediate.Rin)
+  Rin = rhon_interpolation_func(r_norm, intermediate.Rin)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.Rin)
-  Rin_face = interp_func(r_face_norm)
-  Rin = interp_func(r_norm)
+  Rout_face = rhon_interpolation_func(r_face_norm, intermediate.Rout)
+  Rout = rhon_interpolation_func(r_norm, intermediate.Rout)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.Rout)
-  Rout_face = interp_func(r_face_norm)
-  Rout = interp_func(r_norm)
+  g0_face = rhon_interpolation_func(r_face_norm, g0)
+  g0 = rhon_interpolation_func(r_norm, g0)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, g0)
-  g0_face = interp_func(r_face_norm)
-  g0 = interp_func(r_norm)
+  g1_face = rhon_interpolation_func(r_face_norm, g1)
+  g1 = rhon_interpolation_func(r_norm, g1)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, g1)
-  g1_face = interp_func(r_face_norm)
-  g1 = interp_func(r_norm)
+  g2_face = rhon_interpolation_func(r_face_norm, g2)
+  g2 = rhon_interpolation_func(r_norm, g2)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, g2)
-  g2_face = interp_func(r_face_norm)
-  g2 = interp_func(r_norm)
+  g3_face = rhon_interpolation_func(r_face_norm, g3)
+  g3 = rhon_interpolation_func(r_norm, g3)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, g3)
-  g3_face = interp_func(r_face_norm)
-  g3 = interp_func(r_norm)
+  g2g3_over_rho_face = rhon_interpolation_func(r_face_norm, g2g3_over_rho)
+  g2g3_over_rho_hires = rhon_interpolation_func(r_hires_norm, g2g3_over_rho)
+  g2g3_over_rho = rhon_interpolation_func(r_norm, g2g3_over_rho)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, g2g3_over_rho)
-  g2g3_over_rho_face = interp_func(r_face_norm)
-  g2g3_over_rho_hires = interp_func(r_hires_norm)
-  g2g3_over_rho = interp_func(r_norm)
+  volume_face = rhon_interpolation_func(r_face_norm, intermediate.volume)
+  volume_hires = rhon_interpolation_func(r_hires_norm, intermediate.volume)
+  volume = rhon_interpolation_func(r_norm, intermediate.volume)
 
-  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.volume)
-  volume_face = interp_func(r_face_norm)
-  volume_hires = interp_func(r_hires_norm)
-  volume = interp_func(r_norm)
-
-  interp_func = lambda x: np.interp(x, intermediate.rhon, intermediate.area)
-  area_face = interp_func(r_face_norm)
-  area_hires = interp_func(r_hires_norm)
-  area = interp_func(r_norm)
+  area_face = rhon_interpolation_func(r_face_norm, intermediate.area)
+  area_hires = rhon_interpolation_func(r_hires_norm, intermediate.area)
+  area = rhon_interpolation_func(r_norm, intermediate.area)
 
   return StandardGeometry(
       geometry_type=GeometryType.CHEASE.value,
