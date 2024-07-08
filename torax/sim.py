@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import dataclasses
 import time
-from typing import Optional, Any
+from typing import Any, Optional
 
 from absl import logging
 import jax
@@ -270,14 +270,11 @@ class SimulationStepFn:
         input_state,
     )
 
-    # The stepper needs the dynamic_runtime_params_slice at time t + dt for
-    # implicit computations in the solver.
-    geo_t_plus_dt = geometry_provider(input_state.t +  dt)
+    # The stepper needs the geo and dynamic_runtime_params_slice at time t + dt
+    # for implicit computations in the solver.
+    geo_t_plus_dt = geometry_provider(input_state.t + dt)
     dynamic_runtime_params_slice_t_plus_dt = (
-        dynamic_runtime_params_slice_provider(
-            input_state.t + dt,
-            geo_t_plus_dt
-        )
+        dynamic_runtime_params_slice_provider(input_state.t + dt, geo_t_plus_dt)
     )
 
     output_state = self.step(
@@ -294,15 +291,17 @@ class SimulationStepFn:
 
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if output_state.stepper_error_state == 0.
-      dynamic_runtime_params_slice_t_plus_dt, output_state = self.adaptive_step(
-          output_state,
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_provider,
-          geo_t,
-          geo_t_plus_dt,
-          input_state,
-          explicit_source_profiles,
+      dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt, output_state = (
+          self.adaptive_step(
+              output_state,
+              static_runtime_params_slice,
+              dynamic_runtime_params_slice_t,
+              dynamic_runtime_params_slice_provider,
+              geo_t,
+              geometry_provider,
+              input_state,
+              explicit_source_profiles,
+          )
       )
 
     return self.finalize_output(
@@ -457,11 +456,13 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
       geo_t: geometry.Geometry,
-      geo_t_plus_dt: geometry.Geometry,
+      geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
-      runtime_params_slice.DynamicRuntimeParamsSlice, state.ToraxSimState
+      runtime_params_slice.DynamicRuntimeParamsSlice,
+      geometry.Geometry,
+      state.ToraxSimState,
   ]:
     """Performs adaptive time stepping until stepper converges.
 
@@ -475,7 +476,7 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
       dynamic_runtime_params_slice_provider: Runtime parameters slice provider.
       geo_t: The geometry of the torus during this time step of the simulation.
-      geo_t_plus_dt: The geometry of the torus during the next time step of the
+      geometry_provider: Provides geometry during the next time step of the
         simulation.
       input_state: State at the start of the time step, including the core
         profiles which are being evolved.
@@ -486,6 +487,7 @@ class SimulationStepFn:
       A tuple containing:
         - Runtime parameters at time t + dt, where dt is the actual time step
           used.
+        - Geometry at time t + dt, where dt is the actual time step used.
         - ToraxSimState after adaptive time stepping.
     """
     core_profiles_t = input_state.core_profiles
@@ -513,6 +515,8 @@ class SimulationStepFn:
         raise ValueError('dt is NaN.')
       if dt < dynamic_runtime_params_slice_t.numerics.mindt:
         raise ValueError('dt below minimum timestep following adaptation')
+
+      geo_t_plus_dt = geometry_provider(input_state.t + dt)
 
       dynamic_runtime_params_slice_t_plus_dt = (
           dynamic_runtime_params_slice_provider(
@@ -551,12 +555,14 @@ class SimulationStepFn:
       )
 
     output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
+    geo_t_plus_dt = geometry_provider(input_state.t + output_state.dt)
     dynamic_runtime_params_slice_t_plus_dt = (
         dynamic_runtime_params_slice_provider(
-            input_state.t + output_state.dt, geo_t_plus_dt,
+            input_state.t + output_state.dt,
+            geo_t_plus_dt,
         )
     )
-    return dynamic_runtime_params_slice_t_plus_dt, output_state
+    return dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt, output_state
 
   def finalize_output(
       self,
@@ -835,7 +841,8 @@ def build_sim_object(
 
   # build dynamic_runtime_params_slice at t_initial for initial conditions
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      runtime_params.numerics.t_initial, geo=geo,
+      runtime_params.numerics.t_initial,
+      geo=geo,
   )
   initial_state = get_initial_state(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -886,8 +893,8 @@ def run_simulation(
       the runtime_params_slice module docstring for runtime_params_slice to
       understand why we need the dynamic and static config slices and what they
       control.
-    geometry_provider: Provides the magnetic geometry for each time step
-      based on the ToraxSimState at the start of the time step. The geometry may
+    geometry_provider: Provides the magnetic geometry for each time step based
+      on the ToraxSimState at the start of the time step. The geometry may
       change from time step to time step, so the sim needs a function to provide
       which geometry to use for a given time step. A GeometryProvider is any
       callable (class or function) which takes the ToraxSimState at the start of
@@ -934,7 +941,8 @@ def run_simulation(
   stepper_error_state = 0
   geo = geometry_provider(initial_state.t)
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      initial_state.t, geo=geo,
+      initial_state.t,
+      geo=geo,
   )
 
   # Populate the starting state with source profiles from the implicit sources
@@ -1016,9 +1024,9 @@ def run_simulation(
     # Update the runtime config for the next iteration.
     geo = geometry_provider(sim_state.t)
     dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-        sim_state.t, geo=geo,
+        sim_state.t,
+        geo=geo,
     )
-    geo = geometry_provider(sim_state.t)
     torax_outputs.append(sim_state)
     wall_clock_step_times.append(time.time() - step_start_time)
   # Log final timestep
@@ -1051,8 +1059,7 @@ def run_simulation(
   # have to do with tracing the jitted step_fn.
   std_devs = 2  # Check if the first step is more than 2 std devs longer.
   if wall_clock_step_times and wall_clock_step_times[0] > (
-      np.mean(wall_clock_step_times)
-      + std_devs * np.std(wall_clock_step_times)
+      np.mean(wall_clock_step_times) + std_devs * np.std(wall_clock_step_times)
   ):
     long_first_step = True
     logging.info(
