@@ -759,11 +759,10 @@ def build_standard_geometry(
       / (g2g3_over_rho[1:] * intermediate.Rmaj * J[1:])
   )
   dpsidrho = np.concatenate((np.zeros(1), dpsidrho))
-  psi_from_Ip = np.zeros(len(intermediate.psi))
-  for i in range(1, len(psi_from_Ip) + 1):
-    psi_from_Ip[i - 1] = scipy.integrate.trapezoid(
-        dpsidrho[:i], intermediate.rho[:i]
-    )
+  psi_from_Ip = scipy.integrate.cumulative_trapezoid(
+      y=dpsidrho, x=intermediate.rho, initial=0.0
+  )
+
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
   psi_from_Ip[-1] = psi_from_Ip[-2] + (
