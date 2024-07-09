@@ -45,32 +45,32 @@ def _input_is_a_float_field(
     return False
 
 
-def _input_is_an_interpolated_var_1d(
+def _input_is_an_interpolated_var_single_axis(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
-  """Returns True if the input config field is an InterpolatedVar1d."""
+  """Returns True if the input config field is an InterpolatedVarSingleAxis."""
   if field_name not in input_config_fields_to_types:
     return False
 
   def _check(ft):
-    """Checks if the input field type is an InterpolatedVar1d."""
+    """Checks if the input field type is an InterpolatedVarSingleAxis."""
     try:
       return (
           # If the type comes as a string rather than an object, the Union check
           # below won't work, so we check for the full name here.
-          ft == 'TimeInterpolatedScalar'
+          ft == 'TimeInterpolated'
           or
-          # Common alias for TimeInterpolatedScalar in a few files.
-          (isinstance(ft, str) and 'TimeInterpolatedScalar' in ft)
+          # Common alias for TimeInterpolated in a few files.
+          (isinstance(ft, str) and 'TimeInterpolated' in ft)
           or
-          # Otherwise, only check if it is actually the InterpolatedVar1d.
-          ft == 'interpolated_param.InterpolatedVar1d'
+          # Otherwise, check if it is actually the InterpolatedVarSingleAxis.
+          ft == 'interpolated_param.InterpolatedVarSingleAxis'
           or issubclass(ft, interpolated_param.InterpolatedParamBase)
       )
     except:  # pylint: disable=bare-except
       # issubclass does not play nicely with generics, but if a type is a
-      # generic at this stage, it is not an InterpolatedVar1d.
+      # generic at this stage, it is not an InterpolatedVarSingleAxis.
       return False
 
   field_type = input_config_fields_to_types[field_name]
@@ -83,66 +83,68 @@ def _input_is_an_interpolated_var_1d(
     return _check(field_type)
 
 
-def _interpolate_var_1d(
-    param_or_param_input: interpolated_param.TimeInterpolatedScalar,
+def _interpolate_var_single_axis(
+    param_or_param_input: interpolated_param.TimeInterpolated,
     t: chex.Numeric,
 ) -> chex.Array:
   """Interpolates the input param at time t."""
-  if not isinstance(param_or_param_input, interpolated_param.InterpolatedVar1d):
-    # The param is a InterpolatedVar1dInput, so we need to convert it to an
-    # InterpolatedVar1d first.
+  if not isinstance(
+      param_or_param_input, interpolated_param.InterpolatedVarSingleAxis
+  ):
+    # The param is a InterpolatedVarSingleAxisInput, so we need to convert it to
+    # an InterpolatedVarSingleAxis first.
     if isinstance(param_or_param_input, tuple):
       if len(param_or_param_input) != 2:
         raise ValueError(
-            '1D interpolated var tuple length must be 2. The first element are '
-            'the values and the second element is the interpolation mode or '
-            'both values should be arrays to be directly interpolated.'
-            f' Given: {param_or_param_input}.'
+            'Single axis interpolated var tuple length must be 2. The first '
+            'element are the values and the second element is the '
+            'interpolation mode or both values should be arrays to be directly '
+            f'interpolated. Given: {param_or_param_input}.'
         )
       if isinstance(param_or_param_input[1], str):
-        param_or_param_input = interpolated_param.InterpolatedVar1d(
+        param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
             value=param_or_param_input[0],
             interpolation_mode=interpolated_param.InterpolationMode[
                 param_or_param_input[1].upper()
             ],
         )
       else:
-        param_or_param_input = interpolated_param.InterpolatedVar1d(
+        param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
             value=param_or_param_input,
         )
     else:
-      param_or_param_input = interpolated_param.InterpolatedVar1d(
+      param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
           value=param_or_param_input,
       )
   return param_or_param_input.get_value(t)
 
 
-def _input_is_an_interpolated_var_2d(
+def _input_is_an_interpolated_var_time_rho(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
-  """Returns True if the input config field is a TimeInterpolatedArray."""
+  """Returns True if the input config field is a TimeRhoInterpolated."""
   if field_name not in input_config_fields_to_types:
     return False
 
   def _check(ft):
-    """Checks if the input field type is an InterpolatedVar2d."""
+    """Checks if the input field type is an InterpolatedVarTimeRho."""
     try:
       return (
           # If the type comes as a string rather than an object, the Union check
           # below won't work, so we check for the full name here.
-          ft == 'TimeInterpolatedArray'
+          ft == 'TimeRhoInterpolated'
           or
-          # Common alias for TimeInterpolatedArray in a few files.
-          (isinstance(ft, str) and 'TimeInterpolatedArray' in ft)
+          # Common alias for TimeRhoInterpolated in a few files.
+          (isinstance(ft, str) and 'TimeRhoInterpolated' in ft)
           or
-          # Otherwise, only check if it is actually the InterpolatedVar2d.
+          # Otherwise, only check if it is actually the InterpolatedVarTimeRho.
           ft == 'interpolated_param.InterpolatedVar2d'
-          or issubclass(ft, interpolated_param.InterpolatedVar2d)
+          or issubclass(ft, interpolated_param.InterpolatedVarTimeRho)
       )
     except:  # pylint: disable=bare-except
       # issubclass does not play nicely with generics, but if a type is a
-      # generic at this stage, it is not an InterpolatedVar2d.
+      # generic at this stage, it is not an InterpolatedVarTimeRho.
       return False
 
   field_type = input_config_fields_to_types[field_name]
@@ -156,14 +158,16 @@ def _input_is_an_interpolated_var_2d(
 
 
 def _interpolate_var_2d(
-    param_or_param_input: interpolated_param.TimeInterpolatedArray,
+    param_or_param_input: interpolated_param.TimeRhoInterpolated,
     t: chex.Numeric,
     geo: geometry.Geometry,
 ) -> chex.Array:
   """Interpolates the input param at time t and rho_norm for the current geo."""
-  if not isinstance(param_or_param_input, interpolated_param.InterpolatedVar2d):
+  if not isinstance(
+      param_or_param_input, interpolated_param.InterpolatedVarTimeRho
+  ):
     # Dealing with a param input so convert it first.
-    param_or_param_input = interpolated_param.InterpolatedVar2d(
+    param_or_param_input = interpolated_param.InterpolatedVarTimeRho(
         values=param_or_param_input,
     )
   return param_or_param_input.get_value(t, geo.mesh.face_centers)
@@ -191,14 +195,14 @@ def get_init_kwargs(
     # it at time t to populate the correct values in the output config.
     # dataclass fields can either be the actual type OR the string name of the
     # type. Check for both.
-    if _input_is_an_interpolated_var_1d(
+    if _input_is_an_interpolated_var_single_axis(
         field.name, input_config_fields_to_types
     ):
       if t is None:
         raise ValueError('t must be specified for interpolated params')
       if config_val is not None:
-        config_val = _interpolate_var_1d(config_val, t)
-    elif _input_is_an_interpolated_var_2d(
+        config_val = _interpolate_var_single_axis(config_val, t)
+    elif _input_is_an_interpolated_var_time_rho(
         field.name, input_config_fields_to_types
     ):
       if config_val is not None:

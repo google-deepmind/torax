@@ -26,9 +26,10 @@ from torax import jax_utils
 from torax.config import config_args
 
 
-# Type-alias for clarity. While the InterpolatedVar1ds can vary across any
-# field, in these classes, we mainly use it to handle time-dependent parameters.
-TimeInterpolatedScalar = interpolated_param.TimeInterpolatedScalar
+# Type-alias for clarity. While the InterpolatedVarSingleAxiss can vary across
+# any field, in these classes, we mainly use it to handle time-dependent
+# parameters.
+TimeInterpolated = interpolated_param.TimeInterpolated
 
 
 # pylint: disable=invalid-name
@@ -49,24 +50,24 @@ class RuntimeParams:
   Vemax: float = 50.0  # minimum electron density convection
 
   # set inner core transport coefficients (ad-hoc MHD/EM transport)
-  apply_inner_patch: TimeInterpolatedScalar = False
-  De_inner: TimeInterpolatedScalar = 0.2
-  Ve_inner: TimeInterpolatedScalar = 0.0
-  chii_inner: TimeInterpolatedScalar = 1.0
-  chie_inner: TimeInterpolatedScalar = 1.0
+  apply_inner_patch: TimeInterpolated = False
+  De_inner: TimeInterpolated = 0.2
+  Ve_inner: TimeInterpolated = 0.0
+  chii_inner: TimeInterpolated = 1.0
+  chie_inner: TimeInterpolated = 1.0
   # normalized radius below which patch is applied
-  rho_inner: TimeInterpolatedScalar = 0.3
+  rho_inner: TimeInterpolated = 0.3
 
   # set outer core transport coefficients.
   # Useful for L-mode near-edge region where QLKNN10D is not applicable.
   # Only used when set_pedestal = False
-  apply_outer_patch: TimeInterpolatedScalar = False
-  De_outer: TimeInterpolatedScalar = 0.2
-  Ve_outer: TimeInterpolatedScalar = 0.0
-  chii_outer: TimeInterpolatedScalar = 1.0
-  chie_outer: TimeInterpolatedScalar = 1.0
+  apply_outer_patch: TimeInterpolated = False
+  De_outer: TimeInterpolated = 0.2
+  Ve_outer: TimeInterpolated = 0.0
+  chii_outer: TimeInterpolated = 1.0
+  chie_outer: TimeInterpolated = 1.0
   # normalized radius above which patch is applied
-  rho_outer: TimeInterpolatedScalar = 0.9
+  rho_outer: TimeInterpolated = 0.9
 
   # Width of HWHM Gaussian smoothing kernel operating on transport model outputs
   smoothing_sigma: float = 0.0

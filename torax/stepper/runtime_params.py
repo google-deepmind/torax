@@ -24,7 +24,7 @@ from torax import interpolated_param
 from torax.config import config_args
 
 
-TimeInterpolatedScalar = interpolated_param.TimeInterpolatedScalar
+TimeInterpolated = interpolated_param.TimeInterpolated
 
 
 @dataclasses.dataclass(kw_only=True)

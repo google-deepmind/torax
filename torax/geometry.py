@@ -227,47 +227,47 @@ class Geometry:
 class GeometryProvider:
   """A geometry which holds variables to interpolated based on time."""
   geometry_type: int
-  dr_norm: interpolated_param.InterpolatedVar1d
+  dr_norm: interpolated_param.InterpolatedVarSingleAxis
   torax_mesh: Grid1D
-  rmax: interpolated_param.InterpolatedVar1d
-  Rmaj: interpolated_param.InterpolatedVar1d
-  Rmin: interpolated_param.InterpolatedVar1d
-  B0: interpolated_param.InterpolatedVar1d
-  volume: interpolated_param.InterpolatedVar1d
-  volume_face: interpolated_param.InterpolatedVar1d
-  area: interpolated_param.InterpolatedVar1d
-  area_face: interpolated_param.InterpolatedVar1d
-  vpr: interpolated_param.InterpolatedVar1d
-  vpr_face: interpolated_param.InterpolatedVar1d
-  spr_cell: interpolated_param.InterpolatedVar1d
-  spr_face: interpolated_param.InterpolatedVar1d
-  delta_face: interpolated_param.InterpolatedVar1d
-  g0: interpolated_param.InterpolatedVar1d
-  g0_face: interpolated_param.InterpolatedVar1d
-  g1: interpolated_param.InterpolatedVar1d
-  g1_face: interpolated_param.InterpolatedVar1d
-  g2: interpolated_param.InterpolatedVar1d
-  g2_face: interpolated_param.InterpolatedVar1d
-  g3: interpolated_param.InterpolatedVar1d
-  g3_face: interpolated_param.InterpolatedVar1d
-  g2g3_over_rho: interpolated_param.InterpolatedVar1d
-  g2g3_over_rho_face: interpolated_param.InterpolatedVar1d
-  g2g3_over_rho_hires: interpolated_param.InterpolatedVar1d
-  J: interpolated_param.InterpolatedVar1d
-  J_face: interpolated_param.InterpolatedVar1d
-  J_hires: interpolated_param.InterpolatedVar1d
-  F: interpolated_param.InterpolatedVar1d
-  F_face: interpolated_param.InterpolatedVar1d
-  Rin: interpolated_param.InterpolatedVar1d
-  Rin_face: interpolated_param.InterpolatedVar1d
-  Rout: interpolated_param.InterpolatedVar1d
-  Rout_face: interpolated_param.InterpolatedVar1d
-  volume_hires: interpolated_param.InterpolatedVar1d
-  area_hires: interpolated_param.InterpolatedVar1d
-  spr_hires: interpolated_param.InterpolatedVar1d
-  r_hires_norm: interpolated_param.InterpolatedVar1d
-  r_hires: interpolated_param.InterpolatedVar1d
-  vpr_hires: interpolated_param.InterpolatedVar1d
+  rmax: interpolated_param.InterpolatedVarSingleAxis
+  Rmaj: interpolated_param.InterpolatedVarSingleAxis
+  Rmin: interpolated_param.InterpolatedVarSingleAxis
+  B0: interpolated_param.InterpolatedVarSingleAxis
+  volume: interpolated_param.InterpolatedVarSingleAxis
+  volume_face: interpolated_param.InterpolatedVarSingleAxis
+  area: interpolated_param.InterpolatedVarSingleAxis
+  area_face: interpolated_param.InterpolatedVarSingleAxis
+  vpr: interpolated_param.InterpolatedVarSingleAxis
+  vpr_face: interpolated_param.InterpolatedVarSingleAxis
+  spr_cell: interpolated_param.InterpolatedVarSingleAxis
+  spr_face: interpolated_param.InterpolatedVarSingleAxis
+  delta_face: interpolated_param.InterpolatedVarSingleAxis
+  g0: interpolated_param.InterpolatedVarSingleAxis
+  g0_face: interpolated_param.InterpolatedVarSingleAxis
+  g1: interpolated_param.InterpolatedVarSingleAxis
+  g1_face: interpolated_param.InterpolatedVarSingleAxis
+  g2: interpolated_param.InterpolatedVarSingleAxis
+  g2_face: interpolated_param.InterpolatedVarSingleAxis
+  g3: interpolated_param.InterpolatedVarSingleAxis
+  g3_face: interpolated_param.InterpolatedVarSingleAxis
+  g2g3_over_rho: interpolated_param.InterpolatedVarSingleAxis
+  g2g3_over_rho_face: interpolated_param.InterpolatedVarSingleAxis
+  g2g3_over_rho_hires: interpolated_param.InterpolatedVarSingleAxis
+  J: interpolated_param.InterpolatedVarSingleAxis
+  J_face: interpolated_param.InterpolatedVarSingleAxis
+  J_hires: interpolated_param.InterpolatedVarSingleAxis
+  F: interpolated_param.InterpolatedVarSingleAxis
+  F_face: interpolated_param.InterpolatedVarSingleAxis
+  Rin: interpolated_param.InterpolatedVarSingleAxis
+  Rin_face: interpolated_param.InterpolatedVarSingleAxis
+  Rout: interpolated_param.InterpolatedVarSingleAxis
+  Rout_face: interpolated_param.InterpolatedVarSingleAxis
+  volume_hires: interpolated_param.InterpolatedVarSingleAxis
+  area_hires: interpolated_param.InterpolatedVarSingleAxis
+  spr_hires: interpolated_param.InterpolatedVarSingleAxis
+  r_hires_norm: interpolated_param.InterpolatedVarSingleAxis
+  r_hires: interpolated_param.InterpolatedVarSingleAxis
+  vpr_hires: interpolated_param.InterpolatedVarSingleAxis
 
   @classmethod
   def create_provider(
@@ -291,7 +291,7 @@ class GeometryProvider:
     for attr in dataclasses.fields(cls):
       if attr.name == 'geometry_type' or attr.name == 'torax_mesh':
         continue
-      kwargs[attr.name] = interpolated_param.InterpolatedVar1d(
+      kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(
           (times, np.stack([getattr(g, attr.name) for g in geos], axis=-1))
       )
     return cls(**kwargs)
@@ -341,12 +341,12 @@ class StandardGeometry(Geometry):
 @chex.dataclass(frozen=True)
 class StandardGeometryProvider(GeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
-  psi: interpolated_param.InterpolatedVar1d
-  psi_from_Ip: interpolated_param.InterpolatedVar1d
-  jtot: interpolated_param.InterpolatedVar1d
-  jtot_face: interpolated_param.InterpolatedVar1d
-  delta_upper_face: interpolated_param.InterpolatedVar1d
-  delta_lower_face: interpolated_param.InterpolatedVar1d
+  psi: interpolated_param.InterpolatedVarSingleAxis
+  psi_from_Ip: interpolated_param.InterpolatedVarSingleAxis
+  jtot: interpolated_param.InterpolatedVarSingleAxis
+  jtot_face: interpolated_param.InterpolatedVarSingleAxis
+  delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
+  delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
 
   def get_geometry(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""

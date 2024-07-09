@@ -23,16 +23,13 @@ import chex
 from torax import interpolated_param
 
 
-# Type-alias for clarity. While the InterpolatedVar1ds can vary across any
-# field, in here, we mainly use it to handle time-dependent parameters.
-TimeInterpolatedScalar = interpolated_param.TimeInterpolatedScalar
+# Type-alias for clarity. While the InterpolatedVarSingleAxis can vary across
+# any field, in here, we mainly use it to handle time-dependent parameters.
+TimeInterpolated = interpolated_param.TimeInterpolated
 # Type-alias for clarity for time-and-rho-dependent parameters.
-TimeInterpolatedArray = (
-    interpolated_param.TimeInterpolatedArray
+TimeRhoInterpolated = (
+    interpolated_param.TimeRhoInterpolated
 )
-# Type-alias for brevity.
-InterpolationMode = interpolated_param.InterpolationMode
-InterpolatedVar1d = interpolated_param.InterpolatedVar1d
 
 
 # pylint: disable=invalid-name
@@ -45,8 +42,8 @@ class PlasmaComposition:
   # charge of main ion
   Zi: float = 1.0
   # needed for qlknn and fusion power
-  Zeff: TimeInterpolatedScalar = 1.0
-  Zimp: TimeInterpolatedScalar = (
+  Zeff: TimeInterpolated = 1.0
+  Zimp: TimeInterpolated = (
       10.0  # impurity charge state assumed for dilution
   )
 
@@ -58,27 +55,27 @@ class ProfileConditions:
   # total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data
-  Ip: TimeInterpolatedScalar = 15.0
+  Ip: TimeInterpolated = 15.0
 
   # Temperature boundary conditions at r=Rmin. If provided this will override
   # the temperature boundary conditions being taken from the
-  # `TimeInterpolatedArray`s.
-  Ti_bound_right: TimeInterpolatedScalar | None = None
-  Te_bound_right: TimeInterpolatedScalar | None = None
+  # `TimeRhoInterpolated`s.
+  Ti_bound_right: TimeInterpolated | None = None
+  Te_bound_right: TimeInterpolated | None = None
   # Prescribed or evolving values for temperature at different times.
   # The outer mapping is for times and the inner mapping is for values of
   # temperature along the rho grid.
-  Ti: TimeInterpolatedArray = dataclasses.field(
+  Ti: TimeRhoInterpolated = dataclasses.field(
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
   )
-  Te: TimeInterpolatedArray = dataclasses.field(
+  Te: TimeRhoInterpolated = dataclasses.field(
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
   )
 
   # Prescribed or evolving values for electron density at different times.
   # The outer mapping is for times and the inner mapping is for values of
   # density along the rho grid.
-  ne: TimeInterpolatedArray = dataclasses.field(
+  ne: TimeRhoInterpolated = dataclasses.field(
       default_factory=lambda: {0: {0: 1.5, 1: 1.0}}
   )
   # Whether to renormalize the density profile to have the desired line averaged
@@ -89,30 +86,30 @@ class ProfileConditions:
   # In units of reference density if ne_is_fGW = False.
   # In Greenwald fraction if ne_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: TimeInterpolatedScalar = 0.85
+  nbar: TimeInterpolated = 0.85
   # Toggle units of nbar
   ne_is_fGW: bool = True
 
   # Density boundary condition for r=Rmin.
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: TimeInterpolatedScalar | None = 0.5
+  ne_bound_right: TimeInterpolated | None = 0.5
   ne_bound_right_is_fGW: bool = False
 
   # Internal boundary condition (pedestal)
   # Do not set internal boundary condition if this is False
-  set_pedestal: TimeInterpolatedScalar = True
+  set_pedestal: TimeInterpolated = True
   # ion pedestal top temperature in keV
-  Tiped: TimeInterpolatedScalar = 5.0
+  Tiped: TimeInterpolated = 5.0
   # electron pedestal top temperature in keV
-  Teped: TimeInterpolatedScalar = 5.0
+  Teped: TimeInterpolated = 5.0
   # pedestal top electron density
   # In units of reference density if neped_is_fGW = False.
   # In Greenwald fraction if neped_is_fGW = True.
-  neped: TimeInterpolatedScalar = 0.7
+  neped: TimeInterpolated = 0.7
   neped_is_fGW: bool = False
   # Set ped top location.
-  Ped_top: TimeInterpolatedScalar = 0.91
+  Ped_top: TimeInterpolated = 0.91
 
   # current profiles (broad "Ohmic" + localized "external" currents)
   # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
@@ -174,7 +171,7 @@ class Numerics:
   q_correction_factor: float = 1.25
   # 1/multiplication factor for sigma (conductivity) to reduce current
   # diffusion timescale to be closer to heat diffusion timescale
-  resistivity_mult: TimeInterpolatedScalar = 1.0
+  resistivity_mult: TimeInterpolated = 1.0
 
   # density profile info
   # Reference value for normalization
@@ -209,10 +206,10 @@ class GeneralRuntimeParams:
   # pylint: enable=invalid-name
 
   def _sanity_check_profile_boundary_conditions(
-      self, var: TimeInterpolatedArray, var_name: str,
+      self, var: TimeRhoInterpolated, var_name: str,
   ):
     """Check that the profile is defined at rho=1.0."""
-    if isinstance(var, interpolated_param.InterpolatedVar2d):
+    if isinstance(var, interpolated_param.InterpolatedVarTimeRho):
       values = var.values
     else:
       values = var

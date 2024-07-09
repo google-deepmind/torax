@@ -45,12 +45,12 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # Stiffness parameter
   chistiff: float = 2.0
   # Ratio of electron to ion heat transport coefficient (ion higher for ITG)
-  chiei_ratio: runtime_params_lib.TimeInterpolatedScalar = 2.0
+  chiei_ratio: runtime_params_lib.TimeInterpolated = 2.0
   # Ratio of electron particle to ion heat transport coefficient
-  chi_D_ratio: runtime_params_lib.TimeInterpolatedScalar = 5.0
+  chi_D_ratio: runtime_params_lib.TimeInterpolated = 5.0
   # Ratio of major radius * electron particle convection, to electron diffusion.
   # Sets the value of electron particle convection in the model.
-  VR_D_ratio: runtime_params_lib.TimeInterpolatedScalar = 0.0
+  VR_D_ratio: runtime_params_lib.TimeInterpolated = 0.0
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(

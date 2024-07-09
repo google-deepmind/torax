@@ -23,7 +23,7 @@ from torax import interpolated_param
 from torax.config import config_args
 
 
-TimeInterpolatedScalar = interpolated_param.TimeInterpolatedScalar
+TimeInterpolated = interpolated_param.TimeInterpolated
 
 
 @dataclasses.dataclass
@@ -57,9 +57,9 @@ class Exponential(FormulaConfig):
   """
 
   # floats to parameterize the different formulas.
-  total: TimeInterpolatedScalar = 1.0
-  c1: TimeInterpolatedScalar = 1.0
-  c2: TimeInterpolatedScalar = 1.0
+  total: TimeInterpolated = 1.0
+  c1: TimeInterpolated = 1.0
+  c2: TimeInterpolated = 1.0
 
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False
@@ -91,9 +91,9 @@ class Gaussian:
   """
 
   # floats to parameterize the different formulas.
-  total: TimeInterpolatedScalar = 1.0
-  c1: TimeInterpolatedScalar = 1.0
-  c2: TimeInterpolatedScalar = 1.0
+  total: TimeInterpolated = 1.0
+  c1: TimeInterpolated = 1.0
+  c2: TimeInterpolated = 1.0
 
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False

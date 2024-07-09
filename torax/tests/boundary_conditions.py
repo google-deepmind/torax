@@ -21,6 +21,7 @@ import numpy as np
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry
+from torax import interpolated_param
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -38,9 +39,9 @@ class BoundaryConditionsTest(parameterized.TestCase):
       ),
       dict(
           ne={0.0: {0.0: 1.5, 1.0: 1.0}},
-          ne_bound_right=general_runtime_params.InterpolatedVar1d(
+          ne_bound_right=interpolated_param.InterpolatedVarSingleAxis(
               {0.0: 0.1, 0.1: 2.0},
-              interpolation_mode=general_runtime_params.InterpolationMode.STEP,
+              interpolation_mode=interpolated_param.InterpolationMode.STEP,
           ),
           expected_ne_bound_right=2.0,  # Value from boundary condition.
       ),

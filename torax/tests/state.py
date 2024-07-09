@@ -24,6 +24,7 @@ from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
 from torax import geometry
+from torax import interpolated_param
 from torax import state
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
@@ -166,9 +167,9 @@ class InitialStatesTest(parameterized.TestCase):
         profile_conditions=general_runtime_params.ProfileConditions(
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
-            ne_bound_right=general_runtime_params.InterpolatedVar1d(
+            ne_bound_right=interpolated_param.InterpolatedVarSingleAxis(
                 {0.0: 0.1, 1.0: 2.0},
-                interpolation_mode=general_runtime_params.InterpolationMode.STEP,
+                interpolation_mode=interpolated_param.InterpolationMode.STEP,
             ),
         ),
     )
