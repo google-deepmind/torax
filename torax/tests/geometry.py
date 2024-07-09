@@ -80,7 +80,7 @@ class GeometryTest(parameterized.TestCase):
         B=5.3,
         # Use the same dummy value for the rest.
         psi=jnp.arange(0, 1.0, 0.01),
-        Ip=jnp.arange(0, 1.0, 0.01),
+        Ip_profile=jnp.arange(0, 1.0, 0.01),
         rho=jnp.arange(0, 1.0, 0.01),
         rhon=jnp.arange(0, 1.0, 0.01),
         Rin=jnp.arange(0, 1.0, 0.01),
@@ -114,7 +114,7 @@ class GeometryTest(parameterized.TestCase):
         B=5.3,
         # Use the same dummy value for the rest.
         psi=jnp.arange(0, 1.0, 0.01),
-        Ip=jnp.arange(0, 1.0, 0.01),
+        Ip_profile=jnp.arange(0, 1.0, 0.01),
         rho=jnp.arange(0, 1.0, 0.01),
         rhon=jnp.arange(0, 1.0, 0.01),
         Rin=jnp.arange(0, 1.0, 0.01),
@@ -140,7 +140,7 @@ class GeometryTest(parameterized.TestCase):
         B=6.5,
         # Use the same dummy value for the rest.
         psi=jnp.arange(0, 1.0, 0.01),
-        Ip=jnp.arange(0, 2.0, 0.02),
+        Ip_profile=jnp.arange(0, 2.0, 0.02),
         rho=jnp.arange(0, 1.0, 0.01),
         rhon=jnp.arange(0, 1.0, 0.01),
         Rin=jnp.arange(0, 1.0, 0.01),

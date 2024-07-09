@@ -590,7 +590,7 @@ class StandardGeometryIntermediates:
   Rmin: minor radius (a) in meters
   B: Toroidal magnetic field on axis [T].
   psi: Poloidal flux profile
-  Ip: Plasma current profile
+  Ip_profile: Plasma current profile
   rho: Midplane radii
   rhon: Toroidal flux coordinate
   Rin: Midplane radii
@@ -614,7 +614,7 @@ class StandardGeometryIntermediates:
   Rmin: chex.Numeric
   B: chex.Numeric
   psi: chex.Array
-  Ip: chex.Array
+  Ip_profile: chex.Array
   rho: chex.Array
   rhon: chex.Array
   Rin: chex.Array
@@ -700,7 +700,7 @@ class StandardGeometryIntermediates:
         Rmin=Rmin,
         B=B0,
         psi=psi,
-        Ip=Ip_chease,
+        Ip_profile=Ip_chease,
         rho=rho,
         rhon=rhon,
         Rin=Rin_chease,
@@ -754,7 +754,7 @@ def build_standard_geometry(
   # make an alternative initial psi, self-consistent with CHEASE Ip profile
   # needed because CHEASE psi profile has noisy second derivatives
   dpsidrho = (
-      intermediate.Ip[1:]
+      intermediate.Ip_profile[1:]
       * (16 * constants.CONSTANTS.mu0 * np.pi**4)
       / (g2g3_over_rho[1:] * intermediate.Rmaj * J[1:])
   )
@@ -767,7 +767,9 @@ def build_standard_geometry(
   # replaced later with an fvm constraint)
   psi_from_Ip[-1] = psi_from_Ip[-2] + (
       16 * constants.CONSTANTS.mu0 * np.pi**4
-  ) * intermediate.Ip[-1] / (g2g3_over_rho[-1] * intermediate.Rmaj * J[-1]) * (
+  ) * intermediate.Ip_profile[-1] / (
+      g2g3_over_rho[-1] * intermediate.Rmaj * J[-1]
+  ) * (
       intermediate.rho[-1] - intermediate.rho[-2]
   )
 
@@ -783,7 +785,7 @@ def build_standard_geometry(
       2
       * np.pi
       * intermediate.Rmaj
-      * np.gradient(intermediate.Ip, intermediate.volume)
+      * np.gradient(intermediate.Ip_profile, intermediate.volume)
   )
 
   # fill geometry structure

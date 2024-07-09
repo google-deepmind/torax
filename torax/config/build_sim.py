@@ -78,7 +78,7 @@ def update_chease_geometry_or_runtime_params(
         )
     )
     config_Ip = dynamic_runtime_params_slice.profile_conditions.Ip
-    Ip_scale_factor = config_Ip * 1e6 / intermediates.Ip[-1]
+    Ip_scale_factor = config_Ip * 1e6 / intermediates.Ip_profile[-1]
     psi_from_Ip = geo.psi_from_Ip * Ip_scale_factor
     jtot = geo.jtot * Ip_scale_factor
     jtot_face = geo.jtot_face * Ip_scale_factor
@@ -94,7 +94,7 @@ def update_chease_geometry_or_runtime_params(
         runtime_params,
         **{
             'profile_conditions': {
-                'Ip': intermediates.Ip[-1] / 1e6,
+                'Ip': intermediates.Ip_profile[-1] / 1e6,
             },
         },
     )
