@@ -118,8 +118,6 @@ class Geometry:
   dr_norm: chex.Array
   mesh: Grid1D
   rmax: chex.Array
-  r_face_norm: chex.Array
-  r_norm: chex.Array
   Rmaj: chex.Array
   Rmin: chex.Array
   B0: chex.Array
@@ -158,6 +156,14 @@ class Geometry:
   r_hires_norm: chex.Array
   r_hires: chex.Array
   vpr_hires: chex.Array
+
+  @property
+  def r_norm(self) -> chex.Array:
+    return self.mesh.cell_centers
+
+  @property
+  def r_face_norm(self) -> chex.Array:
+    return self.mesh.face_centers
 
   @property
   def r_face(self) -> chex.Array:
@@ -405,8 +411,6 @@ def build_circular_geometry(
       dr_norm=dr_norm,
       mesh=mesh,
       rmax=rmax,
-      r_face_norm=r_face_norm,
-      r_norm=r_norm,
       Rmaj=Rmaj,
       Rmin=rmax,
       B0=B0,
@@ -760,8 +764,6 @@ def build_standard_geometry(
       dr_norm=dr_norm,
       mesh=mesh,
       rmax=rmax,
-      r_face_norm=r_face_norm,
-      r_norm=r_norm,
       Rmaj=intermediate.Rmaj,
       Rmin=intermediate.Rmin,
       B0=intermediate.B,
