@@ -105,6 +105,67 @@ class GeometryTest(parameterized.TestCase):
     intermediate = geometry.StandardGeometryIntermediates.from_chease()
     geometry.build_standard_geometry(intermediate)
 
+  def test_build_geometry_provider(self):
+    """Test that the default geometry provider can be built."""
+    intermediate_0 = geometry.StandardGeometryIntermediates(
+        nr=25,
+        Rmaj=6.2,
+        Rmin=2.0,
+        B=5.3,
+        # Use the same dummy value for the rest.
+        psi=jnp.arange(0, 1.0, 0.01),
+        Ip=jnp.arange(0, 1.0, 0.01),
+        rho=jnp.arange(0, 1.0, 0.01),
+        rhon=jnp.arange(0, 1.0, 0.01),
+        Rin=jnp.arange(0, 1.0, 0.01),
+        Rout=jnp.arange(0, 1.0, 0.01),
+        RBphi=jnp.arange(0, 1.0, 0.01),
+        int_Jdchi=jnp.arange(0, 1.0, 0.01),
+        flux_norm_1_over_R2=jnp.arange(0, 1.0, 0.01),
+        flux_norm_Bp2=jnp.arange(0, 1.0, 0.01),
+        flux_norm_dpsi=jnp.arange(0, 1.0, 0.01),
+        flux_norm_dpsi2=jnp.arange(0, 1.0, 0.01),
+        delta_upper_face=jnp.arange(0, 1.0, 0.01),
+        delta_lower_face=jnp.arange(0, 1.0, 0.01),
+        volume=jnp.arange(0, 1.0, 0.01),
+        area=jnp.arange(0, 1.0, 0.01),
+        hires_fac=4,
+    )
+    geo_0 = geometry.build_standard_geometry(intermediate_0)
+
+    intermediate_1 = geometry.StandardGeometryIntermediates(
+        nr=25,
+        Rmaj=7.4,
+        Rmin=1.0,
+        B=6.5,
+        # Use the same dummy value for the rest.
+        psi=jnp.arange(0, 1.0, 0.01),
+        Ip=jnp.arange(0, 2.0, 0.02),
+        rho=jnp.arange(0, 1.0, 0.01),
+        rhon=jnp.arange(0, 1.0, 0.01),
+        Rin=jnp.arange(0, 1.0, 0.01),
+        Rout=jnp.arange(0, 1.0, 0.01),
+        RBphi=jnp.arange(0, 1.0, 0.01),
+        int_Jdchi=jnp.arange(0, 1.0, 0.01),
+        flux_norm_1_over_R2=jnp.arange(0, 1.0, 0.01),
+        flux_norm_Bp2=jnp.arange(0, 1.0, 0.01),
+        flux_norm_dpsi=jnp.arange(0, 1.0, 0.01),
+        flux_norm_dpsi2=jnp.arange(0, 1.0, 0.01),
+        delta_upper_face=jnp.arange(0, 1.0, 0.01),
+        delta_lower_face=jnp.arange(0, 1.0, 0.01),
+        volume=jnp.arange(0, 2.0, 0.02),
+        area=jnp.arange(0, 2.0, 0.02),
+        hires_fac=4,
+    )
+    geo_1 = geometry.build_standard_geometry(intermediate_1)
+
+    provider = geometry.StandardGeometryProvider.create_provider(
+        {0.: geo_0, 10.: geo_1})
+    geo = provider.get_geometry(5.)
+    np.testing.assert_allclose(geo.Rmaj, 6.8)
+    np.testing.assert_allclose(geo.Rmin, 1.5)
+    np.testing.assert_allclose(geo.B0, 5.9)
+
 
 def face_to_cell(nr, face):
   cell = np.zeros(nr)

@@ -16,8 +16,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import dataclasses
 import enum
+from typing import Type
 
 import chex
 import jax
@@ -26,6 +28,7 @@ import numpy as np
 import scipy
 from torax import constants
 from torax import geometry_loader
+from torax import interpolated_param
 from torax import jax_utils
 
 
@@ -43,7 +46,7 @@ class Grid1D:
   """
 
   nx: int
-  dx: chex.Array
+  dx: chex.Numeric
   face_centers: chex.Array
   cell_centers: chex.Array
 
@@ -52,6 +55,14 @@ class Grid1D:
     jax_utils.assert_rank(self.dx, 0)
     jax_utils.assert_rank(self.face_centers, 1)
     jax_utils.assert_rank(self.cell_centers, 1)
+
+  def __eq__(self, other: Grid1D) -> bool:
+    return (
+        self.nx == other.nx
+        and np.array_equal(self.dx, other.dx)
+        and np.array_equal(self.face_centers, other.face_centers)
+        and np.array_equal(self.cell_centers, other.cell_centers)
+    )
 
   @classmethod
   def construct(cls, nx: int, dx: chex.Array) -> Grid1D:
@@ -213,6 +224,95 @@ class Geometry:
 
 
 @chex.dataclass(frozen=True)
+class GeometryProvider:
+  """A geometry which holds variables to interpolated based on time."""
+  geometry_type: int
+  dr_norm: interpolated_param.InterpolatedVar1d
+  torax_mesh: Grid1D
+  rmax: interpolated_param.InterpolatedVar1d
+  Rmaj: interpolated_param.InterpolatedVar1d
+  Rmin: interpolated_param.InterpolatedVar1d
+  B0: interpolated_param.InterpolatedVar1d
+  volume: interpolated_param.InterpolatedVar1d
+  volume_face: interpolated_param.InterpolatedVar1d
+  area: interpolated_param.InterpolatedVar1d
+  area_face: interpolated_param.InterpolatedVar1d
+  vpr: interpolated_param.InterpolatedVar1d
+  vpr_face: interpolated_param.InterpolatedVar1d
+  spr_cell: interpolated_param.InterpolatedVar1d
+  spr_face: interpolated_param.InterpolatedVar1d
+  delta_face: interpolated_param.InterpolatedVar1d
+  g0: interpolated_param.InterpolatedVar1d
+  g0_face: interpolated_param.InterpolatedVar1d
+  g1: interpolated_param.InterpolatedVar1d
+  g1_face: interpolated_param.InterpolatedVar1d
+  g2: interpolated_param.InterpolatedVar1d
+  g2_face: interpolated_param.InterpolatedVar1d
+  g3: interpolated_param.InterpolatedVar1d
+  g3_face: interpolated_param.InterpolatedVar1d
+  g2g3_over_rho: interpolated_param.InterpolatedVar1d
+  g2g3_over_rho_face: interpolated_param.InterpolatedVar1d
+  g2g3_over_rho_hires: interpolated_param.InterpolatedVar1d
+  J: interpolated_param.InterpolatedVar1d
+  J_face: interpolated_param.InterpolatedVar1d
+  J_hires: interpolated_param.InterpolatedVar1d
+  F: interpolated_param.InterpolatedVar1d
+  F_face: interpolated_param.InterpolatedVar1d
+  Rin: interpolated_param.InterpolatedVar1d
+  Rin_face: interpolated_param.InterpolatedVar1d
+  Rout: interpolated_param.InterpolatedVar1d
+  Rout_face: interpolated_param.InterpolatedVar1d
+  volume_hires: interpolated_param.InterpolatedVar1d
+  area_hires: interpolated_param.InterpolatedVar1d
+  spr_hires: interpolated_param.InterpolatedVar1d
+  r_hires_norm: interpolated_param.InterpolatedVar1d
+  r_hires: interpolated_param.InterpolatedVar1d
+  vpr_hires: interpolated_param.InterpolatedVar1d
+
+  @classmethod
+  def create_provider(
+      cls, geometries: Mapping[float, Geometry]
+  ) -> GeometryProvider:
+    """Creates a GeometryProvider from a mapping of times to geometries."""
+    # Create a list of times and geometries.
+    times = np.asarray(list(geometries.keys()))
+    geos = list(geometries.values())
+    initial_geometry = geos[0]
+    for geometry in geos:
+      if geometry.geometry_type != initial_geometry.geometry_type:
+        raise ValueError('All geometries must have the same geometry type.')
+      if geometry.mesh != initial_geometry.mesh:
+        raise ValueError('All geometries must have the same mesh.')
+    # Create a list of interpolated parameters for each geometry attribute.
+    kwargs = {
+        'geometry_type': initial_geometry.geometry_type,
+        'torax_mesh': initial_geometry.mesh,
+    }
+    for attr in dataclasses.fields(cls):
+      if attr.name == 'geometry_type' or attr.name == 'torax_mesh':
+        continue
+      kwargs[attr.name] = interpolated_param.InterpolatedVar1d(
+          (times, np.stack([getattr(g, attr.name) for g in geos], axis=-1))
+      )
+    return cls(**kwargs)
+
+  def _get_geometry_base(self, t: chex.Numeric, geometry_class: Type[Geometry]):
+    kwargs = {
+        'geometry_type': self.geometry_type,
+        'mesh': self.torax_mesh,
+    }
+    for attr in dataclasses.fields(geometry_class):
+      if attr.name == 'geometry_type' or attr.name == 'mesh':
+        continue
+      kwargs[attr.name] = getattr(self, attr.name).get_value(t)
+    return geometry_class(**kwargs)
+
+  def get_geometry(self, t: chex.Numeric) -> Geometry:
+    """Returns a Geometry instance at the given time."""
+    return self._get_geometry_base(t, Geometry)
+
+
+@chex.dataclass(frozen=True)
 class CircularAnalyticalGeometry(Geometry):
   """Circular geometry type used for testing only.
 
@@ -230,15 +330,27 @@ class StandardGeometry(Geometry):
 
   Most instances of Geometry should be of this type.
   """
-
-  g2: chex.Array
-  g3: chex.Array
   psi: chex.Array
   psi_from_Ip: chex.Array
   jtot: chex.Array
   jtot_face: chex.Array
   delta_upper_face: chex.Array
   delta_lower_face: chex.Array
+
+
+@chex.dataclass(frozen=True)
+class StandardGeometryProvider(GeometryProvider):
+  """Values to be interpolated for a Standard Geometry."""
+  psi: interpolated_param.InterpolatedVar1d
+  psi_from_Ip: interpolated_param.InterpolatedVar1d
+  jtot: interpolated_param.InterpolatedVar1d
+  jtot_face: interpolated_param.InterpolatedVar1d
+  delta_upper_face: interpolated_param.InterpolatedVar1d
+  delta_lower_face: interpolated_param.InterpolatedVar1d
+
+  def get_geometry(self, t: chex.Numeric) -> Geometry:
+    """Returns a Geometry instance at the given time."""
+    return self._get_geometry_base(t, StandardGeometry)
 
 
 def build_circular_geometry(
