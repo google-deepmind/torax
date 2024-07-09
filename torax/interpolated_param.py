@@ -36,7 +36,7 @@ class InterpolatedParamBase(abc.ABC):
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> jax.Array:
+  ) -> chex.Array:
     """Returns a single value for this parameter at the given coordinate."""
 
 
@@ -63,70 +63,85 @@ class InterpolationMode(enum.Enum):
   STEP = 'step'
 
 
-@chex.dataclass(frozen=True)
-class JaxFriendlyInterpolatedParam(InterpolatedParamBase):
-  """Base class for JAX-friendly interpolated params.
-
-  Any InterpolatedVar1d implementation that is used within a jitted function or
-  used as an argument to a jitted function should inherit from this class.
-  """
-
-
-@chex.dataclass(frozen=True)
-class PiecewiseLinearInterpolatedParam(JaxFriendlyInterpolatedParam):
+class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
   """Parameter using piecewise-linear interpolation to compute its value."""
 
-  xs: jax.Array  # must be sorted.
-  ys: jax.Array
-
-  def __post_init__(self):
+  def __init__(self, xs: chex.Array, ys: chex.Array):
+    """Initialises a piecewise-linear interpolated param, xs must be sorted."""
+    self._xs = xs
+    self._ys = ys
     jax_utils.assert_rank(self.xs, 1)
-    assert self.xs.shape == self.ys.shape
+    if self.xs.shape[0] != self.ys.shape[0]:
+      raise ValueError(
+          'xs and ys must have the same number of elements in the first '
+          f'dimension. Given: {self.xs.shape} and {self.ys.shape}.'
+      )
     diff = jnp.sum(jnp.abs(jnp.sort(self.xs) - self.xs))
     jax_utils.error_if(diff, diff > 1e-8, 'xs must be sorted.')
+    if self.ys.ndim == 1:
+      self._fn = jnp.interp
+    elif self.ys.ndim == 2:
+      self._fn = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
+    else:
+      raise ValueError(
+          f'ys must be either 1D or 2D. Given: {self.ys.shape}.'
+      )
+
+  @property
+  def xs(self) -> chex.Array:
+    return self._xs
+
+  @property
+  def ys(self) -> chex.Array:
+    return self._ys
 
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> jax.Array:
-    return jnp.interp(x, self.xs, self.ys)
+  ) -> chex.Array:
+    return self._fn(x, self.xs, self.ys)
 
 
-@chex.dataclass(frozen=True)
-class StepInterpolatedParam(JaxFriendlyInterpolatedParam):
+class StepInterpolatedParam(InterpolatedParamBase):
   """Parameter using step interpolation to compute its value."""
 
-  xs: jax.Array  # must be sorted.
-  ys: jax.Array
-
-  def __post_init__(self):
+  def __init__(self, xs: chex.Array, ys: chex.Array):
+    """Creates a step interpolated param, xs must be sorted."""
+    self._xs = xs
+    self._ys = ys
     jax_utils.assert_rank(self.xs, 1)
-    assert self.xs.shape == self.ys.shape
+    if len(self.ys.shape) != 1 and len(self.ys.shape) != 2:
+      raise ValueError(
+          f'ys must be either 1D or 2D. Given: {self.ys.shape}.'
+      )
+    if self.xs.shape[0] != self.ys.shape[0]:
+      raise ValueError(
+          'xs and ys must have the same number of elements in the first '
+          f'dimension. Given: {self.xs.shape} and {self.ys.shape}.'
+      )
     diff = jnp.sum(jnp.abs(jnp.sort(self.xs) - self.xs))
     jax_utils.error_if(diff, diff > 1e-8, 'xs must be sorted.')
-    # Precompute some arrays useful for computing values.
-    # Must use object.__setattr__ here because this is frozen dataclass.
-    object.__setattr__(
-        self,
-        '_padded_xs',
-        jnp.concatenate([jnp.array([-jnp.inf]), self.xs, jnp.array([jnp.inf])]),
+    self._padded_xs = jnp.concatenate(
+        [jnp.array([-jnp.inf]), self.xs, jnp.array([jnp.inf])]
     )
-    object.__setattr__(
-        self,
-        '_padded_ys',
-        jnp.concatenate(
-            [jnp.array([self.ys[0]]), self.ys, jnp.array([self.ys[-1]])]
-        ),
+    self._padded_ys = jnp.concatenate(
+        [jnp.array([self.ys[0]]), self.ys, jnp.array([self.ys[-1]])]
     )
+
+  @property
+  def xs(self) -> chex.Array:
+    return self._xs
+
+  @property
+  def ys(self) -> chex.Array:
+    return self._ys
 
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> jax.Array:
-    # pytype: disable=attribute-error
+  ) -> chex.Array:
     idx = jnp.max(jnp.argwhere(self._padded_xs < x).flatten())
     return self._padded_ys[idx]
-    # pytype: enable=attribute-error
 
 
 # Config input types convertible to InterpolatedParam objects.
@@ -195,8 +210,19 @@ class InterpolatedVar1d(InterpolatedParamBase):
   be used to define any parameters that vary across some range. This class is
   the main "user-facing" class defined in this module.
 
-  See `config.runtime_params.RuntimeParams` and associated tests to see how this
-  is used.
+  This function allows the interpolation of a 1d array xs, against either a 1d
+  or 2d array ys. For example, xs can be time, and ys either a 1d array of
+  scalars associated to the times in xs, or a 2d array where the index 0 in ys
+  associates a radial array in the index 1 with the times in xs. The
+  interpolation of the 2d array is then carried out element-wise and accelerated
+  with vmap. Intended use of ys being a 2d array is when the radial slices on
+  index 1 have already been interpolated onto appropriate TORAX grids, such as
+  cell_centers, faces, or the hires grid. NOTE: this means that the 2d array
+  should have shape (n, m) where n is the number of elements in the 1d array and
+  m is the number of spatial grid size of the InterpolatedVar1d instance
+
+  See `config.runtime_params.RuntimeParams` and associated tests to see how
+  this is used.
   """
 
   def __init__(
@@ -230,7 +256,7 @@ class InterpolatedVar1d(InterpolatedParamBase):
   def get_value(
       self,
       x: chex.Numeric,
-  ) -> jax.Array:
+  ) -> chex.Array:
     """Returns a single value for this range at the given coordinate."""
     value = self._param.get_value(x)
     if self._is_bool_param:
@@ -238,7 +264,7 @@ class InterpolatedVar1d(InterpolatedParamBase):
     return value
 
   @property
-  def param(self) -> JaxFriendlyInterpolatedParam:
+  def param(self) -> InterpolatedParamBase:
     """Returns the JAX-friendly interpolated param used under the hood."""
     return self._param
 
@@ -290,7 +316,7 @@ class InterpolatedVar2d:
       self,
       time: chex.Numeric,
       rho: chex.Numeric,
-  ) -> jax.Array:
+  ) -> chex.Array:
     """Returns the value of this parameter interpolated at the given (time,rho).
 
     This method is not jittable as it is.

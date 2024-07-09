@@ -142,6 +142,18 @@ class InterpolatedParamTest(parameterized.TestCase):
           1.5,
           3.0,
           interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+      ),
+      (
+          (np.array([0.0, 1.0]), np.array([[3., 4., 5.], [6., 7., 8.]])),
+          0.5,
+          np.array([4.5, 5.5, 6.5]),
+          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+      ),
+      (
+          (np.array([0.0, 1.0]), np.array([[3., 4., 5.], [6., 7., 8.]])),
+          0.5,
+          np.array([3., 4., 5.]),
+          interpolated_param.InterpolationMode.STEP,
       )
   )
   def test_multi_value_range_returns_expected_output(
@@ -171,21 +183,25 @@ class InterpolatedParamTest(parameterized.TestCase):
       (interpolated_param.PiecewiseLinearInterpolatedParam,),
       (interpolated_param.StepInterpolatedParam,),
   )
-  def test_interpolated_param_needs_rank_one_values(self, range_class):
+  def test_interpolated_param_1d_xs_and_1d_or_2d_ys(self, range_class):
     """Tests that the interpolated_param only take 1D inputs."""
     range_class(
         xs=jnp.array([1.0, 2.0, 3.0, 4.0]),
         ys=jnp.array([1.0, 2.0, 3.0, 4.0]),
+    )
+    range_class(
+        xs=jnp.arange(2).reshape((2)),
+        ys=jnp.arange(6).reshape((2, 3)),
     )
     with self.assertRaises(AssertionError):
       range_class(
           xs=jnp.array(1.0),
           ys=jnp.array(2.0),
       )
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(ValueError):
       range_class(
-          xs=jnp.arange(6).reshape((2, 3)),
-          ys=jnp.arange(6).reshape((2, 3)),
+          xs=jnp.arange(2).reshape((2)),
+          ys=jnp.arange(6).reshape((2, 3, 1)),
       )
 
   @parameterized.parameters(
@@ -198,7 +214,7 @@ class InterpolatedParamTest(parameterized.TestCase):
         xs=jnp.array([1.0, 2.0, 3.0, 4.0]),
         ys=jnp.array([1.0, 2.0, 3.0, 4.0]),
     )
-    with self.assertRaises(AssertionError):
+    with self.assertRaises(ValueError):
       range_class(
           xs=jnp.array([1.0, 2.0, 3.0, 4.0]),
           ys=jnp.array([1.0, 2.0, 3.0, 4.0, 5.0]),

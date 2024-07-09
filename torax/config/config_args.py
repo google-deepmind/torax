@@ -24,7 +24,6 @@ from typing import Any
 from typing import TypeVar
 
 import chex
-import jax
 from torax import geometry
 from torax import interpolated_param
 
@@ -87,7 +86,7 @@ def _input_is_an_interpolated_var_1d(
 def _interpolate_var_1d(
     param_or_param_input: interpolated_param.TimeInterpolatedScalar,
     t: chex.Numeric,
-) -> jax.Array:
+) -> chex.Array:
   """Interpolates the input param at time t."""
   if not isinstance(param_or_param_input, interpolated_param.InterpolatedVar1d):
     # The param is a InterpolatedVar1dInput, so we need to convert it to an
@@ -160,7 +159,7 @@ def _interpolate_var_2d(
     param_or_param_input: interpolated_param.TimeInterpolatedArray,
     t: chex.Numeric,
     geo: geometry.Geometry,
-) -> jax.Array:
+) -> chex.Array:
   """Interpolates the input param at time t and rho_norm for the current geo."""
   if not isinstance(param_or_param_input, interpolated_param.InterpolatedVar2d):
     # Dealing with a param input so convert it first.
