@@ -74,6 +74,7 @@ class GeometryTest(parameterized.TestCase):
 
     foo_jitted = jax.jit(foo)
     intermediate = geometry.StandardGeometryIntermediates(
+        Ip_from_parameters=True,
         nr=25,
         Rmaj=6.2,
         Rmin=2.0,
@@ -108,6 +109,7 @@ class GeometryTest(parameterized.TestCase):
   def test_build_geometry_provider(self):
     """Test that the default geometry provider can be built."""
     intermediate_0 = geometry.StandardGeometryIntermediates(
+        Ip_from_parameters=True,
         nr=25,
         Rmaj=6.2,
         Rmin=2.0,
@@ -134,6 +136,7 @@ class GeometryTest(parameterized.TestCase):
     geo_0 = geometry.build_standard_geometry(intermediate_0)
 
     intermediate_1 = geometry.StandardGeometryIntermediates(
+        Ip_from_parameters=True,
         nr=25,
         Rmaj=7.4,
         Rmin=1.0,

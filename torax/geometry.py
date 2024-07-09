@@ -288,8 +288,14 @@ class GeometryProvider:
         'geometry_type': initial_geometry.geometry_type,
         'torax_mesh': initial_geometry.torax_mesh,
     }
+    if hasattr(initial_geometry, 'Ip_from_parameters'):
+      kwargs['Ip_from_parameters'] = initial_geometry.Ip_from_parameters
     for attr in dataclasses.fields(cls):
-      if attr.name == 'geometry_type' or attr.name == 'torax_mesh':
+      if (
+          attr.name == 'geometry_type'
+          or attr.name == 'torax_mesh'
+          or attr.name == 'Ip_from_parameters'
+      ):
         continue
       kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(
           (times, np.stack([getattr(g, attr.name) for g in geos], axis=-1))
@@ -297,15 +303,22 @@ class GeometryProvider:
     return cls(**kwargs)
 
   def _get_geometry_base(self, t: chex.Numeric, geometry_class: Type[Geometry]):
+    """Returns a Geometry instance of the given type at the given time."""
     kwargs = {
         'geometry_type': self.geometry_type,
         'torax_mesh': self.torax_mesh,
     }
+    if hasattr(self, 'Ip_from_parameters'):
+      kwargs['Ip_from_parameters'] = self.Ip_from_parameters
     for attr in dataclasses.fields(geometry_class):
-      if attr.name == 'geometry_type' or attr.name == 'torax_mesh':
+      if (
+          attr.name == 'geometry_type'
+          or attr.name == 'torax_mesh'
+          or attr.name == 'Ip_from_parameters'
+      ):
         continue
       kwargs[attr.name] = getattr(self, attr.name).get_value(t)
-    return geometry_class(**kwargs)
+    return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
 
   def get_geometry(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""
@@ -330,6 +343,8 @@ class StandardGeometry(Geometry):
 
   Most instances of Geometry should be of this type.
   """
+  Ip_from_parameters: bool
+  Ip: chex.Scalar
   psi: chex.Array
   psi_from_Ip: chex.Array
   jtot: chex.Array
@@ -341,6 +356,8 @@ class StandardGeometry(Geometry):
 @chex.dataclass(frozen=True)
 class StandardGeometryProvider(GeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
+  Ip_from_parameters: bool
+  Ip: interpolated_param.InterpolatedVarSingleAxis
   psi: interpolated_param.InterpolatedVarSingleAxis
   psi_from_Ip: interpolated_param.InterpolatedVarSingleAxis
   jtot: interpolated_param.InterpolatedVarSingleAxis
@@ -585,6 +602,8 @@ class StandardGeometryIntermediates:
 
   All inputs are 1D profiles vs normalized rho toroidal (rhon).
 
+  Ip_from_paramaters: If True, the Ip is taken from the parameters and the
+    values in the Geometry are resacled to match the new Ip.
   Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
     is used as an unnormalization factor.
   Rmin: minor radius (a) in meters
@@ -609,7 +628,7 @@ class StandardGeometryIntermediates:
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
   """
-
+  Ip_from_parameters: bool
   Rmaj: chex.Numeric
   Rmin: chex.Numeric
   B: chex.Numeric
@@ -637,6 +656,7 @@ class StandardGeometryIntermediates:
       cls,
       geometry_dir: str | None = None,
       geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      Ip_from_parameters: bool = True,
       nr: int = 25,
       Rmaj: float = 6.2,
       Rmin: float = 2.0,
@@ -652,6 +672,8 @@ class StandardGeometryIntermediates:
         geometry_dir is not provided, then it defaults to another dir. See
         implementation.
       geometry_file: CHEASE file name.
+      Ip_from_parameters: If True, the Ip is taken from the parameters and the
+        values in the Geometry are resacled to match the new Ip.
       nr: Radial grid points (num cells)
       Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so
         this is used as an unnormalization factor.
@@ -696,6 +718,7 @@ class StandardGeometryIntermediates:
     area = chease_data['areaprofile'] * Rmaj**2
 
     return cls(
+        Ip_from_parameters=Ip_from_parameters,
         Rmaj=Rmaj,
         Rmin=Rmin,
         B=B0,
@@ -909,6 +932,8 @@ def build_standard_geometry(
       Rin_face=Rin_face,
       Rout=Rout,
       Rout_face=Rout_face,
+      Ip_from_parameters=intermediate.Ip_from_parameters,
+      Ip=intermediate.Ip_profile[-1],
       psi=psi,
       psi_from_Ip=psi_from_Ip,
       jtot=jtot,

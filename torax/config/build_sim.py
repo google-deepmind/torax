@@ -144,6 +144,7 @@ def build_consistent_chease_geometry_and_runtime_params(
   intermediates = geometry.StandardGeometryIntermediates.from_chease(
       geometry_dir=geometry_dir,
       geometry_file=geometry_file,
+      Ip_from_parameters=Ip_from_parameters,
       nr=nr,
       Rmaj=Rmaj,
       Rmin=Rmin,
