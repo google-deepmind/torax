@@ -74,7 +74,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.geo.mesh.nx)
+    value = jnp.zeros(references.geo.torax_mesh.nx)
     variable = cell_variable.CellVariable(value=value, dr=references.geo.dr)
     # Underconstrain the left
     with self.assertRaises(AssertionError):
@@ -106,7 +106,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.geo.mesh.nx)
+    value = jnp.zeros(references.geo.torax_mesh.nx)
     variable = cell_variable.CellVariable(value=value, dr=references.geo.dr)
     # Overconstrain the left
     with self.assertRaises(AssertionError):
@@ -135,12 +135,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
           references_getter=torax_refs.chease_references_Ip_from_runtime_params,
       ),
   ])
-  def test_face_grad_constraints(self, seed, references_getter):
+  def test_face_grad_constraints(
+      self, seed: int, references_getter: Callable[[], torax_refs.References]
+  ):
     """Test that CellVariable.face_grad solves constrained problems."""
     references = references_getter()
 
     # Use ref_config to configure size, so we can also use ref_geo
-    dim = references.geo.mesh.nx
+    dim = references.geo.torax_mesh.nx
     value = jnp.zeros(dim)
 
     rng_state = jax.random.PRNGKey(seed)

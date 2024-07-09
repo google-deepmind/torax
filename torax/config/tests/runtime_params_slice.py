@@ -169,35 +169,40 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           t=0.5,
           geo=self._geo,
       )
+      pellet_source = dcs.sources['pellet_source']
+      gas_puff_source = dcs.sources['gas_puff_source']
+      nbi_particle_source = dcs.sources['nbi_particle_source']
       assert isinstance(
-          dcs.sources['pellet_source'],
+          pellet_source,
           electron_density_sources.DynamicPelletRuntimeParams,
       )
       assert isinstance(
-          dcs.sources['gas_puff_source'],
+          gas_puff_source,
           electron_density_sources.DynamicGasPuffRuntimeParams,
       )
       assert isinstance(
-          dcs.sources['nbi_particle_source'],
+          nbi_particle_source,
           electron_density_sources.DynamicNBIParticleRuntimeParams,
       )
-      np.testing.assert_allclose(dcs.sources['pellet_source'].pellet_width, 0.5)
+      print(pellet_source.pellet_width)
+      print(type(pellet_source.pellet_width))
+      np.testing.assert_allclose(pellet_source.pellet_width, 0.5)
       np.testing.assert_allclose(
-          dcs.sources['pellet_source'].pellet_deposition_location, 1.0
+          pellet_source.pellet_deposition_location, 1.0
       )
-      np.testing.assert_allclose(dcs.sources['pellet_source'].S_pellet_tot, 1.5)
+      np.testing.assert_allclose(pellet_source.S_pellet_tot, 1.5)
       np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].puff_decay_length, 2.0
+          gas_puff_source.puff_decay_length, 2.0
       )
-      np.testing.assert_allclose(dcs.sources['gas_puff_source'].S_puff_tot, 2.5)
+      np.testing.assert_allclose(gas_puff_source.S_puff_tot, 2.5)
       np.testing.assert_allclose(
-          dcs.sources['nbi_particle_source'].nbi_particle_width, 3.0
-      )
-      np.testing.assert_allclose(
-          dcs.sources['nbi_particle_source'].nbi_deposition_location, 3.5
+          nbi_particle_source.nbi_particle_width, 3.0
       )
       np.testing.assert_allclose(
-          dcs.sources['nbi_particle_source'].S_nbi_tot, 4.0
+          nbi_particle_source.nbi_deposition_location, 3.5
+      )
+      np.testing.assert_allclose(
+          nbi_particle_source.S_nbi_tot, 4.0
       )
 
     with self.subTest('exponential_formula'):
@@ -216,16 +221,17 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           t=0.25,
           geo=self._geo,
       )
+      gas_puff_source = dcs.sources['gas_puff_source']
       assert isinstance(
-          dcs.sources['gas_puff_source'].formula,
+          gas_puff_source.formula,
           formula_config.DynamicExponential,
       )
       np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.total, 0.25
+          gas_puff_source.formula.total, 0.25
       )
-      np.testing.assert_allclose(dcs.sources['gas_puff_source'].formula.c1, 0.5)
+      np.testing.assert_allclose(gas_puff_source.formula.c1, 0.5)
       np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.c2, 0.75
+          gas_puff_source.formula.c2, 0.75
       )
 
     with self.subTest('gaussian_formula'):
@@ -244,15 +250,16 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           t=0.25,
           geo=self._geo,
       )
+      gas_puff_source = dcs.sources['gas_puff_source']
       assert isinstance(
-          dcs.sources['gas_puff_source'].formula, formula_config.DynamicGaussian
+          gas_puff_source.formula, formula_config.DynamicGaussian
       )
       np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.total, 0.25
+          gas_puff_source.formula.total, 0.25
       )
-      np.testing.assert_allclose(dcs.sources['gas_puff_source'].formula.c1, 0.5)
+      np.testing.assert_allclose(gas_puff_source.formula.c1, 0.5)
       np.testing.assert_allclose(
-          dcs.sources['gas_puff_source'].formula.c2, 0.75
+          gas_puff_source.formula.c2, 0.75
       )
 
   def test_wext_in_dynamic_runtime_params_cannot_be_negative(self):
@@ -270,16 +277,18 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     # While wext is positive, this should be fine.
     dcs = dcs_provider(t=0.0, geo=self._geo,)
+    jext = dcs.sources['jext']
     assert isinstance(
-        dcs.sources['jext'], external_current_source.DynamicRuntimeParams
+        jext, external_current_source.DynamicRuntimeParams
     )
-    np.testing.assert_allclose(dcs.sources['jext'].wext, 1.0)
+    np.testing.assert_allclose(jext.wext, 1.0)
     # Even 0 should be fine.
     dcs = dcs_provider(t=0.5, geo=self._geo,)
+    jext = dcs.sources['jext']
     assert isinstance(
-        dcs.sources['jext'], external_current_source.DynamicRuntimeParams
+        jext, external_current_source.DynamicRuntimeParams
     )
-    np.testing.assert_allclose(dcs.sources['jext'].wext, 0.0)
+    np.testing.assert_allclose(jext.wext, 0.0)
     # But negative values will cause an error.
     with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
       dcs_provider(t=1.0, geo=self._geo,)

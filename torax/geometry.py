@@ -126,8 +126,8 @@ class Geometry:
   """
 
   geometry_type: int
+  torax_mesh: Grid1D
   dr_norm: chex.Array
-  mesh: Grid1D
   rmax: chex.Array
   Rmaj: chex.Array
   Rmin: chex.Array
@@ -170,11 +170,11 @@ class Geometry:
 
   @property
   def r_norm(self) -> chex.Array:
-    return self.mesh.cell_centers
+    return self.torax_mesh.cell_centers
 
   @property
   def r_face_norm(self) -> chex.Array:
-    return self.mesh.face_centers
+    return self.torax_mesh.face_centers
 
   @property
   def r_face(self) -> chex.Array:
@@ -227,8 +227,8 @@ class Geometry:
 class GeometryProvider:
   """A geometry which holds variables to interpolated based on time."""
   geometry_type: int
-  dr_norm: interpolated_param.InterpolatedVarSingleAxis
   torax_mesh: Grid1D
+  dr_norm: interpolated_param.InterpolatedVarSingleAxis
   rmax: interpolated_param.InterpolatedVarSingleAxis
   Rmaj: interpolated_param.InterpolatedVarSingleAxis
   Rmin: interpolated_param.InterpolatedVarSingleAxis
@@ -281,12 +281,12 @@ class GeometryProvider:
     for geometry in geos:
       if geometry.geometry_type != initial_geometry.geometry_type:
         raise ValueError('All geometries must have the same geometry type.')
-      if geometry.mesh != initial_geometry.mesh:
+      if geometry.torax_mesh != initial_geometry.torax_mesh:
         raise ValueError('All geometries must have the same mesh.')
     # Create a list of interpolated parameters for each geometry attribute.
     kwargs = {
         'geometry_type': initial_geometry.geometry_type,
-        'torax_mesh': initial_geometry.mesh,
+        'torax_mesh': initial_geometry.torax_mesh,
     }
     for attr in dataclasses.fields(cls):
       if attr.name == 'geometry_type' or attr.name == 'torax_mesh':
@@ -299,10 +299,10 @@ class GeometryProvider:
   def _get_geometry_base(self, t: chex.Numeric, geometry_class: Type[Geometry]):
     kwargs = {
         'geometry_type': self.geometry_type,
-        'mesh': self.torax_mesh,
+        'torax_mesh': self.torax_mesh,
     }
     for attr in dataclasses.fields(geometry_class):
-      if attr.name == 'geometry_type' or attr.name == 'mesh':
+      if attr.name == 'geometry_type' or attr.name == 'torax_mesh':
         continue
       kwargs[attr.name] = getattr(self, attr.name).get_value(t)
     return geometry_class(**kwargs)
@@ -521,7 +521,7 @@ def build_circular_geometry(
       # Set the standard geometry params.
       geometry_type=GeometryType.CIRCULAR.value,
       dr_norm=dr_norm,
-      mesh=mesh,
+      torax_mesh=mesh,
       rmax=rmax,
       Rmaj=Rmaj,
       Rmin=rmax,
@@ -873,7 +873,7 @@ def build_standard_geometry(
   return StandardGeometry(
       geometry_type=GeometryType.CHEASE.value,
       dr_norm=dr_norm,
-      mesh=mesh,
+      torax_mesh=mesh,
       rmax=rmax,
       Rmaj=intermediate.Rmaj,
       Rmin=intermediate.Rmin,

@@ -96,7 +96,7 @@ class BuildSimTest(parameterized.TestCase):
     with self.subTest('geometry'):
       geo = sim.geometry_provider(sim.initial_state.t)
       self.assertIsInstance(geo, geometry.CircularAnalyticalGeometry)
-      self.assertEqual(geo.mesh.nx, 5)
+      self.assertEqual(geo.torax_mesh.nx, 5)
     with self.subTest('sources'):
       self.assertEqual(
           sim.source_models_builder.runtime_params['pellet_source'].mode,
@@ -183,7 +183,7 @@ class BuildSimTest(parameterized.TestCase):
         'nr': 5,  # override a default.
     })
     self.assertIsInstance(geo, geometry.CircularAnalyticalGeometry)
-    np.testing.assert_array_equal(geo.mesh.nx, 5)
+    np.testing.assert_array_equal(geo.torax_mesh.nx, 5)
     np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
 
   def test_build_geometry_from_chease(self):
@@ -195,7 +195,7 @@ class BuildSimTest(parameterized.TestCase):
         runtime_params=runtime_params_lib.GeneralRuntimeParams(),
     )
     self.assertIsInstance(geo, geometry.StandardGeometry)
-    np.testing.assert_array_equal(geo.mesh.nx, 5)
+    np.testing.assert_array_equal(geo.torax_mesh.nx, 5)
 
   # pylint: disable=invalid-name
   def test_chease_geometry_updates_Ip(self):
