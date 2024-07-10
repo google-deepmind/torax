@@ -23,7 +23,6 @@ from torax import constants
 from torax import core_profile_setters
 from torax import geometry
 from torax import physics
-from torax.config import runtime_params_slice
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
@@ -46,13 +45,12 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     runtime_params = references.runtime_params
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+    dynamic_runtime_params_slice, geo = (
+        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
-            geo=references.geo,
+            references.geometry_provider,
         )
     )
-    geo = references.geo
 
     # Dummy value for jtot for unit testing purposes.
     jtot = jnp.ones(geo.torax_mesh.nx)
@@ -117,14 +115,13 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         source_runtime_params.Mode.FORMULA_BASED
     )
     source_models = source_models_builder()
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+    dynamic_runtime_params_slice, geo = (
+        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
+            references.geometry_provider,
             sources=source_models_builder.runtime_params,
-            geo=references.geo,
         )
     )
-    geo = references.geo
 
     # pylint: disable=protected-access
     if isinstance(geo, geometry.CircularAnalyticalGeometry):
@@ -156,9 +153,12 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
   ):
     """Compare `calc_jtot_from_psi` to a reference value."""
     references = references_getter()
+    geo = references.geometry_provider(
+        references.runtime_params.numerics.t_initial
+    )
 
     j, _ = physics.calc_jtot_from_psi(
-        references.geo,
+        geo,
         references.psi,
     )
 
@@ -176,9 +176,12 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
   ):
     """Compare `calc_s_from_psi` to a reference value."""
     references = references_getter()
+    geo = references.geometry_provider(
+        references.runtime_params.numerics.t_initial
+    )
 
     s = physics.calc_s_from_psi(
-        references.geo,
+        geo,
         references.psi,
     )
 

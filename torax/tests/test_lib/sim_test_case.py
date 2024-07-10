@@ -273,6 +273,13 @@ class SimTestCase(parameterized.TestCase):
 
     # Build geo needed for output generation
     geo = sim.geometry_provider(sim.initial_state.t)
+    dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
+        sim.initial_state.t,
+        geo=geo,
+    )
+    _, geo = runtime_params_slice.make_ip_consistent(
+        dynamic_runtime_params_slice, geo
+    )
 
     # Run full simulation
     torax_outputs = sim.run()

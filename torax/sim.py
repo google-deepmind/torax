@@ -31,6 +31,7 @@ import time
 from typing import Any, Optional
 
 from absl import logging
+import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -63,6 +64,25 @@ def _log_timestep(t: jax.Array, dt: jax.Array, stepper_iterations: int) -> None:
       dt,
       stepper_iterations,
   )
+
+
+def get_consistent_dynamic_runtime_params_slice_and_geometry(
+    t: chex.Numeric,
+    dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
+) -> tuple[
+    runtime_params_slice.DynamicRuntimeParamsSlice,
+    geometry.Geometry,
+]:
+  """Returns the dynamic runtime params and geometry for a given time."""
+  geo = geometry_provider(t)
+  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(t, geo)
+  dynamic_runtime_params_slice, geo = (
+      runtime_params_slice.make_ip_consistent(
+          dynamic_runtime_params_slice, geo
+      )
+  )
+  return dynamic_runtime_params_slice, geo
 
 
 class CoeffsCallback:
@@ -258,10 +278,12 @@ class SimulationStepFn:
            2 if solver converged within coarse tolerance. Allowed to pass with a
              warning. Occasional error=2 has low impact on final sim state.
     """
-    geo_t = geometry_provider(input_state.t)
-    dynamic_runtime_params_slice_t = dynamic_runtime_params_slice_provider(
-        input_state.t,
-        geo_t,
+    dynamic_runtime_params_slice_t, geo_t = (
+        get_consistent_dynamic_runtime_params_slice_and_geometry(
+            input_state.t,
+            dynamic_runtime_params_slice_provider,
+            geometry_provider,
+        )
     )
 
     dt, time_step_calculator_state = self.init_time_step_calculator(
@@ -272,9 +294,12 @@ class SimulationStepFn:
 
     # The stepper needs the geo and dynamic_runtime_params_slice at time t + dt
     # for implicit computations in the solver.
-    geo_t_plus_dt = geometry_provider(input_state.t + dt)
-    dynamic_runtime_params_slice_t_plus_dt = (
-        dynamic_runtime_params_slice_provider(input_state.t + dt, geo_t_plus_dt)
+    dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
+        get_consistent_dynamic_runtime_params_slice_and_geometry(
+            input_state.t + dt,
+            dynamic_runtime_params_slice_provider,
+            geometry_provider,
+        )
     )
 
     output_state = self.step(
@@ -516,14 +541,14 @@ class SimulationStepFn:
       if dt < dynamic_runtime_params_slice_t.numerics.mindt:
         raise ValueError('dt below minimum timestep following adaptation')
 
-      geo_t_plus_dt = geometry_provider(input_state.t + dt)
-
-      dynamic_runtime_params_slice_t_plus_dt = (
-          dynamic_runtime_params_slice_provider(
+      dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
+          get_consistent_dynamic_runtime_params_slice_and_geometry(
               input_state.t + dt,
-              geo_t_plus_dt,
+              dynamic_runtime_params_slice_provider,
+              geometry_provider,
           )
       )
+
       core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
           core_profiles_t=core_profiles_t,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
@@ -555,11 +580,11 @@ class SimulationStepFn:
       )
 
     output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
-    geo_t_plus_dt = geometry_provider(input_state.t + output_state.dt)
-    dynamic_runtime_params_slice_t_plus_dt = (
-        dynamic_runtime_params_slice_provider(
+    dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
+        get_consistent_dynamic_runtime_params_slice_and_geometry(
             input_state.t + output_state.dt,
-            geo_t_plus_dt,
+            dynamic_runtime_params_slice_provider,
+            geometry_provider,
         )
     )
     return dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt, output_state
@@ -816,6 +841,8 @@ def build_sim_object(
   Returns:
     sim: The built Sim instance.
   """
+  # TODO change this function to take a geometry provider instead
+  # of a geometry.
 
   transport_model = transport_model_builder()
 
@@ -840,10 +867,14 @@ def build_sim_object(
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
 
   # build dynamic_runtime_params_slice at t_initial for initial conditions
-  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      runtime_params.numerics.t_initial,
-      geo=geo,
-  )
+  geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
+  dynamic_runtime_params_slice, geo = (
+      get_consistent_dynamic_runtime_params_slice_and_geometry(
+          runtime_params.numerics.t_initial,
+          dynamic_runtime_params_slice_provider,
+          geometry_provider,
+      )
+    )
   initial_state = get_initial_state(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
@@ -939,10 +970,12 @@ def run_simulation(
       initial_state,
   ]
   stepper_error_state = 0
-  geo = geometry_provider(initial_state.t)
-  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      initial_state.t,
-      geo=geo,
+  dynamic_runtime_params_slice, geo = (
+      get_consistent_dynamic_runtime_params_slice_and_geometry(
+          initial_state.t,
+          dynamic_runtime_params_slice_provider,
+          geometry_provider,
+      )
   )
 
   # Populate the starting state with source profiles from the implicit sources
@@ -1022,10 +1055,12 @@ def run_simulation(
     )
     stepper_error_state = sim_state.stepper_error_state
     # Update the runtime config for the next iteration.
-    geo = geometry_provider(sim_state.t)
-    dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-        sim_state.t,
-        geo=geo,
+    dynamic_runtime_params_slice, geo = (
+        get_consistent_dynamic_runtime_params_slice_and_geometry(
+            sim_state.t,
+            dynamic_runtime_params_slice_provider,
+            geometry_provider,
+        )
     )
     torax_outputs.append(sim_state)
     wall_clock_step_times.append(time.time() - step_start_time)

@@ -443,7 +443,7 @@ class SimTest(sim_test_case.SimTestCase):
     # Load config structure.
     config_module = self._get_config_module('test_explicit.py')
     runtime_params = config_module.get_runtime_params()
-    geo = config_module.get_geometry(runtime_params)
+    geo = config_module.get_geometry()
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     spectator = spectator_lib.InMemoryJaxArraySpectator()

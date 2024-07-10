@@ -319,6 +319,8 @@ def update_sim(
   #  - spectator
   #  - time step calculator
   #  - source objects (runtime params are updated)
+  # TODO(b/323504363): change this to take a geometry provider instead of a
+  # geometry object.
 
   _update_source_params(sim, source_runtime_params)
   static_runtime_params_slice = (
@@ -335,10 +337,14 @@ def update_sim(
           stepper_getter=stepper_runtime_params_getter,
       )
   )
+  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
+      t=runtime_params.numerics.t_initial, geo=geo,
+  )
+  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
+      dynamic_runtime_params_slice, geo
+  )
   initial_state = sim_lib.get_initial_state(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-          t=runtime_params.numerics.t_initial, geo=geo,
-      ),
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       time_step_calculator=sim.time_step_calculator,
       source_models=sim.source_models,

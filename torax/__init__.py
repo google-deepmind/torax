@@ -32,8 +32,11 @@ from torax.geometry import Geometry
 from torax.geometry import Grid1D
 from torax.geometry import StandardGeometry
 from torax.geometry import StandardGeometryIntermediates
+from torax.geometry_provider import ConstantGeometryProvider
+from torax.geometry_provider import GeometryProvider
 from torax.physics import internal_boundary
 from torax.sim import build_sim_object
+from torax.sim import get_consistent_dynamic_runtime_params_slice_and_geometry
 from torax.sim import run_simulation
 from torax.sim import Sim
 from torax.sources.source_profiles import SourceProfiles
@@ -66,17 +69,20 @@ CellVariable = fvm.cell_variable.CellVariable
 # For each individual function only a subset of these are
 # passed, but the order should be maintained.
 CANONICAL_ORDER = [
+    't',
     'dt',
     'source_type',
     'static_runtime_params_slice',
     'dynamic_runtime_params_slice',
     'dynamic_runtime_params_slice_t',
     'dynamic_runtime_params_slice_t_plus_dt',
+    'dynamic_runtime_params_slice_provider',
     'unused_config',
     'dynamic_source_runtime_params',
     'geo',
     'geo_t',
     'geo_t_plus_dt',
+    'geometry_provider',
     'x_old',
     'state',
     'unused_state',

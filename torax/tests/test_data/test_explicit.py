@@ -42,10 +42,7 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
   )
 
 
-def get_geometry(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-) -> geometry.Geometry:
-  del runtime_params  # Unused.
+def get_geometry() -> geometry.Geometry:
   return geometry.build_circular_geometry()
 
 
@@ -95,7 +92,7 @@ def get_sim() -> sim_lib.Sim:
   # config for construction, but over time we expect to transition to most
   # config taking place via constructor args in this function.
   runtime_params = get_runtime_params()
-  geo = get_geometry(runtime_params)
+  geo = get_geometry()
   return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geo=geo,

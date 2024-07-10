@@ -61,7 +61,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     references = references_getter()
 
     runtime_params = references.runtime_params
-    geo = references.geo
+    geo = references.geometry_provider(runtime_params.numerics.t_initial)
     nref = runtime_params.numerics.nref
 
     source_models_builder = source_models_lib.SourceModelsBuilder()

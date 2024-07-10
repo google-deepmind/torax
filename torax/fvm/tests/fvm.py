@@ -72,10 +72,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
   ):
     """Test that CellVariable raises for underconstrained problems."""
     references = references_getter()
+    geo = references.geometry_provider(
+        references.runtime_params.numerics.t_initial
+    )
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.geo.torax_mesh.nx)
-    variable = cell_variable.CellVariable(value=value, dr=references.geo.dr)
+    value = jnp.zeros(geo.torax_mesh.nx)
+    variable = cell_variable.CellVariable(value=value, dr=geo.dr)
     # Underconstrain the left
     with self.assertRaises(AssertionError):
       dataclasses.replace(
@@ -104,10 +107,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
   ):
     """Test that CellVariable raises for overconstrained problems."""
     references = references_getter()
+    geo = references.geometry_provider(
+        references.runtime_params.numerics.t_initial
+    )
 
     # Use ref_config to configure size, so we can also use ref_geo
-    value = jnp.zeros(references.geo.torax_mesh.nx)
-    variable = cell_variable.CellVariable(value=value, dr=references.geo.dr)
+    value = jnp.zeros(geo.torax_mesh.nx)
+    variable = cell_variable.CellVariable(value=value, dr=geo.dr)
     # Overconstrain the left
     with self.assertRaises(AssertionError):
       dataclasses.replace(  # pytype: disable=wrong-arg-types  # dataclasses-replace-types
@@ -140,9 +146,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
   ):
     """Test that CellVariable.face_grad solves constrained problems."""
     references = references_getter()
+    geo = references.geometry_provider(
+        references.runtime_params.numerics.t_initial
+    )
 
     # Use ref_config to configure size, so we can also use ref_geo
-    dim = references.geo.torax_mesh.nx
+    dim = geo.torax_mesh.nx
     value = jnp.zeros(dim)
 
     rng_state = jax.random.PRNGKey(seed)
@@ -154,14 +163,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # Make right cell different than left cell, so test catches bugs that
     # use the wrong end of the array
     value = value.at[-1].set(1)
-    variable = cell_variable.CellVariable(value=value, dr=references.geo.dr)
+    variable = cell_variable.CellVariable(value=value, dr=geo.dr)
 
     # Left side, face value constraint
     left_value = dataclasses.replace(  # pytype: disable=wrong-arg-types  # dataclasses-replace-types
         variable, left_face_constraint=1.0, left_face_grad_constraint=None
     )
     self.assertEqual(
-        left_value.face_grad()[0], -1.0 / (0.5 * references.geo.dr)
+        left_value.face_grad()[0], -1.0 / (0.5 * geo.dr)
     )
 
     # Left side, face grad constraint
@@ -177,7 +186,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_grad_constraint=None,
     )
     self.assertEqual(
-        right_value.face_grad()[-1], 1.0 / (0.5 * references.geo.dr)
+        right_value.face_grad()[-1], 1.0 / (0.5 * geo.dr)
     )
 
     # Right side, face grad constraint

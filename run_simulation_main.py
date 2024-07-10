@@ -246,11 +246,7 @@ def change_config(
     new_runtime_params = build_sim.build_runtime_params_from_config(
         sim_config['runtime_params']
     )
-    new_geo, new_runtime_params = (
-        build_sim.build_consistent_geometry_runtime_params_from_config(
-            sim_config['geometry'], new_runtime_params
-        )
-    )
+    new_geo = build_sim.build_geometry_from_config(sim_config['geometry'])
     new_transport_model_builder = (
         build_sim.build_transport_model_builder_from_config(
             sim_config['transport']
@@ -266,7 +262,7 @@ def change_config(
     # Assume the config module has several methods to define the individual Sim
     # attributes (the "advanced", more Python-forward configuration method).
     new_runtime_params = config_module.get_runtime_params()
-    new_geo = config_module.get_geometry(new_runtime_params)
+    new_geo = config_module.get_geometry()
     new_transport_model_builder = config_module.get_transport_model_builder()
     source_models_builder = config_module.get_sources_builder()
     new_stepper_builder = config_module.get_stepper_builder()

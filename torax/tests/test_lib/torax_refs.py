@@ -24,6 +24,8 @@ import torax
 from torax.config import build_sim
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
+from torax.sources import runtime_params as sources_params
 
 _GEO_DIRECTORY = 'torax/data/third_party/geo'
 
@@ -38,11 +40,30 @@ class References:
   """Collection of reference values useful for unit tests."""
 
   runtime_params: general_runtime_params.GeneralRuntimeParams
-  geo: geometry.Geometry
+  geometry_provider: torax.GeometryProvider
   psi: fvm.cell_variable.CellVariable
   psi_face_grad: np.ndarray
   jtot: np.ndarray
   s: np.ndarray
+
+
+def build_consistent_dynamic_runtime_params_slice_and_geometry(
+    runtime_params: general_runtime_params.GeneralRuntimeParams,
+    geometry_provider: torax.GeometryProvider,
+    sources: dict[str, sources_params.RuntimeParams] | None = None,
+    t: chex.Numeric | None = None,
+) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
+  """Builds a consistent Geometry and a DynamicRuntimeParamsSlice."""
+  t = runtime_params.numerics.t_initial if t is None else t
+  return torax.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      t,
+      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+          runtime_params,
+          transport_getter=lambda: None,
+          sources_getter=lambda: sources,
+          stepper_getter=lambda: None),
+      geometry_provider,
+  )
 
 
 def circular_references() -> References:
@@ -190,7 +211,7 @@ def circular_references() -> References:
   ])
   return References(
       runtime_params=runtime_params,
-      geo=geo,
+      geometry_provider=torax.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
       jtot=jtot,
@@ -213,17 +234,14 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
           },
       },
   )
-  geo, runtime_params = (
-      build_sim.build_consistent_chease_geometry_and_runtime_params(
-          runtime_params=runtime_params,
-          geometry_dir=_GEO_DIRECTORY,
-          geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-          nr=25,
-          Ip_from_parameters=False,
-          Rmaj=6.2,
-          Rmin=2.0,
-          B0=5.3,
-      )
+  geo = build_sim.build_chease_geometry(
+      geometry_dir=_GEO_DIRECTORY,
+      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      nr=25,
+      Ip_from_parameters=False,
+      Rmaj=6.2,
+      Rmin=2.0,
+      B0=5.3,
   )
   # ground truth values copied from an example PINT execution using
   # array.astype(str),which allows fully lossless reloading
@@ -345,7 +363,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
   ])
   return References(
       runtime_params=runtime_params,
-      geo=geo,
+      geometry_provider=torax.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
       jtot=jtot,
@@ -368,17 +386,14 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
           },
       },
   )
-  geo, runtime_params = (
-      build_sim.build_consistent_chease_geometry_and_runtime_params(
-          runtime_params=runtime_params,
-          geometry_dir=_GEO_DIRECTORY,
-          geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-          nr=25,
-          Ip_from_parameters=True,
-          Rmaj=6.2,
-          Rmin=2.0,
-          B0=5.3,
-      )
+  geo = build_sim.build_chease_geometry(
+      geometry_dir=_GEO_DIRECTORY,
+      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      nr=25,
+      Ip_from_parameters=True,
+      Rmaj=6.2,
+      Rmin=2.0,
+      B0=5.3,
   )
   # ground truth values copied from an example executions using
   # array.astype(str),which allows fully lossless reloading
@@ -500,7 +515,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
   ])
   return References(
       runtime_params=runtime_params,
-      geo=geo,
+      geometry_provider=torax.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
       jtot=jtot,

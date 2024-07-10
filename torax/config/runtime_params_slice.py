@@ -38,6 +38,7 @@ used.
 from __future__ import annotations
 
 from collections.abc import Mapping
+import dataclasses
 from typing import Callable
 
 import chex
@@ -347,6 +348,12 @@ class DynamicRuntimeParamsSliceProvider:
   class interpolates any time-dependent params in the input config to the values
   they should be at time t.
 
+  NOTE: In order to maintain consistency between the DynamicRuntimeParamsSlice
+  and the geometry,
+  `sim.get_consistent_dynamic_runtime_params_slice_and_geometry`
+  should be used to get a slice of the DynamicRuntimeParamsSlice and a
+  corresponding geometry.
+
   See `run_simulation()` for how this callable is used.
   """
 
@@ -376,3 +383,35 @@ class DynamicRuntimeParamsSliceProvider:
         t=t,
         geo=geo,
     )
+
+
+def make_ip_consistent(
+    dynamic_runtime_params_slice: DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+) -> tuple[DynamicRuntimeParamsSlice, geometry.Geometry]:
+  """Fixes Ip to be the same across dynamic_runtime_params_slice and geo."""
+  if isinstance(geo, geometry.StandardGeometry):
+    if geo.Ip_from_parameters:
+      # If Ip is from parameters, renormalise psi etc to match the Ip in the
+      # parameters.
+      # pylint: disable=invalid-name
+      param_Ip = dynamic_runtime_params_slice.profile_conditions.Ip
+      Ip_scale_factor = param_Ip * 1e6 / geo.Ip
+      geo = dataclasses.replace(
+          geo,
+          Ip=geo.Ip * Ip_scale_factor,
+          psi_from_Ip=geo.psi_from_Ip * Ip_scale_factor,
+          jtot=geo.jtot * Ip_scale_factor,
+          jtot_face=geo.jtot_face * Ip_scale_factor,
+      )
+      # pylint: enable=invalid-name
+    else:
+      # If Ip is from the geometry, update the parameters to match.
+      dynamic_runtime_params_slice = dataclasses.replace(
+          dynamic_runtime_params_slice,
+          profile_conditions=dataclasses.replace(
+              dynamic_runtime_params_slice.profile_conditions,
+              Ip=geo.Ip / 1e6,
+          ),
+      )
+  return dynamic_runtime_params_slice, geo
