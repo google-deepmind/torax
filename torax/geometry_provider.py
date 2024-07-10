@@ -64,6 +64,10 @@ class GeometryProvider(Protocol):
       Geometry of the torus to use for the time step.
     """
 
+  @property
+  def torax_mesh(self) -> geometry.Grid1D:
+    """Returns the mesh used by Torax, this is consistent across time."""
+
 
 class ConstantGeometryProvider(GeometryProvider):
   """Returns the same Geometry for all calls."""
@@ -79,3 +83,7 @@ class ConstantGeometryProvider(GeometryProvider):
     # to match the API of a GeometryProvider.
     del t  # Ignored.
     return self._geo
+
+  @property
+  def torax_mesh(self) -> geometry.Grid1D:
+    return self._geo.torax_mesh
