@@ -142,7 +142,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
       ),
   ])
   def test_face_grad_constraints(
-      self, seed: int, references_getter: Callable[[], torax_refs.References]
+      self, seed: int, references_getter: Callable[[], torax_refs.References],
   ):
     """Test that CellVariable.face_grad solves constrained problems."""
     references = references_getter()

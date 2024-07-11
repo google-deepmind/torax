@@ -21,6 +21,7 @@ import dataclasses
 from absl.testing import absltest
 import chex
 from torax import geometry
+from torax import geometry_provider
 from torax import sim as sim_lib
 from torax import state as state_lib
 from torax.config import config_args
@@ -177,10 +178,11 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     ref_profiles, ref_time = self._get_refs(
         'test_particle_sources_constant.nc', _ALL_PROFILES
     )
-    geo = geometry.build_circular_geometry()
+    geo_provider = geometry_provider.ConstantGeometryProvider(
+        geometry.build_circular_geometry())
     sim = sim_lib.build_sim_object(
         runtime_params=test_particle_sources_constant_runtime_params,
-        geo=geo,
+        geometry_provider=geo_provider,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(
             runtime_params=linear_theta_method.LinearRuntimeParams(
                 predictor_corrector=False,

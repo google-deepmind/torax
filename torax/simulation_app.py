@@ -62,7 +62,6 @@ import chex
 import jax
 from matplotlib import pyplot as plt
 import torax
-from torax import geometry
 from torax import geometry_provider
 from torax import sim as sim_lib
 from torax import state as state_lib
@@ -303,7 +302,7 @@ def _get_output_dir(
 def update_sim(
     sim: sim_lib.Sim,
     runtime_params: torax.GeneralRuntimeParams,
-    geo: geometry.Geometry,
+    geo_provider: geometry_provider.GeometryProvider,
     transport_runtime_params_getter: Callable[
         [], transport_runtime_params_lib.RuntimeParams
     ],
@@ -337,6 +336,8 @@ def update_sim(
           stepper_getter=stepper_runtime_params_getter,
       )
   )
+
+  geo = geo_provider(runtime_params.numerics.t_initial)
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
       t=runtime_params.numerics.t_initial, geo=geo,
   )
@@ -352,7 +353,7 @@ def update_sim(
   return sim_lib.Sim(
       time_step_calculator=sim.time_step_calculator,
       initial_state=initial_state,
-      geometry_provider=geometry_provider.ConstantGeometryProvider(geo),
+      geometry_provider=geo_provider,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       static_runtime_params_slice=static_runtime_params_slice,
       step_fn=sim.step_fn,

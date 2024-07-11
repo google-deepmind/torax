@@ -21,7 +21,6 @@ from absl.testing import parameterized
 import numpy as np
 from torax import constants
 from torax import core_profile_setters
-from torax.config import runtime_params_slice
 from torax.sources import fusion_heat_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -61,15 +60,14 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     references = references_getter()
 
     runtime_params = references.runtime_params
-    geo = references.geometry_provider(runtime_params.numerics.t_initial)
     nref = runtime_params.numerics.nref
 
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+    dynamic_runtime_params_slice, geo = (
+        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
+            references.geometry_provider,
             sources=source_models_builder.runtime_params,
-            geo=geo,
         )
     )
     source_models = source_models_builder()

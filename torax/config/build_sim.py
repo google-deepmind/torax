@@ -18,6 +18,7 @@ import copy
 from typing import Any
 
 from torax import geometry
+from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
@@ -157,10 +158,10 @@ def build_sim_from_config(
         f'The following required keys are not in the input dict: {missing_keys}'
     )
   runtime_params = build_runtime_params_from_config(config['runtime_params'])
-  geo = build_geometry_from_config(config['geometry'])
+  geo_provider = build_geometry_provider_from_config(config['geometry'])
   return sim_lib.build_sim_object(
       runtime_params=runtime_params,
-      geo=geo,
+      geometry_provider=geo_provider,
       source_models_builder=build_sources_builder_from_config(
           config['sources']
       ),
@@ -197,9 +198,9 @@ def build_runtime_params_from_config(
   )
 
 
-def build_geometry_from_config(
+def build_geometry_provider_from_config(
     geometry_config: dict[str, Any] | str,
-) -> geometry.Geometry:
+) -> geometry_provider.GeometryProvider:
   """Builds a `Geometry` from the input config.
 
   The input config has one required key: `geometry_type`. Its value must be one
@@ -220,7 +221,7 @@ def build_geometry_from_config(
       `geometry` module function that builds a `Geometry` object.
 
   Returns:
-    A `Geometry` based on the input config.
+    A `GeometryProvider` based on the input config.
   """
   if isinstance(geometry_config, str):
     kwargs = {'geometry_type': geometry_config}
@@ -232,9 +233,11 @@ def build_geometry_from_config(
     kwargs = copy.copy(geometry_config)
   geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
   if geometry_type == 'circular':
-    return geometry.build_circular_geometry(**kwargs)
+    return geometry_provider.ConstantGeometryProvider(
+        geometry.build_circular_geometry(**kwargs))
   elif geometry_type == 'chease':
-    return build_chease_geometry(**kwargs)
+    return geometry_provider.ConstantGeometryProvider(
+        build_chease_geometry(**kwargs))
   raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 

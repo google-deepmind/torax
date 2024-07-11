@@ -16,6 +16,7 @@
 
 import dataclasses
 from torax import geometry
+from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
@@ -42,8 +43,10 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
   )
 
 
-def get_geometry() -> geometry.Geometry:
-  return geometry.build_circular_geometry()
+def get_geometry_provider(
+) -> geometry.Geometry:
+  return geometry_provider.ConstantGeometryProvider(
+      geometry.build_circular_geometry())
 
 
 def get_transport_model_builder() -> (
@@ -92,10 +95,10 @@ def get_sim() -> sim_lib.Sim:
   # config for construction, but over time we expect to transition to most
   # config taking place via constructor args in this function.
   runtime_params = get_runtime_params()
-  geo = get_geometry()
+  geo_provider = get_geometry_provider()
   return sim_lib.build_sim_object(
       runtime_params=runtime_params,
-      geo=geo,
+      geometry_provider=geo_provider,
       source_models_builder=get_sources_builder(),
       transport_model_builder=get_transport_model_builder(),
       stepper_builder=get_stepper_builder(),

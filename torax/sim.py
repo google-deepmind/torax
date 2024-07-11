@@ -813,7 +813,7 @@ class Sim:
 
 def build_sim_object(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
-    geo: geometry.Geometry,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
     stepper_builder: stepper_lib.StepperBuilder,
     transport_model_builder: transport_model_lib.TransportModelBuilder,
     source_models_builder: source_models_lib.SourceModelsBuilder,
@@ -830,7 +830,7 @@ def build_sim_object(
 
   Args:
     runtime_params: The input runtime params used throughout the simulation run.
-    geo: Describes the magnetic geometry.
+    geometry_provider: The geometry used throughout the simulation run.
     stepper_builder: A callable to build the stepper. The stepper has already
       been factored out of the config.
     transport_model_builder: A callable to build the transport model.
@@ -841,8 +841,6 @@ def build_sim_object(
   Returns:
     sim: The built Sim instance.
   """
-  # TODO change this function to take a geometry provider instead
-  # of a geometry.
 
   transport_model = transport_model_builder()
 
@@ -867,7 +865,6 @@ def build_sim_object(
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
 
   # build dynamic_runtime_params_slice at t_initial for initial conditions
-  geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
   dynamic_runtime_params_slice, geo = (
       get_consistent_dynamic_runtime_params_slice_and_geometry(
           runtime_params.numerics.t_initial,
@@ -885,7 +882,7 @@ def build_sim_object(
   return Sim(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-      geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
+      geometry_provider=geometry_provider,
       initial_state=initial_state,
       time_step_calculator=time_step_calculator,
       transport_model=transport_model,

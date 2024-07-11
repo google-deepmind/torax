@@ -21,7 +21,6 @@ from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax import core_profile_setters
-from torax.config import runtime_params_slice
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -57,12 +56,13 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     references = references_getter()
 
     runtime_params = references.runtime_params
-    geo = references.geo
+    geo_provider = references.geometry_provider
 
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+    dynamic_runtime_params_slice, geo = (
+        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
+            geo_provider,
             sources=source_models_builder.runtime_params,
         )
     )

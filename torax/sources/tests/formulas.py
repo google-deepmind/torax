@@ -16,9 +16,9 @@
 
 from absl.testing import absltest
 import chex
-from torax import geometry
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.config import build_sim
 from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
 from torax.sources import formula_config
@@ -115,7 +115,9 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # We set up the sim only once and update the config on each run below in a
     # way that does not trigger recompiles. This way we only trace the code
     # once.
-    geo = geometry.build_circular_geometry()
+    geo_provider = build_sim.build_geometry_provider_from_config(
+        {'geometry_type': 'circular'}
+    )
     transport_model_builder = (
         constant_transport_model.ConstantTransportModelBuilder(
             runtime_params=constant_transport_model.RuntimeParams(
@@ -126,7 +128,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     )
     sim = sim_lib.build_sim_object(
         runtime_params=test_particle_sources_constant_runtime_params,
-        geo=geo,
+        geometry_provider=geo_provider,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(
             runtime_params=linear_theta_method.LinearRuntimeParams(
                 predictor_corrector=False,

@@ -382,11 +382,12 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
-    geo = torax.build_circular_geometry()
+    geo_provider = torax.ConstantGeometryProvider(
+        torax.build_circular_geometry())
 
     sim = sim_lib.build_sim_object(
         runtime_params=runtime_params,
-        geo=geo,
+        geometry_provider=geo_provider,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
         transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
         source_models_builder=source_models_lib.SourceModelsBuilder(),
@@ -443,13 +444,13 @@ class SimTest(sim_test_case.SimTestCase):
     # Load config structure.
     config_module = self._get_config_module('test_explicit.py')
     runtime_params = config_module.get_runtime_params()
-    geo = config_module.get_geometry()
+    geo_provider = config_module.get_geometry_provider()
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     spectator = spectator_lib.InMemoryJaxArraySpectator()
     sim = sim_lib.build_sim_object(
         runtime_params=runtime_params,
-        geo=geo,
+        geometry_provider=geo_provider,
         stepper_builder=stepper_builder,
         transport_model_builder=config_module.get_transport_model_builder(),
         source_models_builder=config_module.get_sources_builder(),

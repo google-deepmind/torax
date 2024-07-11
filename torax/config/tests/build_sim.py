@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import geometry
+from torax import geometry_provider
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
@@ -175,33 +176,38 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_missing_geometry_type_raises_error(self):
     with self.assertRaises(ValueError):
-      build_sim.build_geometry_from_config({})
+      build_sim.build_geometry_provider_from_config({})
 
   def test_build_circular_geometry(self):
-    geo = build_sim.build_geometry_from_config({
+    geo_provider = build_sim.build_geometry_provider_from_config({
         'geometry_type': 'circular',
         'nr': 5,  # override a default.
     })
+    self.assertIsInstance(
+        geo_provider, geometry_provider.ConstantGeometryProvider)
+    geo = geo_provider(t=0)
+    np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 5)
     self.assertIsInstance(geo, geometry.CircularAnalyticalGeometry)
-    np.testing.assert_array_equal(geo.torax_mesh.nx, 5)
     np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
 
   def test_build_geometry_from_chease(self):
-    geo = build_sim.build_geometry_from_config(
+    geo_provider = build_sim.build_geometry_provider_from_config(
         {
             'geometry_type': 'chease',
             'nr': 5,  # override a default.
         },
     )
-    self.assertIsInstance(geo, geometry.StandardGeometry)
-    np.testing.assert_array_equal(geo.torax_mesh.nx, 5)
+    self.assertIsInstance(
+        geo_provider, geometry_provider.ConstantGeometryProvider)
+    self.assertIsInstance(geo_provider(t=0), geometry.StandardGeometry)
+    np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 5)
 
   # pylint: disable=invalid-name
   def test_chease_geometry_updates_Ip(self):
     """Tests that the Ip is updated when using chease geometry."""
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
     original_Ip = runtime_params.profile_conditions.Ip
-    geo = build_sim.build_geometry_from_config({
+    geo_provider = build_sim.build_geometry_provider_from_config({
         'geometry_type': 'chease',
         'Ip_from_parameters': False,  # this will force update runtime_params.Ip
     })
@@ -213,6 +219,7 @@ class BuildSimTest(parameterized.TestCase):
             stepper_getter=lambda: None,
         )
     )
+    geo = geo_provider(t=0)
     dynamic_runtime_params_slice = runtime_params_provider(t=0, geo=geo)
     dynamic_slice, geo = runtime_params_slice.make_ip_consistent(
         dynamic_runtime_params_slice, geo
