@@ -53,13 +53,13 @@ def env_bool(name: str, default: bool) -> bool:
 # pass throughs.
 # Default to False, because host_callbacks are incompatible with the
 # persistent compilation cache.
-_errors_enabled = env_bool('TORAX_ERRORS_ENABLED', False)
+_ERRORS_ENABLED: bool = env_bool('TORAX_ERRORS_ENABLED', False)
 
 # If True, jax_utils.jit is jax.jit and causes compilation.
 # Otherwise, jax_utils.jit is a no-op for debugging purposes.
 # This setting cannot be changed because it determines the behavior
 # of most torax modules at import time.
-_compilation_enabled = env_bool('TORAX_COMPILATION_ENABLED', True)
+_COMPILATION_ENABLED: bool = env_bool('TORAX_COMPILATION_ENABLED', True)
 
 
 @contextlib.contextmanager
@@ -77,12 +77,12 @@ def enable_errors(value: bool):
   Yields:
     Cleanup function restoring previous value
   """
-  global _errors_enabled
-  previous_value = _errors_enabled
-  _errors_enabled = value
+  global _ERRORS_ENABLED
+  previous_value = _ERRORS_ENABLED
+  _ERRORS_ENABLED = value
   yield
   if previous_value is not None:
-    _errors_enabled = previous_value
+    _ERRORS_ENABLED = previous_value
 
 
 def error_if(
@@ -104,7 +104,7 @@ def error_if(
   """
   var = jnp.array(var)
   cond = jnp.array(cond)
-  if not _errors_enabled:
+  if not _ERRORS_ENABLED:
     return var
   return eqx.error_if(var, cond, msg)
 
@@ -172,7 +172,7 @@ def jax_default(value: chex.Numeric) -> ...:
 
 def compat_linspace(
     start: Union[chex.Numeric, jax.Array], stop: jax.Array, num: jax.Array
-):
+)-> jax.Array:
   """See np.linspace.
 
   This implementation of a subset of the linspace API reproduces the
@@ -231,7 +231,7 @@ def is_tracer(var: jax.Array) -> bool:
 
 def jit(*args, **kwargs) -> Callable[..., Any]:
   """Calls jax.jit iff TORAX_COMPILATION_ENABLED is True."""
-  if _compilation_enabled:
+  if _COMPILATION_ENABLED:
     return jax.jit(*args, **kwargs)
   return args[0]
 
