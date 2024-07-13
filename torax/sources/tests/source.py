@@ -252,7 +252,7 @@ class SourceTest(parameterized.TestCase):
           profile,
           source_lib.ProfileType.CELL.get_zero_profile(geo),
       )
-    with self.subTest("prescribed"):
+    with self.subTest('prescribed'):
       dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
