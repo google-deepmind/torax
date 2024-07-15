@@ -109,7 +109,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   q_sawtooth_proxy: bool
 
 
-_EPSILON_NN = 1 / 3  # fixed inverse aspect ratio used to train QLKNN10D
+_EPSILON_NN: float = 1 / 3  # fixed inverse aspect ratio used to train QLKNN10D
 
 
 # Memoize, but evict the old model if a new path is given.
@@ -585,12 +585,12 @@ class QLKNNTransportModel(transport_model.TransportModel):
         core_profiles=core_profiles,
     )
 
-  def __hash__(self):
+  def __hash__(self) -> int:
     return hash(
         ('QLKNNTransportModel' + self._model_path, versioning.torax_hash)
     )
 
-  def __eq__(self, other):
+  def __eq__(self, other: QLKNNTransportModel) -> bool:
     return (
         isinstance(other, QLKNNTransportModel)
         and self.model_path == other.model_path

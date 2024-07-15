@@ -13,9 +13,12 @@
 # limitations under the License.
 """Class for handling QLKNN10D models."""
 
+from __future__ import annotations
+
+from collections.abc import Mapping
 import json
 import os
-from typing import Any
+from typing import Any, Callable
 
 import flax.linen as nn
 import immutabledict
@@ -25,12 +28,14 @@ from torax.transport_model import base_qlknn_model
 
 
 # Move this to common lib.
-_ACTIVATION_FNS = immutabledict.immutabledict({
-    'relu': nn.relu,
-    'tanh': nn.tanh,
-    'sigmoid': nn.sigmoid,
-    'none': lambda x: x,
-})
+_ACTIVATION_FNS: Mapping[str, Callable[[jax.Array], jax.Array]] = (
+    immutabledict.immutabledict({
+        'relu': nn.relu,
+        'tanh': nn.tanh,
+        'sigmoid': nn.sigmoid,
+        'none': lambda x: x,
+    })
+)
 
 
 class MLP(nn.Module):
@@ -38,7 +43,7 @@ class MLP(nn.Module):
   activations: list[str]
 
   @nn.compact
-  def __call__(self, x):
+  def __call__(self, x: jax.Array) -> jax.Array:
     for act, size in zip(self.activations, self.hidden_sizes):
       x = _ACTIVATION_FNS[act](nn.Dense(size)(x))
     return x
@@ -91,10 +96,10 @@ class QuaLiKizNDNN:
         np.newaxis, :
     ]
 
-  def get_output(
+  def __call__(
       self,
       inputs: jax.Array,
-  ):
+  ) -> jax.Array:
     """Calculate the outputs given specific inputs."""
 
     inputs = (
@@ -108,25 +113,10 @@ class QuaLiKizNDNN:
     return outputs
 
   @classmethod
-  def from_json(cls, json_file):
+  def from_json(cls, json_file) -> QuaLiKizNDNN:
     with open(json_file) as file_:
       model_dict = json.load(file_)
     return cls(model_dict)
-
-
-class _WrappedQLKNN:
-  """A wrapper around a QLKNN10D network, to be called with JAX tracers.
-
-  Attributes:
-    network: The raw `qlknn` network.
-  """
-
-  def __init__(self, network: QuaLiKizNDNN):
-    self.network = network
-
-  def __call__(self, x: jax.Array):
-    """Call the network, with a JAX argument."""
-    return self.network.get_output(x)
 
 
 class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
@@ -156,10 +146,9 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
     self.net_etgleading = self._load('efeetg_gb.json')
     self.net_itgpfediv = self._load('pfeitg_gb_div_efiitg_gb.json')
 
-  def _load(self, path):
+  def _load(self, path) -> QuaLiKizNDNN:
     full_path = os.path.join(self.model_path, path)
-    raw = QuaLiKizNDNN.from_json(full_path)
-    return _WrappedQLKNN(raw)
+    return QuaLiKizNDNN.from_json(full_path)
 
   def predict(
       self,
