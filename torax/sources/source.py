@@ -447,7 +447,7 @@ def get_source_profiles(
     core_profiles: state.CoreProfiles | None,
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
-    prescribed_values: chex.Array | None,
+    prescribed_values: chex.Array,
     output_shape: tuple[int, ...],
 ) -> jax.Array:
   """Returns source profiles requested by the runtime_params_lib.
