@@ -26,8 +26,7 @@ from torax.config import config_args
 from torax.sources import formula_config
 
 
-TimeInterpolated = interpolated_param.TimeInterpolated
-
+TimeRhoInterpolated = interpolated_param.TimeRhoInterpolated
 
 @enum.unique
 class Mode(enum.Enum):
@@ -87,7 +86,7 @@ class RuntimeParams:
 
   # Prescribed values for the source. Used only when the source is fully
   # prescribed.
-  prescribed_values: TimeInterpolated = dataclasses.field(
+  prescribed_values: TimeRhoInterpolated = dataclasses.field(
     default_factory=lambda: {0: {0: 0, 1: 0}}
   )
 
