@@ -235,7 +235,7 @@ class ExternalCurrentSource(source.Source):
 
     # Interpolate prescribed values onto the hires grid
     hires_prescribed_values = jnp.where(
-      dynamic_source_runtime_params.mode == runtime_params_lib.Mode.PRESCRIBED,
+      dynamic_source_runtime_params.mode == runtime_params_lib.Mode.PRESCRIBED.value,
       jnp.interp(
         geo.r_hires_norm,
         geo.r_face_norm,
