@@ -183,10 +183,10 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests specifying a prescribed time-varying jext profile
+      # Tests specifying a prescribed time-varying arbitrary jext profile
       (
-          'test_prescribed_particle_source',
-          'test_prescribed_particle_source.py',
+          'test_prescribed_jext',
+          'test_prescribed_jext.py',
           _ALL_PROFILES,
           0,
       ),
