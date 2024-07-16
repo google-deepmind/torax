@@ -130,6 +130,7 @@ class Source:
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.FORMULA_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
   )
 
   output_shape_getter: SourceOutputShapeFunction = get_cell_profile_shape
