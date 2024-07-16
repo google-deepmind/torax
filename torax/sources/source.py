@@ -219,7 +219,7 @@ class Source:
     )
     # dynamic_source_runtime_params.prescribed_values will be an array
     # interpolated on the face grid (see config.config_args.interpolate_var_2d)
-    # TODO: This is non-robust, as it assumes the output shape is the cell grid.
+    # NOTE: This is non-robust, as it assumes the output shape is the cell grid.
     # It's unclear what a better solution would be.
     prescribed_values = geometry.face_to_cell(dynamic_source_runtime_params.prescribed_values)
 
