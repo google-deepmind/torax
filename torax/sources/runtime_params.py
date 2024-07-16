@@ -120,5 +120,4 @@ class DynamicRuntimeParams:
   mode: int
   is_explicit: bool
   formula: formula_config.DynamicFormula
-  # Prescribed values on the face grid.
   prescribed_values: chex.Array
