@@ -238,7 +238,7 @@ class ExternalCurrentSource(source.Source):
       dynamic_source_runtime_params.mode == runtime_params_lib.Mode.PRESCRIBED,
       jnp.interp(
         geo.r_hires_norm,
-        geo.r_norm,
+        geo.r_face_norm,
         dynamic_source_runtime_params.prescribed_values
       ),
       jnp.zeros_like(geo.r_hires_norm)
