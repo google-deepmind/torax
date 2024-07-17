@@ -125,7 +125,7 @@ def _default_formula(  # pytype: disable=name-error
 # pylint: enable=invalid-name
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericIonElectronHeatSource(source.IonElectronSource):
   """Generic heat source for both ion and electron heat."""
 

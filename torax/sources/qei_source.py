@@ -54,7 +54,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   Qei_mult: float
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class QeiSource(source.Source):
   """Collisional ion-electron heat source.
 

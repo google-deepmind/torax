@@ -552,7 +552,7 @@ def ohmic_model_func(
 
 # OhmicHeatSource is a special case and defined here to avoid circular
 # dependencies, since it depends on the psi sources
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class OhmicHeatSource(source_lib.SingleProfileSource):
   """Ohmic heat source for electron heat equation.
 

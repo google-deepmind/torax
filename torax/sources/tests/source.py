@@ -70,7 +70,39 @@ class SourceTest(parameterized.TestCase):
   def test_source_builder_type_checking(self):
     """Tests that source builders check types on construction."""
 
+    class NotDataclass:
+      pass
+
+    with self.assertRaises(TypeError):
+      source_lib.make_source_builder(
+          NotDataclass,
+          links_back=False,
+          runtime_params_type=int,
+      )()
+
     @dataclasses.dataclass
+    class NotFrozen:
+      my_field: int
+
+    with self.assertRaises(TypeError):
+      source_lib.make_source_builder(
+          NotFrozen,
+          links_back=False,
+          runtime_params_type=int,
+      )()
+
+    @dataclasses.dataclass(frozen=True)
+    class NotEq:
+      my_field: int
+
+    with self.assertRaises(TypeError):
+      source_lib.make_source_builder(
+          NotEq,
+          links_back=False,
+          runtime_params_type=int,
+      )()
+
+    @dataclasses.dataclass(frozen=True, eq=True)
     class MySource:
       my_field: int
 

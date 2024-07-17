@@ -129,7 +129,7 @@ def bremsstrahlung_model_func(
   return -1.0 * P_brem_profile
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BremsstrahlungHeatSink(source.SingleProfileTempElSource):
   """Fusion heat source for both ion and electron heat."""
 

@@ -30,22 +30,22 @@ from torax.sources import source
 #  b) better readability and human-friendly error messages when debugging.
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ECRHCurrentSource(source.SingleProfilePsiSource):
   """ECRH current density source for the psi equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ICRHCurrentSource(source.SingleProfilePsiSource):
   """ICRH current density source for the psi equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class LHCurrentSource(source.SingleProfilePsiSource):
   """LH current density source for the psi equation."""
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class NBICurrentSource(source.SingleProfilePsiSource):
   """NBI current density source for the psi equation."""
 

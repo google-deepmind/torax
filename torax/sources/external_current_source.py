@@ -179,7 +179,7 @@ def _calculate_Iext(
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ExternalCurrentSource(source.Source):
   """External current density source profile."""
 

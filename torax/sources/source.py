@@ -97,7 +97,7 @@ class AffectedCoreProfile(enum.IntEnum):
   TEMP_EL = 4
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class Source:
   """Base class for a single source/sink term.
 
@@ -282,7 +282,7 @@ class Source:
     )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileSource(Source):
   """Source providing a single output profile on the cell grid.
 
@@ -507,7 +507,7 @@ def get_source_profiles(  # pytype: disable=name-error
 # sources defined in the other files in this folder.
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfilePsiSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -515,7 +515,7 @@ class SingleProfilePsiSource(SingleProfileSource):
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileNeSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -523,7 +523,7 @@ class SingleProfileNeSource(SingleProfileSource):
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileTempIonSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -531,7 +531,7 @@ class SingleProfileTempIonSource(SingleProfileSource):
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileTempElSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -543,7 +543,7 @@ def _get_ion_el_output_shape(geo):
   return (2,) + ProfileType.CELL.get_profile_shape(geo)
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class IonElectronSource(Source):
   """Base class for a source/sink that can be used for both ions / electrons.
 
@@ -817,20 +817,37 @@ def make_source_builder(
           f'Expected {runtime_params_type}, got {type(runtime_params)}'
       )
 
+  def check_source(source):
+    """Check that the result is a valid Source."""
+    # `dataclasses` module is designed to operate on instances, not
+    # types, so we have to do all this type analysis in the post init
+    if not dataclasses.is_dataclass(source):
+      raise TypeError(f'{source_type} is not a dataclass type')
+
+    if not getattr(source, '__dataclass_params__').eq:
+      raise TypeError(f'{source_type} needs eq=True')
+
+    if not getattr(source, '__dataclass_params__').frozen:
+      raise TypeError(f'{source_type} needs frozen=True')
+
   if links_back:
 
     def build_source(self, source_models):
       source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
       source_init_kwargs['source_models'] = source_models
       check_kwargs(source_init_kwargs, 'building')
-      return source_type(**source_init_kwargs)
+      source = source_type(**source_init_kwargs)
+      check_source(source)
+      return source
 
   else:
 
     def build_source(self):
       source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
       check_kwargs(source_init_kwargs, 'building')
-      return source_type(**source_init_kwargs)
+      source = source_type(**source_init_kwargs)
+      check_source(source)
+      return source
 
   return dataclasses.make_dataclass(
       builder_type_name,
