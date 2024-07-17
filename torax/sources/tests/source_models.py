@@ -215,22 +215,22 @@ class SourceProfilesTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       source_models_lib.SourceModels(
           dict(
-              j_bootstrap=bootstrap_current_source.BootstrapCurrentSource(),
-              j_bootstrap2=bootstrap_current_source.BootstrapCurrentSource(),
+              j_bootstrap=bootstrap_current_source.BootstrapCurrentSourceBuilder(),
+              j_bootstrap2=bootstrap_current_source.BootstrapCurrentSourceBuilder(),
           )
       )
     with self.assertRaises(ValueError):
       source_models_lib.SourceModels(
           dict(
-              qei=qei_source.QeiSource(),
-              qei2=qei_source.QeiSource(),
+              qei=qei_source.QeiSourceBuilder(),
+              qei2=qei_source.QeiSourceBuilder(),
           )
       )
     with self.assertRaises(ValueError):
       source_models_lib.SourceModels(
           dict(
-              external_current=external_current_source.ExternalCurrentSource(),
-              external_current2=external_current_source.ExternalCurrentSource(),
+              external_current=external_current_source.ExternalCurrentSourceBuilder(),
+              external_current2=external_current_source.ExternalCurrentSourceBuilder(),
           )
       )
     source_models = source_models_lib.SourceModels()
@@ -248,16 +248,18 @@ class SourceProfilesTest(parameterized.TestCase):
   def test_cannot_add_multiple_sources_with_same_name(self):
     """Tests that SourceModels cannot add multiple sources with same name."""
     source_name = 'foo'
-    foo_source = source_lib.Source(
+    foo_source_builder = source_lib.SourceBuilder(
         affected_core_profiles=(source_lib.AffectedCoreProfile.TEMP_EL,),
         supported_modes=(runtime_params_lib.Mode.ZERO,),
     )
     source_models = source_models_lib.SourceModels(
-        sources={source_name: foo_source},
+        source_builders={source_name: foo_source_builder},
     )
+    # It's built once by the SourceModels constructor
+    rebuilt = foo_source_builder()
     # Cannot add another source with that name again.
     with self.assertRaises(ValueError):
-      source_models.add_source(source_name, foo_source)
+      source_models.add_source(source_name, rebuilt)
 
 
 if __name__ == '__main__':

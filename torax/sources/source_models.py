@@ -652,9 +652,13 @@ class SourceModels:
 
   def __init__(
       self,
-      sources: dict[str, source_lib.Source] | None = None,
+      source_builders: (
+          dict[str, source_lib.SourceBuilderProtocol] | None
+      ) = None,
   ):
     """Constructs a collection of sources.
+
+    The constructor should only be called by SourceModelsBuilder.
 
     This class defines which sources are available in a TORAX simulation run.
     Users can configure whether each source is actually on and what kind of
@@ -662,22 +666,32 @@ class SourceModels:
     runtime_params_lib.py).
 
     Args:
-      sources: Mapping of source model names to the Source objects. The names
-        (i.e. the keys of this dictionary) also define the keys in the output
-        SourceProfiles which are computed from this SourceModels object. NOTE -
-        Some sources are "special-case": bootstrap current, external current,
-        and Qei. SourceModels will always instantiate default objects for these
-        types of sources unless they are provided by this `sources` argument.
-        Also, their default names are reserved, meaning the input dictionary
-        `sources` should not have the keys 'j_bootstrap', 'jext', or
-        'qei_source' unless those sources are one of these "special-case"
-        sources.
+      source_builders: Mapping of source model names to builders of the Source
+        objects. The names (i.e. the keys of this dictionary) also define the
+        keys in the output SourceProfiles which are computed from this
+        SourceModels object. NOTE - Some sources are "special-case": bootstrap
+        current, external current, and Qei. SourceModels will always instantiate
+        default objects for these types of sources unless they are provided by
+        this `sources` argument. Also, their default names are reserved, meaning
+        the input dictionary `sources` should not have the keys 'j_bootstrap',
+        'jext', or 'qei_source' unless those sources are one of these
+        "special-case" sources.
 
     Raises:
       ValueError if there is a naming collision with the reserved names as
       described above.
     """
-    sources = sources or {}
+
+    source_builders = source_builders or {}
+
+    # Begin initial construction with sources that don't link back to the
+    # SourceModels
+    sources = {
+        name: builder()
+        for name, builder in source_builders.items()
+        if not builder.links_back
+    }
+
     # Some sources are accessed for specific use cases, so we extract those
     # ones and expose them directly.
     self._j_bootstrap = None
@@ -740,6 +754,11 @@ class SourceModels:
         continue
       else:
         self.add_source(source_name, source)
+
+    # Now add the sources that link back
+    for name, builder in source_builders.items():
+      if builder.links_back:
+        self.add_source(name, builder(self))
 
   def add_source(
       self,
@@ -931,16 +950,7 @@ class SourceModelsBuilder:
 
   def __call__(self) -> SourceModels:
 
-    unlinked_sources = {
-        name: builder()
-        for name, builder in self.source_builders.items()
-        if not builder.links_back
-    }
-    initial_model = SourceModels(unlinked_sources)
-    for name, builder in self.source_builders.items():
-      if builder.links_back:
-        initial_model.add_source(name, builder(initial_model))
-    return initial_model
+    return SourceModels(self.source_builders)
 
   @property
   def runtime_params(self) -> dict[str, runtime_params_lib.RuntimeParams]:
