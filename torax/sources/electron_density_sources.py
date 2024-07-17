@@ -27,6 +27,7 @@ from torax.config import runtime_params_slice
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_models
 
 
 # pylint: disable=invalid-name
@@ -64,6 +65,7 @@ def _calc_puff_source(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
+    unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from puffs."""
   assert isinstance(dynamic_source_runtime_params, DynamicGasPuffRuntimeParams)
@@ -122,6 +124,7 @@ def _calc_nbi_source(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
+    unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from SBI."""
   assert isinstance(
@@ -184,6 +187,7 @@ def _calc_pellet_source(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
+    unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from pellets."""
   assert isinstance(dynamic_source_runtime_params, DynamicPelletRuntimeParams)

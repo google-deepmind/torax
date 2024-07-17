@@ -259,7 +259,7 @@ class SourceTest(parameterized.TestCase):
     expected_output = jnp.ones(output_shape)
     source_builder = source_lib.SourceBuilder(
         output_shape_getter=lambda _0: output_shape,
-        formula=lambda _0, _1, _2, _3: expected_output,
+        formula=lambda _0, _1, _2, _3, _4: expected_output,
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.TEMP_ION,
             source_lib.AffectedCoreProfile.TEMP_EL,
@@ -302,7 +302,7 @@ class SourceTest(parameterized.TestCase):
     source_builder = source_lib.SourceBuilder(
         supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
         output_shape_getter=lambda _0: output_shape,
-        model_func=lambda _0, _1, _2, _3: expected_output,
+        model_func=lambda _0, _1, _2, _3, _4: expected_output,
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.TEMP_ION,
             source_lib.AffectedCoreProfile.TEMP_EL,
@@ -345,7 +345,7 @@ class SourceTest(parameterized.TestCase):
     source = source_lib.Source(
         supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
         output_shape_getter=lambda _0: output_shape,
-        model_func=lambda _0, _1, _2, _3: profile,
+        model_func=lambda _0, _1, _2, _3, _4: profile,
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.PSI,
             source_lib.AffectedCoreProfile.NE,
@@ -379,7 +379,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry(nr=5)
     expected_output = jnp.ones(5)  # 5 matches the geo.
     source_builder = source_lib.SingleProfileSourceBuilder(
-        formula=lambda _0, _1, _2, _3: expected_output,
+        formula=lambda _0, _1, _2, _3, _4: expected_output,
         affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
     source_builder.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
@@ -413,7 +413,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
   def test_multiple_profiles_raises_error(self):
     """A formula which outputs the wrong shape will raise an error."""
     source_builder = source_lib.SingleProfileSourceBuilder(
-        formula=lambda _0, _1, _2, _3: jnp.ones((2, 5)),
+        formula=lambda _0, _1, _2, _3, _4: jnp.ones((2, 5)),
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.TEMP_ION,
             source_lib.AffectedCoreProfile.NE,
@@ -455,7 +455,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     profile = jnp.asarray([1, 2, 3, 4])  # from get_value()
     source = source_lib.SingleProfileSource(
         supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
-        model_func=lambda _0, _1, _2, _3: profile,
+        model_func=lambda _0, _1, _2, _3, _4: profile,
         affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
     geo = geometry.build_circular_geometry(nr=4)

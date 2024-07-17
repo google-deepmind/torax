@@ -131,6 +131,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         source_conf,
         geo,
         unused_state,
+        unused_source_models,
     ):
       return jnp.ones_like(geo.r) * source_conf.foo
 

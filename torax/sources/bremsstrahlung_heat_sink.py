@@ -29,6 +29,7 @@ from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_models
 
 
 @chex.dataclass(frozen=True)
@@ -113,6 +114,7 @@ def bremsstrahlung_model_func(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    unused_model_func: source_models.SourceModels | None,
 ) -> jax.Array:
   """Model function for the Bremsstrahlung heat sink."""
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)

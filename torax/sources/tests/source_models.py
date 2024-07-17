@@ -134,6 +134,7 @@ class SourceProfilesTest(parameterized.TestCase):
         unused_sc,
         geo: geometry.Geometry,
         unused_state,
+        unused_source_models,
     ):
       return jnp.stack([
           jnp.zeros(source_lib.ProfileType.CELL.get_profile_shape(geo)),

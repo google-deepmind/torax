@@ -27,7 +27,11 @@ import dataclasses
 import enum
 import types
 import typing
-from typing import Any, Callable, Protocol
+from typing import Any, Callable, Optional, Protocol
+
+# We use Optional here because | doesn't work with string name types.
+# We use string name 'source_models.SourceModels' in this file to avoid
+# circular imports.
 
 import chex
 import jax
@@ -40,12 +44,14 @@ from torax.sources import runtime_params as runtime_params_lib
 
 
 # Sources implement these functions to be able to provide source profiles.
-SourceProfileFunction = Callable[
+# pytype bug: 'source_models.SourceModels' not treated as forward reference
+SourceProfileFunction = Callable[  # pytype: disable=name-error
     [  # Arguments
         runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
         runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
         geometry.Geometry,
         state.CoreProfiles | None,
+        Optional['source_models.SourceModels'],
     ],
     # Returns a JAX array, tuple of arrays, or mapping of arrays.
     chex.ArrayTree,
@@ -207,12 +213,12 @@ class Source:
     self.check_mode(dynamic_source_runtime_params.mode)
     output_shape = self.output_shape_getter(geo)
     model_func = (
-        (lambda _0, _1, _2, _3: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3, _4: jnp.zeros(output_shape))
         if self.model_func is None
         else self.model_func
     )
     formula = (
-        (lambda _0, _1, _2, _3: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3, _4: jnp.zeros(output_shape))
         if self.formula is None
         else self.formula
     )
@@ -224,6 +230,7 @@ class Source:
         model_func=model_func,
         formula=formula,
         output_shape=output_shape,
+        source_models=getattr(self, 'source_models', None),
     )
 
   def get_source_profile_for_affected_core_profile(
@@ -287,7 +294,7 @@ class SingleProfileSource(Source):
   .. code-block:: python
 
     # Define an electron-density source with a Gaussian profile.
-    my_custom_source = source.SingleProfileSource(
+    my_custom_source_builder = source.SingleProfileSourceBuilder(
         supported_modes=(
             runtime_params_lib.Mode.ZERO,
             runtime_params_lib.Mode.FORMULA_BASED,
@@ -297,7 +304,7 @@ class SingleProfileSource(Source):
     )
     # Define its runtime parameters (this could be done in the constructor as
     # well).
-    my_custom_source.runtime_params = runtime_params_lib.RuntimeParams(
+    my_custom_source_builder.runtime_params = runtime_params_lib.RuntimeParams(
         mode=runtime_params_lib.Mode.FORMULA_BASED,
         formula=formula_config.Gaussian(
             total=1.0,
@@ -305,9 +312,9 @@ class SingleProfileSource(Source):
             c2=3.0,
         ),
     )
-    all_torax_sources = source_models_lib.SourceModels(
-        sources={
-            'my_custom_source': my_custom_source,
+    all_torax_sources_builder = source_models_lib.SourceModelsBuilder(
+        sources_builder={
+            'my_custom_source': my_custom_source_builder,
         }
     )
 
@@ -345,6 +352,7 @@ class SingleProfileSource(Source):
         dynamic_source_runtime_params,
         geo,
         core_profiles,
+        source_models,
     ) -> jax.Array:
       assert isinstance(dynamic_source_runtime_params, DynamicFooRuntimeParams)
       # implement your foo model.
@@ -435,7 +443,8 @@ class ProfileType(enum.Enum):
     return jnp.zeros(self.get_profile_shape(geo))
 
 
-def get_source_profiles(
+# pytype bug: 'source_models.SourceModels' not treated as a forward ref
+def get_source_profiles(  # pytype: disable=name-error
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -443,6 +452,7 @@ def get_source_profiles(
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
     output_shape: tuple[int, ...],
+    source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Returns source profiles requested by the runtime_params_lib.
 
@@ -460,6 +470,7 @@ def get_source_profiles(
     model_func: Model function.
     formula: Formula implementation.
     output_shape: Expected shape of the outut array.
+    source_models: The SourceModels if the Source `links_back`
 
   Returns:
     Output array of a profile or concatenated/stacked profiles.
@@ -474,6 +485,7 @@ def get_source_profiles(
           dynamic_source_runtime_params,
           geo,
           core_profiles,
+          source_models,
       ),
       zeros,
   )
@@ -484,6 +496,7 @@ def get_source_profiles(
           dynamic_source_runtime_params,
           geo,
           core_profiles,
+          source_models,
       ),
       zeros,
   )

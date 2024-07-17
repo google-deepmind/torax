@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import Optional
 
 import chex
 import jax
@@ -87,11 +88,13 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 _trapz = integrate.trapezoid
 
 
-def _calculate_jext_face(
+# pytype bug: does not treat 'source_models.SourceModels' as a forward reference
+def _calculate_jext_face(  # pytype: disable=name-error
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
+    unused_source_models: Optional['source_models.SourceModels'] = None,
 ) -> jax.Array:
   """Calculates the external current density profiles.
 
@@ -123,11 +126,13 @@ def _calculate_jext_face(
   return jext_face
 
 
-def _calculate_jext_hires(
+# pytype bug: does not treat 'source_models.SourceModels' as a forward reference
+def _calculate_jext_hires(  # pytype: disable=name-error
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
+    unused_source_models: Optional['source_models.SourceModels'] = None,
 ) -> jax.Array:
   """Calculates the external current density profile along the hires grid.
 
@@ -212,10 +217,13 @@ class ExternalCurrentSource(source.Source):
         core_profiles=core_profiles,
         # There is no model implementation.
         model_func=(
-            lambda _0, _1, _2, _3: source.ProfileType.FACE.get_zero_profile(geo)
+            lambda _0, _1, _2, _3, _4: source.ProfileType.FACE.get_zero_profile(
+                geo
+            )
         ),
         formula=self.formula,
         output_shape=source.ProfileType.FACE.get_profile_shape(geo),
+        source_models=getattr(self, 'source_models', None),
     )
     return profile, geometry.face_to_cell(profile)
 
@@ -234,9 +242,12 @@ class ExternalCurrentSource(source.Source):
         geo=geo,
         core_profiles=None,
         # There is no model for this source.
-        model_func=(lambda _0, _1, _2, _3: jnp.zeros_like(geo.r_hires_norm)),
+        model_func=(
+            lambda _0, _1, _2, _3, _4: jnp.zeros_like(geo.r_hires_norm)
+        ),
         formula=self.hires_formula,
         output_shape=geo.r_hires_norm.shape,
+        source_models=getattr(self, 'source_models', None),
     )
 
   def get_source_profile_for_affected_core_profile(

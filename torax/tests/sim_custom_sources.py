@@ -54,6 +54,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
         geo: geometry.Geometry,
         unused_state: state_lib.CoreProfiles | None,
+        unused_source_models: ...,
     ):
       # Combine the outputs.
       assert isinstance(

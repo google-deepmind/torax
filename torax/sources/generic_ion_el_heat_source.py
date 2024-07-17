@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import Optional
 
 import chex
 import jax
@@ -101,11 +102,12 @@ def calc_generic_heat_source(
   return source_ion, source_el
 
 
-def _default_formula(
+def _default_formula(  # pytype: disable=name-error
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Returns the default formula-based ion/electron heat source profile."""
   del dynamic_runtime_params_slice, core_profiles  # Unused.

@@ -15,6 +15,7 @@
 """Prescribed formulas for computing source profiles."""
 
 import dataclasses
+from typing import Optional
 import jax
 from jax import numpy as jnp
 from torax import geometry
@@ -116,12 +117,13 @@ def gaussian_profile(
 class Exponential:
   """Callable class providing an exponential profile."""
 
-  def __call__(
+  def __call__(  # pytype: disable=name-error
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
+      unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
     exp_config = dynamic_source_runtime_params.formula
     assert isinstance(exp_config, formula_config.DynamicExponential)
@@ -138,12 +140,13 @@ class Exponential:
 class Gaussian:
   """Callable class providing a gaussian profile."""
 
-  def __call__(
+  def __call__(  # pytype: disable=name-error
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
+      unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
     gaussian_config = dynamic_source_runtime_params.formula
     assert isinstance(gaussian_config, formula_config.DynamicGaussian)

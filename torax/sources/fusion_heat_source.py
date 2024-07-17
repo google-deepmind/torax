@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import Optional
 
 import jax
 from jax import numpy as jnp
@@ -120,12 +121,15 @@ def calc_fusion(
   return Ptot, Pfus_i, Pfus_e
 
 
-def fusion_heat_model_func(
+# pytype bug: does not treat 'source_models.SourceModels' as forward reference
+def fusion_heat_model_func(  # pytype: disable=name-error
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
+  """Model function for fusion heating."""
   del dynamic_source_runtime_params  # Unused.
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
