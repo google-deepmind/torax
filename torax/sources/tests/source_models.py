@@ -23,10 +23,7 @@ import torax  # useful for setting up jax properly.
 from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params_slice
-from torax.sources import bootstrap_current_source
 from torax.sources import default_sources
-from torax.sources import external_current_source
-from torax.sources import qei_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -209,57 +206,6 @@ class SourceProfilesTest(parameterized.TestCase):
       (ne, temp_el) = jitted_compute_and_sum()
       np.testing.assert_allclose(ne, expected_ne)
       np.testing.assert_allclose(temp_el, expected_temp_el)
-
-  def test_cannot_add_multiple_special_case_sources(self):
-    """Tests that SourceModels cannot add multiple special case sources."""
-    with self.assertRaises(ValueError):
-      source_models_lib.SourceModels(
-          dict(
-              j_bootstrap=bootstrap_current_source.BootstrapCurrentSourceBuilder(),
-              j_bootstrap2=bootstrap_current_source.BootstrapCurrentSourceBuilder(),
-          )
-      )
-    with self.assertRaises(ValueError):
-      source_models_lib.SourceModels(
-          dict(
-              qei=qei_source.QeiSourceBuilder(),
-              qei2=qei_source.QeiSourceBuilder(),
-          )
-      )
-    with self.assertRaises(ValueError):
-      source_models_lib.SourceModels(
-          dict(
-              external_current=external_current_source.ExternalCurrentSourceBuilder(),
-              external_current2=external_current_source.ExternalCurrentSourceBuilder(),
-          )
-      )
-    source_models = source_models_lib.SourceModels()
-    with self.assertRaises(ValueError):
-      source_models.add_source(
-          'j_bootstrap2', bootstrap_current_source.BootstrapCurrentSource()
-      )
-    with self.assertRaises(ValueError):
-      source_models.add_source('qei2', qei_source.QeiSource())
-    with self.assertRaises(ValueError):
-      source_models.add_source(
-          'external_current2', external_current_source.ExternalCurrentSource()
-      )
-
-  def test_cannot_add_multiple_sources_with_same_name(self):
-    """Tests that SourceModels cannot add multiple sources with same name."""
-    source_name = 'foo'
-    foo_source_builder = source_lib.SourceBuilder(
-        affected_core_profiles=(source_lib.AffectedCoreProfile.TEMP_EL,),
-        supported_modes=(runtime_params_lib.Mode.ZERO,),
-    )
-    source_models = source_models_lib.SourceModels(
-        source_builders={source_name: foo_source_builder},
-    )
-    # It's built once by the SourceModels constructor
-    rebuilt = foo_source_builder()
-    # Cannot add another source with that name again.
-    with self.assertRaises(ValueError):
-      source_models.add_source(source_name, rebuilt)
 
 
 if __name__ == '__main__':

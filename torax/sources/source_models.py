@@ -557,23 +557,6 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
   """Ohmic heat source for electron heat equation.
 
   Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
-
-  Because this source requires access to the rest of the Sources, it must be
-  added to the SourceModels object after creation:
-
-  .. code-block:: python
-
-    source_models = SourceModels(sources={...})
-    # Now add the ohmic heat source and turn it on.
-    source_models.add_source(
-        source_name='ohmic_heat_source',
-        source=OhmicHeatSource(
-            source_models=source_models,
-            runtime_params=runtime_params.RuntimeParams(
-                mode=runtime_params.Mode.MODEL_BASED,  # turns the source on.
-            ),
-        ),
-    )
   """
 
   # Users must pass in a pointer to the complete set of sources to this object.
@@ -753,14 +736,29 @@ class SourceModels:
       ):
         continue
       else:
-        self.add_source(source_name, source)
+        self._add_source(source_name, source)
 
     # Now add the sources that link back
     for name, builder in source_builders.items():
       if builder.links_back:
-        self.add_source(name, builder(self))
+        self._add_source(name, builder(self))
 
-  def add_source(
+    # The instance is constructed, now freeze it
+    self._frozen = True
+
+  def __setattr__(self, attr, value):
+    # pylint: disable=g-doc-args
+    # pylint: disable=g-doc-return-or-yield
+    """Override __setattr__ to make the class (sort of) immutable.
+
+    Note that you can still do obj.field.subfield = x, so it is not true
+    immutability, but this to helps to avoid some careless errors.
+    """
+    if getattr(self, '_frozen', False):
+      raise AttributeError('SourceModels is immutable.')
+    return super().__setattr__(attr, value)
+
+  def _add_source(
       self,
       source_name: str,
       source: source_lib.Source,
