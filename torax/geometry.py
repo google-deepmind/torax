@@ -320,7 +320,7 @@ class GeometryProvider:
       kwargs[attr.name] = getattr(self, attr.name).get_value(t)
     return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
 
-  def get_geometry(self, t: chex.Numeric) -> Geometry:
+  def __call__(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""
     return self._get_geometry_base(t, Geometry)
 
@@ -365,7 +365,7 @@ class StandardGeometryProvider(GeometryProvider):
   delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
   delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
 
-  def get_geometry(self, t: chex.Numeric) -> Geometry:
+  def __call__(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""
     return self._get_geometry_base(t, StandardGeometry)
 

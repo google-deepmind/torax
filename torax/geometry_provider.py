@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""GeometryProvider interface and implementations."""
+"""GeometryProvider interface and implementations.
+
+NOTE: Time dependent providers currently live in `geometry.py` and match the
+protocol defined here.
+"""
 
 from __future__ import annotations
 
@@ -81,10 +85,7 @@ class ConstantGeometryProvider(GeometryProvider):
   def __init__(self, geo: geometry.Geometry):
     self._geo = geo
 
-  def __call__(
-      self,
-      t: chex.Numeric,
-  ) -> geometry.Geometry:
+  def __call__(self, t: chex.Numeric) -> geometry.Geometry:
     # The API includes time as an arg even though it is unused in order
     # to match the API of a GeometryProvider.
     del t  # Ignored.

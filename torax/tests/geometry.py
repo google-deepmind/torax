@@ -164,7 +164,7 @@ class GeometryTest(parameterized.TestCase):
 
     provider = geometry.StandardGeometryProvider.create_provider(
         {0.: geo_0, 10.: geo_1})
-    geo = provider.get_geometry(5.)
+    geo = provider(5.)
     np.testing.assert_allclose(geo.Rmaj, 6.8)
     np.testing.assert_allclose(geo.Rmin, 1.5)
     np.testing.assert_allclose(geo.B0, 5.9)
