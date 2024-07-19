@@ -90,6 +90,32 @@ def build_chease_geometry(
   return geo
 
 
+def build_chease_geometry_provider(
+    Ip_from_parameters: bool = True,
+    geometry_dir: str | None = None,
+    **kwargs,
+) -> geometry_provider.GeometryProvider:
+  """Constructs a geometry provider from CHEASE file or series of files."""
+  if 'geometry_configs' in kwargs:
+    if not isinstance(kwargs['geometry_configs'], dict):
+      raise ValueError('geometry_configs must be a dict.')
+    geometries = {}
+    for time, config in kwargs['geometry_configs'].items():
+      geometries[time] = build_chease_geometry(
+          Ip_from_parameters=Ip_from_parameters,
+          geometry_dir=geometry_dir,
+          **config,
+      )
+    return geometry.StandardGeometryProvider.create_provider(geometries)
+  return geometry_provider.ConstantGeometryProvider(
+      build_chease_geometry(
+          Ip_from_parameters=Ip_from_parameters,
+          geometry_dir=geometry_dir,
+          **kwargs,
+      )
+  )
+
+
 def build_sim_from_config(
     config: dict[str, Any],
 ) -> sim_lib.Sim:
@@ -236,8 +262,7 @@ def build_geometry_provider_from_config(
     return geometry_provider.ConstantGeometryProvider(
         geometry.build_circular_geometry(**kwargs))
   elif geometry_type == 'chease':
-    return geometry_provider.ConstantGeometryProvider(
-        build_chease_geometry(**kwargs))
+    return build_chease_geometry_provider(**kwargs)
   raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 

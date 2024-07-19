@@ -298,7 +298,7 @@ class GeometryProvider:
       ):
         continue
       kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(
-          (times, np.stack([getattr(g, attr.name) for g in geos], axis=-1))
+          (times, np.stack([getattr(g, attr.name) for g in geos], axis=0))
       )
     return cls(**kwargs)
 
