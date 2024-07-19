@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import dataclasses
 import enum
+import functools
 from typing import Type
 
 import chex
@@ -46,7 +47,7 @@ class Grid1D:
   """
 
   nx: int
-  dx: chex.Numeric
+  dx: float
   face_centers: chex.Array
   cell_centers: chex.Array
 
@@ -59,13 +60,16 @@ class Grid1D:
   def __eq__(self, other: Grid1D) -> bool:
     return (
         self.nx == other.nx
-        and np.array_equal(self.dx, other.dx)
+        and self.dx == other.dx
         and np.array_equal(self.face_centers, other.face_centers)
         and np.array_equal(self.cell_centers, other.cell_centers)
     )
 
+  def __hash__(self) -> int:
+    return hash((self.nx, self.dx))
+
   @classmethod
-  def construct(cls, nx: int, dx: chex.Array) -> Grid1D:
+  def construct(cls, nx: int, dx: float) -> Grid1D:
     """Constructs a Grid1D.
 
     Args:
@@ -320,6 +324,7 @@ class GeometryProvider:
       kwargs[attr.name] = getattr(self, attr.name).get_value(t)
     return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
 
+  @functools.partial(jax_utils.jit, static_argnums=0)
   def __call__(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""
     return self._get_geometry_base(t, Geometry)
@@ -365,6 +370,7 @@ class StandardGeometryProvider(GeometryProvider):
   delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
   delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
 
+  @functools.partial(jax_utils.jit, static_argnums=0)
   def __call__(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""
     return self._get_geometry_base(t, StandardGeometry)
@@ -402,7 +408,7 @@ def build_circular_geometry(
   # r_norm coordinate is r/Rmin in circular, and rho_norm in standard
   # geometry (CHEASE/EQDSK)
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  dr_norm = np.array(1) / nr
+  dr_norm = 1. / nr
   mesh = Grid1D.construct(nx=nr, dx=dr_norm)
   rmax = np.asarray(Rmin)
   # helper variables for mesh cells and faces
@@ -537,7 +543,7 @@ def build_circular_geometry(
   return CircularAnalyticalGeometry(
       # Set the standard geometry params.
       geometry_type=GeometryType.CIRCULAR.value,
-      dr_norm=dr_norm,
+      dr_norm=np.asarray(dr_norm),
       torax_mesh=mesh,
       rmax=rmax,
       Rmaj=Rmaj,
@@ -635,7 +641,7 @@ class StandardGeometryIntermediates:
   psi: chex.Array
   Ip_profile: chex.Array
   rho: chex.Array
-  rhon: chex.Array
+  rhon: np.ndarray
   Rin: chex.Array
   Rout: chex.Array
   RBphi: chex.Array
@@ -816,7 +822,7 @@ def build_standard_geometry(
 
   # fill geometry structure
   # r_norm coordinate is rho_tor_norm
-  dr_norm = intermediate.rhon[-1] / intermediate.nr
+  dr_norm = float(intermediate.rhon[-1]) / intermediate.nr
   # normalized grid
   mesh = Grid1D.construct(nx=intermediate.nr, dx=dr_norm)
   rmax = intermediate.rho[-1]  # radius denormalization constant
@@ -897,7 +903,7 @@ def build_standard_geometry(
 
   return StandardGeometry(
       geometry_type=GeometryType.CHEASE.value,
-      dr_norm=dr_norm,
+      dr_norm=np.asarray(dr_norm),
       torax_mesh=mesh,
       rmax=rmax,
       Rmaj=intermediate.Rmaj,
