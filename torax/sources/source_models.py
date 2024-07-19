@@ -226,18 +226,19 @@ def _build_psi_profiles(
   dynamic_jext_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.jext_name
   ]
-  _, jext_profile = source_models.jext.get_value(
-      dynamic_runtime_params_slice,
-      dynamic_jext_runtime_params,
-      geo,
-      core_profiles,
-  )
   psi_profiles[source_models.jext_name] = jax_utils.select(
       jnp.logical_or(
           explicit == dynamic_jext_runtime_params.is_explicit,
           calculate_anyway,
       ),
-      jext_profile,
+      # jext.get_value returns (jext_face, jext_cell), but we only need the
+      # cell values here
+      source_models.jext.get_value(
+          dynamic_runtime_params_slice,
+          dynamic_jext_runtime_params,
+          geo,
+          core_profiles,
+      )[1],
       jnp.zeros_like(geo.r),
   )
   # Iterate through the rest of the sources and compute profiles for the ones
