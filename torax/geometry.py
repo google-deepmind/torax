@@ -343,6 +343,21 @@ class CircularAnalyticalGeometry(Geometry):
 
 
 @chex.dataclass(frozen=True)
+class CircularAnalyticalGeometryProvider(GeometryProvider):
+  """Circular geometry type used for testing only.
+
+  Most users should default to using the GeometryProvider class.
+  """
+  kappa: interpolated_param.InterpolatedVarSingleAxis
+  kappa_face: interpolated_param.InterpolatedVarSingleAxis
+  kappa_hires: interpolated_param.InterpolatedVarSingleAxis
+
+  def __call__(self, t: chex.Numeric) -> Geometry:
+    """Returns a Geometry instance at the given time."""
+    return self._get_geometry_base(t, CircularAnalyticalGeometry)
+
+
+@chex.dataclass(frozen=True)
 class StandardGeometry(Geometry):
   """Standard geometry object including additional useful attributes, like psi.
 

@@ -169,6 +169,30 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(geo.Rmin, 1.5)
     np.testing.assert_allclose(geo.B0, 5.9)
 
+  def test_build_geometry_provider_from_circular(self):
+    """Test that the circular geometry provider can be built."""
+    geo_0 = geometry.build_circular_geometry(
+        nr=25,
+        kappa=1.72,
+        Rmaj=6.2,
+        Rmin=2.0,
+        B0=5.3,
+        hires_fac=4,
+    )
+    geo_1 = geometry.build_circular_geometry(
+        nr=25,
+        kappa=1.72,
+        Rmaj=7.2,
+        Rmin=1.0,
+        B0=5.3,
+        hires_fac=4,
+    )
+    provider = geometry.CircularAnalyticalGeometryProvider.create_provider(
+        {0.: geo_0, 10.: geo_1})
+    geo = provider(5.)
+    np.testing.assert_allclose(geo.Rmaj, 6.7)
+    np.testing.assert_allclose(geo.Rmin, 1.5)
+
 
 def face_to_cell(nr, face):
   cell = np.zeros(nr)
