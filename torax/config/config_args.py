@@ -168,9 +168,9 @@ def _interpolate_var_2d(
   ):
     # Dealing with a param input so convert it first.
     param_or_param_input = interpolated_param.InterpolatedVarTimeRho(
-        values=param_or_param_input,
+        values=param_or_param_input, rho=geo.torax_mesh.face_centers
     )
-  return param_or_param_input.get_value(t, geo.torax_mesh.face_centers)
+  return param_or_param_input.get_value(t)
 
 
 def get_init_kwargs(

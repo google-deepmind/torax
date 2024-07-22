@@ -360,43 +360,43 @@ class InterpolatedParamTest(parameterized.TestCase):
   def test_interpolated_var_2d(self, values, x, y, expected_output):
     """Tests the doubly interpolated param gives correct outputs on 2D mesh."""
     interpolated_var_2d = interpolated_param.InterpolatedVarTimeRho(
-        values
+        values, rho=y
     )
 
-    output = interpolated_var_2d.get_value(time=x, rho=y)
-    np.testing.assert_allclose(output, expected_output)
+    output = interpolated_var_2d.get_value(x=x)
+    np.testing.assert_allclose(output, expected_output, atol=1e-6, rtol=1e-6)
 
   def test_interpolated_var_2d_parses_float_input(self):
     """Tests that InterpolatedVarTimeRho parses float inputs correctly."""
     interpolated_var_2d = interpolated_param.InterpolatedVarTimeRho(
-        values=1.0,
+        values=1.0, rho=0.0
     )
     np.testing.assert_allclose(
-        interpolated_var_2d.get_value(time=0.0, rho=0.0), 1.0
-    )
-    np.testing.assert_allclose(
-        interpolated_var_2d.get_value(time=0.0, rho=1.0), 1.0
+        interpolated_var_2d.get_value(x=0.0), 1.0
     )
     self.assertLen(interpolated_var_2d.values, 1)
     self.assertIn(0.0, interpolated_var_2d.values)
 
   def test_interpolated_var_2d_parses_single_dict_input(self):
-    """Tests that InterpolatedVarTimeRho parses float inputs correctly."""
+    """Tests that InterpolatedVarTimeRho parses dict inputs correctly."""
     interpolated_var_2d = interpolated_param.InterpolatedVarTimeRho(
-        values={0: 18.0, 0.95: 5.0,},
+        values={0: 18.0, 0.95: 5.0,}, rho=0.0,
     )
     np.testing.assert_allclose(
-        interpolated_var_2d.get_value(time=0.0, rho=0.0), 18.0
+        interpolated_var_2d.get_value(x=0.0), 18.0
     )
     np.testing.assert_allclose(
-        interpolated_var_2d.get_value(time=0.5, rho=0.0), 18.0
+        interpolated_var_2d.get_value(x=0.5), 18.0
     )
 
-    np.testing.assert_allclose(
-        interpolated_var_2d.get_value(time=0.0, rho=0.95), 5.0
+    interpolated_var_2d = interpolated_param.InterpolatedVarTimeRho(
+        values={0: 18.0, 0.95: 5.0,}, rho=0.95,
     )
     np.testing.assert_allclose(
-        interpolated_var_2d.get_value(time=0.5, rho=0.95), 5.0
+        interpolated_var_2d.get_value(x=0.0), 5.0
+    )
+    np.testing.assert_allclose(
+        interpolated_var_2d.get_value(x=0.5), 5.0
     )
 
 

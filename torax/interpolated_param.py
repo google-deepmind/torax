@@ -28,8 +28,9 @@ class InterpolatedParamBase(abc.ABC):
   """Base class for interpolated params.
 
   An InterpolatedParamBase child class should implement the interface defined
-  below where, given an x-coordinate for where to interpolate, this object
-  returns a value.
+  below where, given an x-value for where to interpolate, this object
+  returns a value. The x-value can be either a time or spatial coordinate
+  depending on what we are interpolating over.
   """
 
   @abc.abstractmethod
@@ -37,7 +38,7 @@ class InterpolatedParamBase(abc.ABC):
       self,
       x: chex.Numeric,
   ) -> chex.Array:
-    """Returns a single value for this parameter at the given coordinate."""
+    """Returns a value for this parameter interpolated at the given input."""
 
 
 @enum.unique
@@ -274,24 +275,26 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
     return self._is_bool_param
 
 
-class InterpolatedVarTimeRho:
+class InterpolatedVarTimeRho(InterpolatedParamBase):
   """Interpolates on a grid (time, rho).
 
   - Given `values` that map from time-values to `InterpolatedVarSingleAxis`s
   that tell you how to interpolate along rho for different time values this
   class linearly interpolates along time to provide a value at any (time, rho)
   pair.
-  - For time values that are outside the range of `values` the closest defined
-  `InterpolatedVarSingleAxis` is used.
+  - NOTE: We assume that rho interpolation is fixed per simulation so take this
+  at init and take just time at get_value.
   """
 
   def __init__(
       self,
       values: InterpolatedVarTimeRhoInput,
+      rho: chex.Numeric,
       rho_interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
   ):
+    self._rho = rho
     # If a float is passed in, will describe constant initial condition profile.
     if isinstance(values, float):
 
@@ -313,37 +316,32 @@ class InterpolatedVarTimeRho:
     }
     self.sorted_indices = jnp.array(sorted(values.keys()))
 
-  def get_value(
-      self,
-      time: chex.Numeric,
-      rho: chex.Numeric,
-  ) -> chex.Array:
-    """Returns the value of this parameter interpolated at the given (time,rho).
-
-    This method is not jittable as it is.
-
-    Args:
-      time: The time-coordinate to interpolate at.
-      rho: The rho-coordinate to interpolate at.
-    Returns:
-      The value of the interpolated at the given (time,rho).
-    """
-    # Find the index that is left of value which time is closest to.
-    left = jnp.searchsorted(self.sorted_indices, time, side='left')
+  def get_value(self, x: chex.Numeric) -> chex.Array:
+    """Returns the value of this parameter interpolated at x=time."""
+    # Find the index that is to the right of x.
+    right = jnp.searchsorted(self.sorted_indices, x, side='left')
 
     # If time is either smaller or larger, than smallest and largest values
     # we know how to interpolate for, use the boundary interpolater.
-    if left == 0:
-      return self.times_values[float(self.sorted_indices[0])].get_value(rho)
-    if left == len(self.sorted_indices):
-      return self.times_values[float(self.sorted_indices[-1])].get_value(rho)
+    if right == 0:
+      return self.times_values[float(self.sorted_indices[0])].get_value(
+          self._rho
+      )
+    if right == len(self.sorted_indices):
+      return self.times_values[float(self.sorted_indices[-1])].get_value(
+          self._rho
+      )
 
     # Interpolate between the two closest defined interpolaters.
-    left_time = float(self.sorted_indices[left - 1])
-    right_time = float(self.sorted_indices[left])
-    return self.times_values[left_time].get_value(rho) * (right_time - time) / (
-        right_time - left_time
-    ) + self.times_values[right_time].get_value(rho) * (time - left_time) / (
+    left_time = float(self.sorted_indices[right - 1])
+    right_time = float(self.sorted_indices[right])
+    return self.times_values[left_time].get_value(self._rho) * (
+        right_time - x
+    ) / (right_time - left_time) + self.times_values[right_time].get_value(
+        self._rho
+    ) * (
+        x - left_time
+    ) / (
         right_time - left_time
     )
 
