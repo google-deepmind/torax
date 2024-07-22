@@ -336,6 +336,13 @@ class SimTest(sim_test_case.SimTestCase):
           0,
           2e-7
       ),
+      # Tests time-dependent circular geometry.
+      (
+          'test_time_dependent_circular_geo',
+          'test_time_dependent_circular_geo.py',
+          _ALL_PROFILES,
+          0,
+      ),
   )
   def test_torax_sim(
       self,

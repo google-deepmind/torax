@@ -224,6 +224,27 @@ def build_runtime_params_from_config(
   )
 
 
+def _build_circular_geometry_provider(
+    **kwargs,
+) -> geometry_provider.GeometryProvider:
+  """Builds a `GeometryProvider` from the input config."""
+  if 'geometry_configs' in kwargs:
+    if not isinstance(kwargs['geometry_configs'], dict):
+      raise ValueError('geometry_configs must be a dict.')
+    if 'nr' not in kwargs:
+      raise ValueError('nr must be set in the input config.')
+    geometries = {}
+    for time, c in kwargs['geometry_configs'].items():
+      geometries[time] = geometry.build_circular_geometry(
+          nr=kwargs['nr'], **c)
+    return geometry.CircularAnalyticalGeometryProvider.create_provider(
+        geometries
+    )
+  return geometry_provider.ConstantGeometryProvider(
+      geometry.build_circular_geometry(**kwargs)
+  )
+
+
 def build_geometry_provider_from_config(
     geometry_config: dict[str, Any] | str,
 ) -> geometry_provider.GeometryProvider:
@@ -259,8 +280,7 @@ def build_geometry_provider_from_config(
     kwargs = copy.copy(geometry_config)
   geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
   if geometry_type == 'circular':
-    return geometry_provider.ConstantGeometryProvider(
-        geometry.build_circular_geometry(**kwargs))
+    return _build_circular_geometry_provider(**kwargs)
   elif geometry_type == 'chease':
     return build_chease_geometry_provider(**kwargs)
   raise ValueError(f'Unknown geometry type: {geometry_type}')
