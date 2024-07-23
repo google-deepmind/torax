@@ -171,6 +171,7 @@ class Geometry:
   r_hires_norm: chex.Array
   r_hires: chex.Array
   vpr_hires: chex.Array
+  Phibdot: chex.Array
 
   @property
   def r_norm(self) -> chex.Array:
@@ -320,6 +321,12 @@ class GeometryProvider:
           or attr.name == 'torax_mesh'
           or attr.name == 'Ip_from_parameters'
       ):
+        continue
+      # always initialize Phibdot as zero. It will be replaced once both geo_t
+      # and geo_t_plus_dt are provided, and set to be the same for geo_t and
+      # geo_t_plus_dt for each given time interval.
+      if attr.name == 'Phibdot':
+        kwargs[attr.name] = 0.0
         continue
       kwargs[attr.name] = getattr(self, attr.name).get_value(t)
     return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
@@ -603,6 +610,10 @@ def build_circular_geometry(
       r_hires=r_hires,
       kappa_hires=kappa_hires,
       vpr_hires=vpr_hires,
+      # always initialize Phibdot as zero. It will be replaced once both geo_t
+      # and geo_t_plus_dt are provided, and set to be the same for geo_t and
+      # geo_t_plus_dt for each given time interval.
+      Phibdot=np.asarray(0.0),
   )
 
 
@@ -967,6 +978,10 @@ def build_standard_geometry(
       r_hires_norm=r_hires_norm,
       r_hires=r_hires,
       vpr_hires=vpr_hires,
+      # always initialize Phibdot as zero. It will be replaced once both geo_t
+      # and geo_t_plus_dt are provided, and set to be the same for geo_t and
+      # geo_t_plus_dt for each given time interval.
+      Phibdot=np.asarray(0.0),
   )
 
 

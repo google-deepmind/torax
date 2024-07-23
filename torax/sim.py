@@ -77,10 +77,8 @@ def get_consistent_dynamic_runtime_params_slice_and_geometry(
   """Returns the dynamic runtime params and geometry for a given time."""
   geo = geometry_provider(t)
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(t, geo)
-  dynamic_runtime_params_slice, geo = (
-      runtime_params_slice.make_ip_consistent(
-          dynamic_runtime_params_slice, geo
-      )
+  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
+      dynamic_runtime_params_slice, geo
   )
   return dynamic_runtime_params_slice, geo
 
@@ -293,11 +291,15 @@ class SimulationStepFn:
     )
 
     # The stepper needs the geo and dynamic_runtime_params_slice at time t + dt
-    # for implicit computations in the solver.
-    dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
-        get_consistent_dynamic_runtime_params_slice_and_geometry(
-            input_state.t + dt,
+    # for implicit computations in the solver. Once geo_t_plus_dt is calculated
+    # we can use it to calculate Phibdot for both geo_t and geo_t_plus_dt, which
+    # then update the initialized Phibdot=0 in the geo instances.
+    dynamic_runtime_params_slice_t_plus_dt, geo_t, geo_t_plus_dt = (
+        _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+            input_state.t,
+            dt,
             dynamic_runtime_params_slice_provider,
+            geo_t,
             geometry_provider,
         )
     )
@@ -316,17 +318,19 @@ class SimulationStepFn:
 
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if output_state.stepper_error_state == 0.
-      dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt, output_state = (
-          self.adaptive_step(
-              output_state,
-              static_runtime_params_slice,
-              dynamic_runtime_params_slice_t,
-              dynamic_runtime_params_slice_provider,
-              geo_t,
-              geometry_provider,
-              input_state,
-              explicit_source_profiles,
-          )
+      (
+          dynamic_runtime_params_slice_t_plus_dt,
+          geo_t_plus_dt,
+          output_state,
+      ) = self.adaptive_step(
+          output_state,
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_provider,
+          geo_t,
+          geometry_provider,
+          input_state,
+          explicit_source_profiles,
       )
 
     return self.finalize_output(
@@ -541,12 +545,19 @@ class SimulationStepFn:
       if dt < dynamic_runtime_params_slice_t.numerics.mindt:
         raise ValueError('dt below minimum timestep following adaptation')
 
-      dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
-          get_consistent_dynamic_runtime_params_slice_and_geometry(
-              input_state.t + dt,
-              dynamic_runtime_params_slice_provider,
-              geometry_provider,
-          )
+      # Calculate dynamic_runtime_params and geo at t + dt.
+      # Update geos with phibdot.
+      # The updated geo_t is renamed to geo_t_with_phibdot due to name shadowing
+      (
+          dynamic_runtime_params_slice_t_plus_dt,
+          geo_t_with_phibdot,
+          geo_t_plus_dt,
+      ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+          input_state.t,
+          dt,
+          dynamic_runtime_params_slice_provider,
+          geo_t,
+          geometry_provider,
       )
 
       core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
@@ -561,7 +572,7 @@ class SimulationStepFn:
               static_runtime_params_slice=static_runtime_params_slice,
               dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
               dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
-              geo_t=geo_t,
+              geo_t=geo_t_with_phibdot,
               geo_t_plus_dt=geo_t_plus_dt,
               core_profiles_t=core_profiles_t,
               core_profiles_t_plus_dt=core_profiles_t_plus_dt,
@@ -580,14 +591,26 @@ class SimulationStepFn:
       )
 
     output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
-    dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
-        get_consistent_dynamic_runtime_params_slice_and_geometry(
-            input_state.t + output_state.dt,
-            dynamic_runtime_params_slice_provider,
-            geometry_provider,
-        )
+
+    # Calculate dynamic_runtime_params and geo at t + dt.
+    # Update geos with phibdot.
+    (
+        dynamic_runtime_params_slice_t_plus_dt,
+        geo_t,
+        geo_t_plus_dt,
+    ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+        input_state.t,
+        output_state.dt,
+        dynamic_runtime_params_slice_provider,
+        geo_t,
+        geometry_provider,
     )
-    return dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt, output_state
+
+    return (
+        dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt,
+        output_state,
+    )
 
   def finalize_output(
       self,
@@ -871,7 +894,7 @@ def build_sim_object(
           dynamic_runtime_params_slice_provider,
           geometry_provider,
       )
-    )
+  )
   initial_state = get_initial_state(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
@@ -1182,6 +1205,93 @@ def _update_spectator(
   spectator.observe(
       key='Qei', data=output_state.core_sources.get_profile('qei_source')
   )
+
+
+def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+    t: jnp.ndarray,
+    dt: jnp.ndarray,
+    dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+    geo_t: geometry.Geometry,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
+) -> tuple[
+    runtime_params_slice.DynamicRuntimeParamsSlice,
+    geometry.Geometry,
+    geometry.Geometry,
+]:
+  """Returns the geos including Phibdot, and dynamic runtime params at t + dt.
+
+  Args:
+    t: Time at which the simulation is currently at.
+    dt: Time step duration.
+    dynamic_runtime_params_slice_provider: Object that returns a set of runtime
+      parameters which may change from time step to time step or simulation run
+      to run. If these runtime parameters change, it does NOT trigger a JAX
+      recompilation.
+    geo_t: The geometry of the torus during this time step of the simulation.
+    geometry_provider: Provides the magnetic geometry for each time step based
+      on the ToraxSimState at the start of the time step.
+
+  Returns:
+    Tuple containing:
+      - The dynamic runtime params at time t + dt.
+      - The geometry of the torus during this time step of the simulation.
+      - The geometry of the torus during the next time step of the simulation.
+  """
+  dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
+      get_consistent_dynamic_runtime_params_slice_and_geometry(
+          t + dt,
+          dynamic_runtime_params_slice_provider,
+          geometry_provider,
+      )
+  )
+  geo_t, geo_t_plus_dt = _add_Phibdot(dt, geo_t, geo_t_plus_dt)
+
+  return (
+      dynamic_runtime_params_slice_t_plus_dt,
+      geo_t,
+      geo_t_plus_dt,
+  )
+
+
+# pylint: disable=invalid-name
+def _add_Phibdot(
+    dt: jnp.ndarray,
+    geo_t: geometry.Geometry,
+    geo_t_plus_dt: geometry.Geometry,
+) -> tuple[geometry.Geometry, geometry.Geometry]:
+  """Update Phibdot in the geometry dataclasses used in the time interval.
+
+  Phibdot is used in calc_coeffs to calcuate terms related to time-dependent
+  geometry. It should be set to be the same for geo_t and geo_t_plus_dt for
+  each given time interval. This means that geo_t_plus_dt.Phibdot will not
+  necessarily be the same as the geo_t.Phibdot at the next time step.
+
+  Args:
+    dt: Time step duration.
+    geo_t: The geometry of the torus during this time step of the simulation.
+    geo_t_plus_dt: The geometry of the torus during the next time step of the
+      simulation.
+
+  Returns:
+    Tuple containing:
+      - The geometry of the torus during this time step of the simulation.
+      - The geometry of the torus during the next time step of the simulation.
+  """
+
+  Phibdot = (geo_t_plus_dt.Phib - geo_t.Phib) / dt
+
+  geo_t = dataclasses.replace(
+      geo_t,
+      Phibdot=Phibdot,
+  )
+  geo_t_plus_dt = dataclasses.replace(
+      geo_t_plus_dt,
+      Phibdot=Phibdot,
+  )
+  return geo_t, geo_t_plus_dt
+
+
+# pylint: enable=invalid-name
 
 
 def update_current_distribution(
