@@ -26,6 +26,7 @@ import jax
 import numpy as np
 from torax.transport_model import base_qlknn_model
 
+# Internal import.
 
 # Move this to common lib.
 _ACTIVATION_FNS: Mapping[str, Callable[[jax.Array], jax.Array]] = (

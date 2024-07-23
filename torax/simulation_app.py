@@ -54,6 +54,7 @@ module, due to the tuple return type.
 import datetime
 import enum
 import os
+
 import sys
 from typing import Any, Callable
 
@@ -254,9 +255,11 @@ def simulation_output_to_xr(
 
 def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> str:
   """Writes the state history and some geometry information to a NetCDF file."""
+
   if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
   os.makedirs(output_dir)
+
   output_file = os.path.join(output_dir, _STATE_HISTORY_FILENAME)
   ds.to_netcdf(output_file)
   log_to_stdout(f'{WRITE_PREFIX}{output_file}', AnsiColors.GREEN)

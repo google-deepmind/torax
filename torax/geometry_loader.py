@@ -17,14 +17,15 @@ import os
 
 import numpy as np
 
+# Internal import.
+
 
 def initialize_CHEASE_dict(  # pylint: disable=invalid-name
     file_path: str,
 ) -> dict[str, np.ndarray]:
   """Loads the data from a CHEASE file into a dictionary."""
-  # pyformat: disable
+
   with open(file_path, 'r') as file:
-  # pyformat: enable
     chease_data = {}
     var_labels = file.readline().strip().split()[1:]  # ignore % comment column
 
