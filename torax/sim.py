@@ -1244,7 +1244,9 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
           geometry_provider,
       )
   )
-  geo_t, geo_t_plus_dt = _add_Phibdot(dt, geo_t, geo_t_plus_dt)
+  geo_t, geo_t_plus_dt = _add_Phibdot(
+      dt, dynamic_runtime_params_slice_t_plus_dt, geo_t, geo_t_plus_dt
+  )
 
   return (
       dynamic_runtime_params_slice_t_plus_dt,
@@ -1256,6 +1258,7 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
 # pylint: disable=invalid-name
 def _add_Phibdot(
     dt: jnp.ndarray,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t: geometry.Geometry,
     geo_t_plus_dt: geometry.Geometry,
 ) -> tuple[geometry.Geometry, geometry.Geometry]:
@@ -1268,6 +1271,8 @@ def _add_Phibdot(
 
   Args:
     dt: Time step duration.
+    dynamic_runtime_params_slice: Runtime parameters which may change from time
+      step to time step without triggering recompilations.
     geo_t: The geometry of the torus during this time step of the simulation.
     geo_t_plus_dt: The geometry of the torus during the next time step of the
       simulation.
@@ -1278,7 +1283,14 @@ def _add_Phibdot(
       - The geometry of the torus during the next time step of the simulation.
   """
 
-  Phibdot = (geo_t_plus_dt.Phib - geo_t.Phib) / dt
+  # Calculate Phibdot for the time interval.
+  # If numerics.calcphibdot is False, set Phibdot to be 0 (useful for testing
+  # purposes)
+  Phibdot = jnp.where(
+      dynamic_runtime_params_slice.numerics.calcphibdot,
+      (geo_t_plus_dt.Phib - geo_t.Phib) / dt,
+      0.0,
+  )
 
   geo_t = dataclasses.replace(
       geo_t,

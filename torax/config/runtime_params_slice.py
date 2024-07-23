@@ -217,6 +217,11 @@ class DynamicNumerics:
   # evolving. Otherwise the density will evolve to always maintain that GW frac.
   enable_prescribed_profile_evolution: bool
 
+  # Calculate Phibdot in the geometry dataclasses. This is used in calc_coeffs
+  # to calculate terms related to time-dependent geometry. Can set to false to
+  # zero out for testing purposes.
+  calcphibdot: bool
+
 
 @chex.dataclass(frozen=True)
 class StaticRuntimeParamsSlice:
