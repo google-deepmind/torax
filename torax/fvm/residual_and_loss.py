@@ -284,11 +284,8 @@ def theta_method_block_residual(
   return residual, coeffs_new.auxiliary_outputs
 
 
-theta_method_block_jacobian = jax.jacfwd(
-    theta_method_block_residual, has_aux=True
-)
-theta_method_block_jacobian = jax_utils.jit(
-    theta_method_block_jacobian,
+@functools.partial(
+    jax_utils.jit,
     static_argnames=[
         'static_runtime_params_slice',
         'transport_model',
@@ -296,6 +293,8 @@ theta_method_block_jacobian = jax_utils.jit(
         'evolving_names',
     ],
 )
+def theta_method_block_jacobian(*args, **kwargs):
+  return jax.jacfwd(theta_method_block_residual, has_aux=True)(*args, **kwargs)
 
 
 @functools.partial(
