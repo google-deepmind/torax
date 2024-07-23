@@ -222,6 +222,7 @@ def _build_source_profiles_with_single_value(
       },
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(
           sigma=cell_1d_arr * value,
+          sigma_face=face_1d_arr * value,
           j_bootstrap=cell_1d_arr * value,
           j_bootstrap_face=face_1d_arr * value,
           I_bootstrap=jnp.ones(()) * value,

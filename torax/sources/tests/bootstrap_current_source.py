@@ -92,6 +92,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     face = source_lib.ProfileType.FACE.get_profile_shape(geo)
     fake_profile = source_profiles.BootstrapCurrentProfile(
         sigma=jnp.zeros(cell),
+        sigma_face=jnp.zeros(face),
         j_bootstrap=jnp.ones(cell),
         j_bootstrap_face=jnp.zeros(face),
         I_bootstrap=jnp.zeros((1,)),

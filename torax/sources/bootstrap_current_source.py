@@ -153,6 +153,7 @@ class BootstrapCurrentSource(source.Source):
     )
     return source_profiles.BootstrapCurrentProfile(
         sigma=bootstrap_current.sigma,
+        sigma_face=bootstrap_current.sigma_face,
         j_bootstrap=jax_utils.select(
             is_zero_mode,
             zero_profile.j_bootstrap,
@@ -390,7 +391,7 @@ def calc_neoclassical(
   #  j_bootstrap_face = jnp.concatenate([jnp.zeros(1), j_bootstrap_face])
   j_bootstrap_face = jnp.array(j_bootstrap_face)
   j_bootstrap = geometry.face_to_cell(j_bootstrap_face)
-  sigmaneo = geometry.face_to_cell(sigmaneo)
+  sigmaneo_cell = geometry.face_to_cell(sigmaneo)
 
   I_bootstrap = integrate.trapezoid(
       j_bootstrap_face * geo.spr_face,
@@ -398,7 +399,8 @@ def calc_neoclassical(
   )
 
   return source_profiles.BootstrapCurrentProfile(
-      sigma=sigmaneo,
+      sigma=sigmaneo_cell,
+      sigma_face=sigmaneo,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
       I_bootstrap=I_bootstrap,

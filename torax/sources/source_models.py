@@ -161,6 +161,14 @@ def _build_bootstrap_profiles(
       bootstrap_profile.sigma,
       jnp.zeros_like(bootstrap_profile.sigma),
   )
+  sigma_face = jax_utils.select(
+      jnp.logical_or(
+          explicit == dynamic_source_runtime_params.is_explicit,
+          calculate_anyway,
+      ),
+      bootstrap_profile.sigma_face,
+      jnp.zeros_like(bootstrap_profile.sigma_face),
+  )
   j_bootstrap = jax_utils.select(
       jnp.logical_or(
           explicit == dynamic_source_runtime_params.is_explicit,
@@ -187,6 +195,7 @@ def _build_bootstrap_profiles(
   )
   return source_profiles.BootstrapCurrentProfile(
       sigma=sigma,
+      sigma_face=sigma_face,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
       I_bootstrap=I_bootstrap,

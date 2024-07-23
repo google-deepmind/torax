@@ -24,6 +24,7 @@ import jax.numpy as jnp
 from torax import constants
 from torax import geometry
 from torax import jax_utils
+from torax import math_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
@@ -291,6 +292,13 @@ def _calc_coeffs_full(
       explicit_source_profiles.j_bootstrap.sigma,
       implicit_source_profiles.j_bootstrap.sigma,
   )
+  sigma_face = jax_utils.select(
+      dynamic_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ].is_explicit,
+      explicit_source_profiles.j_bootstrap.sigma_face,
+      implicit_source_profiles.j_bootstrap.sigma_face,
+  )
   j_bootstrap = jax_utils.select(
       dynamic_runtime_params_slice.sources[
           source_models.j_bootstrap_name
@@ -344,6 +352,13 @@ def _calc_coeffs_full(
       source_models,
   )
 
+  true_ne = (
+      core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
+  )
+  true_ni = (
+      core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
+  )
+
   true_ne_face = (
       core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
   )
@@ -372,7 +387,9 @@ def _calc_coeffs_full(
       * geo.r_norm
       * sigma
       * consts.mu0
-      * 16 * jnp.pi**2 * geo.Phib**2
+      * 16
+      * jnp.pi**2
+      * geo.Phib**2
       / geo.F**2
   )
   tic_psi = jnp.ones_like(toc_psi)
@@ -597,6 +614,55 @@ def _calc_coeffs_full(
   full_d_face_el += d_face_per_el
   full_v_face_el += v_face_per_el
 
+  # Add phibdot terms to heat transport convection
+  v_heat_face_ion += (
+      -3.0
+      / 4.0
+      * geo.Phibdot
+      / geo.Phib
+      * geo.r_face_norm
+      * geo.vpr_face
+      * true_ni_face
+      * consts.keV2J
+      / geo.rmax
+  )
+
+  v_heat_face_el += (
+      -3.0
+      / 4.0
+      * geo.Phibdot
+      / geo.Phib
+      * geo.r_face_norm
+      * geo.vpr_face
+      * true_ne_face
+      * consts.keV2J
+      / geo.rmax
+  )
+
+  # Add phibdot terms to particle transport convection
+  full_v_face_el += (
+      -1.0
+      / 2.0
+      * geo.Phibdot
+      / geo.Phib
+      * geo.r_face_norm
+      * geo.vpr_face
+      / geo.rmax
+  )
+
+  # Add phibdot terms to poloidal flux convection
+  v_face_psi = (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * sigma_face
+      * geo.r_face_norm**2
+      / geo.F_face**2
+      / geo.rmax
+  )
+
   # Ion and electron heat sources.
   qei = source_models.qei_source.get_qei(
       static_runtime_params_slice=static_runtime_params_slice,
@@ -679,6 +745,50 @@ def _calc_coeffs_full(
       0.0,
   )
 
+  # Add effective phibdot heat source terms
+
+  # second derivative of volume profile with respect to r_norm
+  vprpr_norm = math_utils.gradient(geo.vpr, geo.r) / geo.rmax**2
+
+  source_i += (
+      1.0
+      / 2.0
+      * vprpr_norm
+      * geo.Phibdot
+      / geo.Phib
+      * geo.r_norm
+      * true_ni
+      * core_profiles.temp_ion.value
+      * consts.keV2J
+  )
+
+  source_e += (
+      1.0
+      / 2.0
+      * vprpr_norm
+      * geo.Phibdot
+      / geo.Phib
+      * geo.r_norm
+      * true_ne
+      * core_profiles.temp_el.value
+      * consts.keV2J
+  )
+
+  # Add effective phibdot poloidal flux source term
+
+  ddrnorm_sigma_rnorm2_over_f2 = math_utils.gradient(
+      sigma * geo.r_norm**2 / geo.F**2, geo.r_norm
+  )
+
+  source_psi += (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * ddrnorm_sigma_rnorm2_over_f2
+  )
+
   # Build arguments to solver based on which variables are evolving
   var_to_toc = {
       'temp_ion': toc_temp_ion,
@@ -706,6 +816,7 @@ def _calc_coeffs_full(
   var_to_v_face = {
       'temp_ion': v_heat_face_ion,
       'temp_el': v_heat_face_el,
+      'psi': v_face_psi,
       'ne': full_v_face_el,
   }
   v_face = tuple(var_to_v_face.get(var) for var in evolving_names)

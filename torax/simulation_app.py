@@ -198,6 +198,7 @@ def simulation_output_to_xr(
       'implicit_ei',
       'implicit_ie',
       'qei_coef',
+      'sigma_face',
   }
 
   core_profile_history, core_sources_history, core_transport_history = (
