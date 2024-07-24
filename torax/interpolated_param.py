@@ -22,6 +22,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax import jax_utils
+import xarray as xr
 
 
 class InterpolatedParamBase(abc.ABC):
@@ -152,11 +153,13 @@ InterpolatedVarSingleAxisInput = (
     | bool
     | dict[float, bool]
     | tuple[chex.Array, chex.Array]
+    | xr.DataArray
 )
 InterpolatedVarTimeRhoInput = (
     # Mapping from time to rho, value interpolated in rho
     Mapping[float, InterpolatedVarSingleAxisInput]
     | float
+    | xr.DataArray
 )
 
 
@@ -165,6 +168,21 @@ def _convert_input_to_xs_ys(
 ) -> tuple[chex.Array, chex.Array]:
   """Converts config inputs into inputs suitable for constructors."""
   # This function does NOT need to be jittable.
+  if isinstance(interp_input, xr.DataArray):
+    if len(interp_input.coords) != 1:
+      raise ValueError(
+          f'Loaded values must have 1 coordinate. Given: {interp_input.coords}'
+      )
+    if len(interp_input.values.shape) != 1:
+      raise ValueError(
+          f'Loaded values for {interp_input.name} must be 1D. Given:'
+          f' {interp_input.values.shape}.'
+      )
+    index = list(interp_input.coords)[0]
+    return (
+        interp_input[index].data,
+        interp_input.values,
+    )
   if isinstance(interp_input, tuple):
     if len(interp_input) != 2:
       raise ValueError(
@@ -210,6 +228,11 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
   This class is useful for defining time-dependent runtime parameters, but can
   be used to define any parameters that vary across some range. This class is
   the main "user-facing" class defined in this module.
+
+  This class is initialised with either primitives or an xr.DataArray. In the
+  case of using an xr.DataArray, the input must have a single coordinate. The
+  values of the data array are expected to be a 1D array representing the
+  values at each time.
 
   This function allows the interpolation of a 1d array xs, against either a 1d
   or 2d array ys. For example, xs can be time, and ys either a 1d array of
@@ -278,13 +301,79 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
 class InterpolatedVarTimeRho(InterpolatedParamBase):
   """Interpolates on a grid (time, rho).
 
-  - Given `values` that map from time-values to `InterpolatedVarSingleAxis`s
-  that tell you how to interpolate along rho for different time values this
-  class linearly interpolates along time to provide a value at any (time, rho)
-  pair.
+  This class is initialised with `values`, either primitives or an xr.DataArray.
+
+  If primitives are used, then `values` is expected as a mapping from
+  time-values to `InterpolatedVarSingleAxis`s that tell you how to interpolate
+  along rho for different time values. There are two shortcuts provided as well:
+  - If `values` is a float, then it is assumed to be a constant initial
+    condition profile.
+  - If `values` is a single mapping, then it is assumed to
+    be a initial condition radial profile.
+
+  If an xr.DataArray is used, the input must have a `time` and `rho_norm`
+  coordinate. The values of the data array are the values at each time and rho.
+  If you only want to use a subset of the xr.DataArray, filter the data array
+  beforehand, e.g. `values=array.sel(time=[0.0, 2.0])`
+
+  This class linearly interpolates along time to provide a value at any
+  (time, rho) pair. For time values that are outside the range of `values` the
+  closest defined `InterpolatedVarSingleAxis` is used.
+
   - NOTE: We assume that rho interpolation is fixed per simulation so take this
   at init and take just time at get_value.
   """
+
+  def _load_from_xr_array(
+      self,
+      array: xr.DataArray,
+      rho_interpolation_mode: InterpolationMode,
+  ):
+    """Loads the data from an xr.DataArray."""
+    if 'time' not in array.coords:
+      raise ValueError('"time" must be a coordinate in given dataset.')
+    if 'rho_norm' not in array.coords:
+      raise ValueError('"rho_norm" must be a coordinate in given dataset.')
+    self.times_values = {
+        t: InterpolatedVarSingleAxis(
+            (
+                array.rho_norm.data,
+                array.sel(time=t).values,
+            ),
+            rho_interpolation_mode,
+        )
+        for t in array.time.data
+    }
+    self.sorted_indices = jnp.array(sorted(array.time.data))
+
+  def _load_from_primitives(
+      self,
+      values: Mapping[float, InterpolatedVarSingleAxisInput] | float,
+      rho_interpolation_mode: InterpolationMode,
+  ):
+    """Loads the data from primitives."""
+    # If a float is passed in, describes constant initial condition profile.
+    if isinstance(values, float):
+      values = {0.0: {0.0: values}}
+    # If non-nested dict is passed in, it will describe the radial profile for
+    # the initial condition."
+    if isinstance(values, Mapping) and all(
+        isinstance(v, float) for v in values.values()
+    ):
+      values = {0.0: values}
+
+    self.values = values
+
+    if len(set(values.keys())) != len(values):
+      raise ValueError('Indicies in values mapping must be unique.')
+    if not values:
+      raise ValueError('Values mapping must not be empty.')
+
+    self.times_values = {
+        v: InterpolatedVarSingleAxis(values[v], rho_interpolation_mode)
+        for v in values.keys()
+    }
+    self.sorted_indices = jnp.array(sorted(values.keys()))
 
   def __init__(
       self,
@@ -295,26 +384,10 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
       ),
   ):
     self._rho = rho
-    # If a float is passed in, will describe constant initial condition profile.
-    if isinstance(values, float):
-
-      values = {0.0: {0.0: values}}
-    # If a non-nested dict is passed in, it will describe the radial profile for
-    # the initial condition."
-    if isinstance(values, Mapping) and all(
-        isinstance(v, float) for v in values.values()
-    ):
-      values = {0.0: values}
-    self.values = values
-    if len(set(values.keys())) != len(values):
-      raise ValueError('Indicies in values mapping must be unique.')
-    if not values:
-      raise ValueError('Values mapping must not be empty.')
-    self.times_values = {
-        v: InterpolatedVarSingleAxis(values[v], rho_interpolation_mode)
-        for v in values.keys()
-    }
-    self.sorted_indices = jnp.array(sorted(values.keys()))
+    if isinstance(values, xr.DataArray):
+      self._load_from_xr_array(values, rho_interpolation_mode)
+    else:
+      self._load_from_primitives(values, rho_interpolation_mode)
 
   def get_value(self, x: chex.Numeric) -> chex.Array:
     """Returns the value of this parameter interpolated at x=time."""

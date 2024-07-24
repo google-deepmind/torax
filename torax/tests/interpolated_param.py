@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Unit tests for torax.interpolated_param."""
+
 import random
 
 from absl.testing import absltest
@@ -21,6 +22,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import interpolated_param
+import xarray as xr
 
 
 class InterpolatedParamTest(parameterized.TestCase):
@@ -239,6 +241,27 @@ class InterpolatedParamTest(parameterized.TestCase):
           ys=jnp.array([1.0, 2.0, 3.0, 4.0]),
       )
 
+  def test_interpolated_var_single_axis_parses_xr_array_input(self):
+    """Tests that InterpolatedVarSingleAxis parses xr.DataArray inputs correctly."""
+    array = xr.DataArray(
+        data=np.array([1.0, 2.0, 4.0]),
+        coords={'time': [0.0, 1.0, 2.0]},
+    )
+
+    interpolated_var_single_axis = interpolated_param.InterpolatedVarSingleAxis(
+        value=array,
+    )
+
+    np.testing.assert_allclose(
+        interpolated_var_single_axis.get_value(x=0.0,), np.array([1.0]),
+    )
+    np.testing.assert_allclose(
+        interpolated_var_single_axis.get_value(x=2.0,), np.array([4.0]),
+    )
+    np.testing.assert_allclose(
+        interpolated_var_single_axis.get_value(x=0.5,), np.array([1.5]),
+    )
+
   @parameterized.named_parameters(
       # One line cases.
       {
@@ -357,46 +380,66 @@ class InterpolatedParamTest(parameterized.TestCase):
           'expected_output': np.array([0.88, 0.4, 0.32,])
       }
   )
-  def test_interpolated_var_2d(self, values, x, y, expected_output):
+  def test_interpolated_var_time_rho(self, values, x, y, expected_output):
     """Tests the doubly interpolated param gives correct outputs on 2D mesh."""
-    interpolated_var_2d = interpolated_param.InterpolatedVarTimeRho(
+    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
         values, rho=y
     )
 
-    output = interpolated_var_2d.get_value(x=x)
+    output = interpolated_var_time_rho.get_value(x=x)
     np.testing.assert_allclose(output, expected_output, atol=1e-6, rtol=1e-6)
 
-  def test_interpolated_var_2d_parses_float_input(self):
+  def test_interpolated_var_time_rho_parses_float_input(self):
     """Tests that InterpolatedVarTimeRho parses float inputs correctly."""
-    interpolated_var_2d = interpolated_param.InterpolatedVarTimeRho(
+    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
         values=1.0, rho=0.0
     )
     np.testing.assert_allclose(
-        interpolated_var_2d.get_value(x=0.0), 1.0
+        interpolated_var_time_rho.get_value(x=0.0), 1.0
     )
-    self.assertLen(interpolated_var_2d.values, 1)
-    self.assertIn(0.0, interpolated_var_2d.values)
+    self.assertLen(interpolated_var_time_rho.values, 1)
+    self.assertIn(0.0, interpolated_var_time_rho.values)
 
-  def test_interpolated_var_2d_parses_single_dict_input(self):
+  def test_interpolated_var_time_rho_parses_single_dict_input(self):
     """Tests that InterpolatedVarTimeRho parses dict inputs correctly."""
-    interpolated_var_2d = interpolated_param.InterpolatedVarTimeRho(
+    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
         values={0: 18.0, 0.95: 5.0,}, rho=0.0,
     )
     np.testing.assert_allclose(
-        interpolated_var_2d.get_value(x=0.0), 18.0
+        interpolated_var_time_rho.get_value(x=0.0), 18.0
     )
     np.testing.assert_allclose(
-        interpolated_var_2d.get_value(x=0.5), 18.0
+        interpolated_var_time_rho.get_value(x=0.5), 18.0
     )
 
-    interpolated_var_2d = interpolated_param.InterpolatedVarTimeRho(
+    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
         values={0: 18.0, 0.95: 5.0,}, rho=0.95,
     )
     np.testing.assert_allclose(
-        interpolated_var_2d.get_value(x=0.0), 5.0
+        interpolated_var_time_rho.get_value(x=0.0), 5.0
     )
     np.testing.assert_allclose(
-        interpolated_var_2d.get_value(x=0.5), 5.0
+        interpolated_var_time_rho.get_value(x=0.5), 5.0
+    )
+
+  def test_interpolated_var_time_rho_parses_xr_array_input(self):
+    """Tests that InterpolatedVarTimeRho parses xr.DataArray inputs correctly."""
+    array = xr.DataArray(
+        data=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+        coords={'time': [0.0, 1.0], 'rho_norm': [0.25, 0.5, 0.75]},
+    )
+    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
+        values=array, rho=np.array([0.25, 0.5, 0.75]),
+    )
+
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(x=0.0,), np.array([1.0, 2.0, 3.0])
+    )
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(x=1.0,), np.array([4.0, 5.0, 6.0]),
+    )
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(x=0.5,), np.array([2.5, 3.5, 4.5]),
     )
 
 
