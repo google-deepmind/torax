@@ -27,7 +27,6 @@ from jax import numpy as jnp
 from torax import geometry
 from torax import jax_utils
 from torax import state
-from torax import versioning
 from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import runtime_params as runtime_params_lib
@@ -145,7 +144,7 @@ class ConstantTransportModel(transport_model.TransportModel):
 
   def __hash__(self):
     # All ConstantTransportModels are equivalent and can hash the same
-    return hash(('ConstrantTransportModel', versioning.torax_hash))
+    return hash(('ConstantTransportModel'))
 
   def __eq__(self, other):
     # All ConstantTransportModels are equivalent

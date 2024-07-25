@@ -35,7 +35,6 @@ from torax import constants as constants_module
 from torax import geometry
 from torax import physics
 from torax import state
-from torax import versioning
 from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import base_qlknn_model
@@ -587,7 +586,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
   def __hash__(self) -> int:
     return hash(
-        ('QLKNNTransportModel' + self._model_path, versioning.torax_hash)
+        ('QLKNNTransportModel' + self._model_path)
     )
 
   def __eq__(self, other: QLKNNTransportModel) -> bool:
