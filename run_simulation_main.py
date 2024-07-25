@@ -40,6 +40,8 @@ from torax.transport_model import qlknn_wrapper
 CHOICE_PROMPT = 'Your choice: '
 # String used when prompting the user to make a yes / no choice
 Y_N_PROMPT = 'y/n: '
+# String used when printing how long the simulation took
+SIMULATION_TIME = 'simulation time'
 
 _PYTHON_CONFIG_MODULE = flags.DEFINE_string(
     'config',
@@ -475,7 +477,7 @@ def main(_):
     simulation_time = time.time() - start_time
     output_files.append(output_file)
     simulation_app.log_to_stdout(
-        f'Sim and params build time: {build_time:.2f}s, simulation time:'
+        f'Sim and params build time: {build_time:.2f}s, {SIMULATION_TIME}:'
         f' {simulation_time:.2f}s',
         color=simulation_app.AnsiColors.GREEN,
     )
