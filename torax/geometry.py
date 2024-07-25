@@ -156,11 +156,9 @@ class Geometry:
   g2g3_over_rho: chex.Array
   g2g3_over_rho_face: chex.Array
   g2g3_over_rho_hires: chex.Array
-  J: chex.Array
-  J_face: chex.Array
-  J_hires: chex.Array
   F: chex.Array
   F_face: chex.Array
+  F_hires: chex.Array
   Rin: chex.Array
   Rin_face: chex.Array
   Rout: chex.Array
@@ -259,11 +257,9 @@ class GeometryProvider:
   g2g3_over_rho: interpolated_param.InterpolatedVarSingleAxis
   g2g3_over_rho_face: interpolated_param.InterpolatedVarSingleAxis
   g2g3_over_rho_hires: interpolated_param.InterpolatedVarSingleAxis
-  J: interpolated_param.InterpolatedVarSingleAxis
-  J_face: interpolated_param.InterpolatedVarSingleAxis
-  J_hires: interpolated_param.InterpolatedVarSingleAxis
   F: interpolated_param.InterpolatedVarSingleAxis
   F_face: interpolated_param.InterpolatedVarSingleAxis
+  F_hires: interpolated_param.InterpolatedVarSingleAxis
   Rin: interpolated_param.InterpolatedVarSingleAxis
   Rin_face: interpolated_param.InterpolatedVarSingleAxis
   Rout: interpolated_param.InterpolatedVarSingleAxis
@@ -563,8 +559,8 @@ def build_circular_geometry(
   )
 
   g3_hires = 1 / (Rmaj**2 * (1 - (r_hires / Rmaj) ** 2) ** (3.0 / 2.0))
-  J_hires = np.ones(len(r_hires))
-  g2g3_over_rho_hires = 4 * np.pi**2 * vpr_hires * g3_hires / (J_hires * Rmaj)
+  F_hires = np.ones(len(r_hires)) * B0 * Rmaj
+  g2g3_over_rho_hires = 4 * np.pi**2 * vpr_hires * g3_hires * B0 / F_hires
 
   return CircularAnalyticalGeometry(
       # Set the standard geometry params.
@@ -595,11 +591,9 @@ def build_circular_geometry(
       g2g3_over_rho=g2g3_over_rho,
       g2g3_over_rho_face=g2g3_over_rho_face,
       g2g3_over_rho_hires=g2g3_over_rho_hires,
-      J=J,
-      J_face=J_face,
-      J_hires=J_hires,
       F=F,
       F_face=F_face,
+      F_hires=F_hires,
       Rin=Rin,
       Rin_face=Rin_face,
       Rout=Rout,
@@ -897,10 +891,6 @@ def build_standard_geometry(
   F_face = rhon_interpolation_func(r_face_norm, intermediate.RBphi)
   F = rhon_interpolation_func(r_norm, intermediate.RBphi)
   F_hires = rhon_interpolation_func(r_hires_norm, intermediate.RBphi)
-  # Normalized toroidal flux function
-  J = F / intermediate.Rmaj / intermediate.B
-  J_face = F_face / intermediate.Rmaj / intermediate.B
-  J_hires = F_hires / intermediate.Rmaj / intermediate.B
 
   psi = rhon_interpolation_func(r_norm, intermediate.psi)
   psi_from_Ip = rhon_interpolation_func(r_norm, psi_from_Ip)
@@ -966,11 +956,9 @@ def build_standard_geometry(
       g2g3_over_rho=g2g3_over_rho,
       g2g3_over_rho_face=g2g3_over_rho_face,
       g2g3_over_rho_hires=g2g3_over_rho_hires,
-      J=J,
-      J_face=J_face,
-      J_hires=J_hires,
       F=F,
       F_face=F_face,
+      F_hires=F_hires,
       Rin=Rin,
       Rin_face=Rin_face,
       Rout=Rout,

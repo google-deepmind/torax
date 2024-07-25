@@ -465,8 +465,12 @@ def calc_and_sum_sources_psi(
       calculate_anyway=True,
   )
   total += j_bootstrap_profiles.j_bootstrap
-  denom = 2 * jnp.pi * geo.Rmaj * geo.J**2
-  scale_source = lambda src: -geo.vpr * src * constants.CONSTANTS.mu0 / denom
+
+  mu0 = constants.CONSTANTS.mu0
+  prefactor = (
+      8 * geo.vpr * geo.rmax * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
+  )
+  scale_source = lambda src: -src * prefactor
 
   return scale_source(total), j_bootstrap_profiles.sigma
 
@@ -512,14 +516,16 @@ def calc_psidot(
   toc_psi = (
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
-      * geo.r
+      * geo.r_norm
       * sigma
       * consts.mu0
-      / geo.J**2
-      / geo.Rmaj
+      * 16
+      * jnp.pi**2
+      * geo.Phib**2
+      / geo.F**2
   )
   d_face_psi = (
-      geo.g2g3_over_rho_face * geo.Rmaj / (16 * jnp.pi**4 * geo.rmax**2)
+      geo.g2g3_over_rho_face * geo.rmax
   )
 
   c_mat, c = diffusion_terms.make_diffusion_terms(d_face_psi, core_profiles.psi)

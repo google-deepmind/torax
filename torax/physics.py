@@ -202,8 +202,8 @@ def calc_jtot_from_psi(
   I_tot = (
       dpsi_dr
       * geo.g2g3_over_rho_face
-      * geo.Rmaj
-      * geo.J_face
+      * geo.F_face
+      / geo.B0
       / (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
   )
 
