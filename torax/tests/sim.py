@@ -22,7 +22,6 @@ from typing import Optional, Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import numpy as np
 import torax
 from torax import sim as sim_lib
@@ -402,16 +401,14 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     torax_outputs = sim.run()
-    core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-    t = state_lib.build_time_history_from_states(torax_outputs)
+    history = state_lib.StateHistory(torax_outputs)
 
-    chex.assert_rank(t, 1)
-    history_length = core_profiles.temp_ion.value.shape[0]
-    self.assertEqual(history_length, t.shape[0])
-    self.assertGreater(t[-1], runtime_params.numerics.t_final)
+    history_length = history.core_profiles.temp_ion.value.shape[0]
+    self.assertEqual(history_length, history.times.shape[0])
+    self.assertGreater(history.times[-1], runtime_params.numerics.t_final)
 
     for torax_profile in _ALL_PROFILES:
-      profile_history = core_profiles[torax_profile]
+      profile_history = history.core_profiles[torax_profile]
       # This is needed for CellVariable but not face variables
       if hasattr(profile_history, 'value'):
         profile_history = profile_history.value

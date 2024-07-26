@@ -142,11 +142,10 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     with self.subTest('with_puff_and_without_custom_source'):
       # Need to run the sim once to build the step_fn.
       torax_outputs = sim.run()
-      core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-      t = state_lib.build_time_history_from_states(torax_outputs)
+      history = state_lib.StateHistory(torax_outputs)
       self._check_profiles_vs_expected(
-          core_profiles=core_profiles,
-          t=t,
+          core_profiles=history.core_profiles,
+          t=history.times,
           ref_time=ref_time,
           ref_profiles=ref_profiles,
           rtol=self.rtol,
@@ -199,11 +198,10 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         time_step_calculator=sim.time_step_calculator,
         step_fn=sim.step_fn,
     )
-    core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-    t = state_lib.build_time_history_from_states(torax_outputs)
+    history = state_lib.StateHistory(torax_outputs)
     self._check_profiles_vs_expected(
-        core_profiles=core_profiles,
-        t=t,
+        core_profiles=history.core_profiles,
+        t=history.times,
         ref_time=ref_time,
         ref_profiles=ref_profiles,
         rtol=self.rtol,

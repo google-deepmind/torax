@@ -59,7 +59,6 @@ import sys
 from typing import Any, Callable
 
 from absl import logging
-import chex
 import jax
 from matplotlib import pyplot as plt
 import torax
@@ -201,14 +200,10 @@ def simulation_output_to_xr(
       'sigma_face',
   }
 
-  core_profile_history, core_sources_history, core_transport_history = (
-      state_lib.build_history_from_states(torax_outputs)
-  )
-  t = state_lib.build_time_history_from_states(torax_outputs)
-  chex.assert_rank(t, 1)
+  state_history = state_lib.StateHistory(torax_outputs)
 
   # Get the coordinate variables for dimensions ("time", "rho_face", "rho_cell")
-  time = xr.DataArray(t, dims=['time'], name='time')
+  time = xr.DataArray(state_history.times, dims=['time'], name='time')
   r_face_norm = xr.DataArray(
       geo.r_face_norm, dims=['rho_face'], name='r_face_norm'
   )
@@ -217,7 +212,11 @@ def simulation_output_to_xr(
   r_cell = xr.DataArray(geo.r, dims=['rho_cell'], name='r_cell')
 
   # Build a PyTree of variables we will want to log.
-  tree = (core_profile_history, core_transport_history, core_sources_history)
+  tree = (
+      state_history.core_profiles,
+      state_history.core_transport,
+      state_history.core_sources,
+  )
 
   # Only try to log arrays.
   leaves_with_path = jax.tree_util.tree_leaves_with_path(
@@ -450,10 +449,7 @@ def main(
   output_file = write_simulation_output_to_file(output_dir, ds)
 
   if log_sim_output:
-    core_profile_history, _, _ = state_lib.build_history_from_states(
-        torax_outputs
-    )
-    t = state_lib.build_time_history_from_states(torax_outputs)
-    log_simulation_output_to_stdout(core_profile_history, geo, t)
+    history = state_lib.StateHistory(torax_outputs)
+    log_simulation_output_to_stdout(history.core_profiles, geo, history.times)
 
   return ds, output_file

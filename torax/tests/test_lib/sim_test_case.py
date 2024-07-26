@@ -285,15 +285,14 @@ class SimTestCase(parameterized.TestCase):
     torax_outputs = sim.run()
 
     # Extract core profiles history for analysis against references
-    core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-    t = state_lib.build_time_history_from_states(torax_outputs)
+    history = state_lib.StateHistory(torax_outputs)
 
     ds = simulation_app.simulation_output_to_xr(torax_outputs, geo)
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
 
     self._check_profiles_vs_expected(
-        core_profiles=core_profiles,
-        t=t,
+        core_profiles=history.core_profiles,
+        t=history.times,
         ref_time=ref_time,
         ref_profiles=ref_profiles,
         rtol=rtol,
