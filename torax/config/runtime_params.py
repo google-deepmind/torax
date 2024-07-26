@@ -21,6 +21,7 @@ import dataclasses
 
 import chex
 from torax import interpolated_param
+from torax import output
 
 
 # Type-alias for clarity. While the InterpolatedVarSingleAxis can vary across
@@ -30,7 +31,6 @@ TimeInterpolated = interpolated_param.TimeInterpolated
 TimeRhoInterpolated = (
     interpolated_param.TimeRhoInterpolated
 )
-
 
 # pylint: disable=invalid-name
 
@@ -60,22 +60,22 @@ class ProfileConditions:
   # Temperature boundary conditions at r=Rmin. If provided this will override
   # the temperature boundary conditions being taken from the
   # `TimeRhoInterpolated`s.
-  Ti_bound_right: TimeInterpolated | None = None
-  Te_bound_right: TimeInterpolated | None = None
+  Ti_bound_right: TimeInterpolated | output.Filepath | None = None
+  Te_bound_right: TimeInterpolated | output.Filepath | None = None
   # Prescribed or evolving values for temperature at different times.
   # The outer mapping is for times and the inner mapping is for values of
   # temperature along the rho grid.
-  Ti: TimeRhoInterpolated = dataclasses.field(
+  Ti: TimeRhoInterpolated | output.Filepath = dataclasses.field(
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
   )
-  Te: TimeRhoInterpolated = dataclasses.field(
+  Te: TimeRhoInterpolated | output.Filepath = dataclasses.field(
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
   )
 
   # Prescribed or evolving values for electron density at different times.
   # The outer mapping is for times and the inner mapping is for values of
   # density along the rho grid.
-  ne: TimeRhoInterpolated = dataclasses.field(
+  ne: TimeRhoInterpolated | output.Filepath = dataclasses.field(
       default_factory=lambda: {0: {0: 1.5, 1: 1.0}}
   )
   # Whether to renormalize the density profile to have the desired line averaged
@@ -93,7 +93,7 @@ class ProfileConditions:
   # Density boundary condition for r=Rmin.
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: TimeInterpolated | None = 0.5
+  ne_bound_right: TimeInterpolated | output.Filepath | None = 0.5
   ne_bound_right_is_fGW: bool = False
 
   # Internal boundary condition (pedestal)
@@ -121,6 +121,30 @@ class ProfileConditions:
   # or from the psi available in the numerical geometry file. This setting is
   # ignored for the ad-hoc circular geometry, which has no numerical geometry.
   initial_psi_from_j: bool = False
+
+  def __post_init__(self):
+    # For any inputs that are filepaths, attempt to load xarray.DataArray.
+    if output.is_torax_xarray_filepath(self.Ti):
+      self.Ti = output.load_state_file(self.Ti, output.TEMP_ION_VALUE)
+    if output.is_torax_xarray_filepath(self.Te):
+      self.Te = output.load_state_file(self.Te, output.TEMP_EL_VALUE)
+    if output.is_torax_xarray_filepath(self.ne):
+      self.ne = output.load_state_file(self.ne, output.NE_VALUE)
+      self.normalize_to_nbar = False
+      self.ne_is_fGW = False
+    if output.is_torax_xarray_filepath(self.ne_bound_right):
+      self.ne_bound_right = output.load_state_file(
+          self.ne_bound_right, output.NE_RIGHT_BC
+      )
+      self.ne_bound_right_is_fGW = False
+    if output.is_torax_xarray_filepath(self.Ti_bound_right):
+      self.Ti_bound_right = output.load_state_file(
+          self.Ti_bound_right, output.TEMP_ION_RIGHT_BC
+      )
+    if output.is_torax_xarray_filepath(self.Te_bound_right):
+      self.Te_bound_right = output.load_state_file(
+          self.Te_bound_right, output.TEMP_EL_RIGHT_BC
+      )
 
 
 @chex.dataclass

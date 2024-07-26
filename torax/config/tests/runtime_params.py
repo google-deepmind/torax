@@ -15,11 +15,15 @@
 """Unit tests for torax.config.runtime_params."""
 
 import dataclasses
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
+from torax import output
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
+import xarray as xr
 
 
 # pylint: disable=invalid-name
@@ -116,6 +120,115 @@ class RuntimeParamsTest(parameterized.TestCase):
             Ti_bound_right=Ti_bound_right,
         )
     )
+
+  @parameterized.parameters(
+      ("Te_bound_right", output.TEMP_EL_RIGHT_BC),
+      ("Ti_bound_right", output.TEMP_ION_RIGHT_BC),
+  )
+  def test_profile_conditions_constructs_boundary_conditions_from_file(
+      self, attr: str, output_var: str
+  ):
+    """Tests profile condition boundary conditions from filepath."""
+    path = os.path.join(self.create_tempdir().full_path, "state.nc")
+    times = [1.0, 2.0, 3.0]
+    data_vars = {}
+    temp_bc_values = np.random.randn(
+        len(times),
+    )
+    data_vars[output_var] = xr.DataArray(
+        temp_bc_values,
+        coords=[times],
+        dims=[
+            "time",
+        ],
+    )
+    ds = xr.Dataset(data_vars)
+    ds.to_netcdf(path)
+
+    # Construct profile conditions from the t=2.0 in state file.
+    profile_conditions = general_runtime_params.ProfileConditions(
+    )
+    profile_conditions = dataclasses.replace(
+        profile_conditions, **{attr: (path, 2.0)}
+    )
+
+    xr.testing.assert_equal(
+        getattr(profile_conditions, attr),
+        data_vars[output_var].sel(time=slice(2.0, None)),
+    )
+
+  @parameterized.parameters(
+      ("Te", output.TEMP_EL_VALUE), ("Ti", output.TEMP_ION_VALUE)
+  )
+  def test_profile_conditions_constructs_values_with_filepath(
+      self, attr: str, output_var: str
+  ):
+    """Tests that profile conditions can be constructed with a filepath."""
+    path = os.path.join(self.create_tempdir().full_path, "state.nc")
+    times = [1.0, 2.0, 3.0]
+    rho_norm = [0.25, 0.5, 0.75]
+    data_vars = {}
+    values = np.random.randn(len(times), len(rho_norm))
+    data_vars[output_var] = xr.DataArray(
+        values, coords=[times, rho_norm], dims=["time", "r_cell_norm"]
+    )
+    ds = xr.Dataset(data_vars)
+    ds.to_netcdf(path)
+
+    # Construct profile conditions from the t=2.0 in state file.
+    profile_conditions = general_runtime_params.ProfileConditions()
+    profile_conditions = dataclasses.replace(
+        profile_conditions, **{attr: (path, 2.0)}
+    )
+
+    # Check filepath is parsed by profile conditions into correct data array.
+    # rename the radial column to match the expected name
+    expected_da = (
+        data_vars[output_var]
+        .sel(time=slice(2.0, None))
+        .rename({"r_cell_norm": output.RHO_NORM})
+    )
+    xr.testing.assert_equal(getattr(profile_conditions, attr), expected_da)
+
+  def test_profile_conditions_constructs_density_with_filepath(self):
+    """Tests that profile conditions ne can be constructed with a filepath."""
+    path = os.path.join(self.create_tempdir().full_path, "state.nc")
+    times = [1.0, 2.0, 3.0]
+    rho_norm = [0.25, 0.5, 0.75]
+
+    data_vars = {}
+    ne_values = np.random.randn(len(times), len(rho_norm))
+    ne_da = xr.DataArray(
+        ne_values, coords=[times, rho_norm], dims=["time", "r_cell_norm"]
+    )
+    data_vars[output.NE_VALUE] = ne_da
+    ne_bc_values = np.random.randn(len(times),)
+    ne_bc_da = xr.DataArray(ne_bc_values, coords=[times], dims=["time",])
+    data_vars[output.NE_RIGHT_BC] = ne_bc_da
+    ds = xr.Dataset(data_vars)
+    ds.to_netcdf(path)
+
+    # Construct profile conditions from the t=2.0 in state file.
+    profile_conditions = general_runtime_params.ProfileConditions(
+        ne=(path, 2.0),
+        ne_bound_right=(path, 2.0),
+    )
+
+    # Check filepath is parsed by profile conditions into correct data array.
+    # rename the radial column to match the expected name
+    expected_ne_da = (
+        data_vars[output.NE_VALUE]
+        .sel(time=slice(2.0, None))
+        .rename({"r_cell_norm": output.RHO_NORM})
+    )
+    xr.testing.assert_equal(profile_conditions.ne, expected_ne_da)
+    self.assertFalse(profile_conditions.ne_is_fGW)
+    self.assertFalse(profile_conditions.normalize_to_nbar)
+    xr.testing.assert_equal(
+        profile_conditions.ne_bound_right,
+        data_vars[output.NE_RIGHT_BC].sel(time=slice(2.0, None)),
+    )
+    self.assertFalse(profile_conditions.ne_bound_right_is_fGW)
 
 
 @dataclasses.dataclass
