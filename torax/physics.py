@@ -238,7 +238,7 @@ def calc_s_from_psi(
 
   # Volume on face grid
   # pylint:disable=invalid-name
-  V = math_utils.cumulative_trapezoid(geo.r_face, geo.vpr_face)
+  V = math_utils.cumulative_trapezoid(y=geo.vpr_face, x=geo.r_face)
 
   s = (
       2

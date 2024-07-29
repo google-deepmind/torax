@@ -503,9 +503,7 @@ def _update_psi_from_j(
   y = currents.jtot_hires * geo.vpr_hires
   assert y.ndim == 1
   assert geo.r_hires.ndim == 1
-  integrated = math_utils.cumulative_trapezoid(
-      geo.r_hires, y, initial=jnp.zeros(())
-  )
+  integrated = math_utils.cumulative_trapezoid(y=y, x=geo.r_hires, initial=0.0)
   scale = jnp.concatenate((
       jnp.zeros((1,)),
       (8 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.B0)
@@ -516,9 +514,7 @@ def _update_psi_from_j(
 
   # psi on cell grid
   psi_hires = math_utils.cumulative_trapezoid(
-      geo.r_hires,
-      dpsi_dr_hires,
-      initial=jnp.zeros(()),
+      y=dpsi_dr_hires, x=geo.r_hires, initial=0.0
   )
 
   psi_value = jnp.interp(geo.r, geo.r_hires, psi_hires)
