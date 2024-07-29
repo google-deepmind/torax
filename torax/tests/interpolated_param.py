@@ -429,7 +429,39 @@ class InterpolatedParamTest(parameterized.TestCase):
         coords={'time': [0.0, 1.0], 'rho_norm': [0.25, 0.5, 0.75]},
     )
     interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
-        values=array, rho=np.array([0.25, 0.5, 0.75]),
+        values=array,
+        rho=np.array([0.25, 0.5, 0.75]),
+    )
+
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(
+            x=0.0,
+        ),
+        np.array([1.0, 2.0, 3.0]),
+    )
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(
+            x=1.0,
+        ),
+        np.array([4.0, 5.0, 6.0]),
+    )
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(
+            x=0.5,
+        ),
+        np.array([2.5, 3.5, 4.5]),
+    )
+
+  def test_interpolated_var_time_rho_parses_dict_array_input(self):
+    """Tests that InterpolatedVarTimeRho parses TimeRhoValueArray inputs correctly."""
+    arrays = dict(
+        time=np.array([0.0, 1.0]),
+        rho_norm=np.array([0.25, 0.5, 0.75]),
+        value=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+    )
+    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
+        values=arrays,
+        rho=np.array([0.25, 0.5, 0.75]),
     )
 
     np.testing.assert_allclose(

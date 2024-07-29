@@ -51,7 +51,7 @@ The following inputs are valid for **time-varying-scalar** parameters:
 
 * Single integer, float, or boolean. The parameter is then not time dependent
 * A time-series dict with ``{time: value}`` pairs, using the default ``interpolation_mode='PIECEWISE_LINEAR'``.
-* A tuple with ``(dict, str)`` corresponding to ``(time-series, interpolation_mode)``.
+* A tuple with ``(time-series, value-series)``. The time-series is a 1D array of times, and the value-series is a 1D array of values and the dimensions of both must match.
 * A ``xarray.DataArray`` with a single coordinate and a 1D value array.
 
 Examples:
@@ -81,7 +81,8 @@ To extend configuration parameters where time-dependence is not enabled, to have
 
 Time-varying arrays
 -------------------
-Time-varying arrays can be defined using either primitives or an ``xarray.DataArray``.
+Time-varying arrays can be defined using either primitives, an
+``xarray.DataArray`` or a ``dict`` of ``Array``.
 
 Using primitives
 ^^^^^^^^^^^^^^^^
@@ -137,6 +138,14 @@ Using ``xarray.DataArray``
 If a ``xarray.DataArray`` is specified then it is expected to have a
 ``time`` and ``rho_norm`` coordinate. The values of the data array are the values
 at each time and rho_norm.
+
+Using ``dict`` of ``Array``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+If a ``dict`` of ``Array`` is used, the dict must have keys of ``time``,
+``rho_norm`` and ``value``.
+
+``time`` and ``rho_norm`` are expected to map to 1D array values.
+``value`` is expected to map to a 2D array with shape ``(len(time), len(rho_norm))``.
 
 .. _config_details:
 

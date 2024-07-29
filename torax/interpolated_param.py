@@ -17,6 +17,7 @@
 import abc
 from collections.abc import Mapping
 import enum
+
 import chex
 import jax
 import jax.numpy as jnp
@@ -160,6 +161,7 @@ InterpolatedVarTimeRhoInput = (
     Mapping[float, InterpolatedVarSingleAxisInput]
     | float
     | xr.DataArray
+    | dict[str, chex.Array]
 )
 
 
@@ -301,7 +303,8 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
 class InterpolatedVarTimeRho(InterpolatedParamBase):
   """Interpolates on a grid (time, rho).
 
-  This class is initialised with `values`, either primitives or an xr.DataArray.
+  This class is initialised with `values`, either primitives, an xr.DataArray or
+  a a dict of `Array`s.
 
   If primitives are used, then `values` is expected as a mapping from
   time-values to `InterpolatedVarSingleAxis`s that tell you how to interpolate
@@ -316,6 +319,11 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
   If you only want to use a subset of the xr.DataArray, filter the data array
   beforehand, e.g. `values=array.sel(time=[0.0, 2.0])`
 
+  If a dict of `Array`s is used, The dict is expected to have
+  ['time', 'rho_norm', 'value'] keys. The `time` and `rho_norm` are expected to
+  be 1D arrays and `value` is expected to be a 2D array with shape (len(time),
+  len(rho)).
+
   This class linearly interpolates along time to provide a value at any
   (time, rho) pair. For time values that are outside the range of `values` the
   closest defined `InterpolatedVarSingleAxis` is used.
@@ -323,6 +331,21 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
   - NOTE: We assume that rho interpolation is fixed per simulation so take this
   at init and take just time at get_value.
   """
+
+  def _load_from_arrays(
+      self,
+      arrays: dict[str, chex.Array],
+      rho_interpolation_mode: InterpolationMode,
+  ):
+    """Loads the data from numpy arrays."""
+    self.times_values = {
+        t: InterpolatedVarSingleAxis(
+            (arrays['rho_norm'], arrays['value'][i, :]),
+            rho_interpolation_mode,
+        )
+        for i, t in enumerate(arrays['time'])
+    }
+    self.sorted_indices = jnp.array(sorted(arrays['time']))
 
   def _load_from_xr_array(
       self,
@@ -336,10 +359,7 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
       raise ValueError('"rho_norm" must be a coordinate in given dataset.')
     self.times_values = {
         t: InterpolatedVarSingleAxis(
-            (
-                array.rho_norm.data,
-                array.sel(time=t).values,
-            ),
+            (array.rho_norm.data, array.sel(time=t).values,),
             rho_interpolation_mode,
         )
         for t in array.time.data
@@ -386,6 +406,10 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     self._rho = rho
     if isinstance(values, xr.DataArray):
       self._load_from_xr_array(values, rho_interpolation_mode)
+    elif isinstance(values, Mapping) and all(
+        isinstance(v, chex.Array) for v in values.values()
+    ):
+      self._load_from_arrays(values, rho_interpolation_mode)
     else:
       self._load_from_primitives(values, rho_interpolation_mode)
 
