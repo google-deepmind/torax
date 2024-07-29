@@ -261,11 +261,11 @@ class StaticRuntimeParamsSlice:
 
 def build_dynamic_runtime_params_slice(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
+    geo: geometry.Geometry,
     transport: transport_model_params.RuntimeParams | None = None,
     sources: dict[str, sources_params.RuntimeParams] | None = None,
     stepper: stepper_params.RuntimeParams | None = None,
     t: chex.Numeric | None = None,
-    geo: geometry.Geometry | None = None,
 ) -> DynamicRuntimeParamsSlice:
   """Builds a DynamicRuntimeParamsSlice."""
   transport = transport or transport_model_params.RuntimeParams()
@@ -377,7 +377,7 @@ class DynamicRuntimeParamsSliceProvider:
   def __call__(
       self,
       t: chex.Numeric,
-      geo: geometry.Geometry | None = None,
+      geo: geometry.Geometry,
   ) -> DynamicRuntimeParamsSlice:
     """Returns a DynamicRuntimeParamsSlice to use during time t of the sim."""
     return build_dynamic_runtime_params_slice(

@@ -24,6 +24,7 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 import torax
+from torax import geometry
 from torax import sim as sim_lib
 from torax import simulation_app
 from torax import state as state_lib
@@ -309,6 +310,7 @@ def make_frozen_optimizer_stepper(
     source_models: source_models_lib.SourceModels,
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     transport_params: transport_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
 ) -> stepper_lib.Stepper:
   """Makes an optimizer stepper with frozen coefficients.
 
@@ -322,6 +324,7 @@ def make_frozen_optimizer_stepper(
       state evolution equations.
     runtime_params: General TORAX runtime input parameters.
     transport_params: Runtime params for the transport model.
+    geo: The geometry of the simulation.
 
   Returns:
     Stepper: the stepper.
@@ -332,6 +335,7 @@ def make_frozen_optimizer_stepper(
           runtime_params=runtime_params,
           transport=transport_params,
           sources=source_models_builder.runtime_params,
+          geo=geo,
       )
   )
   callback_builder = functools.partial(
@@ -349,6 +353,7 @@ def make_frozen_newton_raphson_stepper(
     transport_model: transport_model_lib.TransportModel,
     source_models: source_models_lib.SourceModels,
     runtime_params: general_runtime_params.GeneralRuntimeParams,
+    geo: geometry.Geometry,
 ) -> stepper_lib.Stepper:
   """Makes a Newton Raphson stepper with frozen coefficients.
 
@@ -361,13 +366,17 @@ def make_frozen_newton_raphson_stepper(
     source_models: TORAX sources/sinks used to compute profile terms in the
       state evolution equations.
     runtime_params: General TORAX runtime input parameters.
+    geo: The geometry of the simulation.
 
   Returns:
     Stepper: the stepper.
   """
   # Get the dynamic runtime params for the start of the simulation.
   dynamic_runtime_params_slice = (
-      runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+      runtime_params_slice.build_dynamic_runtime_params_slice(
+          runtime_params,
+          geo=geo,
+      )
   )
   callback_builder = functools.partial(
       sim_lib.FrozenCoeffsCallback,
