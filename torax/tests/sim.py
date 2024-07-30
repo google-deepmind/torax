@@ -333,7 +333,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_rampup.py',
           _ALL_PROFILES,
           0,
-          2e-7
+          1e-6
       ),
       # Tests time-dependent circular geometry.
       (

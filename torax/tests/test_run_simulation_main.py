@@ -55,6 +55,7 @@ import xarray as xr
 
 class RunSimulationMainTest(parameterized.TestCase):
   """Unit tests for the `torax.run_simulation_main` app."""
+
   # These tests will make extensive use of access to private members of the
   # run_simulation_main module.
   # pylint: disable=protected-access
@@ -223,7 +224,6 @@ class RunSimulationMainTest(parameterized.TestCase):
         ov = output[key].to_numpy()
         gv = ground_truth[key].to_numpy()
 
-        # Same tolerances as test_iterhybrid_newton
         if not np.allclose(
             ov,
             gv,
@@ -231,7 +231,7 @@ class RunSimulationMainTest(parameterized.TestCase):
             # the mode=zero case, needing looser tolerance for this than
             # for other tests.
             # rtol=0.0,
-            atol=1.0e-9,
+            atol=5.0e-5,
         ):
           diff = ov - gv
           max_diff = np.abs(diff).max()

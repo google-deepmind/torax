@@ -163,8 +163,7 @@ def calc_q_from_jtot_psi(
   # corresponds to face 1.
   # iota on face 0 is unused in this function, and would need to be implemented
   # as a special case.
-  denom = jnp.abs(psi.face_grad()[1:] / geo.rmax)
-  inv_iota = (2 * jnp.pi * geo.B0 * geo.r_face[1:]) / denom
+  inv_iota = jnp.abs((2 * geo.Phib * geo.r_face_norm[1:]) / psi.face_grad()[1:])
   # use on-axis definition of q (Wesson 2004, Eq 3.48)
   q0 = 2 * geo.B0 / (constants.CONSTANTS.mu0 * jtot_face[0] * geo.Rmaj)
   q0 = jnp.expand_dims(q0, 0)
@@ -194,17 +193,14 @@ def calc_jtot_from_psi(
     jtot_face: total current density (Amps / m^2) on face grid
   """
 
-  # on face grid
-  dpsi_dr = psi.face_grad() / geo.rmax
-
-  # inside flux sur_face on face grid
+  # inside flux surface on face grid
   # pylint: disable=invalid-name
   I_tot = (
-      dpsi_dr
+      psi.face_grad()
       * geo.g2g3_over_rhon_face
       * geo.F_face
-      / geo.B0
-      / (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.rmax)
+      / geo.Phib
+      / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
   )
 
   jtot_face = (
@@ -230,21 +226,21 @@ def calc_s_from_psi(
   """
 
   # 1st derivative of psi on face grid
-  dpsi_dr = psi.face_grad() / geo.rmax
+  dpsi_drhon = psi.face_grad()
   # 2nd derivative of psi on face grad. Dropping the leftmost face, it won't be
   # needed.
-  d2psi_d2r = (dpsi_dr[2:] - dpsi_dr[:-2]) / (2 * geo.dr)
-  d2psi_d2r = jnp.concatenate((d2psi_d2r, d2psi_d2r[-1:]))
+  d2psi_d2rhon = (dpsi_drhon[2:] - dpsi_drhon[:-2]) / (2 * geo.dr_norm)
+  d2psi_d2rhon = jnp.concatenate((d2psi_d2rhon, d2psi_d2rhon[-1:]))
 
   # Volume on face grid
   # pylint:disable=invalid-name
-  V = math_utils.cumulative_trapezoid(y=geo.vpr_face, x=geo.r_face * geo.rmax)
+  V = math_utils.cumulative_trapezoid(y=geo.vpr_face, x=geo.r_face_norm)
 
   s = (
       2
       * V
-      / (geo.r_face[1:] * geo.vpr_face[1:] * geo.rmax)
-      * (1 - geo.r_face[1:] * d2psi_d2r / dpsi_dr[1:])
+      / (geo.r_face_norm[1:] * geo.vpr_face[1:])
+      * (1 - geo.r_face_norm[1:] * d2psi_d2rhon / dpsi_drhon[1:])
   )
   s = jnp.concatenate((s[0:1], s))
 

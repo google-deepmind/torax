@@ -133,7 +133,8 @@ class Geometry:
   geometry_type: int
   torax_mesh: Grid1D
   dr_norm: chex.Array
-  rmax: chex.Array
+  Phi: chex.Array
+  Phi_face: chex.Array
   Rmaj: chex.Array
   Rmin: chex.Array
   B0: chex.Array
@@ -192,10 +193,15 @@ class Geometry:
   def dr(self) -> chex.Array:
     return self.dr_norm * self.rmax
 
-  # Toroidal flux at boundary (LCFS)
+  @property
+  def rmax(self) -> chex.Array:
+    """Toroidal flux coordinate at boundary (LCFS)."""
+    return jnp.sqrt(self.Phib / np.pi / self.B0)
+
   @property
   def Phib(self) -> chex.Array:
-    return self.rmax**2 * np.pi * self.B0
+    """Toroidal flux at boundary (LCFS)."""
+    return self.Phi_face[-1]
 
   @property
   def g1_over_vpr(self) -> chex.Array:
@@ -234,7 +240,8 @@ class GeometryProvider:
   geometry_type: int
   torax_mesh: Grid1D
   dr_norm: interpolated_param.InterpolatedVarSingleAxis
-  rmax: interpolated_param.InterpolatedVarSingleAxis
+  Phi: interpolated_param.InterpolatedVarSingleAxis
+  Phi_face: interpolated_param.InterpolatedVarSingleAxis
   Rmaj: interpolated_param.InterpolatedVarSingleAxis
   Rmin: interpolated_param.InterpolatedVarSingleAxis
   B0: interpolated_param.InterpolatedVarSingleAxis
@@ -445,6 +452,10 @@ def build_circular_geometry(
   Rmaj = np.array(Rmaj)
   B0 = np.array(B0)
 
+  # Define toroidal flux
+  Phi = np.pi * B0 * r**2
+  Phi_face = np.pi * B0 * r_face**2
+
   # assumed elongation profile on cell grid
   kappa_param = kappa
   kappa = 1 + r_norm * (kappa_param - 1)
@@ -566,7 +577,8 @@ def build_circular_geometry(
       geometry_type=GeometryType.CIRCULAR.value,
       dr_norm=np.asarray(dr_norm),
       torax_mesh=mesh,
-      rmax=rmax,
+      Phi=Phi,
+      Phi_face=Phi_face,
       Rmaj=Rmaj,
       Rmin=rmax,
       B0=B0,
@@ -631,7 +643,7 @@ class StandardGeometryIntermediates:
 
   All inputs are 1D profiles vs normalized rho toroidal (rhon).
 
-  Ip_from_paramaters: If True, the Ip is taken from the parameters and the
+  Ip_from_parameters: If True, the Ip is taken from the parameters and the
     values in the Geometry are resacled to match the new Ip.
   Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
     is used as an unnormalization factor.
@@ -639,11 +651,10 @@ class StandardGeometryIntermediates:
   B: Toroidal magnetic field on axis [T].
   psi: Poloidal flux profile
   Ip_profile: Plasma current profile
-  rho: Toroidal flux coordinate
-  rhon: Normalized toroidal flux coordinate
+  Phi: Toroidal flux profile
   Rin: Radius of the flux surface at the inboard side at midplane
   Rout: Radius of the flux surface at the outboard side at midplane
-  RBphi: Toroidal field flux function
+  F: Toroidal field flux function
   int_dl_over_Bp: oint (dl / Bp) (contour integral)
   flux_surf_avg_1_over_R2: <1/R**2>
   flux_surf_avg_Bp2: <Bp**2>
@@ -664,11 +675,10 @@ class StandardGeometryIntermediates:
   B: chex.Numeric
   psi: chex.Array
   Ip_profile: chex.Array
-  rho: chex.Array
-  rhon: np.ndarray
+  Phi: chex.Array
   Rin: chex.Array
   Rout: chex.Array
-  RBphi: chex.Array
+  F: chex.Array
   int_dl_over_Bp: chex.Array
   flux_surf_avg_1_over_R2: chex.Array
   flux_surf_avg_Bp2: chex.Array
@@ -728,14 +738,14 @@ class StandardGeometryIntermediates:
     psi = chease_data['PSIchease=psi/2pi'] * psiunnormfactor * 2 * np.pi
     Ip_chease = chease_data['Ipprofile'] / constants.CONSTANTS.mu0 * Rmaj * B0
 
-    # toroidal flux coordinate
-    rho = chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * Rmaj
-    rhon = chease_data['RHO_TOR_NORM']
+    # toroidal flux
+    Phi = (chease_data['RHO_TOR=sqrt(Phi/pi/B0)'] * Rmaj) ** 2 * B0 * np.pi
+
     # midplane radii
     Rin_chease = chease_data['R_INBOARD'] * Rmaj
     Rout_chease = chease_data['R_OUTBOARD'] * Rmaj
     # toroidal field flux function
-    RBphi = chease_data['T=RBphi'] * Rmaj * B0
+    F = chease_data['T=RBphi'] * Rmaj * B0
 
     int_dl_over_Bp = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
     flux_surf_avg_1_over_R2 = chease_data['<1/R**2>'] / Rmaj**2
@@ -756,11 +766,10 @@ class StandardGeometryIntermediates:
         B=B0,
         psi=psi,
         Ip_profile=Ip_chease,
-        rho=rho,
-        rhon=rhon,
+        Phi=Phi,
         Rin=Rin_chease,
         Rout=Rout_chease,
-        RBphi=RBphi,
+        F=F,
         int_dl_over_Bp=int_dl_over_Bp,
         flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2,
         flux_surf_avg_Bp2=flux_surf_avg_Bp2,
@@ -788,6 +797,11 @@ def build_standard_geometry(
   Returns:
     A StandardGeometry object.
   """
+
+  # Toroidal flux coordinates
+  rho = np.sqrt(intermediate.Phi / (np.pi * intermediate.B))
+  rhon = rho / rho[-1]
+
   # flux surface integrals of various geometry quantities
   C1 = intermediate.int_dl_over_Bp
 
@@ -803,36 +817,34 @@ def build_standard_geometry(
   g2 = C1 * C3 * 4 * np.pi**2  # <(\nabla psi)**2 / R**2> * (dV/dpsi) ** 2
   g3 = C2[1:] / C1[1:]  # <1/R**2>
   g3 = np.concatenate((np.array([1 / intermediate.Rin[0] ** 2]), g3))
-  g2g3_over_rhon = g2[1:] * g3[1:] / intermediate.rhon[1:]
+  g2g3_over_rhon = g2[1:] * g3[1:] / rhon[1:]
   g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
-
-  J = intermediate.RBphi / (intermediate.Rmaj * intermediate.B)
 
   # make an alternative initial psi, self-consistent with CHEASE Ip profile
   # needed because CHEASE psi profile has noisy second derivatives
-  dpsidrho = (
+  dpsidrhon = (
       intermediate.Ip_profile[1:]
-      * (16 * constants.CONSTANTS.mu0 * np.pi**4 * intermediate.rho[-1])
-      / (g2g3_over_rhon[1:] * intermediate.Rmaj * J[1:])
+      * (16 * constants.CONSTANTS.mu0 * np.pi**3 * intermediate.Phi[-1])
+      / (g2g3_over_rhon[1:] * intermediate.F[1:])
   )
-  dpsidrho = np.concatenate((np.zeros(1), dpsidrho))
+  dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
   psi_from_Ip = scipy.integrate.cumulative_trapezoid(
-      y=dpsidrho, x=intermediate.rho, initial=0.0
+      y=dpsidrhon, x=rhon, initial=0.0
   )
 
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
   psi_from_Ip[-1] = psi_from_Ip[-2] + (
-      16 * constants.CONSTANTS.mu0 * np.pi**4 * intermediate.rho[-1]
+      16 * constants.CONSTANTS.mu0 * np.pi**3 * intermediate.Phi[-1]
   ) * intermediate.Ip_profile[-1] / (
-      g2g3_over_rhon[-1] * intermediate.Rmaj * J[-1]
+      g2g3_over_rhon[-1] * intermediate.F[-1]
   ) * (
-      intermediate.rho[-1] - intermediate.rho[-2]
+      rhon[-1] - rhon[-2]
   )
 
   # dV/drhon, dS/drhon
-  vpr = np.gradient(intermediate.volume, intermediate.rhon)
-  spr = np.gradient(intermediate.area, intermediate.rhon)
+  vpr = np.gradient(intermediate.volume, rhon)
+  spr = np.gradient(intermediate.area, rhon)
   # gradient boundary approximation not appropriate here
   vpr[0] = 0
   spr[0] = 0
@@ -850,10 +862,10 @@ def build_standard_geometry(
 
   # fill geometry structure
   # r_norm coordinate is rho_tor_norm
-  dr_norm = float(intermediate.rhon[-1]) / intermediate.nr
+  dr_norm = float(rhon[-1]) / intermediate.nr
   # normalized grid
   mesh = Grid1D.construct(nx=intermediate.nr, dx=dr_norm)
-  rmax = intermediate.rho[-1]  # radius denormalization constant
+  rmax = rho[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   r_face_norm = mesh.face_centers
   r_norm = mesh.cell_centers
@@ -863,7 +875,7 @@ def build_standard_geometry(
   r_hires_norm = np.linspace(0, 1, intermediate.nr * intermediate.hires_fac)
   r_hires = r_hires_norm * rmax
 
-  rhon_interpolation_func = lambda x, y: np.interp(x, intermediate.rhon, y)
+  rhon_interpolation_func = lambda x, y: np.interp(x, rhon, y)
   # V' for volume integrations on face grid
   vpr_face = rhon_interpolation_func(r_face_norm, vpr)
   # V' for volume integrations on cell grid
@@ -887,9 +899,12 @@ def build_standard_geometry(
   # average triangularity
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
-  F_face = rhon_interpolation_func(r_face_norm, intermediate.RBphi)
-  F = rhon_interpolation_func(r_norm, intermediate.RBphi)
-  F_hires = rhon_interpolation_func(r_hires_norm, intermediate.RBphi)
+  Phi_face = rhon_interpolation_func(r_face_norm, intermediate.Phi)
+  Phi = rhon_interpolation_func(r_norm, intermediate.Phi)
+
+  F_face = rhon_interpolation_func(r_face_norm, intermediate.F)
+  F = rhon_interpolation_func(r_norm, intermediate.F)
+  F_hires = rhon_interpolation_func(r_hires_norm, intermediate.F)
 
   psi = rhon_interpolation_func(r_norm, intermediate.psi)
   psi_from_Ip = rhon_interpolation_func(r_norm, psi_from_Ip)
@@ -931,7 +946,8 @@ def build_standard_geometry(
       geometry_type=GeometryType.CHEASE.value,
       dr_norm=np.asarray(dr_norm),
       torax_mesh=mesh,
-      rmax=rmax,
+      Phi=Phi,
+      Phi_face=Phi_face,
       Rmaj=intermediate.Rmaj,
       Rmin=intermediate.Rmin,
       B0=intermediate.B,

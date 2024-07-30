@@ -495,9 +495,8 @@ def _update_psi_from_j(
   psi_constraint = (
       dynamic_runtime_params_slice.profile_conditions.Ip
       * 1e6
-      * (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.B0 * geo.rmax)
+      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
-      * geo.rmax
   )
 
   y = currents.jtot_hires * geo.vpr_hires
@@ -508,15 +507,15 @@ def _update_psi_from_j(
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
-      (8 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.B0 * geo.rmax)
+      (8 * jnp.pi**2 * constants.CONSTANTS.mu0 * geo.Phib)
       / (geo.F_hires[1:] * geo.Rmaj * geo.g2g3_over_rhon_hires[1:]),
   ))
   # dpsi_dr on the cell grid
-  dpsi_dr_hires = scale * integrated
+  dpsi_drhon_hires = scale * integrated
 
   # psi on cell grid
   psi_hires = math_utils.cumulative_trapezoid(
-      y=dpsi_dr_hires, x=geo.r_hires, initial=0.0
+      y=dpsi_drhon_hires, x=geo.r_hires_norm, initial=0.0
   )
 
   psi_value = jnp.interp(geo.r, geo.r_hires, psi_hires)
@@ -610,9 +609,8 @@ def initial_core_profiles(
     psi_constraint = (
         dynamic_runtime_params_slice.profile_conditions.Ip
         * 1e6
-        * (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.B0 * geo.rmax)
+        * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
-        * geo.rmax
     )
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
@@ -871,9 +869,8 @@ def compute_boundary_conditions(
       'psi': dict(
           right_face_grad_constraint=Ip
           * 1e6
-          * (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.B0 * geo.rmax)
-          / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
-          * geo.rmax,
+          * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
+          / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1]),
           right_face_constraint=None,
       ),
   }

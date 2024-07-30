@@ -100,9 +100,8 @@ class BoundaryConditionsTest(parameterized.TestCase):
 
     psi_constraint = (
         6e6
-        * (16 * np.pi**4 * constants.CONSTANTS.mu0 * geo.B0 * geo.rmax)
+        * (16 * np.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
-        * geo.rmax
     )
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
     np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)
