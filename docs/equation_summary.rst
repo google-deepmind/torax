@@ -57,7 +57,7 @@ TORAX solves coupled 1D PDEs in normalized toroidal flux coordinates,
     \frac{16 \pi^2 \sigma_{||}\mu_0 \hat{\rho} \Phi_b^2}{F^2}\left(\frac{\partial \psi}{\partial t}-
     \frac{\hat{\rho}\dot{\Phi}_b}{2\Phi_b}\frac{\partial \psi}{\partial \hat{\rho}}\right)  = \\
     \frac{\partial}{\partial \hat{\rho}} \left( \frac{g_2 g_3}{\hat{\rho}} \frac{\partial \psi}{\partial \hat{\rho}} \right) -
-    \frac{8\pi^2 V' \mu_0 \Phi_b}{F^2} \langle j_{ni} \rangle
+    \frac{8\pi^2 V' \mu_0 \Phi_b}{F^2} \langle \mathbf{B} \cdot \mathbf{j}_{ni} \rangle
     \end{multline}
 
 where :math:`T_{i,e}` are ion and electron temperatures, :math:`n_{i,e}` are ion
@@ -67,12 +67,12 @@ and electron heat convection terms, :math:`D_e` is electron particle diffusivity
 and :math:`V_e` is electron particle convection. :math:`Q_{i,e}` are the total
 ion and electron heat sources, and :math:`S_n` is the total electron particle source.
 :math:`V' \equiv dV/d\hat{\rho}`, i.e. the flux surface volume derivative. :math:`\sigma_{||}`
-is the plasma neoclassical conductivity, and :math:`\langle j_{ni} \rangle` is the
-flux-surface-averaged non-inductive current, being comprised of the bootstrap current
-and external current drive. :math:`F \equiv RB_\varphi` is the toroidal field flux function,
-where :math:`R` is major radius and :math:`B_\varphi` the toroidal magnetic field.
-:math:`\Phi_b` is the toroidal flux enclosed by the last closed flux surface, and
-:math:`\dot{\Phi}_b` is its time derivative, non-zero with time-varying toroidal
+is the plasma neoclassical conductivity, and :math:`\langle \mathbf{B} \cdot \mathbf{j}_{ni} \rangle` is the
+flux-surface-averaged non-inductive current (comprised of the bootstrap current
+and external current drive) projected onto and multiplied by the magnetic field.
+:math:`F \equiv RB_\varphi` is the toroidal field flux function, where :math:`R` is major radius, and
+:math:`B_\varphi` is the toroidal magnetic field. :math:`\Phi_b` is the toroidal flux enclosed by the
+last closed flux surface, and :math:`\dot{\Phi}_b` is its time derivative, non-zero with time-varying toroidal
 magnetic field and/or last closed flux surface shape. :math:`\mu_0` is the permeability of free space.
 The geometric quantities :math:`g_0`, :math:`g_1`, :math:`g_2` and :math:`g_3` are defined as follows.
 
