@@ -173,10 +173,10 @@ class StateHistory:
       An xr.Dataset of the simulation output. The dataset contains the following
       coordinates:
         - time: The time of the simulation.
-        - r_face_norm: The normalized radius of the face cells.
-        - r_cell_norm: The normalized radius of the cell cells.
-        - r_face: The radius of the face cells.
-        - r_cell: The radius of the cell cells.
+        - rho_face_norm: The normalized toroidal coordinate on the face grid.
+        - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
+        - rho_face: The toroidal coordinate on the face grid.
+        - rho_cell: The toroidal coordinate on the cell grid.
       The dataset contains data variables for quantities in the CoreProfiles,
       CoreTransport, and CoreSources.
     """
@@ -187,14 +187,14 @@ class StateHistory:
 
     # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
     time = xr.DataArray(self.times, dims=["time"], name="time")
-    r_face_norm = xr.DataArray(
-        geo.rho_face_norm, dims=["rho_face"], name="r_face_norm"
+    rho_face_norm = xr.DataArray(
+        geo.rho_face_norm, dims=["rho_face"], name="rho_face_norm"
     )
-    r_cell_norm = xr.DataArray(
-        geo.rho_norm, dims=["rho_cell"], name="r_cell_norm"
+    rho_cell_norm = xr.DataArray(
+        geo.rho_norm, dims=["rho_cell"], name="rho_cell_norm"
     )
-    r_face = xr.DataArray(geo.rho_face, dims=["rho_face"], name="r_face")
-    r_cell = xr.DataArray(geo.rho, dims=["rho_cell"], name="r_cell")
+    rho_face = xr.DataArray(geo.rho_face, dims=["rho_face"], name="rho_face")
+    rho_cell = xr.DataArray(geo.rho, dims=["rho_cell"], name="rho_cell")
 
     # Initialize dict with desired geometry and reference variables
     xr_dict = {
@@ -216,10 +216,10 @@ class StateHistory:
         xr_dict,
         coords={
             "time": time,
-            "r_face_norm": r_face_norm,
-            "r_cell_norm": r_cell_norm,
-            "r_face": r_face,
-            "r_cell": r_cell,
+            "rho_face_norm": rho_face_norm,
+            "rho_cell_norm": rho_cell_norm,
+            "rho_face": rho_face,
+            "rho_cell": rho_cell,
         },
     )
     return ds
