@@ -25,9 +25,9 @@ import jax.numpy as jnp
 import numpy as np
 import torax
 from torax import geometry
+from torax import output
 from torax import sim as sim_lib
 from torax import simulation_app
-from torax import state as state_lib
 from torax.config import build_sim
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -286,9 +286,8 @@ class SimTestCase(parameterized.TestCase):
     torax_outputs = sim.run()
 
     # Extract core profiles history for analysis against references
-    history = state_lib.StateHistory(torax_outputs)
-
-    ds = simulation_app.simulation_output_to_xr(torax_outputs, geo)
+    history = output.StateHistory(torax_outputs)
+    ds = history.simulation_output_to_xr(geo)
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
 
     self._check_profiles_vs_expected(

@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Unit tests for torax.output."""
 from typing import Any
 
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import tree_util
-from torax import simulation_app
+from torax import output
 
 
 SequenceKey = tree_util.SequenceKey
@@ -25,7 +26,8 @@ GetAttrKey = tree_util.GetAttrKey
 DictKey = tree_util.DictKey
 
 
-class SimulationAppTest(parameterized.TestCase):
+class StateHistoryTest(parameterized.TestCase):
+  """Unit tests for the `torax.output` module."""
 
   @parameterized.parameters(
       # Three GetAttrKeys.
@@ -124,7 +126,8 @@ class SimulationAppTest(parameterized.TestCase):
       ),
   )
   def test_path_to_name(self, path: tuple[Any, ...], expected: str):
-    name = simulation_app._path_to_name(path)
+    """Tests that the path to name function works as expected."""
+    name = output.path_to_name(path)
     self.assertEqual(name, expected)
 
 

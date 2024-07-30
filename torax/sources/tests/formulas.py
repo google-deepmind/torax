@@ -16,8 +16,8 @@
 
 from absl.testing import absltest
 import chex
+from torax import output
 from torax import sim as sim_lib
-from torax import state as state_lib
 from torax.config import build_sim
 from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
@@ -142,7 +142,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     with self.subTest('with_puff_and_without_custom_source'):
       # Need to run the sim once to build the step_fn.
       torax_outputs = sim.run()
-      history = state_lib.StateHistory(torax_outputs)
+      history = output.StateHistory(torax_outputs)
       self._check_profiles_vs_expected(
           core_profiles=history.core_profiles,
           t=history.times,
@@ -198,7 +198,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         time_step_calculator=sim.time_step_calculator,
         step_fn=sim.step_fn,
     )
-    history = state_lib.StateHistory(torax_outputs)
+    history = output.StateHistory(torax_outputs)
     self._check_profiles_vs_expected(
         core_profiles=history.core_profiles,
         t=history.times,

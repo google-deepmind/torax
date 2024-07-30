@@ -24,8 +24,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 import torax
+from torax import output
 from torax import sim as sim_lib
-from torax import state as state_lib
 from torax.sources import source_models as source_models_lib
 from torax.spectators import spectator as spectator_lib
 from torax.stepper import linear_theta_method
@@ -401,7 +401,7 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     torax_outputs = sim.run()
-    history = state_lib.StateHistory(torax_outputs)
+    history = output.StateHistory(torax_outputs)
 
     history_length = history.core_profiles.temp_ion.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])

@@ -248,18 +248,3 @@ class ToraxSimState:
   stepper_iterations: int
   time_step_calculator_state: Any
   stepper_error_state: int
-
-
-class StateHistory:
-  """A history of the state of the simulation."""
-
-  def __init__(self, states: tuple[ToraxSimState, ...]):
-    core_profiles = [state.core_profiles.history_elem() for state in states]
-    core_sources = [state.core_sources for state in states]
-    transport = [state.core_transport for state in states]
-    stack = lambda *ys: jnp.stack(ys)
-    self.core_profiles = jax.tree_util.tree_map(stack, *core_profiles)
-    self.core_sources = jax.tree_util.tree_map(stack, *core_sources)
-    self.core_transport = jax.tree_util.tree_map(stack, *transport)
-    self.times = jnp.array([state.t for state in states])
-    chex.assert_rank(self.times, 1)
