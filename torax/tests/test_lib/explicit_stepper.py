@@ -99,7 +99,6 @@ class ExplicitStepper(stepper_lib.Stepper):
         * true_ni_face
         * consts.keV2J
         * dynamic_runtime_params_slice_t.transport.chii_const
-        / geo_t.rmax**2
     )
 
     c_mat, c = diffusion_terms.make_diffusion_terms(

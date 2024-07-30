@@ -308,7 +308,7 @@ class InitialStatesTest(parameterized.TestCase):
     # calculate total and Ohmic current profiles arising from nu=2
     jformula_face = (1 - geo.r_face_norm**2) ** 2
     denom = jax.scipy.integrate.trapezoid(
-        jformula_face * geo.spr_face, geo.r_face
+        jformula_face * geo.spr_face, geo.r_face_norm
     )
     ctot = config1.profile_conditions.Ip * 1e6 / denom
     jtot_formula_face = jformula_face * ctot

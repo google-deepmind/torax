@@ -129,6 +129,7 @@ class Geometry:
   source of their geometry comes from CHEASE, MEQ, etc.
   """
 
+  # TODO(b/356356966): extend documentation to define what each attribute is.
   geometry_type: int
   torax_mesh: Grid1D
   dr_norm: chex.Array
@@ -153,9 +154,9 @@ class Geometry:
   g2_face: chex.Array
   g3: chex.Array
   g3_face: chex.Array
-  g2g3_over_rho: chex.Array
-  g2g3_over_rho_face: chex.Array
-  g2g3_over_rho_hires: chex.Array
+  g2g3_over_rhon: chex.Array
+  g2g3_over_rhon_face: chex.Array
+  g2g3_over_rhon_hires: chex.Array
   F: chex.Array
   F_face: chex.Array
   F_hires: chex.Array
@@ -207,7 +208,7 @@ class Geometry:
   @property
   def g0_over_vpr_face(self) -> jax.Array:
     return jnp.concatenate((
-        jnp.ones(1),  # correct value is unity on-axis
+        jnp.ones(1) / self.rmax,  # correct value is 1/rmax on-axis
         self.g0_face[1:] / self.vpr_face[1:],  # avoid div by zero on-axis
     ))
 
@@ -221,7 +222,7 @@ class Geometry:
   @property
   def g1_over_vpr2_face(self) -> jax.Array:
     return jnp.concatenate((
-        jnp.ones(1),  # correct value is unity on-axis
+        jnp.ones(1) / self.rmax**2,  # correct value is 1/rmax**2 on-axis
         self.g1_face[1:] / self.vpr_face[1:] ** 2,  # avoid div by zero on-axis
     ))
 
@@ -254,9 +255,9 @@ class GeometryProvider:
   g2_face: interpolated_param.InterpolatedVarSingleAxis
   g3: interpolated_param.InterpolatedVarSingleAxis
   g3_face: interpolated_param.InterpolatedVarSingleAxis
-  g2g3_over_rho: interpolated_param.InterpolatedVarSingleAxis
-  g2g3_over_rho_face: interpolated_param.InterpolatedVarSingleAxis
-  g2g3_over_rho_hires: interpolated_param.InterpolatedVarSingleAxis
+  g2g3_over_rhon: interpolated_param.InterpolatedVarSingleAxis
+  g2g3_over_rhon_face: interpolated_param.InterpolatedVarSingleAxis
+  g2g3_over_rhon_hires: interpolated_param.InterpolatedVarSingleAxis
   F: interpolated_param.InterpolatedVarSingleAxis
   F_face: interpolated_param.InterpolatedVarSingleAxis
   F_hires: interpolated_param.InterpolatedVarSingleAxis
@@ -455,21 +456,19 @@ def build_circular_geometry(
   area = np.pi * r**2 * kappa
   area_face = np.pi * r_face**2 * kappa_face
 
-  # V' for volume integrations
-  vpr = (
-      4 * np.pi**2 * Rmaj * r * kappa
-      + volume / kappa * (kappa_param - 1) / rmax
+  # V' = dV/drnorm for volume integrations
+  vpr = 4 * np.pi**2 * Rmaj * r * kappa * rmax + volume / kappa * (
+      kappa_param - 1
   )
   vpr_face = (
-      4 * np.pi**2 * Rmaj * r_face * kappa_face
-      + volume_face / kappa_face * (kappa_param - 1) / rmax
+      4 * np.pi**2 * Rmaj * r_face * kappa_face * rmax
+      + volume_face / kappa_face * (kappa_param - 1)
   )
   # pylint: disable=invalid-name
-  # S' for area integrals on cell grid
-  spr_cell = 2 * np.pi * r * kappa + area / kappa * (kappa_param - 1) / rmax
-  spr_face = (
-      2 * np.pi * r_face * kappa_face
-      + area_face / kappa_face * (kappa_param - 1) / rmax
+  # S' = dS/drnorm for area integrals on cell grid
+  spr_cell = 2 * np.pi * r * kappa * rmax + area / kappa * (kappa_param - 1)
+  spr_face = 2 * np.pi * r_face * kappa_face * rmax + area_face / kappa_face * (
+      kappa_param - 1
   )
 
   delta_face = np.zeros(len(r_face))
@@ -478,12 +477,12 @@ def build_circular_geometry(
   # With circular geometry approximation.
 
   # g0: <\nabla V>
-  g0 = vpr
-  g0_face = vpr_face
+  g0 = vpr / rmax
+  g0_face = vpr_face / rmax
 
-  # g1: <\nabla V^2>
-  g1 = vpr**2
-  g1_face = vpr_face**2
+  # g1: <(\nabla V)^2>
+  g1 = vpr**2 / rmax**2
+  g1_face = vpr_face**2 / rmax**2
 
   # g2: <(\nabla V)^2 / R^2>
   # V = 2*pi^2*R*r^2*kappa
@@ -519,15 +518,15 @@ def build_circular_geometry(
   F_face = np.ones(len(r_face)) * Rmaj * B0
 
   # Using an approximation where:
-  # g2g3_over_rho = 16 * pi**4 * G2 / (J * R) where:
+  # g2g3_over_rhon = 16 * pi**4 * G2 / (J * R) where:
   # G2 = vpr / (4 * pi**2) * <1/R^2>
   # This is done due to our ad-hoc kappa assumption, which leads to more
-  # reasonable values for g2g3_over_rho through the G2 definition.
+  # reasonable values for g2g3_over_rhon through the G2 definition.
   # In the future, a more rigorous analytical geometry will be developed and
-  # the direct definition of g2g3_over_rho will be used.
+  # the direct definition of g2g3_over_rhon will be used.
 
-  g2g3_over_rho = 4 * np.pi**2 * vpr * g3 / (J * Rmaj)
-  g2g3_over_rho_face = 4 * np.pi**2 * vpr_face * g3_face / (J_face * Rmaj)
+  g2g3_over_rhon = 4 * np.pi**2 * vpr * g3 / (J * Rmaj)
+  g2g3_over_rhon_face = 4 * np.pi**2 * vpr_face * g3_face / (J_face * Rmaj)
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
@@ -547,20 +546,20 @@ def build_circular_geometry(
   volume_hires = 2 * np.pi**2 * Rmaj * r_hires**2 * kappa_hires
   area_hires = np.pi * r_hires**2 * kappa_hires
 
-  # V' for volume integrations on hires grid
+  # V' = dV/drnorm for volume integrations on hires grid
   vpr_hires = (
-      4 * np.pi**2 * Rmaj * r_hires * kappa_hires
-      + volume_hires / kappa_hires * (kappa_param - 1) / rmax
+      4 * np.pi**2 * Rmaj * r_hires * kappa_hires * rmax
+      + volume_hires / kappa_hires * (kappa_param - 1)
   )
-  # S' for area integrals on hires grid
+  # S' = dS/drnorm for area integrals on hires grid
   spr_hires = (
-      2 * np.pi * r_hires * kappa_hires
-      + area_hires / kappa_hires * (kappa_param - 1) / rmax
+      2 * np.pi * r_hires * kappa_hires * rmax
+      + area_hires / kappa_hires * (kappa_param - 1)
   )
 
   g3_hires = 1 / (Rmaj**2 * (1 - (r_hires / Rmaj) ** 2) ** (3.0 / 2.0))
   F_hires = np.ones(len(r_hires)) * B0 * Rmaj
-  g2g3_over_rho_hires = 4 * np.pi**2 * vpr_hires * g3_hires * B0 / F_hires
+  g2g3_over_rhon_hires = 4 * np.pi**2 * vpr_hires * g3_hires * B0 / F_hires
 
   return CircularAnalyticalGeometry(
       # Set the standard geometry params.
@@ -588,9 +587,9 @@ def build_circular_geometry(
       g2_face=g2_face,
       g3=g3,
       g3_face=g3_face,
-      g2g3_over_rho=g2g3_over_rho,
-      g2g3_over_rho_face=g2g3_over_rho_face,
-      g2g3_over_rho_hires=g2g3_over_rho_hires,
+      g2g3_over_rhon=g2g3_over_rhon,
+      g2g3_over_rhon_face=g2g3_over_rhon_face,
+      g2g3_over_rhon_hires=g2g3_over_rhon_hires,
       F=F,
       F_face=F_face,
       F_hires=F_hires,
@@ -804,8 +803,8 @@ def build_standard_geometry(
   g2 = C1 * C3 * 4 * np.pi**2  # <(\nabla psi)**2 / R**2> * (dV/dpsi) ** 2
   g3 = C2[1:] / C1[1:]  # <1/R**2>
   g3 = np.concatenate((np.array([1 / intermediate.Rin[0] ** 2]), g3))
-  g2g3_over_rho = g2[1:] * g3[1:] / intermediate.rho[1:]
-  g2g3_over_rho = np.concatenate((np.zeros(1), g2g3_over_rho))
+  g2g3_over_rhon = g2[1:] * g3[1:] / intermediate.rhon[1:]
+  g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
 
   J = intermediate.RBphi / (intermediate.Rmaj * intermediate.B)
 
@@ -813,8 +812,8 @@ def build_standard_geometry(
   # needed because CHEASE psi profile has noisy second derivatives
   dpsidrho = (
       intermediate.Ip_profile[1:]
-      * (16 * constants.CONSTANTS.mu0 * np.pi**4)
-      / (g2g3_over_rho[1:] * intermediate.Rmaj * J[1:])
+      * (16 * constants.CONSTANTS.mu0 * np.pi**4 * intermediate.rho[-1])
+      / (g2g3_over_rhon[1:] * intermediate.Rmaj * J[1:])
   )
   dpsidrho = np.concatenate((np.zeros(1), dpsidrho))
   psi_from_Ip = scipy.integrate.cumulative_trapezoid(
@@ -824,16 +823,16 @@ def build_standard_geometry(
   # set Ip-consistent psi derivative boundary condition (although will be
   # replaced later with an fvm constraint)
   psi_from_Ip[-1] = psi_from_Ip[-2] + (
-      16 * constants.CONSTANTS.mu0 * np.pi**4
+      16 * constants.CONSTANTS.mu0 * np.pi**4 * intermediate.rho[-1]
   ) * intermediate.Ip_profile[-1] / (
-      g2g3_over_rho[-1] * intermediate.Rmaj * J[-1]
+      g2g3_over_rhon[-1] * intermediate.Rmaj * J[-1]
   ) * (
       intermediate.rho[-1] - intermediate.rho[-2]
   )
 
-  # dV/drho, dS/drho
-  vpr = np.gradient(intermediate.volume, intermediate.rho)
-  spr = np.gradient(intermediate.area, intermediate.rho)
+  # dV/drhon, dS/drhon
+  vpr = np.gradient(intermediate.volume, intermediate.rhon)
+  spr = np.gradient(intermediate.area, intermediate.rhon)
   # gradient boundary approximation not appropriate here
   vpr[0] = 0
   spr[0] = 0
@@ -916,9 +915,9 @@ def build_standard_geometry(
   g3_face = rhon_interpolation_func(r_face_norm, g3)
   g3 = rhon_interpolation_func(r_norm, g3)
 
-  g2g3_over_rho_face = rhon_interpolation_func(r_face_norm, g2g3_over_rho)
-  g2g3_over_rho_hires = rhon_interpolation_func(r_hires_norm, g2g3_over_rho)
-  g2g3_over_rho = rhon_interpolation_func(r_norm, g2g3_over_rho)
+  g2g3_over_rhon_face = rhon_interpolation_func(r_face_norm, g2g3_over_rhon)
+  g2g3_over_rhon_hires = rhon_interpolation_func(r_hires_norm, g2g3_over_rhon)
+  g2g3_over_rhon = rhon_interpolation_func(r_norm, g2g3_over_rhon)
 
   volume_face = rhon_interpolation_func(r_face_norm, intermediate.volume)
   volume_hires = rhon_interpolation_func(r_hires_norm, intermediate.volume)
@@ -953,9 +952,9 @@ def build_standard_geometry(
       g2_face=g2_face,
       g3=g3,
       g3_face=g3_face,
-      g2g3_over_rho=g2g3_over_rho,
-      g2g3_over_rho_face=g2g3_over_rho_face,
-      g2g3_over_rho_hires=g2g3_over_rho_hires,
+      g2g3_over_rhon=g2g3_over_rhon,
+      g2g3_over_rhon_face=g2g3_over_rhon_face,
+      g2g3_over_rhon_hires=g2g3_over_rhon_hires,
       F=F,
       F_face=F_face,
       F_hires=F_hires,

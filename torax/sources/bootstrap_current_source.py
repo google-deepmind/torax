@@ -395,7 +395,7 @@ def calc_neoclassical(
 
   I_bootstrap = integrate.trapezoid(
       j_bootstrap_face * geo.spr_face,
-      geo.r_face,
+      geo.r_face_norm,
   )
 
   return source_profiles.BootstrapCurrentProfile(

@@ -104,7 +104,7 @@ def calc_bremsstrahlung(
 
   # In MW
   P_brem_total = jax.scipy.integrate.trapezoid(
-      P_brem_profile_face * geo.vpr_face, geo.r_face
+      P_brem_profile_face * geo.vpr_face, geo.r_face_norm
   )
   return P_brem_total, P_brem_profile_cell
 

@@ -58,7 +58,6 @@ def calculate_pereverzev_flux(
       * true_ni_face
       * consts.keV2J
       * dynamic_runtime_params_slice.stepper.chi_per
-      / geo.rmax**2
   )
 
   chi_face_per_el = (
@@ -66,10 +65,9 @@ def calculate_pereverzev_flux(
       * true_ne_face
       * consts.keV2J
       * dynamic_runtime_params_slice.stepper.chi_per
-      / geo.rmax**2
   )
 
-  d_face_per_el = dynamic_runtime_params_slice.stepper.d_per / geo.rmax
+  d_face_per_el = dynamic_runtime_params_slice.stepper.d_per
   v_face_per_el = (
       core_profiles.ne.face_grad()
       / core_profiles.ne.face_value()
@@ -116,7 +114,7 @@ def calculate_pereverzev_flux(
           > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
-      d_face_per_el * geo.g1_over_vpr_face / geo.rmax,
+      d_face_per_el * geo.g1_over_vpr_face,
   )
 
   v_face_per_el = jnp.where(
@@ -126,7 +124,7 @@ def calculate_pereverzev_flux(
           > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
-      v_face_per_el * geo.g0_face / geo.rmax,
+      v_face_per_el * geo.g0_face,
   )
 
   chi_face_per_ion = chi_face_per_ion.at[0].set(chi_face_per_ion[1])
@@ -404,9 +402,7 @@ def _calc_coeffs_full(
   chi_face_el = transport_coeffs.chi_face_el
   d_face_el = transport_coeffs.d_face_el
   v_face_el = transport_coeffs.v_face_el
-  # TODO(b/351356977): remove rmax from TORAX by normalizing other quantities
-  # like g2g3_over_rho_face, vpr, spr
-  d_face_psi = geo.g2g3_over_rho_face * geo.rmax
+  d_face_psi = geo.g2g3_over_rhon_face
 
   if static_runtime_params_slice.dens_eq:
     if d_face_el is None or v_face_el is None:
@@ -533,19 +529,17 @@ def _calc_coeffs_full(
       * true_ni_face
       * consts.keV2J
       * chi_face_ion
-      / geo.rmax**2
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
       * true_ne_face
       * consts.keV2J
       * chi_face_el
-      / geo.rmax**2
   )
 
   # entire coefficient preceding dne/dr in particle equation
-  full_d_face_el = geo.g1_over_vpr_face * d_face_el / geo.rmax**2
-  full_v_face_el = geo.g0_face * v_face_el / geo.rmax
+  full_d_face_el = geo.g1_over_vpr_face * d_face_el
+  full_v_face_el = geo.g0_face * v_face_el
 
   # density source terms. Initialize source matrix to zero
   source_mat_nn = jnp.zeros_like(geo.r)
@@ -624,7 +618,6 @@ def _calc_coeffs_full(
       * geo.vpr_face
       * true_ni_face
       * consts.keV2J
-      / geo.rmax
   )
 
   v_heat_face_el += (
@@ -636,7 +629,6 @@ def _calc_coeffs_full(
       * geo.vpr_face
       * true_ne_face
       * consts.keV2J
-      / geo.rmax
   )
 
   # Add phibdot terms to particle transport convection
@@ -647,7 +639,6 @@ def _calc_coeffs_full(
       / geo.Phib
       * geo.r_face_norm
       * geo.vpr_face
-      / geo.rmax
   )
 
   # Add phibdot terms to poloidal flux convection
@@ -660,7 +651,6 @@ def _calc_coeffs_full(
       * sigma_face
       * geo.r_face_norm**2
       / geo.F_face**2
-      / geo.rmax
   )
 
   # Ion and electron heat sources.
@@ -748,7 +738,7 @@ def _calc_coeffs_full(
   # Add effective phibdot heat source terms
 
   # second derivative of volume profile with respect to r_norm
-  vprpr_norm = math_utils.gradient(geo.vpr, geo.r) / geo.rmax**2
+  vprpr_norm = math_utils.gradient(geo.vpr, geo.r_norm)
 
   source_i += (
       1.0

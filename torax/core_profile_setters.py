@@ -235,7 +235,7 @@ def _prescribe_currents_no_bootstrap(
       1 - geo.r_face_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
   # calculate total and Ohmic current profiles
-  denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
+  denom = _trapz(jformula_face * geo.spr_face, geo.r_face_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
@@ -345,7 +345,7 @@ def _prescribe_currents_with_bootstrap(
   jformula_face = (
       1 - geo.r_face_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
+  denom = _trapz(jformula_face * geo.spr_face, geo.r_face_norm)
   # calculate total and Ohmic current profiles
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
@@ -495,19 +495,21 @@ def _update_psi_from_j(
   psi_constraint = (
       dynamic_runtime_params_slice.profile_conditions.Ip
       * 1e6
-      * (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.B0)
-      / (geo.g2g3_over_rho_face[-1] * geo.F_face[-1])
+      * (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.B0 * geo.rmax)
+      / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
       * geo.rmax
   )
 
   y = currents.jtot_hires * geo.vpr_hires
   assert y.ndim == 1
   assert geo.r_hires.ndim == 1
-  integrated = math_utils.cumulative_trapezoid(y=y, x=geo.r_hires, initial=0.0)
+  integrated = math_utils.cumulative_trapezoid(
+      y=y, x=geo.r_hires_norm, initial=0.0
+  )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
-      (8 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.B0)
-      / (geo.F_hires[1:] * geo.Rmaj * geo.g2g3_over_rho_hires[1:]),
+      (8 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.B0 * geo.rmax)
+      / (geo.F_hires[1:] * geo.Rmaj * geo.g2g3_over_rhon_hires[1:]),
   ))
   # dpsi_dr on the cell grid
   dpsi_dr_hires = scale * integrated
@@ -608,8 +610,8 @@ def initial_core_profiles(
     psi_constraint = (
         dynamic_runtime_params_slice.profile_conditions.Ip
         * 1e6
-        * (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.B0)
-        / (geo.g2g3_over_rho_face[-1] * geo.F_face[-1])
+        * (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.B0 * geo.rmax)
+        / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
         * geo.rmax
     )
     psi = cell_variable.CellVariable(
@@ -869,8 +871,8 @@ def compute_boundary_conditions(
       'psi': dict(
           right_face_grad_constraint=Ip
           * 1e6
-          * (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.B0)
-          / (geo.g2g3_over_rho_face[-1] * geo.F_face[-1])
+          * (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.B0 * geo.rmax)
+          / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
           * geo.rmax,
           right_face_constraint=None,
       ),
@@ -902,7 +904,7 @@ def _get_jtot_hires(
   jformula_hires = (
       1 - geo.r_hires_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  denom = _trapz(jformula_hires * geo.spr_hires, geo.r_hires)
+  denom = _trapz(jformula_hires * geo.spr_hires, geo.r_hires_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot_hires = (
         dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / denom

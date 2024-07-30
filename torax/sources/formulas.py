@@ -44,10 +44,10 @@ def exponential_profile(
 
     | cell = exp(-(c1 - r) / c2)
     | face = exp(-(c1 - r_face) / c2)
-    | C = total / trapz(vpr_face * face, r_face)
+    | C = total / trapz(vpr_face * face, r_face_norm)
     | profile = C * cell
 
-  The formula can use the normalized r and r_face if specified.
+  The formula can use the normalized r and r_face for c1 + c2 if specified.
 
   Args:
     geo: Geometry constants of torus.
@@ -65,7 +65,9 @@ def exponential_profile(
   S = jnp.exp(-(c1 - r) / c2)
   S_face = jnp.exp(-(c1 - r_face) / c2)
   # calculate constant prefactor
-  C = total / jax.scipy.integrate.trapezoid(geo.vpr_face * S_face, geo.r_face)
+  C = total / jax.scipy.integrate.trapezoid(
+      geo.vpr_face * S_face, geo.r_face_norm
+  )
   return C * S
 
 
@@ -82,10 +84,10 @@ def gaussian_profile(
 
     | cell = exp(-( (r - c1)**2 / (2 * c2**2) ))
     | face = exp(-( (r_face - c1)**2 / (2 * c2**2) ))
-    | C = total / trazp(vpr_face * face, r_face)
+    | C = total / trapz( vpr_face * face, r_face_norm)
     | profile = C * cell
 
-  The formula can use the normalized r and r_face if specified.
+  The formula can use the normalized r and r_face for c1 + c2 if specified.
 
   Args:
     geo: Geometry constants of torus.
@@ -103,7 +105,9 @@ def gaussian_profile(
   S = jnp.exp(-((r - c1) ** 2) / (2 * c2**2))
   S_face = jnp.exp(-((r_face - c1) ** 2) / (2 * c2**2))
   # calculate constant prefactor
-  C = total / jax.scipy.integrate.trapezoid(geo.vpr_face * S_face, geo.r_face)
+  C = total / jax.scipy.integrate.trapezoid(
+      geo.vpr_face * S_face, geo.r_face_norm
+  )
   return C * S
 
 

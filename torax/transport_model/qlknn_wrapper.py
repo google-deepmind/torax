@@ -404,11 +404,14 @@ def make_core_transport(
   # For small density gradients or up-gradient transport, set pure effective
   # convection. Otherwise pure effective diffusion.
   def DVeff_approach() -> tuple[jax.Array, jax.Array]:
+    # The geo.rmax is to unnormalize the face_grad.
     Deff = -pfe_SI / (
-        core_profiles.ne.face_grad() * geo.g1_over_vpr2_face / geo.rmax
+        core_profiles.ne.face_grad() * geo.g1_over_vpr2_face * geo.rmax
         + constants.eps
     )
-    Veff = pfe_SI / (core_profiles.ne.face_value() * geo.g0_over_vpr_face)
+    Veff = pfe_SI / (
+        core_profiles.ne.face_value() * geo.g0_over_vpr_face * geo.rmax
+    )
     Deff_mask = (
         ((pfe >= 0) & (prepared_data['Ane'] >= 0))
         | ((pfe < 0) & (prepared_data['Ane'] < 0))
@@ -432,7 +435,8 @@ def make_core_transport(
         * d_face_el
         / prepared_data['Rmaj']
         * geo.g1_over_vpr2_face
-    ) / geo.g0_over_vpr_face
+        * geo.rmax**2
+    ) / (geo.g0_over_vpr_face * geo.rmax)
     return d_face_el, v_face_el
 
   d_face_el, v_face_el = jax.lax.cond(
@@ -585,9 +589,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
     )
 
   def __hash__(self) -> int:
-    return hash(
-        ('QLKNNTransportModel' + self._model_path)
-    )
+    return hash(('QLKNNTransportModel' + self._model_path))
 
   def __eq__(self, other: QLKNNTransportModel) -> bool:
     return (

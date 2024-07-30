@@ -185,10 +185,10 @@ class Numerics:
   # numerical (e.g. no. of grid points, other info needed by solver)
   # effective source to dominate PDE in internal boundary condtion location
   # if T != Tped
-  largeValue_T: float = 1.0e10
+  largeValue_T: float = 2.0e10
   # effective source to dominate density PDE in internal boundary condtion
   # location if n != neped
-  largeValue_n: float = 1.0e8
+  largeValue_n: float = 2.0e8
 
 
 # NOMUTANTS -- It's expected for the tests to pass with different defaults.

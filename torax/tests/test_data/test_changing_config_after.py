@@ -82,12 +82,6 @@ CONFIG = {
             # likely be increased further beyond this default.
             'dtmult': 30,
             'dt_reduction_factor': 3,
-            # effective source to dominate PDE in internal boundary condtion
-            # location if T != Tped
-            'largeValue_T': 1.0e10,
-            # effective source to dominate density PDE in internal boundary
-            # condtion location if n != neped
-            'largeValue_n': 1.0e8,
         },
     },
     'geometry': {

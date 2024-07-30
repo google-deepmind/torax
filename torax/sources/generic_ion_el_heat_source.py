@@ -94,7 +94,9 @@ def calc_generic_heat_source(
   Q = jnp.exp(-((geo.r_norm - rsource) ** 2) / (2 * w**2))
   Q_face = jnp.exp(-((geo.r_face_norm - rsource) ** 2) / (2 * w**2))
   # calculate constant prefactor
-  C = Ptot / jax.scipy.integrate.trapezoid(geo.vpr_face * Q_face, geo.r_face)
+  C = Ptot / jax.scipy.integrate.trapezoid(
+      geo.vpr_face * Q_face, geo.r_face_norm
+  )
 
   source_ion = C * Q * (1 - el_heat_fraction)
   source_el = C * Q * el_heat_fraction

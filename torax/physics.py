@@ -201,10 +201,10 @@ def calc_jtot_from_psi(
   # pylint: disable=invalid-name
   I_tot = (
       dpsi_dr
-      * geo.g2g3_over_rho_face
+      * geo.g2g3_over_rhon_face
       * geo.F_face
       / geo.B0
-      / (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
+      / (16 * jnp.pi**4 * constants.CONSTANTS.mu0 * geo.rmax)
   )
 
   jtot_face = (
@@ -238,12 +238,12 @@ def calc_s_from_psi(
 
   # Volume on face grid
   # pylint:disable=invalid-name
-  V = math_utils.cumulative_trapezoid(y=geo.vpr_face, x=geo.r_face)
+  V = math_utils.cumulative_trapezoid(y=geo.vpr_face, x=geo.r_face * geo.rmax)
 
   s = (
       2
       * V
-      / (geo.r_face[1:] * geo.vpr_face[1:])
+      / (geo.r_face[1:] * geo.vpr_face[1:] * geo.rmax)
       * (1 - geo.r_face[1:] * d2psi_d2r / dpsi_dr[1:])
   )
   s = jnp.concatenate((s[0:1], s))

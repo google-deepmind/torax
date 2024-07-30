@@ -378,7 +378,7 @@ def sum_sources_psi(
     )
   mu0 = constants.CONSTANTS.mu0
   prefactor = (
-      8 * geo.vpr * geo.rmax * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
+      8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
   )
   scale_source = lambda src: -src * prefactor
   return scale_source(total)
@@ -468,7 +468,7 @@ def calc_and_sum_sources_psi(
 
   mu0 = constants.CONSTANTS.mu0
   prefactor = (
-      8 * geo.vpr * geo.rmax * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
+      8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
   )
   scale_source = lambda src: -src * prefactor
 
@@ -525,7 +525,7 @@ def calc_psidot(
       / geo.F**2
   )
   d_face_psi = (
-      geo.g2g3_over_rho_face * geo.rmax
+      geo.g2g3_over_rhon_face
   )
 
   c_mat, c = diffusion_terms.make_diffusion_terms(d_face_psi, core_profiles.psi)

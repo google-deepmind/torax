@@ -96,7 +96,8 @@ def calc_fusion(
 
   # [MW]
   Ptot = (
-      jax.scipy.integrate.trapezoid(Pfus_face * geo.vpr_face, geo.r_face) / 1e6
+      jax.scipy.integrate.trapezoid(Pfus_face * geo.vpr_face, geo.r_face_norm)
+      / 1e6
   )
 
   alpha_fraction = 3.5 / 17.6  # fusion power fraction to alpha particles

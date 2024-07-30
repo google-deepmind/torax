@@ -120,7 +120,7 @@ def _calculate_jext_face(  # pytype: disable=name-error
       / (2 * dynamic_source_runtime_params.wext**2)
   )
 
-  Cext = Iext * 1e6 / _trapz(jextform_face * geo.spr_face, geo.r_face)
+  Cext = Iext * 1e6 / _trapz(jextform_face * geo.spr_face, geo.r_face_norm)
 
   jext_face = Cext * jextform_face  # external current profile
   return jext_face
@@ -158,7 +158,9 @@ def _calculate_jext_hires(  # pytype: disable=name-error
       -((geo.r_hires_norm - dynamic_source_runtime_params.rext) ** 2)
       / (2 * dynamic_source_runtime_params.wext**2)
   )
-  Cext_hires = Iext * 1e6 / _trapz(jextform_hires * geo.spr_hires, geo.r_hires)
+  Cext_hires = (
+      Iext * 1e6 / _trapz(jextform_hires * geo.spr_hires, geo.r_hires_norm)
+  )
   # External current profile on cell grid
   jext_hires = Cext_hires * jextform_hires
   return jext_hires
