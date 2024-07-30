@@ -135,7 +135,7 @@ def _model_based_qei(
 ) -> source_profiles.QeiInfo:
   """Computes Qei via the coll_exchange model."""
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-  zeros = jnp.zeros_like(geo.r_norm)
+  zeros = jnp.zeros_like(geo.rho_norm)
   qei_coef = physics.coll_exchange(
       core_profiles=core_profiles,
       nref=dynamic_runtime_params_slice.numerics.nref,

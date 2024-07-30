@@ -187,7 +187,7 @@ class FakeStepper(stepper_lib.Stepper):
     core_sources = dataclasses.replace(
         core_sources,
         qei=dataclasses.replace(
-            core_sources.qei, qei_coef=jnp.ones_like(geo_t.r) * combined
+            core_sources.qei, qei_coef=jnp.ones_like(geo_t.rho) * combined
         ),
     )
     return jax.lax.cond(

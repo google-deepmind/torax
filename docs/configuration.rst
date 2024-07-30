@@ -367,7 +367,7 @@ geometry
 
 Time dependent geometry is not currently supported, but is on the immediate-term roadmap.
 
-``nr`` (int = 25)
+``nrho`` (int = 25)
   Number of radial grid points
 
 ``geometry_file`` (str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols')
@@ -392,7 +392,7 @@ Time dependent geometry is not currently supported, but is on the immediate-term
 
 ``hi_res_fac`` (int = 4)
   Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
-  with ``nr_hires = nr * hi_res_fac``, used for ``j`` to ``psi`` conversions.
+  with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
 
 
 transport
@@ -959,7 +959,7 @@ Dynamic parameters: These can be changed without recompiling the simulation code
 Static parameters: These define the fundamental structure of the simulation and require JAX recompilation if changed.
 Examples include the number of grid points or the choice of transport model. A partial list is provided below.
 
-* ``runtime_params['geometry']['nr']``
+* ``runtime_params['geometry']['nrho']``
 * ``runtime_params['numerics']['ion_heat_eq']``
 * ``runtime_params['numerics']['el_heat_eq']``
 * ``runtime_params['numerics']['current_eq']``

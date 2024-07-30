@@ -28,9 +28,9 @@ class GeometryTest(parameterized.TestCase):
   """Unit tests for the `geometry` module."""
 
   @parameterized.parameters([
-      dict(nr=25, seed=20220930),
+      dict(n_rho=25, seed=20220930),
   ])
-  def test_face_to_cell(self, nr, seed):
+  def test_face_to_cell(self, n_rho, seed):
     """Compare `face_to_cell` to a PINT reference."""
 
     rng_state = jax.random.PRNGKey(seed)
@@ -38,14 +38,14 @@ class GeometryTest(parameterized.TestCase):
 
     # Generate face variables
     rng_use, _ = jax.random.split(rng_state)
-    face = jax.random.normal(rng_use, (nr + 1,))
+    face = jax.random.normal(rng_use, (n_rho + 1,))
     del rng_use  # Make sure rng_use isn't accidentally re-used
 
     # Convert face values to cell values using jax code being tested
     cell_jax = geometry.face_to_cell(jnp.array(face))
 
     # Make ground truth
-    cell_np = face_to_cell(nr, face)
+    cell_np = face_to_cell(n_rho, face)
 
     np.testing.assert_allclose(cell_jax, cell_np)
 
@@ -53,7 +53,7 @@ class GeometryTest(parameterized.TestCase):
     """Test that the Geometry class is frozen."""
     geo = geometry.build_circular_geometry()
     with self.assertRaises(dataclasses.FrozenInstanceError):
-      geo.dr_norm = 0.1
+      geo.drho_norm = 0.1
 
   def test_circular_geometry_can_be_input_to_jitted_function(self):
     """Test that a circular geometry can be input to a jitted function."""
@@ -75,7 +75,7 @@ class GeometryTest(parameterized.TestCase):
     foo_jitted = jax.jit(foo)
     intermediate = geometry.StandardGeometryIntermediates(
         Ip_from_parameters=True,
-        nr=25,
+        n_rho=25,
         Rmaj=6.2,
         Rmin=2.0,
         B=5.3,
@@ -109,7 +109,7 @@ class GeometryTest(parameterized.TestCase):
     """Test that the default geometry provider can be built."""
     intermediate_0 = geometry.StandardGeometryIntermediates(
         Ip_from_parameters=True,
-        nr=25,
+        n_rho=25,
         Rmaj=6.2,
         Rmin=2.0,
         B=5.3,
@@ -135,7 +135,7 @@ class GeometryTest(parameterized.TestCase):
 
     intermediate_1 = geometry.StandardGeometryIntermediates(
         Ip_from_parameters=True,
-        nr=25,
+        n_rho=25,
         Rmaj=7.4,
         Rmin=1.0,
         B=6.5,
@@ -169,7 +169,7 @@ class GeometryTest(parameterized.TestCase):
   def test_build_geometry_provider_from_circular(self):
     """Test that the circular geometry provider can be built."""
     geo_0 = geometry.build_circular_geometry(
-        nr=25,
+        n_rho=25,
         kappa=1.72,
         Rmaj=6.2,
         Rmin=2.0,
@@ -177,7 +177,7 @@ class GeometryTest(parameterized.TestCase):
         hires_fac=4,
     )
     geo_1 = geometry.build_circular_geometry(
-        nr=25,
+        n_rho=25,
         kappa=1.72,
         Rmaj=7.2,
         Rmin=1.0,
@@ -191,8 +191,8 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(geo.Rmin, 1.5)
 
 
-def face_to_cell(nr, face):
-  cell = np.zeros(nr)
+def face_to_cell(n_rho, face):
+  cell = np.zeros(n_rho)
   cell[:] = 0.5 * (face[1:] + face[:-1])
   return cell
 

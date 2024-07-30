@@ -383,7 +383,7 @@ class SourceTest(parameterized.TestCase):
             source_lib.AffectedCoreProfile.NE,
         ),
     )
-    geo = geometry.build_circular_geometry(nr=4)
+    geo = geometry.build_circular_geometry(n_rho=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )
@@ -408,7 +408,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
   def test_custom_formula(self):
     """The user-specified formula should override the default formula."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(nr=5)
+    geo = geometry.build_circular_geometry(n_rho=5)
     expected_output = jnp.ones(5)  # 5 matches the geo.
     source_builder = source_lib.SingleProfileSourceBuilder(
         formula=lambda _0, _1, _2, _3, _4: expected_output,
@@ -458,7 +458,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(nr=5)
+    geo = geometry.build_circular_geometry(n_rho=5)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
@@ -490,7 +490,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
         model_func=lambda _0, _1, _2, _3, _4: profile,
         affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
-    geo = geometry.build_circular_geometry(nr=4)
+    geo = geometry.build_circular_geometry(n_rho=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )

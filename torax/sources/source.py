@@ -278,7 +278,7 @@ class Source:
     return jnp.where(
         affected_core_profile in affected_core_profile_ints,
         profile[idx, ...],
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
 
 
@@ -417,7 +417,7 @@ class SingleProfileSource(Source):
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
         profile,
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
 
 
@@ -433,8 +433,8 @@ class ProfileType(enum.Enum):
   def get_profile_shape(self, geo: geometry.Geometry) -> tuple[int, ...]:
     """Returns the expected length of the source profile."""
     profile_type_to_len = {
-        ProfileType.CELL: geo.r.shape,
-        ProfileType.FACE: geo.r_face.shape,
+        ProfileType.CELL: geo.rho.shape,
+        ProfileType.FACE: geo.rho_face.shape,
     }
     return profile_type_to_len[self]
 

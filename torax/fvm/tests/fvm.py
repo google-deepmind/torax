@@ -78,7 +78,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
 
     # Use ref_config to configure size, so we can also use ref_geo
     value = jnp.zeros(geo.torax_mesh.nx)
-    variable = cell_variable.CellVariable(value=value, dr=geo.dr)
+    variable = cell_variable.CellVariable(value=value, dr=geo.drho)
     # Underconstrain the left
     with self.assertRaises(AssertionError):
       dataclasses.replace(
@@ -113,7 +113,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
 
     # Use ref_config to configure size, so we can also use ref_geo
     value = jnp.zeros(geo.torax_mesh.nx)
-    variable = cell_variable.CellVariable(value=value, dr=geo.dr)
+    variable = cell_variable.CellVariable(value=value, dr=geo.drho)
     # Overconstrain the left
     with self.assertRaises(AssertionError):
       dataclasses.replace(  # pytype: disable=wrong-arg-types  # dataclasses-replace-types
@@ -163,14 +163,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # Make right cell different than left cell, so test catches bugs that
     # use the wrong end of the array
     value = value.at[-1].set(1)
-    variable = cell_variable.CellVariable(value=value, dr=geo.dr)
+    variable = cell_variable.CellVariable(value=value, dr=geo.drho)
 
     # Left side, face value constraint
     left_value = dataclasses.replace(  # pytype: disable=wrong-arg-types  # dataclasses-replace-types
         variable, left_face_constraint=1.0, left_face_grad_constraint=None
     )
     self.assertEqual(
-        left_value.face_grad()[0], -1.0 / (0.5 * geo.dr)
+        left_value.face_grad()[0], -1.0 / (0.5 * geo.drho)
     )
 
     # Left side, face grad constraint
@@ -186,7 +186,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_grad_constraint=None,
     )
     self.assertEqual(
-        right_value.face_grad()[-1], 1.0 / (0.5 * geo.dr)
+        right_value.face_grad()[-1], 1.0 / (0.5 * geo.drho)
     )
 
     # Right side, face grad constraint
@@ -380,7 +380,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         predictor_corrector=False,
         theta_imp=theta_imp,
     )
-    geo = geometry.build_circular_geometry(nr=num_cells)
+    geo = geometry.build_circular_geometry(n_rho=num_cells)
     transport_model_builder = (
         constant_transport_model.ConstantTransportModelBuilder(
             runtime_params=constant_transport_model.RuntimeParams(
@@ -530,7 +530,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
-    geo = geometry.build_circular_geometry(nr=num_cells)
+    geo = geometry.build_circular_geometry(n_rho=num_cells)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
             runtime_params,
@@ -545,7 +545,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             runtime_params, stepper=stepper_params
         )
     )
-    geo = geometry.build_circular_geometry(nr=num_cells)
+    geo = geometry.build_circular_geometry(n_rho=num_cells)
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice,
@@ -643,7 +643,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         predictor_corrector=False,
         theta_imp=0.0,
     )
-    geo = geometry.build_circular_geometry(nr=num_cells)
+    geo = geometry.build_circular_geometry(n_rho=num_cells)
     transport_model_builder = (
         constant_transport_model.ConstantTransportModelBuilder(
             runtime_params=constant_transport_model.RuntimeParams(

@@ -60,13 +60,13 @@ def exponential_profile(
   Returns:
     Exponential profile on the cell grid.
   """
-  r = jax_utils.select(use_normalized_r, geo.r_norm, geo.r)
-  r_face = jax_utils.select(use_normalized_r, geo.r_face_norm, geo.r_face)
+  r = jax_utils.select(use_normalized_r, geo.rho_norm, geo.rho)
+  r_face = jax_utils.select(use_normalized_r, geo.rho_face_norm, geo.rho_face)
   S = jnp.exp(-(c1 - r) / c2)
   S_face = jnp.exp(-(c1 - r_face) / c2)
   # calculate constant prefactor
   C = total / jax.scipy.integrate.trapezoid(
-      geo.vpr_face * S_face, geo.r_face_norm
+      geo.vpr_face * S_face, geo.rho_face_norm
   )
   return C * S
 
@@ -100,13 +100,13 @@ def gaussian_profile(
   Returns:
     Gaussian profile on the cell grid.
   """
-  r = jax_utils.select(use_normalized_r, geo.r_norm, geo.r)
-  r_face = jax_utils.select(use_normalized_r, geo.r_face_norm, geo.r_face)
+  r = jax_utils.select(use_normalized_r, geo.rho_norm, geo.rho)
+  r_face = jax_utils.select(use_normalized_r, geo.rho_face_norm, geo.rho_face)
   S = jnp.exp(-((r - c1) ** 2) / (2 * c2**2))
   S_face = jnp.exp(-((r_face - c1) ** 2) / (2 * c2**2))
   # calculate constant prefactor
   C = total / jax.scipy.integrate.trapezoid(
-      geo.vpr_face * S_face, geo.r_face_norm
+      geo.vpr_face * S_face, geo.rho_face_norm
   )
   return C * S
 

@@ -23,7 +23,7 @@ CONFIG = {
     'runtime_params': {},
     'geometry': {
         'geometry_type': 'circular',
-        'nr': 25,
+        'n_rho': 25,
         'geometry_configs': {
             0: {
                 'kappa': 1.,

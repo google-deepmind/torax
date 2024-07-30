@@ -122,17 +122,17 @@ class ConstantTransportModel(transport_model.TransportModel):
 
     chi_face_ion = (
         dynamic_runtime_params_slice.transport.chii_const
-        * jnp.ones_like(geo.r_face)
+        * jnp.ones_like(geo.rho_face)
     )
     chi_face_el = (
         dynamic_runtime_params_slice.transport.chie_const
-        * jnp.ones_like(geo.r_face)
+        * jnp.ones_like(geo.rho_face)
     )
     d_face_el = dynamic_runtime_params_slice.transport.De_const * jnp.ones_like(
-        geo.r_face
+        geo.rho_face
     )
     v_face_el = dynamic_runtime_params_slice.transport.Ve_const * jnp.ones_like(
-        geo.r_face
+        geo.rho_face
     )
 
     return state.CoreTransport(

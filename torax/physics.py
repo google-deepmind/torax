@@ -130,8 +130,8 @@ def internal_boundary(
   # Create Boolean mask FiPy CellVariable with True where the internal boundary
   # condition is
   # find index closest to pedestal top.
-  idx = jnp.abs(geo.r_norm - Ped_top).argmin()
-  mask_np = jnp.zeros(len(geo.r), dtype=bool)
+  idx = jnp.abs(geo.rho_norm - Ped_top).argmin()
+  mask_np = jnp.zeros(len(geo.rho), dtype=bool)
   mask_np = jnp.where(set_pedestal, mask_np.at[idx].set(True), mask_np)
   return mask_np
 
@@ -163,7 +163,9 @@ def calc_q_from_jtot_psi(
   # corresponds to face 1.
   # iota on face 0 is unused in this function, and would need to be implemented
   # as a special case.
-  inv_iota = jnp.abs((2 * geo.Phib * geo.r_face_norm[1:]) / psi.face_grad()[1:])
+  inv_iota = jnp.abs(
+      (2 * geo.Phib * geo.rho_face_norm[1:]) / psi.face_grad()[1:]
+  )
   # use on-axis definition of q (Wesson 2004, Eq 3.48)
   q0 = 2 * geo.B0 / (constants.CONSTANTS.mu0 * jtot_face[0] * geo.Rmaj)
   q0 = jnp.expand_dims(q0, 0)
@@ -229,18 +231,18 @@ def calc_s_from_psi(
   dpsi_drhon = psi.face_grad()
   # 2nd derivative of psi on face grad. Dropping the leftmost face, it won't be
   # needed.
-  d2psi_d2rhon = (dpsi_drhon[2:] - dpsi_drhon[:-2]) / (2 * geo.dr_norm)
+  d2psi_d2rhon = (dpsi_drhon[2:] - dpsi_drhon[:-2]) / (2 * geo.drho_norm)
   d2psi_d2rhon = jnp.concatenate((d2psi_d2rhon, d2psi_d2rhon[-1:]))
 
   # Volume on face grid
   # pylint:disable=invalid-name
-  V = math_utils.cumulative_trapezoid(y=geo.vpr_face, x=geo.r_face_norm)
+  V = math_utils.cumulative_trapezoid(y=geo.vpr_face, x=geo.rho_face_norm)
 
   s = (
       2
       * V
-      / (geo.r_face_norm[1:] * geo.vpr_face[1:])
-      * (1 - geo.r_face_norm[1:] * d2psi_d2rhon / dpsi_drhon[1:])
+      / (geo.rho_face_norm[1:] * geo.vpr_face[1:])
+      * (1 - geo.rho_face_norm[1:] * d2psi_d2rhon / dpsi_drhon[1:])
   )
   s = jnp.concatenate((s[0:1], s))
 
@@ -293,7 +295,7 @@ def calc_nu_star(
   )
 
   # calculate bounce time
-  epsilon = geo.r_face / geo.Rmaj
+  epsilon = geo.rho_face / geo.Rmaj
   # to avoid divisions by zero
   epsilon = jnp.clip(epsilon, constants.CONSTANTS.eps)
   tau_bounce = (

@@ -45,21 +45,21 @@ The Dataset contains the following Coordinates.
 * ``time`` (time)
     Times corresponding to each simulation timestep, in units of [s].
 
-* ``r_cell`` (rho_cell)
+* ``rho_cell`` (rho_cell)
     Toroidal flux coordinate (see :ref:`glossary`) on the fvm cell grid, in units of [m].
-    The array size is set in the input config by ``geometry['nr']``.
+    The array size is set in the input config by ``geometry['nrho']``.
 
-* ``r_cell_norm`` (rho_cell)
+* ``rho_cell_norm`` (rho_cell)
     Normalized toroidal flux coordinate (see :ref:`glossary`) on the fvm cell grid.
-    The array size is set in the input config by ``geometry['nr']``.
+    The array size is set in the input config by ``geometry['nrho']``.
 
-* ``r_face`` (rho_face)
+* ``rho_face`` (rho_face)
     Toroidal flux coordinate (see :ref:`glossary`) on the fvm face grid, in units of [m].
-    The array size is ``geometry['nr']+1``.
+    The array size is ``geometry['nrho']+1``.
 
-* ``r_face_norm`` (rho_face)
+* ``rho_face_norm`` (rho_face)
     Normalized toroidal flux coordinate (see :ref:`glossary`) on the fvm face grid.
-    The array size is ``geometry['nr']+1``.
+    The array size is ``geometry['nrho']+1``.
 
 In xarray, Coordinates are also embedded within the data variables. For example,
 a data variable like ``j_bootstrap``, with dimensions (time, rho_cell), will be associated

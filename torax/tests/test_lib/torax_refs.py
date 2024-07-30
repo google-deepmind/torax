@@ -85,7 +85,7 @@ def circular_references() -> References:
       },
   )
   geo = geometry.build_circular_geometry(
-      nr=25,
+      n_rho=25,
       kappa=1.72,
       hires_fac=4,
       Rmaj=6.2,
@@ -125,7 +125,7 @@ def circular_references() -> References:
           ]).astype('float64')
       ),
       right_face_grad_constraint=jnp.array(47.64848792277505),
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
   )
   psi_face_grad = np.array([
       0.0,
@@ -238,7 +238,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
   geo = build_sim.build_chease_geometry(
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-      nr=25,
+      n_rho=25,
       Ip_from_parameters=False,
       Rmaj=6.2,
       Rmin=2.0,
@@ -277,7 +277,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
           ]).astype('float64')
       ),
       right_face_grad_constraint=jnp.array(50.417485084359726),
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
   )
   psi_face_grad = np.array([
       0.0,
@@ -390,7 +390,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
   geo = build_sim.build_chease_geometry(
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-      nr=25,
+      n_rho=25,
       Ip_from_parameters=True,
       Rmaj=6.2,
       Rmin=2.0,
@@ -429,7 +429,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
           ]).astype('float64')
       ),
       right_face_grad_constraint=jnp.array(64.25482269382654),
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
   )
   psi_face_grad = np.array([
       0.0,

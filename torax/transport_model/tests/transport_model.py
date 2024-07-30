@@ -72,15 +72,15 @@ class TransportSmoothingTest(parameterized.TestCase):
     transport_coeffs = transport_model(
         dynamic_runtime_params_slice, geo, input_state.core_profiles
     )
-    chi_face_ion_orig = np.linspace(0.5, 2, geo.r_face_norm.shape[0])
-    chi_face_el_orig = np.linspace(0.25, 1, geo.r_face_norm.shape[0])
-    d_face_el_orig = np.linspace(2, 3, geo.r_face_norm.shape[0])
-    v_face_el_orig = np.linspace(-0.2, -2, geo.r_face_norm.shape[0])
+    chi_face_ion_orig = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
+    chi_face_el_orig = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
+    d_face_el_orig = np.linspace(2, 3, geo.rho_face_norm.shape[0])
+    v_face_el_orig = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
     inner_patch_idx = np.searchsorted(
-        geo.r_face_norm, dynamic_runtime_params_slice.transport.rho_inner
+        geo.rho_face_norm, dynamic_runtime_params_slice.transport.rho_inner
     )
     outer_patch_idx = np.searchsorted(
-        geo.r_face_norm, dynamic_runtime_params_slice.transport.rho_outer
+        geo.rho_face_norm, dynamic_runtime_params_slice.transport.rho_outer
     )
 
     # assert that the smoothing did not impact the zones inside/outside the
@@ -122,7 +122,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     test_idx = 5
     eps = 1e-7
     lower_cutoff = 0.01
-    r_reduced = geo.r_face_norm[inner_patch_idx:outer_patch_idx]
+    r_reduced = geo.rho_face_norm[inner_patch_idx:outer_patch_idx]
     test_r = r_reduced[test_idx]
     smoothing_array = np.exp(
         -np.log(2)
@@ -183,10 +183,10 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
     del dynamic_runtime_params_slice, core_profiles  # these are unused
-    chi_face_ion = np.linspace(0.5, 2, geo.r_face_norm.shape[0])
-    chi_face_el = np.linspace(0.25, 1, geo.r_face_norm.shape[0])
-    d_face_el = np.linspace(2, 3, geo.r_face_norm.shape[0])
-    v_face_el = np.linspace(-0.2, -2, geo.r_face_norm.shape[0])
+    chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
+    chi_face_el = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
+    d_face_el = np.linspace(2, 3, geo.rho_face_norm.shape[0])
+    v_face_el = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
     return state.CoreTransport(
         chi_face_ion=chi_face_ion,
         chi_face_el=chi_face_el,

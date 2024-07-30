@@ -132,7 +132,7 @@ class Geometry:
   # TODO(b/356356966): extend documentation to define what each attribute is.
   geometry_type: int
   torax_mesh: Grid1D
-  dr_norm: chex.Array
+  drho_norm: chex.Array
   Phi: chex.Array
   Phi_face: chex.Array
   Rmaj: chex.Array
@@ -168,33 +168,33 @@ class Geometry:
   volume_hires: chex.Array
   area_hires: chex.Array
   spr_hires: chex.Array
-  r_hires_norm: chex.Array
-  r_hires: chex.Array
+  rho_hires_norm: chex.Array
+  rho_hires: chex.Array
   vpr_hires: chex.Array
   Phibdot: chex.Array
 
   @property
-  def r_norm(self) -> chex.Array:
+  def rho_norm(self) -> chex.Array:
     return self.torax_mesh.cell_centers
 
   @property
-  def r_face_norm(self) -> chex.Array:
+  def rho_face_norm(self) -> chex.Array:
     return self.torax_mesh.face_centers
 
   @property
-  def r_face(self) -> chex.Array:
-    return self.r_face_norm * self.rmax
+  def rho_face(self) -> chex.Array:
+    return self.rho_face_norm * self.rho_b
 
   @property
-  def r(self) -> chex.Array:
-    return self.r_norm * self.rmax
+  def rho(self) -> chex.Array:
+    return self.rho_norm * self.rho_b
 
   @property
-  def dr(self) -> chex.Array:
-    return self.dr_norm * self.rmax
+  def drho(self) -> chex.Array:
+    return self.drho_norm * self.rho_b
 
   @property
-  def rmax(self) -> chex.Array:
+  def rho_b(self) -> chex.Array:
     """Toroidal flux coordinate at boundary (LCFS)."""
     return jnp.sqrt(self.Phib / np.pi / self.B0)
 
@@ -214,7 +214,7 @@ class Geometry:
   @property
   def g0_over_vpr_face(self) -> jax.Array:
     return jnp.concatenate((
-        jnp.ones(1) / self.rmax,  # correct value is 1/rmax on-axis
+        jnp.ones(1) / self.rho_b,  # correct value is 1/rho_b on-axis
         self.g0_face[1:] / self.vpr_face[1:],  # avoid div by zero on-axis
     ))
 
@@ -228,7 +228,7 @@ class Geometry:
   @property
   def g1_over_vpr2_face(self) -> jax.Array:
     return jnp.concatenate((
-        jnp.ones(1) / self.rmax**2,  # correct value is 1/rmax**2 on-axis
+        jnp.ones(1) / self.rho_b**2,  # correct value is 1/rho_b**2 on-axis
         self.g1_face[1:] / self.vpr_face[1:] ** 2,  # avoid div by zero on-axis
     ))
 
@@ -239,7 +239,7 @@ class GeometryProvider:
 
   geometry_type: int
   torax_mesh: Grid1D
-  dr_norm: interpolated_param.InterpolatedVarSingleAxis
+  drho_norm: interpolated_param.InterpolatedVarSingleAxis
   Phi: interpolated_param.InterpolatedVarSingleAxis
   Phi_face: interpolated_param.InterpolatedVarSingleAxis
   Rmaj: interpolated_param.InterpolatedVarSingleAxis
@@ -275,8 +275,8 @@ class GeometryProvider:
   volume_hires: interpolated_param.InterpolatedVarSingleAxis
   area_hires: interpolated_param.InterpolatedVarSingleAxis
   spr_hires: interpolated_param.InterpolatedVarSingleAxis
-  r_hires_norm: interpolated_param.InterpolatedVarSingleAxis
-  r_hires: interpolated_param.InterpolatedVarSingleAxis
+  rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
+  rho_hires: interpolated_param.InterpolatedVarSingleAxis
   vpr_hires: interpolated_param.InterpolatedVarSingleAxis
 
   @classmethod
@@ -407,7 +407,7 @@ class StandardGeometryProvider(GeometryProvider):
 
 
 def build_circular_geometry(
-    nr: int = 25,
+    n_rho: int = 25,
     kappa: float = 1.72,
     Rmaj: float = 6.2,
     Rmin: float = 2.0,
@@ -422,7 +422,7 @@ def build_circular_geometry(
   the dataclass, so this builder function lives outside the class.
 
   Args:
-    nr: Radial grid points (num cells)
+    n_rho: Radial grid points (num cells)
     kappa: Elogination. Defaults to 1.72 for the ITER elongation, to
       approximately correct volume and area integral Jacobians.
     Rmaj: major radius (R) in meters
@@ -434,99 +434,93 @@ def build_circular_geometry(
   Returns:
     A CircularAnalyticalGeometry instance.
   """
-  # assumes that r/Rmin = rho_norm where rho is the toroidal flux coordinate
-  # r_norm coordinate is r/Rmin in circular, and rho_norm in standard
-  # geometry (CHEASE/EQDSK)
+  # circular geometry assmption of r/Rmin = rho_norm, the normalized
+  # toroidal flux coordinate.
+  drho_norm = 1.0 / n_rho
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  dr_norm = 1.0 / nr
-  mesh = Grid1D.construct(nx=nr, dx=dr_norm)
-  rmax = np.asarray(Rmin)
-  # helper variables for mesh cells and faces
-  # r coordinate of faces
-  r_face_norm = mesh.face_centers
-  # r coordinate of cell centers
-  r_norm = mesh.cell_centers
+  mesh = Grid1D.construct(nx=n_rho, dx=drho_norm)
+  # toroidal flux coordinate (rho) at boundary (last closed flux surface)
+  rho_b = np.asarray(Rmin)
 
-  r_face = r_face_norm * rmax
-  r = r_norm * rmax
+  # normalized and unnormalized toroidal flux coordinate (rho)
+  # on face and cell grids. See fvm documentation and paper for details on
+  # face and cell grids.
+  rho_face_norm = mesh.face_centers
+  rho_norm = mesh.cell_centers
+  rho_face = rho_face_norm * rho_b
+  rho = rho_norm * rho_b
+
   Rmaj = np.array(Rmaj)
   B0 = np.array(B0)
 
   # Define toroidal flux
-  Phi = np.pi * B0 * r**2
-  Phi_face = np.pi * B0 * r_face**2
+  Phi = np.pi * B0 * rho**2
+  Phi_face = np.pi * B0 * rho_face**2
 
-  # assumed elongation profile on cell grid
+  # Elongation profile.
+  # Set to be a linearly increasing function from 1 to kappa_param, which is the
+  # kappa value at the last closed flux surface, set in config.
   kappa_param = kappa
-  kappa = 1 + r_norm * (kappa_param - 1)
-  # assumed elongation profile on cell grid
-  kappa_face = 1 + r_face_norm * (kappa_param - 1)
+  kappa = 1 + rho_norm * (kappa_param - 1)
+  kappa_face = 1 + rho_face_norm * (kappa_param - 1)
 
-  volume = 2 * np.pi**2 * Rmaj * r**2 * kappa
-  volume_face = 2 * np.pi**2 * Rmaj * r_face**2 * kappa_face
-  area = np.pi * r**2 * kappa
-  area_face = np.pi * r_face**2 * kappa_face
+  # Volume in elongated circular geometry is given by:
+  # V = 2*pi^2*R*rho^2*kappa
+  # S = pi*rho^2*kappa
+
+  volume = 2 * np.pi**2 * Rmaj * rho**2 * kappa
+  volume_face = 2 * np.pi**2 * Rmaj * rho_face**2 * kappa_face
+  area = np.pi * rho**2 * kappa
+  area_face = np.pi * rho_face**2 * kappa_face
 
   # V' = dV/drnorm for volume integrations
-  vpr = 4 * np.pi**2 * Rmaj * r * kappa * rmax + volume / kappa * (
+  # \nabla V = 4*pi^2*R*rho*kappa + V * (kappa_param - 1) / kappa / rho_b
+  # vpr = \nabla V * rho_b
+  vpr = 4 * np.pi**2 * Rmaj * rho * kappa * rho_b + volume / kappa * (
       kappa_param - 1
   )
   vpr_face = (
-      4 * np.pi**2 * Rmaj * r_face * kappa_face * rmax
+      4 * np.pi**2 * Rmaj * rho_face * kappa_face * rho_b
       + volume_face / kappa_face * (kappa_param - 1)
   )
   # pylint: disable=invalid-name
   # S' = dS/drnorm for area integrals on cell grid
-  spr_cell = 2 * np.pi * r * kappa * rmax + area / kappa * (kappa_param - 1)
-  spr_face = 2 * np.pi * r_face * kappa_face * rmax + area_face / kappa_face * (
-      kappa_param - 1
+  spr_cell = 2 * np.pi * rho * kappa * rho_b + area / kappa * (kappa_param - 1)
+  spr_face = (
+      2 * np.pi * rho_face * kappa_face * rho_b
+      + area_face / kappa_face * (kappa_param - 1)
   )
 
-  delta_face = np.zeros(len(r_face))
+  delta_face = np.zeros(len(rho_face))
 
   # Geometry variables for general geometry form of transport equations.
   # With circular geometry approximation.
 
   # g0: <\nabla V>
-  g0 = vpr / rmax
-  g0_face = vpr_face / rmax
+  g0 = vpr / rho_b
+  g0_face = vpr_face / rho_b
 
   # g1: <(\nabla V)^2>
-  g1 = vpr**2 / rmax**2
-  g1_face = vpr_face**2 / rmax**2
+  g1 = vpr**2 / rho_b**2
+  g1_face = vpr_face**2 / rho_b**2
 
   # g2: <(\nabla V)^2 / R^2>
-  # V = 2*pi^2*R*r^2*kappa
-  # Expand with small kappa expansion
-
-  g2 = (
-      16
-      * np.pi**4
-      * r**2
-      * kappa**2
-      * (1 + 0.5 * r_norm * (kappa_param - 1) / kappa_param) ** 2
-  )
-  g2_face = (
-      16
-      * np.pi**4
-      * r_face**2
-      * kappa_face**2
-      * (1 + 0.5 * r_face_norm * (kappa_param - 1) / kappa_param) ** 2
-  )
+  g2 = g1 / Rmaj**2
+  g2_face = g1_face / Rmaj**2
 
   # g3: <1/R^2> (done without a kappa correction)
   # <1/R^2> =
   # 1/2pi*int_0^2pi (1/(Rmaj+r*cosx)^2)dx =
   # 1/( Rmaj^2 * (1 - (r/Rmaj)^2)^3/2 )
-  g3 = 1 / (Rmaj**2 * (1 - (r / Rmaj) ** 2) ** (3.0 / 2.0))
-  g3_face = 1 / (Rmaj**2 * (1 - (r_face / Rmaj) ** 2) ** (3.0 / 2.0))
+  g3 = 1 / (Rmaj**2 * (1 - (rho / Rmaj) ** 2) ** (3.0 / 2.0))
+  g3_face = 1 / (Rmaj**2 * (1 - (rho_face / Rmaj) ** 2) ** (3.0 / 2.0))
 
   # simplifying assumption for now, for J=R*B/(R0*B0)
-  J = np.ones(len(r))
-  J_face = np.ones(len(r_face))
+  J = np.ones(len(rho))
+  J_face = np.ones(len(rho_face))
   # simplified (constant) version of the F=B*R function
-  F = np.ones(len(r)) * Rmaj * B0
-  F_face = np.ones(len(r_face)) * Rmaj * B0
+  F = np.ones(len(rho)) * Rmaj * B0
+  F_face = np.ones(len(rho_face)) * Rmaj * B0
 
   # Using an approximation where:
   # g2g3_over_rhon = 16 * pi**4 * G2 / (J * R) where:
@@ -542,45 +536,45 @@ def build_circular_geometry(
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current, which is
   # the only option for ad-hoc circular geometry.
-  r_hires_norm = np.linspace(0, 1, nr * hires_fac)
-  r_hires = r_hires_norm * rmax
+  rho_hires_norm = np.linspace(0, 1, n_rho * hires_fac)
+  rho_hires = rho_hires_norm * rho_b
 
-  Rout = Rmaj + r
-  Rout_face = Rmaj + r_face
+  Rout = Rmaj + rho
+  Rout_face = Rmaj + rho_face
 
-  Rin = Rmaj - r
-  Rin_face = Rmaj - r_face
+  Rin = Rmaj - rho
+  Rin_face = Rmaj - rho_face
 
   # assumed elongation profile on hires grid
-  kappa_hires = 1 + r_hires_norm * (kappa_param - 1)
+  kappa_hires = 1 + rho_hires_norm * (kappa_param - 1)
 
-  volume_hires = 2 * np.pi**2 * Rmaj * r_hires**2 * kappa_hires
-  area_hires = np.pi * r_hires**2 * kappa_hires
+  volume_hires = 2 * np.pi**2 * Rmaj * rho_hires**2 * kappa_hires
+  area_hires = np.pi * rho_hires**2 * kappa_hires
 
   # V' = dV/drnorm for volume integrations on hires grid
   vpr_hires = (
-      4 * np.pi**2 * Rmaj * r_hires * kappa_hires * rmax
+      4 * np.pi**2 * Rmaj * rho_hires * kappa_hires * rho_b
       + volume_hires / kappa_hires * (kappa_param - 1)
   )
   # S' = dS/drnorm for area integrals on hires grid
   spr_hires = (
-      2 * np.pi * r_hires * kappa_hires * rmax
+      2 * np.pi * rho_hires * kappa_hires * rho_b
       + area_hires / kappa_hires * (kappa_param - 1)
   )
 
-  g3_hires = 1 / (Rmaj**2 * (1 - (r_hires / Rmaj) ** 2) ** (3.0 / 2.0))
-  F_hires = np.ones(len(r_hires)) * B0 * Rmaj
+  g3_hires = 1 / (Rmaj**2 * (1 - (rho_hires / Rmaj) ** 2) ** (3.0 / 2.0))
+  F_hires = np.ones(len(rho_hires)) * B0 * Rmaj
   g2g3_over_rhon_hires = 4 * np.pi**2 * vpr_hires * g3_hires * B0 / F_hires
 
   return CircularAnalyticalGeometry(
       # Set the standard geometry params.
       geometry_type=GeometryType.CIRCULAR.value,
-      dr_norm=np.asarray(dr_norm),
+      drho_norm=np.asarray(drho_norm),
       torax_mesh=mesh,
       Phi=Phi,
       Phi_face=Phi_face,
       Rmaj=Rmaj,
-      Rmin=rmax,
+      Rmin=rho_b,
       B0=B0,
       volume=volume,
       volume_face=volume_face,
@@ -615,8 +609,8 @@ def build_circular_geometry(
       volume_hires=volume_hires,
       area_hires=area_hires,
       spr_hires=spr_hires,
-      r_hires_norm=r_hires_norm,
-      r_hires=r_hires,
+      rho_hires_norm=rho_hires_norm,
+      rho_hires=rho_hires,
       kappa_hires=kappa_hires,
       vpr_hires=vpr_hires,
       # always initialize Phibdot as zero. It will be replaced once both geo_t
@@ -664,7 +658,7 @@ class StandardGeometryIntermediates:
   delta_lower_face: Triangularity on lower face
   volume: Volume profile
   area: Area profile
-  nr: Radial grid points (num cells)
+  n_rho: Radial grid points (num cells)
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
   """
@@ -688,7 +682,7 @@ class StandardGeometryIntermediates:
   delta_lower_face: chex.Array
   volume: chex.Array
   area: chex.Array
-  nr: int
+  n_rho: int
   hires_fac: int
 
   @classmethod
@@ -697,7 +691,7 @@ class StandardGeometryIntermediates:
       geometry_dir: str | None = None,
       geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
       Ip_from_parameters: bool = True,
-      nr: int = 25,
+      n_rho: int = 25,
       Rmaj: float = 6.2,
       Rmin: float = 2.0,
       B0: float = 5.3,
@@ -714,7 +708,7 @@ class StandardGeometryIntermediates:
       geometry_file: CHEASE file name.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
         values in the Geometry are resacled to match the new Ip.
-      nr: Radial grid points (num cells)
+      n_rho: Radial grid points (num cells)
       Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so
         this is used as an unnormalization factor.
       Rmin: minor radius (a) in meters
@@ -779,7 +773,7 @@ class StandardGeometryIntermediates:
         delta_lower_face=chease_data['delta_bottom'],
         volume=volume,
         area=area,
-        nr=nr,
+        n_rho=n_rho,
         hires_fac=hires_fac,
     )
 
@@ -799,8 +793,8 @@ def build_standard_geometry(
   """
 
   # Toroidal flux coordinates
-  rho = np.sqrt(intermediate.Phi / (np.pi * intermediate.B))
-  rhon = rho / rho[-1]
+  rho_intermediate = np.sqrt(intermediate.Phi / (np.pi * intermediate.B))
+  rho_norm_intermediate = rho_intermediate / rho_intermediate[-1]
 
   # flux surface integrals of various geometry quantities
   C1 = intermediate.int_dl_over_Bp
@@ -817,7 +811,7 @@ def build_standard_geometry(
   g2 = C1 * C3 * 4 * np.pi**2  # <(\nabla psi)**2 / R**2> * (dV/dpsi) ** 2
   g3 = C2[1:] / C1[1:]  # <1/R**2>
   g3 = np.concatenate((np.array([1 / intermediate.Rin[0] ** 2]), g3))
-  g2g3_over_rhon = g2[1:] * g3[1:] / rhon[1:]
+  g2g3_over_rhon = g2[1:] * g3[1:] / rho_norm_intermediate[1:]
   g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
 
   # make an alternative initial psi, self-consistent with CHEASE Ip profile
@@ -829,7 +823,7 @@ def build_standard_geometry(
   )
   dpsidrhon = np.concatenate((np.zeros(1), dpsidrhon))
   psi_from_Ip = scipy.integrate.cumulative_trapezoid(
-      y=dpsidrhon, x=rhon, initial=0.0
+      y=dpsidrhon, x=rho_norm_intermediate, initial=0.0
   )
 
   # set Ip-consistent psi derivative boundary condition (although will be
@@ -839,12 +833,12 @@ def build_standard_geometry(
   ) * intermediate.Ip_profile[-1] / (
       g2g3_over_rhon[-1] * intermediate.F[-1]
   ) * (
-      rhon[-1] - rhon[-2]
+      rho_norm_intermediate[-1] - rho_norm_intermediate[-2]
   )
 
   # dV/drhon, dS/drhon
-  vpr = np.gradient(intermediate.volume, rhon)
-  spr = np.gradient(intermediate.area, rhon)
+  vpr = np.gradient(intermediate.volume, rho_norm_intermediate)
+  spr = np.gradient(intermediate.area, rho_norm_intermediate)
   # gradient boundary approximation not appropriate here
   vpr[0] = 0
   spr[0] = 0
@@ -858,93 +852,91 @@ def build_standard_geometry(
   )
 
   # fill geometry structure
-  # r_norm coordinate is rho_tor_norm
-
-  # fill geometry structure
-  # r_norm coordinate is rho_tor_norm
-  dr_norm = float(rhon[-1]) / intermediate.nr
+  drho_norm = float(rho_norm_intermediate[-1]) / intermediate.n_rho
   # normalized grid
-  mesh = Grid1D.construct(nx=intermediate.nr, dx=dr_norm)
-  rmax = rho[-1]  # radius denormalization constant
+  mesh = Grid1D.construct(nx=intermediate.n_rho, dx=drho_norm)
+  rho_b = rho_intermediate[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
-  r_face_norm = mesh.face_centers
-  r_norm = mesh.cell_centers
+  rho_face_norm = mesh.face_centers
+  rho_norm = mesh.cell_centers
 
   # High resolution versions for j (plasma current) and psi (poloidal flux)
   # manipulations. Needed if psi is initialized from plasma current.
-  r_hires_norm = np.linspace(0, 1, intermediate.nr * intermediate.hires_fac)
-  r_hires = r_hires_norm * rmax
+  rho_hires_norm = np.linspace(
+      0, 1, intermediate.n_rho * intermediate.hires_fac
+  )
+  rho_hires = rho_hires_norm * rho_b
 
-  rhon_interpolation_func = lambda x, y: np.interp(x, rhon, y)
+  rhon_interpolation_func = lambda x, y: np.interp(x, rho_norm_intermediate, y)
   # V' for volume integrations on face grid
-  vpr_face = rhon_interpolation_func(r_face_norm, vpr)
+  vpr_face = rhon_interpolation_func(rho_face_norm, vpr)
   # V' for volume integrations on cell grid
-  vpr_hires = rhon_interpolation_func(r_hires_norm, vpr)
-  vpr = rhon_interpolation_func(r_norm, vpr)
+  vpr_hires = rhon_interpolation_func(rho_hires_norm, vpr)
+  vpr = rhon_interpolation_func(rho_norm, vpr)
 
   # S' for area integrals on face grid
-  spr_face = rhon_interpolation_func(r_face_norm, spr)
+  spr_face = rhon_interpolation_func(rho_face_norm, spr)
   # S' for area integrals on cell grid
-  spr_cell = rhon_interpolation_func(r_norm, spr)
-  spr_hires = rhon_interpolation_func(r_hires_norm, spr)
+  spr_cell = rhon_interpolation_func(rho_norm, spr)
+  spr_hires = rhon_interpolation_func(rho_hires_norm, spr)
 
   # triangularity on cell grid
   delta_upper_face = rhon_interpolation_func(
-      r_face_norm, intermediate.delta_upper_face
+      rho_face_norm, intermediate.delta_upper_face
   )
   delta_lower_face = rhon_interpolation_func(
-      r_face_norm, intermediate.delta_lower_face
+      rho_face_norm, intermediate.delta_lower_face
   )
 
   # average triangularity
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
-  Phi_face = rhon_interpolation_func(r_face_norm, intermediate.Phi)
-  Phi = rhon_interpolation_func(r_norm, intermediate.Phi)
+  Phi_face = rhon_interpolation_func(rho_face_norm, intermediate.Phi)
+  Phi = rhon_interpolation_func(rho_norm, intermediate.Phi)
 
-  F_face = rhon_interpolation_func(r_face_norm, intermediate.F)
-  F = rhon_interpolation_func(r_norm, intermediate.F)
-  F_hires = rhon_interpolation_func(r_hires_norm, intermediate.F)
+  F_face = rhon_interpolation_func(rho_face_norm, intermediate.F)
+  F = rhon_interpolation_func(rho_norm, intermediate.F)
+  F_hires = rhon_interpolation_func(rho_hires_norm, intermediate.F)
 
-  psi = rhon_interpolation_func(r_norm, intermediate.psi)
-  psi_from_Ip = rhon_interpolation_func(r_norm, psi_from_Ip)
+  psi = rhon_interpolation_func(rho_norm, intermediate.psi)
+  psi_from_Ip = rhon_interpolation_func(rho_norm, psi_from_Ip)
 
-  jtot_face = rhon_interpolation_func(r_face_norm, jtot)
-  jtot = rhon_interpolation_func(r_norm, jtot)
+  jtot_face = rhon_interpolation_func(rho_face_norm, jtot)
+  jtot = rhon_interpolation_func(rho_norm, jtot)
 
-  Rin_face = rhon_interpolation_func(r_face_norm, intermediate.Rin)
-  Rin = rhon_interpolation_func(r_norm, intermediate.Rin)
+  Rin_face = rhon_interpolation_func(rho_face_norm, intermediate.Rin)
+  Rin = rhon_interpolation_func(rho_norm, intermediate.Rin)
 
-  Rout_face = rhon_interpolation_func(r_face_norm, intermediate.Rout)
-  Rout = rhon_interpolation_func(r_norm, intermediate.Rout)
+  Rout_face = rhon_interpolation_func(rho_face_norm, intermediate.Rout)
+  Rout = rhon_interpolation_func(rho_norm, intermediate.Rout)
 
-  g0_face = rhon_interpolation_func(r_face_norm, g0)
-  g0 = rhon_interpolation_func(r_norm, g0)
+  g0_face = rhon_interpolation_func(rho_face_norm, g0)
+  g0 = rhon_interpolation_func(rho_norm, g0)
 
-  g1_face = rhon_interpolation_func(r_face_norm, g1)
-  g1 = rhon_interpolation_func(r_norm, g1)
+  g1_face = rhon_interpolation_func(rho_face_norm, g1)
+  g1 = rhon_interpolation_func(rho_norm, g1)
 
-  g2_face = rhon_interpolation_func(r_face_norm, g2)
-  g2 = rhon_interpolation_func(r_norm, g2)
+  g2_face = rhon_interpolation_func(rho_face_norm, g2)
+  g2 = rhon_interpolation_func(rho_norm, g2)
 
-  g3_face = rhon_interpolation_func(r_face_norm, g3)
-  g3 = rhon_interpolation_func(r_norm, g3)
+  g3_face = rhon_interpolation_func(rho_face_norm, g3)
+  g3 = rhon_interpolation_func(rho_norm, g3)
 
-  g2g3_over_rhon_face = rhon_interpolation_func(r_face_norm, g2g3_over_rhon)
-  g2g3_over_rhon_hires = rhon_interpolation_func(r_hires_norm, g2g3_over_rhon)
-  g2g3_over_rhon = rhon_interpolation_func(r_norm, g2g3_over_rhon)
+  g2g3_over_rhon_face = rhon_interpolation_func(rho_face_norm, g2g3_over_rhon)
+  g2g3_over_rhon_hires = rhon_interpolation_func(rho_hires_norm, g2g3_over_rhon)
+  g2g3_over_rhon = rhon_interpolation_func(rho_norm, g2g3_over_rhon)
 
-  volume_face = rhon_interpolation_func(r_face_norm, intermediate.volume)
-  volume_hires = rhon_interpolation_func(r_hires_norm, intermediate.volume)
-  volume = rhon_interpolation_func(r_norm, intermediate.volume)
+  volume_face = rhon_interpolation_func(rho_face_norm, intermediate.volume)
+  volume_hires = rhon_interpolation_func(rho_hires_norm, intermediate.volume)
+  volume = rhon_interpolation_func(rho_norm, intermediate.volume)
 
-  area_face = rhon_interpolation_func(r_face_norm, intermediate.area)
-  area_hires = rhon_interpolation_func(r_hires_norm, intermediate.area)
-  area = rhon_interpolation_func(r_norm, intermediate.area)
+  area_face = rhon_interpolation_func(rho_face_norm, intermediate.area)
+  area_hires = rhon_interpolation_func(rho_hires_norm, intermediate.area)
+  area = rhon_interpolation_func(rho_norm, intermediate.area)
 
   return StandardGeometry(
       geometry_type=GeometryType.CHEASE.value,
-      dr_norm=np.asarray(dr_norm),
+      drho_norm=np.asarray(drho_norm),
       torax_mesh=mesh,
       Phi=Phi,
       Phi_face=Phi_face,
@@ -989,8 +981,8 @@ def build_standard_geometry(
       volume_hires=volume_hires,
       area_hires=area_hires,
       spr_hires=spr_hires,
-      r_hires_norm=r_hires_norm,
-      r_hires=r_hires,
+      rho_hires_norm=rho_hires_norm,
+      rho_hires=rho_hires,
       vpr_hires=vpr_hires,
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and

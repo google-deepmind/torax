@@ -92,12 +92,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     qei_core_profiles = dataclasses.replace(
         qei_core_profiles,
         temp_ion=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.r) * 1.0,
-            dr=geo.dr,
+            value=jnp.ones_like(geo.rho) * 1.0,
+            dr=geo.drho,
         ),
         temp_el=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.r) * 3.0,
-            dr=geo.dr,
+            value=jnp.ones_like(geo.rho) * 3.0,
+            dr=geo.drho,
         ),
     )
     merged_profiles = sim_lib.merge_source_profiles(  # pylint: disable=protected-access
@@ -133,7 +133,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         unused_state,
         unused_source_models,
     ):
-      return jnp.ones_like(geo.r) * source_conf.foo
+      return jnp.ones_like(geo.rho) * source_conf.foo
 
     # Include 2 versions of this source, one implicit and one explicit.
     source_models_builder = source_models_lib.SourceModelsBuilder({
@@ -213,8 +213,8 @@ def _build_source_profiles_with_single_value(
     source_models: source_models_lib.SourceModels,
     value: float,
 ):
-  cell_1d_arr = jnp.ones_like(geo.r) * value
-  face_1d_arr = jnp.ones_like(geo.r_face) * value
+  cell_1d_arr = jnp.ones_like(geo.rho) * value
+  face_1d_arr = jnp.ones_like(geo.rho_face) * value
   return source_profiles_lib.SourceProfiles(
       profiles={
           name: jnp.ones(shape=src.output_shape_getter(geo)) * value

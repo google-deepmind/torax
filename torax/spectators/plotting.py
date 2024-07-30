@@ -311,26 +311,26 @@ def get_default_plot_config(
   return (
       get_plot(
           keys=('chi_face_ion', 'chi_face_el'),
-          x_axis=geo.r_face_norm,
+          x_axis=geo.rho_face_norm,
           x_label='Normalized radius',
           y_label=r'Heat conductivity $[m^2/s]$',
       ),
       get_plot(
           keys=('ne',),
-          x_axis=geo.r_norm,
+          x_axis=geo.rho_norm,
           x_label='Normalized radius',
           y_label=r'Density $[10^{20}~m^{-3}]$',
       ),
       get_plot(
           keys=('Qext_i', 'Qfus_i', 'Qei'),
-          x_axis=geo.r_norm,
+          x_axis=geo.rho_norm,
           x_label='Normalized radius',
           y_label=r'Ion heat source $[kW~m^{-3}]$',
           labels=('External term', 'Fusion term', 'Ion-electron heat exchange'),
       ),
       get_plot(
           keys=('Qext_e', 'Qfus_e', 'Qei'),
-          x_axis=geo.r_norm,
+          x_axis=geo.rho_norm,
           x_label='Normalized radius',
           y_label=r'Electron heat source $[kW~m^{-3}]$',
           labels=('External term', 'Fusion term', 'Ion-electron heat exchange'),
@@ -340,19 +340,19 @@ def get_default_plot_config(
       ),
       get_plot(
           keys=('q_face',),
-          x_axis=geo.r_face_norm,
+          x_axis=geo.rho_face_norm,
           x_label='Normalized radius',
           y_label='q-profile',
       ),
       get_plot(
           keys=('s_face',),
-          x_axis=geo.r_face_norm,
+          x_axis=geo.rho_face_norm,
           x_label='Normalized radius',
           y_label='Magnetic shear',
       ),
       get_plot(
           keys=('jtot_face', 'jext_face', 'j_bootstrap_face', 'johm_face'),
-          x_axis=geo.r_face_norm,
+          x_axis=geo.rho_face_norm,
           x_label='Normalized radius',
           y_label=r'Current $[MA~m^{-2}]$',
           labels=(
@@ -364,7 +364,7 @@ def get_default_plot_config(
       ),
       get_plot(
           keys=('temp_ion', 'temp_el'),
-          x_axis=geo.r_norm,
+          x_axis=geo.rho_norm,
           x_label='Normalized radius',
           y_label='Temperature [keV]',
           labels=(r'$T_i$', r'$T_e$'),

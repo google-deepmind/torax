@@ -116,11 +116,11 @@ def _calculate_jext_face(  # pytype: disable=name-error
   )
   # form of external current on face grid
   jextform_face = jnp.exp(
-      -((geo.r_face_norm - dynamic_source_runtime_params.rext) ** 2)
+      -((geo.rho_face_norm - dynamic_source_runtime_params.rext) ** 2)
       / (2 * dynamic_source_runtime_params.wext**2)
   )
 
-  Cext = Iext * 1e6 / _trapz(jextform_face * geo.spr_face, geo.r_face_norm)
+  Cext = Iext * 1e6 / _trapz(jextform_face * geo.spr_face, geo.rho_face_norm)
 
   jext_face = Cext * jextform_face  # external current profile
   return jext_face
@@ -155,11 +155,11 @@ def _calculate_jext_hires(  # pytype: disable=name-error
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on cell grid
   jextform_hires = jnp.exp(
-      -((geo.r_hires_norm - dynamic_source_runtime_params.rext) ** 2)
+      -((geo.rho_hires_norm - dynamic_source_runtime_params.rext) ** 2)
       / (2 * dynamic_source_runtime_params.wext**2)
   )
   Cext_hires = (
-      Iext * 1e6 / _trapz(jextform_hires * geo.spr_hires, geo.r_hires_norm)
+      Iext * 1e6 / _trapz(jextform_hires * geo.spr_hires, geo.rho_hires_norm)
   )
   # External current profile on cell grid
   jext_hires = Cext_hires * jextform_hires
@@ -245,10 +245,10 @@ class ExternalCurrentSource(source.Source):
         core_profiles=None,
         # There is no model for this source.
         model_func=(
-            lambda _0, _1, _2, _3, _4: jnp.zeros_like(geo.r_hires_norm)
+            lambda _0, _1, _2, _3, _4: jnp.zeros_like(geo.rho_hires_norm)
         ),
         formula=self.hires_formula,
-        output_shape=geo.r_hires_norm.shape,
+        output_shape=geo.rho_hires_norm.shape,
         source_models=getattr(self, 'source_models', None),
     )
 
@@ -261,7 +261,7 @@ class ExternalCurrentSource(source.Source):
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
         profile[0],  # the jext profile
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
 
 

@@ -59,7 +59,7 @@ class BuildSimTest(parameterized.TestCase):
             ),
             geometry=dict(
                 geometry_type='circular',
-                nr=5,
+                n_rho=5,
             ),
             sources=dict(
                 pellet_source=dict(
@@ -181,7 +181,7 @@ class BuildSimTest(parameterized.TestCase):
   def test_build_circular_geometry(self):
     geo_provider = build_sim.build_geometry_provider_from_config({
         'geometry_type': 'circular',
-        'nr': 5,  # override a default.
+        'n_rho': 5,  # override a default.
     })
     self.assertIsInstance(
         geo_provider, geometry_provider.ConstantGeometryProvider)
@@ -194,7 +194,7 @@ class BuildSimTest(parameterized.TestCase):
     geo_provider = build_sim.build_geometry_provider_from_config(
         {
             'geometry_type': 'chease',
-            'nr': 5,  # override a default.
+            'n_rho': 5,  # override a default.
         },
     )
     self.assertIsInstance(

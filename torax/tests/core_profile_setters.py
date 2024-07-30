@@ -35,7 +35,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = geometry.build_circular_geometry(nr=4)
+    self.geo = geometry.build_circular_geometry(n_rho=4)
 
   @parameterized.parameters(
       (0.0, np.array([10.5, 7.5, 4.5, 1.5])),
@@ -64,7 +64,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
             Te_bound_right=SMALL_VALUE,
         ),
     )
-    geo = geometry.build_circular_geometry(nr=4)
+    geo = geometry.build_circular_geometry(n_rho=4)
     dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
         runtime_params,
         t=t,
@@ -112,7 +112,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         ),
     )
     t = 0.0
-    geo = geometry.build_circular_geometry(nr=4)
+    geo = geometry.build_circular_geometry(n_rho=4)
     dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
         runtime_params,
         t=t,
@@ -149,7 +149,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
     )
-    geo = geometry.build_circular_geometry(nr=4)
+    geo = geometry.build_circular_geometry(n_rho=4)
 
     dynamic_runtime_params_slice = provider(t=1.0, geo=geo)
     Ti = core_profile_setters.updated_ion_temperature(

@@ -91,11 +91,11 @@ def calc_generic_heat_source(
   """
 
   # calculate heat profile (face grid)
-  Q = jnp.exp(-((geo.r_norm - rsource) ** 2) / (2 * w**2))
-  Q_face = jnp.exp(-((geo.r_face_norm - rsource) ** 2) / (2 * w**2))
+  Q = jnp.exp(-((geo.rho_norm - rsource) ** 2) / (2 * w**2))
+  Q_face = jnp.exp(-((geo.rho_face_norm - rsource) ** 2) / (2 * w**2))
   # calculate constant prefactor
   C = Ptot / jax.scipy.integrate.trapezoid(
-      geo.vpr_face * Q_face, geo.r_face_norm
+      geo.vpr_face * Q_face, geo.rho_face_norm
   )
 
   source_ion = C * Q * (1 - el_heat_fraction)

@@ -241,7 +241,7 @@ def _build_psi_profiles(
           calculate_anyway,
       ),
       core_profiles.currents.jext,
-      jnp.zeros_like(geo.r),
+      jnp.zeros_like(geo.rho),
   )
   # Iterate through the rest of the sources and compute profiles for the ones
   # which relate to psi. jext is not part of the "standard sources."
@@ -260,7 +260,7 @@ def _build_psi_profiles(
             geo,
             core_profiles,
         ),
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
   return psi_profiles
 
@@ -306,7 +306,7 @@ def _build_ne_profiles(
             geo,
             core_profiles,
         ),
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
   return ne_profiles
 
@@ -390,7 +390,7 @@ def sum_sources_ne(
     source_models: SourceModels,
 ) -> jax.Array:
   """Computes ne source values for sim.calc_coeffs."""
-  total = jnp.zeros_like(geo.r)
+  total = jnp.zeros_like(geo.rho)
   for source_name, source in source_models.ne_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
@@ -406,7 +406,7 @@ def sum_sources_temp_ion(
     source_models: SourceModels,
 ) -> jax.Array:
   """Computes temp_ion source values for sim.calc_coeffs."""
-  total = jnp.zeros_like(geo.r)
+  total = jnp.zeros_like(geo.rho)
   for source_name, source in source_models.temp_ion_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
@@ -422,7 +422,7 @@ def sum_sources_temp_el(
     source_models: SourceModels,
 ) -> jax.Array:
   """Computes temp_el source values for sim.calc_coeffs."""
-  total = jnp.zeros_like(geo.r)
+  total = jnp.zeros_like(geo.rho)
   for source_name, source in source_models.temp_el_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
@@ -516,7 +516,7 @@ def calc_psidot(
   toc_psi = (
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
-      * geo.r_norm
+      * geo.rho_norm
       * sigma
       * consts.mu0
       * 16
@@ -983,7 +983,7 @@ def build_all_zero_profiles(
       source_name: jnp.zeros(source_model.output_shape_getter(geo))
       for source_name, source_model in source_models.standard_sources.items()
   }
-  profiles[source_models.jext_name] = jnp.zeros_like(geo.r)
+  profiles[source_models.jext_name] = jnp.zeros_like(geo.rho)
   return source_profiles.SourceProfiles(
       profiles=profiles,
       j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),

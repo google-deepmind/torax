@@ -193,10 +193,10 @@ class CoreTransport:
   def zeros(cls, geo: geometry.Geometry) -> CoreTransport:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
     return cls(
-        chi_face_ion=jnp.zeros(geo.r_face.shape),
-        chi_face_el=jnp.zeros(geo.r_face.shape),
-        d_face_el=jnp.zeros(geo.r_face.shape),
-        v_face_el=jnp.zeros(geo.r_face.shape),
+        chi_face_ion=jnp.zeros(geo.rho_face.shape),
+        chi_face_el=jnp.zeros(geo.rho_face.shape),
+        d_face_el=jnp.zeros(geo.rho_face.shape),
+        v_face_el=jnp.zeros(geo.rho_face.shape),
     )
 
 

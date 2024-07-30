@@ -62,7 +62,7 @@ def updated_ion_temperature(
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=Ti_bound_right,
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
   )
   # pylint: enable=invalid-name
   return temp_ion
@@ -93,7 +93,7 @@ def updated_electron_temperature(
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=Te_bound_right,
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
   )
   # pylint: enable=invalid-name
   return temp_el
@@ -160,7 +160,7 @@ def updated_density(
 
   ne = cell_variable.CellVariable(
       value=ne_value,
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(ne_bound_right),
   )
@@ -177,7 +177,7 @@ def updated_density(
 
   ni = cell_variable.CellVariable(
       value=ne_value * dilution_factor,
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
   )
@@ -232,10 +232,10 @@ def _prescribe_currents_no_bootstrap(
 
   # construct prescribed current formula on grid.
   jformula_face = (
-      1 - geo.r_face_norm**2
+      1 - geo.rho_face_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
   # calculate total and Ohmic current profiles
-  denom = _trapz(jformula_face * geo.spr_face, geo.r_face_norm)
+  denom = _trapz(jformula_face * geo.spr_face, geo.rho_face_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
@@ -343,9 +343,9 @@ def _prescribe_currents_with_bootstrap(
 
   # construct prescribed current formula on grid.
   jformula_face = (
-      1 - geo.r_face_norm**2
+      1 - geo.rho_face_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  denom = _trapz(jformula_face * geo.spr_face, geo.r_face_norm)
+  denom = _trapz(jformula_face * geo.spr_face, geo.rho_face_norm)
   # calculate total and Ohmic current profiles
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
@@ -501,9 +501,9 @@ def _update_psi_from_j(
 
   y = currents.jtot_hires * geo.vpr_hires
   assert y.ndim == 1
-  assert geo.r_hires.ndim == 1
+  assert geo.rho_hires.ndim == 1
   integrated = math_utils.cumulative_trapezoid(
-      y=y, x=geo.r_hires_norm, initial=0.0
+      y=y, x=geo.rho_hires_norm, initial=0.0
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
@@ -515,14 +515,14 @@ def _update_psi_from_j(
 
   # psi on cell grid
   psi_hires = math_utils.cumulative_trapezoid(
-      y=dpsi_drhon_hires, x=geo.r_hires_norm, initial=0.0
+      y=dpsi_drhon_hires, x=geo.rho_hires_norm, initial=0.0
   )
 
-  psi_value = jnp.interp(geo.r, geo.r_hires, psi_hires)
+  psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
 
   psi = cell_variable.CellVariable(
       value=psi_value,
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
       right_face_grad_constraint=psi_constraint,
   )
 
@@ -615,7 +615,7 @@ def initial_core_profiles(
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
         right_face_grad_constraint=psi_constraint,
-        dr=geo.dr_norm,
+        dr=geo.drho_norm,
     )
     q_face, _ = physics.calc_q_from_jtot_psi(
         geo=geo,
@@ -643,7 +643,7 @@ def initial_core_profiles(
   # with zeros.
   psidot = cell_variable.CellVariable(
       value=jnp.zeros_like(psi.value),
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
   )
 
   core_profiles = state.CoreProfiles(
@@ -887,7 +887,7 @@ def _get_jtot_hires(
 ) -> jax.Array:
   """Calculates jtot hires."""
   j_bootstrap_hires = jnp.interp(
-      geo.r_hires, geo.r_face, bootstrap_profile.j_bootstrap_face
+      geo.rho_hires, geo.rho_face, bootstrap_profile.j_bootstrap_face
   )
 
   # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
@@ -899,9 +899,9 @@ def _get_jtot_hires(
 
   # calculate high resolution jtot and Ohmic current profile
   jformula_hires = (
-      1 - geo.r_hires_norm**2
+      1 - geo.rho_hires_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  denom = _trapz(jformula_hires * geo.spr_hires, geo.r_hires_norm)
+  denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot_hires = (
         dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / denom

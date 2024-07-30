@@ -248,7 +248,7 @@ def prepare_qualikiz_inputs(
   # mutants have no effect.
 
   # set up input vectors (all as jax.numpy arrays on face grid)
-  Zeff = runtime_config_inputs.Zeff * jnp.ones_like(geo.r_face)
+  Zeff = runtime_config_inputs.Zeff * jnp.ones_like(geo.rho_face)
 
   # R/LTi profile from current timestep temp_ion
   Ati = -Rmaj * temp_ion_face_grad / temp_ion_face
@@ -404,13 +404,13 @@ def make_core_transport(
   # For small density gradients or up-gradient transport, set pure effective
   # convection. Otherwise pure effective diffusion.
   def DVeff_approach() -> tuple[jax.Array, jax.Array]:
-    # The geo.rmax is to unnormalize the face_grad.
+    # The geo.rho_b is to unnormalize the face_grad.
     Deff = -pfe_SI / (
-        core_profiles.ne.face_grad() * geo.g1_over_vpr2_face * geo.rmax
+        core_profiles.ne.face_grad() * geo.g1_over_vpr2_face * geo.rho_b
         + constants.eps
     )
     Veff = pfe_SI / (
-        core_profiles.ne.face_value() * geo.g0_over_vpr_face * geo.rmax
+        core_profiles.ne.face_value() * geo.g0_over_vpr_face * geo.rho_b
     )
     Deff_mask = (
         ((pfe >= 0) & (prepared_data['Ane'] >= 0))
@@ -435,8 +435,8 @@ def make_core_transport(
         * d_face_el
         / prepared_data['Rmaj']
         * geo.g1_over_vpr2_face
-        * geo.rmax**2
-    ) / (geo.g0_over_vpr_face * geo.rmax)
+        * geo.rho_b**2
+    ) / (geo.g0_over_vpr_face * geo.rho_b)
     return d_face_el, v_face_el
 
   d_face_el, v_face_el = jax.lax.cond(

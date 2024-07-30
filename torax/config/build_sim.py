@@ -48,7 +48,7 @@ def build_chease_geometry(
     Ip_from_parameters: bool = True,
     geometry_dir: str | None = None,
     geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-    nr: int = 25,
+    n_rho: int = 25,
     Rmaj: float = 6.2,
     Rmin: float = 2.0,
     B0: float = 5.3,
@@ -65,7 +65,7 @@ def build_chease_geometry(
       geometry_dir is not provided, then it defaults to another dir. See
       implementation.
     geometry_file: CHEASE file name.
-    nr: Radial grid points (num cells)
+    n_rho: Radial grid points (num cells)
     Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
       is used as an unnormalization factor.
     Rmin: minor radius (a) in meters
@@ -80,7 +80,7 @@ def build_chease_geometry(
       geometry_dir=geometry_dir,
       geometry_file=geometry_file,
       Ip_from_parameters=Ip_from_parameters,
-      nr=nr,
+      n_rho=n_rho,
       Rmaj=Rmaj,
       Rmin=Rmin,
       B0=B0,
@@ -231,12 +231,12 @@ def _build_circular_geometry_provider(
   if 'geometry_configs' in kwargs:
     if not isinstance(kwargs['geometry_configs'], dict):
       raise ValueError('geometry_configs must be a dict.')
-    if 'nr' not in kwargs:
-      raise ValueError('nr must be set in the input config.')
+    if 'n_rho' not in kwargs:
+      raise ValueError('n_rho must be set in the input config.')
     geometries = {}
     for time, c in kwargs['geometry_configs'].items():
       geometries[time] = geometry.build_circular_geometry(
-          nr=kwargs['nr'], **c)
+          n_rho=kwargs['n_rho'], **c)
     return geometry.CircularAnalyticalGeometryProvider.create_provider(
         geometries
     )

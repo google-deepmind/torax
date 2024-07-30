@@ -180,7 +180,7 @@ class BootstrapCurrentSource(source.Source):
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
         profile['j_bootstrap'],
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
 
 
@@ -395,7 +395,7 @@ def calc_neoclassical(
 
   I_bootstrap = integrate.trapezoid(
       j_bootstrap_face * geo.spr_face,
-      geo.r_face_norm,
+      geo.rho_face_norm,
   )
 
   return source_profiles.BootstrapCurrentProfile(

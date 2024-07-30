@@ -121,7 +121,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
           * (core_profiles.ni.face_value() * runtime_params.numerics.nref) ** 2
           * sigmav
       )  # [W/m^3]
-      Ptot = np.trapz(Pfus * geo.vpr_face, geo.r_face_norm) / 1e6  # [MW]
+      Ptot = np.trapz(Pfus * geo.vpr_face, geo.rho_face_norm) / 1e6  # [MW]
 
       return Ptot
 

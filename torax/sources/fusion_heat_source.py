@@ -96,7 +96,7 @@ def calc_fusion(
 
   # [MW]
   Ptot = (
-      jax.scipy.integrate.trapezoid(Pfus_face * geo.vpr_face, geo.r_face_norm)
+      jax.scipy.integrate.trapezoid(Pfus_face * geo.vpr_face, geo.rho_face_norm)
       / 1e6
   )
 

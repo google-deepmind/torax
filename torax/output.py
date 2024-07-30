@@ -64,13 +64,13 @@ class StateHistory:
     # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
     time = xr.DataArray(self.times, dims=["time"], name="time")
     r_face_norm = xr.DataArray(
-        geo.r_face_norm, dims=["rho_face"], name="r_face_norm"
+        geo.rho_face_norm, dims=["rho_face"], name="r_face_norm"
     )
     r_cell_norm = xr.DataArray(
-        geo.r_norm, dims=["rho_cell"], name="r_cell_norm"
+        geo.rho_norm, dims=["rho_cell"], name="r_cell_norm"
     )
-    r_face = xr.DataArray(geo.r_face, dims=["rho_face"], name="r_face")
-    r_cell = xr.DataArray(geo.r, dims=["rho_cell"], name="r_cell")
+    r_face = xr.DataArray(geo.rho_face, dims=["rho_face"], name="r_face")
+    r_cell = xr.DataArray(geo.rho, dims=["rho_cell"], name="r_cell")
 
     # Build a PyTree of variables we will want to log.
     tree = (
@@ -126,9 +126,9 @@ def _translate_leaf_with_path(
   # and all arrays with shape (time, rho_cell) are cell variables
   is_face_var = lambda x: x.ndim == 2 and x.shape == (
       len(time),
-      len(geo.r_face),
+      len(geo.rho_face),
   )
-  is_cell_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.r))
+  is_cell_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.rho))
   is_scalar = lambda x: x.ndim == 1 and x.shape == (len(time),)
 
   name = path_to_name(path)
