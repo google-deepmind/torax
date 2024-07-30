@@ -13,13 +13,13 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
-from typing import Any
-
+from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
 from torax import geometry
 from torax import state
+from torax.sources import source_profiles
 import xarray as xr
 
 
@@ -31,35 +31,159 @@ class StateHistory:
     core_sources = [state.core_sources for state in states]
     transport = [state.core_transport for state in states]
     stack = lambda *ys: jnp.stack(ys)
-    self.core_profiles = jax.tree_util.tree_map(stack, *core_profiles)
-    self.core_sources = jax.tree_util.tree_map(stack, *core_sources)
-    self.core_transport = jax.tree_util.tree_map(stack, *transport)
+    self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
+        stack, *core_profiles
+    )
+    self.core_sources: source_profiles.SourceProfiles = jax.tree_util.tree_map(
+        stack, *core_sources
+    )
+    self.core_transport: state.CoreTransport = jax.tree_util.tree_map(
+        stack, *transport
+    )
     self.times = jnp.array([state.t for state in states])
     chex.assert_rank(self.times, 1)
+
+  def _pack_into_data_array(
+      self,
+      name: str,
+      data: jax.Array,
+      geo: geometry.Geometry,
+  ) -> xr.DataArray | None:
+    """Packs the data into an xr.DataArray."""
+    is_face_var = lambda x: x.ndim == 2 and x.shape == (
+        len(self.times),
+        len(geo.rho_face_norm),
+    )
+    is_cell_var = lambda x: x.ndim == 2 and x.shape == (
+        len(self.times),
+        len(geo.rho_norm),
+    )
+    is_scalar = lambda x: x.ndim == 1 and x.shape == (len(self.times),)
+
+    match data:
+      case data if is_face_var(data):
+        dims = ["time", "rho_face"]
+      case data if is_cell_var(data):
+        dims = ["time", "rho_cell"]
+      case data if is_scalar(data):
+        dims = ["time"]
+      case _:
+        logging.warning(
+            "Unsupported data shape for %s: %s. Skipping persisting.",
+            name,
+            data.shape,
+        )
+        return None
+    return xr.DataArray(data, dims=dims, name=name)
+
+  def _get_core_profiles(
+      self, geo: geometry.Geometry,
+  ) -> dict[str, xr.DataArray | None]:
+    """Saves the core profiles to a dict."""
+    xr_dict = {}
+
+    xr_dict["temp_el"] = self.core_profiles.temp_el.value
+    xr_dict["temp_el_right_bc"] = (
+        self.core_profiles.temp_el.right_face_constraint
+    )
+    xr_dict["temp_ion"] = self.core_profiles.temp_ion.value
+    xr_dict["temp_ion_right_bc"] = (
+        self.core_profiles.temp_ion.right_face_constraint
+    )
+    xr_dict["psi"] = self.core_profiles.psi.value
+    xr_dict["psi_right_grad_bc"] = (
+        self.core_profiles.psi.right_face_grad_constraint
+    )
+    xr_dict["psidot"] = self.core_profiles.psidot.value
+    xr_dict["ne"] = self.core_profiles.ne.value
+    xr_dict["ne_right_bc"] = self.core_profiles.ne.right_face_constraint
+    xr_dict["ni"] = self.core_profiles.ni.value
+    xr_dict["ni_right_bc"] = self.core_profiles.ni.right_face_constraint
+
+    # Currents.
+    xr_dict["jtot"] = self.core_profiles.currents.jtot
+    xr_dict["jtot_face"] = self.core_profiles.currents.jtot_face
+    xr_dict["johm"] = self.core_profiles.currents.johm
+    xr_dict["johm_face"] = self.core_profiles.currents.johm_face
+    xr_dict["jext"] = self.core_profiles.currents.jext
+    xr_dict["jext_face"] = self.core_profiles.currents.jext_face
+
+    xr_dict["j_bootstrap"] = self.core_profiles.currents.j_bootstrap
+    xr_dict["j_bootstrap_face"] = self.core_profiles.currents.j_bootstrap_face
+    xr_dict["I_bootstrap"] = self.core_profiles.currents.I_bootstrap
+    xr_dict["sigma"] = self.core_profiles.currents.sigma
+
+    xr_dict["q_face"] = self.core_profiles.q_face
+    xr_dict["s_face"] = self.core_profiles.s_face
+    xr_dict["nref"] = self.core_profiles.nref
+
+    xr_dict = {
+        k: self._pack_into_data_array(k, name, geo)
+        for k, name in xr_dict.items()
+    }
+
+    return xr_dict
+
+  def _save_core_transport(
+      self,
+      geo: geometry.Geometry,
+  ) -> dict[str, xr.DataArray | None]:
+    """Saves the core transport to a dict."""
+    xr_dict = {}
+
+    xr_dict["chi_face_ion"] = self.core_transport.chi_face_ion
+    xr_dict["chi_face_el"] = self.core_transport.chi_face_el
+    xr_dict["d_face_el"] = self.core_transport.d_face_el
+    xr_dict["v_face_el"] = self.core_transport.v_face_el
+
+    xr_dict = {
+        k: self._pack_into_data_array(k, name, geo)
+        for k, name in xr_dict.items()
+    }
+
+    return xr_dict
+
+  def _save_core_sources(
+      self,
+      geo: geometry.Geometry,
+  ) -> dict[str, xr.DataArray | None]:
+    """Saves the core sources to a dict."""
+    xr_dict = {}
+    for profile in self.core_sources.profiles:
+      xr_dict[profile] = self.core_sources.profiles[profile]
+
+    xr_dict = {
+        k: self._pack_into_data_array(k, name, geo)
+        for k, name in xr_dict.items()
+    }
+
+    return xr_dict
 
   def simulation_output_to_xr(
       self,
       geo: geometry.Geometry,
   ) -> xr.Dataset:
-    """Build an xr.Dataset of the simulation output."""
-    # TODO(b/338033916) Document what is being output.
+    """Build an xr.Dataset of the simulation output.
 
+    Args:
+      geo: The geometry of the simulation. This is used to retrieve the TORAX
+        mesh grid values.
+
+    Returns:
+      An xr.Dataset of the simulation output. The dataset contains the following
+      coordinates:
+        - time: The time of the simulation.
+        - r_face_norm: The normalized radius of the face cells.
+        - r_cell_norm: The normalized radius of the cell cells.
+        - r_face: The radius of the face cells.
+        - r_cell: The radius of the cell cells.
+      The dataset contains data variables for quantities in the CoreProfiles,
+      CoreTransport, and CoreSources.
+    """
     # TODO(b/338033916). Extend outputs with:
     # Post-processed integrals, more geo outputs.
     # Cleanup structure by excluding QeiInfo from core_sources altogether.
     # Add attribute to dataset variables with explanation of contents + units.
-
-    #  Exclude uninteresting variables from output DataSet
-    exclude_set = {
-        "explicit_e",
-        "explicit_i",
-        "implicit_ee",
-        "implicit_ii",
-        "implicit_ei",
-        "implicit_ie",
-        "qei_coef",
-        "sigma_face",
-    }
 
     # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
     time = xr.DataArray(self.times, dims=["time"], name="time")
@@ -71,18 +195,6 @@ class StateHistory:
     )
     r_face = xr.DataArray(geo.rho_face, dims=["rho_face"], name="r_face")
     r_cell = xr.DataArray(geo.rho, dims=["rho_cell"], name="r_cell")
-
-    # Build a PyTree of variables we will want to log.
-    tree = (
-        self.core_profiles,
-        self.core_transport,
-        self.core_sources,
-    )
-
-    # Only try to log arrays.
-    leaves_with_path = jax.tree_util.tree_leaves_with_path(
-        tree, is_leaf=lambda x: isinstance(x, jax.Array)
-    )
 
     # Initialize dict with desired geometry and reference variables
     xr_dict = {
@@ -96,11 +208,10 @@ class StateHistory:
         ),
     }
 
-    # Extend with desired core_profiles, core_sources, core_transport variables
-    for path, leaf in leaves_with_path:
-      name, da = _translate_leaf_with_path(time, geo, path, leaf)
-      if da is not None and name not in exclude_set:
-        xr_dict[name] = da
+    xr_dict.update(self._get_core_profiles(geo,))
+    xr_dict.update(self._save_core_transport(geo,))
+    xr_dict.update(self._save_core_sources(geo,))
+
     ds = xr.Dataset(
         xr_dict,
         coords={
@@ -112,85 +223,3 @@ class StateHistory:
         },
     )
     return ds
-
-
-def _translate_leaf_with_path(
-    time: xr.DataArray,
-    geo: geometry.Geometry,
-    path: tuple[Any, ...],
-    leaf: jax.Array,
-) -> tuple[str, xr.DataArray | None]:
-  """Logic for converting and filtering which paths we want to save."""
-  # Functions to check if a leaf is a face or cell variable
-  # Assume that all arrays with shape (time, rho_face) are face variables
-  # and all arrays with shape (time, rho_cell) are cell variables
-  is_face_var = lambda x: x.ndim == 2 and x.shape == (
-      len(time),
-      len(geo.rho_face),
-  )
-  is_cell_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.rho))
-  is_scalar = lambda x: x.ndim == 1 and x.shape == (len(time),)
-
-  name = path_to_name(path)
-
-  if is_face_var(leaf):
-    return name, xr.DataArray(leaf, dims=["time", "rho_face"], name=name)
-  elif is_cell_var(leaf):
-    return name, xr.DataArray(leaf, dims=["time", "rho_cell"], name=name)
-  elif is_scalar(leaf):
-    return name, xr.DataArray(leaf, dims=["time"], name=name)
-  else:
-    return name, None
-
-
-# TODO(b/338033916): Modify to specify exactly which outputs we would like.
-def path_to_name(
-    path: tuple[Any, ...],
-) -> str:
-  """Converts paths to names of variables."""
-  # Aliases for the names of the variables.
-  name_map = {
-      "fusion_heat_source_el": "Qfus_e",
-      "fusion_heat_source_ion": "Qfus_i",
-      "generic_ion_el_heat_source_el": "Qext_e",
-      "generic_ion_el_heat_source_ion": "Qext_i",
-      "ohmic_heat_source": "Qohm",
-      "qei_source": "Qei",
-      "gas_puff_source": "s_puff",
-      "nbi_particle_source": "s_nbi",
-      "pellet_source": "s_pellet",
-      "bremsstrahlung_heat_sink": "Qbrem",
-  }
-  initial_cond_vars = [
-      "temp_ion",
-      "temp_el",
-      "ni",
-      "ne",
-  ]
-
-  if isinstance(path[-1], jax.tree_util.DictKey):
-    name = path[-1].key
-  elif path[-1].name == "value":
-    name = path[-2].name
-  # For the initial conditions we want to save the right face constraint.
-  elif (
-      isinstance(path[-2], jax.tree_util.GetAttrKey)
-      and path[-2].name in initial_cond_vars
-      and path[-1].name == "right_face_constraint"
-  ):
-    name = path[-2].name + "_right_bc"
-  # For the psi variable we want to save the value and the right grad face
-  # constraints as well.
-  elif (
-      isinstance(path[-2], jax.tree_util.GetAttrKey)
-      and path[-2].name == "psi"
-      and path[-1].name == "right_face_grad_constraint"
-  ):
-    name = path[-2].name + "_right_grad_bc"
-  else:
-    name = path[-1].name
-
-  if name in name_map:
-    return name_map[name]
-
-  return name
