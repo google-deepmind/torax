@@ -23,6 +23,52 @@ from torax.sources import source_profiles
 import xarray as xr
 
 
+# Core profiles.
+TEMP_EL = "temp_el"
+TEMP_EL_RIGHT_BC = "temp_el_right_bc"
+TEMP_ION = "temp_ion"
+TEMP_ION_RIGHT_BC = "temp_ion_right_bc"
+PSI = "psi"
+PSIDOT = "psidot"
+PSI_RIGHT_GRAD_BC = "psi_right_grad_bc"
+NE = "ne"
+NE_RIGHT_BC = "ne_right_bc"
+NI = "ni"
+NI_RIGHT_BC = "ni_right_bc"
+JTOT = "jtot"
+JTOT_FACE = "jtot_face"
+JOHM = "johm"
+JOHM_FACE = "johm_face"
+JEXT = "jext"
+JEXT_FACE = "jext_face"
+J_BOOTSTRAP = "j_bootstrap"
+J_BOOTSTRAP_FACE = "j_bootstrap_face"
+I_BOOTSTRAP = "I_bootstrap"
+SIGMA = "sigma"
+Q_FACE = "q_face"
+S_FACE = "s_face"
+NREF = "nref"
+
+# Core transport.
+CHI_FACE_ION = "chi_face_ion"
+CHI_FACE_EL = "chi_face_el"
+D_FACE_EL = "d_face_el"
+V_FACE_EL = "v_face_el"
+
+# Geometry.
+VPR = "vpr"
+SPR = "spr"
+VPR_FACE = "vpr_face"
+SPR_FACE = "spr_face"
+
+# Coordinates.
+RHO_FACE_NORM = "rho_face_norm"
+RHO_CELL_NORM = "rho_cell_norm"
+RHO_FACE = "rho_face"
+RHO_CELL = "rho_cell"
+TIME = "time"
+
+
 class StateHistory:
   """A history of the state of the simulation."""
 
@@ -62,11 +108,11 @@ class StateHistory:
 
     match data:
       case data if is_face_var(data):
-        dims = ["time", "rho_face"]
+        dims = [TIME, RHO_FACE]
       case data if is_cell_var(data):
-        dims = ["time", "rho_cell"]
+        dims = [TIME, RHO_CELL]
       case data if is_scalar(data):
-        dims = ["time"]
+        dims = [TIME]
       case _:
         logging.warning(
             "Unsupported data shape for %s: %s. Skipping persisting.",
@@ -82,40 +128,38 @@ class StateHistory:
     """Saves the core profiles to a dict."""
     xr_dict = {}
 
-    xr_dict["temp_el"] = self.core_profiles.temp_el.value
-    xr_dict["temp_el_right_bc"] = (
-        self.core_profiles.temp_el.right_face_constraint
-    )
-    xr_dict["temp_ion"] = self.core_profiles.temp_ion.value
-    xr_dict["temp_ion_right_bc"] = (
+    xr_dict[TEMP_EL] = self.core_profiles.temp_el.value
+    xr_dict[TEMP_EL_RIGHT_BC] = self.core_profiles.temp_el.right_face_constraint
+    xr_dict[TEMP_ION] = self.core_profiles.temp_ion.value
+    xr_dict[TEMP_ION_RIGHT_BC] = (
         self.core_profiles.temp_ion.right_face_constraint
     )
-    xr_dict["psi"] = self.core_profiles.psi.value
-    xr_dict["psi_right_grad_bc"] = (
+    xr_dict[PSI] = self.core_profiles.psi.value
+    xr_dict[PSI_RIGHT_GRAD_BC] = (
         self.core_profiles.psi.right_face_grad_constraint
     )
-    xr_dict["psidot"] = self.core_profiles.psidot.value
-    xr_dict["ne"] = self.core_profiles.ne.value
-    xr_dict["ne_right_bc"] = self.core_profiles.ne.right_face_constraint
-    xr_dict["ni"] = self.core_profiles.ni.value
-    xr_dict["ni_right_bc"] = self.core_profiles.ni.right_face_constraint
+    xr_dict[PSIDOT] = self.core_profiles.psidot.value
+    xr_dict[NE] = self.core_profiles.ne.value
+    xr_dict[NE_RIGHT_BC] = self.core_profiles.ne.right_face_constraint
+    xr_dict[NI] = self.core_profiles.ni.value
+    xr_dict[NI_RIGHT_BC] = self.core_profiles.ni.right_face_constraint
 
     # Currents.
-    xr_dict["jtot"] = self.core_profiles.currents.jtot
-    xr_dict["jtot_face"] = self.core_profiles.currents.jtot_face
-    xr_dict["johm"] = self.core_profiles.currents.johm
-    xr_dict["johm_face"] = self.core_profiles.currents.johm_face
-    xr_dict["jext"] = self.core_profiles.currents.jext
-    xr_dict["jext_face"] = self.core_profiles.currents.jext_face
+    xr_dict[JTOT] = self.core_profiles.currents.jtot
+    xr_dict[JTOT_FACE] = self.core_profiles.currents.jtot_face
+    xr_dict[JOHM] = self.core_profiles.currents.johm
+    xr_dict[JOHM_FACE] = self.core_profiles.currents.johm_face
+    xr_dict[JEXT] = self.core_profiles.currents.jext
+    xr_dict[JEXT_FACE] = self.core_profiles.currents.jext_face
 
-    xr_dict["j_bootstrap"] = self.core_profiles.currents.j_bootstrap
-    xr_dict["j_bootstrap_face"] = self.core_profiles.currents.j_bootstrap_face
-    xr_dict["I_bootstrap"] = self.core_profiles.currents.I_bootstrap
-    xr_dict["sigma"] = self.core_profiles.currents.sigma
+    xr_dict[J_BOOTSTRAP] = self.core_profiles.currents.j_bootstrap
+    xr_dict[J_BOOTSTRAP_FACE] = self.core_profiles.currents.j_bootstrap_face
+    xr_dict[I_BOOTSTRAP] = self.core_profiles.currents.I_bootstrap
+    xr_dict[SIGMA] = self.core_profiles.currents.sigma
 
-    xr_dict["q_face"] = self.core_profiles.q_face
-    xr_dict["s_face"] = self.core_profiles.s_face
-    xr_dict["nref"] = self.core_profiles.nref
+    xr_dict[Q_FACE] = self.core_profiles.q_face
+    xr_dict[S_FACE] = self.core_profiles.s_face
+    xr_dict[NREF] = self.core_profiles.nref
 
     xr_dict = {
         k: self._pack_into_data_array(k, name, geo)
@@ -131,10 +175,10 @@ class StateHistory:
     """Saves the core transport to a dict."""
     xr_dict = {}
 
-    xr_dict["chi_face_ion"] = self.core_transport.chi_face_ion
-    xr_dict["chi_face_el"] = self.core_transport.chi_face_el
-    xr_dict["d_face_el"] = self.core_transport.d_face_el
-    xr_dict["v_face_el"] = self.core_transport.v_face_el
+    xr_dict[CHI_FACE_ION] = self.core_transport.chi_face_ion
+    xr_dict[CHI_FACE_EL] = self.core_transport.chi_face_el
+    xr_dict[D_FACE_EL] = self.core_transport.d_face_el
+    xr_dict[V_FACE_EL] = self.core_transport.v_face_el
 
     xr_dict = {
         k: self._pack_into_data_array(k, name, geo)
@@ -186,26 +230,22 @@ class StateHistory:
     # Add attribute to dataset variables with explanation of contents + units.
 
     # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
-    time = xr.DataArray(self.times, dims=["time"], name="time")
+    time = xr.DataArray(self.times, dims=[TIME], name=TIME)
     rho_face_norm = xr.DataArray(
-        geo.rho_face_norm, dims=["rho_face"], name="rho_face_norm"
+        geo.rho_face_norm, dims=[RHO_FACE], name=RHO_FACE_NORM
     )
     rho_cell_norm = xr.DataArray(
-        geo.rho_norm, dims=["rho_cell"], name="rho_cell_norm"
+        geo.rho_norm, dims=[RHO_CELL], name=RHO_CELL_NORM
     )
-    rho_face = xr.DataArray(geo.rho_face, dims=["rho_face"], name="rho_face")
-    rho_cell = xr.DataArray(geo.rho, dims=["rho_cell"], name="rho_cell")
+    rho_face = xr.DataArray(geo.rho_face, dims=[RHO_FACE], name=RHO_FACE)
+    rho_cell = xr.DataArray(geo.rho, dims=[RHO_CELL], name=RHO_CELL)
 
     # Initialize dict with desired geometry and reference variables
     xr_dict = {
-        "vpr": xr.DataArray(geo.vpr, dims=["rho_cell"], name="vpr"),
-        "spr": xr.DataArray(geo.spr_cell, dims=["rho_cell"], name="spr"),
-        "vpr_face": xr.DataArray(
-            geo.vpr_face, dims=["rho_face"], name="vpr_face"
-        ),
-        "spr_face": xr.DataArray(
-            geo.spr_face, dims=["rho_face"], name="spr_face"
-        ),
+        VPR: xr.DataArray(geo.vpr, dims=[RHO_CELL], name=VPR),
+        SPR: xr.DataArray(geo.spr_cell, dims=[RHO_CELL], name=SPR),
+        VPR_FACE: xr.DataArray(geo.vpr_face, dims=[RHO_FACE], name=VPR_FACE),
+        SPR_FACE: xr.DataArray(geo.spr_face, dims=[RHO_FACE], name=SPR_FACE),
     }
 
     xr_dict.update(self._get_core_profiles(geo,))
@@ -215,11 +255,11 @@ class StateHistory:
     ds = xr.Dataset(
         xr_dict,
         coords={
-            "time": time,
-            "rho_face_norm": rho_face_norm,
-            "rho_cell_norm": rho_cell_norm,
-            "rho_face": rho_face,
-            "rho_cell": rho_cell,
+            TIME: time,
+            RHO_FACE_NORM: rho_face_norm,
+            RHO_CELL_NORM: rho_cell_norm,
+            RHO_FACE: rho_face,
+            RHO_CELL: rho_cell,
         },
     )
     return ds

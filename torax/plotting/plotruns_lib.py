@@ -24,6 +24,7 @@ import matplotlib
 from matplotlib import widgets
 import matplotlib.pyplot as plt
 import numpy as np
+from torax import output
 import xarray as xr
 
 
@@ -43,8 +44,8 @@ class PlotData:
   chi_i: np.ndarray
   chi_e: np.ndarray
   t: np.ndarray
-  rcell_coord: np.ndarray
-  rface_coord: np.ndarray
+  rho_cell_coord: np.ndarray
+  rho_face_coord: np.ndarray
 
   def __post_init__(self):
     self.tmin = min(self.t)
@@ -234,35 +235,35 @@ def get_lines(
   ax1, ax2, ax3, ax4, ax5, ax6 = subfigures
 
   (line,) = ax1.plot(
-      plotdata.rface_coord,
+      plotdata.rho_face_coord,
       plotdata.chi_i[1, :],
       'r' + dashed,
       label=rf'$\chi_i{suffix}$',
   )
   lines.append(line)
   (line,) = ax1.plot(
-      plotdata.rface_coord,
+      plotdata.rho_face_coord,
       plotdata.chi_e[1, :],
       'b' + dashed,
       label=rf'$\chi_e{suffix}$',
   )
   lines.append(line)
   (line,) = ax2.plot(
-      plotdata.rcell_coord,
+      plotdata.rho_cell_coord,
       plotdata.ti[0, :],
       'r' + dashed,
       label=rf'$T_i{suffix}$',
   )
   lines.append(line)
   (line,) = ax2.plot(
-      plotdata.rcell_coord,
+      plotdata.rho_cell_coord,
       plotdata.te[0, :],
       'b' + dashed,
       label=rf'$T_e{suffix}$',
   )
   lines.append(line)
   (line,) = ax3.plot(
-      plotdata.rcell_coord,
+      plotdata.rho_cell_coord,
       plotdata.ne[0, :],
       'r' + dashed,
       label=rf'$n_e{suffix}$',
@@ -270,42 +271,42 @@ def get_lines(
   lines.append(line)
 
   (line,) = ax4.plot(
-      plotdata.rcell_coord,
+      plotdata.rho_cell_coord,
       plotdata.j[0, :],
       'r' + dashed,
       label=rf'$j_{{tot}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax4.plot(
-      plotdata.rcell_coord,
+      plotdata.rho_cell_coord,
       plotdata.johm[0, :],
       'b' + dashed,
       label=rf'$j_{{ohm}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax4.plot(
-      plotdata.rcell_coord,
+      plotdata.rho_cell_coord,
       plotdata.j_bootstrap[0, :],
       'g' + dashed,
       label=rf'$j_{{bs}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax4.plot(
-      plotdata.rcell_coord,
+      plotdata.rho_cell_coord,
       plotdata.jext[0, :],
       'm' + dashed,
       label=rf'$j_{{ext}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax5.plot(
-      plotdata.rface_coord,
+      plotdata.rho_face_coord,
       plotdata.q[0, :],
       'r' + dashed,
       label=rf'$q{suffix}$',
   )
   lines.append(line)
   (line,) = ax6.plot(
-      plotdata.rface_coord,
+      plotdata.rho_face_coord,
       plotdata.s[0, :],
       'r' + dashed,
       label=rf'$\hat{{s}}{suffix}$',
@@ -317,24 +318,24 @@ def get_lines(
 
 def load_data(filename: str) -> PlotData:
   ds = xr.open_dataset(filename)
-  if 'time' in ds:
-    t = ds['time'].to_numpy()
+  if output.TIME in ds:
+    t = ds[output.TIME].to_numpy()
   else:
     t = ds['t'].to_numpy()
   return PlotData(
-      ti=ds['temp_ion'].to_numpy(),
-      te=ds['temp_el'].to_numpy(),
-      ne=ds['ne'].to_numpy(),
-      j=ds['jtot'].to_numpy(),
-      johm=ds['johm'].to_numpy(),
-      j_bootstrap=ds['j_bootstrap'].to_numpy(),
-      jext=ds['jext'].to_numpy(),
-      q=ds['q_face'].to_numpy(),
-      s=ds['s_face'].to_numpy(),
-      chi_i=ds['chi_face_ion'].to_numpy(),
-      chi_e=ds['chi_face_el'].to_numpy(),
-      rcell_coord=ds['r_cell_norm'].to_numpy(),
-      rface_coord=ds['r_face_norm'].to_numpy(),
+      ti=ds[output.TEMP_ION].to_numpy(),
+      te=ds[output.TEMP_EL].to_numpy(),
+      ne=ds[output.NE].to_numpy(),
+      j=ds[output.JTOT].to_numpy(),
+      johm=ds[output.JOHM].to_numpy(),
+      j_bootstrap=ds[output.J_BOOTSTRAP].to_numpy(),
+      jext=ds[output.JEXT].to_numpy(),
+      q=ds[output.Q_FACE].to_numpy(),
+      s=ds[output.S_FACE].to_numpy(),
+      chi_i=ds[output.CHI_FACE_ION].to_numpy(),
+      chi_e=ds[output.CHI_FACE_EL].to_numpy(),
+      rho_cell_coord=ds[output.RHO_CELL].to_numpy(),
+      rho_face_coord=ds[output.RHO_FACE].to_numpy(),
       t=t,
   )
 
