@@ -24,7 +24,6 @@ import jax.numpy as jnp
 from torax import constants
 from torax import geometry
 from torax import jax_utils
-from torax import math_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
@@ -738,7 +737,7 @@ def _calc_coeffs_full(
   # Add effective phibdot heat source terms
 
   # second derivative of volume profile with respect to r_norm
-  vprpr_norm = math_utils.gradient(geo.vpr, geo.rho_norm)
+  vprpr_norm = jnp.gradient(geo.vpr, geo.rho_norm)
 
   source_i += (
       1.0
@@ -766,7 +765,7 @@ def _calc_coeffs_full(
 
   # Add effective phibdot poloidal flux source term
 
-  ddrnorm_sigma_rnorm2_over_f2 = math_utils.gradient(
+  ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
       sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
   )
 

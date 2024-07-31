@@ -26,7 +26,6 @@ from jax import numpy as jnp
 from torax import constants
 from torax import geometry
 from torax import jax_utils
-from torax import math_utils
 from torax import state
 from torax.fvm import cell_variable
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
@@ -206,7 +205,7 @@ def calc_jtot_from_psi(
   )
 
   jtot_face = (
-      2 * jnp.pi * geo.Rmaj * math_utils.gradient(I_tot, geo.volume_face)
+      2 * jnp.pi * geo.Rmaj * jnp.gradient(I_tot, geo.volume_face)
   )
 
   jtot = geometry.face_to_cell(jtot_face)
