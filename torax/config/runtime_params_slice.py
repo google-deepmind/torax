@@ -301,19 +301,6 @@ def build_dynamic_runtime_params_slice(
               t=t,
           )
       ),
-      **config_args.get_init_kwargs(
-          input_config=runtime_params,
-          output_type=DynamicRuntimeParamsSlice,
-          t=t,
-          skip=(
-              'transport',
-              'stepper',
-              'sources',
-              'plasma_composition',
-              'profile_conditions',
-              'numerics',
-          ),
-      ),
   )
 
 
