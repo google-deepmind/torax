@@ -234,13 +234,9 @@ def calc_s_from_psi(
   d2psi_d2rhon = (dpsi_drhon[2:] - dpsi_drhon[:-2]) / (2 * geo.drho_norm)
   d2psi_d2rhon = jnp.concatenate((d2psi_d2rhon, d2psi_d2rhon[-1:]))
 
-  # Volume on face grid
-  # pylint:disable=invalid-name
-  V = math_utils.cumulative_trapezoid(y=geo.vpr_face, x=geo.rho_face_norm)
-
   s = (
       2
-      * V
+      * geo.volume_face[1:]
       / (geo.rho_face_norm[1:] * geo.vpr_face[1:])
       * (1 - geo.rho_face_norm[1:] * d2psi_d2rhon / dpsi_drhon[1:])
   )
