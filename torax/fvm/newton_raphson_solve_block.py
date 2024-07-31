@@ -18,7 +18,7 @@ See function docstring for details.
 """
 
 import functools
-from typing import Callable
+from typing import Callable, Final
 
 from absl import logging
 import jax
@@ -45,7 +45,7 @@ Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
 # cases with bad numerics.
-MIN_DELTA = 1e-7
+MIN_DELTA: Final[float] = 1e-7
 
 
 def _log_iterations(

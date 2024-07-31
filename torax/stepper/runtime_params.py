@@ -17,14 +17,14 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Iterable
+from typing import Any, Iterable, TypeAlias
 
 import chex
 from torax import interpolated_param
 from torax.config import config_args
 
 
-TimeInterpolated = interpolated_param.TimeInterpolated
+TimeInterpolated: TypeAlias = interpolated_param.TimeInterpolated
 
 
 @dataclasses.dataclass(kw_only=True)

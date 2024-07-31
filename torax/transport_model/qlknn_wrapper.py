@@ -26,7 +26,7 @@ import dataclasses
 import functools
 import logging
 import os
-from typing import Callable
+from typing import Callable, Final
 
 import chex
 import jax
@@ -45,7 +45,7 @@ from torax.transport_model import transport_model
 
 # Environment variable for the QLKNN model. Used if the model path
 # is not set in the config.
-MODEL_PATH_ENV_VAR = 'TORAX_QLKNN_MODEL_PATH'
+MODEL_PATH_ENV_VAR: Final[str] = 'TORAX_QLKNN_MODEL_PATH'
 # If no path is set in either the config or the environment variable, use
 # this path.
 DEFAULT_MODEL_PATH = '~/qlknn_hyper'
@@ -108,7 +108,9 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   q_sawtooth_proxy: bool
 
 
-_EPSILON_NN: float = 1 / 3  # fixed inverse aspect ratio used to train QLKNN10D
+_EPSILON_NN: Final[float] = (
+    1 / 3
+)  # fixed inverse aspect ratio used to train QLKNN10D
 
 
 # Memoize, but evict the old model if a new path is given.

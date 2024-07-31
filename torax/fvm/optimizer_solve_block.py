@@ -16,6 +16,8 @@
 See function docstring for details.
 """
 
+from typing import TypeAlias
+
 import jax
 from torax import geometry
 from torax import state
@@ -31,8 +33,8 @@ from torax.stepper import predictor_corrector_method
 from torax.transport_model import transport_model as transport_model_lib
 
 
-AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
-Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
+AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
+Block1DCoeffsCallback: TypeAlias = block_1d_coeffs.Block1DCoeffsCallback
 
 
 def optimizer_solve_block(

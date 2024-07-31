@@ -27,7 +27,7 @@ import dataclasses
 import enum
 import types
 import typing
-from typing import Any, Callable, Optional, Protocol
+from typing import Any, Callable, Optional, Protocol, TypeAlias
 
 # We use Optional here because | doesn't work with string name types.
 # We use string name 'source_models.SourceModels' in this file to avoid
@@ -45,7 +45,7 @@ from torax.sources import runtime_params as runtime_params_lib
 
 # Sources implement these functions to be able to provide source profiles.
 # pytype bug: 'source_models.SourceModels' not treated as forward reference
-SourceProfileFunction = Callable[  # pytype: disable=name-error
+SourceProfileFunction: TypeAlias = Callable[  # pytype: disable=name-error
     [  # Arguments
         runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
         runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
@@ -61,7 +61,7 @@ SourceProfileFunction = Callable[  # pytype: disable=name-error
 # Any callable which takes the dynamic runtime_params, geometry, and optional
 # core profiles, and outputs a shape corresponding to the expected output of a
 # source. See how these types of functions are used in the Source class below.
-SourceOutputShapeFunction = Callable[
+SourceOutputShapeFunction: TypeAlias = Callable[
     [  # Arguments
         geometry.Geometry,
     ],

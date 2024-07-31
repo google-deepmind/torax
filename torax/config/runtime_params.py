@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import dataclasses
+from typing import TypeAlias
 
 import chex
 from torax import interpolated_param
@@ -25,9 +26,9 @@ from torax import interpolated_param
 
 # Type-alias for clarity. While the InterpolatedVarSingleAxis can vary across
 # any field, in here, we mainly use it to handle time-dependent parameters.
-TimeInterpolated = interpolated_param.TimeInterpolated
+TimeInterpolated: TypeAlias = interpolated_param.TimeInterpolated
 # Type-alias for clarity for time-and-rho-dependent parameters.
-TimeRhoInterpolated = (
+TimeRhoInterpolated: TypeAlias = (
     interpolated_param.TimeRhoInterpolated
 )
 

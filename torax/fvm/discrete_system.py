@@ -26,6 +26,8 @@ each step is expressed using a matrix multiply.
 
 from __future__ import annotations
 
+from typing import TypeAlias
+
 import jax
 from jax import numpy as jnp
 from torax.fvm import block_1d_coeffs
@@ -33,9 +35,10 @@ from torax.fvm import cell_variable
 from torax.fvm import convection_terms
 from torax.fvm import diffusion_terms
 
-AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
-Block1DCoeffs = block_1d_coeffs.Block1DCoeffs
-Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
+
+AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
+Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
+Block1DCoeffsCallback: TypeAlias = block_1d_coeffs.Block1DCoeffsCallback
 
 
 def calc_c(

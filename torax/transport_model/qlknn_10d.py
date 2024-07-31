@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import json
 import os
-from typing import Any, Callable
+from typing import Any, Callable, Final
 
 import flax.linen as nn
 import immutabledict
@@ -29,7 +29,7 @@ from torax.transport_model import base_qlknn_model
 # Internal import.
 
 # Move this to common lib.
-_ACTIVATION_FNS: Mapping[str, Callable[[jax.Array], jax.Array]] = (
+_ACTIVATION_FNS: Final[Mapping[str, Callable[[jax.Array], jax.Array]]] = (
     immutabledict.immutabledict({
         'relu': nn.relu,
         'tanh': nn.tanh,

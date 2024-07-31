@@ -16,7 +16,7 @@
 
 from collections.abc import Callable
 import dataclasses
-from typing import Type
+from typing import Type, TypeAlias
 import jax
 from torax import geometry
 from torax import sim
@@ -134,7 +134,7 @@ def _default_linear_builder(
 
 
 # Type-alias so that users only need to import this file.
-LinearRuntimeParams = runtime_params_lib.RuntimeParams
+LinearRuntimeParams: TypeAlias = runtime_params_lib.RuntimeParams
 
 
 @dataclasses.dataclass(kw_only=True)

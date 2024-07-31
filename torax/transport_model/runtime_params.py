@@ -20,6 +20,8 @@ a time-interpolated version of this config via the DynamicRuntimeParams.
 
 from __future__ import annotations
 
+from typing import TypeAlias
+
 import chex
 from torax import interpolated_param
 from torax import jax_utils
@@ -29,7 +31,7 @@ from torax.config import config_args
 # Type-alias for clarity. While the InterpolatedVarSingleAxiss can vary across
 # any field, in these classes, we mainly use it to handle time-dependent
 # parameters.
-TimeInterpolated = interpolated_param.TimeInterpolated
+TimeInterpolated: TypeAlias = interpolated_param.TimeInterpolated
 
 
 # pylint: disable=invalid-name

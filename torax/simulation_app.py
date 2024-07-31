@@ -55,7 +55,7 @@ import datetime
 import enum
 import os
 import sys
-from typing import Callable
+from typing import Callable, Final
 
 from absl import logging
 import jax
@@ -75,7 +75,7 @@ import shutil
 
 
 # String printed before printing the output file path
-WRITE_PREFIX = 'Wrote simulation output to '
+WRITE_PREFIX: Final[str] = 'Wrote simulation output to '
 
 
 # For logging.
