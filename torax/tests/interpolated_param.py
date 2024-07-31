@@ -474,6 +474,12 @@ class InterpolatedParamTest(parameterized.TestCase):
         interpolated_var_time_rho.get_value(x=0.5,), np.array([2.5, 3.5, 4.5]),
     )
 
+  def test_fixed_param_always_returns_same_value(self):
+    """Tests that FixedParam always returns the same value."""
+    fixed_param = interpolated_param.FixedParam(value=1.0)
+    np.testing.assert_allclose(fixed_param.get_value(x=0.0), 1.0)
+    np.testing.assert_allclose(fixed_param.get_value(x=1.0), 1.0)
+
 
 if __name__ == '__main__':
   absltest.main()
