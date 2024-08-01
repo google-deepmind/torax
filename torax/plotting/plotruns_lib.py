@@ -184,7 +184,6 @@ def format_plots(plotdata: PlotData, subfigures: tuple[Any, ...]):
   """Sets up plot formatting."""
   ax1, ax2, ax3, ax4, ax5, ax6 = subfigures
 
-# ax1.set_ylim([0, np.max([plotdata1.ymax_chi_i, plotdata1.ymax_chi_e]) * 1.05])
   # pytype: disable=attribute-error
   ax1.set_xlabel('Normalized radius')
   ax1.set_ylabel(r'Heat conductivity $[m^2/s]$')
@@ -317,11 +316,18 @@ def get_lines(
 
 
 def load_data(filename: str) -> PlotData:
+  """Loads an xr.Dataset from a file, handling potential coordinate name changes."""
   ds = xr.open_dataset(filename)
-  if output.TIME in ds:
-    t = ds[output.TIME].to_numpy()
-  else:
-    t = ds['t'].to_numpy()
+  # Handle potential time coordinate name variations
+  t = ds['time'].to_numpy() if 'time' in ds else ds['t'].to_numpy()
+  # Rename coordinates if they exist, ensuring compatibility with older datasets
+  if 'r_cell' in ds:
+    ds = ds.rename({
+        'r_cell': 'rho_cell',
+        'r_face': 'rho_face',
+        'r_cell_norm': 'rho_cell_norm',
+        'r_face_norm': 'rho_face_norm',
+    })
   return PlotData(
       ti=ds[output.TEMP_ION].to_numpy(),
       te=ds[output.TEMP_EL].to_numpy(),
@@ -334,8 +340,8 @@ def load_data(filename: str) -> PlotData:
       s=ds[output.S_FACE].to_numpy(),
       chi_i=ds[output.CHI_FACE_ION].to_numpy(),
       chi_e=ds[output.CHI_FACE_EL].to_numpy(),
-      rho_cell_coord=ds[output.RHO_CELL].to_numpy(),
-      rho_face_coord=ds[output.RHO_FACE].to_numpy(),
+      rho_cell_coord=ds[output.RHO_CELL_NORM].to_numpy(),
+      rho_face_coord=ds[output.RHO_FACE_NORM].to_numpy(),
       t=t,
   )
 
