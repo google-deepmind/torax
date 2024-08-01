@@ -491,12 +491,9 @@ def _update_psi_from_j(
   Returns:
     psi: Poloidal flux cell variable.
   """
-
-  psi_constraint = (
-      dynamic_runtime_params_slice.profile_conditions.Ip
-      * 1e6
-      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
-      / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
+  psi_constraint = _calculate_psi_constraint(
+      dynamic_runtime_params_slice,
+      geo,
   )
 
   y = currents.jtot_hires * geo.vpr_hires
@@ -527,6 +524,19 @@ def _update_psi_from_j(
   )
 
   return psi
+
+
+def _calculate_psi_constraint(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
+) -> jax.Array:
+  """Calculates the constraint on the poloidal flux (psi)."""
+  return (
+      dynamic_runtime_params_slice.profile_conditions.Ip
+      * 1e6
+      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
+      / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
+  )
 
 
 def initial_core_profiles(
@@ -606,11 +616,9 @@ def initial_core_profiles(
     # psi is already provided from the CHEASE equilibrium, so no need to first
     # calculate currents. However, non-inductive currents are still calculated
     # and used in current diffusion equation.
-    psi_constraint = (
-        dynamic_runtime_params_slice.profile_conditions.Ip
-        * 1e6
-        * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
-        / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
+    psi_constraint = _calculate_psi_constraint(
+        dynamic_runtime_params_slice,
+        geo,
     )
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
@@ -795,8 +803,6 @@ def compute_boundary_conditions(
     each CellVariable in the state. This dict can in theory recursively replace
     values in a State object.
   """
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip  # pylint: disable=invalid-name
-
   if dynamic_runtime_params_slice.profile_conditions.Ti_bound_right is not None:
     Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
         dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
@@ -867,11 +873,10 @@ def compute_boundary_conditions(
           right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
       ),
       'psi': dict(
-          right_face_grad_constraint=Ip
-          * 1e6
-          * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
-          / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1]),
-          right_face_constraint=None,
+          right_face_grad_constraint=_calculate_psi_constraint(
+              dynamic_runtime_params_slice,
+              geo,
+          ),
       ),
   }
 
