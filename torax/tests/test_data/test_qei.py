@@ -20,6 +20,7 @@ Implicit, Ti+Te, Pei low dens, no pedestal, constant chi.
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
+            'ne_bound_right': 0.5,
             'set_pedestal': False,
             'nbar': 0.5,  # Initial density in Greenwald fraction units
         },

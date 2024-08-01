@@ -54,6 +54,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
             Ti_bound_right={0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
+            ne_bound_right=0.5,
         ),
         numerics=general_runtime_params.Numerics(
             adaptive_dt=adaptive_dt,

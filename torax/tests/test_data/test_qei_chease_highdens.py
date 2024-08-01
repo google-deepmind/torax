@@ -20,6 +20,7 @@ Ip from parameters. implicit, Ti+Te, Pei high dens, no pedestal, constant chi
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
+            'ne_bound_right': 0.5,
             'set_pedestal': False,
             'nbar': 1.0,  # Initial density in Greenwald fraction units
         },

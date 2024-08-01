@@ -38,7 +38,8 @@ class TransportSmoothingTest(parameterized.TestCase):
     # Set up default config and geo
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
-            set_pedestal=False
+            set_pedestal=False,
+            ne_bound_right=0.5,
         ),
     )
     geo = geometry.build_circular_geometry()

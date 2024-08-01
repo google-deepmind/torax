@@ -20,7 +20,7 @@
 
 
 CONFIG = {
-    'runtime_params': {},
+    'runtime_params': {'profile_conditions': {'ne_bound_right': 0.5,}},
     'geometry': {
         'geometry_type': 'circular',
         'n_rho': 25,

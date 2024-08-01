@@ -22,6 +22,7 @@ CONFIG = {
         'profile_conditions': {
             'set_pedestal': True,
             'nbar': 0.85,  # initial density (in Greenwald fraction units)
+            'ne_bound_right': 0.5,
             'nu': 0,
         },
         'numerics': {

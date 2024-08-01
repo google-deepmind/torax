@@ -28,6 +28,7 @@ CONFIG = {
             'Ip': {0: 5, 4: 15, 6: 12, 8: 12},
             'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
             'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
+            'ne_bound_right': 0.5,
         },
         'numerics': {
             'current_eq': True,

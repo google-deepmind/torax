@@ -279,6 +279,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
             ne_is_fGW=False,
             nbar=1,
             normalize_to_nbar=True,
+            ne_bound_right=0.5,
         ),
     )
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
@@ -316,6 +317,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
             ne_is_fGW=True,
             nbar=1,
             normalize_to_nbar=normalize_to_nbar,
+            ne_bound_right=0.5,
         ),
     )
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(

@@ -33,6 +33,7 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
   return general_runtime_params.GeneralRuntimeParams(
       profile_conditions=general_runtime_params.ProfileConditions(
           set_pedestal=False,
+          ne_bound_right=0.5,
       ),
       numerics=general_runtime_params.Numerics(
           dtmult=0.9,

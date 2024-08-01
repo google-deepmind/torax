@@ -94,7 +94,7 @@ class ProfileConditions:
   # Density boundary condition for r=Rmin.
   # In units of reference density if ne_bound_right_is_fGW = False.
   # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: TimeInterpolated | None = 0.5
+  ne_bound_right: TimeInterpolated | None = None
   ne_bound_right_is_fGW: bool = False
 
   # Internal boundary condition (pedestal)

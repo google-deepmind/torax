@@ -28,6 +28,7 @@ CONFIG = {
             # initial condition ion temperature for r=0 and r=Rmin
             'Ti': {0.0: {0.0: 8.0, 1.0: 1.0}},
             'Te': {0.0: {0.0: 8.0, 1.0: 1.0}},
+            'ne_bound_right': 0.5,
             # set flat Ohmic current to provide larger range of current
             # evolution for test
             'nu': 0,

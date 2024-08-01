@@ -24,6 +24,7 @@ CONFIG = {
             # initial condition ion temperature for r=0 and r=Rmin
             'Ti': {0.0: {0.0: 8.0, 1.0: 1.0}},
             'Te': {0.0: {0.0: 8.0, 1.0: 1.0}},
+            'ne_bound_right': 0.5,
             'nu': 0,
         },
         'numerics': {

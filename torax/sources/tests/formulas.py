@@ -52,6 +52,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
             set_pedestal=True,
             nbar=0.85,
             nu=0,
+            ne_bound_right=0.5,
         ),
         numerics=general_runtime_params.Numerics(
             ion_heat_eq=True,

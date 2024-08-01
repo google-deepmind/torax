@@ -222,6 +222,7 @@ class InitialStatesTest(parameterized.TestCase):
             initial_j_is_total_current=True,
             initial_psi_from_j=True,
             nu=2,
+            ne_bound_right=0.5,
         ),
     )
     config2 = general_runtime_params.GeneralRuntimeParams(
@@ -229,6 +230,7 @@ class InitialStatesTest(parameterized.TestCase):
             initial_j_is_total_current=False,
             initial_psi_from_j=True,
             nu=2,
+            ne_bound_right=0.5,
         ),
     )
     config3 = general_runtime_params.GeneralRuntimeParams(
@@ -236,6 +238,7 @@ class InitialStatesTest(parameterized.TestCase):
             initial_j_is_total_current=False,
             initial_psi_from_j=True,
             nu=2,
+            ne_bound_right=0.5,
         ),
     )
     # Needed to generate psi for bootstrap calculation
@@ -244,6 +247,7 @@ class InitialStatesTest(parameterized.TestCase):
             initial_j_is_total_current=True,
             initial_psi_from_j=True,
             nu=2,
+            ne_bound_right=0.5,
         ),
     )
     geo_provider = geometry_provider.ConstantGeometryProvider(geo_builder())
@@ -380,6 +384,7 @@ class InitialStatesTest(parameterized.TestCase):
     config1 = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
             initial_psi_from_j=False,
+            ne_bound_right=0.5,
         ),
     )
     geo = geometry.build_circular_geometry()
@@ -389,6 +394,7 @@ class InitialStatesTest(parameterized.TestCase):
     config2 = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
             initial_psi_from_j=True,
+            ne_bound_right=0.5,
         ),
     )
     dcs2 = runtime_params_slice.build_dynamic_runtime_params_slice(
