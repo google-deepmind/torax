@@ -470,7 +470,6 @@ def _calculate_currents_from_psi(
   )
 
   return currents
-  # pylint: enable=invalid-name
 
 
 def _update_psi_from_j(
@@ -491,24 +490,24 @@ def _update_psi_from_j(
   Returns:
     psi: Poloidal flux cell variable.
   """
-  psi_constraint = _calculate_psi_constraint(
+  psi_grad_constraint = _calculate_psi_grad_constraint(
       dynamic_runtime_params_slice,
       geo,
   )
 
-  y = currents.jtot_hires * geo.vpr_hires
+  y = currents.jtot_hires * geo.spr_hires
   assert y.ndim == 1
   assert geo.rho_hires.ndim == 1
-  integrated = math_utils.cumulative_trapezoid(
+  Ip_profile = math_utils.cumulative_trapezoid(
       y=y, x=geo.rho_hires_norm, initial=0.0
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
-      (8 * jnp.pi**2 * constants.CONSTANTS.mu0 * geo.Phib)
-      / (geo.F_hires[1:] * geo.Rmaj * geo.g2g3_over_rhon_hires[1:]),
+      (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
+      / (geo.F_hires[1:] * geo.g2g3_over_rhon_hires[1:]),
   ))
   # dpsi_dr on the cell grid
-  dpsi_drhon_hires = scale * integrated
+  dpsi_drhon_hires = scale * Ip_profile
 
   # psi on cell grid
   psi_hires = math_utils.cumulative_trapezoid(
@@ -520,13 +519,16 @@ def _update_psi_from_j(
   psi = cell_variable.CellVariable(
       value=psi_value,
       dr=geo.drho_norm,
-      right_face_grad_constraint=psi_constraint,
+      right_face_grad_constraint=psi_grad_constraint,
   )
 
   return psi
 
 
-def _calculate_psi_constraint(
+# pylint: enable=invalid-name
+
+
+def _calculate_psi_grad_constraint(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
 ) -> jax.Array:
@@ -616,13 +618,13 @@ def initial_core_profiles(
     # psi is already provided from the CHEASE equilibrium, so no need to first
     # calculate currents. However, non-inductive currents are still calculated
     # and used in current diffusion equation.
-    psi_constraint = _calculate_psi_constraint(
+    psi_grad_constraint = _calculate_psi_grad_constraint(
         dynamic_runtime_params_slice,
         geo,
     )
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
-        right_face_grad_constraint=psi_constraint,
+        right_face_grad_constraint=psi_grad_constraint,
         dr=geo.drho_norm,
     )
     q_face, _ = physics.calc_q_from_jtot_psi(
@@ -873,7 +875,7 @@ def compute_boundary_conditions(
           right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
       ),
       'psi': dict(
-          right_face_grad_constraint=_calculate_psi_constraint(
+          right_face_grad_constraint=_calculate_psi_grad_constraint(
               dynamic_runtime_params_slice,
               geo,
           ),
