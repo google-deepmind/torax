@@ -14,10 +14,13 @@
 
 """Unit tests for torax.output."""
 
+import os
+
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 from jax import tree_util
+import numpy as np
 from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider
@@ -29,6 +32,7 @@ from torax.sources import default_sources
 from torax.sources import source as source_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import torax_refs
+import xarray as xr
 
 
 SequenceKey = tree_util.SequenceKey
@@ -116,6 +120,62 @@ class StateHistoryTest(parameterized.TestCase):
     history = output.StateHistory((sim_state,))
 
     history.simulation_output_to_xr(self.geo)
+
+  def test_load_core_profiles_from_xr(self):
+    """Test serialising and deserialising core profiles consistency."""
+    # Construct state to be persisted.
+    t = jnp.array(0.0)
+    dt = jnp.array(0.1)
+    sim_state = state.ToraxSimState(
+        core_profiles=self.core_profiles,
+        core_transport=self.core_transport,
+        core_sources=self.source_profiles,
+        t=t,
+        dt=dt,
+        stepper_iterations=1,
+        time_step_calculator_state=None,
+        stepper_error_state=1,
+    )
+    history = output.StateHistory((sim_state,))
+    # Output to an xr.Dataset and save to disk.
+    ds = history.simulation_output_to_xr(self.geo)
+    path = os.path.join(self.create_tempdir().full_path, 'state.nc')
+    ds.to_netcdf(path)
+
+    with open(path, 'rb') as f:
+      ds = xr.load_dataset(f)
+      np.testing.assert_allclose(
+          ds.data_vars[output.TEMP_EL].values[0, :],
+          self.core_profiles.temp_el.value,
+      )
+      np.testing.assert_allclose(
+          ds.data_vars[output.TEMP_EL_RIGHT_BC].values[0],
+          self.core_profiles.temp_el.right_face_constraint,
+      )
+      np.testing.assert_allclose(
+          ds.data_vars[output.TEMP_ION].values[0, :],
+          self.core_profiles.temp_ion.value,
+      )
+      np.testing.assert_allclose(
+          ds.data_vars[output.TEMP_ION_RIGHT_BC].values[0],
+          self.core_profiles.temp_ion.right_face_constraint,
+      )
+      np.testing.assert_allclose(
+          ds.data_vars[output.PSI].values[0, :],
+          self.core_profiles.psi.value,
+      )
+      np.testing.assert_allclose(
+          ds.data_vars[output.PSI_RIGHT_GRAD_BC].values[0],
+          self.core_profiles.psi.right_face_grad_constraint,
+      )
+      np.testing.assert_allclose(
+          ds.data_vars[output.NE].values[0, :],
+          self.core_profiles.ne.value,
+      )
+      np.testing.assert_allclose(
+          ds.data_vars[output.NE_RIGHT_BC].values[0],
+          self.core_profiles.ne.right_face_constraint,
+      )
 
 
 if __name__ == '__main__':

@@ -13,6 +13,8 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
+from typing import TypeAlias
+
 from absl import logging
 import chex
 import jax
@@ -21,6 +23,8 @@ from torax import geometry
 from torax import state
 from torax.sources import source_profiles
 import xarray as xr
+
+import os
 
 
 # Core profiles.
@@ -67,6 +71,27 @@ RHO_CELL_NORM = "rho_cell_norm"
 RHO_FACE = "rho_face"
 RHO_CELL = "rho_cell"
 TIME = "time"
+
+# Tuple of (path_to_xarray_file, time_to_load_from).
+FilepathAndTime: TypeAlias = tuple[str, float]
+
+
+def load_state_file(
+    filepath_and_time: FilepathAndTime, data_var: str
+) -> xr.DataArray:
+  """Loads a state file from a filepath."""
+  path, t = filepath_and_time
+  if os.path.exists(path):
+    with open(path, "rb") as f:
+      logging.info("Loading %s from state file %s, time %s", data_var, path, t)
+      da = xr.load_dataset(f).sel(time=slice(t, None)).data_vars[data_var]
+      earliest_time = float(da.coords["time"][0])
+      logging.info("Earliest time in file: %.2f", earliest_time)
+      # Shift the time coordinate to start at 0.
+      da = da.assign_coords({"time": da.coords["time"] - earliest_time})
+      return da.rename({"r_cell_norm": RHO_CELL_NORM})
+  else:
+    raise ValueError(f"File {path} does not exist.")
 
 
 class StateHistory:
@@ -129,7 +154,9 @@ class StateHistory:
     xr_dict = {}
 
     xr_dict[TEMP_EL] = self.core_profiles.temp_el.value
-    xr_dict[TEMP_EL_RIGHT_BC] = self.core_profiles.temp_el.right_face_constraint
+    xr_dict[TEMP_EL_RIGHT_BC] = (
+        self.core_profiles.temp_el.right_face_constraint
+    )
     xr_dict[TEMP_ION] = self.core_profiles.temp_ion.value
     xr_dict[TEMP_ION_RIGHT_BC] = (
         self.core_profiles.temp_ion.right_face_constraint
