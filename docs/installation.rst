@@ -14,6 +14,7 @@ Make sure that tkinter is installed:
 
   sudo apt-get install python3-tk
 
+.. _how_to_install:
 How to install
 ==============
 
@@ -64,6 +65,19 @@ It is recommended to automate the environment variable export. For example, if u
   echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
 
 The above command only needs to be run once on a given system.
+
+The following may optionally be added to ~/.bashrc and will cause jax to
+store compiled programs to the filesystem, avoiding recompilation in
+some cases:
+
+.. code-block:: console
+
+  export JAX_COMPILATION_CACHE_DIR=<path of your choice, such as ~/jax_cache>
+  export JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES=-1
+  export JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS=0.0
+
+For more information see :ref:`cache`.
+
 
 Download and install the TORAX codebase via http:
 
