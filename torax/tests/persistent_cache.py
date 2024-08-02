@@ -48,6 +48,8 @@ class PersistentCacheTest(parameterized.TestCase):
         '--config_package=torax',
         '--config=.tests.test_data.test_iterhybrid_rampup_short',
         f'--jax_compilation_cache_dir={cache}',
+        '--jax_persistent_cache_min_entry_size_bytes=-1',
+        '--jax_persistent_cache_min_compile_time_secs=0.0',
         '--quit',
         '--alsologtostderr',
         '--jax_debug_log_modules=jax._src.compilation_cache,jax._src.compiler',
@@ -116,9 +118,11 @@ class PersistentCacheTest(parameterized.TestCase):
     # and more CI environments, or possibly may need adjusting for
     # flakiness (in initial testing of this rule it passed 100 / 100 runs)
     # so be suspicious if it becomes highly flaky without a good reason.
-    thresh = 7.0
+    thresh = 8.53
 
-    success = t1 < t0 - thresh
+    speedup = t0 - t1
+
+    success = speedup > thresh
 
     if not success:
       print('Cache did not significantly accelerate second run.')
