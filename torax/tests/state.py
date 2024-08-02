@@ -181,6 +181,7 @@ class InitialStatesTest(parameterized.TestCase):
                 {0.0: 0.1, 1.0: 2.0},
                 interpolation_mode=interpolated_param.InterpolationMode.STEP,
             ),
+            normalize_to_nbar=False,
         ),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()

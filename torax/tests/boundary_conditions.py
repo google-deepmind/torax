@@ -35,7 +35,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
       dict(
           ne={0.0: {0.0: 1.5, 1.0: 1.0}},
           ne_bound_right=None,
-          expected_ne_bound_right=0.327923,  # Value from profile.
+          expected_ne_bound_right=1.0,  # Value from profile.
       ),
       dict(
           ne={0.0: {0.0: 1.5, 1.0: 1.0}},
@@ -63,7 +63,9 @@ class BoundaryConditionsTest(parameterized.TestCase):
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
             ne_bound_right=ne_bound_right,
             ne=ne,
+            ne_is_fGW=False,
             Ip={0.0: 5, 1.0: 7},
+            normalize_to_nbar=False,
         ),
     )
 

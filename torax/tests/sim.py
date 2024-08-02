@@ -272,7 +272,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_ne_qlknn_defromchie',
           'test_ne_qlknn_defromchie.py',
           _ALL_PROFILES,
-          0,
+          1e-8,
       ),
       # Tests particle transport with QLKNN. Deff+Veff model. CHEASE geometry.
       (

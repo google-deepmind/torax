@@ -197,7 +197,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``Ti`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` ion temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at face centers.
+  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
   If `Ti_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
   is taken from the :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
   Note that if the `Ti` profile does not contain a :math:`\hat{\rho}=1` point
@@ -206,7 +206,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``Te`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` electron temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at face centers.
+  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
   If `Te_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
   is taken from the :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
   Note that if the `Te` profile does not contain a :math:`\hat{\rho}=1` point,

@@ -43,22 +43,16 @@ def updated_ion_temperature(
 ) -> cell_variable.CellVariable:
   """Updated ion temp. Used upon initialization and if temp_ion=False."""
   # pylint: disable=invalid-name
-  if dynamic_runtime_params_slice.profile_conditions.Ti_bound_right is not None:
-    Ti_bound_right = (
-        dynamic_runtime_params_slice.profile_conditions.Ti_bound_right
-    )
-  else:
-    Ti_bound_right = dynamic_runtime_params_slice.profile_conditions.Ti[-1]
+  Ti_bound_right = (
+      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right
+  )
 
   Ti_bound_right = jax_utils.error_if_not_positive(
       Ti_bound_right,
       'Ti_bound_right',
   )
-  temp_ion = geometry.face_to_cell(
-      dynamic_runtime_params_slice.profile_conditions.Ti
-  )
   temp_ion = cell_variable.CellVariable(
-      value=temp_ion,
+      value=dynamic_runtime_params_slice.profile_conditions.Ti,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=Ti_bound_right,
@@ -74,22 +68,16 @@ def updated_electron_temperature(
 ) -> cell_variable.CellVariable:
   """Updated electron temp. Used upon initialization and if temp_el=False."""
   # pylint: disable=invalid-name
-  if dynamic_runtime_params_slice.profile_conditions.Te_bound_right is not None:
-    Te_bound_right = (
-        dynamic_runtime_params_slice.profile_conditions.Te_bound_right
-    )
-  else:
-    Te_bound_right = dynamic_runtime_params_slice.profile_conditions.Te[-1]
+  Te_bound_right = (
+      dynamic_runtime_params_slice.profile_conditions.Te_bound_right
+  )
 
   Te_bound_right = jax_utils.error_if_not_positive(
       Te_bound_right,
       'Te_bound_right',
   )
-  temp_el = geometry.face_to_cell(
-      dynamic_runtime_params_slice.profile_conditions.Te
-  )
   temp_el = cell_variable.CellVariable(
-      value=temp_el,
+      value=dynamic_runtime_params_slice.profile_conditions.Te,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=Te_bound_right,
@@ -103,37 +91,8 @@ def updated_electron_temperature(
 def _get_ne(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-    nGW: float,
-) -> jax.Array:
+) -> cell_variable.CellVariable:
   """Helper to get the electron density profile at the current timestep."""
-  nshape_face = dynamic_runtime_params_slice.profile_conditions.ne
-  nshape = geometry.face_to_cell(nshape_face)
-
-  if dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar:
-    # find normalization factor such that desired line-averaged n is set
-    # Assumes line-averaged central chord on outer midplane
-    Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
-    C = dynamic_runtime_params_slice.profile_conditions.nbar / (
-        _trapz(nshape_face, geo.Rout_face) / Rmin_out
-    )
-    # pylint: enable=invalid-name
-    ne_value = C * nshape
-  else:
-    ne_value = nshape
-
-  ne_value = jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
-      ne_value * nGW,
-      ne_value,
-  )
-  return ne_value
-
-
-def updated_density(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
-) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
-  """Updated particle density. Used upon initialization and if dens_eq=False."""
   # pylint: disable=invalid-name
   nGW = (
       dynamic_runtime_params_slice.profile_conditions.Ip
@@ -141,28 +100,76 @@ def updated_density(
       * 1e20
       / dynamic_runtime_params_slice.numerics.nref
   )
-
-  ne_value = _get_ne(
-      dynamic_runtime_params_slice,
-      geo,
-      nGW,
+  ne_value = jnp.where(
+      dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
+      dynamic_runtime_params_slice.profile_conditions.ne * nGW,
+      dynamic_runtime_params_slice.profile_conditions.ne,
+  )
+  # Calculate ne_bound_right.
+  ne_bound_right = jnp.where(
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
   )
 
-  # Calculate ne_bound_right.
-  if dynamic_runtime_params_slice.profile_conditions.ne_bound_right is not None:
-    ne_bound_right = jnp.where(
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
+  if dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar:
+    face_left = ne_value[0]  # Zero gradient boundary condition at left face.
+    face_right = ne_bound_right
+    face_inner = (ne_value[..., :-1] + ne_value[..., 1:]) / 2.0
+    ne_face = jnp.concatenate(
+        [face_left[None], face_inner, face_right[None]],
     )
+    # find normalization factor such that desired line-averaged n is set
+    # Assumes line-averaged central chord on outer midplane
+    Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
+    # find target nbar in absolute units
+    target_nbar = jnp.where(
+        dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
+        dynamic_runtime_params_slice.profile_conditions.nbar * nGW,
+        dynamic_runtime_params_slice.profile_conditions.nbar,
+    )
+    if (
+        not dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute
+    ):
+      # In this case, ne_bound_right is taken from ne and we also normalize it.
+      C = target_nbar / (_trapz(ne_face, geo.Rout_face) / Rmin_out)
+      # pylint: enable=invalid-name
+      ne_bound_right = C * ne_bound_right
+    else:
+      # If ne_bound_right is absolute, subtract off contribution from outer
+      # face to get C we need to multiply the inner values with.
+      nbar_from_ne_face_inner = (
+          _trapz(ne_face[:-1], geo.Rout_face[:-1]) / Rmin_out
+      )
+
+      dr_edge = geo.Rout_face[-1] - geo.Rout_face[-2]
+
+      C = (
+          target_nbar
+          - 0.5 * ne_face[-1] * dr_edge / Rmin_out
+      ) / (nbar_from_ne_face_inner + 0.5 * ne_face[-2] * dr_edge / Rmin_out)
   else:
-    ne_bound_right = ne_value[-1]
+    C = 1
+
+  ne_value = C * ne_value
 
   ne = cell_variable.CellVariable(
       value=ne_value,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(ne_bound_right),
+  )
+  return ne
+
+
+def updated_density(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
+) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
+  """Updated particle density. Used upon initialization and if dens_eq=False."""
+  ne = _get_ne(
+      dynamic_runtime_params_slice,
+      geo,
   )
 
   # define ion profile based on (flat) Zeff and single assumed impurity
@@ -176,10 +183,12 @@ def updated_density(
   )
 
   ni = cell_variable.CellVariable(
-      value=ne_value * dilution_factor,
+      value=ne.value * dilution_factor,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
+      right_face_constraint=jnp.array(
+          ne.right_face_constraint * dilution_factor
+      ),
   )
   return ne, ni
 
@@ -805,44 +814,21 @@ def compute_boundary_conditions(
     each CellVariable in the state. This dict can in theory recursively replace
     values in a State object.
   """
-  if dynamic_runtime_params_slice.profile_conditions.Ti_bound_right is not None:
-    Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-        dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
-        'Ti_bound_right',
-    )
-  else:
-    Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-        dynamic_runtime_params_slice.profile_conditions.Ti[-1], 'Ti_bound_right'
-    )
-
-  if dynamic_runtime_params_slice.profile_conditions.Te_bound_right is not None:
-    Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-        dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
-        'Te_bound_right',
-    )
-  else:
-    Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-        dynamic_runtime_params_slice.profile_conditions.Te[-1], 'Te_bound_right'
-    )
-
-  # calculate ne_bound_right
-  # pylint: disable=invalid-name
-  nGW = (
-      dynamic_runtime_params_slice.profile_conditions.Ip
-      / (jnp.pi * geo.Rmin**2)
-      * 1e20
-      / dynamic_runtime_params_slice.numerics.nref
+  Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
+      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
+      'Ti_bound_right',
   )
-  # pylint: enable=invalid-name
-  if dynamic_runtime_params_slice.profile_conditions.ne_bound_right is not None:
-    ne_bound_right = jnp.where(
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
-    )
-  else:
-    ne_value = _get_ne(dynamic_runtime_params_slice, geo, nGW)
-    ne_bound_right = ne_value[-1]
+
+  Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
+      dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
+      'Te_bound_right',
+  )
+
+  ne = _get_ne(
+      dynamic_runtime_params_slice,
+      geo,
+  )
+  ne_bound_right = ne.right_face_constraint
 
   # define ion profile based on (flat) Zeff and single assumed impurity
   # with Zimp. main ion limited to hydrogenic species for now.

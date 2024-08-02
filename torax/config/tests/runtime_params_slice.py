@@ -14,6 +14,8 @@
 
 """Unit tests for torax.config.runtime_params_slice."""
 
+import dataclasses
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -292,6 +294,125 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     # But negative values will cause an error.
     with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
       dcs_provider(t=1.0, geo=self._geo,)
+
+  @parameterized.parameters(
+      (
+          {0: {0.0: 1.0, 1.0: 2.0}},
+          None,
+          np.array([1.125, 1.375, 1.625, 1.875]),
+          2.0,
+          'Ti',
+      ),
+      (
+          {0: {0.0: 1.0, 1.0: 2.0}},
+          3.0,
+          np.array([1.125, 1.375, 1.625, 1.875]),
+          3.0,
+          'Ti',
+      ),
+      (
+          {0: {0.0: 1.0, 1.0: 2.0}},
+          None,
+          np.array([1.125, 1.375, 1.625, 1.875]),
+          2.0,
+          'Te',
+      ),
+      (
+          {0: {0.0: 1.0, 1.0: 2.0}},
+          3.0,
+          np.array([1.125, 1.375, 1.625, 1.875]),
+          3.0,
+          'Te',
+      ),
+      (
+          {0: {0.0: 1.0, 1.0: 2.0}},
+          None,
+          np.array([1.125, 1.375, 1.625, 1.875]),
+          2.0,
+          'ne',
+      ),
+      (
+          {0: {0.0: 1.0, 1.0: 2.0}},
+          3.0,
+          np.array([1.125, 1.375, 1.625, 1.875]),
+          3.0,
+          'ne',
+      ),
+  )
+  def test_profile_conditions_set_electron_temperature_and_boundary_condition(
+      self,
+      var,
+      var_boundary_condition,
+      expected_var,
+      expected_var_boundary_condition,
+      var_name,
+  ):
+    """Tests that the profile conditions can set the electron temperature."""
+    profile_conditions = general_runtime_params.ProfileConditions()
+    boundary_var_name = var_name + '_bound_right'
+    temperatures = {
+        var_name: var,
+        boundary_var_name: var_boundary_condition,
+    }
+    profile_conditions = dataclasses.replace(profile_conditions, **temperatures)
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=profile_conditions,
+    )
+    geo = geometry.build_circular_geometry(n_rho=4)
+    dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+        runtime_params=runtime_params,
+        t=0.0,
+        geo=geo,
+    )
+    np.testing.assert_allclose(
+        getattr(dcs.profile_conditions, var_name), expected_var
+    )
+    self.assertEqual(
+        getattr(dcs.profile_conditions, boundary_var_name),
+        expected_var_boundary_condition,
+    )
+
+  @parameterized.product(
+      ne_bound_right=[None, 1.0,],
+      ne_bound_right_is_fGW=[True, False,],
+      ne_is_fGW=[True, False,],
+  )
+  def test_profile_conditions_set_electron_density_and_boundary_condition(
+      self,
+      ne_bound_right,
+      ne_bound_right_is_fGW,  # pylint: disable=invalid-name
+      ne_is_fGW,  # pylint: disable=invalid-name
+  ):
+    """Tests that the profile conditions can set the electron temperature."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            ne_bound_right=ne_bound_right,
+            ne_bound_right_is_fGW=ne_bound_right_is_fGW,
+            ne_is_fGW=ne_is_fGW,
+        ),
+    )
+    geo = geometry.build_circular_geometry(n_rho=4)
+
+    dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
+        runtime_params=runtime_params,
+        t=0.0,
+        geo=geo,
+    )
+
+    if ne_bound_right is None:
+      # If the boundary condition was not set, it should inherit the fGW flag.
+      self.assertEqual(
+          dcs.profile_conditions.ne_bound_right_is_fGW,
+          ne_is_fGW,
+      )
+      # If the boundary condition was set check it is not absolute.
+      self.assertFalse(dcs.profile_conditions.ne_bound_right_is_absolute)
+    else:
+      self.assertEqual(
+          dcs.profile_conditions.ne_bound_right_is_fGW,
+          ne_bound_right_is_fGW,
+      )
+      self.assertTrue(dcs.profile_conditions.ne_bound_right_is_absolute)
 
 
 if __name__ == '__main__':

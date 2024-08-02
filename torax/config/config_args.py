@@ -157,10 +157,10 @@ def _input_is_an_interpolated_var_time_rho(
     return _check(field_type)
 
 
-def _interpolate_var_2d(
+def interpolate_var_2d(
     param_or_param_input: interpolated_param.TimeRhoInterpolated,
     t: chex.Numeric,
-    geo: geometry.Geometry,
+    rho_norm: chex.Array,
 ) -> chex.Array:
   """Interpolates the input param at time t and rho_norm for the current geo."""
   if not isinstance(
@@ -168,7 +168,8 @@ def _interpolate_var_2d(
   ):
     # Dealing with a param input so convert it first.
     param_or_param_input = interpolated_param.InterpolatedVarTimeRho(
-        values=param_or_param_input, rho=geo.torax_mesh.face_centers
+        values=param_or_param_input,
+        rho=rho_norm,
     )
   return param_or_param_input.get_value(t)
 
@@ -210,7 +211,9 @@ def get_init_kwargs(
           raise ValueError('t must be specified for interpolated params')
         if geo is None:
           raise ValueError('geo must be specified for interpolated params')
-        config_val = _interpolate_var_2d(config_val, t, geo)
+        config_val = interpolate_var_2d(
+            config_val, t, geo.torax_mesh.cell_centers
+        )
     elif _input_is_a_float_field(field.name, input_config_fields_to_types):
       config_val = float(config_val)
     elif isinstance(config_val, enum.Enum):

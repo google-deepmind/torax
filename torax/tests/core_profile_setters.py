@@ -194,13 +194,14 @@ class CoreProfileSettersTest(parameterized.TestCase):
 
   def test_ne_core_profile_setter(self):
     """Tests that setting ne works."""
-    expected_value = np.array([1.15, 1.05, 0.95, 0.85])
+    expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
             ne_is_fGW=False,
             ne_bound_right_is_fGW=False,
             nbar=1,
+            normalize_to_nbar=False,
         )
     )
 
@@ -231,15 +232,22 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
   @parameterized.parameters(
-      (None, 0.85,),
-      (1.0, 1.0,),
+      # When normalize_to_nbar=False, take ne_bound_right from ne[0.0][1.0]
+      (None, False, 1.0),
+      # Take ne_bound_right from provided value.
+      (0.85, False, 0.85),
+      # normalize_to_nbar=True, ne_bound_right from ne[0.0][1.0] and normalize
+      (None, True, 0.8050314),
+      # Even when normalize_to_nbar, boundary condition is absolute.
+      (0.5, True, 0.5),
   )
   def test_density_boundary_condition_override(
       self,
       ne_bound_right: float | None,
+      normalize_to_nbar: bool,
       expected_value: float,
   ):
-    """Tests that setting ne works."""
+    """Tests that setting ne right boundary works."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
@@ -247,6 +255,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
             ne_bound_right_is_fGW=False,
             nbar=1,
             ne_bound_right=ne_bound_right,
+            normalize_to_nbar=normalize_to_nbar,
         )
     )
 
@@ -269,15 +278,14 @@ class CoreProfileSettersTest(parameterized.TestCase):
         rtol=1e-6,
     )
 
-  def test_ne_core_profile_setter_with_normalization(
-      self,
-  ):
+  def test_ne_core_profile_setter_with_normalization(self,):
     """Tests that normalizing vs. not by nbar gives consistent results."""
+    nbar = 1.0
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=general_runtime_params.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
             ne_is_fGW=False,
-            nbar=1,
+            nbar=nbar,
             normalize_to_nbar=True,
             ne_bound_right=0.5,
         ),
@@ -294,6 +302,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         dynamic_runtime_params_slice_normalized,
         self.geo,
     )
+    np.testing.assert_allclose(np.mean(ne_normalized.value), nbar, rtol=1e-1)
 
     runtime_params.profile_conditions.normalize_to_nbar = False
     dynamic_runtime_params_slice_unnormalized = provider(t=1.0, geo=self.geo)
@@ -344,6 +353,200 @@ class CoreProfileSettersTest(parameterized.TestCase):
     np.all(np.isclose(ratio, ratio[0]))
     self.assertNotEqual(ratio[0], 1.0)
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='Set from ne',
+          ne_bound_right=None,
+          normalize_to_nbar=False,
+          ne_is_fGW=False,
+          ne_bound_right_is_fGW=False,
+          expected_ne_bound_right=1.0,
+      ),
+      dict(
+          testcase_name='Set and normalize from ne',
+          ne_bound_right=None,
+          normalize_to_nbar=True,
+          ne_is_fGW=False,
+          ne_bound_right_is_fGW=False,
+          expected_ne_bound_right=0.8050314,
+      ),
+      dict(
+          testcase_name='Set and normalize from ne in fGW',
+          ne_bound_right=None,
+          normalize_to_nbar=True,
+          ne_is_fGW=True,
+          ne_bound_right_is_fGW=False,
+          expected_ne_bound_right=0.8050314,
+      ),
+      dict(
+          testcase_name='Set from ne_bound_right',
+          ne_bound_right=0.5,
+          normalize_to_nbar=False,
+          ne_is_fGW=False,
+          ne_bound_right_is_fGW=False,
+          expected_ne_bound_right=0.5,
+      ),
+      dict(
+          testcase_name='Set from ne_bound_right absolute, ignore normalize',
+          ne_bound_right=0.5,
+          normalize_to_nbar=True,
+          ne_is_fGW=False,
+          ne_bound_right_is_fGW=False,
+          expected_ne_bound_right=0.5,
+      ),
+      dict(
+          testcase_name='Set from ne in fGW',
+          ne_bound_right=None,
+          normalize_to_nbar=False,
+          ne_is_fGW=True,
+          ne_bound_right_is_fGW=False,
+          expected_ne_bound_right=1,  # This will be scaled by fGW in test.
+      ),
+      dict(
+          testcase_name='Set from ne, ignore ne_bound_right_is_fGW',
+          ne_bound_right=None,
+          normalize_to_nbar=False,
+          ne_is_fGW=False,
+          ne_bound_right_is_fGW=True,
+          expected_ne_bound_right=1.0,
+      ),
+      dict(
+          testcase_name='Set from ne_bound_right, ignore ne_is_fGW',
+          ne_bound_right=0.5,
+          normalize_to_nbar=False,
+          ne_is_fGW=True,
+          ne_bound_right_is_fGW=False,
+          expected_ne_bound_right=0.5,
+      ),
+      dict(
+          testcase_name=(
+              'Set from ne_bound_right, ignore ne_is_fGW, ignore normalize'
+          ),
+          ne_bound_right=0.5,
+          normalize_to_nbar=True,
+          ne_is_fGW=True,
+          ne_bound_right_is_fGW=False,
+          expected_ne_bound_right=0.5,
+      ),
+  )
+  def test_compute_boundary_conditions_ne(
+      self,
+      ne_bound_right,
+      normalize_to_nbar,
+      ne_is_fGW,
+      ne_bound_right_is_fGW,
+      expected_ne_bound_right,
+  ):
+    """Tests that compute_boundary_conditions works."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            ne={0: {0: 1.5, 1: 1}},
+            ne_is_fGW=ne_is_fGW,
+            nbar=1,
+            normalize_to_nbar=normalize_to_nbar,
+            ne_bound_right=ne_bound_right,
+        ),
+    )
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: {},
+        stepper_getter=stepper_params_lib.RuntimeParams,
+    )
+    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
 
-if __name__ == "__main__":
+    boundary_conditions = core_profile_setters.compute_boundary_conditions(
+        dynamic_runtime_params_slice,
+        self.geo,
+    )
+
+    if (ne_is_fGW and ne_bound_right is None) or (
+        ne_bound_right_is_fGW and ne_bound_right is not None
+    ):
+      # Then we expect the boundary condition to be in fGW.
+      # pylint: disable=invalid-name
+      nGW = (
+          dynamic_runtime_params_slice.profile_conditions.Ip
+          / (np.pi * self.geo.Rmin**2)
+          * 1e20
+          / dynamic_runtime_params_slice.numerics.nref
+      )
+      self.assertEqual(
+          boundary_conditions['ne']['right_face_constraint'],
+          expected_ne_bound_right * nGW,
+      )
+    else:
+      self.assertEqual(
+          boundary_conditions['ne']['right_face_constraint'],
+          expected_ne_bound_right,
+      )
+
+  @parameterized.named_parameters(
+      ('Set from Te', None, 1.0), ('Set from Te_bound_right', 0.5, 0.5)
+  )
+  def test_compute_boundary_conditions_Te(
+      self,
+      Te_bound_right,
+      expected_Te_bound_right,
+  ):
+    """Tests that compute_boundary_conditions works for Te."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            Te={0: {0: 1.5, 1: 1}},
+            Te_bound_right=Te_bound_right,
+        ),
+    )
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: {},
+        stepper_getter=stepper_params_lib.RuntimeParams,
+    )
+    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+
+    boundary_conditions = core_profile_setters.compute_boundary_conditions(
+        dynamic_runtime_params_slice,
+        self.geo,
+    )
+
+    self.assertEqual(
+        boundary_conditions['temp_el']['right_face_constraint'],
+        expected_Te_bound_right,
+    )
+
+  @parameterized.named_parameters(
+      ('Set from Ti', None, 1.0), ('Set from Ti_bound_right', 0.5, 0.5)
+  )
+  def test_compute_boundary_conditions_Ti(
+      self,
+      Ti_bound_right,
+      expected_Ti_bound_right,
+  ):
+    """Tests that compute_boundary_conditions works for Ti."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            Ti={0: {0: 1.5, 1: 1}},
+            Ti_bound_right=Ti_bound_right,
+        ),
+    )
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: {},
+        stepper_getter=stepper_params_lib.RuntimeParams,
+    )
+    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+
+    boundary_conditions = core_profile_setters.compute_boundary_conditions(
+        dynamic_runtime_params_slice,
+        self.geo,
+    )
+
+    self.assertEqual(
+        boundary_conditions['temp_ion']['right_face_constraint'],
+        expected_Ti_bound_right,
+    )
+
+
+if __name__ == '__main__':
   absltest.main()
