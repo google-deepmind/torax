@@ -342,6 +342,22 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests used for testing changing configs without recompiling.
+      # Based on test_iterhybrid_predictor_corrector
+      (
+          'test_changing_config_before',
+          'test_changing_config_before.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Tests used for testing changing configs without recompiling.
+      # Based on test_iterhybrid_predictor_corrector
+      (
+          'test_changing_config_after',
+          'test_changing_config_after.py',
+          _ALL_PROFILES,
+          0,
+      ),
   )
   def test_torax_sim(
       self,
