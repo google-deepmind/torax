@@ -276,7 +276,9 @@ def _build_dynamic_profile_conditions(
       skip=('ne_bound_right_is_absolute',),
   )
   if runtime_params.profile_conditions.Te_bound_right is None:
-    logging.info('Setting electron temperature boundary condition using Te.')
+    # To avoid clutter in the logs only output on the first timestep.
+    if t == runtime_params.numerics.t_initial:
+      logging.info('Setting electron temperature boundary condition using Te.')
     dynamic_profile_conditions_kwargs['Te_bound_right'] = float(
         config_args.interpolate_var_2d(
             runtime_params.profile_conditions.Te,
@@ -285,7 +287,8 @@ def _build_dynamic_profile_conditions(
         )
     )
   if runtime_params.profile_conditions.Ti_bound_right is None:
-    logging.info('Setting ion temperature boundary condition using Ti.')
+    if t == runtime_params.numerics.t_initial:
+      logging.info('Setting ion temperature boundary condition using Ti.')
     dynamic_profile_conditions_kwargs['Ti_bound_right'] = float(
         config_args.interpolate_var_2d(
             runtime_params.profile_conditions.Ti,
@@ -294,7 +297,8 @@ def _build_dynamic_profile_conditions(
         )
     )
   if runtime_params.profile_conditions.ne_bound_right is None:
-    logging.info('Setting electron density boundary condition using ne.')
+    if t == runtime_params.numerics.t_initial:
+      logging.info('Setting electron density boundary condition using ne.')
     dynamic_profile_conditions_kwargs['ne_bound_right'] = float(
         config_args.interpolate_var_2d(
             runtime_params.profile_conditions.ne,
