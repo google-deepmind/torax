@@ -53,6 +53,7 @@ def build_chease_geometry(
     Rmin: float = 2.0,
     B0: float = 5.3,
     hires_fac: int = 4,
+    diverted_divergence_factor: float = 1.03,
 ) -> geometry.StandardGeometry:
   """Constructs a geometry from CHEASE file.
 
@@ -72,6 +73,8 @@ def build_chease_geometry(
     B0: Toroidal magnetic field on axis [T].
     hires_fac: Grid refinement factor for poloidal flux <--> plasma current
       calculations.
+    diverted_divergence_factor: Divergence factor for setting finite numbers
+      for geometric quantities at a diverted flux surface which are formally inf
 
   Returns:
     A constructed Chease `StandardGeometry` object.
@@ -85,6 +88,7 @@ def build_chease_geometry(
       Rmin=Rmin,
       B0=B0,
       hires_fac=hires_fac,
+      diverted_divergence_factor=diverted_divergence_factor,
   )
   geo = geometry.build_standard_geometry(intermediates)
   return geo

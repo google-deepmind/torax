@@ -649,7 +649,7 @@ class StandardGeometryIntermediates:
   Rin: Radius of the flux surface at the inboard side at midplane
   Rout: Radius of the flux surface at the outboard side at midplane
   F: Toroidal field flux function
-  int_dl_over_Bp: oint (dl / Bp) (contour integral)
+  1_over_int_dl_over_Bp: 1/ oint (dl / Bp) (contour integral)
   flux_surf_avg_1_over_R2: <1/R**2>
   flux_surf_avg_Bp2: <Bp**2>
   flux_surf_avg_RBp: <R Bp>
@@ -696,6 +696,7 @@ class StandardGeometryIntermediates:
       Rmin: float = 2.0,
       B0: float = 5.3,
       hires_fac: int = 4,
+      diverted_divergence_factor: float = 1.03,
   ) -> StandardGeometryIntermediates:
     """Constructs a StandardGeometryIntermediates from a CHEASE file.
 
@@ -715,6 +716,9 @@ class StandardGeometryIntermediates:
       B0: Toroidal magnetic field on axis [T].
       hires_fac: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
+      diverted_divergence_factor: Divergence factor for setting finite numbers
+        for geometric quantities at a diverted flux surface which are formally
+        inf
 
     Returns:
       A StandardGeometry instance based on the input file. This can then be
@@ -741,13 +745,21 @@ class StandardGeometryIntermediates:
     # toroidal field flux function
     F = chease_data['T=RBphi'] * Rmaj * B0
 
-    int_dl_over_Bp = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
+    int_dl_over_Bp = (
+        chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
+    )
     flux_surf_avg_1_over_R2 = chease_data['<1/R**2>'] / Rmaj**2
     flux_surf_avg_Bp2 = chease_data['<Bp**2>'] * B0**2
     flux_surf_avg_RBp = chease_data['<|grad(psi)|>'] * psiunnormfactor / Rmaj
     flux_surf_avg_R2Bp2 = (
         chease_data['<|grad(psi)|**2>'] * psiunnormfactor**2 / Rmaj**2
     )
+
+    # check if last flux surface is diverted and correct if so
+    if flux_surf_avg_Bp2[-1] < 1e-10:
+      int_dl_over_Bp[-1] = int_dl_over_Bp[-2] * diverted_divergence_factor
+      flux_surf_avg_Bp2[-1] = flux_surf_avg_Bp2[-2] / diverted_divergence_factor
+      flux_surf_avg_RBp[-1] = flux_surf_avg_RBp[-2] / diverted_divergence_factor
 
     # volume, area, and dV/drho, dS/drho
     volume = chease_data['VOLUMEprofile'] * Rmaj**3
