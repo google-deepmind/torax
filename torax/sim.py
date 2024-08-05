@@ -646,7 +646,8 @@ class SimulationStepFn:
         core_profiles=output_state.core_profiles,
     )
 
-    # Update psidot based on the new core profiles
+    # Update psidot based on the new core profiles.
+    # Will include the phibdot calculation since geo=geo_t_plus_dt.
     output_state.core_profiles = update_psidot(
         source_models=self._stepper_fn.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,

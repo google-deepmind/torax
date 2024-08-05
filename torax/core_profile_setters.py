@@ -678,6 +678,9 @@ def initial_core_profiles(
       nref=jnp.asarray(dynamic_runtime_params_slice.numerics.nref),
   )
 
+  # psidot calculated here with phibdot=0 in geo, since this is initial
+  # conditions and we don't yet have information on geo_t_plus_dt for the
+  # phibdot calculation.
   psidot = dataclasses.replace(
       psidot,
       value=source_models_lib.calc_psidot(

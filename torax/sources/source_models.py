@@ -27,6 +27,7 @@ from torax import jax_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import convection_terms
 from torax.fvm import diffusion_terms
 from torax.sources import bootstrap_current_source
 from torax.sources import external_current_source
@@ -377,9 +378,7 @@ def sum_sources_psi(
         geo=geo,
     )
   mu0 = constants.CONSTANTS.mu0
-  prefactor = (
-      8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
-  )
+  prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
   scale_source = lambda src: -src * prefactor
   return scale_source(total)
 
@@ -437,7 +436,7 @@ def calc_and_sum_sources_psi(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[jax.Array, jax.Array, jax.Array]:
   """Computes sum of psi sources for psi_dot calculation."""
 
   # TODO(b/335597108): Revisit how to calculate this once we enable more
@@ -467,12 +466,14 @@ def calc_and_sum_sources_psi(
   total += j_bootstrap_profiles.j_bootstrap
 
   mu0 = constants.CONSTANTS.mu0
-  prefactor = (
-      8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
-  )
+  prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
   scale_source = lambda src: -src * prefactor
 
-  return scale_source(total), j_bootstrap_profiles.sigma
+  return (
+      scale_source(total),
+      j_bootstrap_profiles.sigma,
+      j_bootstrap_profiles.sigma_face,
+  )
 
 
 @functools.partial(
@@ -507,12 +508,13 @@ def calc_psidot(
   """
   consts = constants.CONSTANTS
 
-  psi_sources, sigma = calc_and_sum_sources_psi(
+  psi_sources, sigma, sigma_face = calc_and_sum_sources_psi(
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
       source_models,
   )
+  # Calculate transient term
   toc_psi = (
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
@@ -524,11 +526,53 @@ def calc_psidot(
       * geo.Phib**2
       / geo.F**2
   )
-  d_face_psi = (
-      geo.g2g3_over_rhon_face
+  # Calculate diffusion term coefficient
+  d_face_psi = geo.g2g3_over_rhon_face
+  # Add phibdot terms to poloidal flux convection
+  v_face_psi = (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * sigma_face
+      * geo.rho_face_norm**2
+      / geo.F_face**2
   )
 
-  c_mat, c = diffusion_terms.make_diffusion_terms(d_face_psi, core_profiles.psi)
+  # Add effective phibdot poloidal flux source term
+  ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
+      sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
+  )
+
+  psi_sources += (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * ddrnorm_sigma_rnorm2_over_f2
+  )
+
+  diffusion_mat, diffusion_vec = diffusion_terms.make_diffusion_terms(
+      d_face_psi, core_profiles.psi
+  )
+
+  # Set the psi convection term for psidot used in ohmic power, always with
+  # the default 'ghost' mode. Impact of different modes would mildly impact
+  # Ohmic power at the LCFS which has negligible impact on simulations.
+  # Allowing it to be configurable introduces more complexity in the code by
+  # needing to pass in the mode from the static_runtime_params across multiple
+  # functions.
+  conv_mat, conv_vec = convection_terms.make_convection_terms(
+      v_face_psi,
+      d_face_psi,
+      core_profiles.psi,
+  )
+
+  c_mat = diffusion_mat + conv_mat
+  c = diffusion_vec + conv_vec
+
   c += psi_sources
 
   psidot = (jnp.dot(c_mat, core_profiles.psi.value) + c) / toc_psi
