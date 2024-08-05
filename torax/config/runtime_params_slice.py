@@ -39,7 +39,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import dataclasses
-import logging
 from typing import Callable
 
 import chex
@@ -89,7 +88,7 @@ class DynamicRuntimeParamsSlice:
   transport: transport_model_params.DynamicRuntimeParams
   stepper: stepper_params.DynamicRuntimeParams
   plasma_composition: DynamicPlasmaComposition
-  profile_conditions: DynamicProfileConditions
+  profile_conditions: general_runtime_params.DynamicProfileConditions
   numerics: DynamicNumerics
   sources: Mapping[str, sources_params.DynamicRuntimeParams]
 
@@ -103,73 +102,6 @@ class DynamicPlasmaComposition:
   # needed for qlknn and fusion power
   Zeff: float
   Zimp: float  # impurity charge state assumed for dilution
-
-
-@chex.dataclass
-class DynamicProfileConditions:
-  """Prescribed values and boundary conditions for the core profiles."""
-
-  # total plasma current in MA
-  # Note that if Ip_from_parameters=False in geometry, then this Ip will be
-  # overwritten by values from the geometry data
-  Ip: float
-
-  # Temperature boundary conditions at r=Rmin.
-  Ti_bound_right: float
-  Te_bound_right: float
-  # Radial array used for initial conditions, and prescribed time-dependent
-  # conditions when not evolving variable with PDE defined on the cell grid.
-  Te: chex.Array
-  Ti: chex.Array
-
-  # Electron density profile on the cell grid.
-  # If density evolves with PDE (dens_eq=True), then is initial condition
-  ne: chex.Array
-  # Whether to renormalize the density profile.
-  normalize_to_nbar: bool
-
-  # Initial line averaged density.
-  # In units of reference density if ne_is_fGW = False.
-  # In Greenwald fraction if ne_is_fGW = True.
-  # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: float
-  # Toggle units of nbar
-  ne_is_fGW: bool
-
-  # Density boundary condition for r=Rmin, units of nref
-  # In units of reference density if ne_bound_right_is_fGW = False.
-  # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: float
-  ne_bound_right_is_fGW: bool
-  # If `ne_bound_right` is set using `ne` then this flag should be `False`.
-  ne_bound_right_is_absolute: bool
-
-  # Internal boundary condition (pedestal)
-  # Do not set internal boundary condition if this is False
-  set_pedestal: bool
-  # ion pedestal top temperature in keV for Ti and Te
-  Tiped: float
-  # electron pedestal top temperature in keV for Ti and Te
-  Teped: float
-  # pedestal top electron density
-  # In units of reference density if neped_is_fGW = False.
-  # In Greenwald fraction if neped_is_fGW = True.
-  neped: float
-  neped_is_fGW: bool
-  # Set ped top location.
-  Ped_top: float
-
-  # current profiles (broad "Ohmic" + localized "external" currents)
-  # peaking factor of prescribed (initial) "Ohmic" current:
-  # johm = j0*(1 - r^2/a^2)^nu
-  nu: float
-  # toggles if "Ohmic" current is treated as total current upon initialization,
-  # or if non-inductive current should be included in initial jtot calculation
-  initial_j_is_total_current: bool
-  # toggles if the initial psi calculation is based on the "nu" current formula,
-  # or from the psi available in the numerical geometry file. This setting is
-  # ignored for the ad-hoc circular geometry, which has no numerical geometry.
-  initial_psi_from_j: bool
 
 
 @chex.dataclass
@@ -262,64 +194,6 @@ class StaticRuntimeParamsSlice:
 # pylint: enable=invalid-name
 
 
-def _build_dynamic_profile_conditions(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-    t: chex.Numeric,
-    geo: geometry.Geometry,
-) -> DynamicProfileConditions:
-  """Builds a DynamicProfileConditions."""
-  dynamic_profile_conditions_kwargs = config_args.get_init_kwargs(
-      input_config=runtime_params.profile_conditions,
-      output_type=DynamicProfileConditions,
-      t=t,
-      geo=geo,
-      skip=('ne_bound_right_is_absolute',),
-  )
-  if runtime_params.profile_conditions.Te_bound_right is None:
-    # To avoid clutter in the logs only output on the first timestep.
-    if t == runtime_params.numerics.t_initial:
-      logging.info('Setting electron temperature boundary condition using Te.')
-    dynamic_profile_conditions_kwargs['Te_bound_right'] = float(
-        config_args.interpolate_var_2d(
-            runtime_params.profile_conditions.Te,
-            t,
-            geo.torax_mesh.face_centers[-1],
-        )
-    )
-  if runtime_params.profile_conditions.Ti_bound_right is None:
-    if t == runtime_params.numerics.t_initial:
-      logging.info('Setting ion temperature boundary condition using Ti.')
-    dynamic_profile_conditions_kwargs['Ti_bound_right'] = float(
-        config_args.interpolate_var_2d(
-            runtime_params.profile_conditions.Ti,
-            t,
-            geo.torax_mesh.face_centers[-1],
-        )
-    )
-  if runtime_params.profile_conditions.ne_bound_right is None:
-    if t == runtime_params.numerics.t_initial:
-      logging.info('Setting electron density boundary condition using ne.')
-    dynamic_profile_conditions_kwargs['ne_bound_right'] = float(
-        config_args.interpolate_var_2d(
-            runtime_params.profile_conditions.ne,
-            t,
-            geo.torax_mesh.face_centers[-1],
-        ),
-    )
-    dynamic_profile_conditions_kwargs['ne_bound_right_is_fGW'] = (
-        dynamic_profile_conditions_kwargs['ne_is_fGW']
-    )
-    dynamic_profile_conditions_kwargs['ne_bound_right_is_absolute'] = False
-  else:
-    dynamic_profile_conditions_kwargs['ne_bound_right_is_absolute'] = True
-
-  dynamic_profile_conditions = DynamicProfileConditions(
-      **dynamic_profile_conditions_kwargs
-  )
-
-  return dynamic_profile_conditions
-
-
 def build_dynamic_runtime_params_slice(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     geo: geometry.Geometry,
@@ -336,6 +210,7 @@ def build_dynamic_runtime_params_slice(
   # For each dataclass attribute under DynamicRuntimeParamsSlice, build those
   # objects explicitly, and then for all scalar attributes, fetch their values
   # directly from the input runtime params using config_args.get_init_kwargs.
+  output_logs = t == runtime_params.numerics.t_initial
   return DynamicRuntimeParamsSlice(
       transport=transport.build_dynamic_params(t),
       stepper=stepper.build_dynamic_params(t),
@@ -347,10 +222,8 @@ def build_dynamic_runtime_params_slice(
               t=t,
           )
       ),
-      profile_conditions=_build_dynamic_profile_conditions(
-          runtime_params,
-          t,
-          geo,
+      profile_conditions=runtime_params.profile_conditions.build_dynamic_params(
+          t, geo, output_logs=output_logs,
       ),
       numerics=DynamicNumerics(
           **config_args.get_init_kwargs(
