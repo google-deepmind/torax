@@ -103,7 +103,11 @@ def newton_raphson_solve_block(
     delta_reduction_factor: float,
     tau_min: float,
     log_iterations: bool = False,
-) -> tuple[tuple[cell_variable.CellVariable, ...], int, AuxiliaryOutput]:
+) -> tuple[
+    tuple[cell_variable.CellVariable, ...],
+    state_module.StepperNumericOutputs,
+    AuxiliaryOutput,
+]:
   # pyformat: disable  # pyformat removes line breaks needed for reability
   """Runs one time step of a Newton-Raphson based root-finding on the equation defined by `coeffs`.
 
@@ -143,10 +147,10 @@ def newton_raphson_solve_block(
     geo_t_plus_dt: Geometry at time t + dt.
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
-    core_profiles_t: Core plasma profiles which contain all available
-      prescribed quantities at the start of the time step. This includes
-      evolving boundary conditions and prescribed time-dependent profiles that
-      are not being evolved by the PDE system.
+    core_profiles_t: Core plasma profiles which contain all available prescribed
+      quantities at the start of the time step. This includes evolving boundary
+      conditions and prescribed time-dependent profiles that are not being
+      evolved by the PDE system.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
@@ -179,9 +183,9 @@ def newton_raphson_solve_block(
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
-    error: int. 0 signifies residual < tol at exit, 1 signifies residual > tol,
-    2 signifies tol < residual < coarse_tol, deemed acceptable if the solver
-    steps became small.
+    stepper_numeric_outputs: state_module.StepperNumericOutputs. Iteration and
+      error info. For the error, 0 signifies residual < tol at exit, 1 signifies
+      residual > tol, steps became small.
     aux_output: Extra auxiliary output from calc_coeffs.
   """
   # pyformat: enable
@@ -335,8 +339,13 @@ def newton_raphson_solve_block(
           lambda: 1,  # Called when False
       ),
   )
+  stepper_numeric_outputs = state_module.StepperNumericOutputs(
+      inner_solver_iterations=int(output_state['iterations']),
+      stepper_error_state=error,
+      outer_stepper_iterations=1,
+  )
 
-  return x_new, error, output_state['aux_output']
+  return x_new, stepper_numeric_outputs, output_state['aux_output']
 
 
 def residual_scalar(x):

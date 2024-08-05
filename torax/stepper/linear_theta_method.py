@@ -59,7 +59,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      int,
+      state.StepperNumericOutputs,
   ]:
     """See Stepper._x_new docstring."""
 
@@ -121,9 +121,12 @@ class LinearThetaMethod(stepper_lib.Stepper):
         )
     )
 
-    error = 0  # linear method always works
+    stepper_numeric_outputs = state.StepperNumericOutputs(
+        inner_solver_iterations=1,
+        stepper_error_state=0,  # linear method always works
+    )
 
-    return x_new, core_sources, core_transport, error
+    return x_new, core_sources, core_transport, stepper_numeric_outputs
 
 
 def _default_linear_builder(

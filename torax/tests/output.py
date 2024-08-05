@@ -96,9 +96,12 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        stepper_iterations=1,
         time_step_calculator_state=None,
-        stepper_error_state=1,
+        stepper_numeric_outputs=state.StepperNumericOutputs(
+            outer_stepper_iterations=1,
+            stepper_error_state=1,
+            inner_solver_iterations=1,
+        ),
     )
 
     output.StateHistory((sim_state,))
@@ -113,9 +116,12 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        stepper_iterations=1,
         time_step_calculator_state=None,
-        stepper_error_state=1,
+        stepper_numeric_outputs=state.StepperNumericOutputs(
+            outer_stepper_iterations=1,
+            stepper_error_state=1,
+            inner_solver_iterations=1,
+        ),
     )
     history = output.StateHistory((sim_state,))
 
@@ -132,9 +138,12 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        stepper_iterations=1,
         time_step_calculator_state=None,
-        stepper_error_state=1,
+        stepper_numeric_outputs=state.StepperNumericOutputs(
+            outer_stepper_iterations=1,
+            stepper_error_state=1,
+            inner_solver_iterations=1,
+        ),
     )
     history = output.StateHistory((sim_state,))
     # Output to an xr.Dataset and save to disk.

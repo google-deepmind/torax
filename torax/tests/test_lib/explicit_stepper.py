@@ -63,7 +63,7 @@ class ExplicitStepper(stepper_lib.Stepper):
       state.CoreProfiles,
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      int,
+      state.StepperNumericOutputs,
   ]:
     """Applies a time step update. See Stepper.__call__ docstring."""
 
@@ -140,7 +140,11 @@ class ExplicitStepper(stepper_lib.Stepper):
     # error isn't used for timestep adaptation for this method.
     # However, too large a timestep will lead to numerical instabilities.
     # // TODO(b/312454528) - add timestep check such that error=0 is appropriate
-    error = 0
+    stepper_numeric_outputs = state.StepperNumericOutputs(
+        outer_stepper_iterations=1,
+        stepper_error_state=0,
+        inner_solver_iterations=1,
+    )
 
     return (
         dataclasses.replace(
@@ -154,7 +158,7 @@ class ExplicitStepper(stepper_lib.Stepper):
             source_models=self.source_models,
         ),
         state.CoreTransport.zeros(geo_t),
-        error,
+        stepper_numeric_outputs,
     )
 
 

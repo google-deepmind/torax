@@ -14,6 +14,7 @@
 
 """Tests torax.sim for handling time dependent input runtime params."""
 
+import copy
 import dataclasses
 from typing import Callable
 
@@ -40,15 +41,16 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
   """Integration tests for torax.sim with time-dependent runtime params."""
 
   @parameterized.named_parameters(
-      ('with_adaptive_dt', True, 3, 0, 2.44444444444),
-      ('without_adaptive_dt', False, 1, 1, 3.0),
+      ('with_adaptive_dt', True, 3, 0, 2.44444444444, [1, 2, 3]),
+      ('without_adaptive_dt', False, 1, 1, 3.0, [4]),
   )
   def test_time_dependent_params_update_in_adaptive_dt(
       self,
       adaptive_dt: bool,
-      expected_stepper_iterations: int,
+      expected_outer_stepper_iterations: int,
       expected_error_state: int,
       expected_combined_value: float,
+      inner_solver_iterations: list[int],
   ):
     """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
@@ -75,6 +77,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         max_value=2.5,
         transport_model=transport,
         source_models=source_models,
+        inner_solver_iterations=inner_solver_iterations,
     )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     sim_step_fn = sim_lib.SimulationStepFn(
@@ -121,9 +124,17 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     # steps to get under the Ti_bound_right threshold set above if adaptive_dt
     # was set to True.
     self.assertEqual(
-        output_state.stepper_iterations, expected_stepper_iterations
+        output_state.stepper_numeric_outputs.outer_stepper_iterations,
+        expected_outer_stepper_iterations,
     )
-    self.assertEqual(output_state.stepper_error_state, expected_error_state)
+    self.assertEqual(
+        output_state.stepper_numeric_outputs.inner_solver_iterations,
+        np.sum(inner_solver_iterations),
+    )
+    self.assertEqual(
+        output_state.stepper_numeric_outputs.stepper_error_state,
+        expected_error_state,
+    )
     np.testing.assert_allclose(
         output_state.core_sources.qei.qei_coef, expected_combined_value
     )
@@ -138,6 +149,8 @@ class FakeStepper(stepper_lib.Stepper):
   that param in the config at time t and config at time t+dt sum to less than
   max value.
 
+  The number of inner solver iterations can also be specified.
+
   This stepper returns the input state as is and doesn't actually use the
   transport model or sources provided. They are given just to match the base
   class api.
@@ -149,11 +162,17 @@ class FakeStepper(stepper_lib.Stepper):
       max_value: float,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
+      inner_solver_iterations: list[int] | None = None,
   ):
     self.transport_model = transport_model
     self.source_models = source_models
     self._param = param
     self._max_value = max_value
+    self._inner_solver_iterations = (
+        copy.deepcopy(inner_solver_iterations)
+        if inner_solver_iterations is not None
+        else []
+    )
 
   def __call__(
       self,
@@ -170,7 +189,7 @@ class FakeStepper(stepper_lib.Stepper):
       state.CoreProfiles,
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      int,
+      state.StepperNumericOutputs,
   ]:
     combined = getattr(
         dynamic_runtime_params_slice_t.profile_conditions, self._param
@@ -191,10 +210,29 @@ class FakeStepper(stepper_lib.Stepper):
             core_sources.qei, qei_coef=jnp.ones_like(geo_t.rho) * combined
         ),
     )
+
+    current_inner_solver_iterations = (
+        self._inner_solver_iterations.pop(0)
+        if self._inner_solver_iterations
+        else 1
+    )
+
+    def get_return_value(error_code: int):
+      return (
+          core_profiles_t,
+          core_sources,
+          transport,
+          state.StepperNumericOutputs(
+              outer_stepper_iterations=1,
+              stepper_error_state=error_code,
+              inner_solver_iterations=current_inner_solver_iterations,
+          ),
+      )
+
     return jax.lax.cond(
         combined < self._max_value,
-        lambda: (core_profiles_t, core_sources, transport, 0),
-        lambda: (core_profiles_t, core_sources, transport, 1),
+        lambda: get_return_value(error_code=0),
+        lambda: get_return_value(error_code=1),
     )
 
 

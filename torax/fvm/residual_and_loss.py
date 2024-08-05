@@ -400,7 +400,7 @@ def jaxopt_solver(
     evolving_names: tuple[str, ...],
     maxiter: int,
     tol: float,
-) -> tuple[jax.Array, float, AuxiliaryOutput]:
+) -> tuple[jax.Array, float, AuxiliaryOutput, int]:
   """Advances jaxopt solver by one timestep.
 
   Args:
@@ -435,7 +435,9 @@ def jaxopt_solver(
 
   Returns:
     x_new_vec: Flattened evolving profile array after jaxopt evolution.
+    final_loss: loss after jaxopt evolution
     aux_output: auxilliary outputs from calc_coeffs.
+    num_iterations: number of iterations ran in jaxopt
   """
 
   loss = functools.partial(
@@ -457,5 +459,6 @@ def jaxopt_solver(
   x_new_vec = solver_output.params
   aux_output = solver_output.state.aux
   final_loss, _ = loss(x_new_vec)
+  num_iterations = solver_output.state.iter_num
 
-  return x_new_vec, final_loss, aux_output
+  return x_new_vec, final_loss, aux_output, num_iterations
