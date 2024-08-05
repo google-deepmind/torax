@@ -41,6 +41,7 @@ TimeRhoInterpolated: TypeAlias = (
 
 @chex.dataclass
 class PlasmaComposition:
+  """Configuration for the plasma composition."""
   # amu of main ion (if multiple isotope, make average)
   Ai: float = 2.5
   # charge of main ion
@@ -50,6 +51,30 @@ class PlasmaComposition:
   Zimp: TimeInterpolated = (
       10.0  # impurity charge state assumed for dilution
   )
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicPlasmaComposition:
+    """Builds a DynamicPlasmaComposition."""
+    return DynamicPlasmaComposition(
+        **config_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicPlasmaComposition,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass
+class DynamicPlasmaComposition:
+  # amu of main ion (if multiple isotope, make average)
+  Ai: float
+  # charge of main ion
+  Zi: float
+  # needed for qlknn and fusion power
+  Zeff: float
+  Zimp: float  # impurity charge state assumed for dilution
 
 
 @chex.dataclass
@@ -318,6 +343,73 @@ class Numerics:
   # effective source to dominate density PDE in internal boundary condtion
   # location if n != neped
   largeValue_n: float = 2.0e8
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicNumerics:
+    """Builds a DynamicNumerics."""
+    return DynamicNumerics(
+        **config_args.get_init_kwargs(
+            input_config=self,
+            output_type=DynamicNumerics,
+            t=t,
+        )
+    )
+
+
+@chex.dataclass
+class DynamicNumerics:
+  """Generic numeric parameters for the simulation."""
+
+  # simulation control
+  # start of simulation, in seconds
+  t_initial: float
+  # end of simulation, in seconds
+  t_final: float
+  # If True, ensures that if the simulation runs long enough, one step
+  # occurs exactly at `t_final`.
+  exact_t_final: bool
+
+  # maximum and minimum timesteps allowed in simulation
+  maxdt: float  #  only used with chi_time_step_calculator
+  mindt: float  #  if adaptive timestep is True, error raised if dt<mindt
+
+  # prefactor in front of chi_timestep_calculator base timestep dt=dx^2/(2*chi).
+  # In most use-cases can be increased further above this conservative default
+  dtmult: float
+
+  fixed_dt: float  # timestep used for fixed_time_step_calculator
+  dt_reduction_factor: float
+
+  # q-profile correction factor. Used only in ad-hoc circular geometry model
+  q_correction_factor: float
+  # 1/multiplication factor for sigma (conductivity) to reduce current
+  # diffusion timescale to be closer to heat diffusion timescale
+  resistivity_mult: float
+
+  # density profile info
+  # Reference value for normalization
+  nref: float
+
+  # numerical (e.g. no. of grid points, other info needed by solver)
+  # effective source to dominate PDE in internal boundary condtion location
+  # if T != Tped
+  largeValue_T: float
+  # effective source to dominate density PDE in internal boundary condtion
+  # location if n != neped
+  largeValue_n: float
+
+  # Enable time-dependent prescribed profiles.
+  # This option is provided to allow initialization of density profiles scaled
+  # to a Greenwald fraction, and freeze this density even if the current is time
+  # evolving. Otherwise the density will evolve to always maintain that GW frac.
+  enable_prescribed_profile_evolution: bool
+
+  # Calculate Phibdot in the geometry dataclasses. This is used in calc_coeffs
+  # to calculate terms related to time-dependent geometry. Can set to false to
+  # zero out for testing purposes.
+  calcphibdot: bool
 
 
 # NOMUTANTS -- It's expected for the tests to pass with different defaults.
