@@ -191,7 +191,7 @@ class SourceTest(parameterized.TestCase):
         source_models=source_models,
     )
     # But calling requesting ZERO shouldn't work.
-    with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
+    with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
       source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
           dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[

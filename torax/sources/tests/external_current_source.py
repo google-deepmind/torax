@@ -79,7 +79,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     source = source_builder()
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
+        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
           source_builder.runtime_params.mode = unsupported_mode
           dynamic_slice = (
               runtime_params_slice.build_dynamic_runtime_params_slice(
