@@ -502,6 +502,7 @@ def build_transport_model_builder_from_config(
     # Remove params from the other models, if present.
     cgm_params.pop('qlknn_params', None)
     cgm_params.pop('constant_params', None)
+
     return critical_gradient_transport.CriticalGradientModelBuilder(
         runtime_params=config_args.recursive_replace(
             critical_gradient_transport.RuntimeParams(),
