@@ -13,14 +13,24 @@
 # limitations under the License.
 
 """File I/O for loading geometry files."""
+import enum
 import os
 
 import numpy as np
+import scipy
 
 # Internal import.
 
 
-def initialize_CHEASE_dict(  # pylint: disable=invalid-name
+@enum.unique
+class GeometrySource(enum.Enum):
+  """Integer enum for geometry source."""
+
+  CHEASE = 0
+  FBT = 1
+
+
+def _load_CHEASE_data(  # pylint: disable=invalid-name
     file_path: str,
 ) -> dict[str, np.ndarray]:
   """Loads the data from a CHEASE file into a dictionary."""
@@ -44,9 +54,15 @@ def initialize_CHEASE_dict(  # pylint: disable=invalid-name
   }
 
 
-def load_chease_data(
+def _load_fbt_data(file_path: str) -> dict[str, np.ndarray]:
+  """Loads the data from a FBT-LY file into a dictionary."""
+  return scipy.io.loadmat(file_path, squeeze_me=True)
+
+
+def load_geo_data(
     geometry_dir: str | None,
     geometry_file: str,
+    geometry_source: GeometrySource,
 ) -> dict[str, np.ndarray]:
   """Loads the data from a CHEASE file into a dictionary."""
   # The code below does not use os.environ.get() in order to support an internal
@@ -56,8 +72,17 @@ def load_chease_data(
       geometry_dir = os.environ['TORAX_GEOMETRY_DIR']
     else:
       geometry_dir = 'torax/data/third_party/geo'
+  filepath = os.path.join(geometry_dir, geometry_file)
 
   # initialize geometry from file
-  return initialize_CHEASE_dict(
-      file_path=os.path.join(geometry_dir, geometry_file)
-  )
+  match geometry_source:
+    case GeometrySource.CHEASE:
+      return _load_CHEASE_data(
+          file_path=filepath
+      )
+    case GeometrySource.FBT:
+      return _load_fbt_data(
+          file_path=filepath
+      )
+    case _:
+      raise ValueError(f'Unknown geometry source: {geometry_source}')

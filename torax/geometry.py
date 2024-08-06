@@ -661,6 +661,8 @@ class StandardGeometryIntermediates:
   n_rho: Radial grid points (num cells)
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
+  diverted_divergence_factor: Divergence factor for setting finite numbers for
+    geometric quantities at a diverted flux surface which are formally inf
   """
 
   Ip_from_parameters: bool
@@ -684,6 +686,23 @@ class StandardGeometryIntermediates:
   area: chex.Array
   n_rho: int
   hires_fac: int
+  diverted_divergence_factor: float
+
+  def __post_init__(self):
+    # Check if last flux surface is diverted and correct if so
+    if self.flux_surf_avg_Bp2[-1] < 1e-10:
+      self.int_dl_over_Bp[-1] = (
+          self.int_dl_over_Bp[-2] * self.diverted_divergence_factor
+      )
+      self.flux_surf_avg_Bp2[-1] = (
+          self.flux_surf_avg_Bp2[-2] / self.diverted_divergence_factor
+      )
+      self.flux_surf_avg_RBp[-1] = (
+          self.flux_surf_avg_RBp[-2] / self.diverted_divergence_factor
+      )
+      self.flux_surf_avg_R2Bp2[-1] = (
+          self.flux_surf_avg_R2Bp2[-2] / self.diverted_divergence_factor
+      )
 
   @classmethod
   def from_chease(
@@ -724,7 +743,8 @@ class StandardGeometryIntermediates:
       A StandardGeometry instance based on the input file. This can then be
       used to build a StandardGeometry by passing to `build_standard_geometry`.
     """
-    chease_data = geometry_loader.load_chease_data(geometry_dir, geometry_file)
+    chease_data = geometry_loader.load_geo_data(
+        geometry_dir, geometry_file, geometry_loader.GeometrySource.CHEASE)
 
     # Prepare variables from CHEASE to be interpolated into our simulation
     # grid. CHEASE variables are normalized. Need to unnormalize them with
@@ -755,12 +775,6 @@ class StandardGeometryIntermediates:
         chease_data['<|grad(psi)|**2>'] * psiunnormfactor**2 / Rmaj**2
     )
 
-    # check if last flux surface is diverted and correct if so
-    if flux_surf_avg_Bp2[-1] < 1e-10:
-      int_dl_over_Bp[-1] = int_dl_over_Bp[-2] * diverted_divergence_factor
-      flux_surf_avg_Bp2[-1] = flux_surf_avg_Bp2[-2] / diverted_divergence_factor
-      flux_surf_avg_RBp[-1] = flux_surf_avg_RBp[-2] / diverted_divergence_factor
-
     # volume, area, and dV/drho, dS/drho
     volume = chease_data['VOLUMEprofile'] * Rmaj**3
     area = chease_data['areaprofile'] * Rmaj**2
@@ -787,6 +801,57 @@ class StandardGeometryIntermediates:
         area=area,
         n_rho=n_rho,
         hires_fac=hires_fac,
+        diverted_divergence_factor=diverted_divergence_factor,
+    )
+
+  @classmethod
+  def from_fbt(
+      cls,
+      geometry_dir: str | None,
+      LY_file: str,
+      L_file: str,
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+      Rmaj: float = 6.2,
+      Rmin: float = 2.0,
+      B0: float = 5.3,
+      hires_fac: int = 4,
+      diverted_divergence_factor: float = 1.03,
+  ) -> StandardGeometryIntermediates:
+    """Constructs a StandardGeometryIntermediates from an FBT-LY file."""
+    LY = geometry_loader.load_geo_data(
+        geometry_dir, LY_file, geometry_loader.GeometrySource.FBT
+    )
+    L = geometry_loader.load_geo_data(
+        geometry_dir, L_file, geometry_loader.GeometrySource.FBT
+    )
+    vacuum_tor_b_field = LY['rBt']  / Rmaj
+    psi = L['pQ']**2 * (LY['FB'] - LY['FA']) + LY['FA']
+    return cls(
+        Ip_from_parameters=Ip_from_parameters,
+        Rmaj=Rmaj,
+        Rmin=Rmin,
+        B=B0,
+        psi=psi[0] - psi,
+        Phi=LY['FtPQ'] / vacuum_tor_b_field * B0,
+        Ip_profile=np.abs(LY['ItQ']),
+        Rin=LY['rgeom'] - LY['aminor'],
+        Rout=LY['rgeom'] + LY['aminor'],
+        F=np.abs(LY['TQ']),
+        # TODO change this to avoid the possible divide by zero.
+        int_dl_over_Bp=1/LY['Q1Q'],
+        flux_surf_avg_1_over_R2=LY['Q2Q'],
+        flux_surf_avg_Bp2=np.abs(LY['Q3Q']) / (4 * np.pi**2),
+        # TODO change this to use Q5Q when fbt bug is fixed.
+        flux_surf_avg_RBp=np.sqrt(np.abs(LY['Q4Q'])) / (2 * np.pi),
+        flux_surf_avg_R2Bp2=np.abs(LY['Q4Q']) / (2 * np.pi)**2,
+        delta_upper_face=LY['deltau'],
+        delta_lower_face=LY['deltal'],
+        volume=LY['VQ'],
+        area=LY['AQ'],
+        n_rho=n_rho,
+        hires_fac=hires_fac,
+        diverted_divergence_factor=diverted_divergence_factor,
     )
 
 
