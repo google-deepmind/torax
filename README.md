@@ -2,7 +2,7 @@
 
 # What is TORAX?
 
-TORAX is a differentiable tokamak core transport simulator aimed for fast and accurate forward modelling, pulse-design, trajectory optimization, and controller design workflows. TORAX is written in Python-JAX, with the following motivations:
+TORAX is a differentiable tokamak core transport simulator aimed for fast and accurate forward modelling, pulse-design, trajectory optimization, and controller design workflows. TORAX is written in Python using JAX, with the following motivations:
 
 - Open-source and extensible, aiding with flexible workflow coupling
 - JAX provides auto-differentiation capabilities and code compilation for fast runtimes. Differentiability allows for gradient-based nonlinear PDE solvers for fast and accurate modelling, and for sensitivity analysis of simulation results to arbitrary parameter inputs, enabling applications such as trajectory optimization and data-driven parameter identification for semi-empirical models. Auto-differentiability allows for these applications to be easily extended with the addition of new physics models, or new parameter inputs, by avoiding the need to hand-derive Jacobians
@@ -14,14 +14,15 @@ TORAX now has the following physics feature set:
 
 - Coupled PDEs of ion and electron heat transport, electron particle transport, and current diffusion
     - Finite-volume-method
-    - Multiple solver options: linear with Pereverzev-Corrigan terms, nonlinear with Newton-Raphson, nonlinear with optimization using the jaxopt library
-- Ohmic power, ion-electron heat exchange, fusion power, bootstrap current with the analytical Sauter model
-- Time dependent boundary conditions and sources
+    - Multiple solver options: linear with Pereverzev-Corrigan terms and the predictor-corrector method, nonlinear with Newton-Raphson, nonlinear with optimization using the jaxopt library
+- Ohmic power, ion-electron heat exchange, fusion power, Bremsstrahlung, and bootstrap current with the analytical Sauter model
+- Time dependent boundary conditions, sources, geometry.
 - Coupling to the QLKNN10D [[van de Plassche et al, Phys. Plasmas 2020]](https://doi.org/10.1063/1.5134126) QuaLiKiz-neural-network surrogate for physics-based turbulent transport
-- General geometry, provided via CHEASE equilibrium files
+- General geometry, provided via CHEASE or FBT equilibrium files
     - For testing and demonstration purposes, a single CHEASE equilibrium file is available in the data/geo directory. It corresponds to an ITER hybrid scenario equilibrium based on simulations in [[Citrin et al, Nucl. Fusion 2010]](https://doi.org/10.1088/0029-5515/50/11/115007), and was obtained from [PINT](https://gitlab.com/qualikiz-group/pyntegrated_model). A PINT license file is available in data/geo.
+    - Time dependent geometry is supported by provided a time series of geometry files
 
-Additional heating and current drive sources can be provided by prescribed formulas, or user-provided analytical models.
+Additional heating and current drive sources can be provided by prescribed formulas, user-provided analytical models, or user-provided prescribed data.
 
 Model implementation was verified through direct comparison of simulation outputs to the RAPTOR [[Felici et al, Plasma Phys. Control. Fusion 2012]](https://iopscience.iop.org/article/10.1088/0741-3335/54/2/025002) tokamak transport simulator.
 
@@ -31,10 +32,8 @@ This is not an officially supported Google product.
 
 Short term development plans include:
 
-- Time dependent geometry
-- More flexible initial conditions
+- Extension of and more flexible data structures for prescribed input data
 - Implementation of forward sensitivity calculations w.r.t. control inputs and parameters
-- Implementation of persistent compilation cache for CPU
 - More extensive documentation and tutorials
 - Visualisation improvements
 
@@ -44,7 +43,6 @@ Longer term desired features include:
 - Neoclassical tearing modes (modified Rutherford equation)
 - Radiation sinks
     - Cyclotron radiation
-    - Bremsstrahlung
     - Line radiation
 - Neoclassical transport + multi-ion transport, with a focus on heavy impurities
 - IMAS coupling
@@ -192,6 +190,14 @@ If false, JAX does not compile internal TORAX functions. Used for debugging. Def
 $ export TORAX_COMPILATION_ENABLED=<True/False>
 ```
 
+The following implements the JAX persistent cache and will cause jax to store
+compiled programs to the filesystem, reducing recompilation time in some cases:
+
+```shell
+$ export JAX_COMPILATION_CACHE_DIR=<path of your choice, such as ~/jax_cache>
+$ export JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES=-1
+$ export JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS=0.0
+```
 
 ### Set flags
 Output simulation time, dt, and number of stepper iterations (dt backtracking with nonlinear solver) carried out at each timestep.

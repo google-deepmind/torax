@@ -624,9 +624,9 @@ def initial_core_profiles(
       isinstance(geo, geometry.StandardGeometry)
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
-    # psi is already provided from the CHEASE equilibrium, so no need to first
-    # calculate currents. However, non-inductive currents are still calculated
-    # and used in current diffusion equation.
+    # psi is already provided from a numerical equilibrium, so no need to
+    # first calculate currents. However, non-inductive currents are still
+    # calculated and used in current diffusion equation.
     psi_grad_constraint = _calculate_psi_grad_constraint(
         dynamic_runtime_params_slice,
         geo,

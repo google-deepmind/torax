@@ -115,7 +115,7 @@ class GeometryType(enum.Enum):
   """
 
   CIRCULAR = 0
-  CHEASE = 1
+  NUMERICAL = 1
 
 
 # pylint: disable=invalid-name
@@ -891,8 +891,8 @@ def build_standard_geometry(
   g2g3_over_rhon = g2[1:] * g3[1:] / rho_norm_intermediate[1:]
   g2g3_over_rhon = np.concatenate((np.zeros(1), g2g3_over_rhon))
 
-  # make an alternative initial psi, self-consistent with CHEASE Ip profile
-  # needed because CHEASE psi profile has noisy second derivatives
+  # make an alternative initial psi, self-consistent with numerical geometry
+  # Ip profile. Needed since input psi profile may have noisy second derivatives
   dpsidrhon = (
       intermediate.Ip_profile[1:]
       * (16 * constants.CONSTANTS.mu0 * np.pi**3 * intermediate.Phi[-1])
@@ -1012,7 +1012,7 @@ def build_standard_geometry(
   area = rhon_interpolation_func(rho_norm, intermediate.area)
 
   return StandardGeometry(
-      geometry_type=GeometryType.CHEASE.value,
+      geometry_type=GeometryType.NUMERICAL.value,
       drho_norm=np.asarray(drho_norm),
       torax_mesh=mesh,
       Phi=Phi,

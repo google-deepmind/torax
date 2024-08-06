@@ -356,7 +356,7 @@ geometry
 --------
 
 ``geometry_type`` (str = 'chease')
-  Geometry model used. There are currently two options:
+  Geometry model used. There are currently three options:
 
 * ``'circular'``
     An ad-hoc circular geometry model. Includes elongation corrections.
@@ -365,7 +365,8 @@ geometry
 * ``'chease'``
     Loads a CHEASE geometry file.
 
-Time dependent geometry is not currently supported, but is on the immediate-term roadmap.
+* ``'fbt'``
+    Loads FBT geometry files.
 
 ``nrho`` (int = 25)
   Number of radial grid points
@@ -373,6 +374,15 @@ Time dependent geometry is not currently supported, but is on the immediate-term
 ``geometry_file`` (str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols')
   Only used for ``geometry_type='chease'``. Sets the geometry file loaded.
   The geometry directory is set with the ``TORAX_GEOMETRY_DIR`` environment variable. If none is set, then the default is ``torax/data/third_party/geo``.
+
+``LY_file`` (str = None)
+  Only used for ``geometry_type='fbt'``. Sets the FBT LY geometry file loaded.
+
+``L_file`` (str = None)
+  Only used for ``geometry_type='fbt'``. Sets the FBT L geometry file loaded.
+
+``geometry_dir`` (str = None)
+  Optionally overrides the``TORAX_GEOMETRY_DIR`` environment variable.
 
 ``Ip_from_parameters`` (bool = True)
   Only used for ``geometry_type='chease'``.Toggles whether total plasma current is read from the configuration file,
@@ -394,6 +404,44 @@ Time dependent geometry is not currently supported, but is on the immediate-term
   Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
   with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
 
+For setting up time-dependent geometry, a subset of varying geometry parameters
+and input files are defined in a ``geometry_configs`` dict, which is a
+time-series of {time: {configs}} pairs. For example, a time-dependent geometry
+input with 3 time-slices of FBT geometries can be set up as:
+
+.. code-block:: python
+
+  'geometry': {
+      'geometry_type': 'fbt',
+      'Ip_from_parameters': True,
+      'geometry_configs': {
+          20.0: {
+              'LY_file': 'LY_early_rampup.mat',
+              'L_file': 'L_early_rampup.mat',
+              'Rmaj': 6.2,
+              'Rmin': 2.0,
+              'B0': 5,3,
+          },
+          50.0: {
+              'LY_file': 'LY_mid_rampup.mat',
+              'L_file': 'L_mid_rampup.mat',
+              'Rmaj': 6.2,
+              'Rmin': 2.0,
+              'B0': 5,3,
+          },
+          100.0: {
+              'LY_file': 'LY_endof_rampup.mat',
+              'L_file': 'L_endof_rampup.mat',
+              'Rmaj': 6.2,
+              'Rmin': 2.0,
+              'B0': 5,3,
+          },
+      },
+  },
+
+All file loading and geometry processing is done upon simulation initialization.
+The geometry inputs into the TORAX PDE coefficients are then time-interpolated
+on-the-fly onto the TORAX time slices where the PDE calculations are done.
 
 transport
 ---------

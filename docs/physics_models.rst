@@ -15,6 +15,9 @@ geometry variables required for the transport equations.
   - **CHEASE:** This model utilizes equilibrium data from the `CHEASE <https://doi.org/10.1016/0010-4655(96)00046-X>`_ fixed boundary
     Grad-Shafranov equilibrium code. Users provide a CHEASE output file, and TORAX extracts the relevant geometric quantities.
 
+  - **FBT:** This model utilizes equilibrium data from the `FBT <https://www.sciencedirect.com/science/article/pii/0010465588900410>`_ free boundary
+    Grad-Shafranov equilibrium code. Users provide FBT output files, and TORAX extracts the relevant geometric quantities.
+
   - **Circular:** For testing and demonstration purposes, TORAX includes a simplified circular geometry model.
     This model assumes a circular plasma cross-section and corrects for elongation to approximate the metric coefficients.
 
