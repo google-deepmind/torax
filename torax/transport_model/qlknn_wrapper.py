@@ -35,7 +35,6 @@ from torax import constants as constants_module
 from torax import geometry
 from torax import physics
 from torax import state
-from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
@@ -85,13 +84,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   q_sawtooth_proxy: bool = True
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
-    )
+    return DynamicRuntimeParams(**self._get_interpolation(t))
 
 
 @chex.dataclass(frozen=True)

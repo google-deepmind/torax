@@ -20,7 +20,7 @@ a time-interpolated version of this config via the DynamicRuntimeParams.
 
 from __future__ import annotations
 
-from typing import TypeAlias
+from typing import Callable, TypeAlias
 
 import chex
 from torax import interpolated_param
@@ -74,14 +74,20 @@ class RuntimeParams:
   # Width of HWHM Gaussian smoothing kernel operating on transport model outputs
   smoothing_sigma: float = 0.0
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
+  def __post_init__(self):
+    self._interpolated_vars = config_args.get_interpolated_vars(
+        input_config=self
+    )
+    self._get_interpolation: Callable[[chex.Numeric], dict[str, chex.Array]] = (
+        jax_utils.jit(
+            lambda t: {
+                k: v.get_value(t) for k, v in self._interpolated_vars.items()
+            }
         )
     )
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(**self._get_interpolation(t))
 
 
 @chex.dataclass(frozen=True)

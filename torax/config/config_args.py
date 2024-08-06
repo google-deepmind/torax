@@ -83,10 +83,9 @@ def _input_is_an_interpolated_var_single_axis(
     return _check(field_type)
 
 
-def _interpolate_var_single_axis(
+def _get_interpolated_var_single_axis(
     param_or_param_input: interpolated_param.TimeInterpolated,
-    t: chex.Numeric,
-) -> chex.Array:
+) -> interpolated_param.InterpolatedVarSingleAxis:
   """Interpolates the input param at time t."""
   if not isinstance(
       param_or_param_input, interpolated_param.InterpolatedVarSingleAxis
@@ -116,7 +115,14 @@ def _interpolate_var_single_axis(
       param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
           value=param_or_param_input,
       )
-  return param_or_param_input.get_value(t)
+  return param_or_param_input
+
+
+def _interpolate_var_single_axis(
+    param_or_param_input: interpolated_param.TimeInterpolated,
+    t: chex.Numeric,
+) -> chex.Array:
+  return _get_interpolated_var_single_axis(param_or_param_input).get_value(t)
 
 
 def _input_is_an_interpolated_var_time_rho(
@@ -157,11 +163,10 @@ def _input_is_an_interpolated_var_time_rho(
     return _check(field_type)
 
 
-def interpolate_var_2d(
+def _get_interpolated_var_2d(
     param_or_param_input: interpolated_param.TimeRhoInterpolated,
-    t: chex.Numeric,
     rho_norm: chex.Array,
-) -> chex.Array:
+) -> interpolated_param.InterpolatedVarTimeRho:
   """Interpolates the input param at time t and rho_norm for the current geo."""
   if not isinstance(
       param_or_param_input, interpolated_param.InterpolatedVarTimeRho
@@ -171,7 +176,17 @@ def interpolate_var_2d(
         values=param_or_param_input,
         rho=rho_norm,
     )
-  return param_or_param_input.get_value(t)
+  return param_or_param_input
+
+
+def interpolate_var_2d(
+    param_or_param_input: interpolated_param.TimeRhoInterpolated,
+    t: chex.Numeric,
+    rho_norm: chex.Array,
+) -> chex.Array:
+  """Interpolates the input param at time t and rho_norm for the current geo."""
+  return _get_interpolated_var_2d(
+      param_or_param_input, rho_norm).get_value(t)
 
 
 def get_init_kwargs(
@@ -222,6 +237,42 @@ def get_init_kwargs(
       config_val = config_val.build_dynamic_params(t)
     kwargs[field.name] = config_val
   return kwargs
+
+
+def get_interpolated_vars(
+    input_config: ...,
+    torax_mesh: geometry.Grid1D | None = None,
+) -> dict[str, interpolated_param.InterpolatedParamBase]:
+  """Returns a dict of interpolated vars for every value in the input config."""
+  params = {}
+  input_config_fields_to_types = {
+      field.name: field.type for field in dataclasses.fields(input_config)
+  }
+  for field in dataclasses.fields(input_config):
+    if field.name.startswith('_'):
+      continue
+    config_value = getattr(input_config, field.name)
+    if isinstance(config_value, interpolated_param.InterpolatedParamBase):
+      params[field.name] = config_value
+    elif config_value is None:
+      params[field.name] = config_value
+    elif _input_is_an_interpolated_var_single_axis(
+        field.name, input_config_fields_to_types):
+      params[field.name] = _get_interpolated_var_single_axis(config_value)
+    elif _input_is_an_interpolated_var_time_rho(
+        field.name, input_config_fields_to_types):
+      if not torax_mesh:
+        raise ValueError('torax_mesh is required for radial interpolated vars')
+      params[field.name] = _get_interpolated_var_2d(
+          config_value, torax_mesh.cell_centers)
+    elif isinstance(config_value, enum.Enum):
+      params[field.name] = interpolated_param.FixedParam(
+          config_value.value)
+    else:
+      params[field.name] = interpolated_param.FixedParam(
+          config_value
+      )
+  return params
 
 
 def recursive_replace(

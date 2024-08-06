@@ -27,7 +27,6 @@ from jax import numpy as jnp
 from torax import geometry
 from torax import jax_utils
 from torax import state
-from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
@@ -51,13 +50,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   Ve_const: runtime_params_lib.TimeInterpolated = -0.33
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
-    )
+    return DynamicRuntimeParams(**self._get_interpolation(t))
 
 
 @chex.dataclass(frozen=True)
@@ -89,15 +82,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
         self,
         'chie_const',
         jax_utils.error_if_negative(self.chie_const, 'chie_const'),
-    )
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
     )
 
 
