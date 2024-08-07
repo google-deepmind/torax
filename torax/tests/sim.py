@@ -481,6 +481,80 @@ class SimTest(sim_test_case.SimTestCase):
     )
     self.assertNotEmpty(spectator.arrays)
 
+  def test_core_profiles_are_recomputable(self):
+    """Tests that core profiles from a previous run are recomputable."""
+    test_config = 'test_iterhybrid_rampup'
+    profiles = [
+        output.TEMP_ION,
+        output.TEMP_EL,
+        output.NE,
+        output.NI,
+        output.NE_RIGHT_BC,
+        output.PSI,
+        output.IP,
+        output.NREF,
+        output.Q_FACE,
+        output.S_FACE,
+    ]
+    ref_profiles, _ = self._get_refs(test_config + '.nc', profiles)
+
+    # Build the runtime params at t=0.0, everything else should be from t=80.0.
+    sim = self._get_sim(test_config + '.py')
+    geo = sim.geometry_provider(t=80.0)
+    dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
+        t=0.0, geo=geo
+    )
+    source_models = sim.source_models_builder()
+
+    # Load in the reference core profiles from t=80.0 (the last step).
+    Ip = ref_profiles[output.IP][-1]  # pylint: disable=invalid-name
+    temp_el = ref_profiles[output.TEMP_EL][-1, :]
+    temp_ion = ref_profiles[output.TEMP_ION][-1, :]
+    ne = ref_profiles[output.NE][-1, :]
+    ne_bound_right = ref_profiles[output.NE_RIGHT_BC][-1]
+    ni = ref_profiles[output.NI][-1, :]
+    psi = ref_profiles[output.PSI][-1, :]
+    nref = ref_profiles[output.NREF][-1]
+    q_face = ref_profiles[output.Q_FACE][-1, :]
+    s_face = ref_profiles[output.S_FACE][-1, :]
+    # Override the dynamic runtime params with the values from t=80.0.
+    dynamic_runtime_params_slice.profile_conditions.Ip = Ip
+    dynamic_runtime_params_slice.profile_conditions.Te = temp_el
+    dynamic_runtime_params_slice.profile_conditions.Ti = temp_ion
+    dynamic_runtime_params_slice.profile_conditions.ne = ne
+    dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
+        ne_bound_right
+    )
+    dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = (
+        False
+    )
+    dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
+        True
+    )
+    dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
+    dynamic_runtime_params_slice.profile_conditions.psi = psi
+    dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar = False
+    dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
+
+    # Get initial core profiles for the overriden dynamic runtime params.
+    initial_state = sim_lib.get_initial_state(
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
+        sim.time_step_calculator,
+    )
+    core_profiles = initial_state.core_profiles
+
+    # Check for agreement with the reference profiles.
+    np.testing.assert_allclose(core_profiles.temp_el.value, temp_el)
+    np.testing.assert_allclose(core_profiles.temp_ion.value, temp_ion)
+    np.testing.assert_allclose(core_profiles.ne.value, ne)
+    np.testing.assert_allclose(core_profiles.ni.value, ni)
+    np.testing.assert_allclose(core_profiles.psi.value, psi)
+    np.testing.assert_allclose(core_profiles.nref, nref)
+    np.testing.assert_allclose(core_profiles.q_face, q_face)
+    np.testing.assert_allclose(core_profiles.s_face, s_face)
+
 
 if __name__ == '__main__':
   absltest.main()

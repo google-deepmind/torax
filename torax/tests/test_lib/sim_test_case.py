@@ -41,8 +41,8 @@ from torax.transport_model import runtime_params as transport_params_lib
 from torax.transport_model import transport_model as transport_model_lib
 import xarray as xr
 
-_PYTHON_MODULE_PREFIX = '.tests.test_data.'
-_PYTHON_CONFIG_PACKAGE = 'torax'
+PYTHON_MODULE_PREFIX = '.tests.test_data.'
+PYTHON_CONFIG_PACKAGE = 'torax'
 _FAILED_TEST_OUTPUT_DIR = '/tmp/torax_failed_sim_test_outputs/'
 
 
@@ -75,8 +75,8 @@ class SimTestCase(parameterized.TestCase):
     # Load config structure with test-case-specific values.
     assert config_name.endswith('.py'), config_name
     config_name_no_py = config_name[:-3]
-    python_config_module = _PYTHON_MODULE_PREFIX + config_name_no_py
-    return importlib.import_module(python_config_module, _PYTHON_CONFIG_PACKAGE)
+    python_config_module = PYTHON_MODULE_PREFIX + config_name_no_py
+    return importlib.import_module(python_config_module, PYTHON_CONFIG_PACKAGE)
 
   def _get_sim(self, config_name: str) -> sim_lib.Sim:
     """Returns a Sim given the name of a py file to build it."""

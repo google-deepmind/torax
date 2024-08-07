@@ -1359,6 +1359,7 @@ def update_current_distribution(
       I_bootstrap=bootstrap_profile.I_bootstrap,
       johm=johm,
       johm_face=johm_face,
+      Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
   )
   new_core_profiles = dataclasses.replace(
       core_profiles,

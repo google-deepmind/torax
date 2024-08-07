@@ -278,6 +278,7 @@ def _prescribe_currents_no_bootstrap(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
+      Ip=Ip,
       sigma=bootstrap_profile.sigma,
   )
 
@@ -390,6 +391,7 @@ def _prescribe_currents_with_bootstrap(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
+      Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
       sigma=bootstrap_profile.sigma,
   )
 
@@ -478,6 +480,7 @@ def _calculate_currents_from_psi(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
+      Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
       sigma=bootstrap_profile.sigma,
   )
 

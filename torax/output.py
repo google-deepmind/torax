@@ -65,6 +65,7 @@ VPR = "vpr"
 SPR = "spr"
 VPR_FACE = "vpr_face"
 SPR_FACE = "spr_face"
+IP = "Ip"
 
 # Coordinates.
 RHO_FACE_NORM = "rho_face_norm"
@@ -185,6 +186,7 @@ class StateHistory:
 
     xr_dict[J_BOOTSTRAP] = self.core_profiles.currents.j_bootstrap
     xr_dict[J_BOOTSTRAP_FACE] = self.core_profiles.currents.j_bootstrap_face
+    xr_dict[IP] = self.core_profiles.currents.Ip
     xr_dict[I_BOOTSTRAP] = self.core_profiles.currents.I_bootstrap
     xr_dict[SIGMA] = self.core_profiles.currents.sigma
 
