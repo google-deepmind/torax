@@ -26,6 +26,9 @@ from torax import jax_utils
 import xarray as xr
 
 
+RHO_NORM = 'rho_norm'
+
+
 class InterpolatedParamBase(abc.ABC):
   """Base class for interpolated params.
 
@@ -349,7 +352,7 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     """Loads the data from numpy arrays."""
     self.times_values = {
         t: InterpolatedVarSingleAxis(
-            (arrays['rho_norm'], arrays['value'][i, :]),
+            (arrays[RHO_NORM], arrays['value'][i, :]),
             rho_interpolation_mode,
         )
         for i, t in enumerate(arrays['time'])
@@ -364,8 +367,8 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     """Loads the data from an xr.DataArray."""
     if 'time' not in array.coords:
       raise ValueError('"time" must be a coordinate in given dataset.')
-    if 'rho_norm' not in array.coords:
-      raise ValueError('"rho_norm" must be a coordinate in given dataset.')
+    if RHO_NORM not in array.coords:
+      raise ValueError(f'"{RHO_NORM}" must be a coordinate in given dataset.')
     self.times_values = {
         t: InterpolatedVarSingleAxis(
             (array.rho_norm.data, array.sel(time=t).values,),

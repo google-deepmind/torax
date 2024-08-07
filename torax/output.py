@@ -20,6 +20,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import geometry
+from torax import interpolated_param
 from torax import state
 from torax.sources import source_profiles
 import xarray as xr
@@ -89,7 +90,10 @@ def load_state_file(
       logging.info("Earliest time in file: %.2f", earliest_time)
       # Shift the time coordinate to start at 0.
       da = da.assign_coords({"time": da.coords["time"] - earliest_time})
-      return da.rename({"r_cell_norm": RHO_CELL_NORM})
+      if RHO_CELL_NORM in da.coords:
+        return da.rename({RHO_CELL_NORM: interpolated_param.RHO_NORM})
+      else:
+        return da
   else:
     raise ValueError(f"File {path} does not exist.")
 
