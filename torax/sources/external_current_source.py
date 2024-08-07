@@ -185,6 +185,12 @@ def _calculate_Iext(
 class ExternalCurrentSource(source.Source):
   """External current density source profile."""
 
+  # The ExternalCurrentSource returns a profile on the face grid, unlike most
+  # other sources.
+  output_shape_getter: source.SourceOutputShapeFunction = (
+      source.ProfileType.FACE.get_profile_shape
+  )
+
   supported_types: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.FORMULA_BASED,
@@ -201,33 +207,6 @@ class ExternalCurrentSource(source.Source):
 
   formula: source.SourceProfileFunction = _calculate_jext_face
   hires_formula: source.SourceProfileFunction = _calculate_jext_hires
-
-  def get_value(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
-  ) -> tuple[jax.Array, jax.Array]:
-    """Return the external current density profile along face and cell grids."""
-    assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-    self.check_mode(dynamic_source_runtime_params.mode)
-    profile = source.get_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_source_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        # There is no model implementation.
-        model_func=(
-            lambda _0, _1, _2, _3, _4: source.ProfileType.FACE.get_zero_profile(
-                geo
-            )
-        ),
-        formula=self.formula,
-        output_shape=source.ProfileType.FACE.get_profile_shape(geo),
-        source_models=getattr(self, 'source_models', None),
-    )
-    return profile, geometry.face_to_cell(profile)
 
   def jext_hires(
       self,
@@ -250,18 +229,6 @@ class ExternalCurrentSource(source.Source):
         formula=self.hires_formula,
         output_shape=geo.rho_hires_norm.shape,
         source_models=getattr(self, 'source_models', None),
-    )
-
-  def get_source_profile_for_affected_core_profile(
-      self,
-      profile: chex.ArrayTree,
-      affected_core_profile: int,
-      geo: geometry.Geometry,
-  ) -> jax.Array:
-    return jnp.where(
-        affected_core_profile in self.affected_core_profiles_ints,
-        profile[0],  # the jext profile
-        jnp.zeros_like(geo.rho),
     )
 
 

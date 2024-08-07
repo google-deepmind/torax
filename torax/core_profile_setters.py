@@ -233,11 +233,12 @@ def _prescribe_currents_no_bootstrap(
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_face, jext = source_models.jext.get_value(
+  jext_face = source_models.jext.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
+  jext = geometry.face_to_cell(jext_face)
 
   # construct prescribed current formula on grid.
   jformula_face = (
@@ -344,11 +345,12 @@ def _prescribe_currents_with_bootstrap(
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_face, jext = source_models.jext.get_value(
+  jext_face = source_models.jext.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
+  jext = geometry.face_to_cell(jext_face)
 
   # construct prescribed current formula on grid.
   jformula_face = (
@@ -451,11 +453,12 @@ def _calculate_currents_from_psi(
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_face, jext = source_models.jext.get_value(
+  jext_face = source_models.jext.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
+  jext = geometry.face_to_cell(jext_face)
 
   # TODO(b/336995925): TORAX currently only uses the external current source,
   # jext, when computing the jtot initial currents from psi. Really, though, we

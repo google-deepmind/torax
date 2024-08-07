@@ -290,8 +290,15 @@ def get_lines(
       label=rf'$j_{{bs}}{suffix}$',
   )
   lines.append(line)
+  # jext is a face variable, but in older data files it is stored as a cell
+  # variable.
+  jext_x_axis = (
+      plotdata.rho_cell_coord
+      if plotdata.jext.shape[1] == len(plotdata.rho_cell_coord)
+      else plotdata.rho_face_coord
+  )
   (line,) = ax4.plot(
-      plotdata.rho_cell_coord,
+      jext_x_axis,
       plotdata.jext[0, :],
       'm' + dashed,
       label=rf'$j_{{ext}}{suffix}$',

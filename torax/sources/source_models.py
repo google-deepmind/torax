@@ -232,7 +232,9 @@ def _build_psi_profiles(
     dict of psi source profiles.
   """
   psi_profiles = {}
-  # jext is precomputed in the core profiles.
+  # jext is not one of the "standard sources" in SourceModels, so pull out it's
+  # profile separately.
+  # TODO(b/354190723): Move jext to a standard source.
   dynamic_jext_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.jext_name
   ]
@@ -241,11 +243,16 @@ def _build_psi_profiles(
           explicit == dynamic_jext_runtime_params.is_explicit,
           calculate_anyway,
       ),
-      core_profiles.currents.jext,
-      jnp.zeros_like(geo.rho),
+      source_models.jext.get_value(
+          dynamic_runtime_params_slice,
+          dynamic_jext_runtime_params,
+          geo,
+          core_profiles,
+      ),
+      jnp.zeros_like(geo.rho_face),
   )
   # Iterate through the rest of the sources and compute profiles for the ones
-  # which relate to psi. jext is not part of the "standard sources."
+  # which relate to psi.
   for source_name, source in source_models.psi_sources.items():
     dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
         source_name
@@ -367,9 +374,8 @@ def sum_sources_psi(
     source_models: SourceModels,
 ) -> jax.Array:
   """Computes psi source values for sim.calc_coeffs."""
-  total = (
-      source_profile.j_bootstrap.j_bootstrap
-      + source_profile.profiles[source_models.jext_name]
+  total = source_profile.j_bootstrap.j_bootstrap + geometry.face_to_cell(
+      source_profile.profiles[source_models.jext_name]
   )
   for source_name, source in source_models.psi_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
@@ -450,8 +456,20 @@ def calc_and_sum_sources_psi(
       calculate_anyway=True,
   )
   total = 0
-  for key in psi_profiles:
-    total += psi_profiles[key]
+  psi_profiles_on_cell_grid = {
+      key: profile
+      for key, profile in psi_profiles.items()
+      if profile.shape == geo.rho.shape
+  }
+  for key in psi_profiles_on_cell_grid:
+    total += psi_profiles_on_cell_grid[key]
+  psi_profiles_on_face_grid = {
+      key: profile
+      for key, profile in psi_profiles.items()
+      if profile.shape == geo.rho_face.shape
+  }
+  for key in psi_profiles_on_face_grid:
+    total += geometry.face_to_cell(psi_profiles_on_face_grid[key])
   dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
@@ -1027,7 +1045,9 @@ def build_all_zero_profiles(
       source_name: jnp.zeros(source_model.output_shape_getter(geo))
       for source_name, source_model in source_models.standard_sources.items()
   }
-  profiles[source_models.jext_name] = jnp.zeros_like(geo.rho)
+  profiles[source_models.jext_name] = jnp.zeros(
+      source_models.jext.output_shape_getter(geo)
+  )
   return source_profiles.SourceProfiles(
       profiles=profiles,
       j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),

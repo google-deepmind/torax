@@ -317,18 +317,32 @@ def _calc_coeffs_full(
       explicit_source_profiles.j_bootstrap.I_bootstrap,
       implicit_source_profiles.j_bootstrap.I_bootstrap,
   )
+  # The formula for jext in external_current_source.py is for the external
+  # current on the face grid, not the cell grid.
+  jext_face = jax_utils.select(
+      dynamic_runtime_params_slice.sources[
+          source_models.jext_name
+      ].is_explicit,
+      explicit_source_profiles.profiles[source_models.jext_name],
+      implicit_source_profiles.profiles[source_models.jext_name],
+  )
+  jext = geometry.face_to_cell(jext_face)
 
   currents = dataclasses.replace(
       core_profiles.currents,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
-      johm=core_profiles.currents.jtot
-      - j_bootstrap
-      - core_profiles.currents.jext,
+      jext=jext,
+      jext_face=jext_face,
+      johm=(
+          core_profiles.currents.jtot
+          - j_bootstrap
+          - jext
+      ),
       johm_face=(
           core_profiles.currents.jtot_face
           - j_bootstrap_face
-          - core_profiles.currents.jext_face
+          - jext_face
       ),
       I_bootstrap=I_bootstrap,
       sigma=sigma,
