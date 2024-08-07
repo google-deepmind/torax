@@ -550,29 +550,55 @@ def _calculate_psi_grad_constraint(
   )
 
 
-def initial_core_profiles(
+def _initial_psi(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
+    temp_ion: cell_variable.CellVariable,
+    temp_el: cell_variable.CellVariable,
+    ne: cell_variable.CellVariable,
+    ni: cell_variable.CellVariable,
     source_models: source_models_lib.SourceModels,
-) -> state.CoreProfiles:
-  """Calculates the initial core profiles.
+) -> tuple[cell_variable.CellVariable, state.Currents]:
+  """Calculates poloidal flux (psi) consistent with plasma current.
+
+  There are three modes of initialising psi that are supported:
+  1. Providing psi from the profile conditions.
+  2. Calculating j according to the "nu formula".
+  3. Retrieving psi from the standard geometry input.
 
   Args:
-    dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
+    dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Torus geometry.
-    source_models: All models for TORAX sources/sinks.
+    temp_ion: Ion temperature.
+    temp_el: Electron temperature.
+    ne: Electron density.
+    ni: Ion density.
+    source_models: All TORAX source/sink functions.
 
   Returns:
-    Initial core profiles.
+    psi: Poloidal flux cell variable.
+    currents: Plasma currents.
   """
-  # pylint: disable=invalid-name
-
-  # To set initial values and compute the boundary conditions, we need to handle
-  # potentially time-varying inputs from the users.
-  # The default time in build_dynamic_runtime_params_slice is t_initial
-  temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo)
-  temp_el = updated_electron_temperature(dynamic_runtime_params_slice, geo)
-  ne, ni = updated_density(dynamic_runtime_params_slice, geo)
+  if dynamic_runtime_params_slice.profile_conditions.psi is not None:
+    psi = cell_variable.CellVariable(
+        value=dynamic_runtime_params_slice.profile_conditions.psi,
+        right_face_grad_constraint=_calculate_psi_grad_constraint(
+            dynamic_runtime_params_slice,
+            geo,
+        ),
+        dr=geo.drho_norm,
+    )
+    currents = _calculate_currents_from_psi(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        temp_ion=temp_ion,
+        temp_el=temp_el,
+        ne=ne,
+        ni=ni,
+        psi=psi,
+        source_models=source_models,
+    )
+    return psi, currents
 
   # set up initial psi profile based on current profile
   if (
@@ -612,14 +638,6 @@ def initial_core_profiles(
         currents,
     )
 
-    q_face, _ = physics.calc_q_from_jtot_psi(
-        geo=geo,
-        psi=psi,
-        jtot_face=currents.jtot_face,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
-    )
-    s_face = physics.calc_s_from_psi(geo, psi)
-
   elif (
       isinstance(geo, geometry.StandardGeometry)
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
@@ -636,13 +654,6 @@ def initial_core_profiles(
         right_face_grad_constraint=psi_grad_constraint,
         dr=geo.drho_norm,
     )
-    q_face, _ = physics.calc_q_from_jtot_psi(
-        geo=geo,
-        psi=psi,
-        jtot_face=geo.jtot_face,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
-    )
-    s_face = physics.calc_s_from_psi(geo, psi)
 
     # Calculate external currents
     currents = _calculate_currents_from_psi(
@@ -657,6 +668,49 @@ def initial_core_profiles(
     )
   else:
     raise ValueError(f'Unknown geometry type provided: {geo}')
+
+  return psi, currents
+
+
+def initial_core_profiles(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
+    source_models: source_models_lib.SourceModels,
+) -> state.CoreProfiles:
+  """Calculates the initial core profiles.
+
+  Args:
+    dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
+    geo: Torus geometry.
+    source_models: All models for TORAX sources/sinks.
+
+  Returns:
+    Initial core profiles.
+  """
+  # pylint: disable=invalid-name
+
+  # To set initial values and compute the boundary conditions, we need to handle
+  # potentially time-varying inputs from the users.
+  # The default time in build_dynamic_runtime_params_slice is t_initial
+  temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo)
+  temp_el = updated_electron_temperature(dynamic_runtime_params_slice, geo)
+  ne, ni = updated_density(dynamic_runtime_params_slice, geo)
+  psi, currents = _initial_psi(
+      dynamic_runtime_params_slice,
+      geo,
+      temp_ion=temp_ion,
+      temp_el=temp_el,
+      ne=ne,
+      ni=ni,
+      source_models=source_models,
+  )
+  s_face = physics.calc_s_from_psi(geo, psi)
+  q_face, _ = physics.calc_q_from_jtot_psi(
+      geo=geo,
+      psi=psi,
+      jtot_face=currents.jtot_face,
+      q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
+  )
 
   # the psidot calculation needs core profiles. So psidot first initialized
   # with zeros.

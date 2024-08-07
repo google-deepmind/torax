@@ -212,6 +212,10 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Note that if the `Te` profile does not contain a :math:`\hat{\rho}=1` point,
   for all provided times, an error will be raised.
 
+``psi`` (dict | None [default]), **time-varying-array**
+  Initial poloidal flux. If not provided the initial psi will be calculated from either the geometry
+  or the "nu formula".
+
 
 ``ne`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
   Electron density profile.

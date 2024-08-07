@@ -101,6 +101,11 @@ class ProfileConditions:
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
   )
 
+  # Initial values for psi. If provided, the initial psi will be taken from
+  # here. Otherwise, the initial psi will be calculated from either the geometry
+  # or the "nu formula".
+  psi: TimeRhoInterpolated | None = None
+
   # Prescribed or evolving values for electron density at different times.
   # The outer mapping is for times and the inner mapping is for values of
   # density along the rho grid.
@@ -226,6 +231,10 @@ class DynamicProfileConditions:
   # conditions when not evolving variable with PDE defined on the cell grid.
   Te: chex.Array
   Ti: chex.Array
+
+  # Radial array and boundary condition used for initial conditions of psi
+  # defined on the cell grid.
+  psi: chex.Array | None
 
   # Electron density profile on the cell grid.
   # If density evolves with PDE (dens_eq=True), then is initial condition

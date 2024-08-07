@@ -22,6 +22,7 @@ from torax import geometry
 from torax import physics
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
+from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.transport_model import runtime_params as transport_params_lib
 
@@ -471,15 +472,51 @@ class CoreProfileSettersTest(parameterized.TestCase):
           * 1e20
           / dynamic_runtime_params_slice.numerics.nref
       )
-      self.assertEqual(
+      np.testing.assert_allclose(
           boundary_conditions['ne']['right_face_constraint'],
           expected_ne_bound_right * nGW,
       )
     else:
-      self.assertEqual(
+      np.testing.assert_allclose(
           boundary_conditions['ne']['right_face_constraint'],
           expected_ne_bound_right,
       )
+
+  @parameterized.parameters(
+      (
+          {0.0: {0.0: 0.0, 1.0: 1.0}},
+          np.array([0.125, 0.375, 0.625, 0.875]),
+      ),
+  )
+  def test_initial_psi(
+      self,
+      psi,
+      expected_psi,
+  ):
+    """Tests that runtime params validate boundary conditions."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=general_runtime_params.ProfileConditions(
+            psi=psi,
+        )
+    )
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        transport_getter=transport_params_lib.RuntimeParams,
+        sources_getter=lambda: source_models_builder.runtime_params,
+        stepper_getter=stepper_params_lib.RuntimeParams,
+    )
+    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+    core_profiles = core_profile_setters.initial_core_profiles(
+        dynamic_runtime_params_slice,
+        self.geo,
+        source_models,
+    )
+
+    np.testing.assert_allclose(
+        core_profiles.psi.value, expected_psi, atol=1e-6, rtol=1e-6
+    )
 
   @parameterized.named_parameters(
       ('Set from Te', None, 1.0), ('Set from Te_bound_right', 0.5, 0.5)
