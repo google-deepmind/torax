@@ -425,6 +425,14 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     else:
       self._load_from_primitives(values, rho_interpolation_mode)
 
+  @property
+  def rho(self) -> chex.Numeric:
+    return self._rho
+
+  @rho.setter
+  def rho(self, value: chex.Numeric):
+    self._rho = value
+
   def get_value(self, x: chex.Numeric) -> chex.Array:
     """Returns the value of this parameter interpolated at x=time."""
     # Find the index that is to the right of x.
