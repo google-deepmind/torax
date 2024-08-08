@@ -266,15 +266,15 @@ class QLKNNTransportModel(transport_model.TransportModel):
     model = _get_model(self._model_path)
     version = model.version
 
+    # To take into account a different aspect ratio compared to the qlknn
+    # training set, the qlknn input normalized radius needs to be rescaled by
+    # the inverse aspect ratio. This ensures that the model is evaluated with
+    # the correct trapped electron fraction.
+    qualikiz_inputs = dataclasses.replace(
+        qualikiz_inputs,
+        x=qualikiz_inputs.x * qualikiz_inputs.epsilon_lcfs / _EPSILON_NN,
+    )
     if version == '10D':
-      # To take into account a different aspect ratio compared to the qlknn
-      # training set, the qlknn input normalized radius needs to be rescaled by
-      # the inverse aspect ratio. This ensures that the model is evaluated with
-      # the correct trapped electron fraction.
-      qualikiz_inputs = dataclasses.replace(
-          qualikiz_inputs,
-          x=qualikiz_inputs.x * qualikiz_inputs.epsilon_lcfs / _EPSILON_NN,
-      )
       keys = [
           'Zeff',
           'Ati',
