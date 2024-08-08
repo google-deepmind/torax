@@ -480,6 +480,28 @@ class InterpolatedParamTest(parameterized.TestCase):
     np.testing.assert_allclose(fixed_param.get_value(x=0.0), 1.0)
     np.testing.assert_allclose(fixed_param.get_value(x=1.0), 1.0)
 
+  def test_interpolated_param_rho_updates_correctly(self):
+    """Tests that the rho value is updated correctly."""
+    arrays = dict(
+        time=np.array([0.0, 1.0]),
+        rho_norm=np.array([0.25, 0.5, 0.75, 1.0]),
+        value=np.array([[1.0, 2.0, 3.0, 4.0], [4.0, 5.0, 6.0, 7.0]]),
+    )
+    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
+        values=arrays,
+        rho=np.array([0.25, 0.5, 0.75]),
+    )
+
+    # Update the rho value.
+    interpolated_var_time_rho.rho = 1.0
+
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(x=0.0), np.array(4.0)
+    )
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(x=1.0), np.array(7.0)
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
