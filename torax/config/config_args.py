@@ -15,12 +15,14 @@
 """Functions for building arguments for configs and runtime input params."""
 
 from __future__ import annotations
+import abc
 
 import dataclasses
 import enum
 import types
 import typing
 from typing import Any
+from typing import Generic
 from typing import TypeVar
 
 import chex
@@ -368,3 +370,45 @@ def recursive_replace(
         pass
       flattened_changes[key] = value
   return dataclasses.replace(obj, **flattened_changes)
+
+
+T = TypeVar('T')
+
+
+@dataclasses.dataclass
+class RuntimeParametersConfig(metaclass=abc.ABCMeta):
+  """Base class for all runtime parameter configs.
+
+  The purpose of this config class is to be a container for all the runtime
+  parameters that are defined in a config file including constructors for
+  interpolated parameters.
+  """
+
+  @abc.abstractmethod
+  def prepare(self, geo: geometry.Geometry) -> PreparedConfig:
+    """Builds a PreparedConfig object from this config."""
+
+
+@dataclasses.dataclass
+class PreparedConfig(Generic[T], metaclass=abc.ABCMeta):
+  """Base class for all prepared runtime parameter configs.
+
+  A lot of the variables used in the TORAX simulation loop are interpolated
+  variables of type `interpolated_param.InterpolatedParamBase`.
+  This class is intended to be ready for retrieving dynamic parameters
+  at each time step during the simulation and is intended to contain the
+  constructed interpolated variables.
+
+  This class contains:
+  - the config of all non-interpolated runtime parameters and constructor
+  arguments for interpolated variables, used to get any static parameters.
+  - any constructed interpolated variables which could vary in time.
+  """
+  runtime_params_config: RuntimeParametersConfig
+
+  @abc.abstractmethod
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> T:
+    """Builds dynamic params for this config."""
