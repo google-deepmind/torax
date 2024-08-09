@@ -49,12 +49,17 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # electron heating fraction
   el_heat_fraction: runtime_params_lib.TimeInterpolated = 0.66666
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+      geo: geometry.Geometry | None = None,
+    ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 
@@ -104,7 +109,8 @@ def calc_generic_heat_source(
   return source_ion, source_el
 
 
-def _default_formula(  # pytype: disable=name-error
+# pytype: disable=name-error
+def _default_formula(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -112,6 +118,7 @@ def _default_formula(  # pytype: disable=name-error
     unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Returns the default formula-based ion/electron heat source profile."""
+  # pytype: enable=name-error
   del dynamic_runtime_params_slice, core_profiles  # Unused.
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   ion, el = calc_generic_heat_source(

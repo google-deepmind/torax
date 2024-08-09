@@ -269,13 +269,16 @@ class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   foo: runtime_params_lib.TimeInterpolated
 
   def build_dynamic_params(
-      self, t: chex.Numeric,
+      self,
+      t: chex.Numeric,
+      geo: geometry.Geometry,
   ) -> _FakeSourceDynamicRuntimeParams:
     return _FakeSourceDynamicRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
             output_type=_FakeSourceDynamicRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 

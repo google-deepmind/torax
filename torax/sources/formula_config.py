@@ -20,6 +20,7 @@ import dataclasses
 from typing import TypeAlias
 
 import chex
+from torax import geometry
 from torax import interpolated_param
 from torax.config import config_args
 
@@ -39,9 +40,13 @@ class FormulaConfig:
   formulas.py, are useful, simple examples for how to do this.
   """
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicFormula:
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+      geo: geometry.Geometry | None = None
+    ) -> DynamicFormula:
     """Interpolates this config to a dynamic config for time t."""
-    del t  # Unused because there are no params in the base class.
+    del t, geo  # Unused because there are no params in the base class.
     return DynamicFormula()
 
 
@@ -65,7 +70,11 @@ class Exponential(FormulaConfig):
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicExponential:
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+      geo: geometry.Geometry | None = None
+    ) -> DynamicExponential:
     return DynamicExponential(
         **config_args.get_init_kwargs(
             input_config=self,
@@ -99,7 +108,12 @@ class Gaussian:
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicGaussian:
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+      geo: geometry.Geometry | None = None,
+    ) -> DynamicGaussian:
+    del geo  # Unused.
     return DynamicGaussian(
         **config_args.get_init_kwargs(
             input_config=self,

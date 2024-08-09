@@ -39,12 +39,15 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # multiplier for ion-electron heat exchange term for sensitivity testing
   Qei_mult: float = 1.0
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+  def build_dynamic_params(
+      self, t: chex.Numeric, geo: geometry.Geometry | None = None
+  ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 

@@ -182,6 +182,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests specifying a prescribed time-varying arbitrary jext profile
+      (
+          'test_prescribed_jext',
+          'test_prescribed_jext.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Tests fusion power. CGM transport, heat+particle+psi transport
       (
           'test_fusion_power',

@@ -148,7 +148,7 @@ def build_dynamic_runtime_params_slice(
   return DynamicRuntimeParamsSlice(
       transport=transport.build_dynamic_params(t),
       stepper=stepper.build_dynamic_params(t),
-      sources=_build_dynamic_sources(sources, t),
+      sources=_build_dynamic_sources(sources, t, geo),
       plasma_composition=runtime_params.plasma_composition.build_dynamic_params(
           t
       ),
@@ -163,10 +163,11 @@ def build_dynamic_runtime_params_slice(
 def _build_dynamic_sources(
     sources: dict[str, sources_params.RuntimeParams],
     t: chex.Numeric,
+    geo: geometry.Geometry,
 ) -> dict[str, sources_params.DynamicRuntimeParams]:
   """Builds a dict of DynamicSourceConfigSlice based on the input config."""
   return {
-      source_name: input_source_config.build_dynamic_params(t)
+      source_name: input_source_config.build_dynamic_params(t, geo)
       for source_name, input_source_config in sources.items()
   }
 

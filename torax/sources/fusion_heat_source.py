@@ -123,7 +123,8 @@ def calc_fusion(
 
 
 # pytype bug: does not treat 'source_models.SourceModels' as forward reference
-def fusion_heat_model_func(  # pytype: disable=name-error
+# pytype: disable=name-error
+def fusion_heat_model_func(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -131,6 +132,7 @@ def fusion_heat_model_func(  # pytype: disable=name-error
     unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Model function for fusion heating."""
+  # pytype: enable=name-error
   del dynamic_source_runtime_params  # Unused.
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
@@ -147,6 +149,7 @@ class FusionHeatSource(source.IonElectronSource):
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
   )
 
   model_func: source.SourceProfileFunction = fusion_heat_model_func

@@ -41,12 +41,17 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool = False
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+      geo: geometry.Geometry | None = None,
+  ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
             output_type=DynamicRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 
@@ -100,7 +105,7 @@ def calc_bremsstrahlung(
   )
 
   # In W/m^3
-  P_brem_profile_cell = geometry.face_to_cell(P_brem_profile_face)*1e6
+  P_brem_profile_cell = geometry.face_to_cell(P_brem_profile_face) * 1e6
 
   # In MW
   P_brem_total = jax.scipy.integrate.trapezoid(
@@ -136,6 +141,7 @@ class BremsstrahlungHeatSink(source.SingleProfileTempElSource):
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
   )
 
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func

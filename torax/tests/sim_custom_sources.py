@@ -65,6 +65,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
           mode=dynamic_source_runtime_params.mode,
           is_explicit=dynamic_source_runtime_params.is_explicit,
           formula=dynamic_source_runtime_params.formula,
+          prescribed_values=dynamic_source_runtime_params.prescribed_values,
       )
       puff_params = electron_density_sources.DynamicGasPuffRuntimeParams(
           puff_decay_length=dynamic_source_runtime_params.puff_decay_length,
@@ -275,13 +276,16 @@ class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   S_pellet_tot: runtime_params_lib.TimeInterpolated
 
   def build_dynamic_params(
-      self, t: chex.Numeric
+      self,
+      t: chex.Numeric,
+      geo: geometry.Geometry,
   ) -> _CustomSourceDynamicRuntimeParams:
     return _CustomSourceDynamicRuntimeParams(
         **config_args.get_init_kwargs(
             input_config=self,
             output_type=_CustomSourceDynamicRuntimeParams,
             t=t,
+            geo=geo,
         )
     )
 

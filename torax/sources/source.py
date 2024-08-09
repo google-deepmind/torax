@@ -117,9 +117,9 @@ class Source:
       the output shape returned by output_shape_getter. Subclasses may override
       this requirement.
     supported_modes: Defines how the source computes its profile. Can be set to
-      zero, model-based, etc. At runtime, the input config (the RuntimeParams
-      or the DynamicRuntimeParams) will specify which supported type the Source
-      is running with. If the runtime config specifies an unsupported type, an
+      zero, model-based, etc. At runtime, the input config (the RuntimeParams or
+      the DynamicRuntimeParams) will specify which supported type the Source is
+      running with. If the runtime config specifies an unsupported type, an
       error will raise.
     output_shape_getter: Callable which returns the shape of the profiles given
       by this source.
@@ -136,6 +136,7 @@ class Source:
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.FORMULA_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
   )
 
   output_shape_getter: SourceOutputShapeFunction = get_cell_profile_shape
@@ -222,6 +223,7 @@ class Source:
         if self.formula is None
         else self.formula
     )
+
     return get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
@@ -229,6 +231,7 @@ class Source:
         core_profiles=core_profiles,
         model_func=model_func,
         formula=formula,
+        prescribed_values=dynamic_source_runtime_params.prescribed_values,
         output_shape=output_shape,
         source_models=getattr(self, 'source_models', None),
     )
@@ -444,20 +447,24 @@ class ProfileType(enum.Enum):
 
 
 # pytype bug: 'source_models.SourceModels' not treated as a forward ref
-def get_source_profiles(  # pytype: disable=name-error
+# pytype: disable=name-error
+def get_source_profiles(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles | None,
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
+    prescribed_values: chex.Array,
     output_shape: tuple[int, ...],
     source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Returns source profiles requested by the runtime_params_lib.
 
-  This function handles MODEL_BASED, FORMULA_BASED, and ZERO sources. All other
-  source types will be ignored.
+  This function handles MODEL_BASED, FORMULA_BASED, PRESCRIBED and ZERO sources.
+  All other source types will be ignored.
+  This function exists to simplify the creation of the profile to a set of
+  jnp.where calls.
 
   Args:
     dynamic_runtime_params_slice: Slice of the general TORAX config that can be
@@ -469,15 +476,20 @@ def get_source_profiles(  # pytype: disable=name-error
       functions.
     model_func: Model function.
     formula: Formula implementation.
-    output_shape: Expected shape of the outut array.
-    source_models: The SourceModels if the Source `links_back`
+    prescribed_values: Array of values for this timeslice, interpolated onto the
+      grid (ie with shape output_shape)
+    output_shape: Expected shape of the output array.
+    source_models: The SourceModels if the Source `links_back`.
 
   Returns:
     Output array of a profile or concatenated/stacked profiles.
   """
+  # pytype: enable=name-error
   mode = dynamic_source_runtime_params.mode
   zeros = jnp.zeros(output_shape)
   output = jnp.zeros(output_shape)
+
+  # MODEL_BASED
   output += jnp.where(
       mode == runtime_params_lib.Mode.MODEL_BASED.value,
       model_func(
@@ -489,6 +501,7 @@ def get_source_profiles(  # pytype: disable=name-error
       ),
       zeros,
   )
+  # FORMULA_BASED
   output += jnp.where(
       mode == runtime_params_lib.Mode.FORMULA_BASED.value,
       formula(
@@ -498,6 +511,12 @@ def get_source_profiles(  # pytype: disable=name-error
           core_profiles,
           source_models,
       ),
+      zeros,
+  )
+  # PRESCRIBED
+  output += jnp.where(
+      mode == runtime_params_lib.Mode.PRESCRIBED.value,
+      prescribed_values,
       zeros,
   )
   return output
@@ -558,16 +577,14 @@ class IonElectronSource(Source):
   first being ion profile and the second being the electron profile.
   """
 
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.FORMULA_BASED,
-      runtime_params_lib.Mode.ZERO,
-  )
-
   # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
       init=False,
-      default=(AffectedCoreProfile.TEMP_ION, AffectedCoreProfile.TEMP_EL,),
+      default=(
+          AffectedCoreProfile.TEMP_ION,
+          AffectedCoreProfile.TEMP_EL,
+      ),
   )
 
   # Don't include output_shape_getter in the __init__ arguments.
@@ -732,7 +749,7 @@ def make_source_builder(
 
   new_field_ntfs = [runtime_params_ntf]
   builder_ntfs = name_type_field_tuples + new_field_ntfs
-  builder_type_name = source_type.__name__ + 'Builder'
+  builder_type_name = source_type.__name__ + 'Builder'  # pytype: disable=attribute-error
 
   def check_kwargs(source_init_kwargs, context_msg):
     for f in source_fields:
