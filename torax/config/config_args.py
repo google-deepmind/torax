@@ -45,7 +45,7 @@ def _input_is_a_float_field(
     return False
 
 
-def _input_is_an_interpolated_var_single_axis(
+def input_is_an_interpolated_var_single_axis(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
@@ -125,7 +125,7 @@ def _interpolate_var_single_axis(
   return _get_interpolated_var_single_axis(param_or_param_input).get_value(t)
 
 
-def _input_is_an_interpolated_var_time_rho(
+def input_is_an_interpolated_var_time_rho(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
@@ -163,7 +163,7 @@ def _input_is_an_interpolated_var_time_rho(
     return _check(field_type)
 
 
-def _get_interpolated_var_2d(
+def get_interpolated_var_2d(
     param_or_param_input: interpolated_param.TimeRhoInterpolated,
     rho_norm: chex.Array,
 ) -> interpolated_param.InterpolatedVarTimeRho:
@@ -185,8 +185,7 @@ def interpolate_var_2d(
     rho_norm: chex.Array,
 ) -> chex.Array:
   """Interpolates the input param at time t and rho_norm for the current geo."""
-  return _get_interpolated_var_2d(
-      param_or_param_input, rho_norm).get_value(t)
+  return get_interpolated_var_2d(param_or_param_input, rho_norm).get_value(t)
 
 
 def get_init_kwargs(
@@ -211,14 +210,14 @@ def get_init_kwargs(
     # it at time t to populate the correct values in the output config.
     # dataclass fields can either be the actual type OR the string name of the
     # type. Check for both.
-    if _input_is_an_interpolated_var_single_axis(
+    if input_is_an_interpolated_var_single_axis(
         field.name, input_config_fields_to_types
     ):
       if t is None:
         raise ValueError('t must be specified for interpolated params')
       if config_val is not None:
         config_val = _interpolate_var_single_axis(config_val, t)
-    elif _input_is_an_interpolated_var_time_rho(
+    elif input_is_an_interpolated_var_time_rho(
         field.name, input_config_fields_to_types
     ):
       if config_val is not None:
@@ -256,15 +255,18 @@ def get_interpolated_vars(
       params[field.name] = config_value
     elif config_value is None:
       params[field.name] = config_value
-    elif _input_is_an_interpolated_var_single_axis(
-        field.name, input_config_fields_to_types):
+    elif input_is_an_interpolated_var_single_axis(
+        field.name, input_config_fields_to_types
+    ):
       params[field.name] = _get_interpolated_var_single_axis(config_value)
-    elif _input_is_an_interpolated_var_time_rho(
-        field.name, input_config_fields_to_types):
+    elif input_is_an_interpolated_var_time_rho(
+        field.name, input_config_fields_to_types
+    ):
       if not torax_mesh:
         raise ValueError('torax_mesh is required for radial interpolated vars')
-      params[field.name] = _get_interpolated_var_2d(
-          config_value, torax_mesh.cell_centers)
+      params[field.name] = get_interpolated_var_2d(
+          config_value, torax_mesh.cell_centers
+      )
     elif isinstance(config_value, enum.Enum):
       params[field.name] = interpolated_param.FixedParam(
           config_value.value)
