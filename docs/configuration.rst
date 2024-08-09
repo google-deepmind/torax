@@ -227,7 +227,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Note that if the ``ne`` profile does not contain a :math:`\hat{\rho}=1` point
   for all provided times, an error will be raised.
 
-``normalize_to_nbar`` (bool = False)
+``normalize_to_nbar`` (bool = True)
   If True, then the electron density profile is normalized to have the desired line averaged density
   :math:`\bar{n}`.
 
@@ -632,16 +632,24 @@ The configurable runtime parameters of each source are as follows:
 ``mode`` (str)
   Defines how the source values are computed. Currently the options are:
 
-* ``'zero'``
+* ``'ZERO'``
     Source is set to zero.
 
-* ``'model'``
+* ``'MODEL'``
     Source values come from a model in code. Specific model selection is not yet available in TORAX since there are no source components with more than one
     physics model. However, this will be straightforward to develop when that occurs.
 
-* ``'formula'``
+* ``'FORMULA'``
     Source values come from a prescribed (possibly time-dependent) formula that is not dependent on the state of the system. The formula type (Gaussian, exponential)
     is set by ``formula_type``.
+
+For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purposes, set:
+
+.. code-block:: python
+
+    'sources': {
+        'fusion_heat_source': {'mode': 'ZERO'},
+    }
 
 ``is_explicit`` (bool)
   Defines whether the source is to be considered explicit or implicit. Explicit sources are calculated based on the simulation state at the
