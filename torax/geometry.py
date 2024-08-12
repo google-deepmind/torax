@@ -660,8 +660,6 @@ class StandardGeometryIntermediates:
   n_rho: Radial grid points (num cells)
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
-  diverted_divergence_factor: Divergence factor for setting finite numbers for
-    geometric quantities at a diverted flux surface which are formally inf
   """
 
   Ip_from_parameters: bool
@@ -684,23 +682,25 @@ class StandardGeometryIntermediates:
   vpr: chex.Array
   n_rho: int
   hires_fac: int
-  diverted_divergence_factor: float
 
   def __post_init__(self):
+    """Extrapolates edge values based on a Cubic spline fit."""
     # Check if last flux surface is diverted and correct if so
     if self.flux_surf_avg_Bp2[-1] < 1e-10:
-      self.int_dl_over_Bp[-1] = (
-          self.int_dl_over_Bp[-2] * self.diverted_divergence_factor
+      # Calculate rhon
+      rhon = np.sqrt(self.Phi / self.Phi[-1])
+      # Create a lambda function for the Cubic spline fit.
+      spline = lambda rho, data, x: scipy.interpolate.CubicSpline(
+          rho[:-1], data[:-1]
+      )(x)
+      self.int_dl_over_Bp[-1] = spline(rhon, self.int_dl_over_Bp, 1.0)
+      self.flux_surf_avg_Bp2[-1] = spline(rhon, self.flux_surf_avg_Bp2, 1.0)
+      self.flux_surf_avg_1_over_R2[-1] = spline(
+          rhon, self.flux_surf_avg_1_over_R2, 1.0
       )
-      self.flux_surf_avg_Bp2[-1] = (
-          self.flux_surf_avg_Bp2[-2] / self.diverted_divergence_factor
-      )
-      self.flux_surf_avg_RBp[-1] = (
-          self.flux_surf_avg_RBp[-2] / self.diverted_divergence_factor
-      )
-      self.flux_surf_avg_R2Bp2[-1] = (
-          self.flux_surf_avg_R2Bp2[-2] / self.diverted_divergence_factor
-      )
+      self.flux_surf_avg_RBp[-1] = spline(rhon, self.flux_surf_avg_RBp, 1.0)
+      self.flux_surf_avg_R2Bp2[-1] = spline(rhon, self.flux_surf_avg_R2Bp2, 1.0)
+      self.vpr[-1] = spline(rhon, self.vpr, 1.0)
 
   @classmethod
   def from_chease(
@@ -713,7 +713,6 @@ class StandardGeometryIntermediates:
       Rmin: float = 2.0,
       B0: float = 5.3,
       hires_fac: int = 4,
-      diverted_divergence_factor: float = 1.03,
   ) -> StandardGeometryIntermediates:
     """Constructs a StandardGeometryIntermediates from a CHEASE file.
 
@@ -733,9 +732,6 @@ class StandardGeometryIntermediates:
       B0: Toroidal magnetic field on axis [T].
       hires_fac: Grid refinement factor for poloidal flux <--> plasma current
         calculations.
-      diverted_divergence_factor: Divergence factor for setting finite numbers
-        for geometric quantities at a diverted flux surface which are formally
-        inf
 
     Returns:
       A StandardGeometry instance based on the input file. This can then be
@@ -796,7 +792,6 @@ class StandardGeometryIntermediates:
         vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
-        diverted_divergence_factor=diverted_divergence_factor,
     )
 
   @classmethod
@@ -811,7 +806,6 @@ class StandardGeometryIntermediates:
       Rmin: float = 2.0,
       B0: float = 5.3,
       hires_fac: int = 4,
-      diverted_divergence_factor: float = 1.03,
   ) -> StandardGeometryIntermediates:
     """Constructs a StandardGeometryIntermediates from an FBT-LY file."""
     LY = geometry_loader.load_geo_data(
@@ -847,7 +841,6 @@ class StandardGeometryIntermediates:
         vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
         n_rho=n_rho,
         hires_fac=hires_fac,
-        diverted_divergence_factor=diverted_divergence_factor,
     )
 
 

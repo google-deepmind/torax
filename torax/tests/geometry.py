@@ -95,7 +95,6 @@ class GeometryTest(parameterized.TestCase):
         delta_lower_face=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
-        diverted_divergence_factor=1.03,
     )
     geo = geometry.build_standard_geometry(intermediate)
     foo_jitted(geo)
@@ -129,7 +128,6 @@ class GeometryTest(parameterized.TestCase):
         delta_lower_face=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
-        diverted_divergence_factor=1.03,
     )
     geo_0 = geometry.build_standard_geometry(intermediate_0)
 
@@ -155,7 +153,6 @@ class GeometryTest(parameterized.TestCase):
         delta_lower_face=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 2.0, 0.02),
         hires_fac=4,
-        diverted_divergence_factor=1.03,
     )
     geo_1 = geometry.build_standard_geometry(intermediate_1)
 
