@@ -685,22 +685,20 @@ class StandardGeometryIntermediates:
 
   def __post_init__(self):
     """Extrapolates edge values based on a Cubic spline fit."""
-    # Check if last flux surface is diverted and correct if so
-    if self.flux_surf_avg_Bp2[-1] < 1e-10:
-      # Calculate rhon
-      rhon = np.sqrt(self.Phi / self.Phi[-1])
-      # Create a lambda function for the Cubic spline fit.
-      spline = lambda rho, data, x: scipy.interpolate.CubicSpline(
-          rho[:-1], data[:-1]
-      )(x)
-      self.int_dl_over_Bp[-1] = spline(rhon, self.int_dl_over_Bp, 1.0)
-      self.flux_surf_avg_Bp2[-1] = spline(rhon, self.flux_surf_avg_Bp2, 1.0)
-      self.flux_surf_avg_1_over_R2[-1] = spline(
-          rhon, self.flux_surf_avg_1_over_R2, 1.0
-      )
-      self.flux_surf_avg_RBp[-1] = spline(rhon, self.flux_surf_avg_RBp, 1.0)
-      self.flux_surf_avg_R2Bp2[-1] = spline(rhon, self.flux_surf_avg_R2Bp2, 1.0)
-      self.vpr[-1] = spline(rhon, self.vpr, 1.0)
+    # Calculate rhon
+    rhon = np.sqrt(self.Phi / self.Phi[-1])
+    # Create a lambda function for the Cubic spline fit.
+    spline = lambda rho, data, x: scipy.interpolate.CubicSpline(
+        rho[:-1], data[:-1]
+    )(x)
+    self.int_dl_over_Bp[-1] = spline(rhon, self.int_dl_over_Bp, 1.0)
+    self.flux_surf_avg_Bp2[-1] = spline(rhon, self.flux_surf_avg_Bp2, 1.0)
+    self.flux_surf_avg_1_over_R2[-1] = spline(
+        rhon, self.flux_surf_avg_1_over_R2, 1.0
+    )
+    self.flux_surf_avg_RBp[-1] = spline(rhon, self.flux_surf_avg_RBp, 1.0)
+    self.flux_surf_avg_R2Bp2[-1] = spline(rhon, self.flux_surf_avg_R2Bp2, 1.0)
+    self.vpr[-1] = spline(rhon, self.vpr, 1.0)
 
   @classmethod
   def from_chease(

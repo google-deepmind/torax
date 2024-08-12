@@ -332,8 +332,8 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       242328.2153636439,
       282697.06942260603,
       394752.49898599176,
-      520019.67038794764,
-      580635.5973376503,
+      528524.5579531717,
+      606161.0239662192,
   ])
   s = np.array([
       -0.07217180720838,
@@ -355,13 +355,13 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       1.65055729918186,
       1.82276908903157,
       2.01352540962771,
-      2.23716142870353,
+      2.23716142870352,
       2.57071577441158,
       2.90186610276457,
-      2.62732026047895,
+      2.62732026047894,
       2.08351729391536,
       1.74889986770246,
-      1.81817284827307,
+      1.81851843317067,
   ])
   return References(
       runtime_params=runtime_params,
@@ -486,8 +486,8 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       308836.43810973485,
       360284.73140663106,
       503094.34887228254,
-      662741.7385489461,
-      739994.0178338734,
+      673580.8361679573,
+      772525.0288404458,
   ])
   s = np.array([
       -0.07217180720838,
@@ -515,7 +515,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       2.62732026047854,
       2.0835172939153,
       1.74889986770314,
-      1.81817284827379,
+      1.81851843317139,
   ])
   return References(
       runtime_params=runtime_params,
