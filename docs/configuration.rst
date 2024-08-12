@@ -142,13 +142,21 @@ at each time and rho_norm.
 Using ``tuple`` of ``Array``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 If a ``tuple`` of ``Array`` is used, the tuple must have structure of,
-``(time_array, rho_norm_array, values_array)``.
+``(time_array, rho_norm_array, values_array)`` or ``(rho_norm_array, values_array)``.
+The latter is a useful shortcut for defining an initial condition or a constant profile.
 
+In the case of ``(time_array, rho_norm_array, values_array)``:
 ``time_array`` and ``rho_norm_array`` are expected to map to 1D array values and
 represent the time and rho_norm coordinates.
 ``values_array`` is expected to map to a 2D array with shape
 ``(len(time_array), len(rho_norm_array))`` and represent the values at the given
 time and rho_norm.
+
+In the case of ``(rho_norm_array, values_array)``:
+``rho_norm_array`` is expected to map to a 1D array values and represent the
+rho_norm coordinates.
+``values_array`` is expected to map to a 1D array with shape
+``len(rho_norm_array)`` and represent the values at the given rho_norm.
 
 .. _config_details:
 

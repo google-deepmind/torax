@@ -174,6 +174,7 @@ InterpolatedVarTimeRhoInput = (
     | float
     | xr.DataArray
     | tuple[chex.Array, chex.Array, chex.Array]
+    | tuple[chex.Array, chex.Array]
 )
 
 
@@ -349,7 +350,17 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
       arrays: tuple[chex.Array, chex.Array, chex.Array],
       rho_interpolation_mode: InterpolationMode,
   ):
-    """Loads the data from numpy arrays."""
+    """Loads the data from numpy arrays.
+
+    Args:
+      arrays: A tuple of (times, rho_norm, values).
+        times and rho_norm are assumed to be 1D arrays of equal length and
+        values is a 2D array with shape (len(times), len(rho_norm)).
+      rho_interpolation_mode: Defines how to interpolate between values in
+        `value`.
+    """
+    if len(arrays) != 3:
+      raise ValueError(f'arrays must be either length 3. Given: {len(arrays)}.')
     times, rho_norm, values = arrays
     self.times_values = {
         t: InterpolatedVarSingleAxis(
@@ -422,6 +433,9 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     elif isinstance(values, tuple) and all(
         isinstance(v, chex.Array) for v in values
     ):
+      if len(values) == 2:
+        # Shortcut for initial condition profile.
+        values = (np.array([0.0]), values[0], values[1][np.newaxis, :])
       self._load_from_arrays(values, rho_interpolation_mode)
     else:
       self._load_from_primitives(values, rho_interpolation_mode)

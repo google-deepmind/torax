@@ -452,8 +452,8 @@ class InterpolatedParamTest(parameterized.TestCase):
         np.array([2.5, 3.5, 4.5]),
     )
 
-  def test_interpolated_var_time_rho_parses_array_tuple_input(self):
-    """Tests that InterpolatedVarTimeRho parses Array inputs correctly."""
+  def test_interpolated_var_time_rho_parses_array_3_tuple_input(self):
+    """Tests that InterpolatedVarTimeRho parses Array of 3 inputs correctly."""
     arrays = (
         np.array([0.0, 1.0]),
         np.array([0.25, 0.5, 0.75]),
@@ -472,6 +472,24 @@ class InterpolatedParamTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         interpolated_var_time_rho.get_value(x=0.5,), np.array([2.5, 3.5, 4.5]),
+    )
+
+  def test_interpolated_var_time_rho_parses_array_tuple_input(self):
+    """Tests that InterpolatedVarTimeRho parses Array of 2 inputs correctly."""
+    arrays = (
+        np.array([0.25, 0.5, 0.75]),
+        np.array([1.0, 2.0, 3.0]),
+    )
+    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
+        values=arrays,
+        rho=np.array([0.25, 0.5, 0.75]),
+    )
+
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(x=0.0,), np.array([1.0, 2.0, 3.0])
+    )
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(x=1.0,), np.array([1.0, 2.0, 3.0]),
     )
 
   def test_fixed_param_always_returns_same_value(self):
