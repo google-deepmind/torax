@@ -452,12 +452,12 @@ class InterpolatedParamTest(parameterized.TestCase):
         np.array([2.5, 3.5, 4.5]),
     )
 
-  def test_interpolated_var_time_rho_parses_dict_array_input(self):
-    """Tests that InterpolatedVarTimeRho parses TimeRhoValueArray inputs correctly."""
-    arrays = dict(
-        time=np.array([0.0, 1.0]),
-        rho_norm=np.array([0.25, 0.5, 0.75]),
-        value=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+  def test_interpolated_var_time_rho_parses_array_tuple_input(self):
+    """Tests that InterpolatedVarTimeRho parses Array inputs correctly."""
+    arrays = (
+        np.array([0.0, 1.0]),
+        np.array([0.25, 0.5, 0.75]),
+        np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
     )
     interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
         values=arrays,

@@ -173,7 +173,7 @@ InterpolatedVarTimeRhoInput = (
     Mapping[float, InterpolatedVarSingleAxisInput]
     | float
     | xr.DataArray
-    | dict[str, chex.Array]
+    | tuple[chex.Array, chex.Array, chex.Array]
 )
 
 
@@ -346,18 +346,19 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
 
   def _load_from_arrays(
       self,
-      arrays: dict[str, chex.Array],
+      arrays: tuple[chex.Array, chex.Array, chex.Array],
       rho_interpolation_mode: InterpolationMode,
   ):
     """Loads the data from numpy arrays."""
+    times, rho_norm, values = arrays
     self.times_values = {
         t: InterpolatedVarSingleAxis(
-            (arrays[RHO_NORM], arrays['value'][i, :]),
+            (rho_norm, values[i, :]),
             rho_interpolation_mode,
         )
-        for i, t in enumerate(arrays['time'])
+        for i, t in enumerate(times)
     }
-    self.sorted_indices = jnp.array(sorted(arrays['time']))
+    self.sorted_indices = jnp.array(sorted(times))
 
   def _load_from_xr_array(
       self,
@@ -418,8 +419,8 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     self._rho = rho
     if isinstance(values, xr.DataArray):
       self._load_from_xr_array(values, rho_interpolation_mode)
-    elif isinstance(values, Mapping) and all(
-        isinstance(v, chex.Array) for v in values.values()
+    elif isinstance(values, tuple) and all(
+        isinstance(v, chex.Array) for v in values
     ):
       self._load_from_arrays(values, rho_interpolation_mode)
     else:

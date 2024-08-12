@@ -82,7 +82,7 @@ To extend configuration parameters where time-dependence is not enabled, to have
 Time-varying arrays
 -------------------
 Time-varying arrays can be defined using either primitives, an
-``xarray.DataArray`` or a ``dict`` of ``Array``.
+``xarray.DataArray`` or a ``tuple`` of ``Array``.
 
 Using primitives
 ^^^^^^^^^^^^^^^^
@@ -139,13 +139,16 @@ If a ``xarray.DataArray`` is specified then it is expected to have a
 ``time`` and ``rho_norm`` coordinate. The values of the data array are the values
 at each time and rho_norm.
 
-Using ``dict`` of ``Array``
+Using ``tuple`` of ``Array``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-If a ``dict`` of ``Array`` is used, the dict must have keys of ``time``,
-``rho_norm`` and ``value``.
+If a ``tuple`` of ``Array`` is used, the tuple must have structure of,
+``(time_array, rho_norm_array, values_array)``.
 
-``time`` and ``rho_norm`` are expected to map to 1D array values.
-``value`` is expected to map to a 2D array with shape ``(len(time), len(rho_norm))``.
+``time_array`` and ``rho_norm_array`` are expected to map to 1D array values and
+represent the time and rho_norm coordinates.
+``values_array`` is expected to map to a 2D array with shape
+``(len(time_array), len(rho_norm_array))`` and represent the values at the given
+time and rho_norm.
 
 .. _config_details:
 
