@@ -93,8 +93,7 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
-        volume=np.arange(0, 1.0, 0.01),
-        area=np.arange(0, 1.0, 0.01),
+        vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
         diverted_divergence_factor=1.03,
     )
@@ -128,8 +127,7 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
-        volume=np.arange(0, 1.0, 0.01),
-        area=np.arange(0, 1.0, 0.01),
+        vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
         diverted_divergence_factor=1.03,
     )
@@ -155,8 +153,7 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
-        volume=np.arange(0, 2.0, 0.02),
-        area=np.arange(0, 2.0, 0.02),
+        vpr=np.arange(0, 2.0, 0.02),
         hires_fac=4,
         diverted_divergence_factor=1.03,
     )

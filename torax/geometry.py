@@ -649,15 +649,14 @@ class StandardGeometryIntermediates:
   Rin: Radius of the flux surface at the inboard side at midplane
   Rout: Radius of the flux surface at the outboard side at midplane
   F: Toroidal field flux function
-  1_over_int_dl_over_Bp: 1/ oint (dl / Bp) (contour integral)
+  int_dl_over_Bp: 1/ oint (dl / Bp) (contour integral)
   flux_surf_avg_1_over_R2: <1/R**2>
   flux_surf_avg_Bp2: <Bp**2>
   flux_surf_avg_RBp: <R Bp>
   flux_surf_avg_R2Bp2: <R**2 Bp**2>
   delta_upper_face: Triangularity on upper face
   delta_lower_face: Triangularity on lower face
-  volume: Volume profile
-  area: Area profile
+  vpr: dVolume/drhonorm profile
   n_rho: Radial grid points (num cells)
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
@@ -682,8 +681,7 @@ class StandardGeometryIntermediates:
   flux_surf_avg_R2Bp2: chex.Array
   delta_upper_face: chex.Array
   delta_lower_face: chex.Array
-  volume: chex.Array
-  area: chex.Array
+  vpr: chex.Array
   n_rho: int
   hires_fac: int
   diverted_divergence_factor: float
@@ -744,7 +742,8 @@ class StandardGeometryIntermediates:
       used to build a StandardGeometry by passing to `build_standard_geometry`.
     """
     chease_data = geometry_loader.load_geo_data(
-        geometry_dir, geometry_file, geometry_loader.GeometrySource.CHEASE)
+        geometry_dir, geometry_file, geometry_loader.GeometrySource.CHEASE
+    )
 
     # Prepare variables from CHEASE to be interpolated into our simulation
     # grid. CHEASE variables are normalized. Need to unnormalize them with
@@ -765,9 +764,7 @@ class StandardGeometryIntermediates:
     # toroidal field flux function
     F = chease_data['T=RBphi'] * Rmaj * B0
 
-    int_dl_over_Bp = (
-        chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
-    )
+    int_dl_over_Bp = chease_data['Int(Rdlp/|grad(psi)|)=Int(Jdchi)'] * Rmaj / B0
     flux_surf_avg_1_over_R2 = chease_data['<1/R**2>'] / Rmaj**2
     flux_surf_avg_Bp2 = chease_data['<Bp**2>'] * B0**2
     flux_surf_avg_RBp = chease_data['<|grad(psi)|>'] * psiunnormfactor / Rmaj
@@ -775,9 +772,8 @@ class StandardGeometryIntermediates:
         chease_data['<|grad(psi)|**2>'] * psiunnormfactor**2 / Rmaj**2
     )
 
-    # volume, area, and dV/drho, dS/drho
-    volume = chease_data['VOLUMEprofile'] * Rmaj**3
-    area = chease_data['areaprofile'] * Rmaj**2
+    rhon = np.sqrt(Phi / Phi[-1])
+    vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
 
     return cls(
         Ip_from_parameters=Ip_from_parameters,
@@ -797,8 +793,7 @@ class StandardGeometryIntermediates:
         flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2,
         delta_upper_face=chease_data['delta_upper'],
         delta_lower_face=chease_data['delta_bottom'],
-        volume=volume,
-        area=area,
+        vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
         diverted_divergence_factor=diverted_divergence_factor,
@@ -825,30 +820,31 @@ class StandardGeometryIntermediates:
     L = geometry_loader.load_geo_data(
         geometry_dir, L_file, geometry_loader.GeometrySource.FBT
     )
-    vacuum_tor_b_field = LY['rBt']  / Rmaj
-    psi = L['pQ']**2 * (LY['FB'] - LY['FA']) + LY['FA']
+    vacuum_tor_b_field = LY['rBt'] / Rmaj
+    Phi = LY['FtPQ'] / vacuum_tor_b_field * B0
+    rhon = np.sqrt(Phi / Phi[-1])
+    psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']
     return cls(
         Ip_from_parameters=Ip_from_parameters,
         Rmaj=Rmaj,
         Rmin=Rmin,
         B=B0,
         psi=psi[0] - psi,
-        Phi=LY['FtPQ'] / vacuum_tor_b_field * B0,
+        Phi=Phi,
         Ip_profile=np.abs(LY['ItQ']),
         Rin=LY['rgeom'] - LY['aminor'],
         Rout=LY['rgeom'] + LY['aminor'],
         F=np.abs(LY['TQ']),
         # TODO change this to avoid the possible divide by zero.
-        int_dl_over_Bp=1/LY['Q1Q'],
+        int_dl_over_Bp=1 / LY['Q1Q'],
         flux_surf_avg_1_over_R2=LY['Q2Q'],
         flux_surf_avg_Bp2=np.abs(LY['Q3Q']) / (4 * np.pi**2),
         # TODO change this to use Q5Q when fbt bug is fixed.
         flux_surf_avg_RBp=np.sqrt(np.abs(LY['Q4Q'])) / (2 * np.pi),
-        flux_surf_avg_R2Bp2=np.abs(LY['Q4Q']) / (2 * np.pi)**2,
+        flux_surf_avg_R2Bp2=np.abs(LY['Q4Q']) / (2 * np.pi) ** 2,
         delta_upper_face=LY['deltau'],
         delta_lower_face=LY['deltal'],
-        volume=LY['VQ'],
-        area=LY['AQ'],
+        vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
         n_rho=n_rho,
         hires_fac=hires_fac,
         diverted_divergence_factor=diverted_divergence_factor,
@@ -914,19 +910,25 @@ def build_standard_geometry(
   )
 
   # dV/drhon, dS/drhon
-  vpr = np.gradient(intermediate.volume, rho_norm_intermediate)
-  spr = np.gradient(intermediate.area, rho_norm_intermediate)
-  # gradient boundary approximation not appropriate here
-  vpr[0] = 0
-  spr[0] = 0
+  vpr = intermediate.vpr
+  spr = vpr / (2 * np.pi * intermediate.Rmaj)
+
+  # Volume and area
+  volume_intermediate = scipy.integrate.cumulative_trapezoid(
+      y=vpr, x=rho_norm_intermediate, initial=0.0
+  )
+  area_intermediate = volume_intermediate / (2 * np.pi * intermediate.Rmaj)
 
   # plasma current density
-  jtot = (
-      2
-      * np.pi
-      * intermediate.Rmaj
-      * np.gradient(intermediate.Ip_profile, intermediate.volume)
-  )
+  dI_tot_drhon = np.gradient(intermediate.Ip_profile, rho_norm_intermediate)
+
+  jtot_face_bulk = dI_tot_drhon[1:] / spr[1:]
+
+  # For now set on-axis to the same as the second grid point, due to 0/0
+  # division.
+  jtot_face_axis = jtot_face_bulk[0]
+
+  jtot = np.concatenate([np.array([jtot_face_axis]), jtot_face_bulk])
 
   # fill geometry structure
   drho_norm = float(rho_norm_intermediate[-1]) / intermediate.n_rho
@@ -1003,13 +1005,13 @@ def build_standard_geometry(
   g2g3_over_rhon_hires = rhon_interpolation_func(rho_hires_norm, g2g3_over_rhon)
   g2g3_over_rhon = rhon_interpolation_func(rho_norm, g2g3_over_rhon)
 
-  volume_face = rhon_interpolation_func(rho_face_norm, intermediate.volume)
-  volume_hires = rhon_interpolation_func(rho_hires_norm, intermediate.volume)
-  volume = rhon_interpolation_func(rho_norm, intermediate.volume)
+  volume_face = rhon_interpolation_func(rho_face_norm, volume_intermediate)
+  volume_hires = rhon_interpolation_func(rho_hires_norm, volume_intermediate)
+  volume = rhon_interpolation_func(rho_norm, volume_intermediate)
 
-  area_face = rhon_interpolation_func(rho_face_norm, intermediate.area)
-  area_hires = rhon_interpolation_func(rho_hires_norm, intermediate.area)
-  area = rhon_interpolation_func(rho_norm, intermediate.area)
+  area_face = rhon_interpolation_func(rho_face_norm, area_intermediate)
+  area_hires = rhon_interpolation_func(rho_hires_norm, area_intermediate)
+  area = rhon_interpolation_func(rho_norm, area_intermediate)
 
   return StandardGeometry(
       geometry_type=GeometryType.NUMERICAL.value,

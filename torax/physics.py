@@ -204,10 +204,15 @@ def calc_jtot_from_psi(
       / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
   )
 
-  jtot_face = (
-      2 * jnp.pi * geo.Rmaj * jnp.gradient(I_tot, geo.volume_face)
-  )
+  dI_tot_drhon = jnp.gradient(I_tot, geo.rho_face_norm)
 
+  jtot_face_bulk = dI_tot_drhon[1:] / geo.spr_face[1:]
+
+  # For now set on-axis to the same as the second grid point, due to 0/0
+  # division.
+  jtot_face_axis = jtot_face_bulk[0]
+
+  jtot_face = jnp.concatenate([jnp.array([jtot_face_axis]), jtot_face_bulk])
   jtot = geometry.face_to_cell(jtot_face)
 
   return jtot, jtot_face
