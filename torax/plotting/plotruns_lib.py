@@ -216,6 +216,22 @@ def format_plots(plotdata: PlotData, subfigures: tuple[Any, ...]):
   # pytype: enable=attribute-error
 
 
+def get_rho(
+    plotdata: PlotData,
+    data_attr: str,
+) -> np.ndarray:
+  """Gets the correct rho coordinate for the data."""
+  datalen = len(getattr(plotdata, data_attr)[0, :])
+  if datalen == len(plotdata.rho_cell_coord):
+    return plotdata.rho_cell_coord
+  elif datalen == len(plotdata.rho_face_coord):
+    return plotdata.rho_face_coord
+  else:
+    raise ValueError(
+        f'Data {datalen} does not coincide with either the cell or face grids.'
+    )
+
+
 def get_lines(
     plotdata: PlotData,
     subfigures: tuple[Any, ...],
@@ -234,85 +250,77 @@ def get_lines(
   ax1, ax2, ax3, ax4, ax5, ax6 = subfigures
 
   (line,) = ax1.plot(
-      plotdata.rho_face_coord,
+      get_rho(plotdata, 'chi_i'),
       plotdata.chi_i[1, :],
       'r' + dashed,
       label=rf'$\chi_i{suffix}$',
   )
   lines.append(line)
   (line,) = ax1.plot(
-      plotdata.rho_face_coord,
+      get_rho(plotdata, 'chi_e'),
       plotdata.chi_e[1, :],
       'b' + dashed,
       label=rf'$\chi_e{suffix}$',
   )
   lines.append(line)
   (line,) = ax2.plot(
-      plotdata.rho_cell_coord,
+      get_rho(plotdata, 'ti'),
       plotdata.ti[0, :],
       'r' + dashed,
       label=rf'$T_i{suffix}$',
   )
   lines.append(line)
   (line,) = ax2.plot(
-      plotdata.rho_cell_coord,
+      get_rho(plotdata, 'te'),
       plotdata.te[0, :],
       'b' + dashed,
       label=rf'$T_e{suffix}$',
   )
   lines.append(line)
   (line,) = ax3.plot(
-      plotdata.rho_cell_coord,
+      get_rho(plotdata, 'ne'),
       plotdata.ne[0, :],
       'r' + dashed,
       label=rf'$n_e{suffix}$',
   )
   lines.append(line)
-
   (line,) = ax4.plot(
-      plotdata.rho_cell_coord,
+      get_rho(plotdata, 'j'),
       plotdata.j[0, :],
       'r' + dashed,
       label=rf'$j_{{tot}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax4.plot(
-      plotdata.rho_cell_coord,
+      get_rho(plotdata, 'johm'),
       plotdata.johm[0, :],
       'b' + dashed,
       label=rf'$j_{{ohm}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax4.plot(
-      plotdata.rho_cell_coord,
+      get_rho(plotdata, 'j_bootstrap'),
       plotdata.j_bootstrap[0, :],
       'g' + dashed,
       label=rf'$j_{{bs}}{suffix}$',
   )
   lines.append(line)
-  # jext is a face variable, but in older data files it is stored as a cell
-  # variable.
-  jext_x_axis = (
-      plotdata.rho_cell_coord
-      if plotdata.jext.shape[1] == len(plotdata.rho_cell_coord)
-      else plotdata.rho_face_coord
-  )
   (line,) = ax4.plot(
-      jext_x_axis,
+      get_rho(plotdata, 'jext'),
       plotdata.jext[0, :],
       'm' + dashed,
       label=rf'$j_{{ext}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax5.plot(
-      plotdata.rho_face_coord,
+      get_rho(plotdata, 'q'),
       plotdata.q[0, :],
       'r' + dashed,
       label=rf'$q{suffix}$',
   )
   lines.append(line)
   (line,) = ax6.plot(
-      plotdata.rho_face_coord,
+      get_rho(plotdata, 's'),
       plotdata.s[0, :],
       'r' + dashed,
       label=rf'$\hat{{s}}{suffix}$',
