@@ -289,7 +289,6 @@ def newton_raphson_solve_block(
   )
   body_fun = functools.partial(
       body,
-      residual_fun=residual_fun,
       jacobian_fun=jacobian_fun,
       delta_cond_fun=delta_cond_fun,
       delta_reduction_factor=delta_reduction_factor,
@@ -372,7 +371,6 @@ def cond(
 
 def body(
     input_state: dict[str, jax.Array],
-    residual_fun,
     jacobian_fun,
     delta_cond_fun,
     delta_reduction_factor,
@@ -393,24 +391,24 @@ def body(
   # conditions of reduced residual and valid state quantities.
   # If tau < taumin while residual > tol, then the routine exits with an
   # error flag, leading to either a warning or recalculation at lower dt
-
   initial_delta_state = {
       'x': input_state['x'],
       'delta': jnp.linalg.solve(a_mat, rhs),
+      'residual_old': input_state['residual'],
+      'residual_new': input_state['residual'],
+      'aux_output_new': input_state['aux_output'],
       'tau': jnp.array(1.0),
   }
   output_delta_state = jax_utils.py_while(
       delta_cond_fun, delta_body_fun, initial_delta_state
   )
 
-  x_new_vec = input_state['x'] + output_delta_state['delta']
-  residual_vec_x_new, aux_output_x_new = residual_fun(x_new_vec)
   output_state = {
-      'x': x_new_vec,
-      'residual': residual_vec_x_new,
+      'x': input_state['x'] + output_delta_state['delta'],
+      'residual': output_delta_state['residual_new'],
       'iterations': jnp.array(input_state['iterations'][...]) + 1,
       'last_tau': output_delta_state['tau'],
-      'aux_output': aux_output_x_new,
+      'aux_output': output_delta_state['aux_output_new'],
   }
   if log_iterations:
     _log_iterations(
@@ -438,14 +436,16 @@ def delta_cond(
   """
   x_old = delta_state['x']
   x_new = x_old + delta_state['delta']
-  residual_vec_x_old, _ = residual_fun(x_old)
+  residual_vec_x_old = delta_state['residual_old']
   residual_scalar_x_old = residual_scalar(residual_vec_x_old)
   # Avoid sanity checking inside residual, since we directly
   # afterwards check sanity on the output (NaN checking)
   # TODO(b/312453092) consider instead sanity-checking x_new
   with jax_utils.enable_errors(False):
-    residual_vec_x_new, _ = residual_fun(x_new)
+    residual_vec_x_new, aux_output_x_new = residual_fun(x_new)
     residual_scalar_x_new = residual_scalar(residual_vec_x_new)
+    delta_state['residual_new'] = residual_vec_x_new
+    delta_state['aux_output_new'] = aux_output_x_new
   return jnp.bool_(
       jnp.logical_and(
           jnp.max(delta_state['delta']) > MIN_DELTA,
@@ -461,9 +461,8 @@ def delta_body(
     input_delta_state: dict[str, jax.Array], delta_reduction_factor: float
 ) -> dict[str, jax.Array]:
   """Reduces step size for this Newton iteration."""
-  output_delta_state = {
-      'x': input_delta_state['x'],
-      'delta': input_delta_state['delta'] * delta_reduction_factor,
-      'tau': jnp.array(input_delta_state['tau'][...]) * delta_reduction_factor,
-  }
-  return output_delta_state
+
+  return input_delta_state | dict(
+      delta=input_delta_state['delta'] * delta_reduction_factor,
+      tau=jnp.array(input_delta_state['tau'][...]) * delta_reduction_factor,
+  )
