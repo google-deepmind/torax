@@ -689,18 +689,43 @@ class StandardGeometryIntermediates:
     if self.flux_surf_avg_Bp2[-1] < 1e-10:
       # Calculate rhon
       rhon = np.sqrt(self.Phi / self.Phi[-1])
+
       # Create a lambda function for the Cubic spline fit.
-      spline = lambda rho, data, x: scipy.interpolate.CubicSpline(
-          rho[:-1], data[:-1]
+      spline = lambda rho, data, x, bc_type: scipy.interpolate.CubicSpline(
+          rho[:-1],
+          data[:-1],
+          bc_type=bc_type,
       )(x)
-      self.int_dl_over_Bp[-1] = spline(rhon, self.int_dl_over_Bp, 1.0)
-      self.flux_surf_avg_Bp2[-1] = spline(rhon, self.flux_surf_avg_Bp2, 1.0)
-      self.flux_surf_avg_1_over_R2[-1] = spline(
-          rhon, self.flux_surf_avg_1_over_R2, 1.0
+
+      # Decide on the bc_type based on demanding monotonic behaviour of g2.
+      # Natural bc_type means no second derivative at the spline edge, and will
+      # maintain monotonicity on extrapolation, but not recommended as default.
+      flux_surf_avg_Bp2_edge = spline(
+          rhon,
+          self.flux_surf_avg_Bp2,
+          1.0,
+          bc_type='not-a-knot',
       )
-      self.flux_surf_avg_RBp[-1] = spline(rhon, self.flux_surf_avg_RBp, 1.0)
-      self.flux_surf_avg_R2Bp2[-1] = spline(rhon, self.flux_surf_avg_R2Bp2, 1.0)
-      self.vpr[-1] = spline(rhon, self.vpr, 1.0)
+      int_dl_over_Bp_edge = spline(
+          rhon,
+          self.int_dl_over_Bp,
+          1.0,
+          bc_type='not-a-knot',
+      )
+      g2_edge_ratio = (flux_surf_avg_Bp2_edge * int_dl_over_Bp_edge**2) / (
+          self.flux_surf_avg_Bp2[-2] * self.int_dl_over_Bp[-2] ** 2
+      )
+      if g2_edge_ratio > 1.0:
+        bc_type = 'not-a-knot'
+      else:
+        bc_type = 'natural'
+      set_edge = lambda array: spline(rhon, array, 1.0, bc_type)
+      self.int_dl_over_Bp[-1] = set_edge(self.int_dl_over_Bp)
+      self.flux_surf_avg_Bp2[-1] = set_edge(self.flux_surf_avg_Bp2)
+      self.flux_surf_avg_1_over_R2[-1] = set_edge(self.flux_surf_avg_1_over_R2)
+      self.flux_surf_avg_RBp[-1] = set_edge(self.flux_surf_avg_RBp)
+      self.flux_surf_avg_R2Bp2[-1] = set_edge(self.flux_surf_avg_R2Bp2)
+      self.vpr[-1] = set_edge(self.vpr)
 
   @classmethod
   def from_chease(
