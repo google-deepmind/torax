@@ -22,6 +22,7 @@ import numpy as np
 from torax import geometry
 from torax import sim as sim_lib
 from torax import state
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
@@ -37,7 +38,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     """Tests that smoothing works as expected."""
     # Set up default config and geo
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=False,
             ne_bound_right=0.5,
         ),
@@ -55,9 +56,10 @@ class TransportSmoothingTest(parameterized.TestCase):
         )
     )
     transport_model = transport_model_builder()
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params,
+            runtime_params_provider,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             geo=geo,

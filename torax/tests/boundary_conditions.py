@@ -23,6 +23,7 @@ from torax import core_profile_setters
 from torax import geometry
 from torax import interpolated_param
 from torax.config import config_args
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
@@ -56,7 +57,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
     # Boundary conditions can be time-dependent, but when creating the initial
     # state, we want to grab the boundary condition params at time 0.
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti={0.0: {0.0: 27.7, 1.0: 1.0}},
             Te={0.0: {0.0: 42.0, 1.0: 0.0}, 1.0: 0},
             Ti_bound_right=27.7,
@@ -72,9 +73,10 @@ class BoundaryConditionsTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     initial_dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params,
+            runtime_params_provider,
             sources=source_models_builder.runtime_params,
             geo=geo,
         )
@@ -84,9 +86,10 @@ class BoundaryConditionsTest(parameterized.TestCase):
         geo,
         source_models=source_models,
     )
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params,
+            runtime_params_provider,
             sources=source_models_builder.runtime_params,
             t=0.5,
             geo=geo,

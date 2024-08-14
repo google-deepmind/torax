@@ -61,6 +61,7 @@ def build_consistent_dynamic_runtime_params_slice_and_geometry(
           transport_getter=lambda: None,
           sources_getter=lambda: sources,
           stepper_getter=lambda: None,
+          torax_mesh=geometry_provider.torax_mesh,
       ),
       geometry_provider,
   )

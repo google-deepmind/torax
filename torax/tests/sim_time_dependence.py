@@ -27,6 +27,8 @@ from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
 from torax import sim as sim_lib
 from torax import state
+from torax.config import numerics as numerics_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
@@ -54,11 +56,11 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
   ):
     """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti_bound_right={0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
             ne_bound_right=0.5,
         ),
-        numerics=general_runtime_params.Numerics(
+        numerics=numerics_lib.Numerics(
             adaptive_dt=adaptive_dt,
             fixed_dt=1.0,  # 1 time step in, the Ti_bound_right will be 2.0
             dt_reduction_factor=1.5,
@@ -91,6 +93,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
             transport_getter=lambda: transport_builder.runtime_params,
             sources_getter=lambda: source_models_builder.runtime_params,
             stepper_getter=stepper_runtime_params.RuntimeParams,
+            torax_mesh=geo.torax_mesh,
         )
     )
     initial_dynamic_runtime_params_slice = (

@@ -46,8 +46,9 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     # Must be circular for jext_hires call.
     geo = geometry.build_circular_geometry()
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
-        runtime_params,
+        runtime_params_provider,
         sources={
             'jext': source_builder.runtime_params,
         },
@@ -79,9 +80,10 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
           source_builder.runtime_params.mode = unsupported_mode
+          runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
           dynamic_slice = (
               runtime_params_slice.build_dynamic_runtime_params_slice(
-                  runtime_params,
+                  runtime_params_provider,
                   sources={
                       'jext': source_builder.runtime_params,
                   },
@@ -104,9 +106,10 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
         source_lib.ProfileType.FACE.get_profile_shape(geo),
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params,
+            runtime_params_provider,
             sources={
                 'jext': source_builder.runtime_params,
             },

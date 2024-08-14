@@ -24,9 +24,9 @@ import numpy as np
 from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider
-from torax import interpolated_param
 from torax import output
 from torax import state
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
 from torax.sources import source as source_lib
@@ -46,13 +46,10 @@ class StateHistoryTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
-            ne_bound_right=interpolated_param.InterpolatedVarSingleAxis(
-                (np.array([0.0, 1.0]), np.array([0.1, 2.0])),
-                interpolation_mode=interpolated_param.InterpolationMode.STEP,
-            ),
+            ne_bound_right=({0.0: 0.1, 1.0: 2.0}, 'step'),
         ),
     )
     source_models_builder = default_sources.get_default_sources_builder()

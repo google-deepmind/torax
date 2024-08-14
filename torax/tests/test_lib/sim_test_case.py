@@ -329,9 +329,10 @@ def make_frozen_optimizer_stepper(
     Stepper: the stepper.
   """
   # Get the dynamic runtime params for the start of the simulation.
+  runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
   dynamic_runtime_params_slice = (
       runtime_params_slice.build_dynamic_runtime_params_slice(
-          runtime_params=runtime_params,
+          runtime_params=runtime_params_provider,
           transport=transport_params,
           sources=source_models_builder.runtime_params,
           geo=geo,
@@ -371,9 +372,10 @@ def make_frozen_newton_raphson_stepper(
     Stepper: the stepper.
   """
   # Get the dynamic runtime params for the start of the simulation.
+  runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
   dynamic_runtime_params_slice = (
       runtime_params_slice.build_dynamic_runtime_params_slice(
-          runtime_params,
+          runtime_params_provider,
           geo=geo,
       )
   )

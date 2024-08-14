@@ -43,7 +43,10 @@ from typing import Callable
 
 import chex
 from torax import geometry
-from torax.config import runtime_params as general_runtime_params
+from torax.config import numerics
+from torax.config import plasma_composition
+from torax.config import profile_conditions
+from torax.config import runtime_params as general_runtime_params_lib
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
 from torax.transport_model import runtime_params as transport_model_params
@@ -86,9 +89,9 @@ class DynamicRuntimeParamsSlice:
 
   transport: transport_model_params.DynamicRuntimeParams
   stepper: stepper_params.DynamicRuntimeParams
-  plasma_composition: general_runtime_params.DynamicPlasmaComposition
-  profile_conditions: general_runtime_params.DynamicProfileConditions
-  numerics: general_runtime_params.DynamicNumerics
+  plasma_composition: plasma_composition.DynamicPlasmaComposition
+  profile_conditions: profile_conditions.DynamicProfileConditions
+  numerics: numerics.DynamicNumerics
   sources: Mapping[str, sources_params.DynamicRuntimeParams]
 
 
@@ -129,7 +132,7 @@ class StaticRuntimeParamsSlice:
 
 
 def build_dynamic_runtime_params_slice(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
+    runtime_params: general_runtime_params_lib.GeneralRuntimeParamsProvider,
     geo: geometry.Geometry,
     transport: transport_model_params.RuntimeParams | None = None,
     sources: dict[str, sources_params.RuntimeParams] | None = None,
@@ -140,23 +143,22 @@ def build_dynamic_runtime_params_slice(
   transport = transport or transport_model_params.RuntimeParams()
   sources = sources or {}
   stepper = stepper or stepper_params.RuntimeParams()
-  t = runtime_params.numerics.t_initial if t is None else t
+  t = (
+      runtime_params.runtime_params_config.numerics.t_initial
+      if t is None
+      else t
+  )
   # For each dataclass attribute under DynamicRuntimeParamsSlice, build those
   # objects explicitly, and then for all scalar attributes, fetch their values
   # directly from the input runtime params using config_args.get_init_kwargs.
-  output_logs = t == runtime_params.numerics.t_initial
+  dynamic_general_runtime_params = runtime_params.build_dynamic_params(t)
   return DynamicRuntimeParamsSlice(
       transport=transport.build_dynamic_params(t),
       stepper=stepper.build_dynamic_params(t),
       sources=_build_dynamic_sources(sources, t, geo),
-      plasma_composition=runtime_params.plasma_composition.build_dynamic_params(
-          t
-      ),
-      profile_conditions=runtime_params.profile_conditions.build_dynamic_params(
-          t,
-          geo, output_logs=output_logs,
-      ),
-      numerics=runtime_params.numerics.build_dynamic_params(t),
+      plasma_composition=dynamic_general_runtime_params.dynamic_plasma_composition,
+      profile_conditions=dynamic_general_runtime_params.dynamic_profile_conditions,
+      numerics=dynamic_general_runtime_params.dynamic_numerics,
   )
 
 
@@ -173,7 +175,7 @@ def _build_dynamic_sources(
 
 
 def build_static_runtime_params_slice(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
+    runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
     stepper: stepper_params.RuntimeParams | None = None,
 ) -> StaticRuntimeParamsSlice:
   """Builds a StaticRuntimeParamsSlice."""
@@ -208,12 +210,13 @@ class DynamicRuntimeParamsSliceProvider:
 
   def __init__(
       self,
-      runtime_params: general_runtime_params.GeneralRuntimeParams,
+      runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
       transport_getter: Callable[[], transport_model_params.RuntimeParams],
       sources_getter: Callable[[], dict[str, sources_params.RuntimeParams]],
       stepper_getter: Callable[[], stepper_params.RuntimeParams],
+      torax_mesh: geometry.Grid1D | None = None,
   ):
-    self._runtime_params = runtime_params
+    self._runtime_params = runtime_params.make_provider(torax_mesh)
     self._transport_runtime_params_getter = transport_getter
     self._sources_getter = sources_getter
     self._stepper_getter = stepper_getter

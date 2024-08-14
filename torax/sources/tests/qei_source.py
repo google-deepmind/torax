@@ -58,8 +58,9 @@ class QeiSourceTest(test_lib.SourceTestCase):
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
         runtime_params
     )
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
-        runtime_params,
+        runtime_params_provider,
         sources=source_models_builder.runtime_params,
         geo=geo,
     )
@@ -90,8 +91,9 @@ class QeiSourceTest(test_lib.SourceTestCase):
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
         runtime_params
     )
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
-        runtime_params,
+        runtime_params_provider,
         sources=source_models_builder.runtime_params,
         geo=geo,
     )
@@ -103,9 +105,10 @@ class QeiSourceTest(test_lib.SourceTestCase):
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
+          runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
           dynamic_slice = (
               runtime_params_slice.build_dynamic_runtime_params_slice(
-                  runtime_params,
+                  runtime_params_provider,
                   sources={
                       'qei_source': (
                           dataclasses.replace(

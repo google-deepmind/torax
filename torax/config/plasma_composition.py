@@ -37,8 +37,8 @@ class PlasmaComposition(
   # charge of main ion
   Zi: float = 1.0
   # needed for qlknn and fusion power
-  Zeff: interpolated_param.InterpolatedVarSingleAxisInput = 1.0
-  Zimp: interpolated_param.InterpolatedVarSingleAxisInput = (
+  Zeff: interpolated_param.TimeInterpolated = 1.0
+  Zimp: interpolated_param.TimeInterpolated = (
       10.0  # impurity charge state assumed for dilution
   )
 

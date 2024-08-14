@@ -191,6 +191,7 @@ def update_sim(
           transport_getter=transport_runtime_params_getter,
           sources_getter=lambda: sim.source_models_builder.runtime_params,
           stepper_getter=stepper_runtime_params_getter,
+          torax_mesh=geo_provider.torax_mesh,
       )
   )
 

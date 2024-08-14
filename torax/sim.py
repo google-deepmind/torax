@@ -891,6 +891,7 @@ def build_sim_object(
           transport_getter=lambda: transport_model_builder.runtime_params,
           sources_getter=lambda: source_models_builder.runtime_params,
           stepper_getter=lambda: stepper_builder.runtime_params,
+          torax_mesh=geometry_provider.torax_mesh,
       )
   )
   source_models = source_models_builder()

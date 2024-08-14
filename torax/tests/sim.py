@@ -26,6 +26,7 @@ import numpy as np
 import torax
 from torax import output
 from torax import sim as sim_lib
+from torax.config import numerics as numerics_lib
 from torax.sources import source_models as source_models_lib
 from torax.spectators import spectator as spectator_lib
 from torax.stepper import linear_theta_method
@@ -402,7 +403,7 @@ class SimTest(sim_test_case.SimTestCase):
     """Tests that running the stepper with all equations off is a no-op."""
 
     runtime_params = torax.general_runtime_params.GeneralRuntimeParams(
-        numerics=torax.general_runtime_params.Numerics(
+        numerics=numerics_lib.Numerics(
             t_final=0.1,
             ion_heat_eq=False,
             el_heat_eq=False,
