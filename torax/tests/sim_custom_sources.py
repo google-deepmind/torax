@@ -26,6 +26,8 @@ from torax import output
 from torax import sim as sim_lib
 from torax import state as state_lib
 from torax.config import config_args
+from torax.config import numerics as numerics_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import default_sources
@@ -162,13 +164,13 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     # Copy the test_particle_sources_constant config in here for clarity.
     # These are the common kwargs without any of the sources.
     test_particle_sources_constant_runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=True,
             nbar=0.85,
             nu=0,
             ne_bound_right=0.5,
         ),
-        numerics=general_runtime_params.Numerics(
+        numerics=numerics_lib.Numerics(
             ion_heat_eq=True,
             el_heat_eq=True,
             dens_eq=True,  # This is important to be True to test ne sources.

@@ -23,6 +23,7 @@ import chex
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
+from torax.config import config_args
 from typing_extensions import override
 
 
@@ -36,14 +37,14 @@ class ProfileConditions(
   # total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data
-  Ip: interpolated_param.InterpolatedVarSingleAxisInput = 15.0
+  Ip: interpolated_param.TimeInterpolated = 15.0
 
   # Temperature boundary conditions at r=Rmin. If this is `None` the boundary
   # condition will instead be taken from `Ti` and `Te` at rhon=1.
-  Ti_bound_right: interpolated_param.InterpolatedVarSingleAxisInput | None = (
+  Ti_bound_right: interpolated_param.TimeInterpolated | None = (
       None
   )
-  Te_bound_right: interpolated_param.InterpolatedVarSingleAxisInput | None = (
+  Te_bound_right: interpolated_param.TimeInterpolated | None = (
       None
   )
   # Prescribed or evolving values for temperature at different times.
@@ -71,7 +72,7 @@ class ProfileConditions(
   # In units of reference density if ne_is_fGW = False.
   # In Greenwald fraction if ne_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: interpolated_param.InterpolatedVarSingleAxisInput = 0.85
+  nbar: interpolated_param.TimeInterpolated = 0.85
   # Toggle units of nbar
   ne_is_fGW: bool = True
 
@@ -83,7 +84,7 @@ class ProfileConditions(
   # be set to `False` and `ne_bound_right_is_fGW` will be set to `ne_is_fGW`.
   # If `ne_bound_right` is not `None` then `ne_bound_right_is_absolute` will be
   # set to `True`.
-  ne_bound_right: interpolated_param.InterpolatedVarSingleAxisInput | None = (
+  ne_bound_right: interpolated_param.TimeInterpolated | None = (
       None
   )
   ne_bound_right_is_fGW: bool = False
@@ -91,18 +92,18 @@ class ProfileConditions(
 
   # Internal boundary condition (pedestal)
   # Do not set internal boundary condition if this is False
-  set_pedestal: interpolated_param.InterpolatedVarSingleAxisInput = True
+  set_pedestal: interpolated_param.TimeInterpolated = True
   # ion pedestal top temperature in keV
-  Tiped: interpolated_param.InterpolatedVarSingleAxisInput = 5.0
+  Tiped: interpolated_param.TimeInterpolated = 5.0
   # electron pedestal top temperature in keV
-  Teped: interpolated_param.InterpolatedVarSingleAxisInput = 5.0
+  Teped: interpolated_param.TimeInterpolated = 5.0
   # pedestal top electron density
   # In units of reference density if neped_is_fGW = False.
   # In Greenwald fraction if neped_is_fGW = True.
-  neped: interpolated_param.InterpolatedVarSingleAxisInput = 0.7
+  neped: interpolated_param.TimeInterpolated = 0.7
   neped_is_fGW: bool = False
   # Set ped top location.
-  Ped_top: interpolated_param.InterpolatedVarSingleAxisInput = 0.91
+  Ped_top: interpolated_param.TimeInterpolated = 0.91
 
   # current profiles (broad "Ohmic" + localized "external" currents)
   # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
@@ -127,7 +128,7 @@ class ProfileConditions(
           self.Te, torax_mesh.face_centers[-1]
       )
     else:
-      Te_bound_right = interpolated_param.InterpolatedVarSingleAxis(
+      Te_bound_right = config_args.get_interpolated_var_single_axis(
           self.Te_bound_right
       )
     if self.Ti_bound_right is None:
@@ -136,7 +137,7 @@ class ProfileConditions(
           self.Ti, torax_mesh.face_centers[-1]
       )
     else:
-      Ti_bound_right = interpolated_param.InterpolatedVarSingleAxis(
+      Ti_bound_right = config_args.get_interpolated_var_single_axis(
           self.Ti_bound_right
       )
     if self.ne_bound_right is None:
@@ -147,7 +148,7 @@ class ProfileConditions(
       self.ne_bound_right_is_absolute = False
       self.ne_bound_right_is_fGW = self.ne_is_fGW
     else:
-      ne_bound_right = interpolated_param.InterpolatedVarSingleAxis(
+      ne_bound_right = config_args.get_interpolated_var_single_axis(
           self.ne_bound_right
       )
       self.ne_bound_right_is_absolute = True
@@ -162,7 +163,7 @@ class ProfileConditions(
 
     return ProfileConditionsProvider(
         runtime_params_config=self,
-        Ip=interpolated_param.InterpolatedVarSingleAxis(self.Ip),
+        Ip=config_args.get_interpolated_var_single_axis(self.Ip),
         Ti_bound_right=Ti_bound_right,
         Te_bound_right=Te_bound_right,
         Ti=interpolated_param.InterpolatedVarTimeRho(
@@ -175,15 +176,15 @@ class ProfileConditions(
         ne=interpolated_param.InterpolatedVarTimeRho(
             self.ne, torax_mesh.cell_centers
         ),
-        nbar=interpolated_param.InterpolatedVarSingleAxis(self.nbar),
+        nbar=config_args.get_interpolated_var_single_axis(self.nbar),
         ne_bound_right=ne_bound_right,
-        set_pedestal=interpolated_param.InterpolatedVarSingleAxis(
+        set_pedestal=config_args.get_interpolated_var_single_axis(
             self.set_pedestal
         ),
-        Tiped=interpolated_param.InterpolatedVarSingleAxis(self.Tiped),
-        Teped=interpolated_param.InterpolatedVarSingleAxis(self.Teped),
-        neped=interpolated_param.InterpolatedVarSingleAxis(self.neped),
-        Ped_top=interpolated_param.InterpolatedVarSingleAxis(self.Ped_top),
+        Tiped=config_args.get_interpolated_var_single_axis(self.Tiped),
+        Teped=config_args.get_interpolated_var_single_axis(self.Teped),
+        neped=config_args.get_interpolated_var_single_axis(self.neped),
+        Ped_top=config_args.get_interpolated_var_single_axis(self.Ped_top),
     )
 
 

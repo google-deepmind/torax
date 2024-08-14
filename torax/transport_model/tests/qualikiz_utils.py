@@ -35,9 +35,10 @@ class QualikizUtilsTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params=runtime_params,
+            runtime_params=runtime_params_provider,
             transport=qlknn_wrapper.RuntimeParams(),
             sources=source_models_builder.runtime_params,
             geo=geo,
@@ -92,9 +93,10 @@ class QualikizUtilsTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params=runtime_params,
+            runtime_params=runtime_params_provider,
             transport=qlknn_wrapper.RuntimeParams(),
             sources=source_models_builder.runtime_params,
             geo=geo,

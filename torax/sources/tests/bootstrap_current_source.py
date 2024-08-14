@@ -52,9 +52,10 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources['j_bootstrap']
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params,
+            runtime_params_provider,
             sources=source_models_builder.runtime_params,
             geo=geo,
         )

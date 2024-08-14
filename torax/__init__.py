@@ -22,6 +22,9 @@ import jax
 from torax import fvm
 from torax import math_utils
 from torax import physics
+from torax.config import numerics
+from torax.config import plasma_composition
+from torax.config import profile_conditions
 from torax.config import runtime_params as general_runtime_params
 from torax.config.config_args import recursive_replace
 from torax.constants import CONSTANTS
@@ -46,6 +49,8 @@ from torax.stepper.stepper import Stepper
 from torax.time_step_calculator.chi_time_step_calculator import ChiTimeStepCalculator
 from torax.time_step_calculator.fixed_time_step_calculator import FixedTimeStepCalculator
 from torax.time_step_calculator.time_step_calculator import TimeStepCalculator
+
+
 # Unsure why but `from torax.config import GeneralRuntimeParams` doesn't work in
 # some circumstances.
 GeneralRuntimeParams = general_runtime_params.GeneralRuntimeParams

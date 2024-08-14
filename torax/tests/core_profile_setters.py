@@ -20,6 +20,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax import geometry
 from torax import physics
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.sources import source_models as source_models_lib
@@ -58,7 +59,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   ):
     """Tests that the temperature rho and time interpolation works."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti={0.0: {0.0: 12.0, 1.0: SMALL_VALUE}, 80.0: {0.0: 1.0}},
             Ti_bound_right=SMALL_VALUE,
             Te={0.0: {0.0: 12.0, 1.0: SMALL_VALUE}, 80.0: {0.0: 1.0}},
@@ -66,8 +67,9 @@ class CoreProfileSettersTest(parameterized.TestCase):
         ),
     )
     geo = geometry.build_circular_geometry(n_rho=4)
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params,
+        runtime_params_provider,
         t=t,
         geo=self.geo,
     )
@@ -101,7 +103,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   ):
     """Tests that the temperature boundary condition override works."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti={
                 0.0: {0.0: 12.0, 1.0: 2.0},
             },
@@ -114,8 +116,9 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
     t = 0.0
     geo = geometry.build_circular_geometry(n_rho=4)
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params,
+        runtime_params_provider,
         t=t,
         geo=self.geo,
     )
@@ -137,20 +140,21 @@ class CoreProfileSettersTest(parameterized.TestCase):
   def test_time_dependent_provider_with_temperature_is_time_dependent(self):
     """Tests that the runtime_params slice provider is time dependent for T."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti={0.0: {0.0: 12.0, 1.0: SMALL_VALUE}, 3.0: {0.0: SMALL_VALUE}},
             Ti_bound_right=SMALL_VALUE,
             Te={0.0: {0.0: 12.0, 1.0: SMALL_VALUE}, 3.0: {0.0: SMALL_VALUE}},
             Te_bound_right=SMALL_VALUE,
         ),
     )
+    geo = geometry.build_circular_geometry(n_rho=4)
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=geo.torax_mesh,
     )
-    geo = geometry.build_circular_geometry(n_rho=4)
 
     dynamic_runtime_params_slice = provider(t=1.0, geo=geo)
     Ti = core_profile_setters.updated_ion_temperature(
@@ -197,7 +201,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     """Tests that setting ne works."""
     expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
             ne_is_fGW=False,
             ne_bound_right_is_fGW=False,
@@ -211,6 +215,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
 
@@ -250,7 +255,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   ):
     """Tests that setting ne right boundary works."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
             ne_is_fGW=False,
             ne_bound_right_is_fGW=False,
@@ -265,6 +270,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
 
@@ -283,7 +289,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     """Tests that normalizing vs. not by nbar gives consistent results."""
     nbar = 1.0
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
             ne_is_fGW=False,
             nbar=nbar,
@@ -296,6 +302,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice_normalized = provider(t=1.0, geo=self.geo)
 
@@ -322,7 +329,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   ):
     """Tests setting the Greenwald fraction vs. not gives consistent results."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
             ne_is_fGW=True,
             nbar=1,
@@ -335,6 +342,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice_fGW = provider(t=1.0, geo=self.geo)
 
@@ -440,7 +448,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   ):
     """Tests that compute_boundary_conditions works."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
             ne_is_fGW=ne_is_fGW,
             nbar=1,
@@ -453,6 +461,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
 
@@ -495,7 +504,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   ):
     """Tests that runtime params validate boundary conditions."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             psi=psi,
         )
     )
@@ -506,6 +515,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: source_models_builder.runtime_params,
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -528,7 +538,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   ):
     """Tests that compute_boundary_conditions works for Te."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Te={0: {0: 1.5, 1: 1}},
             Te_bound_right=Te_bound_right,
         ),
@@ -538,6 +548,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
 
@@ -561,7 +572,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   ):
     """Tests that compute_boundary_conditions works for Ti."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti={0: {0: 1.5, 1: 1}},
             Ti_bound_right=Ti_bound_right,
         ),
@@ -571,6 +582,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
 

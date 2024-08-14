@@ -24,6 +24,8 @@ import numpy as np
 from torax import calc_coeffs
 from torax import core_profile_setters
 from torax import geometry
+from torax.config import numerics as numerics_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
@@ -369,10 +371,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
   ):
     """Tests that the linear solution for a linear problem yields zero residual and loss."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=False,
         ),
-        numerics=general_runtime_params.Numerics(
+        numerics=numerics_lib.Numerics(
             el_heat_eq=False,
         ),
     )
@@ -402,9 +404,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
         source_runtime_params.Mode.ZERO
     )
     source_models = source_models_builder()
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params,
+            runtime_params_provider,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
@@ -499,10 +502,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # flat, x_new should remain zero unless boundary conditions change.
     num_cells = 2
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=False,
         ),
-        numerics=general_runtime_params.Numerics(
+        numerics=numerics_lib.Numerics(
             el_heat_eq=False,
         ),
     )
@@ -531,9 +534,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
         source_runtime_params.Mode.ZERO
     )
     geo = geometry.build_circular_geometry(n_rho=num_cells)
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params,
+            runtime_params_provider,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
@@ -632,10 +636,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
     # flat, residual should remain zero unless boundary conditions change.
     num_cells = 2
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=False,
         ),
-        numerics=general_runtime_params.Numerics(
+        numerics=numerics_lib.Numerics(
             el_heat_eq=False,
         ),
     )
@@ -664,9 +668,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params,
+            runtime_params_provider,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,

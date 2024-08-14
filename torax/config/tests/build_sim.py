@@ -159,9 +159,10 @@ class BuildSimTest(parameterized.TestCase):
     self.assertEqual(runtime_params.numerics.q_correction_factor, 0.2)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
     geo = geometry.build_circular_geometry()
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params, t=1.5, geo=geo,
+            runtime_params_provider, t=1.5, geo=geo,
         )
     )
     np.testing.assert_allclose(
@@ -217,6 +218,7 @@ class BuildSimTest(parameterized.TestCase):
             transport_getter=lambda: None,
             sources_getter=lambda: None,
             stepper_getter=lambda: None,
+            torax_mesh=geo_provider.torax_mesh,
         )
     )
     geo = geo_provider(t=0)

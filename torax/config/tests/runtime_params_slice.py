@@ -21,7 +21,7 @@ from absl.testing import parameterized
 import jax
 import numpy as np
 from torax import geometry
-from torax import interpolated_param
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.sources import electron_density_sources
@@ -49,8 +49,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
     foo_jitted = jax.jit(foo)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
+    runtime_params_provider = runtime_params.make_provider(self._geo.torax_mesh)
     dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params, geo=self._geo,
+        runtime_params_provider, geo=self._geo,
     )
     # Make sure you can call the function with dynamic_slice as an arg.
     foo_jitted(dynamic_slice)
@@ -58,7 +59,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   def test_time_dependent_provider_is_time_dependent(self):
     """Tests that the runtime_params slice provider is time dependent."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti_bound_right={0.0: 2.0, 4.0: 4.0},
         ),
     )
@@ -67,6 +68,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         transport_getter=transport_params_lib.RuntimeParams,
         sources_getter=lambda: {},
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self._geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0, geo=self._geo)
     np.testing.assert_allclose(
@@ -82,30 +84,30 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     # All of the following parameters are time-dependent fields, but they can
     # be initialized in different ways.
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti_bound_right={0.0: 2.0, 4.0: 4.0},
             Te_bound_right=4.5,  # not time-dependent.
-            ne_bound_right=interpolated_param.InterpolatedVarSingleAxis(
-                {5.0: 6.0, 7.0: 8.0},
-                interpolation_mode=interpolated_param.InterpolationMode.STEP,
-            ),
+            ne_bound_right=({5.0: 6.0, 7.0: 8.0}, 'step'),
         ),
     )
+    runtime_params_provider = runtime_params.make_provider(self._geo.torax_mesh)
     np.testing.assert_allclose(
         runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-            runtime_params, t=2.0, geo=self._geo,
+            runtime_params_provider, t=2.0, geo=self._geo,
         ).profile_conditions.Ti_bound_right,
         3.0,
     )
     np.testing.assert_allclose(
         runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-            runtime_params, t=4.0, geo=self._geo,
+            runtime_params_provider, t=4.0, geo=self._geo,
         ).profile_conditions.Te_bound_right,
         4.5,
     )
     np.testing.assert_allclose(
         runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-            runtime_params, t=6.0, geo=self._geo,
+            runtime_params_provider,
+            t=6.0,
+            geo=self._geo,
         ).profile_conditions.ne_bound_right,
         6.0,
     )
@@ -113,7 +115,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   def test_pedestal_is_time_dependent(self):
     """Tests that the pedestal runtime params are time dependent."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal={0.0: True, 1.0: False},
             Tiped={0.0: 0.0, 1.0: 1.0},
             Teped={0.0: 1.0, 1.0: 2.0},
@@ -121,9 +123,10 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             Ped_top={0.0: 3.0, 1.0: 5.0},
         ),
     )
+    runtime_params_provider = runtime_params.make_provider(self._geo.torax_mesh)
     # Check at time 0.
     dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params, t=0.0, geo=self._geo,
+        runtime_params_provider, t=0.0, geo=self._geo,
     )
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, True)
@@ -133,7 +136,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     np.testing.assert_allclose(profile_conditions.Ped_top, 3.0)
     # And check after the time limit.
     dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params, t=1.0, geo=self._geo,
+        runtime_params_provider, t=1.0, geo=self._geo,
     )
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, False)
@@ -148,8 +151,11 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       # Check that the runtime params for the default ne sources are
       # time-dependent.
       runtime_params = general_runtime_params.GeneralRuntimeParams()
+      runtime_params_provider = runtime_params.make_provider(
+          self._geo.torax_mesh
+      )
       dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-          runtime_params=runtime_params,
+          runtime_params=runtime_params_provider,
           sources={
               'gas_puff_source': electron_density_sources.GasPuffRuntimeParams(
                   puff_decay_length={0.0: 0.0, 1.0: 4.0},
@@ -189,28 +195,23 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       print(pellet_source.pellet_width)
       print(type(pellet_source.pellet_width))
       np.testing.assert_allclose(pellet_source.pellet_width, 0.5)
-      np.testing.assert_allclose(
-          pellet_source.pellet_deposition_location, 1.0
-      )
+      np.testing.assert_allclose(pellet_source.pellet_deposition_location, 1.0)
       np.testing.assert_allclose(pellet_source.S_pellet_tot, 1.5)
-      np.testing.assert_allclose(
-          gas_puff_source.puff_decay_length, 2.0
-      )
+      np.testing.assert_allclose(gas_puff_source.puff_decay_length, 2.0)
       np.testing.assert_allclose(gas_puff_source.S_puff_tot, 2.5)
-      np.testing.assert_allclose(
-          nbi_particle_source.nbi_particle_width, 3.0
-      )
+      np.testing.assert_allclose(nbi_particle_source.nbi_particle_width, 3.0)
       np.testing.assert_allclose(
           nbi_particle_source.nbi_deposition_location, 3.5
       )
-      np.testing.assert_allclose(
-          nbi_particle_source.S_nbi_tot, 4.0
-      )
+      np.testing.assert_allclose(nbi_particle_source.S_nbi_tot, 4.0)
 
     with self.subTest('exponential_formula'):
       runtime_params = general_runtime_params.GeneralRuntimeParams()
+      runtime_params_provider = runtime_params.make_provider(
+          self._geo.torax_mesh
+      )
       dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-          runtime_params=runtime_params,
+          runtime_params=runtime_params_provider,
           sources={
               'gas_puff_source': sources_params_lib.RuntimeParams(
                   formula=formula_config.Exponential(
@@ -238,8 +239,11 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
     with self.subTest('gaussian_formula'):
       runtime_params = general_runtime_params.GeneralRuntimeParams()
+      runtime_params_provider = runtime_params.make_provider(
+          self._geo.torax_mesh
+      )
       dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-          runtime_params=runtime_params,
+          runtime_params=runtime_params_provider,
           sources={
               'gas_puff_source': sources_params_lib.RuntimeParams(
                   formula=formula_config.Gaussian(
@@ -276,6 +280,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             ),
         },
         stepper_getter=stepper_params_lib.RuntimeParams,
+        torax_mesh=self._geo.torax_mesh,
     )
     # While wext is positive, this should be fine.
     dcs = dcs_provider(t=0.0, geo=self._geo,)
@@ -348,7 +353,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       var_name,
   ):
     """Tests that the profile conditions can set the electron temperature."""
-    profile_conditions = general_runtime_params.ProfileConditions()
+    profile_conditions = profile_conditions_lib.ProfileConditions()
     boundary_var_name = var_name + '_bound_right'
     temperatures = {
         var_name: var,
@@ -359,8 +364,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         profile_conditions=profile_conditions,
     )
     geo = geometry.build_circular_geometry(n_rho=4)
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params=runtime_params,
+        runtime_params=runtime_params_provider,
         t=0.0,
         geo=geo,
     )
@@ -385,16 +391,17 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   ):
     """Tests that the profile conditions can set the electron temperature."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             ne_bound_right=ne_bound_right,
             ne_bound_right_is_fGW=ne_bound_right_is_fGW,
             ne_is_fGW=ne_is_fGW,
         ),
     )
     geo = geometry.build_circular_geometry(n_rho=4)
+    runtime_params_provider = runtime_params.make_provider(self._geo.torax_mesh)
 
     dcs = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params=runtime_params,
+        runtime_params=runtime_params_provider,
         t=0.0,
         geo=geo,
     )

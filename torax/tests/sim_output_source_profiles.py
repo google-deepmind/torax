@@ -60,9 +60,10 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     geo = geometry.build_circular_geometry()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
+    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
         runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params,
+            runtime_params_provider,
             sources=source_models_builder.runtime_params,
             geo=geo,
         )
@@ -173,6 +174,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             transport_getter=constant_transport_model.RuntimeParams,
             sources_getter=lambda: source_models_builder.runtime_params,
             stepper_getter=stepper_runtime_params.RuntimeParams,
+            torax_mesh=geo.torax_mesh,
         )
     )
     initial_dcs = dynamic_runtime_params_slice_provider(0.0, geo)

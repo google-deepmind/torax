@@ -18,6 +18,8 @@ import dataclasses
 from torax import geometry
 from torax import geometry_provider
 from torax import sim as sim_lib
+from torax.config import numerics as numerics_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
 from torax.sources import runtime_params as source_runtime_params
@@ -31,11 +33,11 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
   # This config based approach is deprecated.
   # Over time more will be built with pure Python constructors in `get_sim`.
   return general_runtime_params.GeneralRuntimeParams(
-      profile_conditions=general_runtime_params.ProfileConditions(
+      profile_conditions=profile_conditions_lib.ProfileConditions(
           set_pedestal=False,
           ne_bound_right=0.5,
       ),
-      numerics=general_runtime_params.Numerics(
+      numerics=numerics_lib.Numerics(
           dtmult=0.9,
           t_final=0.1,
           ion_heat_eq=True,

@@ -178,7 +178,7 @@ InterpolatedVarTimeRhoInput = (
 )
 
 
-def _convert_input_to_xs_ys(
+def convert_input_to_xs_ys(
     interp_input: InterpolatedVarSingleAxisInput,
 ) -> tuple[chex.Array, chex.Array]:
   """Converts config inputs into inputs suitable for constructors."""
@@ -220,7 +220,7 @@ def _convert_input_to_xs_ys(
     return jnp.array([0]), jnp.array([interp_input])
 
 
-def _is_bool(interp_input: InterpolatedVarSingleAxisInput) -> bool:
+def is_bool(interp_input: InterpolatedVarSingleAxisInput) -> bool:
   if isinstance(interp_input, dict):
     if not interp_input:
       raise ValueError('InterpolatedVarSingleAxisInput must include values.')
@@ -229,7 +229,7 @@ def _is_bool(interp_input: InterpolatedVarSingleAxisInput) -> bool:
   return isinstance(interp_input, bool)
 
 
-def _convert_value_to_floats(
+def convert_value_to_floats(
     interp_input: InterpolatedVarSingleAxisInput,
 ) -> InterpolatedVarSingleAxisInput:
   if isinstance(interp_input, dict):
@@ -266,10 +266,11 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
 
   def __init__(
       self,
-      value: InterpolatedVarSingleAxisInput,
+      value: tuple[chex.Array, chex.Array],
       interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
+      is_bool_param: bool = False,
   ):
     """Initializes InterpolatedVarSingleAxis.
 
@@ -279,11 +280,11 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
         given, then the output value will be constant. If no values are given in
         the dict, then an error is raised.
       interpolation_mode: Defines how to interpolate between values in `value`.
+      is_bool_param: If True, the input value is assumed to be a bool and is
+        converted to a float.
     """
-    self._is_bool_param = _is_bool(value)
-    if self._is_bool_param:
-      value = _convert_value_to_floats(value)
-    xs, ys = _convert_input_to_xs_ys(value)
+    xs, ys = value
+    self._is_bool_param = is_bool_param
     match interpolation_mode:
       case InterpolationMode.PIECEWISE_LINEAR:
         self._param = PiecewiseLinearInterpolatedParam(xs=xs, ys=ys)
@@ -397,7 +398,7 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
   ):
     """Loads the data from primitives."""
     # If a float is passed in, describes constant initial condition profile.
-    if isinstance(values, float):
+    if isinstance(values, (float, int)):
       values = {0.0: {0.0: values}}
     # If non-nested dict is passed in, it will describe the radial profile for
     # the initial condition."
@@ -413,10 +414,12 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     if not values:
       raise ValueError('Values mapping must not be empty.')
 
-    self.times_values = {
-        v: InterpolatedVarSingleAxis(values[v], rho_interpolation_mode)
-        for v in values.keys()
-    }
+    self.times_values = {}
+    for time in values.keys():
+      self.times_values[time] = InterpolatedVarSingleAxis(
+          convert_input_to_xs_ys(values[time]), rho_interpolation_mode,
+      )
+
     self.sorted_indices = jnp.array(sorted(values.keys()))
 
   def __init__(
@@ -440,34 +443,55 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     else:
       self._load_from_primitives(values, rho_interpolation_mode)
 
+    self.rho_interpolated_times = jnp.array([
+        self.times_values[float(t)].get_value(self._rho)
+        for t in self.sorted_indices
+    ])
+
   def get_value(self, x: chex.Numeric) -> chex.Array:
     """Returns the value of this parameter interpolated at x=time."""
     # Find the index that is to the right of x.
-    right = jnp.searchsorted(self.sorted_indices, x, side='left')
+    return _interpolate(x, self.sorted_indices, self.rho_interpolated_times)
 
-    # If time is either smaller or larger, than smallest and largest values
-    # we know how to interpolate for, use the boundary interpolater.
-    if right == 0:
-      return self.times_values[float(self.sorted_indices[0])].get_value(
-          self._rho
-      )
-    if right == len(self.sorted_indices):
-      return self.times_values[float(self.sorted_indices[-1])].get_value(
-          self._rho
-      )
 
-    # Interpolate between the two closest defined interpolaters.
-    left_time = float(self.sorted_indices[right - 1])
-    right_time = float(self.sorted_indices[right])
-    return self.times_values[left_time].get_value(self._rho) * (
-        right_time - x
-    ) / (right_time - left_time) + self.times_values[right_time].get_value(
-        self._rho
-    ) * (
-        x - left_time
-    ) / (
-        right_time - left_time
-    )
+@jax.jit
+def _interpolate(
+    t: chex.Numeric,
+    sorted_indices: chex.Array,
+    rho_interpolated_times: chex.Array,
+) -> chex.Array:
+  """Interpolates values at time t.
+
+  Args:
+    t: The time to interpolate at.
+    sorted_indices: The sorted indices of the times.
+    rho_interpolated_times: The values on rhon grid at times given by
+      sorted_indices.
+
+  Returns:
+    The interpolated values at time t.
+  """
+  # Find the index that is to the right of x.
+  right = jnp.searchsorted(sorted_indices, t, side='left')
+
+  left_time = sorted_indices[right - 1]
+  right_time = sorted_indices[right]
+
+  # Get the boundary interpolated rho values.
+  time_zero_array = lambda right: rho_interpolated_times[0]
+  time_end_array = lambda: rho_interpolated_times[-1]
+
+  # Get the value interpolated at t_min < t < t_max.
+  interpolated_array = lambda: (rho_interpolated_times[right - 1] * (
+      right_time - t
+  ) + rho_interpolated_times[right] * (
+      t - left_time
+  )) / (right_time - left_time)
+
+  cond_false_fn = lambda right: jax.lax.cond(
+      right == len(sorted_indices), time_end_array, interpolated_array,
+  )
+  return jax.lax.cond(right == 0, time_zero_array, cond_false_fn, right)
 
 
 # In runtime_params, users should be able to either specify the

@@ -402,7 +402,7 @@ class SimTest(sim_test_case.SimTestCase):
     """Tests that running the stepper with all equations off is a no-op."""
 
     runtime_params = torax.general_runtime_params.GeneralRuntimeParams(
-        numerics=torax.general_runtime_params.Numerics(
+        numerics=torax.numerics.Numerics(
             t_final=0.1,
             ion_heat_eq=False,
             el_heat_eq=False,

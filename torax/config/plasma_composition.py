@@ -20,6 +20,7 @@ import chex
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
+from torax.config import config_args
 
 
 # pylint: disable=invalid-name
@@ -36,8 +37,8 @@ class PlasmaComposition(
   # charge of main ion
   Zi: float = 1.0
   # needed for qlknn and fusion power
-  Zeff: interpolated_param.InterpolatedVarSingleAxisInput = 1.0
-  Zimp: interpolated_param.InterpolatedVarSingleAxisInput = (
+  Zeff: interpolated_param.TimeInterpolated = 1.0
+  Zimp: interpolated_param.TimeInterpolated = (
       10.0  # impurity charge state assumed for dilution
   )
 
@@ -47,8 +48,8 @@ class PlasmaComposition(
   ) -> PlasmaCompositionProvider:
     return PlasmaCompositionProvider(
         runtime_params_config=self,
-        Zeff=interpolated_param.InterpolatedVarSingleAxis(self.Zeff),
-        Zimp=interpolated_param.InterpolatedVarSingleAxis(self.Zimp),
+        Zeff=config_args.get_interpolated_var_single_axis(self.Zeff),
+        Zimp=config_args.get_interpolated_var_single_axis(self.Zimp),
     )
 
 

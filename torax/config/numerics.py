@@ -20,6 +20,7 @@ import chex
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
+from torax.config import config_args
 from typing_extensions import override
 
 
@@ -79,7 +80,7 @@ class Numerics(base.RuntimeParametersConfig):
   q_correction_factor: float = 1.25
   # 1/multiplication factor for sigma (conductivity) to reduce current
   # diffusion timescale to be closer to heat diffusion timescale
-  resistivity_mult: interpolated_param.InterpolatedVarSingleAxisInput = 1.0
+  resistivity_mult: interpolated_param.TimeInterpolated = 1.0
 
   # density profile info
   # Reference value for normalization
@@ -100,7 +101,7 @@ class Numerics(base.RuntimeParametersConfig):
     del torax_mesh
     return NumericsProvider(
         runtime_params_config=self,
-        resistitivity_mult=interpolated_param.InterpolatedVarSingleAxis(
+        resistitivity_mult=config_args.get_interpolated_var_single_axis(
             self.resistivity_mult
         ),
     )

@@ -19,6 +19,7 @@ import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import config_args
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 
 
@@ -96,7 +97,7 @@ class RuntimeParamsTest(parameterized.TestCase):
     """Tests that runtime params validate boundary conditions."""
     with self.assertRaises(ValueError):
       general_runtime_params.GeneralRuntimeParams(
-          profile_conditions=general_runtime_params.ProfileConditions(
+          profile_conditions=profile_conditions_lib.ProfileConditions(
               Ti={0.0: {0.0: 12.0, 0.95: 2.0}}
           )
       )
@@ -111,7 +112,7 @@ class RuntimeParamsTest(parameterized.TestCase):
   ):
     """Tests that runtime params validate boundary conditions."""
     general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti=Ti,
             Ti_bound_right=Ti_bound_right,
         )
