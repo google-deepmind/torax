@@ -1136,9 +1136,9 @@ def run_simulation(
   ):
     long_first_step = True
     logging.info(
-        'The first step took more than %.1f std devs longer than other steps.'
-        ' It likely was tracing and compiling the step_fn. It took %.2f '
-        'seconds of wall clock time.',
+        'The first step took more than %.1f std devs longer than other steps. '
+        'It likely was tracing and compiling the step_fn. It took %.2fs '
+        'of wall clock time.',
         std_devs,
         wall_clock_step_times[0],
     )
@@ -1151,7 +1151,7 @@ def run_simulation(
     # Don't include the long first step in the total time logged.
     wall_clock_time_elapsed -= wall_clock_step_times[0]
   logging.info(
-      'Simulated %.2f seconds of physics in %.2f seconds of wall clock time.',
+      'Simulated %.2fs of physics in %.2fs of wall clock time.',
       simulation_time,
       wall_clock_time_elapsed,
   )
