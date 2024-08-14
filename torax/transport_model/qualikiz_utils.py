@@ -299,7 +299,7 @@ def make_core_transport(
   # and set convection to then match total particle transport
   def Dscaled_approach() -> tuple[jax.Array, jax.Array]:
     chex.assert_rank(pfe, 1)
-    d_face_el = jnp.where(jnp.abs(pfe_SI) > 0.0, chi_face_el, 0.0)
+    d_face_el = chi_face_el
     v_face_el = (
         pfe_SI / core_profiles.ne.face_value()
         - qualikiz_inputs.Ane
