@@ -40,7 +40,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
       dict(
           ne={0.0: {0.0: 1.5, 1.0: 1.0}},
           ne_bound_right=interpolated_param.InterpolatedVarSingleAxis(
-              {0.0: 0.1, 0.1: 2.0},
+              (np.array([0.0, 0.1]), np.array([0.1, 2.0])),
               interpolation_mode=interpolated_param.InterpolationMode.STEP,
           ),
           expected_ne_bound_right=2.0,  # Value from boundary condition.

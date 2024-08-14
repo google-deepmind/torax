@@ -23,6 +23,7 @@ import chex
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
+from torax.config import config_args
 from typing_extensions import override
 
 
@@ -127,7 +128,7 @@ class ProfileConditions(
           self.Te, torax_mesh.face_centers[-1]
       )
     else:
-      Te_bound_right = interpolated_param.InterpolatedVarSingleAxis(
+      Te_bound_right = config_args.get_interpolated_var_single_axis(
           self.Te_bound_right
       )
     if self.Ti_bound_right is None:
@@ -136,7 +137,7 @@ class ProfileConditions(
           self.Ti, torax_mesh.face_centers[-1]
       )
     else:
-      Ti_bound_right = interpolated_param.InterpolatedVarSingleAxis(
+      Ti_bound_right = config_args.get_interpolated_var_single_axis(
           self.Ti_bound_right
       )
     if self.ne_bound_right is None:
@@ -147,7 +148,7 @@ class ProfileConditions(
       self.ne_bound_right_is_absolute = False
       self.ne_bound_right_is_fGW = self.ne_is_fGW
     else:
-      ne_bound_right = interpolated_param.InterpolatedVarSingleAxis(
+      ne_bound_right = config_args.get_interpolated_var_single_axis(
           self.ne_bound_right
       )
       self.ne_bound_right_is_absolute = True
@@ -162,7 +163,7 @@ class ProfileConditions(
 
     return ProfileConditionsProvider(
         runtime_params_config=self,
-        Ip=interpolated_param.InterpolatedVarSingleAxis(self.Ip),
+        Ip=config_args.get_interpolated_var_single_axis(self.Ip),
         Ti_bound_right=Ti_bound_right,
         Te_bound_right=Te_bound_right,
         Ti=interpolated_param.InterpolatedVarTimeRho(
@@ -175,15 +176,15 @@ class ProfileConditions(
         ne=interpolated_param.InterpolatedVarTimeRho(
             self.ne, torax_mesh.cell_centers
         ),
-        nbar=interpolated_param.InterpolatedVarSingleAxis(self.nbar),
+        nbar=config_args.get_interpolated_var_single_axis(self.nbar),
         ne_bound_right=ne_bound_right,
-        set_pedestal=interpolated_param.InterpolatedVarSingleAxis(
+        set_pedestal=config_args.get_interpolated_var_single_axis(
             self.set_pedestal
         ),
-        Tiped=interpolated_param.InterpolatedVarSingleAxis(self.Tiped),
-        Teped=interpolated_param.InterpolatedVarSingleAxis(self.Teped),
-        neped=interpolated_param.InterpolatedVarSingleAxis(self.neped),
-        Ped_top=interpolated_param.InterpolatedVarSingleAxis(self.Ped_top),
+        Tiped=config_args.get_interpolated_var_single_axis(self.Tiped),
+        Teped=config_args.get_interpolated_var_single_axis(self.Teped),
+        neped=config_args.get_interpolated_var_single_axis(self.neped),
+        Ped_top=config_args.get_interpolated_var_single_axis(self.Ped_top),
     )
 
 

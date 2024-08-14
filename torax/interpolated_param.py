@@ -178,7 +178,7 @@ InterpolatedVarTimeRhoInput = (
 )
 
 
-def _convert_input_to_xs_ys(
+def convert_input_to_xs_ys(
     interp_input: InterpolatedVarSingleAxisInput,
 ) -> tuple[chex.Array, chex.Array]:
   """Converts config inputs into inputs suitable for constructors."""
@@ -229,7 +229,7 @@ def _is_bool(interp_input: InterpolatedVarSingleAxisInput) -> bool:
   return isinstance(interp_input, bool)
 
 
-def _convert_value_to_floats(
+def convert_value_to_floats(
     interp_input: InterpolatedVarSingleAxisInput,
 ) -> InterpolatedVarSingleAxisInput:
   if isinstance(interp_input, dict):
@@ -241,13 +241,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
   """Parameter that may vary based on an input coordinate.
 
   This class is useful for defining time-dependent runtime parameters, but can
-  be used to define any parameters that vary across some range. This class is
-  the main "user-facing" class defined in this module.
-
-  This class is initialised with either primitives or an xr.DataArray. In the
-  case of using an xr.DataArray, the input must have a single coordinate. The
-  values of the data array are expected to be a 1D array representing the
-  values at each time.
+  be used to define any parameters that vary across some range.
 
   This function allows the interpolation of a 1d array xs, against either a 1d
   or 2d array ys. For example, xs can be time, and ys either a 1d array of
@@ -266,24 +260,25 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
 
   def __init__(
       self,
-      value: InterpolatedVarSingleAxisInput,
+      value: tuple[chex.Array, chex.Array],
       interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
+      is_bool_param: bool = False,
   ):
     """Initializes InterpolatedVarSingleAxis.
 
     Args:
-      value: A single float or a dictionary mapping input coordinates (e.g.
-        time) to desired values at those coordinates. If only a single value is
-        given, then the output value will be constant. If no values are given in
-        the dict, then an error is raised.
+      value: A tuple of `(xs, ys)` where `xs` is assumed to be a 1D array and
+        `ys` can either be a 1D or 2D array with ys.shape[0] = len(xs).
+        Additionally it is expected that `xs` is sorted and an error will be
+        raised at runtime if this is not the case.
       interpolation_mode: Defines how to interpolate between values in `value`.
+      is_bool_param: If True, the input value is assumed to be a bool and is
+        converted to a float.
     """
-    self._is_bool_param = _is_bool(value)
-    if self._is_bool_param:
-      value = _convert_value_to_floats(value)
-    xs, ys = _convert_input_to_xs_ys(value)
+    xs, ys = value
+    self._is_bool_param = is_bool_param
     match interpolation_mode:
       case InterpolationMode.PIECEWISE_LINEAR:
         self._param = PiecewiseLinearInterpolatedParam(xs=xs, ys=ys)
@@ -397,7 +392,7 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
   ):
     """Loads the data from primitives."""
     # If a float is passed in, describes constant initial condition profile.
-    if isinstance(values, float):
+    if isinstance(values, (float, int)):
       values = {0.0: {0.0: values}}
     # If non-nested dict is passed in, it will describe the radial profile for
     # the initial condition."
@@ -413,10 +408,12 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     if not values:
       raise ValueError('Values mapping must not be empty.')
 
-    self.times_values = {
-        v: InterpolatedVarSingleAxis(values[v], rho_interpolation_mode)
-        for v in values.keys()
-    }
+    self.times_values = {}
+    for time in values.keys():
+      self.times_values[time] = InterpolatedVarSingleAxis(
+          convert_input_to_xs_ys(values[time]), rho_interpolation_mode,
+      )
+
     self.sorted_indices = jnp.array(sorted(values.keys()))
 
   def __init__(

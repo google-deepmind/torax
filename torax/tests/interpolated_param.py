@@ -29,8 +29,8 @@ class InterpolatedParamTest(parameterized.TestCase):
   """Unit tests for the `torax.interpolated_param` module."""
 
   @parameterized.parameters(
-      (42.0,),
-      (True,),
+      ((np.array([0.0]), np.array([42.0,])),),
+      ((np.array([0.0]), np.array([1.0,])),),
   )
   def test_single_value_param_always_return_constant(self, expected_output):
     """Tests that when passed a single value this is always returned."""
@@ -38,128 +38,107 @@ class InterpolatedParamTest(parameterized.TestCase):
         expected_output
     )
     np.testing.assert_allclose(
-        single_value_param.get_value(-1), expected_output
+        single_value_param.get_value(-1), expected_output[1]
     )
-    np.testing.assert_allclose(single_value_param.get_value(0), expected_output)
-    np.testing.assert_allclose(single_value_param.get_value(1), expected_output)
+    np.testing.assert_allclose(
+        single_value_param.get_value(0), expected_output[1]
+    )
+    np.testing.assert_allclose(
+        single_value_param.get_value(1), expected_output[1]
+    )
 
   @parameterized.parameters(
       (
-          {0.0: 0.0, 1.0: 1.0, 2.0: 2.0, 3.0: 3.0},
+          (np.array([0.0, 1.0, 2.0, 3.0]), np.array([0.0, 1.0, 2.0, 3.0])),
           1.5,
           1.5,
           interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
       (
-          {0.0: 1.0, 1.0: 2.0, 2.0: 4, 3.0: 8},
+          (np.array([0.0, 1.0, 2.0, 3.0]), np.array([1.0, 2.0, 4.0, 8.0])),
           0.5,
           1.5,
           interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
       (
-          {0.0: 1.0, 1.0: 2.0, 2.0: 4, 3.0: 8},
+          (np.array([0.0, 1.0, 2.0, 3.0]), np.array([1.0, 2.0, 4.0, 8.0])),
           1.5,
           3,
           interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
       (
-          {1.0: 1.0, 3.0: 2.0, 5.0: 4, 7.0: 8},
+          (np.array([1.0, 3.0, 5.0, 7.0]), np.array([1.0, 2.0, 4.0, 8.0])),
           6.5,
           7,
           interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
       # outside range uses last value.
       (
-          {12.0: 10.0, 14.0: 9.0, 18: 8.0, 19.0: 4.0},
+          (np.array([12.0, 14.0, 18.0, 19.0]), np.array([10.0, 9.0, 8.0, 4.0])),
           20,
           4,
           interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
-      # sorts the keys.
       (
-          {0.0: 1.0, 5.0: 0.0, 2.0: 4.0, 3.0: 4.0},
-          1.0,
-          2.5,
-          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
-      ),
-      (
-          {0.0: 1.0, 5.0: 0.0, 2.0: 4.0, 3.0: 4.0},
-          2.5,
-          4.0,
-          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
-      ),
-      (
-          7.0,
+          (np.array([0.0]), np.array([7.0,]),),
           1.0,
           7.0,
           interpolated_param.InterpolationMode.STEP,
       ),
       (
-          {0.0: 1.0, 2.0: 7.0, 3.0: -1.0},
+          (np.array([0.0, 2.0, 3.0]), np.array([1.0, 7.0, -1.0])),
           -1.0,
           1.0,
           interpolated_param.InterpolationMode.STEP,
       ),
       (
-          {0.0: 1.0, 2.0: 7.0, 3.0: -1.0},
+          (np.array([0.0, 2.0, 3.0]), np.array([1.0, 7.0, -1.0])),
           1.0,
           1.0,
           interpolated_param.InterpolationMode.STEP,
       ),
       (
-          {0.0: 1.0, 2.0: 7.0, 3.0: -1.0},
+          (np.array([0.0, 2.0, 3.0]), np.array([1.0, 7.0, -1.0])),
           2.6,
           7.0,
           interpolated_param.InterpolationMode.STEP,
       ),
       (
-          {0.0: 1.0, 2.0: 7.0, 3.0: -1.0},
+          (np.array([0.0, 2.0, 3.0]), np.array([1.0, 7.0, -1.0])),
           4.0,
           -1.0,
           interpolated_param.InterpolationMode.STEP,
       ),
       (
-          {0.0: False, 2.0: True, 3.0: False},
+          (np.array([0.0, 2.0, 3.0]), np.array([0.0, 1.0, 0.0])),
           1.5,
-          True,
+          0.75,
           interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
       (
-          {0.0: False, 2.0: True, 3.0: False},
+          (np.array([0.0, 2.0, 3.0]), np.array([0.0, 1.0, 0.0])),
           1.0,
-          False,
+          0.0,
           interpolated_param.InterpolationMode.STEP,
       ),
       (
-          {0.0: False, 2.0: True, 3.0: False},
+          (np.array([0.0, 2.0, 3.0]), np.array([0.0, 1.0, 0.0])),
           2.5,
-          True,
+          1.0,
           interpolated_param.InterpolationMode.STEP,
       ),
       (
-          (np.array([0.0, 1.0, 2.0, 3.0]), np.array([1.0, 2.0, 4.0, 8.0])),
-          1.5,
-          3.0,
-          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
-      ),
-      (
-          (np.array([0.0, 2.0, 1.0, 3.0]), np.array([1.0, 4.0, 2.0, 8.0])),
-          1.5,
-          3.0,
-          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
-      ),
-      (
-          (np.array([0.0, 1.0]), np.array([[3., 4., 5.], [6., 7., 8.]])),
+          (np.array([0.0, 1.0]), np.array([[3.0, 4.0, 5.0], [6.0, 7.0, 8.0]])),
           0.5,
           np.array([4.5, 5.5, 6.5]),
           interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
       ),
       (
-          (np.array([0.0, 1.0]), np.array([[3., 4., 5.], [6., 7., 8.]])),
+          (np.array([0.0, 1.0]), np.array([[3.0, 4.0, 5.0], [6.0, 7.0, 8.0]])),
           0.5,
-          np.array([3., 4., 5.]),
+          np.array([3.0, 4.0, 5.0]),
           interpolated_param.InterpolationMode.STEP,
-      )
+      ),
   )
   def test_multi_value_range_returns_expected_output(
       self,
@@ -172,17 +151,10 @@ class InterpolatedParamTest(parameterized.TestCase):
     multi_val_range = interpolated_param.InterpolatedVarSingleAxis(
         values, interpolation_mode
     )
-    if isinstance(expected_output, bool):
-      self.assertEqual(multi_val_range.get_value(x=x), expected_output)
-    else:
-      np.testing.assert_allclose(
-          multi_val_range.get_value(x=x),
-          expected_output,
-      )
-
-  def test_dict_range_input_must_have_values(self):
-    with self.assertRaises(ValueError):
-      interpolated_param.InterpolatedVarSingleAxis({})
+    np.testing.assert_allclose(
+        multi_val_range.get_value(x=x),
+        expected_output,
+    )
 
   @parameterized.parameters(
       (interpolated_param.PiecewiseLinearInterpolatedParam,),
@@ -240,27 +212,6 @@ class InterpolatedParamTest(parameterized.TestCase):
           xs=jnp.array([4.0, 2.0, 1.0, 3.0]),
           ys=jnp.array([1.0, 2.0, 3.0, 4.0]),
       )
-
-  def test_interpolated_var_single_axis_parses_xr_array_input(self):
-    """Tests that InterpolatedVarSingleAxis parses xr.DataArray inputs correctly."""
-    array = xr.DataArray(
-        data=np.array([1.0, 2.0, 4.0]),
-        coords={'time': [0.0, 1.0, 2.0]},
-    )
-
-    interpolated_var_single_axis = interpolated_param.InterpolatedVarSingleAxis(
-        value=array,
-    )
-
-    np.testing.assert_allclose(
-        interpolated_var_single_axis.get_value(x=0.0,), np.array([1.0]),
-    )
-    np.testing.assert_allclose(
-        interpolated_var_single_axis.get_value(x=2.0,), np.array([4.0]),
-    )
-    np.testing.assert_allclose(
-        interpolated_var_single_axis.get_value(x=0.5,), np.array([1.5]),
-    )
 
   @parameterized.named_parameters(
       # One line cases.
@@ -497,6 +448,64 @@ class InterpolatedParamTest(parameterized.TestCase):
     fixed_param = interpolated_param.FixedParam(value=1.0)
     np.testing.assert_allclose(fixed_param.get_value(x=0.0), 1.0)
     np.testing.assert_allclose(fixed_param.get_value(x=1.0), 1.0)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='xarray',
+          values=xr.DataArray(
+              data=np.array([1.0, 2.0, 4.0]),
+              coords={'time': [0.0, 1.0, 2.0]},
+          ),
+          expected_output=(
+              np.array([0.0, 1.0, 2.0]),
+              np.array([1.0, 2.0, 4.0]),
+          ),
+      ),
+      dict(
+          testcase_name='constant_float',
+          values=42.0,
+          expected_output=(np.array([0.0]), np.array([42.0])),
+      ),
+      dict(
+          testcase_name='mapping',
+          values={0.0: 0.0, 1.0: 1.0, 2.0: 2.0, 3.0: 3.0},
+          expected_output=(
+              np.array([0.0, 1.0, 2.0, 3.0]),
+              np.array([0.0, 1.0, 2.0, 3.0]),
+          ),
+      ),
+      dict(
+          testcase_name='numpy array',
+          values=(
+              np.array([
+                  0.0,
+                  1.0,
+                  2.0,
+              ]),
+              np.array([1.0, 2.0, 4.0]),
+          ),
+          expected_output=(
+              np.array([0.0, 1.0, 2.0]),
+              np.array([1.0, 2.0, 4.0]),
+          ),
+      ),
+      dict(
+          testcase_name='batched numpy array',
+          values=(
+              np.array([0.0, 1.0]),
+              np.array([[3.0, 4.0, 5.0], [6.0, 7.0, 8.0]]),
+          ),
+          expected_output=(
+              np.array([0.0, 1.0]),
+              np.array([[3.0, 4.0, 5.0], [6.0, 7.0, 8.0]]),
+          ),
+      ),
+  )
+  def test_convert_input_to_xs_ys(self, values, expected_output):
+    """Test input conversion to numpy arrays."""
+    output = interpolated_param.convert_input_to_xs_ys(values)
+    np.testing.assert_allclose(output[0], expected_output[0])
+    np.testing.assert_allclose(output[1], expected_output[1])
 
 
 if __name__ == '__main__':

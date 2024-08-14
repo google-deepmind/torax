@@ -83,13 +83,49 @@ def _input_is_an_interpolated_var_single_axis(
     return _check(field_type)
 
 
-def _get_interpolated_var_single_axis(
+def _is_bool(
+    interp_input: interpolated_param.InterpolatedVarSingleAxisInput
+) -> bool:
+  if isinstance(interp_input, dict):
+    if not interp_input:
+      raise ValueError('InterpolatedVarSingleAxisInput must include values.')
+    value = list(interp_input.values())[0]
+    return isinstance(value, bool)
+  return isinstance(interp_input, bool)
+
+
+def _convert_value_to_floats(
+    interp_input: interpolated_param.InterpolatedVarSingleAxisInput,
+) -> interpolated_param.InterpolatedVarSingleAxisInput:
+  if isinstance(interp_input, dict):
+    return {key: float(value) for key, value in interp_input.items()}
+  return float(interp_input)
+
+
+def get_interpolated_var_single_axis(
     param_or_param_input: interpolated_param.TimeInterpolated,
 ) -> interpolated_param.InterpolatedVarSingleAxis:
-  """Interpolates the input param at time t."""
+  """Interpolates the input param at time t.
+
+  Args:
+    param_or_param_input: Either a "param"
+       `interpolated_param.InterpolatedVarSingleAxis` or a "param_input" that
+       can be used to construct `interpolated_param.InterpolatedVarSingleAxis`.
+       In the latter case this can be either:
+       - Primitives
+       In the case of using primitives the value can be either:
+       - An xr.DataArray
+       - A tuple(axis_array, values_array)
+
+    See torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars
+    for more information on the supported "param_input"s.
+  Returns:
+    A constructed interpolated var.
+  """
   if not isinstance(
       param_or_param_input, interpolated_param.InterpolatedVarSingleAxis
   ):
+    interpolation_mode = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
     # The param is a InterpolatedVarSingleAxisInput, so we need to convert it to
     # an InterpolatedVarSingleAxis first.
     if isinstance(param_or_param_input, tuple):
@@ -101,20 +137,26 @@ def _get_interpolated_var_single_axis(
             f'interpolated. Given: {param_or_param_input}.'
         )
       if isinstance(param_or_param_input[1], str):
-        param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
-            value=param_or_param_input[0],
-            interpolation_mode=interpolated_param.InterpolationMode[
-                param_or_param_input[1].upper()
-            ],
-        )
-      else:
-        param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
-            value=param_or_param_input,
-        )
-    else:
-      param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
-          value=param_or_param_input,
+        interpolation_mode = interpolated_param.InterpolationMode[
+            param_or_param_input[1].upper()
+        ]
+        param_or_param_input = param_or_param_input[0]
+
+    if _is_bool(param_or_param_input):
+      param_or_param_input = _convert_value_to_floats(
+          param_or_param_input
       )
+      is_bool_param = True
+    else:
+      is_bool_param = False
+
+    xs, ys = interpolated_param.convert_input_to_xs_ys(param_or_param_input)
+
+    param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
+        value=(xs, ys),
+        interpolation_mode=interpolation_mode,
+        is_bool_param=is_bool_param,
+    )
   return param_or_param_input
 
 
@@ -122,7 +164,7 @@ def _interpolate_var_single_axis(
     param_or_param_input: interpolated_param.TimeInterpolated,
     t: chex.Numeric,
 ) -> chex.Array:
-  return _get_interpolated_var_single_axis(param_or_param_input).get_value(t)
+  return get_interpolated_var_single_axis(param_or_param_input).get_value(t)
 
 
 def _input_is_an_interpolated_var_time_rho(
@@ -257,7 +299,7 @@ def get_interpolated_vars(
       params[field.name] = config_value
     elif _input_is_an_interpolated_var_single_axis(
         field.name, input_config_fields_to_types):
-      params[field.name] = _get_interpolated_var_single_axis(config_value)
+      params[field.name] = get_interpolated_var_single_axis(config_value)
     elif _input_is_an_interpolated_var_time_rho(
         field.name, input_config_fields_to_types):
       if not torax_mesh:

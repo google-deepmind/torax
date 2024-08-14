@@ -86,7 +86,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             Ti_bound_right={0.0: 2.0, 4.0: 4.0},
             Te_bound_right=4.5,  # not time-dependent.
             ne_bound_right=interpolated_param.InterpolatedVarSingleAxis(
-                {5.0: 6.0, 7.0: 8.0},
+                (np.array([5.0, 7.0]), np.array([6.0, 8.0])),
                 interpolation_mode=interpolated_param.InterpolationMode.STEP,
             ),
         ),

@@ -20,6 +20,7 @@ import chex
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
+from torax.config import config_args
 
 
 # pylint: disable=invalid-name
@@ -47,8 +48,8 @@ class PlasmaComposition(
   ) -> PlasmaCompositionProvider:
     return PlasmaCompositionProvider(
         runtime_params_config=self,
-        Zeff=interpolated_param.InterpolatedVarSingleAxis(self.Zeff),
-        Zimp=interpolated_param.InterpolatedVarSingleAxis(self.Zimp),
+        Zeff=config_args.get_interpolated_var_single_axis(self.Zeff),
+        Zimp=config_args.get_interpolated_var_single_axis(self.Zimp),
     )
 
 

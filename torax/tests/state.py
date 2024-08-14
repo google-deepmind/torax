@@ -178,7 +178,7 @@ class InitialStatesTest(parameterized.TestCase):
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
             ne_bound_right=interpolated_param.InterpolatedVarSingleAxis(
-                {0.0: 0.1, 1.0: 2.0},
+                (np.array([0.0, 1.0]), np.array([0.1, 2.0])),
                 interpolation_mode=interpolated_param.InterpolationMode.STEP,
             ),
             normalize_to_nbar=False,
