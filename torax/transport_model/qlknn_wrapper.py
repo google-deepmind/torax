@@ -71,6 +71,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # ITG electron heat flux in shaped, high-beta scenarios.
   # This is a correction factor
   ITG_flux_ratio_correction: float = 2.0
+  # Correction factor to account for multiscale correction in Qualikiz ETG.
+  # https://gitlab.com/qualikiz-group/QuaLiKiz/-/commit/5bcd3161c1b08e0272ab3c9412fec7f9345a2eef
+  ETG_correction_factor: float = 1.0 / 3.0
   # effective D / effective V approach for particle transport
   DVeff: bool = False
   # minimum |R/Lne| below which effective V is used instead of effective D
@@ -92,6 +95,7 @@ class DynamicRuntimeParams(qualikiz_utils.QualikizDynamicRuntimeParams):
   include_TEM: bool
   include_ETG: bool
   ITG_flux_ratio_correction: float
+  ETG_correction_factor: float
 
 
 _EPSILON_NN: Final[float] = (
@@ -307,6 +311,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
         * runtime_config_inputs.transport.ITG_flux_ratio_correction
         + model_output['qe_tem'].squeeze()
         + model_output['qe_etg'].squeeze()
+        * runtime_config_inputs.transport.ETG_correction_factor
     )
 
     pfe = model_output['pfe_itg'].squeeze() + model_output['pfe_tem'].squeeze()
