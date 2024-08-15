@@ -171,9 +171,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     dynamic_runtime_params_slice_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport_getter=constant_transport_model.RuntimeParams,
-            sources_getter=lambda: source_models_builder.runtime_params,
-            stepper_getter=stepper_runtime_params.RuntimeParams,
+            transport=constant_transport_model.RuntimeParams(),
+            sources=source_models_builder.runtime_params,
+            stepper=stepper_runtime_params.RuntimeParams(),
             torax_mesh=geo.torax_mesh,
         )
     )

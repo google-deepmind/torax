@@ -65,9 +65,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport_getter=transport_params_lib.RuntimeParams,
-        sources_getter=lambda: {},
-        stepper_getter=stepper_params_lib.RuntimeParams,
+        transport=transport_params_lib.RuntimeParams(),
+        sources={},
+        stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self._geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0, geo=self._geo)
@@ -273,13 +273,13 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     dcs_provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport_getter=transport_params_lib.RuntimeParams,
-        sources_getter=lambda: {
+        transport=transport_params_lib.RuntimeParams(),
+        sources={
             'jext': external_current_source.RuntimeParams(
                 wext={0.0: 1.0, 1.0: -1.0}
             ),
         },
-        stepper_getter=stepper_params_lib.RuntimeParams,
+        stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self._geo.torax_mesh,
     )
     # While wext is positive, this should be fine.

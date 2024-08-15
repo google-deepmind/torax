@@ -90,9 +90,9 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     dynamic_runtime_params_slice_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport_getter=lambda: transport_builder.runtime_params,
-            sources_getter=lambda: source_models_builder.runtime_params,
-            stepper_getter=stepper_runtime_params.RuntimeParams,
+            transport=transport_builder.runtime_params,
+            sources=source_models_builder.runtime_params,
+            stepper=stepper_runtime_params.RuntimeParams(),
             torax_mesh=geo.torax_mesh,
         )
     )

@@ -39,7 +39,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import dataclasses
-from typing import Callable
 
 import chex
 from torax import geometry
@@ -206,20 +205,24 @@ class DynamicRuntimeParamsSliceProvider:
   corresponding geometry.
 
   See `run_simulation()` for how this callable is used.
+
+  After this object has been constructed changes to any runtime params may not
+  be picked up if they are updated and it is safest to construct a new provider
+  object (if for example updating the simulation).
   """
 
   def __init__(
       self,
       runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
-      transport_getter: Callable[[], transport_model_params.RuntimeParams],
-      sources_getter: Callable[[], dict[str, sources_params.RuntimeParams]],
-      stepper_getter: Callable[[], stepper_params.RuntimeParams],
+      transport: transport_model_params.RuntimeParams,
+      sources: dict[str, sources_params.RuntimeParams],
+      stepper: stepper_params.RuntimeParams,
       torax_mesh: geometry.Grid1D | None = None,
   ):
     self._runtime_params = runtime_params.make_provider(torax_mesh)
-    self._transport_runtime_params_getter = transport_getter
-    self._sources_getter = sources_getter
-    self._stepper_getter = stepper_getter
+    self._transport_runtime_params = transport
+    self._sources = sources
+    self._stepper = stepper
 
   def __call__(
       self,
@@ -229,9 +232,9 @@ class DynamicRuntimeParamsSliceProvider:
     """Returns a DynamicRuntimeParamsSlice to use during time t of the sim."""
     return build_dynamic_runtime_params_slice(
         runtime_params=self._runtime_params,
-        transport=self._transport_runtime_params_getter(),
-        sources=self._sources_getter(),
-        stepper=self._stepper_getter(),
+        transport=self._transport_runtime_params,
+        sources=self._sources,
+        stepper=self._stepper,
         t=t,
         geo=geo,
     )

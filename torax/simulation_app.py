@@ -160,13 +160,9 @@ def update_sim(
     sim: sim_lib.Sim,
     runtime_params: torax.GeneralRuntimeParams,
     geo_provider: geometry_provider.GeometryProvider,
-    transport_runtime_params_getter: Callable[
-        [], transport_runtime_params_lib.RuntimeParams
-    ],
+    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
-    stepper_runtime_params_getter: Callable[
-        [], stepper_runtime_params_lib.RuntimeParams
-    ],
+    stepper_runtime_params: stepper_runtime_params_lib.RuntimeParams,
 ) -> sim_lib.Sim:
   """Updates the sim with a new set of runtime params and geometry."""
   # NOTE: This function will NOT update any of the following:
@@ -182,15 +178,15 @@ def update_sim(
   static_runtime_params_slice = (
       runtime_params_slice.build_static_runtime_params_slice(
           runtime_params,
-          stepper=stepper_runtime_params_getter(),
+          stepper=stepper_runtime_params,
       )
   )
   dynamic_runtime_params_slice_provider = (
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
-          transport_getter=transport_runtime_params_getter,
-          sources_getter=lambda: sim.source_models_builder.runtime_params,
-          stepper_getter=stepper_runtime_params_getter,
+          transport=transport_runtime_params,
+          sources=sim.source_models_builder.runtime_params,
+          stepper=stepper_runtime_params,
           torax_mesh=geo_provider.torax_mesh,
       )
   )

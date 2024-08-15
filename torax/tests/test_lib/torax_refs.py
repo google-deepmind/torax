@@ -25,6 +25,8 @@ from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as sources_params
+from torax.stepper import runtime_params as stepper_params
+from torax.transport_model import runtime_params as transport_model_params
 
 _GEO_DIRECTORY = 'torax/data/third_party/geo'
 
@@ -58,9 +60,9 @@ def build_consistent_dynamic_runtime_params_slice_and_geometry(
       t,
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params,
-          transport_getter=lambda: None,
-          sources_getter=lambda: sources,
-          stepper_getter=lambda: None,
+          transport=transport_model_params.RuntimeParams(),
+          sources=sources,
+          stepper=stepper_params.RuntimeParams(),
           torax_mesh=geometry_provider.torax_mesh,
       ),
       geometry_provider,

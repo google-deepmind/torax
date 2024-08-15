@@ -276,10 +276,6 @@ def change_config(
       name: runtime_params
       for name, runtime_params in source_models_builder.runtime_params.items()
   }
-  # We pass the getter so that any changes to the objects runtime params after
-  # the Sim object is created are picked up.
-  transport_params_getter = lambda: new_transport_model_builder.runtime_params
-  stepper_params_getter = lambda: new_stepper_builder.runtime_params
   # Make sure the transport model has not changed.
   # TODO(b/330172917): Improve the check for updated configs.
   if not isinstance(new_transport_model_builder(), type(sim.transport_model)):
@@ -292,9 +288,9 @@ def change_config(
       sim=sim,
       runtime_params=new_runtime_params,
       geo_provider=new_geo_provider,
-      transport_runtime_params_getter=transport_params_getter,
+      transport_runtime_params=new_transport_model_builder.runtime_params,
       source_runtime_params=new_source_params,
-      stepper_runtime_params_getter=stepper_params_getter,
+      stepper_runtime_params=new_stepper_builder.runtime_params,
   )
   return sim, new_runtime_params
 

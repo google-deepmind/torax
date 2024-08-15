@@ -27,12 +27,14 @@ from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
+from torax.stepper import runtime_params as stepper_params
 from torax.time_step_calculator import array_time_step_calculator
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_wrapper
+from torax.transport_model import runtime_params as transport_model_params
 
 
 class BuildSimTest(parameterized.TestCase):
@@ -215,9 +217,9 @@ class BuildSimTest(parameterized.TestCase):
     runtime_params_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport_getter=lambda: None,
-            sources_getter=lambda: None,
-            stepper_getter=lambda: None,
+            transport=transport_model_params.RuntimeParams(),
+            sources={},
+            stepper=stepper_params.RuntimeParams(),
             torax_mesh=geo_provider.torax_mesh,
         )
     )

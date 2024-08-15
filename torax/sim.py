@@ -888,9 +888,9 @@ def build_sim_object(
   dynamic_runtime_params_slice_provider = (
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
-          transport_getter=lambda: transport_model_builder.runtime_params,
-          sources_getter=lambda: source_models_builder.runtime_params,
-          stepper_getter=lambda: stepper_builder.runtime_params,
+          transport=transport_model_builder.runtime_params,
+          sources=source_models_builder.runtime_params,
+          stepper=stepper_builder.runtime_params,
           torax_mesh=geometry_provider.torax_mesh,
       )
   )
