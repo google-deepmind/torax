@@ -231,24 +231,25 @@ def calc_s_from_psi(
     s_face: Magnetic shear, on the face grid.
   """
 
-  # 1st derivative of psi on face grid
-  dpsi_drhon = psi.face_grad()
-  # 2nd derivative of psi on face grad. Dropping the leftmost face, it won't be
-  # needed.
-  d2psi_d2rhon = (dpsi_drhon[2:] - dpsi_drhon[:-2]) / (2 * geo.drho_norm)
-  d2psi_d2rhon = jnp.concatenate((d2psi_d2rhon, d2psi_d2rhon[-1:]))
+  # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
+  # the s calculation.
+  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
 
-  s = (
-      2
-      * geo.volume_face[1:]
-      / (geo.rho_face_norm[1:] * geo.vpr_face[1:])
-      * (1 - geo.rho_face_norm[1:] * d2psi_d2rhon / dpsi_drhon[1:])
+  # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
+  # Using expand_dims to make it compatible with jnp.concatenate
+  iota_scaled0 = jnp.expand_dims(
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
   )
-  s = jnp.concatenate((s[0:1], s))
 
-  # similar values to s from the psi derivatives but offset by a cell and
-  # differences near edge regions. Use direct from q for now
-  return s
+  iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
+
+  s_face = (
+      -geo.rho_face_norm
+      * jnp.gradient(iota_scaled, geo.rho_face_norm)
+      / iota_scaled
+  )
+
+  return s_face
 
 
 def calc_nu_star(
