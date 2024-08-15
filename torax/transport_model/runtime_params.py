@@ -74,6 +74,9 @@ class RuntimeParams:
   # Width of HWHM Gaussian smoothing kernel operating on transport model outputs
   smoothing_sigma: float = 0.0
 
+  # Smooth across entire radial domain regardless of inner and outer patches.
+  smooth_everywhere: bool = False
+
   def __post_init__(self):
     self._interpolated_vars = config_args.get_interpolated_vars(
         input_config=self
@@ -94,34 +97,26 @@ class RuntimeParams:
 class DynamicRuntimeParams:
   """Input params for the transport model which can be used as compiled args."""
 
-  # Allowed chi and diffusivity bounds
-  chimin: float  # minimum chi
-  chimax: float  # maximum chi (can be helpful for stability)
-  Demin: float  # minimum electron density diffusivity
-  Demax: float  # maximum electron density diffusivity
-  Vemin: float  # minimum electron density convection
-  Vemax: float  # minimum electron density convection
-
-  # set inner core transport coefficients (ad-hoc MHD/EM transport)
+  chimin: float
+  chimax: float
+  Demin: float
+  Demax: float
+  Vemin: float
+  Vemax: float
   apply_inner_patch: bool
   De_inner: float
   Ve_inner: float
   chii_inner: float
   chie_inner: float
-  rho_inner: float  # normalized radius below which patch is applied
-
-  # set outer core transport coefficients.
-  # Useful for L-mode near-edge region where QLKNN10D is not applicable.
-  # Only used when set_pedestal = False
+  rho_inner: float
   apply_outer_patch: bool
   De_outer: float
   Ve_outer: float
   chii_outer: float
   chie_outer: float
-  rho_outer: float  # normalized radius above which patch is applied
-
-  # Width of HWHM Gaussian smoothing kernel operating on transport model outputs
+  rho_outer: float
   smoothing_sigma: float
+  smooth_everywhere: bool
 
   def sanity_check(self):
     """Make sure all the parameters are valid."""

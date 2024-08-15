@@ -252,9 +252,12 @@ def build_smoothing_matrix(
   )
 
   mask = jnp.where(
-      jnp.logical_and(
-          geo.rho_face_norm > mask_inner_edge,
-          geo.rho_face_norm < mask_outer_edge,
+      jnp.logical_or(
+          dynamic_runtime_params_slice.transport.smooth_everywhere,
+          jnp.logical_and(
+              geo.rho_face_norm > mask_inner_edge,
+              geo.rho_face_norm < mask_outer_edge,
+          ),
       ),
       1.0,
       0.0,
