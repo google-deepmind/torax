@@ -295,7 +295,7 @@ def build_smoothing_matrix(
 
 @dataclasses.dataclass(kw_only=True)
 class TransportModelBuilder(abc.ABC):
-  """Factory for Stepper objects."""
+  """Factory for TransportModel objects."""
 
   @abc.abstractmethod
   def __call__(
