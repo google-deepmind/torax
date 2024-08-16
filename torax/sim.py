@@ -78,7 +78,9 @@ def get_consistent_dynamic_runtime_params_slice_and_geometry(
 ]:
   """Returns the dynamic runtime params and geometry for a given time."""
   geo = geometry_provider(t)
-  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(t, geo)
+  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
+      t=t, geo=geo
+  )
   dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
       dynamic_runtime_params_slice, geo
   )

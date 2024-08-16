@@ -84,7 +84,7 @@ class BuildSimTest(parameterized.TestCase):
         )
     )
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        sim.initial_state.t, geo=sim.geometry_provider(sim.initial_state.t)
+        t=sim.initial_state.t, geo=sim.geometry_provider(sim.initial_state.t)
     )
     with self.subTest('runtime_params'):
       self.assertEqual(dynamic_runtime_params_slice.plasma_composition.Ai, 0.1)
@@ -161,10 +161,13 @@ class BuildSimTest(parameterized.TestCase):
     self.assertEqual(runtime_params.numerics.q_correction_factor, 0.2)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
     geo = geometry.build_circular_geometry()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider, t=1.5, geo=geo,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
+            torax_mesh=geo.torax_mesh,
+        )(
+            t=1.5,
+            geo=geo,
         )
     )
     np.testing.assert_allclose(

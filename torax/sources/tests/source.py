@@ -134,12 +134,13 @@ class SourceTest(parameterized.TestCase):
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -179,12 +180,13 @@ class SourceTest(parameterized.TestCase):
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -221,12 +223,13 @@ class SourceTest(parameterized.TestCase):
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -235,20 +238,17 @@ class SourceTest(parameterized.TestCase):
         source_models=source_models,
     )
     with self.subTest('model_based'):
-      runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
-      dynamic_runtime_params_slice = (
-          runtime_params_slice.build_dynamic_runtime_params_slice(
-              runtime_params_provider,
-              sources={
-                  'foo': (
-                      dataclasses.replace(
-                          source_builder.runtime_params,
-                          mode=runtime_params_lib.Mode.MODEL_BASED,
-                      )
-                  )
-              },
-              geo=geo,
-          )
+      dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+          runtime_params,
+          sources={
+              'foo': dataclasses.replace(
+                  source_builder.runtime_params,
+                  mode=runtime_params_lib.Mode.MODEL_BASED,
+              )
+          },
+          torax_mesh=geo.torax_mesh,
+      )(
+          geo=geo, t=runtime_params.numerics.t_initial,
       )
       profile = source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -263,20 +263,17 @@ class SourceTest(parameterized.TestCase):
           source_lib.ProfileType.CELL.get_zero_profile(geo),
       )
     with self.subTest('formula'):
-      runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
-      dynamic_runtime_params_slice = (
-          runtime_params_slice.build_dynamic_runtime_params_slice(
-              runtime_params_provider,
-              sources={
-                  'foo': (
-                      dataclasses.replace(
-                          source_builder.runtime_params,
-                          mode=runtime_params_lib.Mode.FORMULA_BASED,
-                      )
-                  )
-              },
-              geo=geo,
-          )
+      dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+          runtime_params,
+          sources={
+              'foo': dataclasses.replace(
+                  source_builder.runtime_params,
+                  mode=runtime_params_lib.Mode.FORMULA_BASED,
+              )
+          },
+          torax_mesh=geo.torax_mesh,
+      )(
+          geo=geo, t=runtime_params.numerics.t_initial,
       )
       profile = source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -291,20 +288,17 @@ class SourceTest(parameterized.TestCase):
           source_lib.ProfileType.CELL.get_zero_profile(geo),
       )
     with self.subTest('prescribed'):
-      runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
-      dynamic_runtime_params_slice = (
-          runtime_params_slice.build_dynamic_runtime_params_slice(
-              runtime_params_provider,
-              sources={
-                  'foo': (
-                      dataclasses.replace(
-                          source_builder.runtime_params,
-                          mode=runtime_params_lib.Mode.PRESCRIBED,
-                      )
-                  )
-              },
-              geo=geo,
-          )
+      dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+          runtime_params,
+          sources={
+              'foo': dataclasses.replace(
+                  source_builder.runtime_params,
+                  mode=runtime_params_lib.Mode.PRESCRIBED,
+              )
+          },
+          torax_mesh=geo.torax_mesh,
+      )(
+          geo=geo, t=runtime_params.numerics.t_initial,
       )
       profile = source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -339,12 +333,13 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -383,12 +378,13 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -432,12 +428,13 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -505,12 +502,13 @@ class SingleProfileSourceTest(parameterized.TestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources['foo']
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -545,12 +543,13 @@ class SingleProfileSourceTest(parameterized.TestCase):
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry(n_rho=5)
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(

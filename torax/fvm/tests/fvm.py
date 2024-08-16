@@ -404,14 +404,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
         source_runtime_params.Mode.ZERO
     )
     source_models = source_models_builder()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     static_runtime_params_slice = (
@@ -534,14 +535,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
         source_runtime_params.Mode.ZERO
     )
     geo = geometry.build_circular_geometry(n_rho=num_cells)
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     static_runtime_params_slice = (
@@ -668,14 +670,15 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     static_runtime_params_slice_theta0 = (

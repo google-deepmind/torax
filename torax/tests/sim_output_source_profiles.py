@@ -60,12 +60,13 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     geo = geometry.build_circular_geometry()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     # Technically, the merge_source_profiles() function should be called with
@@ -177,7 +178,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             torax_mesh=geo.torax_mesh,
         )
     )
-    initial_dcs = dynamic_runtime_params_slice_provider(0.0, geo)
+    initial_dcs = dynamic_runtime_params_slice_provider(t=0.0, geo=geo)
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
@@ -319,7 +320,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
   ) -> state_module.ToraxSimState:
     dt, ts_state = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-            input_state.t, geometry_provider(input_state.t)
+            t=input_state.t, geo=geometry_provider(input_state.t)
         ),
         geo=geometry_provider(input_state.t),
         core_profiles=input_state.core_profiles,
@@ -335,7 +336,8 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
         # The returned source profiles include only the implicit sources.
         core_sources=source_models_lib.build_source_profiles(
             dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-                new_t, geometry_provider(new_t),
+                t=new_t,
+                geo=geometry_provider(new_t),
             ),
             geo=geometry_provider(new_t),
             core_profiles=input_state.core_profiles,  # no state evolution.

@@ -128,39 +128,6 @@ class StaticRuntimeParamsSlice:
 
 
 # pylint: enable=invalid-name
-
-
-def build_dynamic_runtime_params_slice(
-    runtime_params: general_runtime_params_lib.GeneralRuntimeParamsProvider,
-    geo: geometry.Geometry,
-    transport: transport_model_params.RuntimeParams | None = None,
-    sources: dict[str, sources_params.RuntimeParams] | None = None,
-    stepper: stepper_params.RuntimeParams | None = None,
-    t: chex.Numeric | None = None,
-) -> DynamicRuntimeParamsSlice:
-  """Builds a DynamicRuntimeParamsSlice."""
-  transport = transport or transport_model_params.RuntimeParams()
-  sources = sources or {}
-  stepper = stepper or stepper_params.RuntimeParams()
-  t = (
-      runtime_params.runtime_params_config.numerics.t_initial
-      if t is None
-      else t
-  )
-  # For each dataclass attribute under DynamicRuntimeParamsSlice, build those
-  # objects explicitly, and then for all scalar attributes, fetch their values
-  # directly from the input runtime params using config_args.get_init_kwargs.
-  dynamic_general_runtime_params = runtime_params.build_dynamic_params(t)
-  return DynamicRuntimeParamsSlice(
-      transport=transport.build_dynamic_params(t),
-      stepper=stepper.build_dynamic_params(t),
-      sources=_build_dynamic_sources(sources, t, geo),
-      plasma_composition=dynamic_general_runtime_params.dynamic_plasma_composition,
-      profile_conditions=dynamic_general_runtime_params.dynamic_profile_conditions,
-      numerics=dynamic_general_runtime_params.dynamic_numerics,
-  )
-
-
 def _build_dynamic_sources(
     sources: dict[str, sources_params.RuntimeParams],
     t: chex.Numeric,
@@ -214,11 +181,28 @@ class DynamicRuntimeParamsSliceProvider:
   def __init__(
       self,
       runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
-      transport: transport_model_params.RuntimeParams,
-      sources: dict[str, sources_params.RuntimeParams],
-      stepper: stepper_params.RuntimeParams,
+      transport: transport_model_params.RuntimeParams | None = None,
+      sources: dict[str, sources_params.RuntimeParams] | None = None,
+      stepper: stepper_params.RuntimeParams | None = None,
       torax_mesh: geometry.Grid1D | None = None,
   ):
+    """Constructs a DynamicRuntimeParamsSliceProvider.
+
+    Args:
+      runtime_params: The general runtime params to use.
+      transport: The transport model runtime params to use. If None, defaults to
+        the default transport model runtime params.
+      sources: A dict of source name to source runtime params to use. If None,
+        defaults to an empty dict (i.e. no sources).
+      stepper: The stepper runtime params to use. If None, defaults to the
+        default stepper runtime params.
+      torax_mesh: The torax mesh to use. If the slice provider doesn't need to
+        construct any rho interpolated values, this can be None, else an error
+        will be raised within the constructor of the interpolated variable.
+    """
+    transport = transport or transport_model_params.RuntimeParams()
+    sources = sources or {}
+    stepper = stepper or stepper_params.RuntimeParams()
     self._runtime_params = runtime_params.make_provider(torax_mesh)
     self._transport_runtime_params = transport
     self._sources = sources
@@ -230,13 +214,19 @@ class DynamicRuntimeParamsSliceProvider:
       geo: geometry.Geometry,
   ) -> DynamicRuntimeParamsSlice:
     """Returns a DynamicRuntimeParamsSlice to use during time t of the sim."""
-    return build_dynamic_runtime_params_slice(
-        runtime_params=self._runtime_params,
-        transport=self._transport_runtime_params,
-        sources=self._sources,
-        stepper=self._stepper,
-        t=t,
-        geo=geo,
+    # For each dataclass attribute under DynamicRuntimeParamsSlice, build those
+    # objects explicitly, and then for all scalar attributes, fetch their values
+    # directly from the input runtime params using config_args.get_init_kwargs.
+    dynamic_general_runtime_params = self._runtime_params.build_dynamic_params(
+        t
+    )
+    return DynamicRuntimeParamsSlice(
+        transport=self._transport_runtime_params.build_dynamic_params(t),
+        stepper=self._stepper.build_dynamic_params(t),
+        sources=_build_dynamic_sources(self._sources, t, geo),
+        plasma_composition=dynamic_general_runtime_params.dynamic_plasma_composition,
+        profile_conditions=dynamic_general_runtime_params.dynamic_profile_conditions,
+        numerics=dynamic_general_runtime_params.dynamic_numerics,
     )
 
 

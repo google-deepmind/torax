@@ -56,13 +56,14 @@ class TransportSmoothingTest(parameterized.TestCase):
         )
     )
     transport_model = transport_model_builder()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
@@ -194,14 +195,13 @@ class TransportSmoothingTest(parameterized.TestCase):
         )
     )
     transport_model = transport_model_builder()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
-        )
+            torax_mesh=geo.torax_mesh,
+        )(geo=geo, t=runtime_params.numerics.t_initial,)
     )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     input_state = sim_lib.get_initial_state(

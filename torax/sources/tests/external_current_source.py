@@ -46,13 +46,14 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     # Must be circular for jext_hires call.
     geo = geometry.build_circular_geometry()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
-    dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
-        runtime_params_provider,
+    dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        runtime_params,
         sources={
             'jext': source_builder.runtime_params,
         },
-        geo=geo,
+        torax_mesh=geo.torax_mesh,
+    )(
+        geo=geo, t=runtime_params.numerics.t_initial,
     )
     self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
 
@@ -80,15 +81,14 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
           source_builder.runtime_params.mode = unsupported_mode
-          runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
-          dynamic_slice = (
-              runtime_params_slice.build_dynamic_runtime_params_slice(
-                  runtime_params_provider,
-                  sources={
-                      'jext': source_builder.runtime_params,
-                  },
-                  geo=geo,
-              )
+          dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+              runtime_params,
+              sources={
+                  'jext': source_builder.runtime_params,
+              },
+              torax_mesh=geo.torax_mesh,
+          )(
+              geo=geo, t=runtime_params.numerics.t_initial,
           )
           source.get_value(
               dynamic_runtime_params_slice=dynamic_slice,
@@ -106,15 +106,14 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
         source_lib.ProfileType.FACE.get_profile_shape(geo),
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params_provider,
-            sources={
-                'jext': source_builder.runtime_params,
-            },
-            geo=geo,
-        )
+    dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        runtime_params,
+        sources={
+            'jext': source_builder.runtime_params,
+        },
+        torax_mesh=geo.torax_mesh,
+    )(
+        geo=geo, t=runtime_params.numerics.t_initial,
     )
     self.assertEqual(
         source.get_value(

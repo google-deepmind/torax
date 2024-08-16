@@ -95,12 +95,13 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source_builder.runtime_params.mode = source.supported_modes[0]
     self.assertIsInstance(source, source_lib.SingleProfileSource)
     geo = geometry.build_circular_geometry()
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params=runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -131,12 +132,13 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     self.assertIsInstance(source, source_lib.SingleProfileSource)
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params=runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -146,12 +148,13 @@ class SingleProfileSourceTestCase(SourceTestCase):
     )
     for unsupported_mode in self._unsupported_modes:
       source_builder.runtime_params.mode = unsupported_mode
-      runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
       dynamic_runtime_params_slice = (
-          runtime_params_slice.build_dynamic_runtime_params_slice(
-              runtime_params=runtime_params_provider,
+          runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+              runtime_params=runtime_params,
               sources=source_models_builder.runtime_params,
-              geo=geo,
+              torax_mesh=geo.torax_mesh,
+          )(
+              geo=geo, t=runtime_params.numerics.t_initial,
           )
       )
       with self.subTest(unsupported_mode.name):
@@ -182,12 +185,13 @@ class IonElSourceTestCase(SourceTestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     self.assertIsInstance(source, source_lib.IonElectronSource)
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params=runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -218,12 +222,13 @@ class IonElSourceTestCase(SourceTestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     self.assertIsInstance(source, source_lib.IonElectronSource)
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params=runtime_params_provider,
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            geo=geo, t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -233,12 +238,13 @@ class IonElSourceTestCase(SourceTestCase):
     )
     for unsupported_mode in self._unsupported_modes:
       source_builder.runtime_params.mode = unsupported_mode
-      runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
       dynamic_runtime_params_slice = (
-          runtime_params_slice.build_dynamic_runtime_params_slice(
-              runtime_params=runtime_params_provider,
+          runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+              runtime_params=runtime_params,
               sources=source_models_builder.runtime_params,
-              geo=geo,
+              torax_mesh=geo.torax_mesh,
+          )(
+              geo=geo, t=runtime_params.numerics.t_initial,
           )
       )
       with self.subTest(unsupported_mode.name):

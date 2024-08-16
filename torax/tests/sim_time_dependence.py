@@ -98,7 +98,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     )
     initial_dynamic_runtime_params_slice = (
         dynamic_runtime_params_slice_provider(
-            runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
             geo=geo,
         )
     )

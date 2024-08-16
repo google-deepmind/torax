@@ -67,12 +67,10 @@ class CoreProfileSettersTest(parameterized.TestCase):
         ),
     )
     geo = geometry.build_circular_geometry(n_rho=4)
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
-    dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params_provider,
-        t=t,
-        geo=self.geo,
-    )
+    dynamic_slice = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )(t=t, geo=self.geo)
     Ti = core_profile_setters.updated_ion_temperature(dynamic_slice, geo)
     Te = core_profile_setters.updated_electron_temperature(dynamic_slice, geo)
     np.testing.assert_allclose(
@@ -116,9 +114,10 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
     t = 0.0
     geo = geometry.build_circular_geometry(n_rho=4)
-    runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
-    dynamic_slice = runtime_params_slice_lib.build_dynamic_runtime_params_slice(
-        runtime_params_provider,
+    dynamic_slice = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )(
         t=t,
         geo=self.geo,
     )

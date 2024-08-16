@@ -275,7 +275,7 @@ class SimTestCase(parameterized.TestCase):
     # Build geo needed for output generation
     geo = sim.geometry_provider(sim.initial_state.t)
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        sim.initial_state.t,
+        t=sim.initial_state.t,
         geo=geo,
     )
     _, geo = runtime_params_slice.make_ip_consistent(
@@ -329,13 +329,14 @@ def make_frozen_optimizer_stepper(
     Stepper: the stepper.
   """
   # Get the dynamic runtime params for the start of the simulation.
-  runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
   dynamic_runtime_params_slice = (
-      runtime_params_slice.build_dynamic_runtime_params_slice(
-          runtime_params=runtime_params_provider,
+      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+          runtime_params=runtime_params,
           transport=transport_params,
           sources=source_models_builder.runtime_params,
-          geo=geo,
+          torax_mesh=geo.torax_mesh,
+      )(
+          geo=geo, t=runtime_params.numerics.t_initial,
       )
   )
   callback_builder = functools.partial(
@@ -372,11 +373,12 @@ def make_frozen_newton_raphson_stepper(
     Stepper: the stepper.
   """
   # Get the dynamic runtime params for the start of the simulation.
-  runtime_params_provider = runtime_params.make_provider(geo.torax_mesh)
   dynamic_runtime_params_slice = (
-      runtime_params_slice.build_dynamic_runtime_params_slice(
-          runtime_params_provider,
-          geo=geo,
+      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+          runtime_params,
+          torax_mesh=geo.torax_mesh,
+      )(
+          geo=geo, t=runtime_params.numerics.t_initial,
       )
   )
   callback_builder = functools.partial(
