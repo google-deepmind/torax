@@ -252,6 +252,41 @@ def calc_s_from_psi(
   return s_face
 
 
+def calc_s_from_psi_rmid(
+    geo: Geometry, psi: cell_variable.CellVariable
+) -> jax.Array:
+  """Calculates magnetic shear (s) from poloidal flux (psi).
+
+  Version taking the derivative of iota with respect to the midplane r,
+  in line with expectations from circular-derived models like QuaLiKiz.
+
+  Args:
+    geo: Torus geometry.
+    psi: Poloidal flux.
+
+  Returns:
+    s_face: Magnetic shear, on the face grid.
+  """
+
+  # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
+  # the s calculation.
+  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
+
+  # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
+  # Using expand_dims to make it compatible with jnp.concatenate
+  iota_scaled0 = jnp.expand_dims(
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
+  )
+
+  iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
+
+  rmid_face = (geo.Rout_face - geo.Rin_face) * 0.5
+
+  s_face = -rmid_face * jnp.gradient(iota_scaled, rmid_face) / iota_scaled
+
+  return s_face
+
+
 def calc_nu_star(
     geo: Geometry,
     core_profiles: state.CoreProfiles,

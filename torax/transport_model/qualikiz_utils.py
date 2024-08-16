@@ -152,7 +152,7 @@ def prepare_qualikiz_inputs(
       jtot_face=core_profiles.currents.jtot_face,
       q_correction_factor=q_correction_factor,
   )
-  smag = physics.calc_s_from_psi(
+  smag = physics.calc_s_from_psi_rmid(
       geo,
       core_profiles.psi,
   )
