@@ -25,20 +25,12 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
-  # Coefficient of Bohm term of χ_e
-  chi_e_bohm_coeff: float = 8e-5
-  # Coefficient of gyro-Bohm term of χ_e
-  chi_e_gyrobohm_coeff: float = 7e-2
-  # Coefficient of Bohm term of χ_i
-  chi_i_bohm_coeff: float = 1.6e-4
-  # Coefficient of gyro-Bohm term of χ_i
-  chi_i_gyrobohm_coeff: float = 1.75e-2
-  # Constant neoclassical transport term
-  neoclassical_const: float = 1e-3
-  # Electron particle diffusion = chi_d_coeff * χ_e
-  chi_d_coeff: float = 0.2
-  # Electron particle convection = chi_v_coeff * χ_e
-  chi_v_coeff: float = -1.0
+  chi_e_bohm_coeff: float
+  chi_e_gyrobohm_coeff: float
+  chi_i_bohm_coeff: float
+  chi_i_gyrobohm_coeff: float
+  d_face_c1: float
+  d_face_c2: float
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
