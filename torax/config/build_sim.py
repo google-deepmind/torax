@@ -469,6 +469,8 @@ def build_transport_model_builder_from_config(
   transport_model = transport_config.pop('transport_model')
   if transport_model == 'qlknn':
     qlknn_params = transport_config.pop('qlknn_params', {})
+    if not isinstance(qlknn_params, dict):
+      raise ValueError('qlknn_params must be a dict.')
     if 'model_path' in qlknn_params:
       model_path = qlknn_params.pop('model_path')
     else:
@@ -486,6 +488,8 @@ def build_transport_model_builder_from_config(
     )
   elif transport_model == 'constant':
     constant_params = transport_config.pop('constant_params', {})
+    if not isinstance(constant_params, dict):
+      raise ValueError('constant_params must be a dict.')
     constant_params.update(transport_config)
     # Remove params from the other models, if present.
     constant_params.pop('qlknn_params', None)
@@ -498,6 +502,8 @@ def build_transport_model_builder_from_config(
     )
   elif transport_model == 'CGM':
     cgm_params = transport_config.pop('cgm_params', {})
+    if not isinstance(cgm_params, dict):
+      raise ValueError('cgm_params must be a dict.')
     cgm_params.update(transport_config)
     # Remove params from the other models, if present.
     cgm_params.pop('qlknn_params', None)
@@ -568,6 +574,8 @@ def build_stepper_builder_from_config(
     )
   elif stepper_type == 'newton_raphson':
     newton_raphson_params = stepper_config.pop('newton_raphson_params', {})
+    if not isinstance(newton_raphson_params, dict):
+      raise ValueError('newton_raphson_params must be a dict.')
     newton_raphson_params.update(stepper_config)
     # Remove params from other steppers with nested configs, if present.
     newton_raphson_params.pop('optimizer_params', None)
@@ -579,6 +587,8 @@ def build_stepper_builder_from_config(
     )
   elif stepper_type == 'optimizer':
     optimizer_params = stepper_config.pop('optimizer_params', {})
+    if not isinstance(optimizer_params, dict):
+      raise ValueError('optimizer_params must be a dict.')
     optimizer_params.update(stepper_config)
     # Remove params from other steppers with nested configs, if present.
     optimizer_params.pop('newton_raphson_params', None)
