@@ -204,7 +204,7 @@ class DynamicRuntimeParamsSliceProvider:
     sources = sources or {}
     stepper = stepper or stepper_params.RuntimeParams()
     self._runtime_params = runtime_params.make_provider(torax_mesh)
-    self._transport_runtime_params = transport
+    self._transport_runtime_params = transport.make_provider(torax_mesh)
     self._sources = sources
     self._stepper = stepper
 

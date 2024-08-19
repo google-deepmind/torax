@@ -20,11 +20,13 @@ a time-interpolated version of this config via the DynamicRuntimeParams.
 
 from __future__ import annotations
 
-from typing import Callable, TypeAlias
+from typing import TypeAlias
 
 import chex
+from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
+from torax.config import base
 from torax.config import config_args
 
 
@@ -36,7 +38,7 @@ TimeInterpolated: TypeAlias = interpolated_param.TimeInterpolated
 
 # pylint: disable=invalid-name
 @chex.dataclass
-class RuntimeParams:
+class RuntimeParams(base.RuntimeParametersConfig['RuntimeParamsProvider']):
   """Runtime parameters for the turbulent transport model.
 
   This is the dataclass runtime config exposed to the user. The actual model
@@ -77,20 +79,82 @@ class RuntimeParams:
   # Smooth across entire radial domain regardless of inner and outer patches.
   smooth_everywhere: bool = False
 
-  def __post_init__(self):
-    self._interpolated_vars = config_args.get_interpolated_vars(
-        input_config=self
-    )
-    self._get_interpolation: Callable[[chex.Numeric], dict[str, chex.Array]] = (
-        jax_utils.jit(
-            lambda t: {
-                k: v.get_value(t) for k, v in self._interpolated_vars.items()
-            }
-        )
+  def make_provider(
+      self, torax_mesh: geometry.Grid1D | None = None
+  ) -> RuntimeParamsProvider:
+    # TODO(b/360831279)
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        apply_inner_patch=config_args.get_interpolated_var_single_axis(
+            self.apply_inner_patch
+        ),
+        De_inner=config_args.get_interpolated_var_single_axis(self.De_inner),
+        Ve_inner=config_args.get_interpolated_var_single_axis(self.Ve_inner),
+        chii_inner=config_args.get_interpolated_var_single_axis(
+            self.chii_inner
+        ),
+        chie_inner=config_args.get_interpolated_var_single_axis(
+            self.chie_inner
+        ),
+        rho_inner=config_args.get_interpolated_var_single_axis(self.rho_inner),
+        apply_outer_patch=config_args.get_interpolated_var_single_axis(
+            self.apply_outer_patch
+        ),
+        De_outer=config_args.get_interpolated_var_single_axis(self.De_outer),
+        Ve_outer=config_args.get_interpolated_var_single_axis(self.Ve_outer),
+        chii_outer=config_args.get_interpolated_var_single_axis(
+            self.chii_outer
+        ),
+        chie_outer=config_args.get_interpolated_var_single_axis(
+            self.chie_outer
+        ),
+        rho_outer=config_args.get_interpolated_var_single_axis(self.rho_outer),
     )
 
+
+@chex.dataclass
+class RuntimeParamsProvider(
+    base.RuntimeParametersProvider['DynamicRuntimeParams']
+):
+  """Provides a RuntimeParams to use during time t of the sim."""
+
+  runtime_params_config: RuntimeParams
+  apply_inner_patch: interpolated_param.InterpolatedVarSingleAxis
+  De_inner: interpolated_param.InterpolatedVarSingleAxis
+  Ve_inner: interpolated_param.InterpolatedVarSingleAxis
+  chii_inner: interpolated_param.InterpolatedVarSingleAxis
+  chie_inner: interpolated_param.InterpolatedVarSingleAxis
+  rho_inner: interpolated_param.InterpolatedVarSingleAxis
+  apply_outer_patch: interpolated_param.InterpolatedVarSingleAxis
+  De_outer: interpolated_param.InterpolatedVarSingleAxis
+  Ve_outer: interpolated_param.InterpolatedVarSingleAxis
+  chii_outer: interpolated_param.InterpolatedVarSingleAxis
+  chie_outer: interpolated_param.InterpolatedVarSingleAxis
+  rho_outer: interpolated_param.InterpolatedVarSingleAxis
+
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self._get_interpolation(t))
+    return DynamicRuntimeParams(
+        chimin=self.runtime_params_config.chimin,
+        chimax=self.runtime_params_config.chimax,
+        Demin=self.runtime_params_config.Demin,
+        Demax=self.runtime_params_config.Demax,
+        Vemin=self.runtime_params_config.Vemin,
+        Vemax=self.runtime_params_config.Vemax,
+        apply_inner_patch=bool(self.apply_inner_patch.get_value(t)),
+        De_inner=float(self.De_inner.get_value(t)),
+        Ve_inner=float(self.Ve_inner.get_value(t)),
+        chii_inner=float(self.chii_inner.get_value(t)),
+        chie_inner=float(self.chie_inner.get_value(t)),
+        rho_inner=float(self.rho_inner.get_value(t)),
+        apply_outer_patch=bool(self.apply_outer_patch.get_value(t)),
+        De_outer=float(self.De_outer.get_value(t)),
+        Ve_outer=float(self.Ve_outer.get_value(t)),
+        chii_outer=float(self.chii_outer.get_value(t)),
+        chie_outer=float(self.chie_outer.get_value(t)),
+        rho_outer=float(self.rho_outer.get_value(t)),
+        smoothing_sigma=self.runtime_params_config.smoothing_sigma,
+        smooth_everywhere=self.runtime_params_config.smooth_everywhere,
+    )
 
 
 @chex.dataclass(frozen=True)

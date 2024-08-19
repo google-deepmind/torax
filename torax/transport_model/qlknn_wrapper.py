@@ -33,6 +33,7 @@ import jax
 from jax import numpy as jnp
 from torax import geometry
 from torax import state
+from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
@@ -85,8 +86,79 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
   q_sawtooth_proxy: bool = True
 
+  def make_provider(
+      self, torax_mesh: geometry.Grid1D | None = None
+  ) -> RuntimeParamsProvider:
+    # TODO(b/360831279)
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        apply_inner_patch=config_args.get_interpolated_var_single_axis(
+            self.apply_inner_patch
+        ),
+        De_inner=config_args.get_interpolated_var_single_axis(self.De_inner),
+        Ve_inner=config_args.get_interpolated_var_single_axis(self.Ve_inner),
+        chii_inner=config_args.get_interpolated_var_single_axis(
+            self.chii_inner
+        ),
+        chie_inner=config_args.get_interpolated_var_single_axis(
+            self.chie_inner
+        ),
+        rho_inner=config_args.get_interpolated_var_single_axis(self.rho_inner),
+        apply_outer_patch=config_args.get_interpolated_var_single_axis(
+            self.apply_outer_patch
+        ),
+        De_outer=config_args.get_interpolated_var_single_axis(self.De_outer),
+        Ve_outer=config_args.get_interpolated_var_single_axis(self.Ve_outer),
+        chii_outer=config_args.get_interpolated_var_single_axis(
+            self.chii_outer
+        ),
+        chie_outer=config_args.get_interpolated_var_single_axis(
+            self.chie_outer
+        ),
+        rho_outer=config_args.get_interpolated_var_single_axis(self.rho_outer),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides a RuntimeParams to use during time t of the sim."""
+
+  runtime_params_config: RuntimeParams
+
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self._get_interpolation(t))
+    return DynamicRuntimeParams(
+        chimin=self.runtime_params_config.chimin,
+        chimax=self.runtime_params_config.chimax,
+        Demin=self.runtime_params_config.Demin,
+        Demax=self.runtime_params_config.Demax,
+        Vemin=self.runtime_params_config.Vemin,
+        Vemax=self.runtime_params_config.Vemax,
+        apply_inner_patch=bool(self.apply_inner_patch.get_value(t)),
+        De_inner=float(self.De_inner.get_value(t)),
+        Ve_inner=float(self.Ve_inner.get_value(t)),
+        chii_inner=float(self.chii_inner.get_value(t)),
+        chie_inner=float(self.chie_inner.get_value(t)),
+        rho_inner=float(self.rho_inner.get_value(t)),
+        apply_outer_patch=bool(self.apply_outer_patch.get_value(t)),
+        De_outer=float(self.De_outer.get_value(t)),
+        Ve_outer=float(self.Ve_outer.get_value(t)),
+        chii_outer=float(self.chii_outer.get_value(t)),
+        chie_outer=float(self.chie_outer.get_value(t)),
+        rho_outer=float(self.rho_outer.get_value(t)),
+        smoothing_sigma=self.runtime_params_config.smoothing_sigma,
+        smooth_everywhere=self.runtime_params_config.smooth_everywhere,
+        coll_mult=self.runtime_params_config.coll_mult,
+        include_ITG=self.runtime_params_config.include_ITG,
+        include_TEM=self.runtime_params_config.include_TEM,
+        include_ETG=self.runtime_params_config.include_ETG,
+        ITG_flux_ratio_correction=self.runtime_params_config.ITG_flux_ratio_correction,
+        ETG_correction_factor=self.runtime_params_config.ETG_correction_factor,
+        DVeff=self.runtime_params_config.DVeff,
+        An_min=self.runtime_params_config.An_min,
+        avoid_big_negative_s=self.runtime_params_config.avoid_big_negative_s,
+        smag_alpha_correction=self.runtime_params_config.smag_alpha_correction,
+        q_sawtooth_proxy=self.runtime_params_config.q_sawtooth_proxy,
+    )
 
 
 @chex.dataclass(frozen=True)
@@ -141,7 +213,8 @@ class QLKNNRuntimeConfigInputs:
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
   ) -> 'QLKNNRuntimeConfigInputs':
     assert isinstance(
-        dynamic_runtime_params_slice.transport, DynamicRuntimeParams
+        dynamic_runtime_params_slice.transport,
+        DynamicRuntimeParams
     )
     return QLKNNRuntimeConfigInputs(
         nref=dynamic_runtime_params_slice.numerics.nref,
