@@ -26,7 +26,6 @@ import jax
 from torax import geometry
 from torax import sim
 from torax import state
-from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.fvm import enums
@@ -141,12 +140,14 @@ class OptimizerRuntimeParams(runtime_params_lib.RuntimeParams):
   def build_dynamic_params(
       self, t: chex.Numeric
   ) -> DynamicOptimizerRuntimeParams:
+    del t  # Unused.
     return DynamicOptimizerRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicOptimizerRuntimeParams,
-            t=t,
-        )
+        chi_per=self.chi_per,
+        d_per=self.d_per,
+        corrector_steps=self.corrector_steps,
+        initial_guess_mode=self.initial_guess_mode.value,
+        maxiter=self.maxiter,
+        tol=self.tol,
     )
 
 
@@ -208,7 +209,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
             initial_guess_mode=enums.InitialGuessMode(
-                int(stepper_params.initial_guess_mode)
+                stepper_params.initial_guess_mode,
             ),
             maxiter=stepper_params.maxiter,
             tol=stepper_params.tol,
@@ -265,11 +266,16 @@ class NewtonRaphsonRuntimeParams(runtime_params_lib.RuntimeParams):
       self, t: chex.Numeric
   ) -> DynamicNewtonRaphsonRuntimeParams:
     return DynamicNewtonRaphsonRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicNewtonRaphsonRuntimeParams,
-            t=t,
-        )
+        chi_per=self.chi_per,
+        d_per=self.d_per,
+        log_iterations=self.log_iterations,
+        initial_guess_mode=self.initial_guess_mode.value,
+        maxiter=self.maxiter,
+        tol=self.tol,
+        coarse_tol=self.coarse_tol,
+        delta_reduction_factor=self.delta_reduction_factor,
+        tau_min=self.tau_min,
+        corrector_steps=self.corrector_steps,
     )
 
 
@@ -338,7 +344,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             evolving_names=evolving_names,
             log_iterations=stepper_params.log_iterations,
             initial_guess_mode=enums.InitialGuessMode(
-                int(stepper_params.initial_guess_mode)
+                stepper_params.initial_guess_mode
             ),
             maxiter=stepper_params.maxiter,
             tol=stepper_params.tol,

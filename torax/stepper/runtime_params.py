@@ -21,7 +21,6 @@ from typing import Any, Iterable, TypeAlias
 
 import chex
 from torax import interpolated_param
-from torax.config import config_args
 
 
 TimeInterpolated: TypeAlias = interpolated_param.TimeInterpolated
@@ -80,20 +79,20 @@ class RuntimeParams:
     )
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    del t  # Unused.
     return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
+        chi_per=self.chi_per,
+        d_per=self.d_per,
+        corrector_steps=self.corrector_steps,
     )
 
   def build_static_params(self) -> StaticRuntimeParams:
     return StaticRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=StaticRuntimeParams,
-        )
+        theta_imp=self.theta_imp,
+        convection_dirichlet_mode=self.convection_dirichlet_mode,
+        convection_neumann_mode=self.convection_neumann_mode,
+        use_pereverzev=self.use_pereverzev,
+        predictor_corrector=self.predictor_corrector,
     )
 
 
