@@ -53,7 +53,7 @@ class SourceProfilesTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -170,7 +170,7 @@ class SourceProfilesTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(

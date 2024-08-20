@@ -24,6 +24,7 @@ import jax
 from jax import numpy as jnp
 from jax.scipy import integrate
 from torax import geometry
+from torax import interpolated_param
 from torax import jax_utils
 from torax import state
 from torax.config import config_args
@@ -51,29 +52,61 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # Toggles if external current is provided absolutely or as a fraction of Ip.
   use_absolute_jext: bool = False
 
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> RuntimeParamsProvider:
+    if torax_mesh is None:
+      raise ValueError(
+          'torax_mesh is required for ExternalCurrentSource.make_provider.'
+      )
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.face_centers
+        ),
+        Iext=config_args.get_interpolated_var_single_axis(
+            self.Iext,
+        ),
+        fext=config_args.get_interpolated_var_single_axis(
+            self.fext,
+        ),
+        wext=config_args.get_interpolated_var_single_axis(
+            self.wext,
+        ),
+        rext=config_args.get_interpolated_var_single_axis(
+            self.rext,
+        ),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(
+    runtime_params_lib.RuntimeParamsProvider
+):
+  """Provides runtime parameters for a given time and geometry."""
+
+  runtime_params_config: RuntimeParams
+  Iext: interpolated_param.InterpolatedVarSingleAxis
+  fext: interpolated_param.InterpolatedVarSingleAxis
+  wext: interpolated_param.InterpolatedVarSingleAxis
+  rext: interpolated_param.InterpolatedVarSingleAxis
+
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-      geo: geometry.Geometry,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-            geo=geo,
-            # The default implementation of config_args.get_init_kwargs()
-            # interpolates the input parameters along the cell grid. The jext
-            # source outputs values along the face grid, so we skip the
-            # interpolation here this function call and instead create the
-            # variable manually below.
-            skip=('prescribed_values',)
-        ),
-        prescribed_values=config_args.interpolate_var_2d(
-            self.prescribed_values,
-            t,
-            geo.torax_mesh.face_centers,  # Interpolate on the face grid.
-        ),
+  ) ->  DynamicRuntimeParams:
+    return  DynamicRuntimeParams(
+        Iext=float(self.Iext.get_value(t)),
+        fext=float(self.fext.get_value(t)),
+        wext=float(self.wext.get_value(t)),
+        rext=float(self.rext.get_value(t)),
+        use_absolute_jext=self.runtime_params_config.use_absolute_jext,
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 

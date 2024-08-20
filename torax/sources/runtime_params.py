@@ -22,6 +22,7 @@ import enum
 import chex
 from torax import geometry
 from torax import interpolated_param
+from torax.config import base
 from torax.config import config_args
 from torax.sources import formula_config
 
@@ -53,7 +54,7 @@ class Mode(enum.Enum):
 
 
 @dataclasses.dataclass
-class RuntimeParams:
+class RuntimeParams(base.RuntimeParametersConfig):
   """Configures a single source/sink term.
 
   This is a RUNTIME runtime_params, meaning its values can change from run to
@@ -82,8 +83,8 @@ class RuntimeParams:
 
   # Parameters used only when the source is using a prescribed formula to
   # compute its profile.
-  formula: formula_config.FormulaConfig = dataclasses.field(
-      default_factory=formula_config.FormulaConfig
+  formula: base.RuntimeParametersConfig = dataclasses.field(
+      default_factory=formula_config.Exponential
   )
 
   # Prescribed values for the source. Used only when the source is fully
@@ -97,18 +98,43 @@ class RuntimeParams:
       default_factory=lambda: {0: {0: 0, 1: 0}}
   )
 
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> RuntimeParamsProvider:
+    # TODO(b/360831279): Push some of this logic into the base class.
+    if torax_mesh is None:
+      raise ValueError(
+          'torax_mesh is required for RuntimeParams.make_provider.'
+      )
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(
+    base.RuntimeParametersProvider['DynamicRuntimeParams']
+):
+  """Runtime parameter provider for a single source/sink term."""
+
+  runtime_params_config: RuntimeParams
+  formula: base.RuntimeParametersProvider
+  prescribed_values: interpolated_param.InterpolatedVarTimeRho
+
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-      geo: geometry.Geometry,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-            geo=geo,
-        )
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 

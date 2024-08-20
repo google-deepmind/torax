@@ -53,7 +53,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
         },
         torax_mesh=geo.torax_mesh,
     )(
-        geo=geo, t=runtime_params.numerics.t_initial,
+        t=runtime_params.numerics.t_initial,
     )
     self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
 
@@ -88,7 +88,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
               },
               torax_mesh=geo.torax_mesh,
           )(
-              geo=geo, t=runtime_params.numerics.t_initial,
+              t=runtime_params.numerics.t_initial,
           )
           source.get_value(
               dynamic_runtime_params_slice=dynamic_slice,
@@ -113,7 +113,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
         },
         torax_mesh=geo.torax_mesh,
     )(
-        geo=geo, t=runtime_params.numerics.t_initial,
+        t=runtime_params.numerics.t_initial,
     )
     self.assertEqual(
         source.get_value(

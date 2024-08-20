@@ -18,6 +18,7 @@ from absl.testing import absltest
 import chex
 from torax import output
 from torax import sim as sim_lib
+from torax import simulation_app
 from torax.config import build_sim
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
@@ -175,6 +176,14 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
       source_models_builder.runtime_params['gas_puff_source'].mode = (
           runtime_params_lib.Mode.ZERO
       )
+      sim = simulation_app.update_sim(
+          sim,
+          test_particle_sources_constant_runtime_params,
+          sim.geometry_provider,
+          transport_model_builder.runtime_params,
+          source_models_builder.runtime_params,
+          linear_theta_method.LinearRuntimeParams(predictor_corrector=False),
+      )
       self._run_sim_and_check(sim, ref_profiles, ref_time)
 
     with self.subTest('without_puff_and_without_custom_source'):
@@ -182,6 +191,14 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
       # Turn it off as well, and the check shouldn't pass.
       source_models_builder.runtime_params[custom_source_name].mode = (
           runtime_params_lib.Mode.ZERO
+      )
+      sim = simulation_app.update_sim(
+          sim,
+          test_particle_sources_constant_runtime_params,
+          sim.geometry_provider,
+          transport_model_builder.runtime_params,
+          source_models_builder.runtime_params,
+          linear_theta_method.LinearRuntimeParams(predictor_corrector=False),
       )
       with self.assertRaises(AssertionError):
         self._run_sim_and_check(sim, ref_profiles, ref_time)

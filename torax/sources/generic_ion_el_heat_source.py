@@ -23,6 +23,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import geometry
+from torax import interpolated_param
 from torax import state
 from torax.config import config_args
 from torax.config import runtime_params_slice
@@ -49,18 +50,52 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # electron heating fraction
   el_heat_fraction: runtime_params_lib.TimeInterpolated = 0.66666
 
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> 'RuntimeParamsProvider':
+    if torax_mesh is None:
+      raise ValueError(
+          'torax_mesh is required for GenericIonElectronHeatSource.'
+      )
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
+        w=config_args.get_interpolated_var_single_axis(self.w),
+        rsource=config_args.get_interpolated_var_single_axis(self.rsource),
+        Ptot=config_args.get_interpolated_var_single_axis(self.Ptot),
+        el_heat_fraction=config_args.get_interpolated_var_single_axis(
+            self.el_heat_fraction
+        ),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides runtime parameters for a given time and geometry."""
+
+  runtime_params_config: RuntimeParams
+  w: interpolated_param.InterpolatedVarSingleAxis
+  rsource: interpolated_param.InterpolatedVarSingleAxis
+  Ptot: interpolated_param.InterpolatedVarSingleAxis
+  el_heat_fraction: interpolated_param.InterpolatedVarSingleAxis
+
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-      geo: geometry.Geometry | None = None,
-    ) -> DynamicRuntimeParams:
+  ) -> 'DynamicRuntimeParams':
     return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-            geo=geo,
-        )
+        w=float(self.w.get_value(t)),
+        rsource=float(self.rsource.get_value(t)),
+        Ptot=float(self.Ptot.get_value(t)),
+        el_heat_fraction=float(self.el_heat_fraction.get_value(t)),
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 

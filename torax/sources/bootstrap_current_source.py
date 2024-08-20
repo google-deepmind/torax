@@ -37,21 +37,42 @@ from torax.sources import source_profiles
 
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
+  """Configuration parameters for the bootstrap current source."""
   # Multiplication factor for bootstrap current
   bootstrap_mult: float = 1.0
+
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> RuntimeParamsProvider:
+    if torax_mesh is None:
+      raise ValueError(
+          'torax_mesh is required for BootstrapCurrentSource.'
+      )
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides runtime parameters for a given time and geometry."""
+  runtime_params_config: RuntimeParams
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-      geo: geometry.Geometry | None = None,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-            geo=geo,
-        )
+        bootstrap_mult=self.runtime_params_config.bootstrap_mult,
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 

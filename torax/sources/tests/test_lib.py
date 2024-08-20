@@ -101,7 +101,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -138,7 +138,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -154,7 +154,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
               sources=source_models_builder.runtime_params,
               torax_mesh=geo.torax_mesh,
           )(
-              geo=geo, t=runtime_params.numerics.t_initial,
+              t=runtime_params.numerics.t_initial,
           )
       )
       with self.subTest(unsupported_mode.name):
@@ -191,7 +191,7 @@ class IonElSourceTestCase(SourceTestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -228,7 +228,7 @@ class IonElSourceTestCase(SourceTestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -244,7 +244,7 @@ class IonElSourceTestCase(SourceTestCase):
               sources=source_models_builder.runtime_params,
               torax_mesh=geo.torax_mesh,
           )(
-              geo=geo, t=runtime_params.numerics.t_initial,
+              t=runtime_params.numerics.t_initial,
           )
       )
       with self.subTest(unsupported_mode.name):

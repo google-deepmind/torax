@@ -24,6 +24,7 @@ from torax import geometry
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
+from torax.sources import default_sources
 from torax.sources import electron_density_sources
 from torax.sources import external_current_source
 from torax.sources import formula_config
@@ -53,7 +54,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         runtime_params,
         torax_mesh=self._geo.torax_mesh,
     )(
-        geo=self._geo, t=runtime_params.numerics.t_initial,
+        t=runtime_params.numerics.t_initial,
     )
     # Make sure you can call the function with dynamic_slice as an arg.
     foo_jitted(dynamic_slice)
@@ -72,11 +73,11 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self._geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(t=1.0, geo=self._geo)
+    dynamic_runtime_params_slice = provider(t=1.0,)
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 2.5
     )
-    dynamic_runtime_params_slice = provider(t=2.0, geo=self._geo)
+    dynamic_runtime_params_slice = provider(t=2.0,)
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 3.0
     )
@@ -98,7 +99,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             torax_mesh=self._geo.torax_mesh,
         )(
             t=2.0,
-            geo=self._geo,
         ).profile_conditions.Ti_bound_right,
         3.0,
     )
@@ -108,7 +108,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             torax_mesh=self._geo.torax_mesh,
         )(
             t=4.0,
-            geo=self._geo,
         ).profile_conditions.Te_bound_right,
         4.5,
     )
@@ -118,7 +117,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             torax_mesh=self._geo.torax_mesh,
         )(
             t=6.0,
-            geo=self._geo,
         ).profile_conditions.ne_bound_right,
         6.0,
     )
@@ -140,7 +138,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         torax_mesh=self._geo.torax_mesh,
     )(
         t=0.0,
-        geo=self._geo,
     )
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, True)
@@ -154,7 +151,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         torax_mesh=self._geo.torax_mesh,
     )(
         t=1.0,
-        geo=self._geo,
     )
     profile_conditions = dcs.profile_conditions
     np.testing.assert_allclose(profile_conditions.set_pedestal, False)
@@ -192,7 +188,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           torax_mesh=self._geo.torax_mesh,
       )(
           t=0.5,
-          geo=self._geo,
       )
       pellet_source = dcs.sources['pellet_source']
       gas_puff_source = dcs.sources['gas_puff_source']
@@ -238,7 +233,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           torax_mesh=self._geo.torax_mesh,
       )(
           t=0.25,
-          geo=self._geo,
       )
       gas_puff_source = dcs.sources['gas_puff_source']
       assert isinstance(
@@ -269,7 +263,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           torax_mesh=self._geo.torax_mesh,
       )(
           t=0.25,
-          geo=self._geo,
       )
       gas_puff_source = dcs.sources['gas_puff_source']
       assert isinstance(
@@ -298,14 +291,14 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         torax_mesh=self._geo.torax_mesh,
     )
     # While wext is positive, this should be fine.
-    dcs = dcs_provider(t=0.0, geo=self._geo,)
+    dcs = dcs_provider(t=0.0,)
     jext = dcs.sources['jext']
     assert isinstance(
         jext, external_current_source.DynamicRuntimeParams
     )
     np.testing.assert_allclose(jext.wext, 1.0)
     # Even 0 should be fine.
-    dcs = dcs_provider(t=0.5, geo=self._geo,)
+    dcs = dcs_provider(t=0.5,)
     jext = dcs.sources['jext']
     assert isinstance(
         jext, external_current_source.DynamicRuntimeParams
@@ -313,7 +306,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     np.testing.assert_allclose(jext.wext, 0.0)
     # But negative values will cause an error.
     with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
-      dcs_provider(t=1.0, geo=self._geo,)
+      dcs_provider(t=1.0,)
 
   @parameterized.parameters(
       (
@@ -384,7 +377,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         torax_mesh=geo.torax_mesh,
     )(
         t=0.0,
-        geo=geo,
     )
     np.testing.assert_allclose(
         getattr(dcs.profile_conditions, var_name), expected_var
@@ -420,7 +412,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         torax_mesh=geo.torax_mesh,
     )(
         t=0.0,
-        geo=geo,
     )
 
     if ne_bound_right is None:
@@ -437,6 +428,124 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           ne_bound_right_is_fGW,
       )
       self.assertTrue(dcs.profile_conditions.ne_bound_right_is_absolute)
+
+  def test_update_dynamic_slice_provider_updates_runtime_params(
+      self,
+  ):
+    """Tests that the dynamic slice provider can be updated."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
+            Ti_bound_right={0.0: 1.0, 1.0: 2.0},
+        ),
+    )
+    geo = geometry.build_circular_geometry(n_rho=4)
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )
+    dcs = provider(
+        t=0.0,
+    )
+    self.assertEqual(dcs.profile_conditions.Ti_bound_right, 1.0)
+
+    # Update something in runtime params.
+    runtime_params.profile_conditions.Ti_bound_right = {0.0: 2.0, 1.0: 4.0}
+    # Check pre-update that nothing has changed.
+    dcs = provider(
+        t=0.0,
+    )
+    self.assertEqual(dcs.profile_conditions.Ti_bound_right, 1.0)
+    # Check post-update that the change is reflected.
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )
+    dcs = provider(
+        t=0.0,
+    )
+    self.assertEqual(dcs.profile_conditions.Ti_bound_right, 2.0)
+
+  def test_update_dynamic_slice_provider_updates_sources(
+      self,
+  ):
+    """Tests that the dynamic slice provider can be updated."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models_builder.runtime_params['jext'].Iext = 1.0
+    geo = geometry.build_circular_geometry(n_rho=4)
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        sources=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )
+    dcs = provider(
+        t=0.0,
+    )
+    for key in source_models_builder.runtime_params.keys():
+      self.assertIn(key, dcs.sources)
+
+    # Update an interpolated variable.
+    source_models_builder.runtime_params['jext'].Iext = 2.0
+
+    # Check pre-update that nothing has changed.
+    dcs = provider(
+        t=0.0,
+    )
+    for key in source_models_builder.runtime_params.keys():
+      self.assertIn(key, dcs.sources)
+    jext_source = dcs.sources['jext']
+    assert isinstance(jext_source, external_current_source.DynamicRuntimeParams)
+    self.assertEqual(jext_source.Iext, 1.0)
+
+    # Update any interpolated variables and check that the change is reflected.
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        sources=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )
+    dcs = provider(
+        t=0.0,
+    )
+    for key in source_models_builder.runtime_params.keys():
+      self.assertIn(key, dcs.sources)
+    jext_source = dcs.sources['jext']
+    assert isinstance(jext_source, external_current_source.DynamicRuntimeParams)
+    self.assertEqual(jext_source.Iext, 2.0)
+
+  def test_update_dynamic_slice_provider_updates_transport(
+      self,
+  ):
+    """Tests that the dynamic slice provider can be updated."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    transport = transport_params_lib.RuntimeParams(De_inner=1.0)
+    geo = geometry.build_circular_geometry(n_rho=4)
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        torax_mesh=geo.torax_mesh,
+        transport=transport,
+    )
+    dcs = provider(
+        t=0.0,
+    )
+    self.assertEqual(dcs.transport.De_inner, 1.0)
+
+    # Update something in transport.
+    transport.De_inner = 2.0
+    # Check pre-update that nothing has changed.
+    dcs = provider(
+        t=0.0,
+    )
+    self.assertEqual(dcs.transport.De_inner, 1.0)
+    # Check post-update that the change is reflected.
+    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        torax_mesh=geo.torax_mesh,
+        transport=transport,
+    )
+    dcs = provider(
+        t=0.0,
+    )
+    self.assertEqual(dcs.transport.De_inner, 2.0)
 
 
 if __name__ == '__main__':

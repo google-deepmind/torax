@@ -510,7 +510,7 @@ class SimTest(sim_test_case.SimTestCase):
     sim = self._get_sim(test_config + '.py')
     geo = sim.geometry_provider(t=80.0)
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        t=0.0, geo=geo
+        t=0.0,
     )
     source_models = sim.source_models_builder()
 

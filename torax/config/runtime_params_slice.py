@@ -127,15 +127,13 @@ class StaticRuntimeParamsSlice:
   adaptive_dt: bool
 
 
-# pylint: enable=invalid-name
 def _build_dynamic_sources(
-    sources: dict[str, sources_params.RuntimeParams],
+    sources: dict[str, sources_params.RuntimeParamsProvider],
     t: chex.Numeric,
-    geo: geometry.Geometry,
 ) -> dict[str, sources_params.DynamicRuntimeParams]:
   """Builds a dict of DynamicSourceConfigSlice based on the input config."""
   return {
-      source_name: input_source_config.build_dynamic_params(t, geo)
+      source_name: input_source_config.build_dynamic_params(t,)
       for source_name, input_source_config in sources.items()
   }
 
@@ -173,9 +171,30 @@ class DynamicRuntimeParamsSliceProvider:
 
   See `run_simulation()` for how this callable is used.
 
-  After this object has been constructed changes to any runtime params may not
+  After this object has been constructed changes any runtime params may not
   be picked up if they are updated and it is safest to construct a new provider
   object (if for example updating the simulation).
+
+  In more detail if you are updating any interpolated variable constructors
+  (e.g. `runtime_params.profile_conditions.Ti_bound_right`) you will need to
+  construct a new provider object. If you are only updating static variables
+  (e.g. `runtime_params.profile_conditions.normalize_to_nbar`) then you can
+  update the runtime params object in place and the changes will be picked up in
+  the provider you have.
+
+  For example to update the Ti_bound_right interpolated var constructor:
+  ```
+  runtime_params = general_runtime_params.GeneralRuntimeParams()
+  provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+      runtime_params=runtime_params,
+      torax_mesh=torax_mesh,
+  )
+  runtime_params.profile_conditions.Ti_bound_right = new_value
+  provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+      runtime_params=runtime_params,
+      torax_mesh=torax_mesh,
+  )
+  ```
   """
 
   def __init__(
@@ -203,27 +222,46 @@ class DynamicRuntimeParamsSliceProvider:
     transport = transport or transport_model_params.RuntimeParams()
     sources = sources or {}
     stepper = stepper or stepper_params.RuntimeParams()
-    self._runtime_params = runtime_params.make_provider(torax_mesh)
-    self._transport_runtime_params = transport.make_provider(torax_mesh)
+    self._torax_mesh = torax_mesh
     self._sources = sources
+    self._runtime_params = runtime_params
+    self._transport_runtime_params = transport
     self._stepper = stepper
+    self._construct_providers()
+
+  def _construct_providers(self):
+    self._runtime_params_provider = (
+        self._runtime_params.make_provider(
+            self._torax_mesh
+        )
+    )
+    self._transport_runtime_params_provider = (
+        self._transport_runtime_params.make_provider(
+            self._torax_mesh
+        )
+    )
+    self._sources_providers = {
+        key: source.make_provider(self._torax_mesh)
+        for key, source in self._sources.items()
+    }
 
   def __call__(
       self,
       t: chex.Numeric,
-      geo: geometry.Geometry,
   ) -> DynamicRuntimeParamsSlice:
     """Returns a DynamicRuntimeParamsSlice to use during time t of the sim."""
     # For each dataclass attribute under DynamicRuntimeParamsSlice, build those
     # objects explicitly, and then for all scalar attributes, fetch their values
     # directly from the input runtime params using config_args.get_init_kwargs.
-    dynamic_general_runtime_params = self._runtime_params.build_dynamic_params(
-        t
+    dynamic_general_runtime_params = (
+        self._runtime_params_provider.build_dynamic_params(t)
     )
     return DynamicRuntimeParamsSlice(
-        transport=self._transport_runtime_params.build_dynamic_params(t),
+        transport=self._transport_runtime_params_provider.build_dynamic_params(
+            t
+        ),
         stepper=self._stepper.build_dynamic_params(t),
-        sources=_build_dynamic_sources(self._sources, t, geo),
+        sources=_build_dynamic_sources(self._sources_providers, t,),
         plasma_composition=dynamic_general_runtime_params.dynamic_plasma_composition,
         profile_conditions=dynamic_general_runtime_params.dynamic_profile_conditions,
         numerics=dynamic_general_runtime_params.dynamic_numerics,

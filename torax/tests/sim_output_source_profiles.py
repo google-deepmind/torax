@@ -30,6 +30,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
+from torax import interpolated_param
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.config import config_args
@@ -66,7 +67,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     # Technically, the merge_source_profiles() function should be called with
@@ -178,7 +179,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             torax_mesh=geo.torax_mesh,
         )
     )
-    initial_dcs = dynamic_runtime_params_slice_provider(t=0.0, geo=geo)
+    initial_dcs = dynamic_runtime_params_slice_provider(t=0.0,)
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
@@ -271,18 +272,41 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
 class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   foo: runtime_params_lib.TimeInterpolated
 
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> '_FakeSourceRuntimeParamsProvider':
+    if torax_mesh is None:
+      raise ValueError('torax_mesh is required for FakeSourceRuntimeParams.')
+    return _FakeSourceRuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
+        foo=config_args.get_interpolated_var_single_axis(self.foo),
+    )
+
+
+@chex.dataclass
+class _FakeSourceRuntimeParamsProvider(
+    runtime_params_lib.RuntimeParamsProvider
+):
+  """Provides runtime parameters for a given time and geometry."""
+
+  runtime_params_config: _FakeSourceRuntimeParams
+  foo: interpolated_param.InterpolatedVarSingleAxis
+
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-      geo: geometry.Geometry,
-  ) -> _FakeSourceDynamicRuntimeParams:
+  ) -> '_FakeSourceDynamicRuntimeParams':
     return _FakeSourceDynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=_FakeSourceDynamicRuntimeParams,
-            t=t,
-            geo=geo,
-        )
+        foo=float(self.foo.get_value(t)),
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 
@@ -320,7 +344,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
   ) -> state_module.ToraxSimState:
     dt, ts_state = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-            t=input_state.t, geo=geometry_provider(input_state.t)
+            t=input_state.t,
         ),
         geo=geometry_provider(input_state.t),
         core_profiles=input_state.core_profiles,
@@ -337,7 +361,6 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
         core_sources=source_models_lib.build_source_profiles(
             dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
                 t=new_t,
-                geo=geometry_provider(new_t),
             ),
             geo=geometry_provider(new_t),
             core_profiles=input_state.core_profiles,  # no state evolution.

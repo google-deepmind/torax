@@ -84,7 +84,7 @@ class BuildSimTest(parameterized.TestCase):
         )
     )
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        t=sim.initial_state.t, geo=sim.geometry_provider(sim.initial_state.t)
+        t=sim.initial_state.t,
     )
     with self.subTest('runtime_params'):
       self.assertEqual(dynamic_runtime_params_slice.plasma_composition.Ai, 0.1)
@@ -165,10 +165,7 @@ class BuildSimTest(parameterized.TestCase):
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             torax_mesh=geo.torax_mesh,
-        )(
-            t=1.5,
-            geo=geo,
-        )
+        )(t=1.5,)
     )
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.plasma_composition.Zeff, 0.25
@@ -227,7 +224,7 @@ class BuildSimTest(parameterized.TestCase):
         )
     )
     geo = geo_provider(t=0)
-    dynamic_runtime_params_slice = runtime_params_provider(t=0, geo=geo)
+    dynamic_runtime_params_slice = runtime_params_provider(t=0,)
     dynamic_slice, geo = runtime_params_slice.make_ip_consistent(
         dynamic_runtime_params_slice, geo
     )

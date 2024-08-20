@@ -391,7 +391,7 @@ class InitialStatesTest(parameterized.TestCase):
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )(
-        geo=geo, t=config1.numerics.t_initial,
+        t=config1.numerics.t_initial,
     )
     config2 = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
@@ -404,7 +404,7 @@ class InitialStatesTest(parameterized.TestCase):
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )(
-        geo=geo, t=config2.numerics.t_initial,
+        t=config2.numerics.t_initial,
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,

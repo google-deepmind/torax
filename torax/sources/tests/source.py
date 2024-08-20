@@ -140,7 +140,7 @@ class SourceTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -186,7 +186,7 @@ class SourceTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -229,7 +229,7 @@ class SourceTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -248,7 +248,7 @@ class SourceTest(parameterized.TestCase):
           },
           torax_mesh=geo.torax_mesh,
       )(
-          geo=geo, t=runtime_params.numerics.t_initial,
+          t=runtime_params.numerics.t_initial,
       )
       profile = source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -273,7 +273,7 @@ class SourceTest(parameterized.TestCase):
           },
           torax_mesh=geo.torax_mesh,
       )(
-          geo=geo, t=runtime_params.numerics.t_initial,
+          t=runtime_params.numerics.t_initial,
       )
       profile = source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -298,7 +298,7 @@ class SourceTest(parameterized.TestCase):
           },
           torax_mesh=geo.torax_mesh,
       )(
-          geo=geo, t=runtime_params.numerics.t_initial,
+          t=runtime_params.numerics.t_initial,
       )
       profile = source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -339,7 +339,7 @@ class SourceTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -384,7 +384,7 @@ class SourceTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -434,7 +434,7 @@ class SourceTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -508,7 +508,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -549,7 +549,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(

@@ -412,7 +412,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             stepper=stepper_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     static_runtime_params_slice = (
@@ -543,7 +543,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             stepper=stepper_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     static_runtime_params_slice = (
@@ -678,7 +678,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             stepper=stepper_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     static_runtime_params_slice_theta0 = (

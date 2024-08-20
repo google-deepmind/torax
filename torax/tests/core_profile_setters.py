@@ -70,7 +70,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     dynamic_slice = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         torax_mesh=geo.torax_mesh,
-    )(t=t, geo=self.geo)
+    )(t=t)
     Ti = core_profile_setters.updated_ion_temperature(dynamic_slice, geo)
     Te = core_profile_setters.updated_electron_temperature(dynamic_slice, geo)
     np.testing.assert_allclose(
@@ -119,7 +119,6 @@ class CoreProfileSettersTest(parameterized.TestCase):
         torax_mesh=geo.torax_mesh,
     )(
         t=t,
-        geo=self.geo,
     )
     Ti_bound_right = core_profile_setters.updated_ion_temperature(
         dynamic_slice, geo
@@ -155,7 +154,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         torax_mesh=geo.torax_mesh,
     )
 
-    dynamic_runtime_params_slice = provider(t=1.0, geo=geo)
+    dynamic_runtime_params_slice = provider(t=1.0,)
     Ti = core_profile_setters.updated_ion_temperature(
         dynamic_runtime_params_slice, geo
     )
@@ -176,7 +175,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         rtol=1e-6,
     )
 
-    dynamic_runtime_params_slice = provider(t=2.0, geo=geo)
+    dynamic_runtime_params_slice = provider(t=2.0,)
     Ti = core_profile_setters.updated_ion_temperature(
         dynamic_runtime_params_slice, geo
     )
@@ -216,7 +215,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice = provider(t=1.0,)
 
     ne, ni = core_profile_setters.updated_density(
         dynamic_runtime_params_slice,
@@ -271,7 +270,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice = provider(t=1.0,)
 
     ne, _ = core_profile_setters.updated_density(
         dynamic_runtime_params_slice,
@@ -303,7 +302,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice_normalized = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice_normalized = provider(t=1.0,)
 
     ne_normalized, _ = core_profile_setters.updated_density(
         dynamic_runtime_params_slice_normalized,
@@ -312,7 +311,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     np.testing.assert_allclose(np.mean(ne_normalized.value), nbar, rtol=1e-1)
 
     runtime_params.profile_conditions.normalize_to_nbar = False
-    dynamic_runtime_params_slice_unnormalized = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice_unnormalized = provider(t=1.0,)
     ne_unnormalized, _ = core_profile_setters.updated_density(
         dynamic_runtime_params_slice_unnormalized,
         self.geo,
@@ -343,7 +342,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice_fGW = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice_fGW = provider(t=1.0,)
 
     ne_fGW, _ = core_profile_setters.updated_density(
         dynamic_runtime_params_slice_fGW,
@@ -351,7 +350,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     runtime_params.profile_conditions.ne_is_fGW = False
-    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice = provider(t=1.0,)
     ne, _ = core_profile_setters.updated_density(
         dynamic_runtime_params_slice,
         self.geo,
@@ -462,7 +461,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice = provider(t=1.0,)
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
         dynamic_runtime_params_slice,
@@ -516,7 +515,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice = provider(t=1.0,)
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice,
         self.geo,
@@ -549,7 +548,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice = provider(t=1.0,)
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
         dynamic_runtime_params_slice,
@@ -583,7 +582,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(t=1.0, geo=self.geo)
+    dynamic_runtime_params_slice = provider(t=1.0,)
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
         dynamic_runtime_params_slice,

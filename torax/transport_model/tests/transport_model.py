@@ -63,7 +63,7 @@ class TransportSmoothingTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
@@ -201,7 +201,7 @@ class TransportSmoothingTest(parameterized.TestCase):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
-        )(geo=geo, t=runtime_params.numerics.t_initial,)
+        )(t=runtime_params.numerics.t_initial,)
     )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
     input_state = sim_lib.get_initial_state(

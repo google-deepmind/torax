@@ -194,7 +194,6 @@ def update_sim(
   geo = geo_provider(runtime_params.numerics.t_initial)
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
       t=runtime_params.numerics.t_initial,
-      geo=geo,
   )
   dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
       dynamic_runtime_params_slice, geo

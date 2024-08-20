@@ -42,7 +42,7 @@ class QualikizUtilsTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     runtime_config_inputs = (
@@ -101,7 +101,7 @@ class QualikizUtilsTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
-            geo=geo, t=runtime_params.numerics.t_initial,
+            t=runtime_params.numerics.t_initial,
         )
     )
     runtime_config_inputs = (

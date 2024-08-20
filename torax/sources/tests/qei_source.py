@@ -63,7 +63,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )(
-        geo=geo, t=runtime_params.numerics.t_initial,
+        t=runtime_params.numerics.t_initial,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_slice,
@@ -97,7 +97,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )(
-        geo=geo, t=runtime_params.numerics.t_initial,
+        t=runtime_params.numerics.t_initial,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_slice,
@@ -117,7 +117,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
               },
               torax_mesh=geo.torax_mesh,
           )(
-              geo=geo, t=runtime_params.numerics.t_initial,
+              t=runtime_params.numerics.t_initial,
           )
           # Force pytype to recognize `source` has `get_qei`
           assert isinstance(source, qei_source.QeiSource)
