@@ -443,12 +443,6 @@ class InterpolatedParamTest(parameterized.TestCase):
         interpolated_var_time_rho.get_value(x=1.0,), np.array([1.0, 2.0, 3.0]),
     )
 
-  def test_fixed_param_always_returns_same_value(self):
-    """Tests that FixedParam always returns the same value."""
-    fixed_param = interpolated_param.FixedParam(value=1.0)
-    np.testing.assert_allclose(fixed_param.get_value(x=0.0), 1.0)
-    np.testing.assert_allclose(fixed_param.get_value(x=1.0), 1.0)
-
   @parameterized.named_parameters(
       dict(
           testcase_name='xarray',

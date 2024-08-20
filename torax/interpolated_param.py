@@ -43,18 +43,6 @@ class InterpolatedParamBase(abc.ABC):
     """Returns a value for this parameter interpolated at the given input."""
 
 
-class FixedParam(InterpolatedParamBase):
-  """Parameter that always returns the same value."""
-
-  def __init__(self, value: chex.Numeric):
-    self._value = value
-    self._np_value = np.array(value)
-
-  def get_value(self, x: chex.Numeric) -> chex.Array:
-    del x
-    return self._np_value
-
-
 @enum.unique
 class InterpolationMode(enum.Enum):
   """Defines how to do the interpolation.
