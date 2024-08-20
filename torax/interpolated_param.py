@@ -343,7 +343,6 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
   def _load_from_arrays(
       self,
       arrays: tuple[chex.Array, chex.Array, chex.Array],
-      rho_interpolation_mode: InterpolationMode,
   ):
     """Loads the data from numpy arrays.
 
@@ -351,36 +350,26 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
       arrays: A tuple of (times, rho_norm, values).
         times and rho_norm are assumed to be 1D arrays of equal length and
         values is a 2D array with shape (len(times), len(rho_norm)).
-      rho_interpolation_mode: Defines how to interpolate between values in
-        `value`.
     """
     if len(arrays) != 3:
       raise ValueError(f'arrays must be either length 3. Given: {len(arrays)}.')
     times, rho_norm, values = arrays
-    self.times_values = {
-        t: InterpolatedVarSingleAxis(
-            (rho_norm, values[i, :]),
-            rho_interpolation_mode,
-        )
-        for i, t in enumerate(times)
+    self.values = {
+        t: (rho_norm, values[i, :]) for i, t in enumerate(times)
     }
     self.sorted_indices = jnp.array(sorted(times))
 
   def _load_from_xr_array(
       self,
       array: xr.DataArray,
-      rho_interpolation_mode: InterpolationMode,
   ):
     """Loads the data from an xr.DataArray."""
     if 'time' not in array.coords:
       raise ValueError('"time" must be a coordinate in given dataset.')
     if RHO_NORM not in array.coords:
       raise ValueError(f'"{RHO_NORM}" must be a coordinate in given dataset.')
-    self.times_values = {
-        t: InterpolatedVarSingleAxis(
-            (array.rho_norm.data, array.sel(time=t).values,),
-            rho_interpolation_mode,
-        )
+    self.values = {
+        t: (array.rho_norm.data, array.sel(time=t).values,)
         for t in array.time.data
     }
     self.sorted_indices = jnp.array(sorted(array.time.data))
@@ -388,7 +377,6 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
   def _load_from_primitives(
       self,
       values: Mapping[float, InterpolatedVarSingleAxisInput] | float,
-      rho_interpolation_mode: InterpolationMode,
   ):
     """Loads the data from primitives."""
     # If a float is passed in, describes constant initial condition profile.
@@ -401,19 +389,11 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     ):
       values = {0.0: values}
 
-    self.values = values
-
     if len(set(values.keys())) != len(values):
       raise ValueError('Indicies in values mapping must be unique.')
     if not values:
       raise ValueError('Values mapping must not be empty.')
-
-    self.times_values = {}
-    for time in values.keys():
-      self.times_values[time] = InterpolatedVarSingleAxis(
-          convert_input_to_xs_ys(values[time]), rho_interpolation_mode,
-      )
-
+    self.values = {t: convert_input_to_xs_ys(v) for t, v in values.items()}
     self.sorted_indices = jnp.array(sorted(values.keys()))
 
   def __init__(
@@ -424,47 +404,34 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
           InterpolationMode.PIECEWISE_LINEAR
       ),
   ):
-    self._rho = rho
     if isinstance(values, xr.DataArray):
-      self._load_from_xr_array(values, rho_interpolation_mode)
+      self._load_from_xr_array(values,)
     elif isinstance(values, tuple) and all(
         isinstance(v, chex.Array) for v in values
     ):
       if len(values) == 2:
         # Shortcut for initial condition profile.
         values = (np.array([0.0]), values[0], values[1][np.newaxis, :])
-      self._load_from_arrays(values, rho_interpolation_mode)
+      self._load_from_arrays(values,)
     else:
-      self._load_from_primitives(values, rho_interpolation_mode)
+      self._load_from_primitives(values,)
+
+    rho_interpolated = np.stack(
+        [
+            InterpolatedVarSingleAxis(
+                self.values[float(t)], rho_interpolation_mode
+            ).get_value(rho)
+            for t in self.sorted_indices
+        ],
+        axis=0,
+    )
+    self._time_interpolated_var = InterpolatedVarSingleAxis(
+        (self.sorted_indices, rho_interpolated)
+    )
 
   def get_value(self, x: chex.Numeric) -> chex.Array:
     """Returns the value of this parameter interpolated at x=time."""
-    # Find the index that is to the right of x.
-    right = jnp.searchsorted(self.sorted_indices, x, side='left')
-
-    # If time is either smaller or larger, than smallest and largest values
-    # we know how to interpolate for, use the boundary interpolater.
-    if right == 0:
-      return self.times_values[float(self.sorted_indices[0])].get_value(
-          self._rho
-      )
-    if right == len(self.sorted_indices):
-      return self.times_values[float(self.sorted_indices[-1])].get_value(
-          self._rho
-      )
-
-    # Interpolate between the two closest defined interpolaters.
-    left_time = float(self.sorted_indices[right - 1])
-    right_time = float(self.sorted_indices[right])
-    return self.times_values[left_time].get_value(self._rho) * (
-        right_time - x
-    ) / (right_time - left_time) + self.times_values[right_time].get_value(
-        self._rho
-    ) * (
-        x - left_time
-    ) / (
-        right_time - left_time
-    )
+    return self._time_interpolated_var.get_value(x)
 
 
 # In runtime_params, users should be able to either specify the
