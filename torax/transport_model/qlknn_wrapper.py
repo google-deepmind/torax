@@ -289,18 +289,6 @@ class QLKNNTransportModel(transport_model.TransportModel):
       coeffs: transport coefficients
     """
 
-    # lru_cache is important: there's no global coordination of calls to
-    # transport model so it is called 2-4X with the same args. Caching prevents
-    # construction of multiple copies of identical expressions, and these are
-    # expensive expressions because they have all branches of dynamic config
-    # compiled in and selected using cond, they're qlknn neural networks,
-    # they're expensive to trace because it's numpy / filesystem access.
-    # Caching this one function reduces trace time for a whole
-    # end to end sim by 35% and compile time by 30%.
-    # This only works for tracers though, since concrete (numpy) arrays aren't
-    # hashable. We assume that either we're running a whole sim in uncompiled
-    # mode and everything is concrete or we're running a whole sim in compiled
-    # mode and everything is a tracer, so we can just test one value.
     runtime_config_inputs = QLKNNRuntimeConfigInputs.from_runtime_params_slice(
         dynamic_runtime_params_slice
     )
@@ -308,6 +296,9 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
   # Wrap in JIT here in order to cache the tracing/compilation of this function.
   # We mark self as static because it is a singleton. Other args are pytrees.
+  # There's no global coordination of calls to transport model so it is called
+  # 2-4X with the same args. Caching prevents construction of multiple copies of
+  # identical expressions saving ~30% in compile time.
   @functools.partial(jax.jit, static_argnames=['self'])
   def _combined(
       self,
