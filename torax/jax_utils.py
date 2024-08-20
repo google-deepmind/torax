@@ -17,7 +17,7 @@
 import contextlib
 import dataclasses
 import os
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, Iterable, Optional, Sequence, TypeVar, Union
 
 import chex
 import equinox as eqx
@@ -172,7 +172,7 @@ def jax_default(value: chex.Numeric) -> ...:
 
 def compat_linspace(
     start: Union[chex.Numeric, jax.Array], stop: jax.Array, num: jax.Array
-)-> jax.Array:
+) -> jax.Array:
   """See np.linspace.
 
   This implementation of a subset of the linspace API reproduces the
@@ -229,11 +229,38 @@ def is_tracer(var: jax.Array) -> bool:
   assert False  # Should be unreachable
 
 
-def jit(*args, **kwargs) -> Callable[..., Any]:
-  """Calls jax.jit iff TORAX_COMPILATION_ENABLED is True."""
+def jit(
+    fun,
+    *,
+    static_argnums: int | Sequence[int] | None = None,
+    static_argnames: str | Iterable[str] | None = None,
+    assert_max_traces: int | None = None,
+) -> Callable[..., Any]:
+  """Custom JIT for Torax.
+
+  Args:
+    fun: The function to jit.
+    static_argnums: optional, an int or collection of ints that specify which
+      positional arguments to treat as static (trace- and compile-time
+      constant).
+    static_argnames: optional, a string or collection of strings specifying
+      which named arguments to treat as static (compile-time constant).
+    assert_max_traces: if not `None`, checks that the function `fun` is
+      re-traced at most `assert_max_traces` times during program execution.
+      Raises a `AssertionError` if not.
+
+  Returns:
+    A JITted version of `fun` iff `TORAX_COMPILATION_ENABLED=True` and the
+    original `fun` if not.
+  """
+
   if _COMPILATION_ENABLED:
-    return jax.jit(*args, **kwargs)
-  return args[0]
+    if assert_max_traces is not None:
+      fun = chex.assert_max_traces(fun, n=assert_max_traces)
+    return jax.jit(
+        fun, static_argnums=static_argnums, static_argnames=static_argnames
+    )
+  return fun
 
 
 def py_while(
