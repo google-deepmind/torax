@@ -201,7 +201,7 @@ class BohmGyroBohmModel(transport_model.TransportModel):
     weighting = dynamic_runtime_params_slice.transport.d_face_c1 + (
         dynamic_runtime_params_slice.transport.d_face_c2
         - dynamic_runtime_params_slice.transport.d_face_c1
-    ) * geo.rho_face_norm
+    ) * geo.r_face_norm
     d_face_el = weighting * chi_e * chi_i / (chi_e + chi_i)
 
     # Pinch velocity
