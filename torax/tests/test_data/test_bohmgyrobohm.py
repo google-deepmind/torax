@@ -22,36 +22,43 @@
 """
 
 CONFIG = {
-    'runtime_params': {
-        'numerics': {
-            't_final': 2,
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
+    "runtime_params": {
+        "numerics": {
+            "fixed_dt": 1e-2,
+            "t_final": 2,
+            "ion_heat_eq": True,
+            "el_heat_eq": True,
+            "dens_eq": True,
+            "current_eq": True,
         },
     },
-    'geometry': {
-        'geometry_type': 'circular',
+    "geometry": {
+        "geometry_type": "circular",
     },
-    'sources': {
-        'j_bootstrap': {
-            'bootstrap_mult': 0.0,
+    "sources": {
+        "j_bootstrap": {},
+        "generic_ion_el_heat_source": {},
+        "qei_source": {},
+        "jext": {},
+    },
+    "transport": {
+        "transport_model": "bohm-gyrobohm",
+        "chimin": 0.05,
+        "bohm-gyrobohm_params": {
+            "chi_e_bohm_coeff": 1.0,
+            "chi_e_gyrobohm_coeff": 1.0,
+            "chi_i_bohm_coeff": 1.0,
+            "chi_i_gyrobohm_coeff": 1.0,
+            "d_face_c1": 0.0,
+            "d_face_c2": 0.0,
         },
-        'generic_ion_el_heat_source': {},
-        'qei_source': {},
-        'jext': {},
     },
-    'transport': {
-        'transport_model': 'bohm-gyrobohm',
-        'bohm-gyrobohm_params': {},
+    "stepper": {
+        "stepper_type": "linear",
+        "predictor_corrector": False,
+        "use_pereverzev": True,
     },
-    'stepper': {
-        'stepper_type': 'linear',
-        'predictor_corrector': False,
-        'use_pereverzev': True,
-    },
-    'time_step_calculator': {
-        'calculator_type': 'chi',
+    "time_step_calculator": {
+        "calculator_type": "fixed",
     },
 }
