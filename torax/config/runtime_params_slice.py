@@ -250,9 +250,6 @@ class DynamicRuntimeParamsSliceProvider:
       t: chex.Numeric,
   ) -> DynamicRuntimeParamsSlice:
     """Returns a DynamicRuntimeParamsSlice to use during time t of the sim."""
-    # For each dataclass attribute under DynamicRuntimeParamsSlice, build those
-    # objects explicitly, and then for all scalar attributes, fetch their values
-    # directly from the input runtime params using config_args.get_init_kwargs.
     dynamic_general_runtime_params = (
         self._runtime_params_provider.build_dynamic_params(t)
     )
