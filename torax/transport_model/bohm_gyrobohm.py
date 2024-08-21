@@ -55,14 +55,13 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
   def sanity_check(self):
     runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
-    # TODO: Any sanity checks required?
 
   def __post_init__(self):
     self.sanity_check()
 
 
 class BohmGyroBohmModel(transport_model.TransportModel):
-  """Calculates various coefficients related to particle transport."""
+  """Calculates various coefficients related to particle transport according to the Bohm + gyro-Bohm Model."""
 
   def __init__(
       self,
@@ -116,53 +115,33 @@ class BohmGyroBohmModel(transport_model.TransportModel):
             \frac{\partial T_e}{\partial \rho_{\text{tor}}}
           \right|
 
-    Particle diffusivities
-    ======================
+    where :math:`a_\text{min}` is the minor radius, :math:`q` is the safety factor, :math:`e` is the elementary charge, :math:`B_\text{ax}` is the toroidal magnetic field at the magnetic axis, :math:`n_e` is the electron density, :math:`B_\text{geo}` is the geometric toroidal magnetic field, :math:`\Psi_\text{tor, sep}` is the toroidal flux at the separatrix, :math:`p_e` is the electron pressure, and :math:`T_e` is the electron temperature.
 
-    The electron diffusivity is given by:
-
-    .. math::
-      D_e = \zeta(\rho_{\text{tor}}) \frac{\chi_e \chi_i}{\chi_e + \chi_i}
-
-    where :math:`\zeta(\rho_{\text{tor}}) = A_1 + (A_2 - A_1) \rho_{\text{tor}}` is a linear weighting function, with manually set coefficients :math:`A_1` and :math:`A_2`.
-
-    Pinch velocities
-    ================
-
-    The electron pinch velocity is given by:
+    Electron diffusivity
+    ====================
 
     .. math::
-      v_{\text{in},e} = 0.5 \frac{D_e S_{text{flux}}^2}{V} \left( \frac{\text{d}V}{\text{d}\rho_\text{tor}})^{-1} \right) \sqrt{\frac{\Psi_{\text{tor, sep}}}{\pi B_{\text{geo}}}}
+      D_e = \eta \frac{\chi_e \chi_i}{\chi_e + \chi_i}
 
-    Glossary of terms
-    =================
+    where :math:`\eta` is a weighting factor given by:
 
-    - :math:`\chi_e`: Total electron heat transport
-    - :math:`\chi_i`: Total ion heat transport
-    - :math:`D_e`: Electron particle diffusivity
-    - :math:`v_{\text{in},e}`: Electron pinch velocity
-    - :math:`\chi_{e, \text{B}}`: Bohm term of electron heat transport
-    - :math:`\chi_{e, \text{gB}}`: Gyrobohm term of electron heat transport
-    - :math:`\chi_{i, \text{B}}`: Bohm term of ion heat transport
-    - :math:`\chi_{i, \text{gB}}`: Gyrobohm term of ion heat transport
-    - :math:`\alpha_{e, \text{B}}`: Coefficient of Bohm term of electron heat transport
-    - :math:`\alpha_{e, \text{gB}}`: Coefficient of gyro-Bohm term of electron heat transport
-    - :math:`\alpha_{i, \text{B}}`: Coefficient of Bohm term of ion heat transport
-    - :math:`\alpha_{i, \text{gB}}`: Coefficient of gyro-Bohm term of ion heat transport
-    - :math:`a_\text{min}`: *?*
-    - :math:`q`: Safety factor
-    - :math:`e`: *?*
-    - :math:`B_\text{ax}`: Magnetic field at the magnetic axis
-    - :math:`n_e`: Electron density
-    - :math:`B_\text{geo}`: ??
-    - :math:`\Psi_\text{tor, sep}`: ??
-    - :math:`p_e`: Electron pressure, :math:`p_e = n_e T_e` *?*
-    - :math:`\rho_{\text{tor}}`: ??
-    - :math:`T_e`: Electron temperature
-    - :math:`A_1`: Value of :math:`\zeta` at :math:`\rho_{\text{tor}} = 0`
-    - :math:`A_2`: Value of :math:`\zeta` at :math:`\rho_{\text{tor}} = 1`
-    - :math:`S_{text{flux}}`: Flux surface area
-    - :math:`V`: Flux surface volume
+    .. math::
+
+      \eta = c_1 + (c_2 - c_1) \rho_{\text{tor}}
+
+    where :math:`c_1` and :math:`c_2` are constants.
+
+
+    Electron convectivity
+    =====================
+
+    .. math::
+      v_e = \frac{1}{2} \frac{D_e A^2}{V \frac{dV}{d\rho}}
+
+    where :math:`A` and :math:`V` are the area and volume of the flux surface respectively.
+
+    References:
+    ===========
 
     [1]: https://doi.org/10.1088/1741-4326/ad6ea2
 
