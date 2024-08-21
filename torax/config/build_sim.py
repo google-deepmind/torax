@@ -407,6 +407,11 @@ def build_transport_model_builder_from_config(
     -  See `transport_model.critical_gradient.RuntimeParams` for model-specific
        params.
 
+  -  `bohm-gyrobohm`: Bohm-GyroBohm transport
+
+    -  See `transport_model.bohm_gyrobohm.RuntimeParams` for model-specific
+        params.
+
   For all transport models, there are certain parameters which are shared
   amongst all models, as defined by
   `transport_model.runtime_params.RuntimeParams`. For each type of transport,
@@ -463,6 +468,7 @@ def build_transport_model_builder_from_config(
     # Remove params from the other models, if present.
     qlknn_params.pop('constant_params', None)
     qlknn_params.pop('cgm_params', None)
+    qlknn_params.pop('bohm-gyrobohm_params', None)
     return qlknn_wrapper.QLKNNTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
             qlknn_wrapper.RuntimeParams(),
@@ -476,6 +482,7 @@ def build_transport_model_builder_from_config(
     # Remove params from the other models, if present.
     constant_params.pop('qlknn_params', None)
     constant_params.pop('cgm_params', None)
+    constant_params.pop('bohm-gyrobohm_params', None)
     return constant_transport.ConstantTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
             constant_transport.RuntimeParams(),
@@ -488,10 +495,24 @@ def build_transport_model_builder_from_config(
     # Remove params from the other models, if present.
     cgm_params.pop('qlknn_params', None)
     cgm_params.pop('constant_params', None)
+    cgm_params.pop('bohm-gyrobohm_params', None)
     return critical_gradient_transport.CriticalGradientModelBuilder(
         runtime_params=config_args.recursive_replace(
             critical_gradient_transport.RuntimeParams(),
             **cgm_params,
+        )
+    )
+  elif transport_model == 'bohm-gyrobohm':
+    bgb_params = transport_config.pop('bohm-gyrobohm_params', {})
+    bgb_params.update(transport_config)
+    # Remove params from the other models, if present.
+    bgb_params.pop('qlknn_params', None)
+    bgb_params.pop('constant_params', None)
+    bgb_params.pop('cgm_params', None)
+    return bohm_gyrobohm_transport.BohmGyroBohmModelBuilder(
+        runtime_params=config_args.recursive_replace(
+            bohm_gyrobohm_transport.RuntimeParams(),
+            **bgb_params,
         )
     )
   raise ValueError(f'Unknown transport model: {transport_model}')
