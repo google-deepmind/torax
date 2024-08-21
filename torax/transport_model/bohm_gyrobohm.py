@@ -25,12 +25,12 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
-  chi_e_bohm_coeff: float
-  chi_e_gyrobohm_coeff: float
-  chi_i_bohm_coeff: float
-  chi_i_gyrobohm_coeff: float
-  d_face_c1: float
-  d_face_c2: float
+  chi_e_bohm_coeff: float = 8e-5
+  chi_e_gyrobohm_coeff: float = 7e-2
+  chi_i_bohm_coeff: float = 1.6e-4
+  chi_i_gyrobohm_coeff: float = 1.75e-2
+  d_face_c1: float = 1.0
+  d_face_c2: float = 0.3
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
