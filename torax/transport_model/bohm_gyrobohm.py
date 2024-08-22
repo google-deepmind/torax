@@ -228,14 +228,17 @@ class BohmGyroBohmModel(transport_model.TransportModel):
         # pylint: disable=invalid-name
         assert isinstance(dynamic_runtime_params_slice.transport, DynamicRuntimeParams)
 
+        true_ne_face = core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+        true_ne_grad_face = core_profiles.ne.face_grad() * dynamic_runtime_params_slice.numerics.nref
+
         # Bohm term of heat transport
         chi_e_B = (
             geo.rmid_face
             * core_profiles.q_face**2
-            / (constants_module.CONSTANTS.qe * geo.B0 * core_profiles.ne.face_value())
+            / (constants_module.CONSTANTS.qe * geo.B0 * true_ne_face)
             * (
-                core_profiles.ne.face_grad() * core_profiles.temp_el.face_value()
-                + core_profiles.temp_el.face_grad() * core_profiles.ne.face_value()
+                jnp.abs(true_ne_grad_face) * core_profiles.temp_el.face_value()
+                + jnp.abs(core_profiles.temp_el.face_grad()) * true_ne_face
             )
             / geo.rho_b
         )
@@ -245,7 +248,7 @@ class BohmGyroBohmModel(transport_model.TransportModel):
             jnp.sqrt(dynamic_runtime_params_slice.plasma_composition.Ai / 2)
             * jnp.sqrt(core_profiles.temp_el.face_value() * 1e3)
             / geo.B0**2
-            * core_profiles.temp_el.face_grad()
+            * jnp.abs(core_profiles.temp_el.face_grad())
             / geo.rho_b
         )
 
