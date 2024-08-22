@@ -185,6 +185,14 @@ class Geometry:
     return self.r_norm * self.rmax
 
   @property
+  def rmid(self) -> chex.Array:
+    return (self.Rout - self.Rin) / 2
+
+  @property
+  def rmid_face(self) -> chex.Array:
+    return (self.Rout_face - self.Rin_face) / 2
+
+  @property
   def dr(self) -> chex.Array:
     return self.dr_norm * self.rmax
 
