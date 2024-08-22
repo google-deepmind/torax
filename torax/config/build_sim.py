@@ -35,6 +35,7 @@ from torax.time_step_calculator import array_time_step_calculator
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as time_step_calculator_lib
+from torax.transport_model import bohm_gyrobohm as bohm_gyrobohm_transport
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_wrapper
