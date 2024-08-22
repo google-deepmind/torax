@@ -239,7 +239,7 @@ class BohmGyroBohmModel(transport_model.TransportModel):
             * (
                 jnp.abs(true_ne_grad_face) * core_profiles.temp_el.face_value()
                 + jnp.abs(core_profiles.temp_el.face_grad()) * true_ne_face
-            )
+            ) * constants_module.CONSTANTS.keV2J
             / geo.rho_b
         )
 
