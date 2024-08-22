@@ -46,11 +46,10 @@ from torax.transport_model import transport_model as transport_model_lib
 
 def _build_standard_geometry_provider(
     geometry_type: str,
-    Ip_from_parameters: bool = True,
-    geometry_dir: str | None = None,
     **kwargs,
 ) -> geometry_provider.GeometryProvider:
   """Constructs a geometry provider for a standard geometry."""
+  global_params = {'Ip_from_parameters', 'n_rho', 'geometry_dir'}
   if geometry_type == 'chease':
     intermediate_builder = geometry.StandardGeometryIntermediates.from_chease
   elif geometry_type == 'fbt':
@@ -61,18 +60,23 @@ def _build_standard_geometry_provider(
     if not isinstance(kwargs['geometry_configs'], dict):
       raise ValueError('geometry_configs must be a dict.')
     geometries = {}
+    global_kwargs = {key: kwargs[key] for key in global_params if key in kwargs}
     for time, config in kwargs['geometry_configs'].items():
-      geometries[time] = geometry.build_standard_geometry(intermediate_builder(
-          Ip_from_parameters=Ip_from_parameters,
-          geometry_dir=geometry_dir,
-          **config,
-      ))
+      if x := global_params.intersection(config):
+        raise ValueError(
+            'The following parameters cannot be set per geometry_config:'
+            f' {", ".join(x)}'
+        )
+      config.update(global_kwargs)
+      geometries[time] = geometry.build_standard_geometry(
+          intermediate_builder(
+              **config,
+          )
+      )
     return geometry.StandardGeometryProvider.create_provider(geometries)
   return geometry_provider.ConstantGeometryProvider(
       geometry.build_standard_geometry(
           intermediate_builder(
-              Ip_from_parameters=Ip_from_parameters,
-              geometry_dir=geometry_dir,
               **kwargs,
           )
       )
@@ -91,7 +95,8 @@ def _build_circular_geometry_provider(
     geometries = {}
     for time, c in kwargs['geometry_configs'].items():
       geometries[time] = geometry.build_circular_geometry(
-          n_rho=kwargs['n_rho'], **c)
+          n_rho=kwargs['n_rho'], **c
+      )
     return geometry.CircularAnalyticalGeometryProvider.create_provider(
         geometries
     )
@@ -101,7 +106,7 @@ def _build_circular_geometry_provider(
 
 
 def build_geometry_provider_from_config(
-    geometry_config: dict[str, Any] | str,
+    geometry_config: dict[str, Any],
 ) -> geometry_provider.GeometryProvider:
   """Builds a `Geometry` from the input config.
 
@@ -130,20 +135,18 @@ def build_geometry_provider_from_config(
   Returns:
     A `GeometryProvider` based on the input config.
   """
-  if isinstance(geometry_config, str):
-    kwargs = {'geometry_type': geometry_config}
-  else:
-    if 'geometry_type' not in geometry_config:
-      raise ValueError('geometry_type must be set in the input config.')
-    # Do a shallow copy to keep references to the original objects while not
-    # modifying the original config dict with the pop-statement below.
-    kwargs = copy.copy(geometry_config)
+  if 'geometry_type' not in geometry_config:
+    raise ValueError('geometry_type must be set in the input config.')
+  # Do a shallow copy to keep references to the original objects while not
+  # modifying the original config dict with the pop-statement below.
+  kwargs = copy.copy(geometry_config)
   geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
   if geometry_type == 'circular':
     return _build_circular_geometry_provider(**kwargs)
   elif geometry_type == 'chease' or geometry_type == 'fbt':
     return _build_standard_geometry_provider(
-        geometry_type=geometry_type, **kwargs)
+        geometry_type=geometry_type, **kwargs
+    )
   raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 
@@ -484,7 +487,7 @@ def build_transport_model_builder_from_config(
             qlknn_wrapper.RuntimeParams(),
             **qlknn_params,
         ),
-        model_path=model_path
+        model_path=model_path,
     )
   elif transport_model == 'constant':
     constant_params = transport_config.pop('constant_params', {})
