@@ -106,6 +106,10 @@ class Numerics(base.RuntimeParametersConfig):
         ),
     )
 
+  def __post_init__(self):
+    if self.dtmult <= 0.0:
+      raise ValueError(f'dtmult must be positive, got {self.dtmult}')
+
 
 @chex.dataclass
 class NumericsProvider(base.RuntimeParametersProvider['DynamicNumerics']):

@@ -25,6 +25,7 @@ from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
 from typing_extensions import override
+import xarray as xr
 
 
 # pylint: disable=invalid-name
@@ -115,6 +116,68 @@ class ProfileConditions(
   # or from the psi available in the numerical geometry file. This setting is
   # ignored for the ad-hoc circular geometry, which has no numerical geometry.
   initial_psi_from_j: bool = False
+
+  def _sanity_check_profile_boundary_conditions(
+      self,
+      values: interpolated_param.InterpolatedVarTimeRhoInput,
+      value_name: str,
+  ):
+    """Check that the profile is defined at rho=1.0 for various cases."""
+    error_message = (
+        f'As no right boundary condition was set for {value_name}, the'
+        f' profile for {value_name} must include a rho=1.0 boundary'
+        ' condition.'
+    )
+    match values:
+      # In case of constant profile case expect an explicit boundary condition.
+      case float():
+        raise ValueError(error_message)
+      # In case of constant profile case expect an explicit boundary condition.
+      case int():
+        raise ValueError(error_message)
+      case dict():
+        # Initial condition dict shortcut.
+        if all(isinstance(v, float) for v in values.values()):
+          if 1.0 not in values:
+            raise ValueError(error_message)
+        else:
+          # Check for all times that the boundary condition is defined.
+          for _, value in values.items():
+            if 1.0 not in value:
+              raise ValueError(error_message)
+      case xr.DataArray():
+        if 1.0 not in values.coords[interpolated_param.RHO_NORM]:
+          raise ValueError(error_message)
+      # Arrays case.
+      case _:
+        if not isinstance(values, tuple):
+          raise ValueError(f'Cannot identify a valid way to map {values}.')
+        # Initial condition array shortcut.
+        if len(values) == 2:
+          rho_norm, _ = values
+        elif len(values) == 3:
+          _, rho_norm, _ = values
+        else:
+          raise ValueError('Only array tuples of length 2 or 3 are supported.')
+        if 1.0 not in rho_norm:
+          raise ValueError(error_message)
+
+  def __post_init__(self):
+    if self.Ti_bound_right is None:
+      self._sanity_check_profile_boundary_conditions(
+          self.Ti,
+          'Ti',
+      )
+    if self.Te_bound_right is None:
+      self._sanity_check_profile_boundary_conditions(
+          self.Te,
+          'Te',
+      )
+    if self.ne_bound_right is None:
+      self._sanity_check_profile_boundary_conditions(
+          self.ne,
+          'ne',
+      )
 
   @override
   def make_provider(

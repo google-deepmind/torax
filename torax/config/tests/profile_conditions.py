@@ -20,6 +20,7 @@ import numpy as np
 from torax import geometry
 from torax import interpolated_param
 from torax.config import profile_conditions
+import xarray as xr
 
 
 # pylint: disable=invalid-name
@@ -159,6 +160,94 @@ class ProfileConditionsTest(parameterized.TestCase):
       value = getattr(provider, field)
       if isinstance(value, interpolated_param.InterpolatedParamBase):
         self.assertIs(value, interpolated_params[field])
+
+  @parameterized.named_parameters(
+      dict(testcase_name='float', values=1.0, raises=True),
+      dict(testcase_name='int', values=1, raises=True),
+      dict(
+          testcase_name='invalid dict shortcut',
+          values={0.0: 0.0, 0.9: 1.0},
+          raises=True,
+      ),
+      dict(
+          testcase_name='valid dict shortcut',
+          values={0.0: 0.0, 1.0: 1.0},
+          raises=False,
+      ),
+      dict(
+          testcase_name='invalid dict',
+          values={0.0: {0.0: 0.0, 0.9: 1.0}},
+          raises=True,
+      ),
+      dict(
+          testcase_name='valid dict',
+          values={0.0: {0.0: 0.0, 1.0: 1.0}},
+          raises=False,
+      ),
+      dict(
+          testcase_name='invalid numpy shortcut',
+          values=(np.array([0.0, 0.9]), np.array([0.0, 1.0])),
+          raises=True,
+      ),
+      dict(
+          testcase_name='valid numpy shortcut',
+          values=(np.array([0.0, 1.0]), np.array([0.0, 1.0])),
+          raises=False,
+      ),
+      dict(
+          testcase_name='invalid numpy',
+          values=(
+              np.array([0.0]),
+              np.array([0.0, 0.9]),
+              np.array([[0.0, 1.0]]),
+          ),
+          raises=True,
+      ),
+      dict(
+          testcase_name='valid numpy',
+          values=(
+              np.array([0.0]),
+              np.array([0.0, 1.0]),
+              np.array([[0.0, 1.0]]),
+          ),
+          raises=False,
+      ),
+      dict(
+          testcase_name='invalid xarray',
+          values=xr.DataArray(
+              data=np.array([[0.0, 1.0]]),
+              dims=['times', interpolated_param.RHO_NORM],
+              coords={interpolated_param.RHO_NORM: [0.0, 0.9], 'times': [0.0]},
+          ),
+          raises=True,
+      ),
+      dict(
+          testcase_name='valid xarray',
+          values=xr.DataArray(
+              data=np.array([[0.0, 1.0]]),
+              dims=['times', interpolated_param.RHO_NORM],
+              coords={interpolated_param.RHO_NORM: [0.0, 1.0], 'times': [0.0]},
+          ),
+          raises=False,
+      ),
+  )
+  def test_profile_conditions_raises_error_if_boundary_condition_not_defined(
+      self,
+      values,
+      raises,
+  ):
+    """Tests that an error is raised if the boundary condition is not defined."""
+    if raises:
+      with self.assertRaises(ValueError):
+        profile_conditions.ProfileConditions(
+            Ti=values,
+            Ti_bound_right=None,
+        )
+    else:
+      profile_conditions.ProfileConditions(
+          Ti=values,
+          Ti_bound_right=None,
+      )
 
 
 if __name__ == '__main__':
