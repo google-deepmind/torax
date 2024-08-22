@@ -248,7 +248,7 @@ class BohmGyroBohmModel(transport_model.TransportModel):
             jnp.sqrt(dynamic_runtime_params_slice.plasma_composition.Ai / 2)
             * jnp.sqrt(core_profiles.temp_el.face_value() * 1e3)
             / geo.B0**2
-            * jnp.abs(core_profiles.temp_el.face_grad())
+            * jnp.abs(core_profiles.temp_el.face_grad() * 1e3)
             / geo.rho_b
         )
 
