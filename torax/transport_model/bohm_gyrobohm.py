@@ -26,9 +26,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   See base class runtime_params.RuntimeParams docstring for more info.
   """
   chi_e_bohm_coeff: float = 8e-5
-  chi_e_gyrobohm_coeff: float = 7e-2
-  chi_i_bohm_coeff: float = 1.6e-4
-  chi_i_gyrobohm_coeff: float = 1.75e-2
+  chi_e_gyrobohm_coeff: float = 5e-6
+  chi_i_bohm_coeff: float = 8e-5
+  chi_i_gyrobohm_coeff: float = 5e-6
   d_face_c1: float = 1.0
   d_face_c2: float = 0.3
 
@@ -162,26 +162,22 @@ class BohmGyroBohmModel(transport_model.TransportModel):
             dynamic_runtime_params_slice.transport, DynamicRuntimeParams
         )
 
-    # Collect useful variables
-    constants = constants_module.CONSTANTS
-    Te = core_profiles.temp_el.face_value()
-    grad_Te = core_profiles.temp_el.face_grad()
-    ne = core_profiles.ne.face_value()
-    grad_ne = core_profiles.ne.face_grad()
-    grad_pe = grad_ne * Te + ne * grad_Te            # Electron pressure (by chain rule)
-
     # Bohm term of heat transport
     chi_e_B = (
-      geo.Rmaj * core_profiles.q_face ** 2
-      / (constants.qe * geo.B0 * ne)
-      * grad_pe
+      geo.rmid_face * core_profiles.q_face ** 2
+      / (constants_module.CONSTANTS.e * geo.B0 * core_profiles.ne.face())
+      * (
+        core_profiles.ne.face_grad() * core_profiles.temp_el.face_value()
+        + core_profiles.temp_el.face_grad() * core_profiles.ne.face_value()
+      )
+      / geo.rho_b
     )
 
     # Gyrobohm term of heat transport
     chi_e_gB = (
-      jnp.sqrt(Te)
-      / geo.B0 ** 2
-      * grad_Te
+      jnp.sqrt(dynamic_runtime_params_slice.plasma_composition.Ai / 2)
+      * jnp.sqrt(core_profiles.temp_el.face_value() * 1e3) / geo.B0 ** 2
+      * core_profiles.temp_el.face_grad() / geo.rho_b
     )
 
     chi_i_B = 2 * chi_e_B
