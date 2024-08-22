@@ -97,6 +97,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests BgB model heat transport only
+      (
+          'test_bohmgyrobohm_heat',
+          'test_bohmgyrobohm_heat.py',
+          _ALL_PROFILES,
+          0,
+      )
       # Test that we are able to reproduce FiPy's behavior in a case where
       # FiPy is unstable
       (
