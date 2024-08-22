@@ -14,12 +14,13 @@
 
 """Classes for representing the problem geometry."""
 
+
 from __future__ import annotations
 
+from collections.abc import Mapping
 import dataclasses
 import enum
 import functools
-from collections.abc import Mapping
 from typing import Type
 
 import chex
@@ -27,8 +28,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy
-
-from torax import constants, geometry_loader, interpolated_param, jax_utils
+from torax import constants
+from torax import geometry_loader
+from torax import interpolated_param
+from torax import jax_utils
 
 
 @chex.dataclass(frozen=True)
