@@ -81,7 +81,7 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
 
     chi_max = core_transport.chi_max(geo)
 
-    basic_dt = (3.0 / 4.0) * (geo.dr_norm**2) / chi_max * geo.rmax**2
+    basic_dt = (3.0 / 4.0) * (geo.drho_norm**2) / chi_max
 
     dt = jnp.minimum(
         dynamic_runtime_params_slice.numerics.dtmult * basic_dt,

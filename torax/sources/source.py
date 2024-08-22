@@ -27,7 +27,11 @@ import dataclasses
 import enum
 import types
 import typing
-from typing import Any, Callable, Protocol
+from typing import Any, Callable, Optional, Protocol, TypeAlias
+
+# We use Optional here because | doesn't work with string name types.
+# We use string name 'source_models.SourceModels' in this file to avoid
+# circular imports.
 
 import chex
 import jax
@@ -40,12 +44,14 @@ from torax.sources import runtime_params as runtime_params_lib
 
 
 # Sources implement these functions to be able to provide source profiles.
-SourceProfileFunction = Callable[
+# pytype bug: 'source_models.SourceModels' not treated as forward reference
+SourceProfileFunction: TypeAlias = Callable[  # pytype: disable=name-error
     [  # Arguments
         runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
         runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
         geometry.Geometry,
         state.CoreProfiles | None,
+        Optional['source_models.SourceModels'],
     ],
     # Returns a JAX array, tuple of arrays, or mapping of arrays.
     chex.ArrayTree,
@@ -55,7 +61,7 @@ SourceProfileFunction = Callable[
 # Any callable which takes the dynamic runtime_params, geometry, and optional
 # core profiles, and outputs a shape corresponding to the expected output of a
 # source. See how these types of functions are used in the Source class below.
-SourceOutputShapeFunction = Callable[
+SourceOutputShapeFunction: TypeAlias = Callable[
     [  # Arguments
         geometry.Geometry,
     ],
@@ -91,7 +97,7 @@ class AffectedCoreProfile(enum.IntEnum):
   TEMP_EL = 4
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class Source:
   """Base class for a single source/sink term.
 
@@ -111,9 +117,9 @@ class Source:
       the output shape returned by output_shape_getter. Subclasses may override
       this requirement.
     supported_modes: Defines how the source computes its profile. Can be set to
-      zero, model-based, etc. At runtime, the input config (the RuntimeParams
-      or the DynamicRuntimeParams) will specify which supported type the Source
-      is running with. If the runtime config specifies an unsupported type, an
+      zero, model-based, etc. At runtime, the input config (the RuntimeParams or
+      the DynamicRuntimeParams) will specify which supported type the Source is
+      running with. If the runtime config specifies an unsupported type, an
       error will raise.
     output_shape_getter: Callable which returns the shape of the profiles given
       by this source.
@@ -130,6 +136,7 @@ class Source:
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.FORMULA_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
   )
 
   output_shape_getter: SourceOutputShapeFunction = get_cell_profile_shape
@@ -207,15 +214,16 @@ class Source:
     self.check_mode(dynamic_source_runtime_params.mode)
     output_shape = self.output_shape_getter(geo)
     model_func = (
-        (lambda _0, _1, _2, _3: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3, _4: jnp.zeros(output_shape))
         if self.model_func is None
         else self.model_func
     )
     formula = (
-        (lambda _0, _1, _2, _3: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3, _4: jnp.zeros(output_shape))
         if self.formula is None
         else self.formula
     )
+
     return get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
@@ -223,7 +231,9 @@ class Source:
         core_profiles=core_profiles,
         model_func=model_func,
         formula=formula,
+        prescribed_values=dynamic_source_runtime_params.prescribed_values,
         output_shape=output_shape,
+        source_models=getattr(self, 'source_models', None),
     )
 
   def get_source_profile_for_affected_core_profile(
@@ -271,11 +281,11 @@ class Source:
     return jnp.where(
         affected_core_profile in affected_core_profile_ints,
         profile[idx, ...],
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileSource(Source):
   """Source providing a single output profile on the cell grid.
 
@@ -287,7 +297,7 @@ class SingleProfileSource(Source):
   .. code-block:: python
 
     # Define an electron-density source with a Gaussian profile.
-    my_custom_source = source.SingleProfileSource(
+    my_custom_source_builder = source.SingleProfileSourceBuilder(
         supported_modes=(
             runtime_params_lib.Mode.ZERO,
             runtime_params_lib.Mode.FORMULA_BASED,
@@ -297,7 +307,7 @@ class SingleProfileSource(Source):
     )
     # Define its runtime parameters (this could be done in the constructor as
     # well).
-    my_custom_source.runtime_params = runtime_params_lib.RuntimeParams(
+    my_custom_source_builder.runtime_params = runtime_params_lib.RuntimeParams(
         mode=runtime_params_lib.Mode.FORMULA_BASED,
         formula=formula_config.Gaussian(
             total=1.0,
@@ -305,9 +315,9 @@ class SingleProfileSource(Source):
             c2=3.0,
         ),
     )
-    all_torax_sources = source_models_lib.SourceModels(
-        sources={
-            'my_custom_source': my_custom_source,
+    all_torax_sources_builder = source_models_lib.SourceModelsBuilder(
+        sources_builder={
+            'my_custom_source': my_custom_source_builder,
         }
     )
 
@@ -345,6 +355,7 @@ class SingleProfileSource(Source):
         dynamic_source_runtime_params,
         geo,
         core_profiles,
+        source_models,
     ) -> jax.Array:
       assert isinstance(dynamic_source_runtime_params, DynamicFooRuntimeParams)
       # implement your foo model.
@@ -409,7 +420,7 @@ class SingleProfileSource(Source):
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
         profile,
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
 
 
@@ -425,8 +436,8 @@ class ProfileType(enum.Enum):
   def get_profile_shape(self, geo: geometry.Geometry) -> tuple[int, ...]:
     """Returns the expected length of the source profile."""
     profile_type_to_len = {
-        ProfileType.CELL: geo.r.shape,
-        ProfileType.FACE: geo.r_face.shape,
+        ProfileType.CELL: geo.rho.shape,
+        ProfileType.FACE: geo.rho_face.shape,
     }
     return profile_type_to_len[self]
 
@@ -435,6 +446,8 @@ class ProfileType(enum.Enum):
     return jnp.zeros(self.get_profile_shape(geo))
 
 
+# pytype bug: 'source_models.SourceModels' not treated as a forward ref
+# pytype: disable=name-error
 def get_source_profiles(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
@@ -442,12 +455,16 @@ def get_source_profiles(
     core_profiles: state.CoreProfiles | None,
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
+    prescribed_values: chex.Array,
     output_shape: tuple[int, ...],
+    source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Returns source profiles requested by the runtime_params_lib.
 
-  This function handles MODEL_BASED, FORMULA_BASED, and ZERO sources. All other
-  source types will be ignored.
+  This function handles MODEL_BASED, FORMULA_BASED, PRESCRIBED and ZERO sources.
+  All other source types will be ignored.
+  This function exists to simplify the creation of the profile to a set of
+  jnp.where calls.
 
   Args:
     dynamic_runtime_params_slice: Slice of the general TORAX config that can be
@@ -459,14 +476,20 @@ def get_source_profiles(
       functions.
     model_func: Model function.
     formula: Formula implementation.
-    output_shape: Expected shape of the outut array.
+    prescribed_values: Array of values for this timeslice, interpolated onto the
+      grid (ie with shape output_shape)
+    output_shape: Expected shape of the output array.
+    source_models: The SourceModels if the Source `links_back`.
 
   Returns:
     Output array of a profile or concatenated/stacked profiles.
   """
+  # pytype: enable=name-error
   mode = dynamic_source_runtime_params.mode
   zeros = jnp.zeros(output_shape)
   output = jnp.zeros(output_shape)
+
+  # MODEL_BASED
   output += jnp.where(
       mode == runtime_params_lib.Mode.MODEL_BASED.value,
       model_func(
@@ -474,9 +497,11 @@ def get_source_profiles(
           dynamic_source_runtime_params,
           geo,
           core_profiles,
+          source_models,
       ),
       zeros,
   )
+  # FORMULA_BASED
   output += jnp.where(
       mode == runtime_params_lib.Mode.FORMULA_BASED.value,
       formula(
@@ -484,7 +509,14 @@ def get_source_profiles(
           dynamic_source_runtime_params,
           geo,
           core_profiles,
+          source_models,
       ),
+      zeros,
+  )
+  # PRESCRIBED
+  output += jnp.where(
+      mode == runtime_params_lib.Mode.PRESCRIBED.value,
+      prescribed_values,
       zeros,
   )
   return output
@@ -494,7 +526,7 @@ def get_source_profiles(
 # sources defined in the other files in this folder.
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfilePsiSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -502,7 +534,7 @@ class SingleProfilePsiSource(SingleProfileSource):
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileNeSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -510,7 +542,7 @@ class SingleProfileNeSource(SingleProfileSource):
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileTempIonSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -518,7 +550,7 @@ class SingleProfileTempIonSource(SingleProfileSource):
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class SingleProfileTempElSource(SingleProfileSource):
 
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
@@ -530,7 +562,7 @@ def _get_ion_el_output_shape(geo):
   return (2,) + ProfileType.CELL.get_profile_shape(geo)
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class IonElectronSource(Source):
   """Base class for a source/sink that can be used for both ions / electrons.
 
@@ -545,16 +577,14 @@ class IonElectronSource(Source):
   first being ion profile and the second being the electron profile.
   """
 
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.FORMULA_BASED,
-      runtime_params_lib.Mode.ZERO,
-  )
-
   # Don't include affected_core_profiles in the __init__ arguments.
   # Freeze this param.
   affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
       init=False,
-      default=(AffectedCoreProfile.TEMP_ION, AffectedCoreProfile.TEMP_EL,),
+      default=(
+          AffectedCoreProfile.TEMP_ION,
+          AffectedCoreProfile.TEMP_EL,
+      ),
   )
 
   # Don't include output_shape_getter in the __init__ arguments.
@@ -719,7 +749,7 @@ def make_source_builder(
 
   new_field_ntfs = [runtime_params_ntf]
   builder_ntfs = name_type_field_tuples + new_field_ntfs
-  builder_type_name = source_type.__name__ + 'Builder'
+  builder_type_name = source_type.__name__ + 'Builder'  # pytype: disable=attribute-error
 
   def check_kwargs(source_init_kwargs, context_msg):
     for f in source_fields:
@@ -804,20 +834,37 @@ def make_source_builder(
           f'Expected {runtime_params_type}, got {type(runtime_params)}'
       )
 
+  def check_source(source):
+    """Check that the result is a valid Source."""
+    # `dataclasses` module is designed to operate on instances, not
+    # types, so we have to do all this type analysis in the post init
+    if not dataclasses.is_dataclass(source):
+      raise TypeError(f'{source_type} is not a dataclass type')
+
+    if not getattr(source, '__dataclass_params__').eq:
+      raise TypeError(f'{source_type} needs eq=True')
+
+    if not getattr(source, '__dataclass_params__').frozen:
+      raise TypeError(f'{source_type} needs frozen=True')
+
   if links_back:
 
     def build_source(self, source_models):
       source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
       source_init_kwargs['source_models'] = source_models
       check_kwargs(source_init_kwargs, 'building')
-      return source_type(**source_init_kwargs)
+      source = source_type(**source_init_kwargs)
+      check_source(source)
+      return source
 
   else:
 
     def build_source(self):
       source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
       check_kwargs(source_init_kwargs, 'building')
-      return source_type(**source_init_kwargs)
+      source = source_type(**source_init_kwargs)
+      check_source(source)
+      return source
 
   return dataclasses.make_dataclass(
       builder_type_name,

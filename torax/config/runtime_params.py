@@ -20,184 +20,33 @@ from collections.abc import Mapping
 import dataclasses
 
 import chex
+from torax import geometry
 from torax import interpolated_param
-
-
-# Type-alias for clarity. While the InterpolatedVarSingleAxis can vary across
-# any field, in here, we mainly use it to handle time-dependent parameters.
-TimeInterpolated = interpolated_param.TimeInterpolated
-# Type-alias for clarity for time-and-rho-dependent parameters.
-TimeRhoInterpolated = (
-    interpolated_param.TimeRhoInterpolated
-)
-
-
-# pylint: disable=invalid-name
-
-
-@chex.dataclass
-class PlasmaComposition:
-  # amu of main ion (if multiple isotope, make average)
-  Ai: float = 2.5
-  # charge of main ion
-  Zi: float = 1.0
-  # needed for qlknn and fusion power
-  Zeff: TimeInterpolated = 1.0
-  Zimp: TimeInterpolated = (
-      10.0  # impurity charge state assumed for dilution
-  )
-
-
-@chex.dataclass
-class ProfileConditions:
-  """Prescribed values and boundary conditions for the core profiles."""
-
-  # total plasma current in MA
-  # Note that if Ip_from_parameters=False in geometry, then this Ip will be
-  # overwritten by values from the geometry data
-  Ip: TimeInterpolated = 15.0
-
-  # Temperature boundary conditions at r=Rmin. If provided this will override
-  # the temperature boundary conditions being taken from the
-  # `TimeRhoInterpolated`s.
-  Ti_bound_right: TimeInterpolated | None = None
-  Te_bound_right: TimeInterpolated | None = None
-  # Prescribed or evolving values for temperature at different times.
-  # The outer mapping is for times and the inner mapping is for values of
-  # temperature along the rho grid.
-  Ti: TimeRhoInterpolated = dataclasses.field(
-      default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
-  )
-  Te: TimeRhoInterpolated = dataclasses.field(
-      default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
-  )
-
-  # Prescribed or evolving values for electron density at different times.
-  # The outer mapping is for times and the inner mapping is for values of
-  # density along the rho grid.
-  ne: TimeRhoInterpolated = dataclasses.field(
-      default_factory=lambda: {0: {0: 1.5, 1: 1.0}}
-  )
-  # Whether to renormalize the density profile to have the desired line averaged
-  # density `nbar`.
-  normalize_to_nbar: bool = True
-
-  # Line averaged density.
-  # In units of reference density if ne_is_fGW = False.
-  # In Greenwald fraction if ne_is_fGW = True.
-  # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: TimeInterpolated = 0.85
-  # Toggle units of nbar
-  ne_is_fGW: bool = True
-
-  # Density boundary condition for r=Rmin.
-  # In units of reference density if ne_bound_right_is_fGW = False.
-  # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: TimeInterpolated | None = 0.5
-  ne_bound_right_is_fGW: bool = False
-
-  # Internal boundary condition (pedestal)
-  # Do not set internal boundary condition if this is False
-  set_pedestal: TimeInterpolated = True
-  # ion pedestal top temperature in keV
-  Tiped: TimeInterpolated = 5.0
-  # electron pedestal top temperature in keV
-  Teped: TimeInterpolated = 5.0
-  # pedestal top electron density
-  # In units of reference density if neped_is_fGW = False.
-  # In Greenwald fraction if neped_is_fGW = True.
-  neped: TimeInterpolated = 0.7
-  neped_is_fGW: bool = False
-  # Set ped top location.
-  Ped_top: TimeInterpolated = 0.91
-
-  # current profiles (broad "Ohmic" + localized "external" currents)
-  # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
-  nu: float = 3.0
-  # toggles if "Ohmic" current is treated as total current upon initialization,
-  # or if non-inductive current should be included in initial jtot calculation
-  initial_j_is_total_current: bool = False
-  # toggles if the initial psi calculation is based on the "nu" current formula,
-  # or from the psi available in the numerical geometry file. This setting is
-  # ignored for the ad-hoc circular geometry, which has no numerical geometry.
-  initial_psi_from_j: bool = False
-
-
-@chex.dataclass
-class Numerics:
-  """Generic numeric parameters for the simulation."""
-
-  # simulation control
-  # start of simulation, in seconds
-  t_initial: float = 0.0
-  # end of simulation, in seconds
-  t_final: float = 5.0
-  # If True, ensures that if the simulation runs long enough, one step
-  # occurs exactly at `t_final`.
-  exact_t_final: bool = False
-
-  # maximum and minimum timesteps allowed in simulation
-  maxdt: float = 1e-1  #  only used with chi_time_step_calculator
-  mindt: float = 1e-8  #  if adaptive timestep is True, error raised if dt<mindt
-
-  # prefactor in front of chi_timestep_calculator base timestep dt=dx^2/(2*chi).
-  # In most use-cases can be increased further above this conservative default
-  dtmult: float = 0.9 * 10
-
-  fixed_dt: float = 1e-2  # timestep used for fixed_time_step_calculator
-
-  # Iterative reduction of dt if nonlinear step does not converge,
-  # If nonlinear step does not converge, then the step is redone
-  # iteratively at successively lower dt until convergence is reached
-  adaptive_dt: bool = True
-  dt_reduction_factor: float = 3
-
-  # Solve the ion heat equation (ion temperature evolves over time)
-  ion_heat_eq: bool = True
-  # Solve the electron heat equation (electron temperature evolves over time)
-  el_heat_eq: bool = True
-  # Solve the current equation (psi evolves over time driven by the solver;
-  # q and s evolve over time as a function of psi)
-  current_eq: bool = False
-  # Solve the density equation (n evolves over time)
-  dens_eq: bool = False
-  # Enable time-dependent prescribed profiles.
-  # This option is provided to allow initialization of density profiles scaled
-  # to a Greenwald fraction, and freeze this density even if the current is time
-  # evolving. Otherwise the density will evolve to always maintain that GW frac.
-  enable_prescribed_profile_evolution: bool = True
-
-  # q-profile correction factor. Used only in ad-hoc circular geometry model
-  q_correction_factor: float = 1.25
-  # 1/multiplication factor for sigma (conductivity) to reduce current
-  # diffusion timescale to be closer to heat diffusion timescale
-  resistivity_mult: TimeInterpolated = 1.0
-
-  # density profile info
-  # Reference value for normalization
-  nref: float = 1e20
-
-  # numerical (e.g. no. of grid points, other info needed by solver)
-  # effective source to dominate PDE in internal boundary condtion location
-  # if T != Tped
-  largeValue_T: float = 1.0e10
-  # effective source to dominate density PDE in internal boundary condtion
-  # location if n != neped
-  largeValue_n: float = 1.0e8
+from torax.config import base
+from torax.config import numerics as numerics_lib
+from torax.config import plasma_composition as plasma_composition_lib
+from torax.config import profile_conditions as profile_conditions_lib
+from typing_extensions import override
 
 
 # NOMUTANTS -- It's expected for the tests to pass with different defaults.
 @chex.dataclass
-class GeneralRuntimeParams:
+class GeneralRuntimeParams(base.RuntimeParametersConfig):
   """General runtime input parameters for the `torax` module."""
 
-  plasma_composition: PlasmaComposition = dataclasses.field(
-      default_factory=PlasmaComposition
+  plasma_composition: plasma_composition_lib.PlasmaComposition = (
+      dataclasses.field(
+          default_factory=plasma_composition_lib.PlasmaComposition
+      )
   )
-  profile_conditions: ProfileConditions = dataclasses.field(
-      default_factory=ProfileConditions
+  profile_conditions: profile_conditions_lib.ProfileConditions = (
+      dataclasses.field(
+          default_factory=profile_conditions_lib.ProfileConditions
+      )
   )
-  numerics: Numerics = dataclasses.field(default_factory=Numerics)
+  numerics: numerics_lib.Numerics = dataclasses.field(
+      default_factory=numerics_lib.Numerics
+  )
 
   # 'File directory where the simulation outputs will be saved. If not '
   # 'provided, this will default to /tmp/torax_results_<YYYYMMDD_HHMMSS>/.',
@@ -206,36 +55,33 @@ class GeneralRuntimeParams:
   # pylint: enable=invalid-name
 
   def _sanity_check_profile_boundary_conditions(
-      self, var: TimeRhoInterpolated, var_name: str,
+      self,
+      values: interpolated_param.InterpolatedVarTimeRhoInput,
+      value_name: str,
   ):
     """Check that the profile is defined at rho=1.0."""
-    if isinstance(var, interpolated_param.InterpolatedVarTimeRho):
-      values = var.values
-    else:
-      values = var
-
     for time in values:
       if isinstance(values[time], Mapping):
         if 1.0 not in values[time]:
           raise ValueError(
-              f'As no right boundary condition was set for {var_name}, the'
-              f' profile for {var_name} must include a value at rho=1.0 for'
+              f'As no right boundary condition was set for {value_name}, the'
+              f' profile for {value_name} must include a value at rho=1.0 for'
               ' every provided time.'
           )
       else:
         raise ValueError(
-            f'As no right boundary condition was set for {var_name}, the '
-            f'profile for {var_name} must include a rho=1.0 boundary condition.'
+            f'As no right boundary condition was set for {value_name}, the'
+            f' profile for {value_name} must include a rho=1.0 boundary'
+            ' condition.'
         )
 
   def sanity_check(self) -> None:
     """Checks that various configuration parameters are valid."""
     # TODO(b/330172917) do more extensive config parameter sanity checking
-
-    # These are floats, not jax types, so we can use direct asserts.
-    assert self.numerics.dtmult > 0.0
-    assert isinstance(self.plasma_composition, PlasmaComposition)
-    assert isinstance(self.numerics, Numerics)
+    if self.numerics.dtmult <= 0.0:
+      raise ValueError(
+          f'numerics.dtmult must be positive, got {self.numerics.dtmult}'
+      )
     if self.profile_conditions.Ti_bound_right is None:
       self._sanity_check_profile_boundary_conditions(
           self.profile_conditions.Ti,
@@ -254,3 +100,48 @@ class GeneralRuntimeParams:
 
   def __post_init__(self):
     self.sanity_check()
+
+  def make_provider(
+      self, torax_mesh: geometry.Grid1D | None = None
+  ) -> GeneralRuntimeParamsProvider:
+    return GeneralRuntimeParamsProvider(
+        runtime_params_config=self,
+        plasma_composition=self.plasma_composition.make_provider(torax_mesh),
+        profile_conditions=self.profile_conditions.make_provider(torax_mesh),
+        numerics=self.numerics.make_provider(torax_mesh),
+    )
+
+
+@chex.dataclass
+class GeneralRuntimeParamsProvider(
+    base.RuntimeParametersProvider['DynamicGeneralRuntimeParams']
+):
+  """General runtime input parameters for the `torax` module."""
+
+  runtime_params_config: GeneralRuntimeParams
+  plasma_composition: plasma_composition_lib.PlasmaCompositionProvider
+  profile_conditions: profile_conditions_lib.ProfileConditionsProvider
+  numerics: numerics_lib.NumericsProvider
+
+  @override
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicGeneralRuntimeParams:
+    return DynamicGeneralRuntimeParams(
+        dynamic_plasma_composition=self.plasma_composition.build_dynamic_params(
+            t
+        ),
+        dynamic_profile_conditions=self.profile_conditions.build_dynamic_params(
+            t
+        ),
+        dynamic_numerics=self.numerics.build_dynamic_params(t),
+    )
+
+
+@chex.dataclass
+class DynamicGeneralRuntimeParams:
+  """General runtime input parameters for the `torax` module."""
+  dynamic_plasma_composition: plasma_composition_lib.DynamicPlasmaComposition
+  dynamic_profile_conditions: profile_conditions_lib.DynamicProfileConditions
+  dynamic_numerics: numerics_lib.DynamicNumerics

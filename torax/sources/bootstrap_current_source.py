@@ -37,16 +37,42 @@ from torax.sources import source_profiles
 
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
+  """Configuration parameters for the bootstrap current source."""
   # Multiplication factor for bootstrap current
   bootstrap_mult: float = 1.0
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> RuntimeParamsProvider:
+    if torax_mesh is None:
+      raise ValueError(
+          'torax_mesh is required for BootstrapCurrentSource.'
+      )
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides runtime parameters for a given time and geometry."""
+  runtime_params_config: RuntimeParams
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
+        bootstrap_mult=self.runtime_params_config.bootstrap_mult,
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 
@@ -64,7 +90,7 @@ def _default_output_shapes(geo) -> tuple[int, int, int, int]:
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BootstrapCurrentSource(source.Source):
   """Bootstrap current density source profile.
 
@@ -153,6 +179,7 @@ class BootstrapCurrentSource(source.Source):
     )
     return source_profiles.BootstrapCurrentProfile(
         sigma=bootstrap_current.sigma,
+        sigma_face=bootstrap_current.sigma_face,
         j_bootstrap=jax_utils.select(
             is_zero_mode,
             zero_profile.j_bootstrap,
@@ -179,7 +206,7 @@ class BootstrapCurrentSource(source.Source):
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
         profile['j_bootstrap'],
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
 
 
@@ -390,15 +417,16 @@ def calc_neoclassical(
   #  j_bootstrap_face = jnp.concatenate([jnp.zeros(1), j_bootstrap_face])
   j_bootstrap_face = jnp.array(j_bootstrap_face)
   j_bootstrap = geometry.face_to_cell(j_bootstrap_face)
-  sigmaneo = geometry.face_to_cell(sigmaneo)
+  sigmaneo_cell = geometry.face_to_cell(sigmaneo)
 
   I_bootstrap = integrate.trapezoid(
       j_bootstrap_face * geo.spr_face,
-      geo.r_face,
+      geo.rho_face_norm,
   )
 
   return source_profiles.BootstrapCurrentProfile(
-      sigma=sigmaneo,
+      sigma=sigmaneo_cell,
+      sigma_face=sigmaneo,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
       I_bootstrap=I_bootstrap,

@@ -54,6 +54,7 @@ class BootstrapCurrentProfile:
 
   Attributes:
     sigma: plasma conductivity with neoclassical corrections on cell grid.
+    sigma_face: plasma conductivity with neoclassical corrections on face grid.
     j_bootstrap: Bootstrap current density (Amps / m^2)
     j_bootstrap_face: Bootstrap current density (Amps / m^2) on face grid
     I_bootstrap: Total bootstrap current. Used primarily for diagnostic
@@ -61,6 +62,7 @@ class BootstrapCurrentProfile:
   """
 
   sigma: jax.Array
+  sigma_face: jax.Array
   j_bootstrap: jax.Array
   j_bootstrap_face: jax.Array
   I_bootstrap: jax.Array  # pylint: disable=invalid-name
@@ -68,9 +70,10 @@ class BootstrapCurrentProfile:
   @classmethod
   def zero_profile(cls, geo: geometry.Geometry) -> BootstrapCurrentProfile:
     return BootstrapCurrentProfile(
-        sigma=jnp.zeros_like(geo.r),
-        j_bootstrap=jnp.zeros_like(geo.r),
-        j_bootstrap_face=jnp.zeros_like(geo.r_face),
+        sigma=jnp.zeros_like(geo.rho),
+        sigma_face=jnp.zeros_like(geo.rho_face),
+        j_bootstrap=jnp.zeros_like(geo.rho),
+        j_bootstrap_face=jnp.zeros_like(geo.rho_face),
         I_bootstrap=jnp.zeros(()),
     )
 
@@ -90,11 +93,11 @@ class QeiInfo:
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> QeiInfo:
     return QeiInfo(
-        qei_coef=jnp.zeros_like(geo.r),
-        implicit_ii=jnp.zeros_like(geo.r),
-        explicit_i=jnp.zeros_like(geo.r),
-        implicit_ee=jnp.zeros_like(geo.r),
-        explicit_e=jnp.zeros_like(geo.r),
-        implicit_ie=jnp.zeros_like(geo.r),
-        implicit_ei=jnp.zeros_like(geo.r),
+        qei_coef=jnp.zeros_like(geo.rho),
+        implicit_ii=jnp.zeros_like(geo.rho),
+        explicit_i=jnp.zeros_like(geo.rho),
+        implicit_ee=jnp.zeros_like(geo.rho),
+        explicit_e=jnp.zeros_like(geo.rho),
+        implicit_ie=jnp.zeros_like(geo.rho),
+        implicit_ei=jnp.zeros_like(geo.rho),
     )

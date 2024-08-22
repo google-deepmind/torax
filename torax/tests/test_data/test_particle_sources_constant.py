@@ -21,6 +21,7 @@ CONFIG = {
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
+            'ne_bound_right': 0.5,
             'nbar': 0.85,
             # set flat Ohmic current to provide larger range of current
             # evolution for test

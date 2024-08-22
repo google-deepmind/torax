@@ -30,6 +30,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
+from torax import interpolated_param
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.config import config_args
@@ -61,10 +62,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            t=runtime_params.numerics.t_initial,
         )
     )
     # Technically, the merge_source_profiles() function should be called with
@@ -92,12 +95,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     qei_core_profiles = dataclasses.replace(
         qei_core_profiles,
         temp_ion=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.r) * 1.0,
-            dr=geo.dr,
+            value=jnp.ones_like(geo.rho) * 1.0,
+            dr=geo.drho,
         ),
         temp_el=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.r) * 3.0,
-            dr=geo.dr,
+            value=jnp.ones_like(geo.rho) * 3.0,
+            dr=geo.drho,
         ),
     )
     merged_profiles = sim_lib.merge_source_profiles(  # pylint: disable=protected-access
@@ -131,8 +134,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         source_conf,
         geo,
         unused_state,
+        unused_source_models,
     ):
-      return jnp.ones_like(geo.r) * source_conf.foo
+      return jnp.ones_like(geo.rho) * source_conf.foo
 
     # Include 2 versions of this source, one implicit and one explicit.
     source_models_builder = source_models_lib.SourceModelsBuilder({
@@ -169,12 +173,13 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     dynamic_runtime_params_slice_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport_getter=constant_transport_model.RuntimeParams,
-            sources_getter=lambda: source_models_builder.runtime_params,
-            stepper_getter=stepper_runtime_params.RuntimeParams,
+            transport=constant_transport_model.RuntimeParams(),
+            sources=source_models_builder.runtime_params,
+            stepper=stepper_runtime_params.RuntimeParams(),
+            torax_mesh=geo.torax_mesh,
         )
     )
-    initial_dcs = dynamic_runtime_params_slice_provider(0.0, geo)
+    initial_dcs = dynamic_runtime_params_slice_provider(t=0.0,)
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
@@ -212,8 +217,8 @@ def _build_source_profiles_with_single_value(
     source_models: source_models_lib.SourceModels,
     value: float,
 ):
-  cell_1d_arr = jnp.ones_like(geo.r) * value
-  face_1d_arr = jnp.ones_like(geo.r_face) * value
+  cell_1d_arr = jnp.ones_like(geo.rho) * value
+  face_1d_arr = jnp.ones_like(geo.rho_face) * value
   return source_profiles_lib.SourceProfiles(
       profiles={
           name: jnp.ones(shape=src.output_shape_getter(geo)) * value
@@ -221,6 +226,7 @@ def _build_source_profiles_with_single_value(
       },
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(
           sigma=cell_1d_arr * value,
+          sigma_face=face_1d_arr * value,
           j_bootstrap=cell_1d_arr * value,
           j_bootstrap_face=face_1d_arr * value,
           I_bootstrap=jnp.ones(()) * value,
@@ -266,15 +272,41 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
 class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   foo: runtime_params_lib.TimeInterpolated
 
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> '_FakeSourceRuntimeParamsProvider':
+    if torax_mesh is None:
+      raise ValueError('torax_mesh is required for FakeSourceRuntimeParams.')
+    return _FakeSourceRuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
+        foo=config_args.get_interpolated_var_single_axis(self.foo),
+    )
+
+
+@chex.dataclass
+class _FakeSourceRuntimeParamsProvider(
+    runtime_params_lib.RuntimeParamsProvider
+):
+  """Provides runtime parameters for a given time and geometry."""
+
+  runtime_params_config: _FakeSourceRuntimeParams
+  foo: interpolated_param.InterpolatedVarSingleAxis
+
   def build_dynamic_params(
-      self, t: chex.Numeric,
-  ) -> _FakeSourceDynamicRuntimeParams:
+      self,
+      t: chex.Numeric,
+  ) -> '_FakeSourceDynamicRuntimeParams':
     return _FakeSourceDynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=_FakeSourceDynamicRuntimeParams,
-            t=t,
-        )
+        foo=float(self.foo.get_value(t)),
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 
@@ -312,7 +344,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
   ) -> state_module.ToraxSimState:
     dt, ts_state = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-            input_state.t, geometry_provider(input_state.t)
+            t=input_state.t,
         ),
         geo=geometry_provider(input_state.t),
         core_profiles=input_state.core_profiles,
@@ -328,7 +360,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
         # The returned source profiles include only the implicit sources.
         core_sources=source_models_lib.build_source_profiles(
             dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-                new_t, geometry_provider(new_t),
+                t=new_t,
             ),
             geo=geometry_provider(new_t),
             core_profiles=input_state.core_profiles,  # no state evolution.

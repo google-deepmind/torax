@@ -12,16 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_changing_config_after.
-
-test_changing_config_after is test_changing_config_before modified to
-have the fusion heat source zeroed out.
-
-This config is used for tests/run_simulation_main:test_main_app_cc
-'cc' is the "change config" command, so we check that the config can
-be changed during execution of the script. This is the "after" config
-that is run second.
-"""
+"""ITER hybrid scenario based (roughly) on van Mulders NF 2021."""
 
 
 CONFIG = {
@@ -29,50 +20,45 @@ CONFIG = {
         'plasma_composition': {
             # physical inputs
             'Ai': 2.5,  # amu of main ion (if multiple isotope, make average)
-            'Zeff': 1.6,  # needed for qlknn and fusion power
+            'Zeff': 1.8,  # needed for qlknn and fusion power
             # effective impurity charge state assumed for matching
             # dilution=0.862.
             'Zimp': 10,
         },
         'profile_conditions': {
-            'Ip': {0: 3, 80: 10.5},  # total plasma current in MA
+            'Ip': 10.5,  # total plasma current in MA
             # boundary + initial conditions for T and n
             # initial condition ion temperature for r=0 and r=Rmin
-            'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
+            'Ti': {0.0: {0.0: 15.0, 1.0: 0.2}},
             'Ti_bound_right': (
-                0.1
+                0.2
             ),  # boundary condition ion temperature for r=Rmin
             # initial condition electron temperature for r=0 and r=Rmin
-            'Te': {0.0: {0.0: 6.0, 1.0: 0.1}},
+            'Te': {0.0: {0.0: 15.0, 1.0: 0.2}},
             'Te_bound_right': (
-                0.1
+                0.2
             ),  # boundary condition electron temp for r=Rmin
-            'ne_bound_right_is_fGW': True,
-            # boundary condition density for r=Rmin
-            'ne_bound_right': {0: 0.1, 80: 0.3},
+            'ne_bound_right': 0.25,  # boundary condition density for r=Rmin
             # set initial condition density according to Greenwald fraction.
             'ne_is_fGW': True,
-            'nbar': 1,
+            'nbar': 0.8,  # original simulation goes up to ~0.9
             'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
             # internal boundary condition (pedestal)
             # do not set internal boundary condition if this is False
             'set_pedestal': True,
-            'Tiped': 1.0,  # ion pedestal top temperature in keV for Ti and Te
+            'Tiped': 5.0,  # ion pedestal top temperature in keV for Ti and Te
             'Teped': (
-                1.0
+                4.5
             ),  # electron pedestal top temperature in keV for Ti and Te
-            'neped_is_fGW': True,
-            # pedestal top electron density in units of nref
-            'neped': {0: 0.3, 80: 0.7},
+            'neped': 0.62,  # pedestal top electron density in units of nref
             'Ped_top': 0.9,  # set ped top location in normalized radius
         },
         'numerics': {
             # simulation control
-            't_final': 80,  # length of simulation time in seconds
-            'fixed_dt': 2,
+            't_final': 3,  # length of simulation time in seconds
             # 1/multiplication factor for sigma (conductivity) to reduce current
             # diffusion timescale to be closer to heat diffusion timescale.
-            'resistivity_mult': 1,
+            'resistivity_mult': 100,
             'ion_heat_eq': True,
             'el_heat_eq': True,
             'current_eq': True,
@@ -80,14 +66,8 @@ CONFIG = {
             'maxdt': 0.5,
             # multiplier in front of the base timestep dt=dx^2/(2*chi). Can
             # likely be increased further beyond this default.
-            'dtmult': 30,
+            'dtmult': 50,
             'dt_reduction_factor': 3,
-            # effective source to dominate PDE in internal boundary condtion
-            # location if T != Tped
-            'largeValue_T': 1.0e10,
-            # effective source to dominate density PDE in internal boundary
-            # condtion location if n != neped
-            'largeValue_n': 1.0e8,
         },
     },
     'geometry': {
@@ -101,11 +81,13 @@ CONFIG = {
     'sources': {
         # Current sources (for psi equation)
         'j_bootstrap': {
+            # Multiplication factor for bootstrap current (note fbs~0.3 in
+            # original simu)
             'bootstrap_mult': 1.0,
         },
         'jext': {
             # total "external" current fraction
-            'fext': 0.15,
+            'fext': 0.46,
             # width of "external" Gaussian current profile (normalized radial
             # coordinate)
             'wext': 0.075,
@@ -116,7 +98,7 @@ CONFIG = {
         # Electron density sources/sink (for the ne equation).
         'nbi_particle_source': {
             # NBI total particle source
-            'S_nbi_tot': 0.0,
+            'S_nbi_tot': 2.05e20,
             # NBI particle source Gaussian central location (normalized radial
             # coordinate)
             'nbi_deposition_location': 0.3,
@@ -130,7 +112,7 @@ CONFIG = {
             # coordinate)
             'puff_decay_length': 0.3,
             # total pellet particles/s
-            'S_puff_tot': 0.0,
+            'S_puff_tot': 6.0e21,
         },
         'pellet_source': {
             # total pellet particles/s (continuous pellet model)
@@ -148,9 +130,9 @@ CONFIG = {
             # Gaussian width in normalized radial coordinate r
             'w': 0.07280908366127758,
             # total heating (including accounting for radiation) r
-            'Ptot': 20.0e6,
+            'Ptot': 60.0e6,
             # electron heating fraction r
-            'el_heat_fraction': 1.0,
+            'el_heat_fraction': 0.68,
         },
         'fusion_heat_source': {'mode': 'ZERO'},
         'qei_source': {
@@ -164,9 +146,9 @@ CONFIG = {
         'apply_inner_patch': True,
         'De_inner': 0.25,
         'Ve_inner': 0.0,
-        'chii_inner': 1.5,
-        'chie_inner': 1.5,
-        'rho_inner': 0.3,  # radius below which patch transport is applied
+        'chii_inner': 0.75,
+        'chie_inner': 1.0,
+        'rho_inner': 0.2,  # radius below which patch transport is applied
         # set outer core transport coefficients (L-mode near edge region)
         'apply_outer_patch': True,
         'De_outer': 0.1,
@@ -178,10 +160,6 @@ CONFIG = {
         'chimin': 0.05,  # minimum chi
         'chimax': 100,  # maximum chi (can be helpful for stability)
         'Demin': 0.05,  # minimum electron diffusivity
-        'Demax': 50,  # maximum electron diffusivity
-        'Vemin': -10,  # minimum electron convection
-        'Vemax': 10,  # minimum electron convection
-        'smoothing_sigma': 0.1,
         'qlknn_params': {
             'DVeff': True,
             'coll_mult': 0.25,
@@ -194,24 +172,20 @@ CONFIG = {
             # minimum |R/Lne| below which effective V is used instead of
             # effective D
             'An_min': 0.05,
-            'ITG_flux_ratio_correction': 1,
+            'ITG_flux_ratio_correction': 1.5,
         },
     },
     'stepper': {
-        'stepper_type': 'newton_raphson',
+        'stepper_type': 'linear',
         'predictor_corrector': True,
-        'corrector_steps': 10,
+        'corrector_steps': 2,
         # (deliberately) large heat conductivity for Pereverzev rule
         'chi_per': 30,
         # (deliberately) large particle diffusion for Pereverzev rule
         'd_per': 15,
-        # use_pereverzev is only used for the linear solver
         'use_pereverzev': True,
-        'newton_raphson_params': {
-            'log_iterations': True,
-        },
     },
     'time_step_calculator': {
-        'calculator_type': 'fixed',
+        'calculator_type': 'chi',
     },
 }

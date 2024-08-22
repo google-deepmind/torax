@@ -39,12 +39,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 import dataclasses
-from typing import Callable
 
 import chex
 from torax import geometry
-from torax.config import config_args
-from torax.config import runtime_params as general_runtime_params
+from torax.config import numerics
+from torax.config import plasma_composition
+from torax.config import profile_conditions
+from torax.config import runtime_params as general_runtime_params_lib
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
 from torax.transport_model import runtime_params as transport_model_params
@@ -87,135 +88,10 @@ class DynamicRuntimeParamsSlice:
 
   transport: transport_model_params.DynamicRuntimeParams
   stepper: stepper_params.DynamicRuntimeParams
-  plasma_composition: DynamicPlasmaComposition
-  profile_conditions: DynamicProfileConditions
-  numerics: DynamicNumerics
+  plasma_composition: plasma_composition.DynamicPlasmaComposition
+  profile_conditions: profile_conditions.DynamicProfileConditions
+  numerics: numerics.DynamicNumerics
   sources: Mapping[str, sources_params.DynamicRuntimeParams]
-
-
-@chex.dataclass
-class DynamicPlasmaComposition:
-  # amu of main ion (if multiple isotope, make average)
-  Ai: float
-  # charge of main ion
-  Zi: float
-  # needed for qlknn and fusion power
-  Zeff: float
-  Zimp: float  # impurity charge state assumed for dilution
-
-
-@chex.dataclass
-class DynamicProfileConditions:
-  """Prescribed values and boundary conditions for the core profiles."""
-
-  # total plasma current in MA
-  # Note that if Ip_from_parameters=False in geometry, then this Ip will be
-  # overwritten by values from the geometry data
-  Ip: float
-
-  # Temperature boundary conditions at r=Rmin.
-  Ti_bound_right: float | None
-  Te_bound_right: float | None
-  # Radial array used for initial conditions, and prescribed time-dependent
-  # conditions when not evolving variable with PDE defined on the face grid.
-  Te: chex.Array
-  Ti: chex.Array
-
-  # Electron density profile on the face grid.
-  # If density evolves with PDE (dens_eq=True), then is initial condition
-  ne: chex.Array
-  # Whether to renormalize the density profile.
-  normalize_to_nbar: bool
-
-  # Initial line averaged density.
-  # In units of reference density if ne_is_fGW = False.
-  # In Greenwald fraction if ne_is_fGW = True.
-  # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: float
-  # Toggle units of nbar
-  ne_is_fGW: bool
-
-  # Density boundary condition for r=Rmin, units of nref
-  # In units of reference density if ne_bound_right_is_fGW = False.
-  # In Greenwald fraction if ne_bound_right_is_fGW = True.
-  ne_bound_right: float | None
-  ne_bound_right_is_fGW: bool
-
-  # Internal boundary condition (pedestal)
-  # Do not set internal boundary condition if this is False
-  set_pedestal: bool
-  # ion pedestal top temperature in keV for Ti and Te
-  Tiped: float
-  # electron pedestal top temperature in keV for Ti and Te
-  Teped: float
-  # pedestal top electron density
-  # In units of reference density if neped_is_fGW = False.
-  # In Greenwald fraction if neped_is_fGW = True.
-  neped: float
-  neped_is_fGW: bool
-  # Set ped top location.
-  Ped_top: float
-
-  # current profiles (broad "Ohmic" + localized "external" currents)
-  # peaking factor of prescribed (initial) "Ohmic" current:
-  # johm = j0*(1 - r^2/a^2)^nu
-  nu: float
-  # toggles if "Ohmic" current is treated as total current upon initialization,
-  # or if non-inductive current should be included in initial jtot calculation
-  initial_j_is_total_current: bool
-  # toggles if the initial psi calculation is based on the "nu" current formula,
-  # or from the psi available in the numerical geometry file. This setting is
-  # ignored for the ad-hoc circular geometry, which has no numerical geometry.
-  initial_psi_from_j: bool
-
-
-@chex.dataclass
-class DynamicNumerics:
-  """Generic numeric parameters for the simulation."""
-
-  # simulation control
-  # start of simulation, in seconds
-  t_initial: float
-  # end of simulation, in seconds
-  t_final: float
-  # If True, ensures that if the simulation runs long enough, one step
-  # occurs exactly at `t_final`.
-  exact_t_final: bool
-
-  # maximum and minimum timesteps allowed in simulation
-  maxdt: float  #  only used with chi_time_step_calculator
-  mindt: float  #  if adaptive timestep is True, error raised if dt<mindt
-
-  # prefactor in front of chi_timestep_calculator base timestep dt=dx^2/(2*chi).
-  # In most use-cases can be increased further above this conservative default
-  dtmult: float
-
-  fixed_dt: float  # timestep used for fixed_time_step_calculator
-  dt_reduction_factor: float
-
-  # q-profile correction factor. Used only in ad-hoc circular geometry model
-  q_correction_factor: float
-  # 1/multiplication factor for sigma (conductivity) to reduce current
-  # diffusion timescale to be closer to heat diffusion timescale
-  resistivity_mult: float
-
-  # density profile info
-  # Reference value for normalization
-  nref: float
-
-  # numerical (e.g. no. of grid points, other info needed by solver)
-  # effective source to dominate PDE in internal boundary condtion location
-  # if T != Tped
-  largeValue_T: float
-  # effective source to dominate density PDE in internal boundary condtion
-  # location if n != neped
-  largeValue_n: float
-
-  # Enable time-dependent prescribed profiles.
-  # This option is provided to allow initialization of density profiles scaled
-  # to a Greenwald fraction, and freeze this density even if the current is time
-  # evolving. Otherwise the density will evolve to always maintain that GW frac.
-  enable_prescribed_profile_evolution: bool
 
 
 @chex.dataclass(frozen=True)
@@ -251,80 +127,19 @@ class StaticRuntimeParamsSlice:
   adaptive_dt: bool
 
 
-# pylint: enable=invalid-name
-
-
-def build_dynamic_runtime_params_slice(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-    transport: transport_model_params.RuntimeParams | None = None,
-    sources: dict[str, sources_params.RuntimeParams] | None = None,
-    stepper: stepper_params.RuntimeParams | None = None,
-    t: chex.Numeric | None = None,
-    geo: geometry.Geometry | None = None,
-) -> DynamicRuntimeParamsSlice:
-  """Builds a DynamicRuntimeParamsSlice."""
-  transport = transport or transport_model_params.RuntimeParams()
-  sources = sources or {}
-  stepper = stepper or stepper_params.RuntimeParams()
-  t = runtime_params.numerics.t_initial if t is None else t
-  # For each dataclass attribute under DynamicRuntimeParamsSlice, build those
-  # objects explicitly, and then for all scalar attributes, fetch their values
-  # directly from the input runtime params using config_args.get_init_kwargs.
-  return DynamicRuntimeParamsSlice(
-      transport=transport.build_dynamic_params(t),
-      stepper=stepper.build_dynamic_params(t),
-      sources=_build_dynamic_sources(sources, t),
-      plasma_composition=DynamicPlasmaComposition(
-          **config_args.get_init_kwargs(
-              input_config=runtime_params.plasma_composition,
-              output_type=DynamicPlasmaComposition,
-              t=t,
-          )
-      ),
-      profile_conditions=DynamicProfileConditions(
-          **config_args.get_init_kwargs(
-              input_config=runtime_params.profile_conditions,
-              output_type=DynamicProfileConditions,
-              t=t,
-              geo=geo,
-          )
-      ),
-      numerics=DynamicNumerics(
-          **config_args.get_init_kwargs(
-              input_config=runtime_params.numerics,
-              output_type=DynamicNumerics,
-              t=t,
-          )
-      ),
-      **config_args.get_init_kwargs(
-          input_config=runtime_params,
-          output_type=DynamicRuntimeParamsSlice,
-          t=t,
-          skip=(
-              'transport',
-              'stepper',
-              'sources',
-              'plasma_composition',
-              'profile_conditions',
-              'numerics',
-          ),
-      ),
-  )
-
-
 def _build_dynamic_sources(
-    sources: dict[str, sources_params.RuntimeParams],
+    sources: dict[str, sources_params.RuntimeParamsProvider],
     t: chex.Numeric,
 ) -> dict[str, sources_params.DynamicRuntimeParams]:
   """Builds a dict of DynamicSourceConfigSlice based on the input config."""
   return {
-      source_name: input_source_config.build_dynamic_params(t)
+      source_name: input_source_config.build_dynamic_params(t,)
       for source_name, input_source_config in sources.items()
   }
 
 
 def build_static_runtime_params_slice(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
+    runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
     stepper: stepper_params.RuntimeParams | None = None,
 ) -> StaticRuntimeParamsSlice:
   """Builds a StaticRuntimeParamsSlice."""
@@ -355,33 +170,98 @@ class DynamicRuntimeParamsSliceProvider:
   corresponding geometry.
 
   See `run_simulation()` for how this callable is used.
+
+  After this object has been constructed changes any runtime params may not
+  be picked up if they are updated and it is safest to construct a new provider
+  object (if for example updating the simulation).
+
+  In more detail if you are updating any interpolated variable constructors
+  (e.g. `runtime_params.profile_conditions.Ti_bound_right`) you will need to
+  construct a new provider object. If you are only updating static variables
+  (e.g. `runtime_params.profile_conditions.normalize_to_nbar`) then you can
+  update the runtime params object in place and the changes will be picked up in
+  the provider you have.
+
+  For example to update the Ti_bound_right interpolated var constructor:
+  ```
+  runtime_params = general_runtime_params.GeneralRuntimeParams()
+  provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+      runtime_params=runtime_params,
+      torax_mesh=torax_mesh,
+  )
+  runtime_params.profile_conditions.Ti_bound_right = new_value
+  provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+      runtime_params=runtime_params,
+      torax_mesh=torax_mesh,
+  )
+  ```
   """
 
   def __init__(
       self,
-      runtime_params: general_runtime_params.GeneralRuntimeParams,
-      transport_getter: Callable[[], transport_model_params.RuntimeParams],
-      sources_getter: Callable[[], dict[str, sources_params.RuntimeParams]],
-      stepper_getter: Callable[[], stepper_params.RuntimeParams],
+      runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
+      transport: transport_model_params.RuntimeParams | None = None,
+      sources: dict[str, sources_params.RuntimeParams] | None = None,
+      stepper: stepper_params.RuntimeParams | None = None,
+      torax_mesh: geometry.Grid1D | None = None,
   ):
+    """Constructs a DynamicRuntimeParamsSliceProvider.
+
+    Args:
+      runtime_params: The general runtime params to use.
+      transport: The transport model runtime params to use. If None, defaults to
+        the default transport model runtime params.
+      sources: A dict of source name to source runtime params to use. If None,
+        defaults to an empty dict (i.e. no sources).
+      stepper: The stepper runtime params to use. If None, defaults to the
+        default stepper runtime params.
+      torax_mesh: The torax mesh to use. If the slice provider doesn't need to
+        construct any rho interpolated values, this can be None, else an error
+        will be raised within the constructor of the interpolated variable.
+    """
+    transport = transport or transport_model_params.RuntimeParams()
+    sources = sources or {}
+    stepper = stepper or stepper_params.RuntimeParams()
+    self._torax_mesh = torax_mesh
+    self._sources = sources
     self._runtime_params = runtime_params
-    self._transport_runtime_params_getter = transport_getter
-    self._sources_getter = sources_getter
-    self._stepper_getter = stepper_getter
+    self._transport_runtime_params = transport
+    self._stepper = stepper
+    self._construct_providers()
+
+  def _construct_providers(self):
+    self._runtime_params_provider = (
+        self._runtime_params.make_provider(
+            self._torax_mesh
+        )
+    )
+    self._transport_runtime_params_provider = (
+        self._transport_runtime_params.make_provider(
+            self._torax_mesh
+        )
+    )
+    self._sources_providers = {
+        key: source.make_provider(self._torax_mesh)
+        for key, source in self._sources.items()
+    }
 
   def __call__(
       self,
       t: chex.Numeric,
-      geo: geometry.Geometry | None = None,
   ) -> DynamicRuntimeParamsSlice:
     """Returns a DynamicRuntimeParamsSlice to use during time t of the sim."""
-    return build_dynamic_runtime_params_slice(
-        runtime_params=self._runtime_params,
-        transport=self._transport_runtime_params_getter(),
-        sources=self._sources_getter(),
-        stepper=self._stepper_getter(),
-        t=t,
-        geo=geo,
+    dynamic_general_runtime_params = (
+        self._runtime_params_provider.build_dynamic_params(t)
+    )
+    return DynamicRuntimeParamsSlice(
+        transport=self._transport_runtime_params_provider.build_dynamic_params(
+            t
+        ),
+        stepper=self._stepper.build_dynamic_params(t),
+        sources=_build_dynamic_sources(self._sources_providers, t,),
+        plasma_composition=dynamic_general_runtime_params.dynamic_plasma_composition,
+        profile_conditions=dynamic_general_runtime_params.dynamic_profile_conditions,
+        numerics=dynamic_general_runtime_params.dynamic_numerics,
     )
 
 

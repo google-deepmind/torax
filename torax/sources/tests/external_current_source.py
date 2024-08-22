@@ -16,8 +16,6 @@
 
 from absl.testing import absltest
 import jax
-import jax.numpy as jnp
-import numpy as np
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -48,12 +46,14 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     # Must be circular for jext_hires call.
     geo = geometry.build_circular_geometry()
-    dynamic_slice = runtime_params_slice.build_dynamic_runtime_params_slice(
+    dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources={
             'jext': source_builder.runtime_params,
         },
-        geo=geo,
+        torax_mesh=geo.torax_mesh,
+    )(
+        t=runtime_params.numerics.t_initial,
     )
     self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
 
@@ -79,16 +79,16 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     source = source_builder()
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
+        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
           source_builder.runtime_params.mode = unsupported_mode
-          dynamic_slice = (
-              runtime_params_slice.build_dynamic_runtime_params_slice(
-                  runtime_params,
-                  sources={
-                      'jext': source_builder.runtime_params,
-                  },
-                  geo=geo,
-              )
+          dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+              runtime_params,
+              sources={
+                  'jext': source_builder.runtime_params,
+              },
+              torax_mesh=geo.torax_mesh,
+          )(
+              t=runtime_params.numerics.t_initial,
           )
           source.get_value(
               dynamic_runtime_params_slice=dynamic_slice,
@@ -96,28 +96,33 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
               geo=geo,
           )
 
-  def test_extraction_of_relevant_profile_from_output(self):
-    """Tests that the relevant profile is extracted from the output."""
+  def test_profile_is_on_face_grid(self):
+    """Tests that the profile is given on the face grid."""
     geo = geometry.build_circular_geometry()
-    source = external_current_source.ExternalCurrentSource()
-    cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
-    fake_profile = (jnp.ones(cell), jnp.zeros(cell))
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.PSI.value,
-            geo,
-        ),
-        jnp.ones(cell),
+    source_builder = external_current_source.ExternalCurrentSourceBuilder()
+    source = source_builder()
+    self.assertEqual(
+        source.output_shape_getter(geo),
+        source_lib.ProfileType.FACE.get_profile_shape(geo),
     )
-    # For unrelated states, this should just return all 0s.
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.TEMP_ION.value,
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        runtime_params,
+        sources={
+            'jext': source_builder.runtime_params,
+        },
+        torax_mesh=geo.torax_mesh,
+    )(
+        t=runtime_params.numerics.t_initial,
+    )
+    self.assertEqual(
+        source.get_value(
+            dynamic_runtime_params_slice,
+            dynamic_runtime_params_slice.sources['jext'],
             geo,
-        ),
-        jnp.zeros(cell),
+            core_profiles=None,
+        ).shape,
+        source_lib.ProfileType.FACE.get_profile_shape(geo),
     )
 
 

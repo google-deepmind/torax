@@ -14,10 +14,12 @@
 """Base class for QLKNN Models."""
 
 import abc
+from typing import TypeAlias
+
 import jax
 
 
-ModelOutput = dict[str, jax.Array]
+ModelOutput: TypeAlias = dict[str, jax.Array]
 
 
 class BaseQLKNNModel(abc.ABC):

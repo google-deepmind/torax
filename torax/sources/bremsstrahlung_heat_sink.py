@@ -29,25 +29,51 @@ from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-
-
-@chex.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  use_relativistic_correction: bool
+from torax.sources import source_models
 
 
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool = False
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> 'RuntimeParamsProvider':
+    if torax_mesh is None:
+      raise ValueError(
+          'torax_mesh is required for BremsstrahlungHeatSink.make_provider.'
+      )
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
     )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides runtime parameters for a given time and geometry."""
+  runtime_params_config: RuntimeParams
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> 'DynamicRuntimeParams':
+    return DynamicRuntimeParams(
+        use_relativistic_correction=self.runtime_params_config.use_relativistic_correction,
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
+    )
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  use_relativistic_correction: bool
 
 
 def calc_bremsstrahlung(
@@ -99,11 +125,11 @@ def calc_bremsstrahlung(
   )
 
   # In W/m^3
-  P_brem_profile_cell = geometry.face_to_cell(P_brem_profile_face)*1e6
+  P_brem_profile_cell = geometry.face_to_cell(P_brem_profile_face) * 1e6
 
   # In MW
   P_brem_total = jax.scipy.integrate.trapezoid(
-      P_brem_profile_face * geo.vpr_face, geo.r_face
+      P_brem_profile_face * geo.vpr_face, geo.rho_face_norm
   )
   return P_brem_total, P_brem_profile_cell
 
@@ -113,6 +139,7 @@ def bremsstrahlung_model_func(
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    unused_model_func: source_models.SourceModels | None,
 ) -> jax.Array:
   """Model function for the Bremsstrahlung heat sink."""
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
@@ -127,13 +154,14 @@ def bremsstrahlung_model_func(
   return -1.0 * P_brem_profile
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BremsstrahlungHeatSink(source.SingleProfileTempElSource):
   """Fusion heat source for both ion and electron heat."""
 
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
   )
 
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func

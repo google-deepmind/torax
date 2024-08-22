@@ -67,12 +67,6 @@ CONFIG = {
             'el_heat_eq': True,
             'current_eq': True,
             'dens_eq': True,
-            # effective source to dominate PDE in internal boundary condtion
-            # location if T != Tped
-            'largeValue_T': 1.0e10,
-            # effective source to dominate density PDE in internal boundary
-            # condtion location if n !=
-            'largeValue_n': 1.0e8,
         },
     },
     'geometry': {

@@ -24,9 +24,10 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 import torax
+from torax import geometry
+from torax import output
 from torax import sim as sim_lib
 from torax import simulation_app
-from torax import state as state_lib
 from torax.config import build_sim
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -40,8 +41,8 @@ from torax.transport_model import runtime_params as transport_params_lib
 from torax.transport_model import transport_model as transport_model_lib
 import xarray as xr
 
-_PYTHON_MODULE_PREFIX = '.tests.test_data.'
-_PYTHON_CONFIG_PACKAGE = 'torax'
+PYTHON_MODULE_PREFIX = '.tests.test_data.'
+PYTHON_CONFIG_PACKAGE = 'torax'
 _FAILED_TEST_OUTPUT_DIR = '/tmp/torax_failed_sim_test_outputs/'
 
 
@@ -74,8 +75,8 @@ class SimTestCase(parameterized.TestCase):
     # Load config structure with test-case-specific values.
     assert config_name.endswith('.py'), config_name
     config_name_no_py = config_name[:-3]
-    python_config_module = _PYTHON_MODULE_PREFIX + config_name_no_py
-    return importlib.import_module(python_config_module, _PYTHON_CONFIG_PACKAGE)
+    python_config_module = PYTHON_MODULE_PREFIX + config_name_no_py
+    return importlib.import_module(python_config_module, PYTHON_CONFIG_PACKAGE)
 
   def _get_sim(self, config_name: str) -> sim_lib.Sim:
     """Returns a Sim given the name of a py file to build it."""
@@ -274,8 +275,7 @@ class SimTestCase(parameterized.TestCase):
     # Build geo needed for output generation
     geo = sim.geometry_provider(sim.initial_state.t)
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        sim.initial_state.t,
-        geo=geo,
+        t=sim.initial_state.t,
     )
     _, geo = runtime_params_slice.make_ip_consistent(
         dynamic_runtime_params_slice, geo
@@ -285,15 +285,13 @@ class SimTestCase(parameterized.TestCase):
     torax_outputs = sim.run()
 
     # Extract core profiles history for analysis against references
-    core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-    t = state_lib.build_time_history_from_states(torax_outputs)
-
-    ds = simulation_app.simulation_output_to_xr(torax_outputs, geo)
+    history = output.StateHistory(torax_outputs)
+    ds = history.simulation_output_to_xr(geo)
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
 
     self._check_profiles_vs_expected(
-        core_profiles=core_profiles,
-        t=t,
+        core_profiles=history.core_profiles,
+        t=history.times,
         ref_time=ref_time,
         ref_profiles=ref_profiles,
         rtol=rtol,
@@ -310,6 +308,7 @@ def make_frozen_optimizer_stepper(
     source_models: source_models_lib.SourceModels,
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     transport_params: transport_params_lib.RuntimeParams,
+    geo: geometry.Geometry,
 ) -> stepper_lib.Stepper:
   """Makes an optimizer stepper with frozen coefficients.
 
@@ -323,16 +322,20 @@ def make_frozen_optimizer_stepper(
       state evolution equations.
     runtime_params: General TORAX runtime input parameters.
     transport_params: Runtime params for the transport model.
+    geo: The geometry of the simulation.
 
   Returns:
     Stepper: the stepper.
   """
   # Get the dynamic runtime params for the start of the simulation.
   dynamic_runtime_params_slice = (
-      runtime_params_slice.build_dynamic_runtime_params_slice(
+      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           transport=transport_params,
           sources=source_models_builder.runtime_params,
+          torax_mesh=geo.torax_mesh,
+      )(
+          t=runtime_params.numerics.t_initial,
       )
   )
   callback_builder = functools.partial(
@@ -350,6 +353,7 @@ def make_frozen_newton_raphson_stepper(
     transport_model: transport_model_lib.TransportModel,
     source_models: source_models_lib.SourceModels,
     runtime_params: general_runtime_params.GeneralRuntimeParams,
+    geo: geometry.Geometry,
 ) -> stepper_lib.Stepper:
   """Makes a Newton Raphson stepper with frozen coefficients.
 
@@ -362,13 +366,19 @@ def make_frozen_newton_raphson_stepper(
     source_models: TORAX sources/sinks used to compute profile terms in the
       state evolution equations.
     runtime_params: General TORAX runtime input parameters.
+    geo: The geometry of the simulation.
 
   Returns:
     Stepper: the stepper.
   """
   # Get the dynamic runtime params for the start of the simulation.
   dynamic_runtime_params_slice = (
-      runtime_params_slice.build_dynamic_runtime_params_slice(runtime_params)
+      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+          runtime_params,
+          torax_mesh=geo.torax_mesh,
+      )(
+          t=runtime_params.numerics.t_initial,
+      )
   )
   callback_builder = functools.partial(
       sim_lib.FrozenCoeffsCallback,

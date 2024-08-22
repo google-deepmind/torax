@@ -17,7 +17,7 @@
 A TimeStepCalculator that iterates over entries in an array.
 """
 
-from typing import Union
+from typing import TypeAlias, Union
 
 import chex
 import jax
@@ -27,7 +27,7 @@ from torax import state as state_module
 from torax.config import runtime_params_slice
 from torax.time_step_calculator import time_step_calculator
 
-State = int
+State: TypeAlias = int
 
 
 # TODO(b/337844885). Remove the array option and make fixed_dt time-dependent

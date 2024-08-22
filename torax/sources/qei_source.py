@@ -39,13 +39,37 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # multiplier for ion-electron heat exchange term for sensitivity testing
   Qei_mult: float = 1.0
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> 'RuntimeParamsProvider':
+    if torax_mesh is None:
+      raise ValueError('torax_mesh is required for QeiSource.')
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides runtime parameters for a given time and geometry."""
+
+  runtime_params_config: RuntimeParams
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> 'DynamicRuntimeParams':
     return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
+        Qei_mult=self.runtime_params_config.Qei_mult,
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 
@@ -54,7 +78,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   Qei_mult: float
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class QeiSource(source.Source):
   """Collisional ion-electron heat source.
 
@@ -135,7 +159,7 @@ def _model_based_qei(
 ) -> source_profiles.QeiInfo:
   """Computes Qei via the coll_exchange model."""
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-  zeros = jnp.zeros_like(geo.r_norm)
+  zeros = jnp.zeros_like(geo.rho_norm)
   qei_coef = physics.coll_exchange(
       core_profiles=core_profiles,
       nref=dynamic_runtime_params_slice.numerics.nref,

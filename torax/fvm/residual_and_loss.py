@@ -19,7 +19,10 @@ these to scalar functions, for example using mean squared error.
 Residual functions are for use with e.g. the Newton-Raphson method
 while loss functions can be minimized using any optimization method.
 """
+
 import functools
+from typing import TypeAlias
+
 import chex
 import jax
 from jax import numpy as jnp
@@ -38,9 +41,10 @@ from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.transport_model import transport_model as transport_model_lib
 
-AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
-Block1DCoeffs = block_1d_coeffs.Block1DCoeffs
-Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
+
+AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
+Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
+Block1DCoeffsCallback: TypeAlias = block_1d_coeffs.Block1DCoeffsCallback
 
 
 @functools.partial(
@@ -284,11 +288,8 @@ def theta_method_block_residual(
   return residual, coeffs_new.auxiliary_outputs
 
 
-theta_method_block_jacobian = jax.jacfwd(
-    theta_method_block_residual, has_aux=True
-)
-theta_method_block_jacobian = jax_utils.jit(
-    theta_method_block_jacobian,
+@functools.partial(
+    jax_utils.jit,
     static_argnames=[
         'static_runtime_params_slice',
         'transport_model',
@@ -296,6 +297,8 @@ theta_method_block_jacobian = jax_utils.jit(
         'evolving_names',
     ],
 )
+def theta_method_block_jacobian(*args, **kwargs):
+  return jax.jacfwd(theta_method_block_residual, has_aux=True)(*args, **kwargs)
 
 
 @functools.partial(
@@ -397,7 +400,7 @@ def jaxopt_solver(
     evolving_names: tuple[str, ...],
     maxiter: int,
     tol: float,
-) -> tuple[jax.Array, float, AuxiliaryOutput]:
+) -> tuple[jax.Array, float, AuxiliaryOutput, int]:
   """Advances jaxopt solver by one timestep.
 
   Args:
@@ -432,7 +435,9 @@ def jaxopt_solver(
 
   Returns:
     x_new_vec: Flattened evolving profile array after jaxopt evolution.
+    final_loss: loss after jaxopt evolution
     aux_output: auxilliary outputs from calc_coeffs.
+    num_iterations: number of iterations ran in jaxopt
   """
 
   loss = functools.partial(
@@ -454,5 +459,6 @@ def jaxopt_solver(
   x_new_vec = solver_output.params
   aux_output = solver_output.state.aux
   final_loss, _ = loss(x_new_vec)
+  num_iterations = solver_output.state.iter_num
 
-  return x_new_vec, final_loss, aux_output
+  return x_new_vec, final_loss, aux_output, num_iterations

@@ -17,6 +17,8 @@
 This module saves immutable constants used in various calculations.
 """
 
+from typing import Final
+
 import chex
 from jax import numpy as jnp
 
@@ -32,7 +34,7 @@ class Constants:
   eps: chex.Numeric
 
 
-CONSTANTS = Constants(
+CONSTANTS: Final[Constants] = Constants(
     keV2J=1e3 * 1.6e-19,
     mp=1.67e-27,
     qe=1.6e-19,

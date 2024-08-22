@@ -27,6 +27,7 @@ from torax import jax_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import convection_terms
 from torax.fvm import diffusion_terms
 from torax.sources import bootstrap_current_source
 from torax.sources import external_current_source
@@ -161,6 +162,14 @@ def _build_bootstrap_profiles(
       bootstrap_profile.sigma,
       jnp.zeros_like(bootstrap_profile.sigma),
   )
+  sigma_face = jax_utils.select(
+      jnp.logical_or(
+          explicit == dynamic_source_runtime_params.is_explicit,
+          calculate_anyway,
+      ),
+      bootstrap_profile.sigma_face,
+      jnp.zeros_like(bootstrap_profile.sigma_face),
+  )
   j_bootstrap = jax_utils.select(
       jnp.logical_or(
           explicit == dynamic_source_runtime_params.is_explicit,
@@ -187,6 +196,7 @@ def _build_bootstrap_profiles(
   )
   return source_profiles.BootstrapCurrentProfile(
       sigma=sigma,
+      sigma_face=sigma_face,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
       I_bootstrap=I_bootstrap,
@@ -222,7 +232,9 @@ def _build_psi_profiles(
     dict of psi source profiles.
   """
   psi_profiles = {}
-  # jext is precomputed in the core profiles.
+  # jext is not one of the "standard sources" in SourceModels, so pull out it's
+  # profile separately.
+  # TODO(b/354190723): Move jext to a standard source.
   dynamic_jext_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.jext_name
   ]
@@ -231,11 +243,16 @@ def _build_psi_profiles(
           explicit == dynamic_jext_runtime_params.is_explicit,
           calculate_anyway,
       ),
-      core_profiles.currents.jext,
-      jnp.zeros_like(geo.r),
+      source_models.jext.get_value(
+          dynamic_runtime_params_slice,
+          dynamic_jext_runtime_params,
+          geo,
+          core_profiles,
+      ),
+      jnp.zeros_like(geo.rho_face),
   )
   # Iterate through the rest of the sources and compute profiles for the ones
-  # which relate to psi. jext is not part of the "standard sources."
+  # which relate to psi.
   for source_name, source in source_models.psi_sources.items():
     dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
         source_name
@@ -251,7 +268,7 @@ def _build_psi_profiles(
             geo,
             core_profiles,
         ),
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
   return psi_profiles
 
@@ -297,7 +314,7 @@ def _build_ne_profiles(
             geo,
             core_profiles,
         ),
-        jnp.zeros_like(geo.r),
+        jnp.zeros_like(geo.rho),
     )
   return ne_profiles
 
@@ -357,9 +374,8 @@ def sum_sources_psi(
     source_models: SourceModels,
 ) -> jax.Array:
   """Computes psi source values for sim.calc_coeffs."""
-  total = (
-      source_profile.j_bootstrap.j_bootstrap
-      + source_profile.profiles[source_models.jext_name]
+  total = source_profile.j_bootstrap.j_bootstrap + geometry.face_to_cell(
+      source_profile.profiles[source_models.jext_name]
   )
   for source_name, source in source_models.psi_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
@@ -368,9 +384,7 @@ def sum_sources_psi(
         geo=geo,
     )
   mu0 = constants.CONSTANTS.mu0
-  prefactor = (
-      8 * geo.vpr * geo.rmax * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
-  )
+  prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
   scale_source = lambda src: -src * prefactor
   return scale_source(total)
 
@@ -381,7 +395,7 @@ def sum_sources_ne(
     source_models: SourceModels,
 ) -> jax.Array:
   """Computes ne source values for sim.calc_coeffs."""
-  total = jnp.zeros_like(geo.r)
+  total = jnp.zeros_like(geo.rho)
   for source_name, source in source_models.ne_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
@@ -397,7 +411,7 @@ def sum_sources_temp_ion(
     source_models: SourceModels,
 ) -> jax.Array:
   """Computes temp_ion source values for sim.calc_coeffs."""
-  total = jnp.zeros_like(geo.r)
+  total = jnp.zeros_like(geo.rho)
   for source_name, source in source_models.temp_ion_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
@@ -413,7 +427,7 @@ def sum_sources_temp_el(
     source_models: SourceModels,
 ) -> jax.Array:
   """Computes temp_el source values for sim.calc_coeffs."""
-  total = jnp.zeros_like(geo.r)
+  total = jnp.zeros_like(geo.rho)
   for source_name, source in source_models.temp_el_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
@@ -428,7 +442,7 @@ def calc_and_sum_sources_psi(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[jax.Array, jax.Array, jax.Array]:
   """Computes sum of psi sources for psi_dot calculation."""
 
   # TODO(b/335597108): Revisit how to calculate this once we enable more
@@ -442,8 +456,20 @@ def calc_and_sum_sources_psi(
       calculate_anyway=True,
   )
   total = 0
-  for key in psi_profiles:
-    total += psi_profiles[key]
+  psi_profiles_on_cell_grid = {
+      key: profile
+      for key, profile in psi_profiles.items()
+      if profile.shape == geo.rho.shape
+  }
+  for key in psi_profiles_on_cell_grid:
+    total += psi_profiles_on_cell_grid[key]
+  psi_profiles_on_face_grid = {
+      key: profile
+      for key, profile in psi_profiles.items()
+      if profile.shape == geo.rho_face.shape
+  }
+  for key in psi_profiles_on_face_grid:
+    total += geometry.face_to_cell(psi_profiles_on_face_grid[key])
   dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
@@ -456,10 +482,16 @@ def calc_and_sum_sources_psi(
       calculate_anyway=True,
   )
   total += j_bootstrap_profiles.j_bootstrap
-  denom = 2 * jnp.pi * geo.Rmaj * geo.J**2
-  scale_source = lambda src: -geo.vpr * src * constants.CONSTANTS.mu0 / denom
 
-  return scale_source(total), j_bootstrap_profiles.sigma
+  mu0 = constants.CONSTANTS.mu0
+  prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
+  scale_source = lambda src: -src * prefactor
+
+  return (
+      scale_source(total),
+      j_bootstrap_profiles.sigma,
+      j_bootstrap_profiles.sigma_face,
+  )
 
 
 @functools.partial(
@@ -494,26 +526,71 @@ def calc_psidot(
   """
   consts = constants.CONSTANTS
 
-  psi_sources, sigma = calc_and_sum_sources_psi(
+  psi_sources, sigma, sigma_face = calc_and_sum_sources_psi(
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
       source_models,
   )
+  # Calculate transient term
   toc_psi = (
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
-      * geo.r
+      * geo.rho_norm
       * sigma
       * consts.mu0
-      / geo.J**2
-      / geo.Rmaj
+      * 16
+      * jnp.pi**2
+      * geo.Phib**2
+      / geo.F**2
   )
-  d_face_psi = (
-      geo.g2g3_over_rho_face * geo.Rmaj / (16 * jnp.pi**4 * geo.rmax**2)
+  # Calculate diffusion term coefficient
+  d_face_psi = geo.g2g3_over_rhon_face
+  # Add phibdot terms to poloidal flux convection
+  v_face_psi = (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * sigma_face
+      * geo.rho_face_norm**2
+      / geo.F_face**2
   )
 
-  c_mat, c = diffusion_terms.make_diffusion_terms(d_face_psi, core_profiles.psi)
+  # Add effective phibdot poloidal flux source term
+  ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
+      sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
+  )
+
+  psi_sources += (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * ddrnorm_sigma_rnorm2_over_f2
+  )
+
+  diffusion_mat, diffusion_vec = diffusion_terms.make_diffusion_terms(
+      d_face_psi, core_profiles.psi
+  )
+
+  # Set the psi convection term for psidot used in ohmic power, always with
+  # the default 'ghost' mode. Impact of different modes would mildly impact
+  # Ohmic power at the LCFS which has negligible impact on simulations.
+  # Allowing it to be configurable introduces more complexity in the code by
+  # needing to pass in the mode from the static_runtime_params across multiple
+  # functions.
+  conv_mat, conv_vec = convection_terms.make_convection_terms(
+      v_face_psi,
+      d_face_psi,
+      core_profiles.psi,
+  )
+
+  c_mat = diffusion_mat + conv_mat
+  c = diffusion_vec + conv_vec
+
   c += psi_sources
 
   psidot = (jnp.dot(c_mat, core_profiles.psi.value) + c) / toc_psi
@@ -521,30 +598,42 @@ def calc_psidot(
   return psidot
 
 
+def ohmic_model_func(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    source_models: SourceModels | None = None,
+) -> jax.Array:
+  """Returns the Ohmic source for electron heat equation."""
+  del dynamic_source_runtime_params
+
+  if source_models is None:
+    raise TypeError('source_models is a required argument for ohmic_model_func')
+
+  jtot, _ = physics.calc_jtot_from_psi(
+      geo,
+      core_profiles.psi,
+  )
+
+  psidot = calc_psidot(
+      dynamic_runtime_params_slice,
+      geo,
+      core_profiles,
+      source_models,
+  )
+
+  pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
+  return pohm
+
+
 # OhmicHeatSource is a special case and defined here to avoid circular
 # dependencies, since it depends on the psi sources
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class OhmicHeatSource(source_lib.SingleProfileSource):
   """Ohmic heat source for electron heat equation.
 
   Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
-
-  Because this source requires access to the rest of the Sources, it must be
-  added to the SourceModels object after creation:
-
-  .. code-block:: python
-
-    source_models = SourceModels(sources={...})
-    # Now add the ohmic heat source and turn it on.
-    source_models.add_source(
-        source_name='ohmic_heat_source',
-        source=OhmicHeatSource(
-            source_models=source_models,
-            runtime_params=runtime_params.RuntimeParams(
-                mode=runtime_params.Mode.MODEL_BASED,  # turns the source on.
-            ),
-        ),
-    )
   """
 
   # Users must pass in a pointer to the complete set of sources to this object.
@@ -563,47 +652,15 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
       )
   )
 
-  # The model function is fixed to self._model_func because that is the only
+  # The model function is fixed to ohmic_model_func because that is the only
   # supported implementation of this source.
   # However, since this is a param in the parent dataclass, we need to (a)
-  # remove the parameter from the init args and (b) set it to the correct
-  # function in __post_init__().
-  #
-  # We cannot simply define a function `def model_func()` and use that because
-  # that definition would be overridden in this classes dataclass constructor.
-  # Also, the `__post_init__()` is required because it allows access to `self`,
-  # which is required for this model function implementation.
+  # remove the parameter from the init args and (b) set the default to the
+  # desired value.
   model_func: source_lib.SourceProfileFunction | None = dataclasses.field(
       init=False,
-      default_factory=lambda: None,
+      default_factory=lambda: ohmic_model_func,
   )
-
-  def __post_init__(self):
-    self.model_func = self._model_func
-
-  def _model_func(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-  ) -> jax.Array:
-    """Returns the Ohmic source for electron heat equation."""
-    del dynamic_source_runtime_params
-    jtot, _ = physics.calc_jtot_from_psi(
-        geo,
-        core_profiles.psi,
-    )
-
-    psidot = calc_psidot(
-        dynamic_runtime_params_slice,
-        geo,
-        core_profiles,
-        self.source_models,
-    )
-
-    pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
-    return pohm
 
 
 OhmicHeatSourceBuilder = source_lib.make_source_builder(
@@ -655,9 +712,13 @@ class SourceModels:
 
   def __init__(
       self,
-      sources: dict[str, source_lib.Source] | None = None,
+      source_builders: (
+          dict[str, source_lib.SourceBuilderProtocol] | None
+      ) = None,
   ):
     """Constructs a collection of sources.
+
+    The constructor should only be called by SourceModelsBuilder.
 
     This class defines which sources are available in a TORAX simulation run.
     Users can configure whether each source is actually on and what kind of
@@ -665,22 +726,32 @@ class SourceModels:
     runtime_params_lib.py).
 
     Args:
-      sources: Mapping of source model names to the Source objects. The names
-        (i.e. the keys of this dictionary) also define the keys in the output
-        SourceProfiles which are computed from this SourceModels object. NOTE -
-        Some sources are "special-case": bootstrap current, external current,
-        and Qei. SourceModels will always instantiate default objects for these
-        types of sources unless they are provided by this `sources` argument.
-        Also, their default names are reserved, meaning the input dictionary
-        `sources` should not have the keys 'j_bootstrap', 'jext', or
-        'qei_source' unless those sources are one of these "special-case"
-        sources.
+      source_builders: Mapping of source model names to builders of the Source
+        objects. The names (i.e. the keys of this dictionary) also define the
+        keys in the output SourceProfiles which are computed from this
+        SourceModels object. NOTE - Some sources are "special-case": bootstrap
+        current, external current, and Qei. SourceModels will always instantiate
+        default objects for these types of sources unless they are provided by
+        this `sources` argument. Also, their default names are reserved, meaning
+        the input dictionary `sources` should not have the keys 'j_bootstrap',
+        'jext', or 'qei_source' unless those sources are one of these
+        "special-case" sources.
 
     Raises:
       ValueError if there is a naming collision with the reserved names as
       described above.
     """
-    sources = sources or {}
+
+    source_builders = source_builders or {}
+
+    # Begin initial construction with sources that don't link back to the
+    # SourceModels
+    sources = {
+        name: builder()
+        for name, builder in source_builders.items()
+        if not builder.links_back
+    }
+
     # Some sources are accessed for specific use cases, so we extract those
     # ones and expose them directly.
     self._j_bootstrap = None
@@ -742,9 +813,29 @@ class SourceModels:
       ):
         continue
       else:
-        self.add_source(source_name, source)
+        self._add_source(source_name, source)
 
-  def add_source(
+    # Now add the sources that link back
+    for name, builder in source_builders.items():
+      if builder.links_back:
+        self._add_source(name, builder(self))
+
+    # The instance is constructed, now freeze it
+    self._frozen = True
+
+  def __setattr__(self, attr, value):
+    # pylint: disable=g-doc-args
+    # pylint: disable=g-doc-return-or-yield
+    """Override __setattr__ to make the class (sort of) immutable.
+
+    Note that you can still do obj.field.subfield = x, so it is not true
+    immutability, but this to helps to avoid some careless errors.
+    """
+    if getattr(self, '_frozen', False):
+      raise AttributeError('SourceModels is immutable.')
+    return super().__setattr__(attr, value)
+
+  def _add_source(
       self,
       source_name: str,
       source: source_lib.Source,
@@ -934,16 +1025,7 @@ class SourceModelsBuilder:
 
   def __call__(self) -> SourceModels:
 
-    unlinked_sources = {
-        name: builder()
-        for name, builder in self.source_builders.items()
-        if not builder.links_back
-    }
-    initial_model = SourceModels(unlinked_sources)
-    for name, builder in self.source_builders.items():
-      if builder.links_back:
-        initial_model.add_source(name, builder(initial_model))
-    return initial_model
+    return SourceModels(self.source_builders)
 
   @property
   def runtime_params(self) -> dict[str, runtime_params_lib.RuntimeParams]:
@@ -963,7 +1045,9 @@ def build_all_zero_profiles(
       source_name: jnp.zeros(source_model.output_shape_getter(geo))
       for source_name, source_model in source_models.standard_sources.items()
   }
-  profiles[source_models.jext_name] = jnp.zeros_like(geo.r)
+  profiles[source_models.jext_name] = jnp.zeros(
+      source_models.jext.output_shape_getter(geo)
+  )
   return source_profiles.SourceProfiles(
       profiles=profiles,
       j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),

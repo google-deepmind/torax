@@ -43,26 +43,20 @@ def updated_ion_temperature(
 ) -> cell_variable.CellVariable:
   """Updated ion temp. Used upon initialization and if temp_ion=False."""
   # pylint: disable=invalid-name
-  if dynamic_runtime_params_slice.profile_conditions.Ti_bound_right is not None:
-    Ti_bound_right = (
-        dynamic_runtime_params_slice.profile_conditions.Ti_bound_right
-    )
-  else:
-    Ti_bound_right = dynamic_runtime_params_slice.profile_conditions.Ti[-1]
+  Ti_bound_right = (
+      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right
+  )
 
   Ti_bound_right = jax_utils.error_if_not_positive(
       Ti_bound_right,
       'Ti_bound_right',
   )
-  temp_ion = geometry.face_to_cell(
-      dynamic_runtime_params_slice.profile_conditions.Ti
-  )
   temp_ion = cell_variable.CellVariable(
-      value=temp_ion,
+      value=dynamic_runtime_params_slice.profile_conditions.Ti,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=Ti_bound_right,
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
   )
   # pylint: enable=invalid-name
   return temp_ion
@@ -74,26 +68,20 @@ def updated_electron_temperature(
 ) -> cell_variable.CellVariable:
   """Updated electron temp. Used upon initialization and if temp_el=False."""
   # pylint: disable=invalid-name
-  if dynamic_runtime_params_slice.profile_conditions.Te_bound_right is not None:
-    Te_bound_right = (
-        dynamic_runtime_params_slice.profile_conditions.Te_bound_right
-    )
-  else:
-    Te_bound_right = dynamic_runtime_params_slice.profile_conditions.Te[-1]
+  Te_bound_right = (
+      dynamic_runtime_params_slice.profile_conditions.Te_bound_right
+  )
 
   Te_bound_right = jax_utils.error_if_not_positive(
       Te_bound_right,
       'Te_bound_right',
   )
-  temp_el = geometry.face_to_cell(
-      dynamic_runtime_params_slice.profile_conditions.Te
-  )
   temp_el = cell_variable.CellVariable(
-      value=temp_el,
+      value=dynamic_runtime_params_slice.profile_conditions.Te,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=Te_bound_right,
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
   )
   # pylint: enable=invalid-name
   return temp_el
@@ -103,37 +91,8 @@ def updated_electron_temperature(
 def _get_ne(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-    nGW: float,
-) -> jax.Array:
+) -> cell_variable.CellVariable:
   """Helper to get the electron density profile at the current timestep."""
-  nshape_face = dynamic_runtime_params_slice.profile_conditions.ne
-  nshape = geometry.face_to_cell(nshape_face)
-
-  if dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar:
-    # find normalization factor such that desired line-averaged n is set
-    # Assumes line-averaged central chord on outer midplane
-    Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
-    C = dynamic_runtime_params_slice.profile_conditions.nbar / (
-        _trapz(nshape_face, geo.Rout_face) / Rmin_out
-    )
-    # pylint: enable=invalid-name
-    ne_value = C * nshape
-  else:
-    ne_value = nshape
-
-  ne_value = jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
-      ne_value * nGW,
-      ne_value,
-  )
-  return ne_value
-
-
-def updated_density(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
-) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
-  """Updated particle density. Used upon initialization and if dens_eq=False."""
   # pylint: disable=invalid-name
   nGW = (
       dynamic_runtime_params_slice.profile_conditions.Ip
@@ -141,24 +100,76 @@ def updated_density(
       * 1e20
       / dynamic_runtime_params_slice.numerics.nref
   )
-
-  ne_value = _get_ne(dynamic_runtime_params_slice, geo, nGW,)
-
+  ne_value = jnp.where(
+      dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
+      dynamic_runtime_params_slice.profile_conditions.ne * nGW,
+      dynamic_runtime_params_slice.profile_conditions.ne,
+  )
   # Calculate ne_bound_right.
-  if dynamic_runtime_params_slice.profile_conditions.ne_bound_right is not None:
-    ne_bound_right = jnp.where(
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
+  ne_bound_right = jnp.where(
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
+      dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
+  )
+
+  if dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar:
+    face_left = ne_value[0]  # Zero gradient boundary condition at left face.
+    face_right = ne_bound_right
+    face_inner = (ne_value[..., :-1] + ne_value[..., 1:]) / 2.0
+    ne_face = jnp.concatenate(
+        [face_left[None], face_inner, face_right[None]],
     )
+    # find normalization factor such that desired line-averaged n is set
+    # Assumes line-averaged central chord on outer midplane
+    Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
+    # find target nbar in absolute units
+    target_nbar = jnp.where(
+        dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
+        dynamic_runtime_params_slice.profile_conditions.nbar * nGW,
+        dynamic_runtime_params_slice.profile_conditions.nbar,
+    )
+    if (
+        not dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute
+    ):
+      # In this case, ne_bound_right is taken from ne and we also normalize it.
+      C = target_nbar / (_trapz(ne_face, geo.Rout_face) / Rmin_out)
+      # pylint: enable=invalid-name
+      ne_bound_right = C * ne_bound_right
+    else:
+      # If ne_bound_right is absolute, subtract off contribution from outer
+      # face to get C we need to multiply the inner values with.
+      nbar_from_ne_face_inner = (
+          _trapz(ne_face[:-1], geo.Rout_face[:-1]) / Rmin_out
+      )
+
+      dr_edge = geo.Rout_face[-1] - geo.Rout_face[-2]
+
+      C = (
+          target_nbar
+          - 0.5 * ne_face[-1] * dr_edge / Rmin_out
+      ) / (nbar_from_ne_face_inner + 0.5 * ne_face[-2] * dr_edge / Rmin_out)
   else:
-    ne_bound_right = ne_value[-1]
+    C = 1
+
+  ne_value = C * ne_value
 
   ne = cell_variable.CellVariable(
       value=ne_value,
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(ne_bound_right),
+  )
+  return ne
+
+
+def updated_density(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
+) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
+  """Updated particle density. Used upon initialization and if dens_eq=False."""
+  ne = _get_ne(
+      dynamic_runtime_params_slice,
+      geo,
   )
 
   # define ion profile based on (flat) Zeff and single assumed impurity
@@ -172,10 +183,12 @@ def updated_density(
   )
 
   ni = cell_variable.CellVariable(
-      value=ne_value * dilution_factor,
-      dr=geo.dr_norm,
+      value=ne.value * dilution_factor,
+      dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
+      right_face_constraint=jnp.array(
+          ne.right_face_constraint * dilution_factor
+      ),
   )
   return ne, ni
 
@@ -220,18 +233,19 @@ def _prescribe_currents_no_bootstrap(
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_face, jext = source_models.jext.get_value(
+  jext_face = source_models.jext.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
+  jext = geometry.face_to_cell(jext_face)
 
   # construct prescribed current formula on grid.
   jformula_face = (
-      1 - geo.r_face_norm**2
+      1 - geo.rho_face_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
   # calculate total and Ohmic current profiles
-  denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
+  denom = _trapz(jformula_face * geo.spr_face, geo.rho_face_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
@@ -264,6 +278,7 @@ def _prescribe_currents_no_bootstrap(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
+      Ip=Ip,
       sigma=bootstrap_profile.sigma,
   )
 
@@ -331,17 +346,18 @@ def _prescribe_currents_with_bootstrap(
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_face, jext = source_models.jext.get_value(
+  jext_face = source_models.jext.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
+  jext = geometry.face_to_cell(jext_face)
 
   # construct prescribed current formula on grid.
   jformula_face = (
-      1 - geo.r_face_norm**2
+      1 - geo.rho_face_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  denom = _trapz(jformula_face * geo.spr_face, geo.r_face)
+  denom = _trapz(jformula_face * geo.spr_face, geo.rho_face_norm)
   # calculate total and Ohmic current profiles
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
@@ -375,6 +391,7 @@ def _prescribe_currents_with_bootstrap(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
+      Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
       sigma=bootstrap_profile.sigma,
   )
 
@@ -438,11 +455,12 @@ def _calculate_currents_from_psi(
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_face, jext = source_models.jext.get_value(
+  jext_face = source_models.jext.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_jext_params,
       geo=geo,
   )
+  jext = geometry.face_to_cell(jext_face)
 
   # TODO(b/336995925): TORAX currently only uses the external current source,
   # jext, when computing the jtot initial currents from psi. Really, though, we
@@ -462,11 +480,11 @@ def _calculate_currents_from_psi(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
+      Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
       sigma=bootstrap_profile.sigma,
   )
 
   return currents
-  # pylint: enable=invalid-name
 
 
 def _update_psi_from_j(
@@ -487,70 +505,106 @@ def _update_psi_from_j(
   Returns:
     psi: Poloidal flux cell variable.
   """
-
-  psi_constraint = (
-      dynamic_runtime_params_slice.profile_conditions.Ip
-      * 1e6
-      * (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
-      / (geo.g2g3_over_rho_face[-1] * geo.J_face[-1] * geo.Rmaj)
-      * geo.rmax
+  psi_grad_constraint = _calculate_psi_grad_constraint(
+      dynamic_runtime_params_slice,
+      geo,
   )
 
-  y = currents.jtot_hires * geo.vpr_hires
+  y = currents.jtot_hires * geo.spr_hires
   assert y.ndim == 1
-  assert geo.r_hires.ndim == 1
-  integrated = math_utils.cumulative_trapezoid(
-      geo.r_hires, y, initial=jnp.zeros(())
+  assert geo.rho_hires.ndim == 1
+  Ip_profile = math_utils.cumulative_trapezoid(
+      y=y, x=geo.rho_hires_norm, initial=0.0
   )
   scale = jnp.concatenate((
       jnp.zeros((1,)),
-      (8 * jnp.pi**3 * constants.CONSTANTS.mu0)
-      / (geo.J_hires[1:] * geo.Rmaj**2 * geo.g2g3_over_rho_hires[1:]),
+      (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
+      / (geo.F_hires[1:] * geo.g2g3_over_rhon_hires[1:]),
   ))
   # dpsi_dr on the cell grid
-  dpsi_dr_hires = scale * integrated
+  dpsi_drhon_hires = scale * Ip_profile
 
   # psi on cell grid
   psi_hires = math_utils.cumulative_trapezoid(
-      geo.r_hires,
-      dpsi_dr_hires,
-      initial=jnp.zeros(()),
+      y=dpsi_drhon_hires, x=geo.rho_hires_norm, initial=0.0
   )
 
-  psi_value = jnp.interp(geo.r, geo.r_hires, psi_hires)
+  psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
 
   psi = cell_variable.CellVariable(
       value=psi_value,
-      dr=geo.dr_norm,
-      right_face_grad_constraint=psi_constraint,
+      dr=geo.drho_norm,
+      right_face_grad_constraint=psi_grad_constraint,
   )
 
   return psi
 
 
-def initial_core_profiles(
+# pylint: enable=invalid-name
+
+
+def _calculate_psi_grad_constraint(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
+) -> jax.Array:
+  """Calculates the constraint on the poloidal flux (psi)."""
+  return (
+      dynamic_runtime_params_slice.profile_conditions.Ip
+      * 1e6
+      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
+      / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
+  )
+
+
+def _initial_psi(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
+    temp_ion: cell_variable.CellVariable,
+    temp_el: cell_variable.CellVariable,
+    ne: cell_variable.CellVariable,
+    ni: cell_variable.CellVariable,
     source_models: source_models_lib.SourceModels,
-) -> state.CoreProfiles:
-  """Calculates the initial core profiles.
+) -> tuple[cell_variable.CellVariable, state.Currents]:
+  """Calculates poloidal flux (psi) consistent with plasma current.
+
+  There are three modes of initialising psi that are supported:
+  1. Providing psi from the profile conditions.
+  2. Calculating j according to the "nu formula".
+  3. Retrieving psi from the standard geometry input.
 
   Args:
-    dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
+    dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Torus geometry.
-    source_models: All models for TORAX sources/sinks.
+    temp_ion: Ion temperature.
+    temp_el: Electron temperature.
+    ne: Electron density.
+    ni: Ion density.
+    source_models: All TORAX source/sink functions.
 
   Returns:
-    Initial core profiles.
+    psi: Poloidal flux cell variable.
+    currents: Plasma currents.
   """
-  # pylint: disable=invalid-name
-
-  # To set initial values and compute the boundary conditions, we need to handle
-  # potentially time-varying inputs from the users.
-  # The default time in build_dynamic_runtime_params_slice is t_initial
-  temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo)
-  temp_el = updated_electron_temperature(dynamic_runtime_params_slice, geo)
-  ne, ni = updated_density(dynamic_runtime_params_slice, geo)
+  if dynamic_runtime_params_slice.profile_conditions.psi is not None:
+    psi = cell_variable.CellVariable(
+        value=dynamic_runtime_params_slice.profile_conditions.psi,
+        right_face_grad_constraint=_calculate_psi_grad_constraint(
+            dynamic_runtime_params_slice,
+            geo,
+        ),
+        dr=geo.drho_norm,
+    )
+    currents = _calculate_currents_from_psi(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        temp_ion=temp_ion,
+        temp_el=temp_el,
+        ne=ne,
+        ni=ni,
+        psi=psi,
+        source_models=source_models,
+    )
+    return psi, currents
 
   # set up initial psi profile based on current profile
   if (
@@ -590,40 +644,22 @@ def initial_core_profiles(
         currents,
     )
 
-    q_face, _ = physics.calc_q_from_jtot_psi(
-        geo=geo,
-        psi=psi,
-        jtot_face=currents.jtot_face,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
-    )
-    s_face = physics.calc_s_from_psi(geo, psi)
-
   elif (
       isinstance(geo, geometry.StandardGeometry)
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
-    # psi is already provided from the CHEASE equilibrium, so no need to first
-    # calculate currents. However, non-inductive currents are still calculated
-    # and used in current diffusion equation.
-    psi_constraint = (
-        dynamic_runtime_params_slice.profile_conditions.Ip
-        * 1e6
-        * (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
-        / (geo.g2g3_over_rho_face[-1] *geo.J_face[-1] * geo.Rmaj)
-        * geo.rmax
+    # psi is already provided from a numerical equilibrium, so no need to
+    # first calculate currents. However, non-inductive currents are still
+    # calculated and used in current diffusion equation.
+    psi_grad_constraint = _calculate_psi_grad_constraint(
+        dynamic_runtime_params_slice,
+        geo,
     )
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
-        right_face_grad_constraint=psi_constraint,
-        dr=geo.dr_norm,
+        right_face_grad_constraint=psi_grad_constraint,
+        dr=geo.drho_norm,
     )
-    q_face, _ = physics.calc_q_from_jtot_psi(
-        geo=geo,
-        psi=psi,
-        jtot_face=geo.jtot_face,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
-    )
-    s_face = physics.calc_s_from_psi(geo, psi)
 
     # Calculate external currents
     currents = _calculate_currents_from_psi(
@@ -639,11 +675,54 @@ def initial_core_profiles(
   else:
     raise ValueError(f'Unknown geometry type provided: {geo}')
 
+  return psi, currents
+
+
+def initial_core_profiles(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
+    source_models: source_models_lib.SourceModels,
+) -> state.CoreProfiles:
+  """Calculates the initial core profiles.
+
+  Args:
+    dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
+    geo: Torus geometry.
+    source_models: All models for TORAX sources/sinks.
+
+  Returns:
+    Initial core profiles.
+  """
+  # pylint: disable=invalid-name
+
+  # To set initial values and compute the boundary conditions, we need to handle
+  # potentially time-varying inputs from the users.
+  # The default time in build_dynamic_runtime_params_slice is t_initial
+  temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo)
+  temp_el = updated_electron_temperature(dynamic_runtime_params_slice, geo)
+  ne, ni = updated_density(dynamic_runtime_params_slice, geo)
+  psi, currents = _initial_psi(
+      dynamic_runtime_params_slice,
+      geo,
+      temp_ion=temp_ion,
+      temp_el=temp_el,
+      ne=ne,
+      ni=ni,
+      source_models=source_models,
+  )
+  s_face = physics.calc_s_from_psi(geo, psi)
+  q_face, _ = physics.calc_q_from_jtot_psi(
+      geo=geo,
+      psi=psi,
+      jtot_face=currents.jtot_face,
+      q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
+  )
+
   # the psidot calculation needs core profiles. So psidot first initialized
   # with zeros.
   psidot = cell_variable.CellVariable(
       value=jnp.zeros_like(psi.value),
-      dr=geo.dr_norm,
+      dr=geo.drho_norm,
   )
 
   core_profiles = state.CoreProfiles(
@@ -659,6 +738,9 @@ def initial_core_profiles(
       nref=jnp.asarray(dynamic_runtime_params_slice.numerics.nref),
   )
 
+  # psidot calculated here with phibdot=0 in geo, since this is initial
+  # conditions and we don't yet have information on geo_t_plus_dt for the
+  # phibdot calculation.
   psidot = dataclasses.replace(
       psidot,
       value=source_models_lib.calc_psidot(
@@ -709,9 +791,7 @@ def updated_prescribed_core_profiles(
       not static_runtime_params_slice.ion_heat_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    temp_ion = updated_ion_temperature(
-        dynamic_runtime_params_slice, geo
-    ).value
+    temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo).value
   else:
     temp_ion = core_profiles.temp_ion.value
   if (
@@ -727,9 +807,7 @@ def updated_prescribed_core_profiles(
       not static_runtime_params_slice.dens_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    ne, ni = updated_density(
-        dynamic_runtime_params_slice, geo
-    )
+    ne, ni = updated_density(dynamic_runtime_params_slice, geo)
     ne = ne.value
     ni = ni.value
   else:
@@ -799,46 +877,21 @@ def compute_boundary_conditions(
     each CellVariable in the state. This dict can in theory recursively replace
     values in a State object.
   """
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip  # pylint: disable=invalid-name
-
-  if dynamic_runtime_params_slice.profile_conditions.Ti_bound_right is not None:
-    Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-        dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
-        'Ti_bound_right',
-    )
-  else:
-    Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-        dynamic_runtime_params_slice.profile_conditions.Ti[-1], 'Ti_bound_right'
-    )
-
-  if dynamic_runtime_params_slice.profile_conditions.Te_bound_right is not None:
-    Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-        dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
-        'Te_bound_right',
-    )
-  else:
-    Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
-        dynamic_runtime_params_slice.profile_conditions.Te[-1], 'Te_bound_right'
-    )
-
-  # calculate ne_bound_right
-  # pylint: disable=invalid-name
-  nGW = (
-      dynamic_runtime_params_slice.profile_conditions.Ip
-      / (jnp.pi * geo.Rmin**2)
-      * 1e20
-      / dynamic_runtime_params_slice.numerics.nref
+  Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
+      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
+      'Ti_bound_right',
   )
-  # pylint: enable=invalid-name
-  if dynamic_runtime_params_slice.profile_conditions.ne_bound_right is not None:
-    ne_bound_right = jnp.where(
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
-        dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
-    )
-  else:
-    ne_value = _get_ne(dynamic_runtime_params_slice, geo, nGW)
-    ne_bound_right = ne_value[-1]
+
+  Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
+      dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
+      'Te_bound_right',
+  )
+
+  ne = _get_ne(
+      dynamic_runtime_params_slice,
+      geo,
+  )
+  ne_bound_right = ne.right_face_constraint
 
   # define ion profile based on (flat) Zeff and single assumed impurity
   # with Zimp. main ion limited to hydrogenic species for now.
@@ -871,12 +924,10 @@ def compute_boundary_conditions(
           right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
       ),
       'psi': dict(
-          right_face_grad_constraint=Ip
-          * 1e6
-          * (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
-          / (geo.g2g3_over_rho_face[-1] * geo.J_face[-1] * geo.Rmaj)
-          * geo.rmax,
-          right_face_constraint=None,
+          right_face_grad_constraint=_calculate_psi_grad_constraint(
+              dynamic_runtime_params_slice,
+              geo,
+          ),
       ),
   }
 
@@ -892,7 +943,7 @@ def _get_jtot_hires(
 ) -> jax.Array:
   """Calculates jtot hires."""
   j_bootstrap_hires = jnp.interp(
-      geo.r_hires, geo.r_face, bootstrap_profile.j_bootstrap_face
+      geo.rho_hires, geo.rho_face, bootstrap_profile.j_bootstrap_face
   )
 
   # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
@@ -904,9 +955,9 @@ def _get_jtot_hires(
 
   # calculate high resolution jtot and Ohmic current profile
   jformula_hires = (
-      1 - geo.r_hires_norm**2
+      1 - geo.rho_hires_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  denom = _trapz(jformula_hires * geo.spr_hires, geo.r_hires)
+  denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot_hires = (
         dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / denom

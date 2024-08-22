@@ -55,27 +55,27 @@ import datetime
 import enum
 import os
 import sys
-from typing import Any, Callable
+from typing import Callable, Final
 
 from absl import logging
-import chex
 import jax
 from matplotlib import pyplot as plt
 import torax
 from torax import geometry_provider
+from torax import output
 from torax import sim as sim_lib
-from torax import state as state_lib
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.spectators import plotting
 from torax.stepper import runtime_params as stepper_runtime_params_lib
 from torax.transport_model import runtime_params as transport_runtime_params_lib
 import xarray as xr
+
 import shutil
 
 
 # String printed before printing the output file path
-WRITE_PREFIX = 'Wrote simulation output to '
+WRITE_PREFIX: Final[str] = 'Wrote simulation output to '
 
 
 # For logging.
@@ -94,169 +94,26 @@ _DEFAULT_OUTPUT_DIR_PREFIX = '/tmp/torax_results_'
 _STATE_HISTORY_FILENAME = 'state_history.nc'
 
 
-def log_to_stdout(output: str, color: AnsiColors | None = None,
-                  exc_info: bool = False,) -> None:
+def log_to_stdout(
+    log_output: str,
+    color: AnsiColors | None = None,
+    exc_info: bool = False,
+) -> None:
   if not color or not sys.stderr.isatty():
-    logging.info(output, exc_info=exc_info)
+    logging.info(log_output, exc_info=exc_info)
   else:
-    logging.info('%s%s%s', color.value, output, _ANSI_END, exc_info=exc_info)
-
-
-# TODO(b/338033916): Modify to specify exactly which outputs we would like.
-def _path_to_name(path: tuple[Any, ...],) -> str:
-  """Converts paths to names of variables."""
-  # Aliases for the names of the variables.
-  name_map = {
-      'fusion_heat_source_el': 'Qfus_e',
-      'fusion_heat_source_ion': 'Qfus_i',
-      'generic_ion_el_heat_source_el': 'Qext_e',
-      'generic_ion_el_heat_source_ion': 'Qext_i',
-      'ohmic_heat_source': 'Qohm',
-      'qei_source': 'Qei',
-      'gas_puff_source': 's_puff',
-      'nbi_particle_source': 's_nbi',
-      'pellet_source': 's_pellet',
-      'bremsstrahlung_heat_sink': 'Qbrem'
-  }
-  initial_cond_vars = ['temp_ion', 'temp_el', 'ni', 'ne',]
-
-  if isinstance(path[-1], jax.tree_util.DictKey):
-    name = path[-1].key
-  elif path[-1].name == 'value':
-    name = path[-2].name
-  # For the initial conditions we want to save the right face constraint.
-  elif (
-      isinstance(path[-2], jax.tree_util.GetAttrKey)
-      and path[-2].name in initial_cond_vars
-      and path[-1].name == 'right_face_constraint'
-  ):
-    name = path[-2].name + '_right_bc'
-  # For the psi variable we want to save the value and the right grad face
-  # constraints as well.
-  elif (
-      isinstance(path[-2], jax.tree_util.GetAttrKey)
-      and path[-2].name == 'psi'
-      and path[-1].name == 'right_face_grad_constraint'
-  ):
-    name = path[-2].name + '_right_grad_bc'
-  else:
-    name = path[-1].name
-
-  if name in name_map:
-    return name_map[name]
-
-  return name
-
-
-def _translate_leaf_with_path(
-    time: xr.DataArray,
-    geo: torax.Geometry,
-    path: tuple[Any, ...],
-    leaf: jax.Array,
-) -> tuple[str, xr.DataArray | None]:
-  """Logic for converting and filtering which paths we want to save."""
-  # Functions to check if a leaf is a face or cell variable
-  # Assume that all arrays with shape (time, rho_face) are face variables
-  # and all arrays with shape (time, rho_cell) are cell variables
-  is_face_var = lambda x: x.ndim == 2 and x.shape == (
-      len(time),
-      len(geo.r_face),
-  )
-  is_cell_var = lambda x: x.ndim == 2 and x.shape == (len(time), len(geo.r))
-  is_scalar = lambda x: x.ndim == 1 and x.shape == (len(time),)
-
-  name = _path_to_name(path)
-
-  if is_face_var(leaf):
-    return name, xr.DataArray(leaf, dims=['time', 'rho_face'], name=name)
-  elif is_cell_var(leaf):
-    return name, xr.DataArray(leaf, dims=['time', 'rho_cell'], name=name)
-  elif is_scalar(leaf):
-    return name, xr.DataArray(leaf, dims=['time'], name=name)
-  else:
-    return name, None
-
-
-def simulation_output_to_xr(
-    torax_outputs: tuple[state_lib.ToraxSimState, ...],
-    geo: torax.Geometry,
-) -> xr.Dataset:
-  """Build an xr.Dataset of the simulation output."""
-
-  # TODO(b/338033916). Extend outputs with:
-  # Post-processed integrals, more geo outputs.
-  # Cleanup structure by excluding QeiInfo from core_sources altogether.
-  # Add attribute to dataset variables with explanation of contents + units.
-
-  #  Exclude uninteresting variables from output DataSet
-  exclude_set = {
-      'explicit_e',
-      'explicit_i',
-      'implicit_ee',
-      'implicit_ii',
-      'implicit_ei',
-      'implicit_ie',
-      'qei_coef',
-  }
-
-  core_profile_history, core_sources_history, core_transport_history = (
-      state_lib.build_history_from_states(torax_outputs)
-  )
-  t = state_lib.build_time_history_from_states(torax_outputs)
-  chex.assert_rank(t, 1)
-
-  # Get the coordinate variables for dimensions ("time", "rho_face", "rho_cell")
-  time = xr.DataArray(t, dims=['time'], name='time')
-  r_face_norm = xr.DataArray(
-      geo.r_face_norm, dims=['rho_face'], name='r_face_norm'
-  )
-  r_cell_norm = xr.DataArray(geo.r_norm, dims=['rho_cell'], name='r_cell_norm')
-  r_face = xr.DataArray(geo.r_face, dims=['rho_face'], name='r_face')
-  r_cell = xr.DataArray(geo.r, dims=['rho_cell'], name='r_cell')
-
-  # Build a PyTree of variables we will want to log.
-  tree = (core_profile_history, core_transport_history, core_sources_history)
-
-  # Only try to log arrays.
-  leaves_with_path = jax.tree_util.tree_leaves_with_path(
-      tree, is_leaf=lambda x: isinstance(x, jax.Array)
-  )
-
-  # Initialize dict with desired geometry and reference variables
-  xr_dict = {
-      'vpr': xr.DataArray(geo.vpr, dims=['rho_cell'], name='vpr'),
-      'spr': xr.DataArray(geo.spr_cell, dims=['rho_cell'], name='spr'),
-      'vpr_face': xr.DataArray(
-          geo.vpr_face, dims=['rho_face'], name='vpr_face'
-      ),
-      'spr_face': xr.DataArray(
-          geo.spr_face, dims=['rho_face'], name='spr_face'
-      ),
-  }
-
-  # Extend with desired core_profiles, core_sources, core_transport variables
-  for path, leaf in leaves_with_path:
-    name, da = _translate_leaf_with_path(time, geo, path, leaf)
-    if da is not None and name not in exclude_set:
-      xr_dict[name] = da
-  ds = xr.Dataset(
-      xr_dict,
-      coords={
-          'time': time,
-          'r_face_norm': r_face_norm,
-          'r_cell_norm': r_cell_norm,
-          'r_face': r_face,
-          'r_cell': r_cell,
-      },
-  )
-  return ds
+    logging.info(
+        '%s%s%s', color.value, log_output, _ANSI_END, exc_info=exc_info
+    )
 
 
 def write_simulation_output_to_file(output_dir: str, ds: xr.Dataset) -> str:
   """Writes the state history and some geometry information to a NetCDF file."""
+
   if os.path.exists(output_dir):
     shutil.rmtree(output_dir)
   os.makedirs(output_dir)
+
   output_file = os.path.join(output_dir, _STATE_HISTORY_FILENAME)
   ds.to_netcdf(output_file)
   log_to_stdout(f'{WRITE_PREFIX}{output_file}', AnsiColors.GREEN)
@@ -303,13 +160,9 @@ def update_sim(
     sim: sim_lib.Sim,
     runtime_params: torax.GeneralRuntimeParams,
     geo_provider: geometry_provider.GeometryProvider,
-    transport_runtime_params_getter: Callable[
-        [], transport_runtime_params_lib.RuntimeParams
-    ],
+    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
-    stepper_runtime_params_getter: Callable[
-        [], stepper_runtime_params_lib.RuntimeParams
-    ],
+    stepper_runtime_params: stepper_runtime_params_lib.RuntimeParams,
 ) -> sim_lib.Sim:
   """Updates the sim with a new set of runtime params and geometry."""
   # NOTE: This function will NOT update any of the following:
@@ -325,21 +178,22 @@ def update_sim(
   static_runtime_params_slice = (
       runtime_params_slice.build_static_runtime_params_slice(
           runtime_params,
-          stepper=stepper_runtime_params_getter(),
+          stepper=stepper_runtime_params,
       )
   )
   dynamic_runtime_params_slice_provider = (
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
-          transport_getter=transport_runtime_params_getter,
-          sources_getter=lambda: sim.source_models_builder.runtime_params,
-          stepper_getter=stepper_runtime_params_getter,
+          transport=transport_runtime_params,
+          sources=sim.source_models_builder.runtime_params,
+          stepper=stepper_runtime_params,
+          torax_mesh=geo_provider.torax_mesh,
       )
   )
 
   geo = geo_provider(runtime_params.numerics.t_initial)
   dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      t=runtime_params.numerics.t_initial, geo=geo,
+      t=runtime_params.numerics.t_initial,
   )
   dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
       dynamic_runtime_params_slice, geo
@@ -440,16 +294,14 @@ def main(
       spectator=spectator,
   )
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
+  state_history = output.StateHistory(torax_outputs)
 
-  ds = simulation_output_to_xr(torax_outputs, geo)
+  ds = state_history.simulation_output_to_xr(geo)
 
   output_file = write_simulation_output_to_file(output_dir, ds)
 
   if log_sim_output:
-    core_profile_history, _, _ = state_lib.build_history_from_states(
-        torax_outputs
-    )
-    t = state_lib.build_time_history_from_states(torax_outputs)
-    log_simulation_output_to_stdout(core_profile_history, geo, t)
+    history = output.StateHistory(torax_outputs)
+    log_simulation_output_to_stdout(history.core_profiles, geo, history.times)
 
   return ds, output_file

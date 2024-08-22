@@ -22,9 +22,13 @@ from absl.testing import absltest
 import chex
 from torax import geometry
 from torax import geometry_provider
+from torax import interpolated_param
+from torax import output
 from torax import sim as sim_lib
 from torax import state as state_lib
 from torax.config import config_args
+from torax.config import numerics as numerics_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import default_sources
@@ -54,6 +58,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
         geo: geometry.Geometry,
         unused_state: state_lib.CoreProfiles | None,
+        unused_source_models: ...,
     ):
       # Combine the outputs.
       assert isinstance(
@@ -63,6 +68,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
           mode=dynamic_source_runtime_params.mode,
           is_explicit=dynamic_source_runtime_params.is_explicit,
           formula=dynamic_source_runtime_params.formula,
+          prescribed_values=dynamic_source_runtime_params.prescribed_values,
       )
       puff_params = electron_density_sources.DynamicGasPuffRuntimeParams(
           puff_decay_length=dynamic_source_runtime_params.puff_decay_length,
@@ -159,12 +165,13 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     # Copy the test_particle_sources_constant config in here for clarity.
     # These are the common kwargs without any of the sources.
     test_particle_sources_constant_runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=True,
             nbar=0.85,
             nu=0,
+            ne_bound_right=0.5,
         ),
-        numerics=general_runtime_params.Numerics(
+        numerics=numerics_lib.Numerics(
             ion_heat_eq=True,
             el_heat_eq=True,
             dens_eq=True,  # This is important to be True to test ne sources.
@@ -201,11 +208,10 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     with self.subTest('with_defaults_and_without_custom_source'):
       # Need to run the sim once to build the step_fn.
       torax_outputs = sim.run()
-      core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-      t = state_lib.build_time_history_from_states(torax_outputs)
+      history = output.StateHistory(torax_outputs)
       self._check_profiles_vs_expected(
-          core_profiles=core_profiles,
-          t=t,
+          core_profiles=history.core_profiles,
+          t=history.times,
           ref_time=ref_time,
           ref_profiles=ref_profiles,
           rtol=self.rtol,
@@ -245,11 +251,10 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         static_runtime_params_slice=sim.static_runtime_params_slice,
         time_step_calculator=sim.time_step_calculator,
     )
-    core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-    t = state_lib.build_time_history_from_states(torax_outputs)
+    history = output.StateHistory(torax_outputs)
     self._check_profiles_vs_expected(
-        core_profiles=core_profiles,
-        t=t,
+        core_profiles=history.core_profiles,
+        t=history.times,
         ref_time=ref_time,
         ref_profiles=ref_profiles,
         rtol=self.rtol,
@@ -273,15 +278,80 @@ class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   pellet_deposition_location: runtime_params_lib.TimeInterpolated
   S_pellet_tot: runtime_params_lib.TimeInterpolated
 
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> '_CustomSourceRuntimeParamsProvider':
+    if torax_mesh is None:
+      raise ValueError('torax_mesh is required for CustomSourceRuntimeParams.')
+    return _CustomSourceRuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
+        puff_decay_length=config_args.get_interpolated_var_single_axis(
+            self.puff_decay_length
+        ),
+        S_puff_tot=config_args.get_interpolated_var_single_axis(
+            self.S_puff_tot
+        ),
+        nbi_particle_width=config_args.get_interpolated_var_single_axis(
+            self.nbi_particle_width
+        ),
+        nbi_deposition_location=config_args.get_interpolated_var_single_axis(
+            self.nbi_deposition_location
+        ),
+        S_nbi_tot=config_args.get_interpolated_var_single_axis(self.S_nbi_tot),
+        pellet_width=config_args.get_interpolated_var_single_axis(
+            self.pellet_width
+        ),
+        pellet_deposition_location=config_args.get_interpolated_var_single_axis(
+            self.pellet_deposition_location
+        ),
+        S_pellet_tot=config_args.get_interpolated_var_single_axis(
+            self.S_pellet_tot
+        ),
+    )
+
+
+@chex.dataclass
+class _CustomSourceRuntimeParamsProvider(
+    runtime_params_lib.RuntimeParamsProvider
+):
+  """Provides runtime parameters for a given time and geometry."""
+
+  runtime_params_config: _CustomSourceRuntimeParams
+  puff_decay_length: interpolated_param.InterpolatedVarSingleAxis
+  S_puff_tot: interpolated_param.InterpolatedVarSingleAxis
+  nbi_particle_width: interpolated_param.InterpolatedVarSingleAxis
+  nbi_deposition_location: interpolated_param.InterpolatedVarSingleAxis
+  S_nbi_tot: interpolated_param.InterpolatedVarSingleAxis
+  pellet_width: interpolated_param.InterpolatedVarSingleAxis
+  pellet_deposition_location: interpolated_param.InterpolatedVarSingleAxis
+  S_pellet_tot: interpolated_param.InterpolatedVarSingleAxis
+
   def build_dynamic_params(
-      self, t: chex.Numeric
-  ) -> _CustomSourceDynamicRuntimeParams:
+      self,
+      t: chex.Numeric,
+  ) -> '_CustomSourceDynamicRuntimeParams':
     return _CustomSourceDynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=_CustomSourceDynamicRuntimeParams,
-            t=t,
-        )
+        puff_decay_length=float(self.puff_decay_length.get_value(t)),
+        S_puff_tot=float(self.S_puff_tot.get_value(t)),
+        nbi_particle_width=float(self.nbi_particle_width.get_value(t)),
+        nbi_deposition_location=float(
+            self.nbi_deposition_location.get_value(t)
+        ),
+        S_nbi_tot=float(self.S_nbi_tot.get_value(t)),
+        pellet_width=float(self.pellet_width.get_value(t)),
+        pellet_deposition_location=float(
+            self.pellet_deposition_location.get_value(t)
+        ),
+        S_pellet_tot=float(self.S_pellet_tot.get_value(t)),
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 

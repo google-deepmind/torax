@@ -16,7 +16,7 @@
 
 from collections.abc import Callable
 import dataclasses
-from typing import Type
+from typing import Type, TypeAlias
 import jax
 from torax import geometry
 from torax import sim
@@ -59,7 +59,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
       tuple[cell_variable.CellVariable, ...],
       source_profiles.SourceProfiles,
       state.CoreTransport,
-      int,
+      state.StepperNumericOutputs,
   ]:
     """See Stepper._x_new docstring."""
 
@@ -121,9 +121,12 @@ class LinearThetaMethod(stepper_lib.Stepper):
         )
     )
 
-    error = 0  # linear method always works
+    stepper_numeric_outputs = state.StepperNumericOutputs(
+        inner_solver_iterations=1,
+        stepper_error_state=0,  # linear method always works
+    )
 
-    return x_new, core_sources, core_transport, error
+    return x_new, core_sources, core_transport, stepper_numeric_outputs
 
 
 def _default_linear_builder(
@@ -134,7 +137,7 @@ def _default_linear_builder(
 
 
 # Type-alias so that users only need to import this file.
-LinearRuntimeParams = runtime_params_lib.RuntimeParams
+LinearRuntimeParams: TypeAlias = runtime_params_lib.RuntimeParams
 
 
 @dataclasses.dataclass(kw_only=True)

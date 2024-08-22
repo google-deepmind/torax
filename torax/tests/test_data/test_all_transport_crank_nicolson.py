@@ -38,7 +38,7 @@ CONFIG = {
             'current_eq': True,
             'resistivity_mult': 100,  # to shorten current diffusion time
             't_final': 2,
-            'largeValue_n': 1.0e5,
+            'largeValue_n': 3.0e5,
         },
     },
     'geometry': {

@@ -51,7 +51,8 @@ The following inputs are valid for **time-varying-scalar** parameters:
 
 * Single integer, float, or boolean. The parameter is then not time dependent
 * A time-series dict with ``{time: value}`` pairs, using the default ``interpolation_mode='PIECEWISE_LINEAR'``.
-* A tuple with ``(dict, str)`` corresponding to ``(time-series, interpolation_mode)``.
+* A tuple with ``(time-series, value-series)``. The time-series is a 1D array of times, and the value-series is a 1D array of values and the dimensions of both must match.
+* A ``xarray.DataArray`` with a single coordinate and a 1D value array.
 
 Examples:
 
@@ -80,6 +81,12 @@ To extend configuration parameters where time-dependence is not enabled, to have
 
 Time-varying arrays
 -------------------
+Time-varying arrays can be defined using either primitives, an
+``xarray.DataArray`` or a ``tuple`` of ``Array``.
+
+Using primitives
+^^^^^^^^^^^^^^^^
+
 For fields labelled with **time-varying-array** time dependence is set by assigning a dict of dicts to the parameter.
 
 The outer dict defines a time-series with ``{time: value}`` pairs.
@@ -125,6 +132,31 @@ constant :math:`T_{i}=1` by :math:`t=80.0`.
 .. code-block:: python
 
   Ti = {0.0: {0.0: 15.0, 0.95: 3.0, 1.0: 1.0}, 80: 1.0}
+
+Using ``xarray.DataArray``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+If a ``xarray.DataArray`` is specified then it is expected to have a
+``time`` and ``rho_norm`` coordinate. The values of the data array are the values
+at each time and rho_norm.
+
+Using ``tuple`` of ``Array``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+If a ``tuple`` of ``Array`` is used, the tuple must have structure of,
+``(time_array, rho_norm_array, values_array)`` or ``(rho_norm_array, values_array)``.
+The latter is a useful shortcut for defining an initial condition or a constant profile.
+
+In the case of ``(time_array, rho_norm_array, values_array)``:
+``time_array`` and ``rho_norm_array`` are expected to map to 1D array values and
+represent the time and rho_norm coordinates.
+``values_array`` is expected to map to a 2D array with shape
+``(len(time_array), len(rho_norm_array))`` and represent the values at the given
+time and rho_norm.
+
+In the case of ``(rho_norm_array, values_array)``:
+``rho_norm_array`` is expected to map to a 1D array values and represent the
+rho_norm coordinates.
+``values_array`` is expected to map to a 1D array with shape
+``len(rho_norm_array)`` and represent the values at the given rho_norm.
 
 .. _config_details:
 
@@ -176,7 +208,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``Ti`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` ion temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at face centers.
+  Note: For a given time ``t``, ``Ti[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
   If `Ti_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
   is taken from the :math:`\hat{\rho}=1` value derived from the provided `Ti` profile.
   Note that if the `Ti` profile does not contain a :math:`\hat{\rho}=1` point
@@ -185,11 +217,15 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
 ``Te`` (dict = {0: {0: 15.0, 1: 1.0}}), **time-varying-array**
   Initial and (if not time evolving) prescribed :math:`\hat{\rho}` electron temperature, in units of keV.
 
-  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at face centers.
+  Note: For a given time ``t``, ``Te[t]`` is used to define interpolation along :math:`\hat{\rho}` at cell centers.
   If `Te_bound_right=None`, the boundary condition at :math:`\hat{\rho}=1`
   is taken from the :math:`\hat{\rho}=1` value derived from the provided `Te` profile.
   Note that if the `Te` profile does not contain a :math:`\hat{\rho}=1` point,
   for all provided times, an error will be raised.
+
+``psi`` (dict | None [default]), **time-varying-array**
+  Initial poloidal flux. If not provided the initial psi will be calculated from either the geometry
+  or the "nu formula".
 
 
 ``ne`` (dict = {0: {0: 1.5, 1: 1.0}}), **time-varying-array**
@@ -202,7 +238,7 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Note that if the ``ne`` profile does not contain a :math:`\hat{\rho}=1` point
   for all provided times, an error will be raised.
 
-``normalize_to_nbar`` (bool = False)
+``normalize_to_nbar`` (bool = True)
   If True, then the electron density profile is normalized to have the desired line averaged density
   :math:`\bar{n}`.
 
@@ -335,7 +371,7 @@ geometry
 --------
 
 ``geometry_type`` (str = 'chease')
-  Geometry model used. There are currently two options:
+  Geometry model used. There are currently three options:
 
 * ``'circular'``
     An ad-hoc circular geometry model. Includes elongation corrections.
@@ -344,14 +380,24 @@ geometry
 * ``'chease'``
     Loads a CHEASE geometry file.
 
-Time dependent geometry is not currently supported, but is on the immediate-term roadmap.
+* ``'fbt'``
+    Loads FBT geometry files.
 
-``nr`` (int = 25)
+``nrho`` (int = 25)
   Number of radial grid points
 
 ``geometry_file`` (str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols')
   Only used for ``geometry_type='chease'``. Sets the geometry file loaded.
   The geometry directory is set with the ``TORAX_GEOMETRY_DIR`` environment variable. If none is set, then the default is ``torax/data/third_party/geo``.
+
+``LY_file`` (str = None)
+  Only used for ``geometry_type='fbt'``. Sets the FBT LY geometry file loaded.
+
+``L_file`` (str = None)
+  Only used for ``geometry_type='fbt'``. Sets the FBT L geometry file loaded.
+
+``geometry_dir`` (str = None)
+  Optionally overrides the``TORAX_GEOMETRY_DIR`` environment variable.
 
 ``Ip_from_parameters`` (bool = True)
   Only used for ``geometry_type='chease'``.Toggles whether total plasma current is read from the configuration file,
@@ -371,8 +417,46 @@ Time dependent geometry is not currently supported, but is on the immediate-term
 
 ``hi_res_fac`` (int = 4)
   Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
-  with ``nr_hires = nr * hi_res_fac``, used for ``j`` to ``psi`` conversions.
+  with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
 
+For setting up time-dependent geometry, a subset of varying geometry parameters
+and input files are defined in a ``geometry_configs`` dict, which is a
+time-series of {time: {configs}} pairs. For example, a time-dependent geometry
+input with 3 time-slices of FBT geometries can be set up as:
+
+.. code-block:: python
+
+  'geometry': {
+      'geometry_type': 'fbt',
+      'Ip_from_parameters': True,
+      'geometry_configs': {
+          20.0: {
+              'LY_file': 'LY_early_rampup.mat',
+              'L_file': 'L_early_rampup.mat',
+              'Rmaj': 6.2,
+              'Rmin': 2.0,
+              'B0': 5,3,
+          },
+          50.0: {
+              'LY_file': 'LY_mid_rampup.mat',
+              'L_file': 'L_mid_rampup.mat',
+              'Rmaj': 6.2,
+              'Rmin': 2.0,
+              'B0': 5,3,
+          },
+          100.0: {
+              'LY_file': 'LY_endof_rampup.mat',
+              'L_file': 'L_endof_rampup.mat',
+              'Rmaj': 6.2,
+              'Rmin': 2.0,
+              'B0': 5,3,
+          },
+      },
+  },
+
+All file loading and geometry processing is done upon simulation initialization.
+The geometry inputs into the TORAX PDE coefficients are then time-interpolated
+on-the-fly onto the TORAX time slices where the PDE calculations are done.
 
 transport
 ---------
@@ -559,16 +643,24 @@ The configurable runtime parameters of each source are as follows:
 ``mode`` (str)
   Defines how the source values are computed. Currently the options are:
 
-* ``'zero'``
+* ``'ZERO'``
     Source is set to zero.
 
-* ``'model'``
+* ``'MODEL'``
     Source values come from a model in code. Specific model selection is not yet available in TORAX since there are no source components with more than one
     physics model. However, this will be straightforward to develop when that occurs.
 
-* ``'formula'``
+* ``'FORMULA'``
     Source values come from a prescribed (possibly time-dependent) formula that is not dependent on the state of the system. The formula type (Gaussian, exponential)
     is set by ``formula_type``.
+
+For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purposes, set:
+
+.. code-block:: python
+
+    'sources': {
+        'fusion_heat_source': {'mode': 'ZERO'},
+    }
 
 ``is_explicit`` (bool)
   Defines whether the source is to be considered explicit or implicit. Explicit sources are calculated based on the simulation state at the
@@ -938,7 +1030,7 @@ Dynamic parameters: These can be changed without recompiling the simulation code
 Static parameters: These define the fundamental structure of the simulation and require JAX recompilation if changed.
 Examples include the number of grid points or the choice of transport model. A partial list is provided below.
 
-* ``runtime_params['geometry']['nr']``
+* ``runtime_params['geometry']['nrho']``
 * ``runtime_params['numerics']['ion_heat_eq']``
 * ``runtime_params['numerics']['el_heat_eq']``
 * ``runtime_params['numerics']['current_eq']``

@@ -5,10 +5,9 @@ Development Roadmap
 
 Short term development plans include:
 
-* Time dependent geometry
-* More flexible functional forms for initial and prescribed conditions
+* Extension of and more flexible datastructures for prescribed input data
 * Implementation of forward sensitivity calculations w.r.t. control inputs and parameters
-* Implementation of persistent compilation cache for CPU
+* More extensive documentation and tutorials
 * Extended visualisation
 
 Longer term desired features include:

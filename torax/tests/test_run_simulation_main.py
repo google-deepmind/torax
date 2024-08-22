@@ -34,6 +34,7 @@ from absl import logging
 from absl.testing import absltest
 from absl.testing import flagsaver
 from absl.testing import parameterized
+import numpy as np
 import torax
 # run_simulation_main.py is in the repo root, which is the parent directory
 # of the actual module
@@ -49,10 +50,12 @@ finally:
  del sys.path[-1]
 from torax import simulation_app
 from torax.tests.test_lib import paths
+import xarray as xr
 
 
 class RunSimulationMainTest(parameterized.TestCase):
   """Unit tests for the `torax.run_simulation_main` app."""
+
   # These tests will make extensive use of access to private members of the
   # run_simulation_main module.
   # pylint: disable=protected-access
@@ -175,6 +178,11 @@ class RunSimulationMainTest(parameterized.TestCase):
         # The second call to `input` is confirming that we should run with
         # this config.
         response = "y"
+      elif call_count == 2:
+        # After changing the config, we go back to the main menu.
+        # Now we need to send an 'r' to run the config.
+        self.assertEqual(prompt, run_simulation_main.CHOICE_PROMPT)
+        response = "r"
       else:
         # The second run on the simulation just completed. Fetch its output.
         filepaths.append(get_latest_filepath(captured_stdout))
@@ -195,6 +203,48 @@ class RunSimulationMainTest(parameterized.TestCase):
         self.assertIsNone(cm.exception.code)
       finally:
         logging.get_absl_logger().removeHandler(handler)
+
+    # We should have received 2 runs, the before change and after change runs
+    self.assertLen(filepaths, 2)
+    self.assertNotEqual(filepaths[0], filepaths[1])
+
+    ground_truth_before = before[: -len(".py")] + ".nc"
+    ground_truth_after = after[: -len(".py")] + ".nc"
+
+    def check(output_path, ground_truth_path):
+      output = xr.open_dataset(output_path)
+      ground_truth = xr.open_dataset(ground_truth_path)
+
+      for key in output:
+        self.assertIn(key, ground_truth)
+
+      for key in ground_truth:
+        self.assertIn(key, output)
+
+        ov = output[key].to_numpy()
+        gv = ground_truth[key].to_numpy()
+
+        if not np.allclose(
+            ov,
+            gv,
+            # GitHub CI behaves very differently from Google internal for
+            # the mode=zero case, needing looser tolerance for this than
+            # for other tests.
+            # rtol=0.0,
+            atol=5.0e-5,
+        ):
+          diff = ov - gv
+          max_diff = np.abs(diff).max()
+          raise AssertionError(
+              f"{key} does not match. "
+              f"Output: {ov}. "
+              f"Ground truth: {gv}."
+              f"Diff: {diff}"
+              f"Max diff: {max_diff}"
+          )
+
+    check(filepaths[0], ground_truth_before)
+    check(filepaths[1], ground_truth_after)
 
 
 def get_latest_filepath(stream: io.StringIO) -> str:

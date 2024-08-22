@@ -26,27 +26,25 @@ import dataclasses
 import functools
 import logging
 import os
-from typing import Callable
+from typing import Callable, Final
 
 import chex
 import jax
 from jax import numpy as jnp
-from torax import constants as constants_module
 from torax import geometry
-from torax import physics
 from torax import state
-from torax import versioning
 from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
+from torax.transport_model import qualikiz_utils
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
 
 # Environment variable for the QLKNN model. Used if the model path
 # is not set in the config.
-MODEL_PATH_ENV_VAR = 'TORAX_QLKNN_MODEL_PATH'
+MODEL_PATH_ENV_VAR: Final[str] = 'TORAX_QLKNN_MODEL_PATH'
 # If no path is set in either the config or the environment variable, use
 # this path.
 DEFAULT_MODEL_PATH = '~/qlknn_hyper'
@@ -74,6 +72,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # ITG electron heat flux in shaped, high-beta scenarios.
   # This is a correction factor
   ITG_flux_ratio_correction: float = 2.0
+  # Correction factor to account for multiscale correction in Qualikiz ETG.
+  # https://gitlab.com/qualikiz-group/QuaLiKiz/-/commit/5bcd3161c1b08e0272ab3c9412fec7f9345a2eef
+  ETG_correction_factor: float = 1.0 / 3.0
   # effective D / effective V approach for particle transport
   DVeff: bool = False
   # minimum |R/Lne| below which effective V is used instead of effective D
@@ -85,31 +86,93 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
   q_sawtooth_proxy: bool = True
 
+  def make_provider(
+      self, torax_mesh: geometry.Grid1D | None = None
+  ) -> RuntimeParamsProvider:
+    # TODO(b/360831279)
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        apply_inner_patch=config_args.get_interpolated_var_single_axis(
+            self.apply_inner_patch
+        ),
+        De_inner=config_args.get_interpolated_var_single_axis(self.De_inner),
+        Ve_inner=config_args.get_interpolated_var_single_axis(self.Ve_inner),
+        chii_inner=config_args.get_interpolated_var_single_axis(
+            self.chii_inner
+        ),
+        chie_inner=config_args.get_interpolated_var_single_axis(
+            self.chie_inner
+        ),
+        rho_inner=config_args.get_interpolated_var_single_axis(self.rho_inner),
+        apply_outer_patch=config_args.get_interpolated_var_single_axis(
+            self.apply_outer_patch
+        ),
+        De_outer=config_args.get_interpolated_var_single_axis(self.De_outer),
+        Ve_outer=config_args.get_interpolated_var_single_axis(self.Ve_outer),
+        chii_outer=config_args.get_interpolated_var_single_axis(
+            self.chii_outer
+        ),
+        chie_outer=config_args.get_interpolated_var_single_axis(
+            self.chie_outer
+        ),
+        rho_outer=config_args.get_interpolated_var_single_axis(self.rho_outer),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides a RuntimeParams to use during time t of the sim."""
+
+  runtime_params_config: RuntimeParams
+
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
+        chimin=self.runtime_params_config.chimin,
+        chimax=self.runtime_params_config.chimax,
+        Demin=self.runtime_params_config.Demin,
+        Demax=self.runtime_params_config.Demax,
+        Vemin=self.runtime_params_config.Vemin,
+        Vemax=self.runtime_params_config.Vemax,
+        apply_inner_patch=bool(self.apply_inner_patch.get_value(t)),
+        De_inner=float(self.De_inner.get_value(t)),
+        Ve_inner=float(self.Ve_inner.get_value(t)),
+        chii_inner=float(self.chii_inner.get_value(t)),
+        chie_inner=float(self.chie_inner.get_value(t)),
+        rho_inner=float(self.rho_inner.get_value(t)),
+        apply_outer_patch=bool(self.apply_outer_patch.get_value(t)),
+        De_outer=float(self.De_outer.get_value(t)),
+        Ve_outer=float(self.Ve_outer.get_value(t)),
+        chii_outer=float(self.chii_outer.get_value(t)),
+        chie_outer=float(self.chie_outer.get_value(t)),
+        rho_outer=float(self.rho_outer.get_value(t)),
+        smoothing_sigma=self.runtime_params_config.smoothing_sigma,
+        smooth_everywhere=self.runtime_params_config.smooth_everywhere,
+        coll_mult=self.runtime_params_config.coll_mult,
+        include_ITG=self.runtime_params_config.include_ITG,
+        include_TEM=self.runtime_params_config.include_TEM,
+        include_ETG=self.runtime_params_config.include_ETG,
+        ITG_flux_ratio_correction=self.runtime_params_config.ITG_flux_ratio_correction,
+        ETG_correction_factor=self.runtime_params_config.ETG_correction_factor,
+        DVeff=self.runtime_params_config.DVeff,
+        An_min=self.runtime_params_config.An_min,
+        avoid_big_negative_s=self.runtime_params_config.avoid_big_negative_s,
+        smag_alpha_correction=self.runtime_params_config.smag_alpha_correction,
+        q_sawtooth_proxy=self.runtime_params_config.q_sawtooth_proxy,
     )
 
 
 @chex.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  coll_mult: float
+class DynamicRuntimeParams(qualikiz_utils.QualikizDynamicRuntimeParams):
   include_ITG: bool
   include_TEM: bool
   include_ETG: bool
   ITG_flux_ratio_correction: float
-  DVeff: bool
-  An_min: float
-  avoid_big_negative_s: bool
-  smag_alpha_correction: bool
-  q_sawtooth_proxy: bool
+  ETG_correction_factor: float
 
 
-_EPSILON_NN = 1 / 3  # fixed inverse aspect ratio used to train QLKNN10D
+_EPSILON_NN: Final[float] = (
+    1 / 3
+)  # fixed inverse aspect ratio used to train QLKNN10D
 
 
 # Memoize, but evict the old model if a new path is given.
@@ -150,7 +213,8 @@ class QLKNNRuntimeConfigInputs:
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
   ) -> 'QLKNNRuntimeConfigInputs':
     assert isinstance(
-        dynamic_runtime_params_slice.transport, DynamicRuntimeParams
+        dynamic_runtime_params_slice.transport,
+        DynamicRuntimeParams
     )
     return QLKNNRuntimeConfigInputs(
         nref=dynamic_runtime_params_slice.numerics.nref,
@@ -192,266 +256,6 @@ def filter_model_output(
   return {k: filter_flux(k, v) for k, v in model_output.items()}
 
 
-def prepare_qualikiz_inputs(
-    runtime_config_inputs: QLKNNRuntimeConfigInputs,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-) -> dict[str, chex.Array]:
-  """Prepare Qualikiz inputs."""
-  constants = constants_module.CONSTANTS
-
-  # pylint: disable=invalid-name
-  Rmin = geo.Rmin
-  Rmaj = geo.Rmaj
-
-  # define radial coordinate as midplane average r
-  # (typical assumption for transport models developed in circular geo)
-  rmid = (geo.Rout - geo.Rin) * 0.5
-  rmid_face = (geo.Rout_face - geo.Rin_face) * 0.5
-
-  temp_ion_var = core_profiles.temp_ion
-  temp_ion_face = temp_ion_var.face_value()
-  temp_ion_face_grad = temp_ion_var.face_grad(rmid)
-  temp_el_var = core_profiles.temp_el
-  temp_electron_face = temp_el_var.face_value()
-  temp_electron_face_grad = temp_el_var.face_grad(rmid)
-  # Careful, these are in n_ref units, not postprocessed to SI units yet
-  raw_ne = core_profiles.ne
-  raw_ne_face = raw_ne.face_value()
-  raw_ne_face_grad = raw_ne.face_grad(rmid)
-  raw_ni = core_profiles.ni
-  raw_ni_face = raw_ni.face_value()
-  raw_ni_face_grad = raw_ni.face_grad(rmid)
-
-  # True SI value versions
-  true_ne_face = raw_ne_face * runtime_config_inputs.nref
-  true_ni_face = raw_ni_face * runtime_config_inputs.nref
-
-  # pylint: disable=invalid-name
-  # gyrobohm diffusivity
-  # (defined here with Lref=Rmin due to QLKNN training set normalization)
-  chiGB = (
-      (runtime_config_inputs.Ai * constants.mp) ** 0.5
-      / (constants.qe * geo.B0) ** 2
-      * (temp_ion_face * constants.keV2J) ** 1.5
-      / Rmin
-  )
-
-  # transport coefficients from the qlknn-hyper-10D model
-  # (K.L. van de Plassche PoP 2020)
-
-  # TODO(b/335581689): make a unit test that tests this function directly
-  # with set_pedestal = False. Currently this is tested only via
-  # sim test7, which has set_pedestal=True. With set_pedestal=True,
-  # mutants of Ati[-1], Ate[-1], An[-1] all affect only chi[-1], but
-  # chi[-1] remains above config.transport.chimin for all mutants.
-  # The pedestal feature then clips chi[-1] to config.transport.chimin, so the
-  # mutants have no effect.
-
-  # set up input vectors (all as jax.numpy arrays on face grid)
-  Zeff = runtime_config_inputs.Zeff * jnp.ones_like(geo.r_face)
-
-  # R/LTi profile from current timestep temp_ion
-  Ati = -Rmaj * temp_ion_face_grad / temp_ion_face
-  # to avoid divisions by zero
-  Ati = jnp.where(jnp.abs(Ati) < constants.eps, constants.eps, Ati)
-
-  # R/LTe profile from current timestep temp_el
-  Ate = -Rmaj * temp_electron_face_grad / temp_electron_face
-  # to avoid divisions by zero
-  Ate = jnp.where(jnp.abs(Ate) < constants.eps, constants.eps, Ate)
-
-  # R/Ln profiles from current timestep
-  # OK to use normalized version here, because nref in numer and denom
-  # cancels.
-  Ane = -Rmaj * raw_ne_face_grad / raw_ne_face
-  Ani = -Rmaj * raw_ni_face_grad / raw_ni_face
-  # to avoid divisions by zero
-  Ane = jnp.where(jnp.abs(Ane) < constants.eps, constants.eps, Ane)
-  Ani = jnp.where(jnp.abs(Ani) < constants.eps, constants.eps, Ani)
-
-  # Calculate q and s.
-  # Need to recalculate since in the nonlinear solver psi has intermediate
-  # states in the iterative solve.
-  # To avoid unnecessary complexity for the Jacobian, we still use the
-  # old jtot_face in the q calculation. It only modifies the r=0 value
-  # of the q-profile. This does not impact qlknn output, which is
-  # always stable at r=0 due to the zero gradient boundary conditions.
-
-  q, _ = physics.calc_q_from_jtot_psi(
-      geo=geo,
-      psi=core_profiles.psi,
-      jtot_face=core_profiles.currents.jtot_face,
-      q_correction_factor=runtime_config_inputs.q_correction_factor,
-  )
-  smag = physics.calc_s_from_psi(
-      geo,
-      core_profiles.psi,
-  )
-
-  # local r/Rmin
-  # epsilon = r/R
-  epsilon = rmid_face[-1] / Rmaj  # inverse aspect ratio at LCFS
-
-  x = rmid_face / rmid_face[-1] * epsilon
-
-  # Ion to electron temperature ratio
-  Ti_Te = temp_ion_face / temp_electron_face
-
-  # logarithm of normalized collisionality
-  nu_star = physics.calc_nu_star(
-      geo=geo,
-      core_profiles=core_profiles,
-      nref=runtime_config_inputs.nref,
-      Zeff=runtime_config_inputs.Zeff,
-      coll_mult=runtime_config_inputs.transport.coll_mult,
-  )
-  log_nu_star_face = jnp.log10(nu_star)
-
-  # calculate alpha for magnetic shear correction (see S. van Mulders NF 2021)
-  factor_0 = 2 / geo.B0**2 * constants.mu0 * q**2
-  alpha = factor_0 * (
-      temp_electron_face * constants.keV2J * true_ne_face * (Ate + Ane)
-      + true_ni_face * temp_ion_face * constants.keV2J * (Ati + Ani)
-  )
-
-  # to approximate impact of Shafranov shift. From van Mulders Nucl. Fusion
-  # 2021.
-  smag = jax.lax.cond(
-      runtime_config_inputs.transport.smag_alpha_correction,
-      lambda: smag - alpha / 2,
-      lambda: smag,
-  )
-
-  # very basic ad-hoc sawtooth model
-  smag = jnp.where(
-      jnp.logical_and(
-          runtime_config_inputs.transport.q_sawtooth_proxy,
-          q < 1,
-      ),
-      0.1,
-      smag,
-  )
-
-  q = jnp.where(
-      jnp.logical_and(
-          runtime_config_inputs.transport.q_sawtooth_proxy,
-          q < 1,
-      ),
-      1,
-      q,
-  )
-
-  smag = jnp.where(
-      jnp.logical_and(
-          runtime_config_inputs.transport.avoid_big_negative_s,
-          smag - alpha < -0.2,
-      ),
-      alpha - 0.2,
-      smag,
-  )
-  normni = raw_ni_face / raw_ne_face
-  return {
-      'Zeff': Zeff,
-      'Ati': Ati,
-      'Ate': Ate,
-      'Ane': Ane,
-      'Ani': Ani,
-      'q': q,
-      'smag': smag,
-      'x': x,
-      'Ti_Te': Ti_Te,
-      'log_nu_star_face': log_nu_star_face,
-      'normni': normni,
-      'chiGB': chiGB,
-      'Rmaj': Rmaj,
-      'Rmin': Rmin,
-  }
-
-
-def make_core_transport(
-    qi: jax.Array,
-    qe: jax.Array,
-    pfe: jax.Array,
-    prepared_data: dict[str, jax.Array],
-    runtime_config_inputs: QLKNNRuntimeConfigInputs,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-) -> state.CoreTransport:
-  """Converts model output to CoreTransport."""
-  constants = constants_module.CONSTANTS
-
-  # conversion to SI units (note that n is normalized here)
-  pfe_SI = (
-      pfe
-      * core_profiles.ne.face_value()
-      * prepared_data['chiGB']
-      / prepared_data['Rmin']
-  )
-
-  # chi outputs in SI units.
-  # chi in GB units is Q[GB]/(a/LT) , Lref=Rmin in Q[GB].
-  # max/min clipping included
-  chi_face_ion = (
-      ((prepared_data['Rmaj'] / prepared_data['Rmin']) * qi)
-      / prepared_data['Ati']
-  ) * prepared_data['chiGB']
-  chi_face_el = (
-      ((prepared_data['Rmaj'] / prepared_data['Rmin']) * qe)
-      / prepared_data['Ate']
-  ) * prepared_data['chiGB']
-
-  # Effective D / Effective V approach.
-  # For small density gradients or up-gradient transport, set pure effective
-  # convection. Otherwise pure effective diffusion.
-  def DVeff_approach() -> tuple[jax.Array, jax.Array]:
-    Deff = -pfe_SI / (
-        core_profiles.ne.face_grad() * geo.g1_over_vpr2_face / geo.rmax
-        + constants.eps
-    )
-    Veff = pfe_SI / (core_profiles.ne.face_value() * geo.g0_over_vpr_face)
-    Deff_mask = (
-        ((pfe >= 0) & (prepared_data['Ane'] >= 0))
-        | ((pfe < 0) & (prepared_data['Ane'] < 0))
-    ) & (abs(prepared_data['Ane']) >= runtime_config_inputs.transport.An_min)
-    Veff_mask = jnp.invert(Deff_mask)
-    # Veff_mask is where to use effective V only, so zero out D there.
-    d_face_el = jnp.where(Veff_mask, 0.0, Deff)
-    # And vice versa
-    v_face_el = jnp.where(Deff_mask, 0.0, Veff)
-    return d_face_el, v_face_el
-
-  # Scaled D approach. Scale electron diffusivity to electron heat
-  # conductivity (this has some physical motivations),
-  # and set convection to then match total particle transport
-  def Dscaled_approach() -> tuple[jax.Array, jax.Array]:
-    chex.assert_rank(pfe, 1)
-    d_face_el = jnp.where(jnp.abs(pfe_SI) > 0.0, chi_face_el, 0.0)
-    v_face_el = (
-        pfe_SI / core_profiles.ne.face_value()
-        - prepared_data['Ane']
-        * d_face_el
-        / prepared_data['Rmaj']
-        * geo.g1_over_vpr2_face
-    ) / geo.g0_over_vpr_face
-    return d_face_el, v_face_el
-
-  d_face_el, v_face_el = jax.lax.cond(
-      runtime_config_inputs.transport.DVeff,
-      DVeff_approach,
-      Dscaled_approach,
-  )
-
-  # pylint: enable=invalid-name
-
-  return state.CoreTransport(
-      chi_face_ion=chi_face_ion,
-      chi_face_el=chi_face_el,
-      d_face_el=d_face_el,
-      v_face_el=v_face_el,
-  )
-
-
 class QLKNNTransportModel(transport_model.TransportModel):
   """Calculates turbulent transport coefficients."""
 
@@ -485,18 +289,6 @@ class QLKNNTransportModel(transport_model.TransportModel):
       coeffs: transport coefficients
     """
 
-    # lru_cache is important: there's no global coordination of calls to
-    # transport model so it is called 2-4X with the same args. Caching prevents
-    # construction of multiple copies of identical expressions, and these are
-    # expensive expressions because they have all branches of dynamic config
-    # compiled in and selected using cond, they're qlknn neural networks,
-    # they're expensive to trace because it's numpy / filesystem access.
-    # Caching this one function reduces trace time for a whole
-    # end to end sim by 35% and compile time by 30%.
-    # This only works for tracers though, since concrete (numpy) arrays aren't
-    # hashable. We assume that either we're running a whole sim in uncompiled
-    # mode and everything is concrete or we're running a whole sim in compiled
-    # mode and everything is a tracer, so we can just test one value.
     runtime_config_inputs = QLKNNRuntimeConfigInputs.from_runtime_params_slice(
         dynamic_runtime_params_slice
     )
@@ -504,6 +296,9 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
   # Wrap in JIT here in order to cache the tracing/compilation of this function.
   # We mark self as static because it is a singleton. Other args are pytrees.
+  # There's no global coordination of calls to transport model so it is called
+  # 2-4X with the same args. Caching prevents construction of multiple copies of
+  # identical expressions saving ~30% in compile time.
   @functools.partial(jax.jit, static_argnames=['self'])
   def _combined(
       self,
@@ -527,19 +322,27 @@ class QLKNNTransportModel(transport_model.TransportModel):
       d_face_ne: Diffusivity for electron density, along faces.
       v_face_ne: Convectivity for electron density, along faces.
     """
-    prepared_data = prepare_qualikiz_inputs(
-        runtime_config_inputs=runtime_config_inputs,
+    qualikiz_inputs = qualikiz_utils.prepare_qualikiz_inputs(
+        zeff=runtime_config_inputs.Zeff,
+        nref=runtime_config_inputs.nref,
+        Ai=runtime_config_inputs.Ai,
+        q_correction_factor=runtime_config_inputs.q_correction_factor,
+        transport=runtime_config_inputs.transport,
         geo=geo,
         core_profiles=core_profiles,
     )
     model = _get_model(self._model_path)
     version = model.version
+
+    # To take into account a different aspect ratio compared to the qlknn
+    # training set, the qlknn input normalized radius needs to be rescaled by
+    # the inverse aspect ratio. This ensures that the model is evaluated with
+    # the correct trapped electron fraction.
+    qualikiz_inputs = dataclasses.replace(
+        qualikiz_inputs,
+        x=qualikiz_inputs.x * qualikiz_inputs.epsilon_lcfs / _EPSILON_NN,
+    )
     if version == '10D':
-      # To take into account a different aspect ratio compared to the qlknn10D
-      # training set, the qlknn input normalized radius needs to be rescaled by
-      # the aspect ratio ratio. This ensures that the model is evaluated with
-      # the correct trapped electron fraction.
-      prepared_data['x'] /= _EPSILON_NN
       keys = [
           'Zeff',
           'Ati',
@@ -553,7 +356,8 @@ class QLKNNTransportModel(transport_model.TransportModel):
       ]
     else:
       raise ValueError(f'Unknown model version: {version}')
-    feature_scan = jnp.array([prepared_data[key] for key in keys]).T
+
+    feature_scan = jnp.array([getattr(qualikiz_inputs, key) for key in keys]).T
     model_output = model.predict(feature_scan)
     model_output = filter_model_output(
         model_output=model_output,
@@ -571,26 +375,25 @@ class QLKNNTransportModel(transport_model.TransportModel):
         * runtime_config_inputs.transport.ITG_flux_ratio_correction
         + model_output['qe_tem'].squeeze()
         + model_output['qe_etg'].squeeze()
+        * runtime_config_inputs.transport.ETG_correction_factor
     )
 
     pfe = model_output['pfe_itg'].squeeze() + model_output['pfe_tem'].squeeze()
 
-    return make_core_transport(
+    return qualikiz_utils.make_core_transport(
         qi=qi,
         qe=qe,
         pfe=pfe,
-        prepared_data=prepared_data,
-        runtime_config_inputs=runtime_config_inputs,
+        qualikiz_inputs=qualikiz_inputs,
+        transport=runtime_config_inputs.transport,
         geo=geo,
         core_profiles=core_profiles,
     )
 
-  def __hash__(self):
-    return hash(
-        ('QLKNNTransportModel' + self._model_path, versioning.torax_hash)
-    )
+  def __hash__(self) -> int:
+    return hash(('QLKNNTransportModel' + self._model_path))
 
-  def __eq__(self, other):
+  def __eq__(self, other: QLKNNTransportModel) -> bool:
     return (
         isinstance(other, QLKNNTransportModel)
         and self.model_path == other.model_path

@@ -24,25 +24,10 @@ from typing import Any
 from typing import TypeVar
 
 import chex
-from torax import geometry
 from torax import interpolated_param
 
 # TypeVar for generic dataclass types.
 _T = TypeVar('_T')
-
-
-def _input_is_a_float_field(
-    field_name: str,
-    input_config_fields_to_types: dict[str, Any],
-) -> bool:
-  try:
-    return field_name in input_config_fields_to_types and issubclass(
-        input_config_fields_to_types[field_name], float
-    )
-  except:  # pylint: disable=bare-except
-    # issubclass does not play nicely with generics, but if a type is a
-    # generic at this stage, it is not a float.
-    return False
 
 
 def _input_is_an_interpolated_var_single_axis(
@@ -83,14 +68,49 @@ def _input_is_an_interpolated_var_single_axis(
     return _check(field_type)
 
 
-def _interpolate_var_single_axis(
+def _is_bool(
+    interp_input: interpolated_param.InterpolatedVarSingleAxisInput
+) -> bool:
+  if isinstance(interp_input, dict):
+    if not interp_input:
+      raise ValueError('InterpolatedVarSingleAxisInput must include values.')
+    value = list(interp_input.values())[0]
+    return isinstance(value, bool)
+  return isinstance(interp_input, bool)
+
+
+def _convert_value_to_floats(
+    interp_input: interpolated_param.InterpolatedVarSingleAxisInput,
+) -> interpolated_param.InterpolatedVarSingleAxisInput:
+  if isinstance(interp_input, dict):
+    return {key: float(value) for key, value in interp_input.items()}
+  return float(interp_input)
+
+
+def get_interpolated_var_single_axis(
     param_or_param_input: interpolated_param.TimeInterpolated,
-    t: chex.Numeric,
-) -> chex.Array:
-  """Interpolates the input param at time t."""
+) -> interpolated_param.InterpolatedVarSingleAxis:
+  """Interpolates the input param at time t.
+
+  Args:
+    param_or_param_input: Either a "param"
+       `interpolated_param.InterpolatedVarSingleAxis` or a "param_input" that
+       can be used to construct `interpolated_param.InterpolatedVarSingleAxis`.
+       In the latter case this can be either:
+       - Primitives
+       In the case of using primitives the value can be either:
+       - An xr.DataArray
+       - A tuple(axis_array, values_array)
+
+    See torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars
+    for more information on the supported "param_input"s.
+  Returns:
+    A constructed interpolated var.
+  """
   if not isinstance(
       param_or_param_input, interpolated_param.InterpolatedVarSingleAxis
   ):
+    interpolation_mode = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
     # The param is a InterpolatedVarSingleAxisInput, so we need to convert it to
     # an InterpolatedVarSingleAxis first.
     if isinstance(param_or_param_input, tuple):
@@ -102,21 +122,27 @@ def _interpolate_var_single_axis(
             f'interpolated. Given: {param_or_param_input}.'
         )
       if isinstance(param_or_param_input[1], str):
-        param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
-            value=param_or_param_input[0],
-            interpolation_mode=interpolated_param.InterpolationMode[
-                param_or_param_input[1].upper()
-            ],
-        )
-      else:
-        param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
-            value=param_or_param_input,
-        )
-    else:
-      param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
-          value=param_or_param_input,
+        interpolation_mode = interpolated_param.InterpolationMode[
+            param_or_param_input[1].upper()
+        ]
+        param_or_param_input = param_or_param_input[0]
+
+    if _is_bool(param_or_param_input):
+      param_or_param_input = _convert_value_to_floats(
+          param_or_param_input
       )
-  return param_or_param_input.get_value(t)
+      is_bool_param = True
+    else:
+      is_bool_param = False
+
+    xs, ys = interpolated_param.convert_input_to_xs_ys(param_or_param_input)
+
+    param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
+        value=(xs, ys),
+        interpolation_mode=interpolation_mode,
+        is_bool_param=is_bool_param,
+    )
+  return param_or_param_input
 
 
 def _input_is_an_interpolated_var_time_rho(
@@ -157,11 +183,10 @@ def _input_is_an_interpolated_var_time_rho(
     return _check(field_type)
 
 
-def _interpolate_var_2d(
+def get_interpolated_var_2d(
     param_or_param_input: interpolated_param.TimeRhoInterpolated,
-    t: chex.Numeric,
-    geo: geometry.Geometry,
-) -> chex.Array:
+    rho_norm: chex.Array,
+) -> interpolated_param.InterpolatedVarTimeRho:
   """Interpolates the input param at time t and rho_norm for the current geo."""
   if not isinstance(
       param_or_param_input, interpolated_param.InterpolatedVarTimeRho
@@ -169,56 +194,9 @@ def _interpolate_var_2d(
     # Dealing with a param input so convert it first.
     param_or_param_input = interpolated_param.InterpolatedVarTimeRho(
         values=param_or_param_input,
+        rho=rho_norm,
     )
-  return param_or_param_input.get_value(t, geo.torax_mesh.face_centers)
-
-
-def get_init_kwargs(
-    input_config: ...,
-    output_type: ...,
-    t: chex.Numeric | None = None,
-    geo: geometry.Geometry | None = None,
-    skip: tuple[str, ...] = (),
-) -> dict[str, Any]:
-  """Builds init() kwargs based on the input config for all non-dict fields."""
-  kwargs = {}
-  input_config_fields_to_types = {
-      field.name: field.type for field in dataclasses.fields(input_config)
-  }
-  for field in dataclasses.fields(output_type):
-    if field.name in skip:
-      continue
-    if not hasattr(input_config, field.name):
-      raise ValueError(f'Missing field {field.name}')
-    config_val = getattr(input_config, field.name)
-    # If the input config type is an InterpolatedVar1d, we need to interpolate
-    # it at time t to populate the correct values in the output config.
-    # dataclass fields can either be the actual type OR the string name of the
-    # type. Check for both.
-    if _input_is_an_interpolated_var_single_axis(
-        field.name, input_config_fields_to_types
-    ):
-      if t is None:
-        raise ValueError('t must be specified for interpolated params')
-      if config_val is not None:
-        config_val = _interpolate_var_single_axis(config_val, t)
-    elif _input_is_an_interpolated_var_time_rho(
-        field.name, input_config_fields_to_types
-    ):
-      if config_val is not None:
-        if t is None:
-          raise ValueError('t must be specified for interpolated params')
-        if geo is None:
-          raise ValueError('geo must be specified for interpolated params')
-        config_val = _interpolate_var_2d(config_val, t, geo)
-    elif _input_is_a_float_field(field.name, input_config_fields_to_types):
-      config_val = float(config_val)
-    elif isinstance(config_val, enum.Enum):
-      config_val = config_val.value
-    elif hasattr(config_val, 'build_dynamic_params'):
-      config_val = config_val.build_dynamic_params(t)
-    kwargs[field.name] = config_val
-  return kwargs
+  return param_or_param_input
 
 
 def recursive_replace(

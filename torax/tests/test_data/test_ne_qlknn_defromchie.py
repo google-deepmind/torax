@@ -69,7 +69,7 @@ CONFIG = {
     },
     'stepper': {
         'stepper_type': 'linear',
-        'predictor_corrector': False,
+        'predictor_corrector': True,
         'use_pereverzev': True,
     },
     'time_step_calculator': {

@@ -20,7 +20,7 @@ includes
 calculations specific to plasma physics to provide these coefficients.
 """
 
-from typing import Any, Optional, Protocol
+from typing import Any, Optional, Protocol, TypeAlias
 
 import chex
 import jax
@@ -37,11 +37,13 @@ from torax.fvm import cell_variable
 # ((a, b), (c, d)) where a, b, c, d are each jax.Array
 #
 # ((a, None), (None, d)) : represents a diagonal block matrix
-OptionalTupleMatrix = Optional[tuple[tuple[Optional[jax.Array], ...], ...]]
+OptionalTupleMatrix: TypeAlias = Optional[
+    tuple[tuple[Optional[jax.Array], ...], ...]
+]
 
 
 # Alias for better readability.
-AuxiliaryOutput = Any
+AuxiliaryOutput: TypeAlias = Any
 
 
 @chex.dataclass(frozen=True)

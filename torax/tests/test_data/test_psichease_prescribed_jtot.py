@@ -20,6 +20,7 @@ Ip from parameters. implicit, psi (current diffusion) only
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
+            'ne_bound_right': 0.5,
             'set_pedestal': False,
             'initial_psi_from_j': True,
             'initial_j_is_total_current': True,

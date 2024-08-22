@@ -19,6 +19,7 @@ from absl.testing import parameterized
 import torax  # We want this import to make sure jax gets set to float64
 from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
+from torax.config import numerics as numerics_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
 from torax.sources import source_models as source_models_lib
@@ -47,7 +48,7 @@ class PlottingTest(parameterized.TestCase):
 
   def test_plot_observer_runs_with_sim_with_sources(self):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        numerics=general_runtime_params.Numerics(t_final=0.2),
+        numerics=numerics_lib.Numerics(t_final=0.2),
     )
     geo = geometry.build_circular_geometry()
     geo_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
@@ -58,7 +59,7 @@ class PlottingTest(parameterized.TestCase):
 
   def test_plot_observer_runs_with_sim_without_sources(self):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        numerics=general_runtime_params.Numerics(t_final=0.2),
+        numerics=numerics_lib.Numerics(t_final=0.2),
     )
     geo = geometry.build_circular_geometry()
     observer = plotting.PlotSpectator(

@@ -21,6 +21,7 @@ Ip from parameters. implicit, Ti+Te, no Pei, no pedestal, constant chi.
 CONFIG = {
     'runtime_params': {
         'profile_conditions': {
+            'ne_bound_right': 0.5,
             'Ip': 15,
             'set_pedestal': False,
         },

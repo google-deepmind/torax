@@ -24,6 +24,7 @@ import matplotlib
 from matplotlib import widgets
 import matplotlib.pyplot as plt
 import numpy as np
+from torax import output
 import xarray as xr
 
 
@@ -43,8 +44,8 @@ class PlotData:
   chi_i: np.ndarray
   chi_e: np.ndarray
   t: np.ndarray
-  rcell_coord: np.ndarray
-  rface_coord: np.ndarray
+  rho_cell_coord: np.ndarray
+  rho_face_coord: np.ndarray
 
   def __post_init__(self):
     self.tmin = min(self.t)
@@ -183,7 +184,6 @@ def format_plots(plotdata: PlotData, subfigures: tuple[Any, ...]):
   """Sets up plot formatting."""
   ax1, ax2, ax3, ax4, ax5, ax6 = subfigures
 
-# ax1.set_ylim([0, np.max([plotdata1.ymax_chi_i, plotdata1.ymax_chi_e]) * 1.05])
   # pytype: disable=attribute-error
   ax1.set_xlabel('Normalized radius')
   ax1.set_ylabel(r'Heat conductivity $[m^2/s]$')
@@ -216,6 +216,22 @@ def format_plots(plotdata: PlotData, subfigures: tuple[Any, ...]):
   # pytype: enable=attribute-error
 
 
+def get_rho(
+    plotdata: PlotData,
+    data_attr: str,
+) -> np.ndarray:
+  """Gets the correct rho coordinate for the data."""
+  datalen = len(getattr(plotdata, data_attr)[0, :])
+  if datalen == len(plotdata.rho_cell_coord):
+    return plotdata.rho_cell_coord
+  elif datalen == len(plotdata.rho_face_coord):
+    return plotdata.rho_face_coord
+  else:
+    raise ValueError(
+        f'Data {datalen} does not coincide with either the cell or face grids.'
+    )
+
+
 def get_lines(
     plotdata: PlotData,
     subfigures: tuple[Any, ...],
@@ -234,78 +250,77 @@ def get_lines(
   ax1, ax2, ax3, ax4, ax5, ax6 = subfigures
 
   (line,) = ax1.plot(
-      plotdata.rface_coord,
+      get_rho(plotdata, 'chi_i'),
       plotdata.chi_i[1, :],
       'r' + dashed,
       label=rf'$\chi_i{suffix}$',
   )
   lines.append(line)
   (line,) = ax1.plot(
-      plotdata.rface_coord,
+      get_rho(plotdata, 'chi_e'),
       plotdata.chi_e[1, :],
       'b' + dashed,
       label=rf'$\chi_e{suffix}$',
   )
   lines.append(line)
   (line,) = ax2.plot(
-      plotdata.rcell_coord,
+      get_rho(plotdata, 'ti'),
       plotdata.ti[0, :],
       'r' + dashed,
       label=rf'$T_i{suffix}$',
   )
   lines.append(line)
   (line,) = ax2.plot(
-      plotdata.rcell_coord,
+      get_rho(plotdata, 'te'),
       plotdata.te[0, :],
       'b' + dashed,
       label=rf'$T_e{suffix}$',
   )
   lines.append(line)
   (line,) = ax3.plot(
-      plotdata.rcell_coord,
+      get_rho(plotdata, 'ne'),
       plotdata.ne[0, :],
       'r' + dashed,
       label=rf'$n_e{suffix}$',
   )
   lines.append(line)
-
   (line,) = ax4.plot(
-      plotdata.rcell_coord,
+      get_rho(plotdata, 'j'),
       plotdata.j[0, :],
       'r' + dashed,
       label=rf'$j_{{tot}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax4.plot(
-      plotdata.rcell_coord,
+      get_rho(plotdata, 'johm'),
       plotdata.johm[0, :],
       'b' + dashed,
       label=rf'$j_{{ohm}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax4.plot(
-      plotdata.rcell_coord,
+      get_rho(plotdata, 'j_bootstrap'),
       plotdata.j_bootstrap[0, :],
       'g' + dashed,
       label=rf'$j_{{bs}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax4.plot(
-      plotdata.rcell_coord,
+      get_rho(plotdata, 'jext'),
       plotdata.jext[0, :],
       'm' + dashed,
       label=rf'$j_{{ext}}{suffix}$',
   )
   lines.append(line)
   (line,) = ax5.plot(
-      plotdata.rface_coord,
+      get_rho(plotdata, 'q'),
       plotdata.q[0, :],
       'r' + dashed,
       label=rf'$q{suffix}$',
   )
   lines.append(line)
   (line,) = ax6.plot(
-      plotdata.rface_coord,
+      get_rho(plotdata, 's'),
       plotdata.s[0, :],
       'r' + dashed,
       label=rf'$\hat{{s}}{suffix}$',
@@ -316,25 +331,32 @@ def get_lines(
 
 
 def load_data(filename: str) -> PlotData:
+  """Loads an xr.Dataset from a file, handling potential coordinate name changes."""
   ds = xr.open_dataset(filename)
-  if 'time' in ds:
-    t = ds['time'].to_numpy()
-  else:
-    t = ds['t'].to_numpy()
+  # Handle potential time coordinate name variations
+  t = ds['time'].to_numpy() if 'time' in ds else ds['t'].to_numpy()
+  # Rename coordinates if they exist, ensuring compatibility with older datasets
+  if 'r_cell' in ds:
+    ds = ds.rename({
+        'r_cell': 'rho_cell',
+        'r_face': 'rho_face',
+        'r_cell_norm': 'rho_cell_norm',
+        'r_face_norm': 'rho_face_norm',
+    })
   return PlotData(
-      ti=ds['temp_ion'].to_numpy(),
-      te=ds['temp_el'].to_numpy(),
-      ne=ds['ne'].to_numpy(),
-      j=ds['jtot'].to_numpy(),
-      johm=ds['johm'].to_numpy(),
-      j_bootstrap=ds['j_bootstrap'].to_numpy(),
-      jext=ds['jext'].to_numpy(),
-      q=ds['q_face'].to_numpy(),
-      s=ds['s_face'].to_numpy(),
-      chi_i=ds['chi_face_ion'].to_numpy(),
-      chi_e=ds['chi_face_el'].to_numpy(),
-      rcell_coord=ds['r_cell_norm'].to_numpy(),
-      rface_coord=ds['r_face_norm'].to_numpy(),
+      ti=ds[output.TEMP_ION].to_numpy(),
+      te=ds[output.TEMP_EL].to_numpy(),
+      ne=ds[output.NE].to_numpy(),
+      j=ds[output.JTOT].to_numpy(),
+      johm=ds[output.JOHM].to_numpy(),
+      j_bootstrap=ds[output.J_BOOTSTRAP].to_numpy(),
+      jext=ds[output.JEXT].to_numpy(),
+      q=ds[output.Q_FACE].to_numpy(),
+      s=ds[output.S_FACE].to_numpy(),
+      chi_i=ds[output.CHI_FACE_ION].to_numpy(),
+      chi_e=ds[output.CHI_FACE_EL].to_numpy(),
+      rho_cell_coord=ds[output.RHO_CELL_NORM].to_numpy(),
+      rho_face_coord=ds[output.RHO_FACE_NORM].to_numpy(),
       t=t,
   )
 

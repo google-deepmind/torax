@@ -138,7 +138,7 @@ class TransportModel(abc.ABC):
     # (more consistency between desired profile and transport coefficients)
     # if runtime_params.profile_conditions.set_pedestal:
     mask = (
-        geo.r_face_norm
+        geo.rho_face_norm
         >= dynamic_runtime_params_slice.profile_conditions.Ped_top
     )
     chi_face_ion = jnp.where(
@@ -220,7 +220,7 @@ def build_smoothing_matrix(
   # 1. Kernel matrix
   kernel = jnp.exp(
       -jnp.log(2)
-      * (geo.r_face_norm[:, jnp.newaxis] - geo.r_face_norm) ** 2
+      * (geo.rho_face_norm[:, jnp.newaxis] - geo.rho_face_norm) ** 2
       / (dynamic_runtime_params_slice.transport.smoothing_sigma**2 + consts.eps)
   )
 
@@ -252,8 +252,12 @@ def build_smoothing_matrix(
   )
 
   mask = jnp.where(
-      jnp.logical_and(
-          geo.r_face_norm > mask_inner_edge, geo.r_face_norm < mask_outer_edge
+      jnp.logical_or(
+          dynamic_runtime_params_slice.transport.smooth_everywhere,
+          jnp.logical_and(
+              geo.rho_face_norm > mask_inner_edge,
+              geo.rho_face_norm < mask_outer_edge,
+          ),
       ),
       1.0,
       0.0,
@@ -291,7 +295,7 @@ def build_smoothing_matrix(
 
 @dataclasses.dataclass(kw_only=True)
 class TransportModelBuilder(abc.ABC):
-  """Factory for Stepper objects."""
+  """Factory for TransportModel objects."""
 
   @abc.abstractmethod
   def __call__(

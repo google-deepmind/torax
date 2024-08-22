@@ -23,9 +23,9 @@ import chex
 from jax import numpy as jnp
 from torax import constants as constants_module
 from torax import geometry
+from torax import interpolated_param
 from torax import jax_utils
 from torax import state
-from torax import versioning
 from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import runtime_params as runtime_params_lib
@@ -52,13 +52,84 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # Sets the value of electron particle convection in the model.
   VR_D_ratio: runtime_params_lib.TimeInterpolated = 0.0
 
+  def make_provider(
+      self, torax_mesh: geometry.Grid1D | None = None
+  ) -> RuntimeParamsProvider:
+    # TODO(b/360831279)
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        apply_inner_patch=config_args.get_interpolated_var_single_axis(
+            self.apply_inner_patch
+        ),
+        De_inner=config_args.get_interpolated_var_single_axis(self.De_inner),
+        Ve_inner=config_args.get_interpolated_var_single_axis(self.Ve_inner),
+        chii_inner=config_args.get_interpolated_var_single_axis(
+            self.chii_inner
+        ),
+        chie_inner=config_args.get_interpolated_var_single_axis(
+            self.chie_inner
+        ),
+        rho_inner=config_args.get_interpolated_var_single_axis(self.rho_inner),
+        apply_outer_patch=config_args.get_interpolated_var_single_axis(
+            self.apply_outer_patch
+        ),
+        De_outer=config_args.get_interpolated_var_single_axis(self.De_outer),
+        Ve_outer=config_args.get_interpolated_var_single_axis(self.Ve_outer),
+        chii_outer=config_args.get_interpolated_var_single_axis(
+            self.chii_outer
+        ),
+        chie_outer=config_args.get_interpolated_var_single_axis(
+            self.chie_outer
+        ),
+        rho_outer=config_args.get_interpolated_var_single_axis(self.rho_outer),
+        chiei_ratio=config_args.get_interpolated_var_single_axis(
+            self.chiei_ratio
+        ),
+        chi_D_ratio=config_args.get_interpolated_var_single_axis(
+            self.chi_D_ratio
+        ),
+        VR_D_ratio=config_args.get_interpolated_var_single_axis(
+            self.VR_D_ratio
+        ),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides a RuntimeParams to use during time t of the sim."""
+
+  runtime_params_config: RuntimeParams
+  chiei_ratio: interpolated_param.InterpolatedVarSingleAxis
+  chi_D_ratio: interpolated_param.InterpolatedVarSingleAxis
+  VR_D_ratio: interpolated_param.InterpolatedVarSingleAxis
+
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
+        chimin=self.runtime_params_config.chimin,
+        chimax=self.runtime_params_config.chimax,
+        Demin=self.runtime_params_config.Demin,
+        Demax=self.runtime_params_config.Demax,
+        Vemin=self.runtime_params_config.Vemin,
+        Vemax=self.runtime_params_config.Vemax,
+        apply_inner_patch=bool(self.apply_inner_patch.get_value(t)),
+        De_inner=float(self.De_inner.get_value(t)),
+        Ve_inner=float(self.Ve_inner.get_value(t)),
+        chii_inner=float(self.chii_inner.get_value(t)),
+        chie_inner=float(self.chie_inner.get_value(t)),
+        rho_inner=float(self.rho_inner.get_value(t)),
+        apply_outer_patch=bool(self.apply_outer_patch.get_value(t)),
+        De_outer=float(self.De_outer.get_value(t)),
+        Ve_outer=float(self.Ve_outer.get_value(t)),
+        chii_outer=float(self.chii_outer.get_value(t)),
+        chie_outer=float(self.chie_outer.get_value(t)),
+        rho_outer=float(self.rho_outer.get_value(t)),
+        smoothing_sigma=self.runtime_params_config.smoothing_sigma,
+        smooth_everywhere=self.runtime_params_config.smooth_everywhere,
+        chiei_ratio=float(self.chiei_ratio.get_value(t)),
+        chi_D_ratio=float(self.chi_D_ratio.get_value(t)),
+        VR_D_ratio=float(self.VR_D_ratio.get_value(t)),
+        alpha=self.runtime_params_config.alpha,
+        chistiff=self.runtime_params_config.chistiff,
     )
 
 
@@ -197,7 +268,7 @@ class CriticalGradientModel(transport_model.TransportModel):
 
   def __hash__(self):
     # All CriticalGradientModels are equivalent and can hash the same
-    return hash(('CriticalGradientModel', versioning.torax_hash))
+    return hash(('CriticalGradientModel'))
 
   def __eq__(self, other):
     return isinstance(other, CriticalGradientModel)

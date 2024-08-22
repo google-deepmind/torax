@@ -71,9 +71,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
       # We use the reference value of psi here because the original code
       # for calculating psi depends on FiPy, and we don't want to install that
       iota[1:] = np.abs(
-          references.psi_face_grad[1:]
-          / geo.rmax
-          / (2 * np.pi * geo.B0 * geo.r_face[1:])
+          references.psi_face_grad[1:] / (2 * geo.Phib * geo.rho_face_norm[1:])
       )
       q[1:] = 1 / iota[1:]
       # Change from PINT: we don't read jtot from `geo`

@@ -25,9 +25,9 @@ import numpy as np
 from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider
-from torax import interpolated_param
 from torax import state
 from torax.config import config_args
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
@@ -174,13 +174,11 @@ class InitialStatesTest(parameterized.TestCase):
     # Boundary conditions can be time-dependent, but when creating the initial
     # core profiles, we want to grab the boundary condition params at time 0.
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
-            ne_bound_right=interpolated_param.InterpolatedVarSingleAxis(
-                {0.0: 0.1, 1.0: 2.0},
-                interpolation_mode=interpolated_param.InterpolationMode.STEP,
-            ),
+            ne_bound_right=({0.0: 0.1, 1.0: 2.0}, 'step'),
+            normalize_to_nbar=False,
         ),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
@@ -218,32 +216,36 @@ class InitialStatesTest(parameterized.TestCase):
   ):
     """Tests expected behaviour of initial psi and current options."""
     config1 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             initial_j_is_total_current=True,
             initial_psi_from_j=True,
             nu=2,
+            ne_bound_right=0.5,
         ),
     )
     config2 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             initial_j_is_total_current=False,
             initial_psi_from_j=True,
             nu=2,
+            ne_bound_right=0.5,
         ),
     )
     config3 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             initial_j_is_total_current=False,
             initial_psi_from_j=True,
             nu=2,
+            ne_bound_right=0.5,
         ),
     )
     # Needed to generate psi for bootstrap calculation
     config3_helper = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             initial_j_is_total_current=True,
             initial_psi_from_j=True,
             nu=2,
+            ne_bound_right=0.5,
         ),
     )
     geo_provider = geometry_provider.ConstantGeometryProvider(geo_builder())
@@ -306,9 +308,9 @@ class InitialStatesTest(parameterized.TestCase):
     )
 
     # calculate total and Ohmic current profiles arising from nu=2
-    jformula_face = (1 - geo.r_face_norm**2) ** 2
+    jformula_face = (1 - geo.rho_face_norm**2) ** 2
     denom = jax.scipy.integrate.trapezoid(
-        jformula_face * geo.spr_face, geo.r_face
+        jformula_face * geo.spr_face, geo.rho_face_norm
     )
     ctot = config1.profile_conditions.Ip * 1e6 / denom
     jtot_formula_face = jformula_face * ctot
@@ -378,21 +380,31 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     config1 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             initial_psi_from_j=False,
+            ne_bound_right=0.5,
         ),
     )
     geo = geometry.build_circular_geometry()
-    dcs1 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config1, sources=source_models_builder.runtime_params, geo=geo,
+    dcs1 = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        config1,
+        sources=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )(
+        t=config1.numerics.t_initial,
     )
     config2 = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             initial_psi_from_j=True,
+            ne_bound_right=0.5,
         ),
     )
-    dcs2 = runtime_params_slice.build_dynamic_runtime_params_slice(
-        config2, sources=source_models_builder.runtime_params, geo=geo,
+    dcs2 = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        config2,
+        sources=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )(
+        t=config2.numerics.t_initial,
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,

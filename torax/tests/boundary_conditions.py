@@ -23,6 +23,7 @@ from torax import core_profile_setters
 from torax import geometry
 from torax import interpolated_param
 from torax.config import config_args
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
@@ -35,12 +36,12 @@ class BoundaryConditionsTest(parameterized.TestCase):
       dict(
           ne={0.0: {0.0: 1.5, 1.0: 1.0}},
           ne_bound_right=None,
-          expected_ne_bound_right=0.327923,  # Value from profile.
+          expected_ne_bound_right=1.0,  # Value from profile.
       ),
       dict(
           ne={0.0: {0.0: 1.5, 1.0: 1.0}},
           ne_bound_right=interpolated_param.InterpolatedVarSingleAxis(
-              {0.0: 0.1, 0.1: 2.0},
+              (np.array([0.0, 0.1]), np.array([0.1, 2.0])),
               interpolation_mode=interpolated_param.InterpolationMode.STEP,
           ),
           expected_ne_bound_right=2.0,  # Value from boundary condition.
@@ -56,14 +57,16 @@ class BoundaryConditionsTest(parameterized.TestCase):
     # Boundary conditions can be time-dependent, but when creating the initial
     # state, we want to grab the boundary condition params at time 0.
     runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti={0.0: {0.0: 27.7, 1.0: 1.0}},
             Te={0.0: {0.0: 42.0, 1.0: 0.0}, 1.0: 0},
             Ti_bound_right=27.7,
             Te_bound_right={0.0: 42.0, 1.0: 0.0},
             ne_bound_right=ne_bound_right,
             ne=ne,
+            ne_is_fGW=False,
             Ip={0.0: 5, 1.0: 7},
+            normalize_to_nbar=False,
         ),
     )
 
@@ -71,10 +74,12 @@ class BoundaryConditionsTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     initial_dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -83,11 +88,12 @@ class BoundaryConditionsTest(parameterized.TestCase):
         source_models=source_models,
     )
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             sources=source_models_builder.runtime_params,
+            torax_mesh=geo.torax_mesh,
+        )(
             t=0.5,
-            geo=geo,
         )
     )
 
@@ -100,9 +106,8 @@ class BoundaryConditionsTest(parameterized.TestCase):
 
     psi_constraint = (
         6e6
-        * (16 * np.pi**4 * constants.CONSTANTS.mu0)
-        / (geo.g2g3_over_rho_face[-1] * geo.J_face[-1] * geo.Rmaj)
-        * geo.rmax
+        * (16 * np.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
+        / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
     )
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
     np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)

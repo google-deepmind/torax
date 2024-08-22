@@ -57,7 +57,6 @@ def calculate_pereverzev_flux(
       * true_ni_face
       * consts.keV2J
       * dynamic_runtime_params_slice.stepper.chi_per
-      / geo.rmax**2
   )
 
   chi_face_per_el = (
@@ -65,10 +64,9 @@ def calculate_pereverzev_flux(
       * true_ne_face
       * consts.keV2J
       * dynamic_runtime_params_slice.stepper.chi_per
-      / geo.rmax**2
   )
 
-  d_face_per_el = dynamic_runtime_params_slice.stepper.d_per / geo.rmax
+  d_face_per_el = dynamic_runtime_params_slice.stepper.d_per
   v_face_per_el = (
       core_profiles.ne.face_grad()
       / core_profiles.ne.face_value()
@@ -81,7 +79,7 @@ def calculate_pereverzev_flux(
   chi_face_per_ion = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.r_face_norm
+          geo.rho_face_norm
           > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
@@ -90,7 +88,7 @@ def calculate_pereverzev_flux(
   chi_face_per_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.r_face_norm
+          geo.rho_face_norm
           > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
@@ -111,21 +109,21 @@ def calculate_pereverzev_flux(
   d_face_per_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.r_face_norm
+          geo.rho_face_norm
           > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
-      d_face_per_el * geo.g1_over_vpr_face / geo.rmax,
+      d_face_per_el * geo.g1_over_vpr_face,
   )
 
   v_face_per_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.r_face_norm
+          geo.rho_face_norm
           > dynamic_runtime_params_slice.profile_conditions.Ped_top,
       ),
       0.0,
-      v_face_per_el * geo.g0_face / geo.rmax,
+      v_face_per_el * geo.g0_face,
   )
 
   chi_face_per_ion = chi_face_per_ion.at[0].set(chi_face_per_ion[1])
@@ -291,6 +289,13 @@ def _calc_coeffs_full(
       explicit_source_profiles.j_bootstrap.sigma,
       implicit_source_profiles.j_bootstrap.sigma,
   )
+  sigma_face = jax_utils.select(
+      dynamic_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ].is_explicit,
+      explicit_source_profiles.j_bootstrap.sigma_face,
+      implicit_source_profiles.j_bootstrap.sigma_face,
+  )
   j_bootstrap = jax_utils.select(
       dynamic_runtime_params_slice.sources[
           source_models.j_bootstrap_name
@@ -312,18 +317,32 @@ def _calc_coeffs_full(
       explicit_source_profiles.j_bootstrap.I_bootstrap,
       implicit_source_profiles.j_bootstrap.I_bootstrap,
   )
+  # The formula for jext in external_current_source.py is for the external
+  # current on the face grid, not the cell grid.
+  jext_face = jax_utils.select(
+      dynamic_runtime_params_slice.sources[
+          source_models.jext_name
+      ].is_explicit,
+      explicit_source_profiles.profiles[source_models.jext_name],
+      implicit_source_profiles.profiles[source_models.jext_name],
+  )
+  jext = geometry.face_to_cell(jext_face)
 
   currents = dataclasses.replace(
       core_profiles.currents,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
-      johm=core_profiles.currents.jtot
-      - j_bootstrap
-      - core_profiles.currents.jext,
+      jext=jext,
+      jext_face=jext_face,
+      johm=(
+          core_profiles.currents.jtot
+          - j_bootstrap
+          - jext
+      ),
       johm_face=(
           core_profiles.currents.jtot_face
           - j_bootstrap_face
-          - core_profiles.currents.jext_face
+          - jext_face
       ),
       I_bootstrap=I_bootstrap,
       sigma=sigma,
@@ -331,7 +350,7 @@ def _calc_coeffs_full(
   core_profiles = dataclasses.replace(core_profiles, currents=currents)
 
   # psi source terms. Source matrix is zero for all psi sources
-  source_mat_psi = jnp.zeros_like(geo.r)
+  source_mat_psi = jnp.zeros_like(geo.rho)
 
   # fill source vector based on both original and updated core profiles
   source_psi = source_models_lib.sum_sources_psi(
@@ -342,6 +361,13 @@ def _calc_coeffs_full(
       geo,
       explicit_source_profiles,
       source_models,
+  )
+
+  true_ne = (
+      core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
+  )
+  true_ni = (
+      core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
   )
 
   true_ne_face = (
@@ -369,10 +395,12 @@ def _calc_coeffs_full(
   toc_psi = (
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
-      * geo.r_norm
+      * geo.rho_norm
       * sigma
       * consts.mu0
-      * 16 * jnp.pi**2 * geo.Phib**2
+      * 16
+      * jnp.pi**2
+      * geo.Phib**2
       / geo.F**2
   )
   tic_psi = jnp.ones_like(toc_psi)
@@ -387,9 +415,7 @@ def _calc_coeffs_full(
   chi_face_el = transport_coeffs.chi_face_el
   d_face_el = transport_coeffs.d_face_el
   v_face_el = transport_coeffs.v_face_el
-  # TODO(b/351356977): remove rmax from TORAX by normalizing other quantities
-  # like g2g3_over_rho_face, vpr, spr
-  d_face_psi = geo.g2g3_over_rho_face * geo.rmax
+  d_face_psi = geo.g2g3_over_rhon_face
 
   if static_runtime_params_slice.dens_eq:
     if d_face_el is None or v_face_el is None:
@@ -399,13 +425,13 @@ def _calc_coeffs_full(
 
   # Apply inner and outer patch constant transport coefficients. rho_inner and
   # rho_outer are shifted by consts.eps (1e-7) to avoid ambiguities if their
-  # values are close to and geo.r_face_norm values.
+  # values are close to and geo.rho_face_norm values.
   # Note that Pereverzev-Corrigan terms will still be included in constant
   # transport regions, to avoid transient discontinuities
   chi_face_ion = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.transport.apply_inner_patch,
-          geo.r_face_norm
+          geo.rho_face_norm
           < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
       ),
       dynamic_runtime_params_slice.transport.chii_inner,
@@ -414,7 +440,7 @@ def _calc_coeffs_full(
   chi_face_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.transport.apply_inner_patch,
-          geo.r_face_norm
+          geo.rho_face_norm
           < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
       ),
       dynamic_runtime_params_slice.transport.chie_inner,
@@ -423,7 +449,7 @@ def _calc_coeffs_full(
   d_face_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.transport.apply_inner_patch,
-          geo.r_face_norm
+          geo.rho_face_norm
           < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
       ),
       dynamic_runtime_params_slice.transport.De_inner,
@@ -432,7 +458,7 @@ def _calc_coeffs_full(
   v_face_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.transport.apply_inner_patch,
-          geo.r_face_norm
+          geo.rho_face_norm
           < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
       ),
       dynamic_runtime_params_slice.transport.Ve_inner,
@@ -450,7 +476,7 @@ def _calc_coeffs_full(
                   dynamic_runtime_params_slice.profile_conditions.set_pedestal
               ),
           ),
-          geo.r_face_norm
+          geo.rho_face_norm
           > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
       ),
       dynamic_runtime_params_slice.transport.chii_outer,
@@ -464,7 +490,7 @@ def _calc_coeffs_full(
                   dynamic_runtime_params_slice.profile_conditions.set_pedestal
               ),
           ),
-          geo.r_face_norm
+          geo.rho_face_norm
           > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
       ),
       dynamic_runtime_params_slice.transport.chie_outer,
@@ -478,7 +504,7 @@ def _calc_coeffs_full(
                   dynamic_runtime_params_slice.profile_conditions.set_pedestal
               ),
           ),
-          geo.r_face_norm
+          geo.rho_face_norm
           > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
       ),
       dynamic_runtime_params_slice.transport.De_outer,
@@ -492,7 +518,7 @@ def _calc_coeffs_full(
                   dynamic_runtime_params_slice.profile_conditions.set_pedestal
               ),
           ),
-          geo.r_face_norm
+          geo.rho_face_norm
           > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
       ),
       dynamic_runtime_params_slice.transport.Ve_outer,
@@ -516,22 +542,20 @@ def _calc_coeffs_full(
       * true_ni_face
       * consts.keV2J
       * chi_face_ion
-      / geo.rmax**2
   )
   full_chi_face_el = (
       geo.g1_over_vpr_face
       * true_ne_face
       * consts.keV2J
       * chi_face_el
-      / geo.rmax**2
   )
 
   # entire coefficient preceding dne/dr in particle equation
-  full_d_face_el = geo.g1_over_vpr_face * d_face_el / geo.rmax**2
-  full_v_face_el = geo.g0_face * v_face_el / geo.rmax
+  full_d_face_el = geo.g1_over_vpr_face * d_face_el
+  full_v_face_el = geo.g0_face * v_face_el
 
   # density source terms. Initialize source matrix to zero
-  source_mat_nn = jnp.zeros_like(geo.r)
+  source_mat_nn = jnp.zeros_like(geo.rho)
 
   # density source vector based both on original and updated core profiles
   source_ne = source_models_lib.sum_sources_ne(
@@ -589,13 +613,58 @@ def _calc_coeffs_full(
           geo,
           core_profiles,
       ),
-      lambda: tuple([jnp.zeros_like(geo.r_face)] * 6),
+      lambda: tuple([jnp.zeros_like(geo.rho_face)] * 6),
   )
 
   full_chi_face_ion += chi_face_per_ion
   full_chi_face_el += chi_face_per_el
   full_d_face_el += d_face_per_el
   full_v_face_el += v_face_per_el
+
+  # Add phibdot terms to heat transport convection
+  v_heat_face_ion += (
+      -3.0
+      / 4.0
+      * geo.Phibdot
+      / geo.Phib
+      * geo.rho_face_norm
+      * geo.vpr_face
+      * true_ni_face
+      * consts.keV2J
+  )
+
+  v_heat_face_el += (
+      -3.0
+      / 4.0
+      * geo.Phibdot
+      / geo.Phib
+      * geo.rho_face_norm
+      * geo.vpr_face
+      * true_ne_face
+      * consts.keV2J
+  )
+
+  # Add phibdot terms to particle transport convection
+  full_v_face_el += (
+      -1.0
+      / 2.0
+      * geo.Phibdot
+      / geo.Phib
+      * geo.rho_face_norm
+      * geo.vpr_face
+  )
+
+  # Add phibdot terms to poloidal flux convection
+  v_face_psi = (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * sigma_face
+      * geo.rho_face_norm**2
+      / geo.F_face**2
+  )
 
   # Ion and electron heat sources.
   qei = source_models.qei_source.get_qei(
@@ -621,8 +690,8 @@ def _calc_coeffs_full(
 
   # Fill heat transport equation sources. Initialize source matrices to zero
 
-  source_mat_ii = jnp.zeros_like(geo.r)
-  source_mat_ee = jnp.zeros_like(geo.r)
+  source_mat_ii = jnp.zeros_like(geo.rho)
+  source_mat_ee = jnp.zeros_like(geo.rho)
 
   source_i = source_models_lib.sum_sources_temp_ion(
       geo,
@@ -679,6 +748,50 @@ def _calc_coeffs_full(
       0.0,
   )
 
+  # Add effective phibdot heat source terms
+
+  # second derivative of volume profile with respect to r_norm
+  vprpr_norm = jnp.gradient(geo.vpr, geo.rho_norm)
+
+  source_i += (
+      1.0
+      / 2.0
+      * vprpr_norm
+      * geo.Phibdot
+      / geo.Phib
+      * geo.rho_norm
+      * true_ni
+      * core_profiles.temp_ion.value
+      * consts.keV2J
+  )
+
+  source_e += (
+      1.0
+      / 2.0
+      * vprpr_norm
+      * geo.Phibdot
+      / geo.Phib
+      * geo.rho_norm
+      * true_ne
+      * core_profiles.temp_el.value
+      * consts.keV2J
+  )
+
+  # Add effective phibdot poloidal flux source term
+
+  ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
+      sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
+  )
+
+  source_psi += (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * ddrnorm_sigma_rnorm2_over_f2
+  )
+
   # Build arguments to solver based on which variables are evolving
   var_to_toc = {
       'temp_ion': toc_temp_ion,
@@ -706,6 +819,7 @@ def _calc_coeffs_full(
   var_to_v_face = {
       'temp_ion': v_heat_face_ion,
       'temp_el': v_heat_face_el,
+      'psi': v_face_psi,
       'ne': full_v_face_el,
   }
   v_face = tuple(var_to_v_face.get(var) for var in evolving_names)

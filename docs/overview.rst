@@ -32,7 +32,7 @@ TORAX's physics and solver feature set includes the following:
   * Time dependent boundary conditions and sources
   * Coupling to the QLKNN10D `[van de Plassche et al, Phys. Plasmas 2020] <https://doi.org/10.1063/1.5134126>`_
     QuaLiKiz-neural-network surrogate for physics-based turbulent transport
-  * General geometry, provided via CHEASE equilibrium files
+  * General geometry, provided via CHEASE or FBT equilibrium files
 
     * For testing and demonstration purposes, a single CHEASE equilibrium file is available in the
       data/geo directory. It corresponds to an ITER hybrid scenario equilibrium based on simulations

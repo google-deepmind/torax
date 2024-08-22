@@ -20,12 +20,15 @@ import dataclasses
 import enum
 
 import chex
+from torax import geometry
 from torax import interpolated_param
+from torax.config import base
 from torax.config import config_args
 from torax.sources import formula_config
 
 
 TimeInterpolated = interpolated_param.TimeInterpolated
+TimeRhoInterpolated = interpolated_param.TimeRhoInterpolated
 
 
 @enum.unique
@@ -44,15 +47,19 @@ class Mode(enum.Enum):
   # on the config and geometry of the system.
   FORMULA_BASED = 2
 
+  # Source values come from a pre-determined set of values, that may evolve in
+  # time. Values can be drawn from a file or an array. These sources are always
+  # explicit.
+  PRESCRIBED = 3
+
 
 @dataclasses.dataclass
-class RuntimeParams:
+class RuntimeParams(base.RuntimeParametersConfig):
   """Configures a single source/sink term.
 
   This is a RUNTIME runtime_params, meaning its values can change from run to
-  run
-  without trigerring a recompile. This config defines the runtime config for the
-  entire simulation run. The DynamicRuntimeParams, which is derived from
+  run without triggering a recompile. This config defines the runtime config for
+  the entire simulation run. The DynamicRuntimeParams, which is derived from
   this class, only contains information for a single time step.
 
   Any compile-time configurations for the Sources should go into the Source
@@ -76,17 +83,58 @@ class RuntimeParams:
 
   # Parameters used only when the source is using a prescribed formula to
   # compute its profile.
-  formula: formula_config.FormulaConfig = dataclasses.field(
-      default_factory=formula_config.FormulaConfig
+  formula: base.RuntimeParametersConfig = dataclasses.field(
+      default_factory=formula_config.Exponential
   )
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+  # Prescribed values for the source. Used only when the source is fully
+  # prescribed (i.e. source.mode == Mode.PRESCRIBED).
+  # The default here is a vector of all zeros along for all rho and time, and
+  # the output vector is along the cell grid.
+  # NOTE: For Sources that have different output shapes, make sure to update
+  # build_dynamic_params() to handle the new shape. The default implementation
+  # assumes a 1D output along the cell grid.
+  prescribed_values: TimeRhoInterpolated = dataclasses.field(
+      default_factory=lambda: {0: {0: 0, 1: 0}}
+  )
+
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> RuntimeParamsProvider:
+    # TODO(b/360831279): Push some of this logic into the base class.
+    if torax_mesh is None:
+      raise ValueError(
+          'torax_mesh is required for RuntimeParams.make_provider.'
+      )
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.cell_centers
+        ),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(
+    base.RuntimeParametersProvider['DynamicRuntimeParams']
+):
+  """Runtime parameter provider for a single source/sink term."""
+
+  runtime_params_config: RuntimeParams
+  formula: base.RuntimeParametersProvider
+  prescribed_values: interpolated_param.InterpolatedVarTimeRho
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 
@@ -104,3 +152,4 @@ class DynamicRuntimeParams:
   mode: int
   is_explicit: bool
   formula: formula_config.DynamicFormula
+  prescribed_values: chex.Array

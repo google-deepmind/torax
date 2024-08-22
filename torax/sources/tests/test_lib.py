@@ -96,10 +96,12 @@ class SingleProfileSourceTestCase(SourceTestCase):
     self.assertIsInstance(source, source_lib.SingleProfileSource)
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -131,10 +133,12 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source = source_models.sources['foo']
     self.assertIsInstance(source, source_lib.SingleProfileSource)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -145,14 +149,16 @@ class SingleProfileSourceTestCase(SourceTestCase):
     for unsupported_mode in self._unsupported_modes:
       source_builder.runtime_params.mode = unsupported_mode
       dynamic_runtime_params_slice = (
-          runtime_params_slice.build_dynamic_runtime_params_slice(
+          runtime_params_slice.DynamicRuntimeParamsSliceProvider(
               runtime_params=runtime_params,
               sources=source_models_builder.runtime_params,
-              geo=geo,
+              torax_mesh=geo.torax_mesh,
+          )(
+              t=runtime_params.numerics.t_initial,
           )
       )
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
+        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
@@ -180,10 +186,12 @@ class IonElSourceTestCase(SourceTestCase):
     source = source_models.sources['foo']
     self.assertIsInstance(source, source_lib.IonElectronSource)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -215,10 +223,12 @@ class IonElSourceTestCase(SourceTestCase):
     source = source_models.sources['foo']
     self.assertIsInstance(source, source_lib.IonElectronSource)
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
-            geo=geo,
+            torax_mesh=geo.torax_mesh,
+        )(
+            t=runtime_params.numerics.t_initial,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -229,14 +239,16 @@ class IonElSourceTestCase(SourceTestCase):
     for unsupported_mode in self._unsupported_modes:
       source_builder.runtime_params.mode = unsupported_mode
       dynamic_runtime_params_slice = (
-          runtime_params_slice.build_dynamic_runtime_params_slice(
+          runtime_params_slice.DynamicRuntimeParamsSliceProvider(
               runtime_params=runtime_params,
               sources=source_models_builder.runtime_params,
-              geo=geo,
+              torax_mesh=geo.torax_mesh,
+          )(
+              t=runtime_params.numerics.t_initial,
           )
       )
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.interpreters.xla.xe.XlaRuntimeError):
+        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[

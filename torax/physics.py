@@ -26,7 +26,6 @@ from jax import numpy as jnp
 from torax import constants
 from torax import geometry
 from torax import jax_utils
-from torax import math_utils
 from torax import state
 from torax.fvm import cell_variable
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
@@ -130,8 +129,8 @@ def internal_boundary(
   # Create Boolean mask FiPy CellVariable with True where the internal boundary
   # condition is
   # find index closest to pedestal top.
-  idx = jnp.abs(geo.r_norm - Ped_top).argmin()
-  mask_np = jnp.zeros(len(geo.r), dtype=bool)
+  idx = jnp.abs(geo.rho_norm - Ped_top).argmin()
+  mask_np = jnp.zeros(len(geo.rho), dtype=bool)
   mask_np = jnp.where(set_pedestal, mask_np.at[idx].set(True), mask_np)
   return mask_np
 
@@ -163,8 +162,9 @@ def calc_q_from_jtot_psi(
   # corresponds to face 1.
   # iota on face 0 is unused in this function, and would need to be implemented
   # as a special case.
-  denom = jnp.abs(psi.face_grad()[1:] / geo.rmax)
-  inv_iota = (2 * jnp.pi * geo.B0 * geo.r_face[1:]) / denom
+  inv_iota = jnp.abs(
+      (2 * geo.Phib * geo.rho_face_norm[1:]) / psi.face_grad()[1:]
+  )
   # use on-axis definition of q (Wesson 2004, Eq 3.48)
   q0 = 2 * geo.B0 / (constants.CONSTANTS.mu0 * jtot_face[0] * geo.Rmaj)
   q0 = jnp.expand_dims(q0, 0)
@@ -194,23 +194,25 @@ def calc_jtot_from_psi(
     jtot_face: total current density (Amps / m^2) on face grid
   """
 
-  # on face grid
-  dpsi_dr = psi.face_grad() / geo.rmax
-
-  # inside flux sur_face on face grid
+  # inside flux surface on face grid
   # pylint: disable=invalid-name
   I_tot = (
-      dpsi_dr
-      * geo.g2g3_over_rho_face
-      * geo.Rmaj
-      * geo.J_face
-      / (16 * jnp.pi**4 * constants.CONSTANTS.mu0)
+      psi.face_grad()
+      * geo.g2g3_over_rhon_face
+      * geo.F_face
+      / geo.Phib
+      / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
   )
 
-  jtot_face = (
-      2 * jnp.pi * geo.Rmaj * math_utils.gradient(I_tot, geo.volume_face)
-  )
+  dI_tot_drhon = jnp.gradient(I_tot, geo.rho_face_norm)
 
+  jtot_face_bulk = dI_tot_drhon[1:] / geo.spr_face[1:]
+
+  # For now set on-axis to the same as the second grid point, due to 0/0
+  # division.
+  jtot_face_axis = jtot_face_bulk[0]
+
+  jtot_face = jnp.concatenate([jnp.array([jtot_face_axis]), jtot_face_bulk])
   jtot = geometry.face_to_cell(jtot_face)
 
   return jtot, jtot_face
@@ -229,28 +231,60 @@ def calc_s_from_psi(
     s_face: Magnetic shear, on the face grid.
   """
 
-  # 1st derivative of psi on face grid
-  dpsi_dr = psi.face_grad() / geo.rmax
-  # 2nd derivative of psi on face grad. Dropping the leftmost face, it won't be
-  # needed.
-  d2psi_d2r = (dpsi_dr[2:] - dpsi_dr[:-2]) / (2 * geo.dr)
-  d2psi_d2r = jnp.concatenate((d2psi_d2r, d2psi_d2r[-1:]))
+  # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
+  # the s calculation.
+  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
 
-  # Volume on face grid
-  # pylint:disable=invalid-name
-  V = math_utils.cumulative_trapezoid(geo.r_face, geo.vpr_face)
-
-  s = (
-      2
-      * V
-      / (geo.r_face[1:] * geo.vpr_face[1:])
-      * (1 - geo.r_face[1:] * d2psi_d2r / dpsi_dr[1:])
+  # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
+  # Using expand_dims to make it compatible with jnp.concatenate
+  iota_scaled0 = jnp.expand_dims(
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
   )
-  s = jnp.concatenate((s[0:1], s))
 
-  # similar values to s from the psi derivatives but offset by a cell and
-  # differences near edge regions. Use direct from q for now
-  return s
+  iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
+
+  s_face = (
+      -geo.rho_face_norm
+      * jnp.gradient(iota_scaled, geo.rho_face_norm)
+      / iota_scaled
+  )
+
+  return s_face
+
+
+def calc_s_from_psi_rmid(
+    geo: Geometry, psi: cell_variable.CellVariable
+) -> jax.Array:
+  """Calculates magnetic shear (s) from poloidal flux (psi).
+
+  Version taking the derivative of iota with respect to the midplane r,
+  in line with expectations from circular-derived models like QuaLiKiz.
+
+  Args:
+    geo: Torus geometry.
+    psi: Poloidal flux.
+
+  Returns:
+    s_face: Magnetic shear, on the face grid.
+  """
+
+  # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
+  # the s calculation.
+  iota_scaled = jnp.abs((psi.face_grad()[1:] / geo.rho_face_norm[1:]))
+
+  # on-axis iota_scaled from L'Hôpital's rule = dpsi_face_grad / drho_norm
+  # Using expand_dims to make it compatible with jnp.concatenate
+  iota_scaled0 = jnp.expand_dims(
+      jnp.abs(psi.face_grad()[1] / geo.drho_norm), axis=0
+  )
+
+  iota_scaled = jnp.concatenate([iota_scaled0, iota_scaled])
+
+  rmid_face = (geo.Rout_face - geo.Rin_face) * 0.5
+
+  s_face = -rmid_face * jnp.gradient(iota_scaled, rmid_face) / iota_scaled
+
+  return s_face
 
 
 def calc_nu_star(
@@ -297,7 +331,7 @@ def calc_nu_star(
   )
 
   # calculate bounce time
-  epsilon = geo.r_face / geo.Rmaj
+  epsilon = geo.rho_face / geo.Rmaj
   # to avoid divisions by zero
   epsilon = jnp.clip(epsilon, constants.CONSTANTS.eps)
   tau_bounce = (

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import Optional
 
 import jax
 from jax import numpy as jnp
@@ -95,7 +96,8 @@ def calc_fusion(
 
   # [MW]
   Ptot = (
-      jax.scipy.integrate.trapezoid(Pfus_face * geo.vpr_face, geo.r_face) / 1e6
+      jax.scipy.integrate.trapezoid(Pfus_face * geo.vpr_face, geo.rho_face_norm)
+      / 1e6
   )
 
   alpha_fraction = 3.5 / 17.6  # fusion power fraction to alpha particles
@@ -120,12 +122,17 @@ def calc_fusion(
   return Ptot, Pfus_i, Pfus_e
 
 
+# pytype bug: does not treat 'source_models.SourceModels' as forward reference
+# pytype: disable=name-error
 def fusion_heat_model_func(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
+  """Model function for fusion heating."""
+  # pytype: enable=name-error
   del dynamic_source_runtime_params  # Unused.
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
@@ -135,13 +142,14 @@ def fusion_heat_model_func(
   # pylint: enable=invalid-name
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class FusionHeatSource(source.IonElectronSource):
   """Fusion heat source for both ion and electron heat."""
 
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
   )
 
   model_func: source.SourceProfileFunction = fusion_heat_model_func

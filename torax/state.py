@@ -22,7 +22,6 @@ from typing import Any, Optional
 import chex
 import jax
 from jax import numpy as jnp
-
 from torax import geometry
 from torax.config import config_args
 from torax.fvm import cell_variable
@@ -50,6 +49,7 @@ class Currents:
   # pylint: disable=invalid-name
   # Using physics notation naming convention
   I_bootstrap: jax.Array
+  Ip: float
   sigma: jax.Array
   jtot_hires: Optional[jax.Array] = None
 
@@ -194,11 +194,30 @@ class CoreTransport:
   def zeros(cls, geo: geometry.Geometry) -> CoreTransport:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
     return cls(
-        chi_face_ion=jnp.zeros(geo.r_face.shape),
-        chi_face_el=jnp.zeros(geo.r_face.shape),
-        d_face_el=jnp.zeros(geo.r_face.shape),
-        v_face_el=jnp.zeros(geo.r_face.shape),
+        chi_face_ion=jnp.zeros(geo.rho_face.shape),
+        chi_face_el=jnp.zeros(geo.rho_face.shape),
+        d_face_el=jnp.zeros(geo.rho_face.shape),
+        v_face_el=jnp.zeros(geo.rho_face.shape),
     )
+
+
+@chex.dataclass
+class StepperNumericOutputs:
+  """Numerical quantities related to the stepper.
+
+  Attributes:
+    outer_stepper_iterations: Number of iterations performed in the outer loop
+      of the stepper.
+    stepper_error_state: 0 if solver converged with fine tolerance for this step
+      1 if solver did not converge for this step (was above coarse tol) 2 if
+      solver converged within coarse tolerance. Allowed to pass with a warning.
+      Occasional error=2 has low impact on final sim state.
+    inner_solver_iterations: Total number of iterations performed in the solver
+      across all iterations of the stepper.
+  """
+  outer_stepper_iterations: int = 0
+  stepper_error_state: int = 0
+  inner_solver_iterations: int = 0
 
 
 @chex.dataclass
@@ -213,8 +232,8 @@ class ToraxSimState:
   This class includes both core_profiles and these additional elements.
 
   Attributes:
-    t: time coordinate
-    dt: timestep interval
+    t: time coordinate.
+    dt: timestep interval.
     core_profiles: Core plasma profiles at time t.
     core_transport: Core plasma transport coefficients computed at time t.
     core_sources: Profiles for all sources/sinks. For any state-dependent source
@@ -227,12 +246,8 @@ class ToraxSimState:
       at time t, but is not guaranteed to be. In case exact source profiles are
       required for each time step, they must be recomputed manually after
       running `run_simulation()`.
-    stepper_iterations: number of stepper iterations carried out in previous
-      step, i.e. the number of times dt was reduced when using the adaptive dt
-      method.
-    time_step_calculator_state: the state of the TimeStepper
-    stepper_error_state: 0 for successful convergence of the PDE stepper, 1 for
-      unsuccessful convergence, leading to recalculation at reduced timestep
+    time_step_calculator_state: the state of the TimeStepper.
+    stepper_numeric_outputs: Numerical quantities related to the stepper.
   """
 
   # Time variables.
@@ -246,27 +261,5 @@ class ToraxSimState:
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.
-  stepper_iterations: int
   time_step_calculator_state: Any
-  stepper_error_state: int
-
-
-def build_history_from_states(
-    states: tuple[ToraxSimState, ...],
-) -> tuple[CoreProfiles, source_profiles.SourceProfiles, CoreTransport]:
-  core_profiles = [state.core_profiles.history_elem() for state in states]
-  core_sources = [state.core_sources for state in states]
-  transport = [state.core_transport for state in states]
-  stack = lambda *ys: jnp.stack(ys)
-  return (
-      jax.tree_util.tree_map(stack, *core_profiles),
-      jax.tree_util.tree_map(stack, *core_sources),
-      jax.tree_util.tree_map(stack, *transport),
-  )
-
-
-def build_time_history_from_states(
-    states: tuple[ToraxSimState, ...],
-) -> jax.Array:
-  times = [state.t for state in states]
-  return jnp.array(times)
+  stepper_numeric_outputs: StepperNumericOutputs

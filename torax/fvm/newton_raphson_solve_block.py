@@ -18,7 +18,7 @@ See function docstring for details.
 """
 
 import functools
-from typing import Callable
+from typing import Callable, Final
 
 from absl import logging
 import jax
@@ -45,7 +45,7 @@ Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
 # the delta loop. This is to avoid getting stuck in an infinite loop in edge
 # cases with bad numerics.
-MIN_DELTA = 1e-7
+MIN_DELTA: Final[float] = 1e-7
 
 
 def _log_iterations(
@@ -103,7 +103,11 @@ def newton_raphson_solve_block(
     delta_reduction_factor: float,
     tau_min: float,
     log_iterations: bool = False,
-) -> tuple[tuple[cell_variable.CellVariable, ...], int, AuxiliaryOutput]:
+) -> tuple[
+    tuple[cell_variable.CellVariable, ...],
+    state_module.StepperNumericOutputs,
+    AuxiliaryOutput,
+]:
   # pyformat: disable  # pyformat removes line breaks needed for reability
   """Runs one time step of a Newton-Raphson based root-finding on the equation defined by `coeffs`.
 
@@ -143,10 +147,10 @@ def newton_raphson_solve_block(
     geo_t_plus_dt: Geometry at time t + dt.
     x_old: Tuple containing CellVariables for each channel with their values at
       the start of the time step.
-    core_profiles_t: Core plasma profiles which contain all available
-      prescribed quantities at the start of the time step. This includes
-      evolving boundary conditions and prescribed time-dependent profiles that
-      are not being evolved by the PDE system.
+    core_profiles_t: Core plasma profiles which contain all available prescribed
+      quantities at the start of the time step. This includes evolving boundary
+      conditions and prescribed time-dependent profiles that are not being
+      evolved by the PDE system.
     core_profiles_t_plus_dt: Core plasma profiles which contain all available
       prescribed quantities at the end of the time step. This includes evolving
       boundary conditions and prescribed time-dependent profiles that are not
@@ -179,9 +183,9 @@ def newton_raphson_solve_block(
 
   Returns:
     x_new: Tuple, with x_new[i] giving channel i of x at the next time step
-    error: int. 0 signifies residual < tol at exit, 1 signifies residual > tol,
-    2 signifies tol < residual < coarse_tol, deemed acceptable if the solver
-    steps became small.
+    stepper_numeric_outputs: state_module.StepperNumericOutputs. Iteration and
+      error info. For the error, 0 signifies residual < tol at exit, 1 signifies
+      residual > tol, steps became small.
     aux_output: Extra auxiliary output from calc_coeffs.
   """
   # pyformat: enable
@@ -285,7 +289,6 @@ def newton_raphson_solve_block(
   )
   body_fun = functools.partial(
       body,
-      residual_fun=residual_fun,
       jacobian_fun=jacobian_fun,
       delta_cond_fun=delta_cond_fun,
       delta_reduction_factor=delta_reduction_factor,
@@ -335,8 +338,13 @@ def newton_raphson_solve_block(
           lambda: 1,  # Called when False
       ),
   )
+  stepper_numeric_outputs = state_module.StepperNumericOutputs(
+      inner_solver_iterations=int(output_state['iterations']),
+      stepper_error_state=error,
+      outer_stepper_iterations=1,
+  )
 
-  return x_new, error, output_state['aux_output']
+  return x_new, stepper_numeric_outputs, output_state['aux_output']
 
 
 def residual_scalar(x):
@@ -363,7 +371,6 @@ def cond(
 
 def body(
     input_state: dict[str, jax.Array],
-    residual_fun,
     jacobian_fun,
     delta_cond_fun,
     delta_reduction_factor,
@@ -384,24 +391,24 @@ def body(
   # conditions of reduced residual and valid state quantities.
   # If tau < taumin while residual > tol, then the routine exits with an
   # error flag, leading to either a warning or recalculation at lower dt
-
   initial_delta_state = {
       'x': input_state['x'],
       'delta': jnp.linalg.solve(a_mat, rhs),
+      'residual_old': input_state['residual'],
+      'residual_new': input_state['residual'],
+      'aux_output_new': input_state['aux_output'],
       'tau': jnp.array(1.0),
   }
   output_delta_state = jax_utils.py_while(
       delta_cond_fun, delta_body_fun, initial_delta_state
   )
 
-  x_new_vec = input_state['x'] + output_delta_state['delta']
-  residual_vec_x_new, aux_output_x_new = residual_fun(x_new_vec)
   output_state = {
-      'x': x_new_vec,
-      'residual': residual_vec_x_new,
+      'x': input_state['x'] + output_delta_state['delta'],
+      'residual': output_delta_state['residual_new'],
       'iterations': jnp.array(input_state['iterations'][...]) + 1,
       'last_tau': output_delta_state['tau'],
-      'aux_output': aux_output_x_new,
+      'aux_output': output_delta_state['aux_output_new'],
   }
   if log_iterations:
     _log_iterations(
@@ -429,14 +436,16 @@ def delta_cond(
   """
   x_old = delta_state['x']
   x_new = x_old + delta_state['delta']
-  residual_vec_x_old, _ = residual_fun(x_old)
+  residual_vec_x_old = delta_state['residual_old']
   residual_scalar_x_old = residual_scalar(residual_vec_x_old)
   # Avoid sanity checking inside residual, since we directly
   # afterwards check sanity on the output (NaN checking)
   # TODO(b/312453092) consider instead sanity-checking x_new
   with jax_utils.enable_errors(False):
-    residual_vec_x_new, _ = residual_fun(x_new)
+    residual_vec_x_new, aux_output_x_new = residual_fun(x_new)
     residual_scalar_x_new = residual_scalar(residual_vec_x_new)
+    delta_state['residual_new'] = residual_vec_x_new
+    delta_state['aux_output_new'] = aux_output_x_new
   return jnp.bool_(
       jnp.logical_and(
           jnp.max(delta_state['delta']) > MIN_DELTA,
@@ -452,9 +461,8 @@ def delta_body(
     input_delta_state: dict[str, jax.Array], delta_reduction_factor: float
 ) -> dict[str, jax.Array]:
   """Reduces step size for this Newton iteration."""
-  output_delta_state = {
-      'x': input_delta_state['x'],
-      'delta': input_delta_state['delta'] * delta_reduction_factor,
-      'tau': jnp.array(input_delta_state['tau'][...]) * delta_reduction_factor,
-  }
-  return output_delta_state
+
+  return input_delta_state | dict(
+      delta=input_delta_state['delta'] * delta_reduction_factor,
+      tau=jnp.array(input_delta_state['tau'][...]) * delta_reduction_factor,
+  )

@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import Optional
 
 import chex
 import jax
 from jax import numpy as jnp
 from jax.scipy import integrate
 from torax import geometry
+from torax import interpolated_param
 from torax import jax_utils
 from torax import state
 from torax.config import config_args
@@ -50,16 +52,61 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # Toggles if external current is provided absolutely or as a fraction of Ip.
   use_absolute_jext: bool = False
 
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> RuntimeParamsProvider:
+    if torax_mesh is None:
+      raise ValueError(
+          'torax_mesh is required for ExternalCurrentSource.make_provider.'
+      )
+    return RuntimeParamsProvider(
+        runtime_params_config=self,
+        formula=self.formula.make_provider(torax_mesh),
+        prescribed_values=config_args.get_interpolated_var_2d(
+            self.prescribed_values, torax_mesh.face_centers
+        ),
+        Iext=config_args.get_interpolated_var_single_axis(
+            self.Iext,
+        ),
+        fext=config_args.get_interpolated_var_single_axis(
+            self.fext,
+        ),
+        wext=config_args.get_interpolated_var_single_axis(
+            self.wext,
+        ),
+        rext=config_args.get_interpolated_var_single_axis(
+            self.rext,
+        ),
+    )
+
+
+@chex.dataclass
+class RuntimeParamsProvider(
+    runtime_params_lib.RuntimeParamsProvider
+):
+  """Provides runtime parameters for a given time and geometry."""
+
+  runtime_params_config: RuntimeParams
+  Iext: interpolated_param.InterpolatedVarSingleAxis
+  fext: interpolated_param.InterpolatedVarSingleAxis
+  wext: interpolated_param.InterpolatedVarSingleAxis
+  rext: interpolated_param.InterpolatedVarSingleAxis
+
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicRuntimeParams,
-            t=t,
-        )
+  ) ->  DynamicRuntimeParams:
+    return  DynamicRuntimeParams(
+        Iext=float(self.Iext.get_value(t)),
+        fext=float(self.fext.get_value(t)),
+        wext=float(self.wext.get_value(t)),
+        rext=float(self.rext.get_value(t)),
+        use_absolute_jext=self.runtime_params_config.use_absolute_jext,
+        mode=self.runtime_params_config.mode.value,
+        is_explicit=self.runtime_params_config.is_explicit,
+        formula=self.formula.build_dynamic_params(t),
+        prescribed_values=self.prescribed_values.get_value(t),
     )
 
 
@@ -87,11 +134,14 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 _trapz = integrate.trapezoid
 
 
+# pytype bug: does not treat 'source_models.SourceModels' as a forward reference
+# pytype: disable=name-error
 def _calculate_jext_face(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
+    unused_source_models: Optional['source_models.SourceModels'] = None,
 ) -> jax.Array:
   """Calculates the external current density profiles.
 
@@ -106,6 +156,7 @@ def _calculate_jext_face(
   Returns:
     External current density profile along the face grid.
   """
+  # pytype: enable=name-error
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   Iext = _calculate_Iext(
       dynamic_runtime_params_slice,
@@ -113,21 +164,24 @@ def _calculate_jext_face(
   )
   # form of external current on face grid
   jextform_face = jnp.exp(
-      -((geo.r_face_norm - dynamic_source_runtime_params.rext) ** 2)
+      -((geo.rho_face_norm - dynamic_source_runtime_params.rext) ** 2)
       / (2 * dynamic_source_runtime_params.wext**2)
   )
 
-  Cext = Iext * 1e6 / _trapz(jextform_face * geo.spr_face, geo.r_face)
+  Cext = Iext * 1e6 / _trapz(jextform_face * geo.spr_face, geo.rho_face_norm)
 
   jext_face = Cext * jextform_face  # external current profile
   return jext_face
 
 
+# pytype bug: does not treat 'source_models.SourceModels' as a forward reference
+# pytype: disable=name-error
 def _calculate_jext_hires(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
+    unused_source_models: Optional['source_models.SourceModels'] = None,
 ) -> jax.Array:
   """Calculates the external current density profile along the hires grid.
 
@@ -142,6 +196,7 @@ def _calculate_jext_hires(
   Returns:
     External current density profile along the hires cell grid.
   """
+  # pytype: enable=name-error
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   Iext = _calculate_Iext(
       dynamic_runtime_params_slice,
@@ -150,10 +205,12 @@ def _calculate_jext_hires(
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on cell grid
   jextform_hires = jnp.exp(
-      -((geo.r_hires_norm - dynamic_source_runtime_params.rext) ** 2)
+      -((geo.rho_hires_norm - dynamic_source_runtime_params.rext) ** 2)
       / (2 * dynamic_source_runtime_params.wext**2)
   )
-  Cext_hires = Iext * 1e6 / _trapz(jextform_hires * geo.spr_hires, geo.r_hires)
+  Cext_hires = (
+      Iext * 1e6 / _trapz(jextform_hires * geo.spr_hires, geo.rho_hires_norm)
+  )
   # External current profile on cell grid
   jext_hires = Cext_hires * jextform_hires
   return jext_hires
@@ -174,13 +231,20 @@ def _calculate_Iext(
   )
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ExternalCurrentSource(source.Source):
   """External current density source profile."""
+
+  # The ExternalCurrentSource returns a profile on the face grid, unlike most
+  # other sources.
+  output_shape_getter: source.SourceOutputShapeFunction = (
+      source.ProfileType.FACE.get_profile_shape
+  )
 
   supported_types: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.FORMULA_BASED,
+      runtime_params_lib.Mode.PRESCRIBED,
   )
 
   # Don't include affected_core_profiles in the __init__ arguments.
@@ -195,30 +259,6 @@ class ExternalCurrentSource(source.Source):
   formula: source.SourceProfileFunction = _calculate_jext_face
   hires_formula: source.SourceProfileFunction = _calculate_jext_hires
 
-  def get_value(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
-  ) -> tuple[jax.Array, jax.Array]:
-    """Return the external current density profile along face and cell grids."""
-    assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-    self.check_mode(dynamic_source_runtime_params.mode)
-    profile = source.get_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_source_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-        # There is no model implementation.
-        model_func=(
-            lambda _0, _1, _2, _3: source.ProfileType.FACE.get_zero_profile(geo)
-        ),
-        formula=self.formula,
-        output_shape=source.ProfileType.FACE.get_profile_shape(geo),
-    )
-    return profile, geometry.face_to_cell(profile)
-
   def jext_hires(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -228,27 +268,32 @@ class ExternalCurrentSource(source.Source):
     """Return the external current density profile along the hires cell grid."""
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
     self.check_mode(dynamic_source_runtime_params.mode)
+
+    # Interpolate prescribed values onto the hires grid
+    hires_prescribed_values = jnp.where(
+        dynamic_source_runtime_params.mode
+        == runtime_params_lib.Mode.PRESCRIBED.value,
+        jnp.interp(
+            geo.rho_hires_norm,
+            geo.rho_face_norm,
+            dynamic_source_runtime_params.prescribed_values,
+        ),
+        jnp.zeros_like(geo.rho_hires_norm),
+    )
+
     return source.get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         core_profiles=None,
         # There is no model for this source.
-        model_func=(lambda _0, _1, _2, _3: jnp.zeros_like(geo.r_hires_norm)),
+        model_func=(
+            lambda _0, _1, _2, _3, _4: jnp.zeros_like(geo.rho_hires_norm)
+        ),
         formula=self.hires_formula,
-        output_shape=geo.r_hires_norm.shape,
-    )
-
-  def get_source_profile_for_affected_core_profile(
-      self,
-      profile: chex.ArrayTree,
-      affected_core_profile: int,
-      geo: geometry.Geometry,
-  ) -> jax.Array:
-    return jnp.where(
-        affected_core_profile in self.affected_core_profiles_ints,
-        profile[0],  # the jext profile
-        jnp.zeros_like(geo.r),
+        output_shape=geo.rho_hires_norm.shape,
+        prescribed_values=hires_prescribed_values,
+        source_models=getattr(self, 'source_models', None),
     )
 
 

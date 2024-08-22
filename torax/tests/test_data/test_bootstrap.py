@@ -23,6 +23,7 @@ CONFIG = {
         'profile_conditions': {
             'set_pedestal': False,
             'nbar': 0.85,  # initial density (in Greenwald fraction units)
+            'ne_bound_right': 0.5,
             # set flat Ohmic current to provide larger range of current
             # evolution for test
             'nu': 0,

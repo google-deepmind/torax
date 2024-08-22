@@ -17,23 +17,21 @@
 import copy
 from typing import Any
 
-from torax import geometry
-from torax import geometry_provider
+from torax import geometry, geometry_provider
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
-from torax.sources import default_sources
-from torax.sources import formula_config
-from torax.sources import formulas
+from torax.sources import default_sources, formula_config, formulas
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
-from torax.stepper import linear_theta_method
-from torax.stepper import nonlinear_theta_method
+from torax.stepper import linear_theta_method, nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
-from torax.time_step_calculator import array_time_step_calculator
-from torax.time_step_calculator import chi_time_step_calculator
-from torax.time_step_calculator import fixed_time_step_calculator
+from torax.time_step_calculator import (
+  array_time_step_calculator,
+  chi_time_step_calculator,
+  fixed_time_step_calculator,
+)
 from torax.time_step_calculator import time_step_calculator as time_step_calculator_lib
 from torax.transport_model import bohm_gyrobohm as bohm_gyrobohm_transport
 from torax.transport_model import constant as constant_transport
@@ -41,54 +39,110 @@ from torax.transport_model import critical_gradient as critical_gradient_transpo
 from torax.transport_model import qlknn_wrapper
 from torax.transport_model import transport_model as transport_model_lib
 
-
 # pylint: disable=invalid-name
 
 
-def build_chease_geometry(
+def _build_standard_geometry_provider(
+    geometry_type: str,
     Ip_from_parameters: bool = True,
     geometry_dir: str | None = None,
-    geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-    nr: int = 25,
-    Rmaj: float = 6.2,
-    Rmin: float = 2.0,
-    B0: float = 5.3,
-    hires_fac: int = 4,
-) -> geometry.StandardGeometry:
-  """Constructs a geometry from CHEASE file.
+    **kwargs,
+) -> geometry_provider.GeometryProvider:
+  """Constructs a geometry provider for a standard geometry."""
+  if geometry_type == 'chease':
+    intermediate_builder = geometry.StandardGeometryIntermediates.from_chease
+  elif geometry_type == 'fbt':
+    intermediate_builder = geometry.StandardGeometryIntermediates.from_fbt
+  else:
+    raise ValueError(f'Unknown geometry type: {geometry_type}')
+  if 'geometry_configs' in kwargs:
+    if not isinstance(kwargs['geometry_configs'], dict):
+      raise ValueError('geometry_configs must be a dict.')
+    geometries = {}
+    for time, config in kwargs['geometry_configs'].items():
+      geometries[time] = geometry.build_standard_geometry(intermediate_builder(
+          Ip_from_parameters=Ip_from_parameters,
+          geometry_dir=geometry_dir,
+          **config,
+      ))
+    return geometry.StandardGeometryProvider.create_provider(geometries)
+  return geometry_provider.ConstantGeometryProvider(
+      geometry.build_standard_geometry(
+          intermediate_builder(
+              Ip_from_parameters=Ip_from_parameters,
+              geometry_dir=geometry_dir,
+              **kwargs,
+          )
+      )
+  )
+
+
+def _build_circular_geometry_provider(
+    **kwargs,
+) -> geometry_provider.GeometryProvider:
+  """Builds a `GeometryProvider` from the input config."""
+  if 'geometry_configs' in kwargs:
+    if not isinstance(kwargs['geometry_configs'], dict):
+      raise ValueError('geometry_configs must be a dict.')
+    if 'n_rho' not in kwargs:
+      raise ValueError('n_rho must be set in the input config.')
+    geometries = {}
+    for time, c in kwargs['geometry_configs'].items():
+      geometries[time] = geometry.build_circular_geometry(
+          n_rho=kwargs['n_rho'], **c)
+    return geometry.CircularAnalyticalGeometryProvider.create_provider(
+        geometries
+    )
+  return geometry_provider.ConstantGeometryProvider(
+      geometry.build_circular_geometry(**kwargs)
+  )
+
+
+def build_geometry_provider_from_config(
+    geometry_config: dict[str, Any] | str,
+) -> geometry_provider.GeometryProvider:
+  """Builds a `Geometry` from the input config.
+
+  The input config has one required key: `geometry_type`. Its value must be one
+  of:
+
+   -  "circular"
+   -  "chease"
+   -  "fbt"
+
+  Depending on the `geometry_type` given, there are different keys/values
+  expected in the rest of the config. See the following functions to get a full
+  list of the arguments exposed:
+
+   -  `geometry.build_circular_geometry()`
+   -  `geometry.StandardGeometryIntermediates.from_chease()`
+   -  `geometry.StandardGeometryIntermediates.from_fbt()`
+
+   For time dependent geometries, the input config should have a key
+  `geometry_configs` which maps times to a dict of geometry config args.
 
   Args:
-    Ip_from_parameters: If True, take Ip from parameter file and rescale psi.
-      Otherwise, Ip comes from CHEASE. The rescale happens during simulation.
-    geometry_dir: Directory where to find the CHEASE file describing the
-      magnetic geometry. If None, uses the environment variable
-      TORAX_GEOMETRY_DIR if available. If that variable is not set and
-      geometry_dir is not provided, then it defaults to another dir. See
-      implementation.
-    geometry_file: CHEASE file name.
-    nr: Radial grid points (num cells)
-    Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
-      is used as an unnormalization factor.
-    Rmin: minor radius (a) in meters
-    B0: Toroidal magnetic field on axis [T].
-    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
-      calculations.
+    geometry_config: Python dictionary containing keys/values that map onto a
+      `geometry` module function that builds a `Geometry` object.
 
   Returns:
-    A constructed Chease `StandardGeometry` object.
+    A `GeometryProvider` based on the input config.
   """
-  intermediates = geometry.StandardGeometryIntermediates.from_chease(
-      geometry_dir=geometry_dir,
-      geometry_file=geometry_file,
-      Ip_from_parameters=Ip_from_parameters,
-      nr=nr,
-      Rmaj=Rmaj,
-      Rmin=Rmin,
-      B0=B0,
-      hires_fac=hires_fac,
-  )
-  geo = geometry.build_standard_geometry(intermediates)
-  return geo
+  if isinstance(geometry_config, str):
+    kwargs = {'geometry_type': geometry_config}
+  else:
+    if 'geometry_type' not in geometry_config:
+      raise ValueError('geometry_type must be set in the input config.')
+    # Do a shallow copy to keep references to the original objects while not
+    # modifying the original config dict with the pop-statement below.
+    kwargs = copy.copy(geometry_config)
+  geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
+  if geometry_type == 'circular':
+    return _build_circular_geometry_provider(**kwargs)
+  elif geometry_type == 'chease' or geometry_type == 'fbt':
+    return _build_standard_geometry_provider(
+        geometry_type=geometry_type, **kwargs)
+  raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 
 def build_sim_from_config(
@@ -197,49 +251,6 @@ def build_runtime_params_from_config(
       runtime_params_lib.GeneralRuntimeParams(),
       **general_runtime_params_config,
   )
-
-
-def build_geometry_provider_from_config(
-    geometry_config: dict[str, Any] | str,
-) -> geometry_provider.GeometryProvider:
-  """Builds a `Geometry` from the input config.
-
-  The input config has one required key: `geometry_type`. Its value must be one
-  of:
-
-   -  "circular"
-   -  "chease"
-
-  Depending on the `geometry_type` given, there are different keys/values
-  expected in the rest of the config. See the following functions to get a full
-  list of the arguments exposed:
-
-   -  `geometry.build_circular_geometry()`
-   -  `geometry.build_geometry_from_chease()`
-
-  Args:
-    geometry_config: Python dictionary containing keys/values that map onto a
-      `geometry` module function that builds a `Geometry` object.
-
-  Returns:
-    A `GeometryProvider` based on the input config.
-  """
-  if isinstance(geometry_config, str):
-    kwargs = {'geometry_type': geometry_config}
-  else:
-    if 'geometry_type' not in geometry_config:
-      raise ValueError('geometry_type must be set in the input config.')
-    # Do a shallow copy to keep references to the original objects while not
-    # modifying the original config dict with the pop-statement below.
-    kwargs = copy.copy(geometry_config)
-  geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
-  if geometry_type == 'circular':
-    return geometry_provider.ConstantGeometryProvider(
-        geometry.build_circular_geometry(**kwargs))
-  elif geometry_type == 'chease':
-    return geometry_provider.ConstantGeometryProvider(
-        build_chease_geometry(**kwargs))
-  raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 
 def build_sources_builder_from_config(
@@ -461,6 +472,8 @@ def build_transport_model_builder_from_config(
   transport_model = transport_config.pop('transport_model')
   if transport_model == 'qlknn':
     qlknn_params = transport_config.pop('qlknn_params', {})
+    if not isinstance(qlknn_params, dict):
+      raise ValueError('qlknn_params must be a dict.')
     if 'model_path' in qlknn_params:
       model_path = qlknn_params.pop('model_path')
     else:
@@ -479,6 +492,8 @@ def build_transport_model_builder_from_config(
     )
   elif transport_model == 'constant':
     constant_params = transport_config.pop('constant_params', {})
+    if not isinstance(constant_params, dict):
+      raise ValueError('constant_params must be a dict.')
     constant_params.update(transport_config)
     # Remove params from the other models, if present.
     constant_params.pop('qlknn_params', None)
@@ -492,6 +507,8 @@ def build_transport_model_builder_from_config(
     )
   elif transport_model == 'CGM':
     cgm_params = transport_config.pop('cgm_params', {})
+    if not isinstance(cgm_params, dict):
+      raise ValueError('cgm_params must be a dict.')
     cgm_params.update(transport_config)
     # Remove params from the other models, if present.
     cgm_params.pop('qlknn_params', None)
@@ -575,6 +592,8 @@ def build_stepper_builder_from_config(
     )
   elif stepper_type == 'newton_raphson':
     newton_raphson_params = stepper_config.pop('newton_raphson_params', {})
+    if not isinstance(newton_raphson_params, dict):
+      raise ValueError('newton_raphson_params must be a dict.')
     newton_raphson_params.update(stepper_config)
     # Remove params from other steppers with nested configs, if present.
     newton_raphson_params.pop('optimizer_params', None)
@@ -586,6 +605,8 @@ def build_stepper_builder_from_config(
     )
   elif stepper_type == 'optimizer':
     optimizer_params = stepper_config.pop('optimizer_params', {})
+    if not isinstance(optimizer_params, dict):
+      raise ValueError('optimizer_params must be a dict.')
     optimizer_params.update(stepper_config)
     # Remove params from other steppers with nested configs, if present.
     optimizer_params.pop('newton_raphson_params', None)

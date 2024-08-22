@@ -27,12 +27,14 @@ from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
+from torax.stepper import runtime_params as stepper_params
 from torax.time_step_calculator import array_time_step_calculator
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_wrapper
+from torax.transport_model import runtime_params as transport_model_params
 
 
 class BuildSimTest(parameterized.TestCase):
@@ -59,7 +61,7 @@ class BuildSimTest(parameterized.TestCase):
             ),
             geometry=dict(
                 geometry_type='circular',
-                nr=5,
+                n_rho=5,
             ),
             sources=dict(
                 pellet_source=dict(
@@ -82,7 +84,7 @@ class BuildSimTest(parameterized.TestCase):
         )
     )
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        sim.initial_state.t, geo=sim.geometry_provider(sim.initial_state.t)
+        t=sim.initial_state.t,
     )
     with self.subTest('runtime_params'):
       self.assertEqual(dynamic_runtime_params_slice.plasma_composition.Ai, 0.1)
@@ -160,9 +162,10 @@ class BuildSimTest(parameterized.TestCase):
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.build_dynamic_runtime_params_slice(
-            runtime_params, t=1.5, geo=geo,
-        )
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
+            torax_mesh=geo.torax_mesh,
+        )(t=1.5,)
     )
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.plasma_composition.Zeff, 0.25
@@ -181,7 +184,7 @@ class BuildSimTest(parameterized.TestCase):
   def test_build_circular_geometry(self):
     geo_provider = build_sim.build_geometry_provider_from_config({
         'geometry_type': 'circular',
-        'nr': 5,  # override a default.
+        'n_rho': 5,  # override a default.
     })
     self.assertIsInstance(
         geo_provider, geometry_provider.ConstantGeometryProvider)
@@ -194,7 +197,7 @@ class BuildSimTest(parameterized.TestCase):
     geo_provider = build_sim.build_geometry_provider_from_config(
         {
             'geometry_type': 'chease',
-            'nr': 5,  # override a default.
+            'n_rho': 5,  # override a default.
         },
     )
     self.assertIsInstance(
@@ -214,13 +217,14 @@ class BuildSimTest(parameterized.TestCase):
     runtime_params_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport_getter=lambda: None,
-            sources_getter=lambda: None,
-            stepper_getter=lambda: None,
+            transport=transport_model_params.RuntimeParams(),
+            sources={},
+            stepper=stepper_params.RuntimeParams(),
+            torax_mesh=geo_provider.torax_mesh,
         )
     )
     geo = geo_provider(t=0)
-    dynamic_runtime_params_slice = runtime_params_provider(t=0, geo=geo)
+    dynamic_runtime_params_slice = runtime_params_provider(t=0,)
     dynamic_slice, geo = runtime_params_slice.make_ip_consistent(
         dynamic_runtime_params_slice, geo
     )

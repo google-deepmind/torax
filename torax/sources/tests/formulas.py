@@ -16,9 +16,12 @@
 
 from absl.testing import absltest
 import chex
+from torax import output
 from torax import sim as sim_lib
-from torax import state as state_lib
+from torax import simulation_app
 from torax.config import build_sim
+from torax.config import numerics as numerics_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.sources import default_sources
 from torax.sources import formula_config
@@ -48,12 +51,13 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
 
     # Copy the test_particle_sources_constant config in here for clarity.
     test_particle_sources_constant_runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=general_runtime_params.ProfileConditions(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=True,
             nbar=0.85,
             nu=0,
+            ne_bound_right=0.5,
         ),
-        numerics=general_runtime_params.Numerics(
+        numerics=numerics_lib.Numerics(
             ion_heat_eq=True,
             el_heat_eq=True,
             dens_eq=True,  # This is important to be True to test ne sources.
@@ -142,11 +146,10 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     with self.subTest('with_puff_and_without_custom_source'):
       # Need to run the sim once to build the step_fn.
       torax_outputs = sim.run()
-      core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-      t = state_lib.build_time_history_from_states(torax_outputs)
+      history = output.StateHistory(torax_outputs)
       self._check_profiles_vs_expected(
-          core_profiles=core_profiles,
-          t=t,
+          core_profiles=history.core_profiles,
+          t=history.times,
           ref_time=ref_time,
           ref_profiles=ref_profiles,
           rtol=self.rtol,
@@ -173,6 +176,14 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
       source_models_builder.runtime_params['gas_puff_source'].mode = (
           runtime_params_lib.Mode.ZERO
       )
+      sim = simulation_app.update_sim(
+          sim,
+          test_particle_sources_constant_runtime_params,
+          sim.geometry_provider,
+          transport_model_builder.runtime_params,
+          source_models_builder.runtime_params,
+          linear_theta_method.LinearRuntimeParams(predictor_corrector=False),
+      )
       self._run_sim_and_check(sim, ref_profiles, ref_time)
 
     with self.subTest('without_puff_and_without_custom_source'):
@@ -180,6 +191,14 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
       # Turn it off as well, and the check shouldn't pass.
       source_models_builder.runtime_params[custom_source_name].mode = (
           runtime_params_lib.Mode.ZERO
+      )
+      sim = simulation_app.update_sim(
+          sim,
+          test_particle_sources_constant_runtime_params,
+          sim.geometry_provider,
+          transport_model_builder.runtime_params,
+          source_models_builder.runtime_params,
+          linear_theta_method.LinearRuntimeParams(predictor_corrector=False),
       )
       with self.assertRaises(AssertionError):
         self._run_sim_and_check(sim, ref_profiles, ref_time)
@@ -199,11 +218,10 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         time_step_calculator=sim.time_step_calculator,
         step_fn=sim.step_fn,
     )
-    core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-    t = state_lib.build_time_history_from_states(torax_outputs)
+    history = output.StateHistory(torax_outputs)
     self._check_profiles_vs_expected(
-        core_profiles=core_profiles,
-        t=t,
+        core_profiles=history.core_profiles,
+        t=history.times,
         ref_time=ref_time,
         ref_profiles=ref_profiles,
         rtol=self.rtol,

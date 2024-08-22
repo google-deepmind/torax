@@ -112,10 +112,10 @@ For example:
         foo = dynamic_runtime_params_slice.transport.foo
         bar = dynamic_runtime_params_slice.transport.bar
         return state.CoreTransport(
-            chi_face_ion=foo * jnp.ones_like(geo.r_face),
-            chi_face_el=foo * jnp.ones_like(geo.r_face),
-            d_face_el=bar * jnp.ones_like(geo.r_face),
-            v_face_el=bar * jnp.ones_like(geo.r_face),
+            chi_face_ion=foo * jnp.ones_like(geo.rho_face),
+            chi_face_el=foo * jnp.ones_like(geo.rho_face),
+            d_face_el=bar * jnp.ones_like(geo.rho_face),
+            v_face_el=bar * jnp.ones_like(geo.rho_face),
         )
 
     @dataclasses.dataclass(kw_only=True)

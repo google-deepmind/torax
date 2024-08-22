@@ -17,7 +17,7 @@
 Math operations that are needed for Torax, but are not specific to plasma
 physics or differential equation solvers.
 """
-from typing import Optional
+import functools
 import jax
 from jax import numpy as jnp
 
@@ -40,68 +40,66 @@ def tridiag(
 
 
 def cumulative_trapezoid(
-    x: jax.Array, y: jax.Array, initial: Optional[jax.Array] = None
+    y: jax.Array,
+    x: jax.Array | None = None,
+    dx: float = 1.0,
+    axis: int = -1,
+    initial: float | None = None,
 ) -> jax.Array:
   """Cumulatively integrate y = f(x) using the trapezoid rule.
 
-  Jax equivalent of scipy.integrate.cumulative_trapezoid.
-  without as much support for different shapes / options as the scipy version.
+  JAX equivalent of scipy.integrate.cumulative_trapezoid.
 
   Args:
-    x: 1-D array
-    y: 1-D array
-    initial: Optional array containing a single value. If specified, out[i] =
-      trapz(y[:i +1], x[:i + 1]), with out[0] = initial. Usually initial should
-      be 0 in this case. If left unspecified, the leftmost output, corresponding
-      to summing no terms, is omitted.
+    y: array of data to integrate.
+    x: optional array of sample points corresponding to the `y` values. If not
+      provided, `x` defaults to equally spaced with spacing given by `dx`.
+    dx: the spacing between sample points when `x` is None (default: 1.0).
+    axis: the axis along which to integrate (default: -1)
+    initial: a scalar value to prepend to the result. Either None (default) or
+      0.0. If `initial=0`, the result is an array with the same shape as `y`. If
+      ``initial=None``, the resulting array has one fewer elements than `y`
+      along the `axis` dimension.
 
   Returns:
-    out: 1-D array of same shape, containing the cumulative integration by
-      trapezoid rule.
+    The cumulative definite integral approximated by the trapezoidal rule.
   """
 
-  d = jnp.diff(x)
-  out = jnp.cumsum(d * (y[1:] + y[:-1])) / 2.0
-  if initial is not None:
-    out = jnp.concatenate((jnp.expand_dims(initial, 0), out))
-  return out
-
-
-# TODO(b/335681410) extend jnp.gradient itself
-def gradient(y: jax.Array, x: jax.Array) -> jax.Array:
-  """Make effective jnp.gradient function, 2nd order like numpy.
-
-  Needed since jnp.gradient does not currently support nonuniform spacing.
-
-  Args:
-    y: array being differentiated with respect to x.
-    x: differentiating array.
-
-  Returns:
-    result: dy/dx
-  """
-  assert x.shape == y.shape
-  length = len(x)
-  result = jnp.zeros(length)
-
-  # 1st order derivatives at array boundaries
-  result = result.at[0].set((y[1] - y[0]) / (x[1] - x[0]))
-  result = result.at[-1].set((y[-1] - y[-2]) / (x[-1] - x[-2]))
-
-  dx = x[1:] - x[0:-1]
-  dx1 = dx[0:-1]
-  dx2 = dx[1:]
-  a = -(dx2) / (dx1 * (dx1 + dx2))
-  b = (dx2 - dx1) / (dx1 * dx2)
-  c = dx1 / (dx2 * (dx1 + dx2))
-
-  # 2nd order derivatives at inner elements, allowing for nonuniform dx
-  for idx in range(1, length - 1):
-    result = result.at[idx].set(
-        (
-            a[idx - 1] * y[idx - 1]
-            + b[idx - 1] * y[idx]
-            + c[idx - 1] * y[idx + 1]
+  if x is None:
+    dx = jnp.asarray(dx, dtype=y.dtype)
+  else:
+    if x.ndim == 1:
+      if y.shape[axis] != len(x):
+        raise ValueError(
+            f'The length of x is {len(x)}, but expected {y.shape[axis]}.'
         )
-    )
-  return result
+    else:
+      if x.shape != y.shape:
+        raise ValueError(
+            'If x is not 1 dimensional, it must have the same shape as y.'
+        )
+
+    if x.ndim == 1:
+      dx = jnp.diff(x)
+      new_shape = [1] * y.ndim
+      new_shape[axis] = len(dx)
+      dx = jnp.reshape(dx, new_shape)
+    else:
+      dx = jnp.diff(x, axis=axis)
+
+  y_sliced = functools.partial(jax.lax.slice_in_dim, y, axis=axis)
+
+  out = jnp.cumsum(dx * (y_sliced(1, None) + y_sliced(0, -1)), axis=axis) / 2.0
+
+  if initial is not None:
+    if initial != 0.0:
+      raise ValueError(
+          '`initial` must be 0 or None. Non-zero values have been deprecated'
+          ' since SciPy version 1.12.0.'
+      )
+    initial_array = jnp.asarray(initial, dtype=out.dtype)
+    initial_shape = list(out.shape)
+    initial_shape[axis] = 1
+    initial_array = jnp.broadcast_to(initial_array, initial_shape)
+    out = jnp.concatenate((initial_array, out), axis=axis)
+  return out

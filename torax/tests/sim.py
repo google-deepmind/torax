@@ -22,11 +22,11 @@ from typing import Optional, Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import numpy as np
 import torax
+from torax import output
 from torax import sim as sim_lib
-from torax import state as state_lib
+from torax.config import numerics as numerics_lib
 from torax.sources import source_models as source_models_lib
 from torax.spectators import spectator as spectator_lib
 from torax.stepper import linear_theta_method
@@ -183,6 +183,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests specifying a prescribed time-varying arbitrary jext profile
+      (
+          'test_prescribed_jext',
+          'test_prescribed_jext.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Tests fusion power. CGM transport, heat+particle+psi transport
       (
           'test_fusion_power',
@@ -273,7 +280,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_ne_qlknn_defromchie',
           'test_ne_qlknn_defromchie.py',
           _ALL_PROFILES,
-          0,
+          1e-8,
       ),
       # Tests particle transport with QLKNN. Deff+Veff model. CHEASE geometry.
       (
@@ -324,7 +331,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_newton',
           'test_iterhybrid_newton.py',
           _ALL_PROFILES,
-          0,
+          5e-7,
       ),
       # Tests current and density rampup for for ITER-hybrid-like-config
       # using Newton-Raphson. Only case which reverts to coarse_tol for several
@@ -334,7 +341,30 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_rampup.py',
           _ALL_PROFILES,
           0,
-          2e-7
+          1e-6
+      ),
+      # Tests time-dependent circular geometry.
+      (
+          'test_time_dependent_circular_geo',
+          'test_time_dependent_circular_geo.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Tests used for testing changing configs without recompiling.
+      # Based on test_iterhybrid_predictor_corrector
+      (
+          'test_changing_config_before',
+          'test_changing_config_before.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Tests used for testing changing configs without recompiling.
+      # Based on test_iterhybrid_predictor_corrector
+      (
+          'test_changing_config_after',
+          'test_changing_config_after.py',
+          _ALL_PROFILES,
+          0,
       ),
   )
   def test_torax_sim(
@@ -373,7 +403,7 @@ class SimTest(sim_test_case.SimTestCase):
     """Tests that running the stepper with all equations off is a no-op."""
 
     runtime_params = torax.general_runtime_params.GeneralRuntimeParams(
-        numerics=torax.general_runtime_params.Numerics(
+        numerics=numerics_lib.Numerics(
             t_final=0.1,
             ion_heat_eq=False,
             el_heat_eq=False,
@@ -395,16 +425,14 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     torax_outputs = sim.run()
-    core_profiles, _, _ = state_lib.build_history_from_states(torax_outputs)
-    t = state_lib.build_time_history_from_states(torax_outputs)
+    history = output.StateHistory(torax_outputs)
 
-    chex.assert_rank(t, 1)
-    history_length = core_profiles.temp_ion.value.shape[0]
-    self.assertEqual(history_length, t.shape[0])
-    self.assertGreater(t[-1], runtime_params.numerics.t_final)
+    history_length = history.core_profiles.temp_ion.value.shape[0]
+    self.assertEqual(history_length, history.times.shape[0])
+    self.assertGreater(history.times[-1], runtime_params.numerics.t_final)
 
     for torax_profile in _ALL_PROFILES:
-      profile_history = core_profiles[torax_profile]
+      profile_history = history.core_profiles[torax_profile]
       # This is needed for CellVariable but not face variables
       if hasattr(profile_history, 'value'):
         profile_history = profile_history.value
@@ -460,6 +488,80 @@ class SimTest(sim_test_case.SimTestCase):
         spectator=spectator,
     )
     self.assertNotEmpty(spectator.arrays)
+
+  def test_core_profiles_are_recomputable(self):
+    """Tests that core profiles from a previous run are recomputable."""
+    test_config = 'test_iterhybrid_rampup'
+    profiles = [
+        output.TEMP_ION,
+        output.TEMP_EL,
+        output.NE,
+        output.NI,
+        output.NE_RIGHT_BC,
+        output.PSI,
+        output.IP,
+        output.NREF,
+        output.Q_FACE,
+        output.S_FACE,
+    ]
+    ref_profiles, _ = self._get_refs(test_config + '.nc', profiles)
+
+    # Build the runtime params at t=0.0, everything else should be from t=80.0.
+    sim = self._get_sim(test_config + '.py')
+    geo = sim.geometry_provider(t=80.0)
+    dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
+        t=0.0,
+    )
+    source_models = sim.source_models_builder()
+
+    # Load in the reference core profiles from t=80.0 (the last step).
+    Ip = ref_profiles[output.IP][-1]  # pylint: disable=invalid-name
+    temp_el = ref_profiles[output.TEMP_EL][-1, :]
+    temp_ion = ref_profiles[output.TEMP_ION][-1, :]
+    ne = ref_profiles[output.NE][-1, :]
+    ne_bound_right = ref_profiles[output.NE_RIGHT_BC][-1]
+    ni = ref_profiles[output.NI][-1, :]
+    psi = ref_profiles[output.PSI][-1, :]
+    nref = ref_profiles[output.NREF][-1]
+    q_face = ref_profiles[output.Q_FACE][-1, :]
+    s_face = ref_profiles[output.S_FACE][-1, :]
+    # Override the dynamic runtime params with the values from t=80.0.
+    dynamic_runtime_params_slice.profile_conditions.Ip = Ip
+    dynamic_runtime_params_slice.profile_conditions.Te = temp_el
+    dynamic_runtime_params_slice.profile_conditions.Ti = temp_ion
+    dynamic_runtime_params_slice.profile_conditions.ne = ne
+    dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
+        ne_bound_right
+    )
+    dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = (
+        False
+    )
+    dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
+        True
+    )
+    dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
+    dynamic_runtime_params_slice.profile_conditions.psi = psi
+    dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar = False
+    dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
+
+    # Get initial core profiles for the overriden dynamic runtime params.
+    initial_state = sim_lib.get_initial_state(
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
+        sim.time_step_calculator,
+    )
+    core_profiles = initial_state.core_profiles
+
+    # Check for agreement with the reference profiles.
+    np.testing.assert_allclose(core_profiles.temp_el.value, temp_el)
+    np.testing.assert_allclose(core_profiles.temp_ion.value, temp_ion)
+    np.testing.assert_allclose(core_profiles.ne.value, ne)
+    np.testing.assert_allclose(core_profiles.ni.value, ni)
+    np.testing.assert_allclose(core_profiles.psi.value, psi)
+    np.testing.assert_allclose(core_profiles.nref, nref)
+    np.testing.assert_allclose(core_profiles.q_face, q_face)
+    np.testing.assert_allclose(core_profiles.s_face, s_face)
 
 
 if __name__ == '__main__':

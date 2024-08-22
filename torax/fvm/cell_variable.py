@@ -21,7 +21,6 @@ Naming conventions and API are similar to those developed in the FiPy fvm solver
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import dataclasses
 from typing import Optional
 
@@ -283,17 +282,3 @@ class CellVariable:
 
   def __eq__(self, other):
     return self is other
-
-
-# Updates a CellVariable.
-# Useful for updating time-dependent boundary conditions. While other functions
-# update the values of the state vector, these functions can ensure that the
-# boundary conditions are set correctly.
-CellVariableUpdateFn = Callable[
-    # Inputs.
-    [
-        CellVariable,  # State component.
-    ],
-    # Output.
-    CellVariable,  # Updated cell with correct boundary conditions.
-]

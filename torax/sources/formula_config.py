@@ -17,31 +17,16 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import TypeAlias
 
 import chex
+from torax import geometry
 from torax import interpolated_param
+from torax.config import base
 from torax.config import config_args
 
 
-TimeInterpolated = interpolated_param.TimeInterpolated
-
-
-@dataclasses.dataclass
-class FormulaConfig:
-  """Configures a formula.
-
-  This config can include time-varying parameters which are interpolated as
-  the simulation runs. For new formula implementations, extend this class and
-  add the formula-specific parameters required.
-
-  The Gaussian and Exponential config classes, and their implementations in
-  formulas.py, are useful, simple examples for how to do this.
-  """
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicFormula:
-    """Interpolates this config to a dynamic config for time t."""
-    del t  # Unused because there are no params in the base class.
-    return DynamicFormula()
+TimeInterpolated: TypeAlias = interpolated_param.TimeInterpolated
 
 
 @chex.dataclass(frozen=True)
@@ -50,7 +35,7 @@ class DynamicFormula:
 
 
 @dataclasses.dataclass
-class Exponential(FormulaConfig):
+class Exponential(base.RuntimeParametersConfig['ExponentialProvider']):
   """Configures an exponential formula.
 
   See formulas.Exponential for more information on how this config is used.
@@ -64,13 +49,36 @@ class Exponential(FormulaConfig):
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicExponential:
+  def make_provider(
+      self, torax_mesh: geometry.Grid1D | None = None
+  ) -> ExponentialProvider:
+    del torax_mesh  # Unused.
+    return ExponentialProvider(
+        runtime_params_config=self,
+        total=config_args.get_interpolated_var_single_axis(self.total,),
+        c1=config_args.get_interpolated_var_single_axis(self.c1,),
+        c2=config_args.get_interpolated_var_single_axis(self.c2,),
+    )
+
+
+@chex.dataclass
+class ExponentialProvider(base.RuntimeParametersProvider['DynamicExponential']):
+  """Runtime parameter provider for a single source/sink term."""
+
+  runtime_params_config: Exponential
+  total: interpolated_param.InterpolatedVarSingleAxis
+  c1: interpolated_param.InterpolatedVarSingleAxis
+  c2: interpolated_param.InterpolatedVarSingleAxis
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+    ) -> DynamicExponential:
     return DynamicExponential(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicExponential,
-            t=t,
-        )
+        total=float(self.total.get_value(t)),
+        c1=float(self.c1.get_value(t)),
+        c2=float(self.c2.get_value(t)),
+        use_normalized_r=self.runtime_params_config.use_normalized_r,
     )
 
 
@@ -84,7 +92,7 @@ class DynamicExponential(DynamicFormula):
 
 
 @dataclasses.dataclass
-class Gaussian:
+class Gaussian(base.RuntimeParametersConfig['GaussianProvider']):
   """Configures a Gaussian formula.
 
   See formulas.Gaussian for more information on how this config is used.
@@ -98,13 +106,34 @@ class Gaussian:
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False
 
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicGaussian:
+  def make_provider(
+      self, torax_mesh: geometry.Grid1D | None = None
+  ) -> GaussianProvider:
+    del torax_mesh  # Unused.
+    return GaussianProvider(
+        runtime_params_config=self,
+        total=config_args.get_interpolated_var_single_axis(self.total,),
+        c1=config_args.get_interpolated_var_single_axis(self.c1,),
+        c2=config_args.get_interpolated_var_single_axis(self.c2,),)
+
+
+@chex.dataclass
+class GaussianProvider(base.RuntimeParametersProvider['DynamicGaussian']):
+  """Runtime parameter provider for a single source/sink term."""
+  runtime_params_config: Gaussian
+  total: interpolated_param.InterpolatedVarSingleAxis
+  c1: interpolated_param.InterpolatedVarSingleAxis
+  c2: interpolated_param.InterpolatedVarSingleAxis
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+    ) -> DynamicGaussian:
     return DynamicGaussian(
-        **config_args.get_init_kwargs(
-            input_config=self,
-            output_type=DynamicGaussian,
-            t=t,
-        )
+        total=float(self.total.get_value(t)),
+        c1=float(self.c1.get_value(t)),
+        c2=float(self.c2.get_value(t)),
+        use_normalized_r=self.runtime_params_config.use_normalized_r,
     )
 
 

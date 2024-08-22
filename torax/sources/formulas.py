@@ -15,6 +15,7 @@
 """Prescribed formulas for computing source profiles."""
 
 import dataclasses
+from typing import Optional
 import jax
 from jax import numpy as jnp
 from torax import geometry
@@ -43,10 +44,10 @@ def exponential_profile(
 
     | cell = exp(-(c1 - r) / c2)
     | face = exp(-(c1 - r_face) / c2)
-    | C = total / trapz(vpr_face * face, r_face)
+    | C = total / trapz(vpr_face * face, r_face_norm)
     | profile = C * cell
 
-  The formula can use the normalized r and r_face if specified.
+  The formula can use the normalized r and r_face for c1 + c2 if specified.
 
   Args:
     geo: Geometry constants of torus.
@@ -59,12 +60,14 @@ def exponential_profile(
   Returns:
     Exponential profile on the cell grid.
   """
-  r = jax_utils.select(use_normalized_r, geo.r_norm, geo.r)
-  r_face = jax_utils.select(use_normalized_r, geo.r_face_norm, geo.r_face)
+  r = jax_utils.select(use_normalized_r, geo.rho_norm, geo.rho)
+  r_face = jax_utils.select(use_normalized_r, geo.rho_face_norm, geo.rho_face)
   S = jnp.exp(-(c1 - r) / c2)
   S_face = jnp.exp(-(c1 - r_face) / c2)
   # calculate constant prefactor
-  C = total / jax.scipy.integrate.trapezoid(geo.vpr_face * S_face, geo.r_face)
+  C = total / jax.scipy.integrate.trapezoid(
+      geo.vpr_face * S_face, geo.rho_face_norm
+  )
   return C * S
 
 
@@ -81,10 +84,10 @@ def gaussian_profile(
 
     | cell = exp(-( (r - c1)**2 / (2 * c2**2) ))
     | face = exp(-( (r_face - c1)**2 / (2 * c2**2) ))
-    | C = total / trazp(vpr_face * face, r_face)
+    | C = total / trapz( vpr_face * face, r_face_norm)
     | profile = C * cell
 
-  The formula can use the normalized r and r_face if specified.
+  The formula can use the normalized r and r_face for c1 + c2 if specified.
 
   Args:
     geo: Geometry constants of torus.
@@ -97,12 +100,14 @@ def gaussian_profile(
   Returns:
     Gaussian profile on the cell grid.
   """
-  r = jax_utils.select(use_normalized_r, geo.r_norm, geo.r)
-  r_face = jax_utils.select(use_normalized_r, geo.r_face_norm, geo.r_face)
+  r = jax_utils.select(use_normalized_r, geo.rho_norm, geo.rho)
+  r_face = jax_utils.select(use_normalized_r, geo.rho_face_norm, geo.rho_face)
   S = jnp.exp(-((r - c1) ** 2) / (2 * c2**2))
   S_face = jnp.exp(-((r_face - c1) ** 2) / (2 * c2**2))
   # calculate constant prefactor
-  C = total / jax.scipy.integrate.trapezoid(geo.vpr_face * S_face, geo.r_face)
+  C = total / jax.scipy.integrate.trapezoid(
+      geo.vpr_face * S_face, geo.rho_face_norm
+  )
   return C * S
 
 
@@ -116,12 +121,13 @@ def gaussian_profile(
 class Exponential:
   """Callable class providing an exponential profile."""
 
-  def __call__(
+  def __call__(  # pytype: disable=name-error
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
+      unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
     exp_config = dynamic_source_runtime_params.formula
     assert isinstance(exp_config, formula_config.DynamicExponential)
@@ -138,12 +144,13 @@ class Exponential:
 class Gaussian:
   """Callable class providing a gaussian profile."""
 
-  def __call__(
+  def __call__(  # pytype: disable=name-error
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
+      unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
     gaussian_config = dynamic_source_runtime_params.formula
     assert isinstance(gaussian_config, formula_config.DynamicGaussian)
