@@ -339,18 +339,10 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     return self._time_interpolated_var.get_value(x)
 
 
-# In runtime_params, users should be able to either specify the
-# InterpolatedVarSingleAxis/InterpolatedVarTimeRho object directly or the values
-# that go in the constructor. This helps with brevity since a lot of these
-# params are fixed floats.
 # Type-alias for a variable (in rho_norm) to be interpolated in time.
 # If a string is provided, it is assumed to be an InterpolationMode else, the
 # default piecewise linear interpolation is used.
 TimeInterpolated = (
-    InterpolatedVarSingleAxis
-    | InterpolatedVarSingleAxisInput
+    InterpolatedVarSingleAxisInput
     | tuple[InterpolatedVarSingleAxisInput, str]
 )
-
-# Type-alias for a variable to be interpolated in time and rho.
-TimeRhoInterpolated = InterpolatedVarTimeRho | InterpolatedVarTimeRhoInput

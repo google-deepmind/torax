@@ -113,7 +113,7 @@ class ConfigArgsTest(parameterized.TestCase):
   def test_interpolated_var_time_rho_parses_float_input(self):
     """Tests that InterpolatedVarTimeRho parses float inputs correctly."""
     interpolated_var_time_rho = config_args.get_interpolated_var_2d(
-        param_or_param_input=1.0, rho_norm=np.array(0.0)
+        time_rho_interpolated_input=1.0, rho_norm=np.array(0.0)
     )
     np.testing.assert_allclose(interpolated_var_time_rho.get_value(x=0.0), 1.0)
     self.assertLen(interpolated_var_time_rho.sorted_indices, 1)
@@ -122,7 +122,7 @@ class ConfigArgsTest(parameterized.TestCase):
   def test_interpolated_var_time_rho_parses_single_dict_input(self):
     """Tests that InterpolatedVarTimeRho parses dict inputs correctly."""
     interpolated_var_time_rho = config_args.get_interpolated_var_2d(
-        param_or_param_input={
+        time_rho_interpolated_input={
             0: 18.0,
             0.95: 5.0,
         },
@@ -132,7 +132,7 @@ class ConfigArgsTest(parameterized.TestCase):
     np.testing.assert_allclose(interpolated_var_time_rho.get_value(x=0.5), 18.0)
 
     interpolated_var_time_rho = config_args.get_interpolated_var_2d(
-        param_or_param_input={
+        time_rho_interpolated_input={
             0: 18.0,
             0.95: 5.0,
         },
@@ -148,7 +148,7 @@ class ConfigArgsTest(parameterized.TestCase):
         coords={'time': [0.0, 1.0], 'rho_norm': [0.25, 0.5, 0.75]},
     )
     interpolated_var_time_rho = config_args.get_interpolated_var_2d(
-        param_or_param_input=array,
+        time_rho_interpolated_input=array,
         rho_norm=np.array([0.25, 0.5, 0.75]),
     )
 
@@ -179,7 +179,7 @@ class ConfigArgsTest(parameterized.TestCase):
         np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
     )
     interpolated_var_time_rho = config_args.get_interpolated_var_2d(
-        param_or_param_input=arrays,
+        time_rho_interpolated_input=arrays,
         rho_norm=np.array([0.25, 0.5, 0.75]),
     )
 
@@ -209,7 +209,7 @@ class ConfigArgsTest(parameterized.TestCase):
         np.array([1.0, 2.0, 3.0]),
     )
     interpolated_var_time_rho = config_args.get_interpolated_var_2d(
-        param_or_param_input=arrays,
+        time_rho_interpolated_input=arrays,
         rho_norm=np.array([0.25, 0.5, 0.75]),
     )
 

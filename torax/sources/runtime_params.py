@@ -28,7 +28,6 @@ from torax.sources import formula_config
 
 
 TimeInterpolated = interpolated_param.TimeInterpolated
-TimeRhoInterpolated = interpolated_param.TimeRhoInterpolated
 
 
 @enum.unique
@@ -94,8 +93,8 @@ class RuntimeParams(base.RuntimeParametersConfig):
   # NOTE: For Sources that have different output shapes, make sure to update
   # build_dynamic_params() to handle the new shape. The default implementation
   # assumes a 1D output along the cell grid.
-  prescribed_values: TimeRhoInterpolated = dataclasses.field(
-      default_factory=lambda: {0: {0: 0, 1: 0}}
+  prescribed_values: interpolated_param.InterpolatedVarTimeRhoInput = (
+      dataclasses.field(default_factory=lambda: {0: {0: 0, 1: 0}})
   )
 
   def make_provider(

@@ -91,61 +91,58 @@ def _convert_value_to_floats(
 
 
 def get_interpolated_var_single_axis(
-    param_or_param_input: interpolated_param.TimeInterpolated,
+    interpolated_var_single_axis_input: interpolated_param.InterpolatedVarSingleAxisInput,
 ) -> interpolated_param.InterpolatedVarSingleAxis:
   """Interpolates the input param at time t.
 
   Args:
-    param_or_param_input: Either a "param"
-       `interpolated_param.InterpolatedVarSingleAxis` or a "param_input" that
-       can be used to construct `interpolated_param.InterpolatedVarSingleAxis`.
-       In the latter case this can be either:
-       - Primitives
-       In the case of using primitives the value can be either:
-       - An xr.DataArray
-       - A tuple(axis_array, values_array)
+    interpolated_var_single_axis_input: Input that can be used to construct a
+    `interpolated_param.InterpolatedVarSingleAxis` object.
+    Can be either:
+    - Python primitives.
+    - An xr.DataArray.
+    - A tuple(axis_array, values_array).
 
     See torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars
-    for more information on the supported "param_input"s.
+    for more information on the supported inputs.
   Returns:
     A constructed interpolated var.
   """
-  if not isinstance(
-      param_or_param_input, interpolated_param.InterpolatedVarSingleAxis
-  ):
-    interpolation_mode = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
-    # The param is a InterpolatedVarSingleAxisInput, so we need to convert it to
-    # an InterpolatedVarSingleAxis first.
-    if isinstance(param_or_param_input, tuple):
-      if len(param_or_param_input) != 2:
-        raise ValueError(
-            'Single axis interpolated var tuple length must be 2. The first '
-            'element are the values and the second element is the '
-            'interpolation mode or both values should be arrays to be directly '
-            f'interpolated. Given: {param_or_param_input}.'
-        )
-      if isinstance(param_or_param_input[1], str):
-        interpolation_mode = interpolated_param.InterpolationMode[
-            param_or_param_input[1].upper()
-        ]
-        param_or_param_input = param_or_param_input[0]
-
-    if _is_bool(param_or_param_input):
-      param_or_param_input = _convert_value_to_floats(
-          param_or_param_input
+  interpolation_mode = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
+  # The param is a InterpolatedVarSingleAxisInput, so we need to convert it to
+  # an InterpolatedVarSingleAxis first.
+  if isinstance(interpolated_var_single_axis_input, tuple):
+    if len(interpolated_var_single_axis_input) != 2:
+      raise ValueError(
+          'Single axis interpolated var tuple length must be 2. The first '
+          'element are the values and the second element is the '
+          'interpolation mode or both values should be arrays to be directly '
+          f'interpolated. Given: {interpolated_var_single_axis_input}.'
       )
-      is_bool_param = True
-    else:
-      is_bool_param = False
+    if isinstance(interpolated_var_single_axis_input[1], str):
+      interpolation_mode = interpolated_param.InterpolationMode[
+          interpolated_var_single_axis_input[1].upper()
+      ]
+      interpolated_var_single_axis_input = interpolated_var_single_axis_input[0]
 
-    xs, ys = interpolated_param.convert_input_to_xs_ys(param_or_param_input)
-
-    param_or_param_input = interpolated_param.InterpolatedVarSingleAxis(
-        value=(xs, ys),
-        interpolation_mode=interpolation_mode,
-        is_bool_param=is_bool_param,
+  if _is_bool(interpolated_var_single_axis_input):
+    interpolated_var_single_axis_input = _convert_value_to_floats(
+        interpolated_var_single_axis_input
     )
-  return param_or_param_input
+    is_bool_param = True
+  else:
+    is_bool_param = False
+
+  xs, ys = interpolated_param.convert_input_to_xs_ys(
+      interpolated_var_single_axis_input
+  )
+
+  interpolated_var_single_axis = interpolated_param.InterpolatedVarSingleAxis(
+      value=(xs, ys),
+      interpolation_mode=interpolation_mode,
+      is_bool_param=is_bool_param,
+  )
+  return interpolated_var_single_axis
 
 
 def _input_is_an_interpolated_var_time_rho(
@@ -292,10 +289,10 @@ def _load_from_arrays(
 
 
 def get_interpolated_var_2d(
-    param_or_param_input: interpolated_param.TimeRhoInterpolated,
+    time_rho_interpolated_input: interpolated_param.InterpolatedVarTimeRhoInput,
     rho_norm: chex.Array,
 ) -> interpolated_param.InterpolatedVarTimeRho:
-  """Constructs an InterpolatedVarTimeRho from the given param_or_param_input.
+  """Constructs an InterpolatedVarTimeRho from the given input.
 
   Three cases are supported:
   1. Python primitives are passed in, see _load_from_primitives for details.
@@ -303,42 +300,38 @@ def get_interpolated_var_2d(
   3. A tuple of arrays is passed in, see _load_from_arrays for details.
 
   Args:
-    param_or_param_input: Either a constructed InterpolatedVarTimeRho or a
-      param_or_param_input that can be used to construct InterpolatedVarTimeRho.
+    time_rho_interpolated_input: An input that can be used to construct a
+      InterpolatedVarTimeRho object.
     rho_norm: The rho_norm values to interpolate at (usually the TORAX mesh).
 
   Returns:
     An InterpolatedVarTimeRho object which has been preinterpolaed onto the
     provided rho_norm values.
   """
-  if not isinstance(
-      param_or_param_input, interpolated_param.InterpolatedVarTimeRho
-  ):
-    # Dealing with a param input so convert it first.
-    if isinstance(param_or_param_input, xr.DataArray):
-      values = _load_from_xr_array(
-          param_or_param_input,
-      )
-    elif isinstance(param_or_param_input, tuple) and all(
-        isinstance(v, chex.Array) for v in param_or_param_input
-    ):
-      values = _load_from_arrays(
-          param_or_param_input,
-      )
-    elif isinstance(param_or_param_input, Mapping) or isinstance(
-        param_or_param_input, (float, int)
-    ):
-      values = _load_from_primitives(
-          param_or_param_input,
-      )
-    else:
-      raise ValueError('Input for interpolated var not recognised.')
-
-    param_or_param_input = interpolated_param.InterpolatedVarTimeRho(
-        values=values,
-        rho_norm=rho_norm,
+  if isinstance(time_rho_interpolated_input, xr.DataArray):
+    values = _load_from_xr_array(
+        time_rho_interpolated_input,
     )
-  return param_or_param_input
+  elif isinstance(time_rho_interpolated_input, tuple) and all(
+      isinstance(v, chex.Array) for v in time_rho_interpolated_input
+  ):
+    values = _load_from_arrays(
+        time_rho_interpolated_input,
+    )
+  elif isinstance(time_rho_interpolated_input, Mapping) or isinstance(
+      time_rho_interpolated_input, (float, int)
+  ):
+    values = _load_from_primitives(
+        time_rho_interpolated_input,
+    )
+  else:
+    raise ValueError('Input for interpolated var not recognised.')
+
+  time_rho_interpolated = interpolated_param.InterpolatedVarTimeRho(
+      values=values,
+      rho_norm=rho_norm,
+  )
+  return time_rho_interpolated
 
 
 def recursive_replace(
