@@ -183,26 +183,25 @@ class ProfileConditions(
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None,
   ) -> ProfileConditionsProvider:
+    provider_kwargs = self.get_provider_kwargs(torax_mesh)
     if torax_mesh is None:
       raise ValueError('torax_mesh is required for ProfileConditionsProvider.')
+
+    # Overrides for profile conditions provider.
     if self.Te_bound_right is None:
       logging.info('Setting electron temperature boundary condition using Te.')
       Te_bound_right = config_args.get_interpolated_var_2d(
           self.Te, torax_mesh.face_centers[-1]
       )
-    else:
-      Te_bound_right = config_args.get_interpolated_var_single_axis(
-          self.Te_bound_right
-      )
+      provider_kwargs['Te_bound_right'] = Te_bound_right
+
     if self.Ti_bound_right is None:
       logging.info('Setting ion temperature boundary condition using Ti.')
       Ti_bound_right = config_args.get_interpolated_var_2d(
           self.Ti, torax_mesh.face_centers[-1]
       )
-    else:
-      Ti_bound_right = config_args.get_interpolated_var_single_axis(
-          self.Ti_bound_right
-      )
+      provider_kwargs['Ti_bound_right'] = Ti_bound_right
+
     if self.ne_bound_right is None:
       logging.info('Setting electron density boundary condition using ne.')
       ne_bound_right = config_args.get_interpolated_var_2d(
@@ -210,45 +209,11 @@ class ProfileConditions(
       )
       self.ne_bound_right_is_absolute = False
       self.ne_bound_right_is_fGW = self.ne_is_fGW
+      provider_kwargs['ne_bound_right'] = ne_bound_right
     else:
-      ne_bound_right = config_args.get_interpolated_var_single_axis(
-          self.ne_bound_right
-      )
       self.ne_bound_right_is_absolute = True
 
-    if self.psi is None:
-      psi = None
-    else:
-      psi = config_args.get_interpolated_var_2d(
-          self.psi,
-          torax_mesh.cell_centers,
-      )
-
-    return ProfileConditionsProvider(
-        runtime_params_config=self,
-        Ip=config_args.get_interpolated_var_single_axis(self.Ip),
-        Ti_bound_right=Ti_bound_right,
-        Te_bound_right=Te_bound_right,
-        Ti=config_args.get_interpolated_var_2d(
-            self.Ti, torax_mesh.cell_centers
-        ),
-        Te=config_args.get_interpolated_var_2d(
-            self.Te, torax_mesh.cell_centers
-        ),
-        psi=psi,
-        ne=config_args.get_interpolated_var_2d(
-            self.ne, torax_mesh.cell_centers
-        ),
-        nbar=config_args.get_interpolated_var_single_axis(self.nbar),
-        ne_bound_right=ne_bound_right,
-        set_pedestal=config_args.get_interpolated_var_single_axis(
-            self.set_pedestal
-        ),
-        Tiped=config_args.get_interpolated_var_single_axis(self.Tiped),
-        Teped=config_args.get_interpolated_var_single_axis(self.Teped),
-        neped=config_args.get_interpolated_var_single_axis(self.neped),
-        Ped_top=config_args.get_interpolated_var_single_axis(self.Ped_top),
-    )
+    return ProfileConditionsProvider(**provider_kwargs)
 
 
 @chex.dataclass

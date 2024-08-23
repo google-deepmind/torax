@@ -53,12 +53,7 @@ class GeneralRuntimeParams(base.RuntimeParametersConfig):
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
   ) -> GeneralRuntimeParamsProvider:
-    return GeneralRuntimeParamsProvider(
-        runtime_params_config=self,
-        plasma_composition=self.plasma_composition.make_provider(torax_mesh),
-        profile_conditions=self.profile_conditions.make_provider(torax_mesh),
-        numerics=self.numerics.make_provider(torax_mesh),
-    )
+    return GeneralRuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass

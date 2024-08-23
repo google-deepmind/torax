@@ -20,7 +20,6 @@ import chex
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
-from torax.config import config_args
 from typing_extensions import override
 
 
@@ -98,13 +97,7 @@ class Numerics(base.RuntimeParametersConfig):
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
   ) -> NumericsProvider:
-    del torax_mesh
-    return NumericsProvider(
-        runtime_params_config=self,
-        resistitivity_mult=config_args.get_interpolated_var_single_axis(
-            self.resistivity_mult
-        ),
-    )
+    return NumericsProvider(**self.get_provider_kwargs(torax_mesh))
 
   def __post_init__(self):
     if self.dtmult <= 0.0:
@@ -116,7 +109,7 @@ class NumericsProvider(base.RuntimeParametersProvider['DynamicNumerics']):
   """Generic numeric parameters for the simulation."""
 
   runtime_params_config: Numerics
-  resistitivity_mult: interpolated_param.InterpolatedVarSingleAxis
+  resistivity_mult: interpolated_param.InterpolatedVarSingleAxis
 
   @override
   def build_dynamic_params(
@@ -136,7 +129,7 @@ class NumericsProvider(base.RuntimeParametersProvider['DynamicNumerics']):
         enable_prescribed_profile_evolution=self.runtime_params_config.enable_prescribed_profile_evolution,
         calcphibdot=self.runtime_params_config.calcphibdot,
         q_correction_factor=self.runtime_params_config.q_correction_factor,
-        resistivity_mult=float(self.resistitivity_mult.get_value(t)),
+        resistivity_mult=float(self.resistivity_mult.get_value(t)),
         nref=self.runtime_params_config.nref,
         largeValue_T=self.runtime_params_config.largeValue_T,
         largeValue_n=self.runtime_params_config.largeValue_n,

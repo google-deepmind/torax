@@ -33,7 +33,7 @@ _T = TypeVar('_T')
 RHO_NORM = 'rho_norm'
 
 
-def _input_is_an_interpolated_var_single_axis(
+def input_is_an_interpolated_var_single_axis(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
@@ -145,32 +145,18 @@ def get_interpolated_var_single_axis(
   return interpolated_var_single_axis
 
 
-def _input_is_an_interpolated_var_time_rho(
+def input_is_an_interpolated_var_time_rho(
     field_name: str,
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
   """Returns True if the input config field is a TimeRhoInterpolated."""
-  if field_name not in input_config_fields_to_types:
-    return False
-
   def _check(ft):
     """Checks if the input field type is an InterpolatedVarTimeRho."""
     try:
-      return (
-          # If the type comes as a string rather than an object, the Union check
-          # below won't work, so we check for the full name here.
-          ft == 'TimeRhoInterpolated'
-          or
-          # Common alias for TimeRhoInterpolated in a few files.
-          (isinstance(ft, str) and 'TimeRhoInterpolated' in ft)
-          or
-          # Otherwise, only check if it is actually the InterpolatedVarTimeRho.
-          ft == 'interpolated_param.InterpolatedVar2d'
-          or issubclass(ft, interpolated_param.InterpolatedVarTimeRho)
-      )
+      return isinstance(ft, str) and 'InterpolatedVarTimeRhoInput' in ft
     except:  # pylint: disable=bare-except
       # issubclass does not play nicely with generics, but if a type is a
-      # generic at this stage, it is not an InterpolatedVarTimeRho.
+      # generic at this stage, it is not an InterpolatedVarTimeRhoInput.
       return False
 
   field_type = input_config_fields_to_types[field_name]

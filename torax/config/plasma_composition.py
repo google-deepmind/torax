@@ -20,7 +20,6 @@ import chex
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
-from torax.config import config_args
 
 
 # pylint: disable=invalid-name
@@ -46,11 +45,7 @@ class PlasmaComposition(
       self,
       torax_mesh: geometry.Grid1D | None = None,
   ) -> PlasmaCompositionProvider:
-    return PlasmaCompositionProvider(
-        runtime_params_config=self,
-        Zeff=config_args.get_interpolated_var_single_axis(self.Zeff),
-        Zimp=config_args.get_interpolated_var_single_axis(self.Zimp),
-    )
+    return PlasmaCompositionProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass
