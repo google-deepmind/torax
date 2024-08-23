@@ -217,21 +217,36 @@ class InterpolatedParamTest(parameterized.TestCase):
       # One line cases.
       {
           'testcase_name': 'one_line_case_1',
-          'values': {1.0: {0: 0.0, 0.3: 0.5, 0.9: 1, 1: 1.0}},
+          'values': {
+              1.0: (
+                  np.array([0.0, 0.3, 0.9, 1.0]),
+                  np.array([0.0, 0.5, 1.0, 1.0]),
+              )
+          },
           'x': random.uniform(0, 2),
           'y': 0.0,
           'expected_output': 0.0,
       },
       {
           'testcase_name': 'one_line_case_2',
-          'values': {1.0: {0: 0.0, 0.3: 0.5, 0.9: 1.0, 1: 1.0}},
+          'values': {
+              1.0: (
+                  np.array([0.0, 0.3, 0.9, 1.0]),
+                  np.array([0.0, 0.5, 1.0, 1.0]),
+              )
+          },
           'x': random.uniform(0, 2),
           'y': 0.95,
           'expected_output': 1,
       },
       {
           'testcase_name': 'one_line_case_3',
-          'values': {1.0: {0: 0.0, 0.3: 0.5, 0.8: 1.0, 1: 1.0}},
+          'values': {
+              1.0: (
+                  np.array([0.0, 0.3, 0.8, 1.0]),
+                  np.array([0.0, 0.5, 1.0, 1.0]),
+              )
+          },
           'x': random.uniform(0, 2),
           'y': 0.7,
           'expected_output': 0.9,
@@ -239,42 +254,70 @@ class InterpolatedParamTest(parameterized.TestCase):
       # Two lines cases, constant at x=0, linear between 0 and 1 at x=1.
       {
           'testcase_name': 'two_line_case_1',
-          'values': {0.0: 0.0, 1.0: {0: 0.0, 1: 1.0}},
+          'values': {
+              0.0: (
+                  np.array(
+                      [0],
+                  ),
+                  np.array([0.0]),
+              ),
+              1.0: (
+                  np.array(
+                      [0, 1],
+                  ),
+                  np.array([0.0, 1.0]),
+              ),
+          },
           'x': 0.0,
           'y': random.randrange(0, 1),
           'expected_output': 0.0,
       },
       {
           'testcase_name': 'two_line_case_2',
-          'values': {0.0: 0.0, 1.0: {0: 0.0, 1: 1.0}},
+          'values': {
+              0.0: (np.array([0]), np.array([0.0])),
+              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+          },
           'x': 1.0,
           'y': 0.0,
           'expected_output': 0.0,
       },
       {
           'testcase_name': 'two_line_case_3',
-          'values': {0.0: 0.0, 1.0: {0: 0.0, 1: 1.0}},
+          'values': {
+              0.0: (np.array([0]), np.array([0.0])),
+              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+          },
           'x': 1.0,
           'y': 1.0,
           'expected_output': 1.0,
       },
       {
           'testcase_name': 'two_line_case_4',
-          'values': {0.0: 0.0, 1.0: {0: 0.0, 1: 1.0}},
+          'values': {
+              0.0: (np.array([0]), np.array([0.0])),
+              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+          },
           'x': 1.0,
           'y': 0.5,
           'expected_output': 0.5,
       },
       {
           'testcase_name': 'two_line_case_5',
-          'values': {0.0: 0.0, 1.0: {0: 0.0, 1: 1.0}},
+          'values': {
+              0.0: (np.array([0]), np.array([0.0])),
+              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+          },
           'x': 0.5,
           'y': 0.5,
           'expected_output': 0.25,
       },
       {
           'testcase_name': 'two_line_case_6',
-          'values': {0.0: 0.0, 1.0: {0: 0.0, 1: 1.0}},
+          'values': {
+              0.0: (np.array([0]), np.array([0.0])),
+              1.0: (np.array([0, 1]), np.array([0.0, 1.0])),
+          },
           'x': 0.5,
           'y': 0.75,
           'expected_output': 0.375,
@@ -284,164 +327,74 @@ class InterpolatedParamTest(parameterized.TestCase):
       {
           'testcase_name': 'four_line_case_1',
           'values': {
-              0.0: {0: 0.0, 1: 0.0},
-              1.0: {0: 0.0, 0.3: 0.5, 0.8: 1.0, 1: 1.0},
-              2.0: {0: 1.0, 0.5: 0},
-              3.0: {0: 1.0, 1: 0.0},
+              0.0: (np.array([0, 1]), np.array([0.0, 0.0])),
+              1.0: (
+                  np.array([0.0, 0.3, 0.8, 1.0]),
+                  np.array([0.0, 0.5, 1.0, 1.0]),
+              ),
+              2.0: (np.array([0.0, 0.5]), np.array([1.0, 0.0])),
+              3.0: (np.array([0, 1]), np.array([1.0, 0.0])),
           },
           'x': 0.5,
           'y': 0.5,
-          'expected_output': 0.35
+          'expected_output': 0.35,
       },
       # Case in between the second and third lines.
       {
           'testcase_name': 'four_line_case_2',
           'values': {
-              0.0: {0: 0.0, 1: 0.0},
-              1.0: {0: 0.0, 0.3: 0.5, 0.8: 1.0, 1: 1.0},
-              2.0: {0: 1.0, 0.5: 0},
-              3.0: {0: 1.0, 1: 0.0},
+              0.0: (np.array([0, 1]), np.array([0.0, 0.0])),
+              1.0: (
+                  np.array([0.0, 0.3, 0.8, 1.0]),
+                  np.array([0.0, 0.5, 1.0, 1.0]),
+              ),
+              2.0: (np.array([0.0, 0.5]), np.array([1.0, 0.0])),
+              3.0: (np.array([0, 1]), np.array([1.0, 0.0])),
           },
           'x': 1.2,
           'y': 0.5,
-          'expected_output': 0.56
+          'expected_output': 0.56,
       },
       # Case in between the third and fourth lines.
       {
           'testcase_name': 'four_line_case_3',
           'values': {
-              0.0: {0: 0.0, 1: 0.0},
-              1.0: {0: 0.0, 0.3: 0.5, 0.8: 1.0, 1: 1.0},
-              2.0: {0: 1.0, 0.5: 0},
-              3.0: {0: 1.0, 1: 0.0},
+              0.0: (np.array([0, 1]), np.array([0.0, 0.0])),
+              1.0: (
+                  np.array([0.0, 0.3, 0.8, 1.0]),
+                  np.array([0.0, 0.5, 1.0, 1.0]),
+              ),
+              2.0: (np.array([0.0, 0.5]), np.array([1.0, 0.0])),
+              3.0: (np.array([0, 1]), np.array([1.0, 0.0])),
           },
           'x': 2.8,
           'y': 0.5,
-          'expected_output': 0.4
+          'expected_output': 0.4,
       },
       # Case where y is an array.
       {
           'testcase_name': 'y_array_case',
           'values': {
-              2.0: {0: 1.0, 0.5: 0},
-              3.0: {0: 1.0, 1: 0.0},
+              2.0: (np.array([0.0, 0.5]), np.array([1.0, 0.0])),
+              3.0: (np.array([0, 1]), np.array([1.0, 0.0])),
           },
           'x': 2.8,
           'y': np.array([0.1, 0.5, 0.6]),
-          'expected_output': np.array([0.88, 0.4, 0.32,])
-      }
+          'expected_output': np.array([
+              0.88,
+              0.4,
+              0.32,
+          ]),
+      },
   )
   def test_interpolated_var_time_rho(self, values, x, y, expected_output):
     """Tests the doubly interpolated param gives correct outputs on 2D mesh."""
     interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
-        values, rho=y
+        values, rho_norm=y
     )
 
     output = interpolated_var_time_rho.get_value(x=x)
     np.testing.assert_allclose(output, expected_output, atol=1e-6, rtol=1e-6)
-
-  def test_interpolated_var_time_rho_parses_float_input(self):
-    """Tests that InterpolatedVarTimeRho parses float inputs correctly."""
-    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
-        values=1.0, rho=0.0
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=0.0), 1.0
-    )
-    self.assertLen(interpolated_var_time_rho.values, 1)
-    self.assertIn(0.0, interpolated_var_time_rho.values)
-
-  def test_interpolated_var_time_rho_parses_single_dict_input(self):
-    """Tests that InterpolatedVarTimeRho parses dict inputs correctly."""
-    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
-        values={0: 18.0, 0.95: 5.0,}, rho=0.0,
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=0.0), 18.0
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=0.5), 18.0
-    )
-
-    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
-        values={0: 18.0, 0.95: 5.0,}, rho=0.95,
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=0.0), 5.0
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=0.5), 5.0
-    )
-
-  def test_interpolated_var_time_rho_parses_xr_array_input(self):
-    """Tests that InterpolatedVarTimeRho parses xr.DataArray inputs correctly."""
-    array = xr.DataArray(
-        data=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
-        coords={'time': [0.0, 1.0], 'rho_norm': [0.25, 0.5, 0.75]},
-    )
-    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
-        values=array,
-        rho=np.array([0.25, 0.5, 0.75]),
-    )
-
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(
-            x=0.0,
-        ),
-        np.array([1.0, 2.0, 3.0]),
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(
-            x=1.0,
-        ),
-        np.array([4.0, 5.0, 6.0]),
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(
-            x=0.5,
-        ),
-        np.array([2.5, 3.5, 4.5]),
-    )
-
-  def test_interpolated_var_time_rho_parses_array_3_tuple_input(self):
-    """Tests that InterpolatedVarTimeRho parses Array of 3 inputs correctly."""
-    arrays = (
-        np.array([0.0, 1.0]),
-        np.array([0.25, 0.5, 0.75]),
-        np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
-    )
-    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
-        values=arrays,
-        rho=np.array([0.25, 0.5, 0.75]),
-    )
-
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=0.0,), np.array([1.0, 2.0, 3.0])
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=1.0,), np.array([4.0, 5.0, 6.0]),
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=0.5,), np.array([2.5, 3.5, 4.5]),
-    )
-
-  def test_interpolated_var_time_rho_parses_array_tuple_input(self):
-    """Tests that InterpolatedVarTimeRho parses Array of 2 inputs correctly."""
-    arrays = (
-        np.array([0.25, 0.5, 0.75]),
-        np.array([1.0, 2.0, 3.0]),
-    )
-    interpolated_var_time_rho = interpolated_param.InterpolatedVarTimeRho(
-        values=arrays,
-        rho=np.array([0.25, 0.5, 0.75]),
-    )
-
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=0.0,), np.array([1.0, 2.0, 3.0])
-    )
-    np.testing.assert_allclose(
-        interpolated_var_time_rho.get_value(x=1.0,), np.array([1.0, 2.0, 3.0]),
-    )
 
   @parameterized.named_parameters(
       dict(

@@ -146,7 +146,7 @@ class ProfileConditions(
             if 1.0 not in value:
               raise ValueError(error_message)
       case xr.DataArray():
-        if 1.0 not in values.coords[interpolated_param.RHO_NORM]:
+        if 1.0 not in values.coords[config_args.RHO_NORM]:
           raise ValueError(error_message)
       # Arrays case.
       case _:
@@ -187,7 +187,7 @@ class ProfileConditions(
       raise ValueError('torax_mesh is required for ProfileConditionsProvider.')
     if self.Te_bound_right is None:
       logging.info('Setting electron temperature boundary condition using Te.')
-      Te_bound_right = interpolated_param.InterpolatedVarTimeRho(
+      Te_bound_right = config_args.get_interpolated_var_2d(
           self.Te, torax_mesh.face_centers[-1]
       )
     else:
@@ -196,7 +196,7 @@ class ProfileConditions(
       )
     if self.Ti_bound_right is None:
       logging.info('Setting ion temperature boundary condition using Ti.')
-      Ti_bound_right = interpolated_param.InterpolatedVarTimeRho(
+      Ti_bound_right = config_args.get_interpolated_var_2d(
           self.Ti, torax_mesh.face_centers[-1]
       )
     else:
@@ -205,7 +205,7 @@ class ProfileConditions(
       )
     if self.ne_bound_right is None:
       logging.info('Setting electron density boundary condition using ne.')
-      ne_bound_right = interpolated_param.InterpolatedVarTimeRho(
+      ne_bound_right = config_args.get_interpolated_var_2d(
           self.ne, torax_mesh.face_centers[-1]
       )
       self.ne_bound_right_is_absolute = False
@@ -219,7 +219,7 @@ class ProfileConditions(
     if self.psi is None:
       psi = None
     else:
-      psi = interpolated_param.InterpolatedVarTimeRho(
+      psi = config_args.get_interpolated_var_2d(
           self.psi,
           torax_mesh.cell_centers,
       )
@@ -229,14 +229,14 @@ class ProfileConditions(
         Ip=config_args.get_interpolated_var_single_axis(self.Ip),
         Ti_bound_right=Ti_bound_right,
         Te_bound_right=Te_bound_right,
-        Ti=interpolated_param.InterpolatedVarTimeRho(
+        Ti=config_args.get_interpolated_var_2d(
             self.Ti, torax_mesh.cell_centers
         ),
-        Te=interpolated_param.InterpolatedVarTimeRho(
+        Te=config_args.get_interpolated_var_2d(
             self.Te, torax_mesh.cell_centers
         ),
         psi=psi,
-        ne=interpolated_param.InterpolatedVarTimeRho(
+        ne=config_args.get_interpolated_var_2d(
             self.ne, torax_mesh.cell_centers
         ),
         nbar=config_args.get_interpolated_var_single_axis(self.nbar),

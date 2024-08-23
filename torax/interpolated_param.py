@@ -26,9 +26,6 @@ from torax import jax_utils
 import xarray as xr
 
 
-RHO_NORM = 'rho_norm'
-
-
 class InterpolatedParamBase(abc.ABC):
   """Base class for interpolated params.
 
@@ -202,10 +199,10 @@ def convert_input_to_xs_ys(
       raise ValueError('InterpolatedVarSingleAxisInput must include values.')
     sorted_keys = sorted(interp_input.keys())
     values = [interp_input[key] for key in sorted_keys]
-    return jnp.array(sorted_keys), jnp.array(values)
+    return np.array(sorted_keys), np.array(values)
   else:
     # The input is a single value.
-    return jnp.array([0]), jnp.array([interp_input])
+    return np.array([0]), np.array([interp_input])
 
 
 def _is_bool(interp_input: InterpolatedVarSingleAxisInput) -> bool:
@@ -299,27 +296,6 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
 class InterpolatedVarTimeRho(InterpolatedParamBase):
   """Interpolates on a grid (time, rho).
 
-  This class is initialised with `values`, either primitives, an xr.DataArray or
-  a a dict of `Array`s.
-
-  If primitives are used, then `values` is expected as a mapping from
-  time-values to `InterpolatedVarSingleAxis`s that tell you how to interpolate
-  along rho for different time values. There are two shortcuts provided as well:
-  - If `values` is a float, then it is assumed to be a constant initial
-    condition profile.
-  - If `values` is a single mapping, then it is assumed to
-    be a initial condition radial profile.
-
-  If an xr.DataArray is used, the input must have a `time` and `rho_norm`
-  coordinate. The values of the data array are the values at each time and rho.
-  If you only want to use a subset of the xr.DataArray, filter the data array
-  beforehand, e.g. `values=array.sel(time=[0.0, 2.0])`
-
-  If a dict of `Array`s is used, The dict is expected to have
-  ['time', 'rho_norm', 'value'] keys. The `time` and `rho_norm` are expected to
-  be 1D arrays and `value` is expected to be a 2D array with shape (len(time),
-  len(rho)).
-
   This class linearly interpolates along time to provide a value at any
   (time, rho) pair. For time values that are outside the range of `values` the
   closest defined `InterpolatedVarSingleAxis` is used.
@@ -328,93 +304,34 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
   at init and take just time at get_value.
   """
 
-  def _load_from_arrays(
-      self,
-      arrays: tuple[chex.Array, chex.Array, chex.Array],
-  ):
-    """Loads the data from numpy arrays.
-
-    Args:
-      arrays: A tuple of (times, rho_norm, values).
-        times and rho_norm are assumed to be 1D arrays of equal length and
-        values is a 2D array with shape (len(times), len(rho_norm)).
-    """
-    if len(arrays) != 3:
-      raise ValueError(f'arrays must be either length 3. Given: {len(arrays)}.')
-    times, rho_norm, values = arrays
-    self.values = {
-        t: (rho_norm, values[i, :]) for i, t in enumerate(times)
-    }
-    self.sorted_indices = jnp.array(sorted(times))
-
-  def _load_from_xr_array(
-      self,
-      array: xr.DataArray,
-  ):
-    """Loads the data from an xr.DataArray."""
-    if 'time' not in array.coords:
-      raise ValueError('"time" must be a coordinate in given dataset.')
-    if RHO_NORM not in array.coords:
-      raise ValueError(f'"{RHO_NORM}" must be a coordinate in given dataset.')
-    self.values = {
-        t: (array.rho_norm.data, array.sel(time=t).values,)
-        for t in array.time.data
-    }
-    self.sorted_indices = jnp.array(sorted(array.time.data))
-
-  def _load_from_primitives(
-      self,
-      values: Mapping[float, InterpolatedVarSingleAxisInput] | float,
-  ):
-    """Loads the data from primitives."""
-    # If a float is passed in, describes constant initial condition profile.
-    if isinstance(values, (float, int)):
-      values = {0.0: {0.0: values}}
-    # If non-nested dict is passed in, it will describe the radial profile for
-    # the initial condition."
-    if isinstance(values, Mapping) and all(
-        isinstance(v, float) for v in values.values()
-    ):
-      values = {0.0: values}
-
-    if len(set(values.keys())) != len(values):
-      raise ValueError('Indicies in values mapping must be unique.')
-    if not values:
-      raise ValueError('Values mapping must not be empty.')
-    self.values = {t: convert_input_to_xs_ys(v) for t, v in values.items()}
-    self.sorted_indices = jnp.array(sorted(values.keys()))
-
   def __init__(
       self,
-      values: InterpolatedVarTimeRhoInput,
-      rho: chex.Numeric,
+      values: Mapping[float, tuple[chex.Array, chex.Array]],
+      rho_norm: chex.Array,
       rho_interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
   ):
-    if isinstance(values, xr.DataArray):
-      self._load_from_xr_array(values,)
-    elif isinstance(values, tuple) and all(
-        isinstance(v, chex.Array) for v in values
-    ):
-      if len(values) == 2:
-        # Shortcut for initial condition profile.
-        values = (np.array([0.0]), values[0], values[1][np.newaxis, :])
-      self._load_from_arrays(values,)
-    else:
-      self._load_from_primitives(values,)
+    """Constructs an `InterpolatedVarTimeRho`.
 
-    rho_interpolated = np.stack(
+    Args:
+      values: Mapping of times to (rho_norm, values) arrays of equal length.
+      rho_norm: The grid to interpolate onto.
+      rho_interpolation_mode: The mode in which to do rho interpolation.
+    """
+    self.rho_norm = rho_norm
+    self.sorted_indices = np.array(sorted(values.keys()))
+    rho_norm_interpolated_values = np.stack(
         [
             InterpolatedVarSingleAxis(
-                self.values[float(t)], rho_interpolation_mode
-            ).get_value(rho)
+                values[t], rho_interpolation_mode
+            ).get_value(self.rho_norm)
             for t in self.sorted_indices
         ],
         axis=0,
     )
     self._time_interpolated_var = InterpolatedVarSingleAxis(
-        (self.sorted_indices, rho_interpolated)
+        (self.sorted_indices, rho_norm_interpolated_values)
     )
 
   def get_value(self, x: chex.Numeric) -> chex.Array:

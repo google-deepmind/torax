@@ -20,8 +20,8 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import geometry
-from torax import interpolated_param
 from torax import state
+from torax.config import config_args
 from torax.sources import source_profiles
 import xarray as xr
 
@@ -92,7 +92,7 @@ def load_state_file(
       # Shift the time coordinate to start at 0.
       da = da.assign_coords({"time": da.coords["time"] - earliest_time})
       if RHO_CELL_NORM in da.coords:
-        return da.rename({RHO_CELL_NORM: interpolated_param.RHO_NORM})
+        return da.rename({RHO_CELL_NORM: config_args.RHO_NORM})
       else:
         return da
   else:

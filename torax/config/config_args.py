@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import dataclasses
 import enum
 import types
@@ -25,9 +26,11 @@ from typing import TypeVar
 
 import chex
 from torax import interpolated_param
+import xarray as xr
 
 # TypeVar for generic dataclass types.
 _T = TypeVar('_T')
+RHO_NORM = 'rho_norm'
 
 
 def _input_is_an_interpolated_var_single_axis(
@@ -183,18 +186,157 @@ def _input_is_an_interpolated_var_time_rho(
     return _check(field_type)
 
 
+def _load_from_primitives(
+    primitive_values: (
+        Mapping[float, interpolated_param.InterpolatedVarSingleAxisInput]
+        | float
+    ),
+) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+  """Loads the data from primitives.
+
+  Three cases are supported:
+  1. A float is passed in, describes constant initial condition profile.
+  2. A non-nested dict is passed in, it will describe the radial profile for
+     the initial condition.
+  3. A nested dict is passed in, it will describe the time-dependent radial
+     profile for the initial condition.
+
+  Args:
+    primitive_values: The python primitive values to load.
+
+  Returns:
+    A mapping from time to (rho_norm, values) where rho_norm and values are both
+    arrays of equal length.
+  """
+  # Float case.
+  if isinstance(primitive_values, (float, int)):
+    primitive_values = {0.0: {0.0: primitive_values}}
+  # Non-nested dict.
+  if isinstance(primitive_values, Mapping) and all(
+      isinstance(v, float) for v in primitive_values.values()
+  ):
+    primitive_values = {0.0: primitive_values}
+
+  if len(set(primitive_values.keys())) != len(primitive_values):
+    raise ValueError('Indicies in values mapping must be unique.')
+  if not primitive_values:
+    raise ValueError('Values mapping must not be empty.')
+
+  primitive_values = {
+      t: interpolated_param.convert_input_to_xs_ys(v)
+      for t, v in primitive_values.items()
+  }
+  return primitive_values
+
+
+def _load_from_xr_array(
+    xr_array: xr.DataArray,
+) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+  """Loads the data from an xr.DataArray."""
+  if 'time' not in xr_array.coords:
+    raise ValueError('"time" must be a coordinate in given dataset.')
+  if RHO_NORM not in xr_array.coords:
+    raise ValueError(f'"{RHO_NORM}" must be a coordinate in given dataset.')
+  values = {
+      t: (
+          xr_array.rho_norm.data,
+          xr_array.sel(time=t).values,
+      )
+      for t in xr_array.time.data
+  }
+  return values
+
+
+def _load_from_arrays(
+    arrays: tuple[chex.Array, ...],
+) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+  """Loads the data from numpy arrays.
+
+  Args:
+    arrays: A tuple of (times, rho_norm, values) or (rho_norm, values). - In the
+      former case times and rho_norm are assumed to be 1D arrays of equal
+      length, values is a 2D array with shape (len(times), len(rho_norm)). - In
+      the latter case rho_norm and values are assumed to be 1D arrays of equal
+      length (shortcut for initial condition profile).
+
+  Returns:
+    A mapping from time to (rho_norm, values)
+  """
+  if len(arrays) == 2:
+    # Shortcut for initial condition profile.
+    rho_norm, values = arrays
+    if len(rho_norm.shape) != 1:
+      raise ValueError(f'rho_norm must be a 1D array. Given: {rho_norm.shape}.')
+    if len(values.shape) != 1:
+      raise ValueError(f'values must be a 1D array. Given: {values.shape}.')
+    if rho_norm.shape != values.shape:
+      raise ValueError(
+          'rho_norm and values must be of the same shape. Given: '
+          f'{rho_norm.shape} and {values.shape}.'
+      )
+    return {0.0: (rho_norm, values)}
+  if len(arrays) == 3:
+    times, rho_norm, values = arrays
+    if len(times.shape) != 1:
+      raise ValueError(f'times must be a 1D array. Given: {times.shape}.')
+    if len(rho_norm.shape) != 1:
+      raise ValueError(f'rho_norm must be a 1D array. Given: {rho_norm.shape}.')
+    if values.shape != (len(times), len(rho_norm)):
+      raise ValueError(
+          'values must be of shape (len(times), len(rho_norm)). Given: '
+          f'{values.shape}.'
+      )
+    return {t: (rho_norm, values[i, :]) for i, t in enumerate(times)}
+  else:
+    raise ValueError(f'arrays must be length 2 or 3. Given: {len(arrays)}.')
+
+
 def get_interpolated_var_2d(
     param_or_param_input: interpolated_param.TimeRhoInterpolated,
     rho_norm: chex.Array,
 ) -> interpolated_param.InterpolatedVarTimeRho:
-  """Interpolates the input param at time t and rho_norm for the current geo."""
+  """Constructs an InterpolatedVarTimeRho from the given param_or_param_input.
+
+  Three cases are supported:
+  1. Python primitives are passed in, see _load_from_primitives for details.
+  2. An xr.DataArray is passed in, see _load_from_xr_array for details.
+  3. A tuple of arrays is passed in, see _load_from_arrays for details.
+
+  Args:
+    param_or_param_input: Either a constructed InterpolatedVarTimeRho or a
+      param_or_param_input that can be used to construct InterpolatedVarTimeRho.
+    rho_norm: The rho_norm values to interpolate at (usually the TORAX mesh).
+
+  Returns:
+    An InterpolatedVarTimeRho object which has been preinterpolaed onto the
+    provided rho_norm values.
+  """
   if not isinstance(
       param_or_param_input, interpolated_param.InterpolatedVarTimeRho
   ):
     # Dealing with a param input so convert it first.
+    if isinstance(param_or_param_input, xr.DataArray):
+      values = _load_from_xr_array(
+          param_or_param_input,
+      )
+    elif isinstance(param_or_param_input, tuple) and all(
+        isinstance(v, chex.Array) for v in param_or_param_input
+    ):
+      values = _load_from_arrays(
+          param_or_param_input,
+      )
+    elif isinstance(param_or_param_input, Mapping) or isinstance(
+        param_or_param_input, (float, int)
+    ):
+      values = _load_from_primitives(
+          param_or_param_input,
+      )
+    else:
+      raise ValueError('Input for interpolated var not recognised.')
+
     param_or_param_input = interpolated_param.InterpolatedVarTimeRho(
-        values=param_or_param_input,
-        rho=rho_norm,
+        values=values,
+        rho_norm=rho_norm,
     )
   return param_or_param_input
 
