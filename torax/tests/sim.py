@@ -496,35 +496,94 @@ class SimTest(sim_test_case.SimTestCase):
     )
     self.assertNotEmpty(spectator.arrays)
 
-  def test_core_profiles_are_recomputable(self):
-    """Tests that core profiles from a previous run are recomputable."""
-    test_config = 'test_iterhybrid_rampup'
+  @parameterized.parameters(
+      ('test_explicit',),
+      ('test_implicit',),
+      ('test_qei',),
+      ('test_pedestal',),
+      ('test_cgmheat',),
+      ('test_bohmgyrobohm_heat',),
+      ('test_semiimplicit_convection',),
+      ('test_qlknnheat',),
+      ('test_fixed_dt',),
+      ('test_psiequation',),
+      ('test_psi_and_heat',),
+      ('test_bootstrap',),
+      ('test_psi_heat_dens',),
+      ('test_particle_sources_constant',),
+      ('test_particle_sources_cgm',),
+      ('test_prescribed_jext',),
+      ('test_fusion_power',),
+      ('test_all_transport_fusion_qlknn',),
+      ('test_chease',),
+      ('test_ohmic_power',),
+      ('test_bremsstrahlung',),
+      ('test_qei_chease_highdens',),
+      ('test_psichease_ip_parameters',),
+      ('test_psichease_ip_chease',),
+      ('test_psichease_prescribed_jtot',),
+      ('test_psichease_prescribed_johm',),
+      ('test_timedependence',),
+      ('test_prescribed_timedependent_ne',),
+      ('test_ne_qlknn_defromchie',),
+      ('test_ne_qlknn_deff_veff',),
+      ('test_all_transport_crank_nicolson',),
+      ('test_pc_method_ne',),
+      ('test_iterbaseline_mockup',),
+      ('test_iterhybrid_mockup',),
+      ('test_iterhybrid_predictor_corrector',),
+      ('test_iterhybrid_newton',),
+      ('test_iterhybrid_rampup',),
+      ('test_time_dependent_circular_geo',),
+  )
+  def test_core_profiles_are_recomputable(self, test_config):
+    """Tests that core profiles from a previous run are recomputable.
+
+    In this test we:
+    - Load up a reference file and build a sim from its config.
+    - Get the dynamic runtime params slice from the final time of the sim.
+    - Override the dynamic runtime params slice with values from the reference.
+    - Check that the initial core_profiles are equal.
+
+    Args:
+      test_config: the config id under test.
+    """
     profiles = [
         output.TEMP_ION,
+        output.TEMP_ION_RIGHT_BC,
         output.TEMP_EL,
+        output.TEMP_EL_RIGHT_BC,
         output.NE,
         output.NI,
         output.NE_RIGHT_BC,
         output.PSI,
+        output.PSIDOT,
         output.IP,
         output.NREF,
         output.Q_FACE,
         output.S_FACE,
+        output.J_BOOTSTRAP,
+        output.JOHM,
+        output.CORE_PROFILES_JEXT,
+        output.JTOT,
     ]
-    ref_profiles, _ = self._get_refs(test_config + '.nc', profiles)
+    ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
+    final_time = ref_time[-1]
 
     # Build the runtime params at t=0.0, everything else should be from t=80.0.
     sim = self._get_sim(test_config + '.py')
-    geo = sim.geometry_provider(t=80.0)
+    geo = sim.geometry_provider(t=final_time)
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        t=0.0,
+        t=final_time,
     )
     source_models = sim.source_models_builder()
 
     # Load in the reference core profiles from t=80.0 (the last step).
     Ip = ref_profiles[output.IP][-1]  # pylint: disable=invalid-name
     temp_el = ref_profiles[output.TEMP_EL][-1, :]
+    temp_el_bc = ref_profiles[output.TEMP_EL_RIGHT_BC][-1]
     temp_ion = ref_profiles[output.TEMP_ION][-1, :]
+    temp_ion_bc = ref_profiles[output.TEMP_ION_RIGHT_BC][-1]
     ne = ref_profiles[output.NE][-1, :]
     ne_bound_right = ref_profiles[output.NE_RIGHT_BC][-1]
     ni = ref_profiles[output.NI][-1, :]
@@ -532,10 +591,17 @@ class SimTest(sim_test_case.SimTestCase):
     nref = ref_profiles[output.NREF][-1]
     q_face = ref_profiles[output.Q_FACE][-1, :]
     s_face = ref_profiles[output.S_FACE][-1, :]
+    j_bootstrap = ref_profiles[output.J_BOOTSTRAP][-1, :]
+    johm = ref_profiles[output.JOHM][-1, :]
+    jext = ref_profiles[output.CORE_PROFILES_JEXT][-1, :]
+    jtot = ref_profiles[output.JTOT][-1, :]
+    psidot = ref_profiles[output.PSIDOT][-1, :]
     # Override the dynamic runtime params with the values from t=80.0.
     dynamic_runtime_params_slice.profile_conditions.Ip = Ip
     dynamic_runtime_params_slice.profile_conditions.Te = temp_el
+    dynamic_runtime_params_slice.profile_conditions.Te_bound_right = temp_el_bc
     dynamic_runtime_params_slice.profile_conditions.Ti = temp_ion
+    dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = temp_ion_bc
     dynamic_runtime_params_slice.profile_conditions.ne = ne
     dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
         ne_bound_right
@@ -566,9 +632,15 @@ class SimTest(sim_test_case.SimTestCase):
     np.testing.assert_allclose(core_profiles.ne.value, ne)
     np.testing.assert_allclose(core_profiles.ni.value, ni)
     np.testing.assert_allclose(core_profiles.psi.value, psi)
+    np.testing.assert_allclose(core_profiles.psidot.value, psidot)
     np.testing.assert_allclose(core_profiles.nref, nref)
     np.testing.assert_allclose(core_profiles.q_face, q_face)
     np.testing.assert_allclose(core_profiles.s_face, s_face)
+    np.testing.assert_allclose(core_profiles.currents.j_bootstrap, j_bootstrap)
+    np.testing.assert_allclose(core_profiles.currents.jtot, jtot)
+    np.testing.assert_allclose(core_profiles.currents.jext, jext)
+    np.testing.assert_allclose(core_profiles.currents.johm, johm)
+    np.testing.assert_allclose(core_profiles.currents.Ip, Ip)
 
 
 if __name__ == '__main__':
