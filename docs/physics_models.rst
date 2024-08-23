@@ -124,6 +124,85 @@ TORAX currently offers three transport models:
     and particle diffusivity, :math:`D_e`, are scaled to :math:`\chi_i` using user-configurable model parameters.
     The particle convection velocity, :math:`V_e`, is user-defined.
 
+  - **Bohm-GyroBohm:** A widely used semi-empirical model summing terms proportional to Bohm
+    and gyro-Bohm scaling factors. We use the implementation from `Tholerus et al <https://doi.org/10.1088/1741-4326/ad6ea2>`_,
+    Section 3.3.
+
+    The heat diffusivities for electrons and ions are given by:
+
+    .. math::
+
+      \chi_e = \alpha_{e, \text{B}} \chi_{e, \text{B}} + \alpha_{e, \text{gB}}
+      \chi_{e, \text{gB}}
+
+    .. math::
+
+      \chi_i = \alpha_{i, \text{B}} \chi_{i, \text{B}} + \alpha_{i, \text{gB}}
+      \chi_{i, \text{gB}}
+
+    where :math:`\alpha_{s, \text{B}}` and :math:`\alpha_{s, \text{gB}}` are the
+    coefficients for the Bohm and gyro-Bohm contribution for species :math:`s`
+    respectively. These are given by:
+
+    .. math::
+
+      \chi_{e, \text{B}}
+        = 0.5 \chi_{i, \text{B}}
+        = \frac{R_\text{min} q^2}{e B_\text{0} n_e}
+          \left|
+            \frac{\partial p_e}{\partial \rho_{\text{tor}}}
+          \right|
+
+    .. math::
+
+      \chi_{e, \text{gB}}
+        = 2 \chi_{i, \text{gB}}
+        =  \frac{\sqrt{T_e}}{B_\text{0}^2}
+          \left|
+            \frac{\partial T_e}{\partial \rho_{\text{tor}}}
+          \right|
+
+    where :math:`R_\text{min}` is the minor radius, :math:`q` is the safety
+    factor, :math:`e` is the elementary charge, :math:`B_\text{0}` is the
+    toroidal magnetic field at the magnetic axis, :math:`n_e` is the electron
+    density, :math:`\rho_{\text{tor}}` is the (unnormalized) toroidal flux
+    coordinate, :math:`p_e` is the electron pressure, and :math:`T_e` is the
+    electron temperature.
+
+    The electron diffusivity is given by:
+
+    .. math::
+      D_e = \eta \frac{\chi_e \chi_i}{\chi_e + \chi_i}
+
+    where :math:`\eta` is a weighting factor given by:
+
+    .. math::
+
+      \eta = c_1 + (c_2 - c_1) \rho_{\text{tor}}
+
+    where :math:`c_1` and :math:`c_2` are constants.
+
+    The electron convectivity is given by:
+
+    .. math::
+      v_e = \frac{1}{2} \frac{D_e A^2}{V \frac{dV}{d\rho}}
+
+    where :math:`A` and :math:`V` are the area and volume of the flux surface
+    respectively.
+
+    The default values for the model parameters are as follows:
+
+    :math:`\alpha_{e,i,\text{B}} = 8e^{-5}`
+
+    :math:`\alpha_{e,i,\text{gB}} = 5e^{-6}`
+
+    :math:`c_1 = 1.0`
+
+    :math:`c_2 = 0.3`
+
+    We note that the Bohm-GyroBohm model TORAX implementation is presently
+    experimental and subject to ongoing verification against established simulations.
+
   - **QLKNN:** This is a ML-surrogate model trained on a large dataset of the `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_
     quasilinear gyrokinetic code. Specifically, TORAX presently employs the QLKNN-hyper-10D model (`QLKNN10D <https://doi.org/10.1063/1.5134126>`_),
     which features a 10D input hypercube and separate NNs for ion-temperature-gradient (ITG),

@@ -14,6 +14,7 @@
 
 """Classes for representing the problem geometry."""
 
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -188,6 +189,14 @@ class Geometry:
   @property
   def rho(self) -> chex.Array:
     return self.rho_norm * self.rho_b
+
+  @property
+  def rmid(self) -> chex.Array:
+    return (self.Rout - self.Rin) / 2
+
+  @property
+  def rmid_face(self) -> chex.Array:
+    return (self.Rout_face - self.Rin_face) / 2
 
   @property
   def drho(self) -> chex.Array:

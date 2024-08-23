@@ -466,12 +466,14 @@ The dictionary consists of keys common to all transport models, and additional n
 model are defined.
 
 ``transport_model`` (str = 'constant')
-  Select the transport model. There are currently three options:
+  Select the transport model according to the following options:
 
 * ``'constant'``
   Constant transport coefficients
 * ``'CGM'``
   Critical Gradient Model
+* ``'bohm-gyrobohm'``
+  Bohm-GyroBohm model.
 * ``'qlknn'``
   The QuaLiKiz Neural Network, 10D hypercube version (QLKNN10D) `[K.L. van de Plassche PoP 2020] <https://doi.org/10.1063/1.5134126>`_
 
@@ -574,6 +576,30 @@ Runtime parameters for the Critical Gradient Model (CGM), defined within a
   Ratio of major radius * electron particle convection to electron particle diffusion.
   Sets the electron particle convection in the model. Negative values will set a peaked
   electron density profile in the absence of sources.
+
+Bohm-GyroBohm
+^^^^^^^^^^^^^
+
+Runtime parameters for the Bohm-GyroBohm model, defined within a
+``bohm-gyrobohm_params`` dict nested within the transport dict.
+
+``chi_e_bohm_coeff`` (float = 8e-5), **time-varying-scalar**
+  Prefactor for Bohm term for electron heat conductivity.
+
+``chi_e_gyrobohm_coeff`` (float = 5e-6), **time-varying-scalar**
+  Prefactor for GyroBohm term for electron heat conductivity.
+
+``chi_i_bohm_coeff`` (float = 8e-5), **time-varying-scalar**
+  Prefactor for Bohm term for ion heat conductivity.
+
+``chi_i_gyrobohm_coeff`` (float = 5e-6), **time-varying-scalar**
+  Prefactor for GyroBohm term for ion heat conductivity.
+
+``d_face_c1`` (float = 1.0), **time-varying-scalar**
+  Constant for the electron diffusivity weighting factor.
+
+``d_face_c2`` (float = 0.3), **time-varying-scalar**
+  Constant for the electron diffusivity weighting factor.
 
 qlknn
 ^^^^^
