@@ -253,30 +253,7 @@ class ProfileConditionsProvider(
       t: chex.Numeric,
   ) -> DynamicProfileConditions:
     """Builds a DynamicProfileConditions."""
-    return DynamicProfileConditions(
-        Ip=float(self.Ip.get_value(t)),
-        Ti_bound_right=float(self.Ti_bound_right.get_value(t)),
-        Te_bound_right=float(self.Te_bound_right.get_value(t)),
-        Ti=self.Ti.get_value(t),
-        Te=self.Te.get_value(t),
-        psi=self.psi.get_value(t) if self.psi else None,
-        ne=self.ne.get_value(t),
-        normalize_to_nbar=self.runtime_params_config.normalize_to_nbar,
-        nbar=float(self.nbar.get_value(t)),
-        ne_is_fGW=self.runtime_params_config.ne_is_fGW,
-        ne_bound_right=float(self.ne_bound_right.get_value(t)),
-        ne_bound_right_is_fGW=self.runtime_params_config.ne_bound_right_is_fGW,
-        ne_bound_right_is_absolute=self.runtime_params_config.ne_bound_right_is_absolute,
-        set_pedestal=bool(self.set_pedestal.get_value(t)),
-        Tiped=float(self.Tiped.get_value(t)),
-        Teped=float(self.Teped.get_value(t)),
-        neped=float(self.neped.get_value(t)),
-        neped_is_fGW=self.runtime_params_config.neped_is_fGW,
-        Ped_top=float(self.Ped_top.get_value(t)),
-        nu=self.runtime_params_config.nu,
-        initial_j_is_total_current=self.runtime_params_config.initial_j_is_total_current,
-        initial_psi_from_j=self.runtime_params_config.initial_psi_from_j,
-    )
+    return DynamicProfileConditions(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass

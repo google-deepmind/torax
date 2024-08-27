@@ -55,13 +55,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
       self,
       t: chex.Numeric,
   ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
-        Qei_mult=self.runtime_params_config.Qei_mult,
-        mode=self.runtime_params_config.mode.value,
-        is_explicit=self.runtime_params_config.is_explicit,
-        formula=self.formula.build_dynamic_params(t),
-        prescribed_values=self.prescribed_values.get_value(t),
-    )
+    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)

@@ -125,6 +125,12 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
         source_lib.ProfileType.FACE.get_profile_shape(geo),
     )
 
+  def test_runtime_params_builds_dynamic_params(self):
+    runtime_params = external_current_source.RuntimeParams()
+    geo = geometry.build_circular_geometry()
+    provider = runtime_params.make_provider(geo.torax_mesh)
+    provider.build_dynamic_params(t=0.0)
+
 
 if __name__ == '__main__':
   absltest.main()

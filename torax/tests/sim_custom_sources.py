@@ -336,22 +336,7 @@ class _CustomSourceRuntimeParamsProvider(
       t: chex.Numeric,
   ) -> '_CustomSourceDynamicRuntimeParams':
     return _CustomSourceDynamicRuntimeParams(
-        puff_decay_length=float(self.puff_decay_length.get_value(t)),
-        S_puff_tot=float(self.S_puff_tot.get_value(t)),
-        nbi_particle_width=float(self.nbi_particle_width.get_value(t)),
-        nbi_deposition_location=float(
-            self.nbi_deposition_location.get_value(t)
-        ),
-        S_nbi_tot=float(self.S_nbi_tot.get_value(t)),
-        pellet_width=float(self.pellet_width.get_value(t)),
-        pellet_deposition_location=float(
-            self.pellet_deposition_location.get_value(t)
-        ),
-        S_pellet_tot=float(self.S_pellet_tot.get_value(t)),
-        mode=self.runtime_params_config.mode.value,
-        is_explicit=self.runtime_params_config.is_explicit,
-        formula=self.formula.build_dynamic_params(t),
-        prescribed_values=self.prescribed_values.get_value(t),
+        **self.get_dynamic_params_kwargs(t)
     )
 
 

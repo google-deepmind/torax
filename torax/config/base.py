@@ -23,6 +23,7 @@ from typing import Any, Generic, TypeVar
 
 import chex
 from torax import geometry
+from torax import interpolated_param
 from torax.config import config_args
 
 DynamicT = TypeVar('DynamicT')
@@ -161,6 +162,51 @@ class RuntimeParametersProvider(Generic[DynamicT], metaclass=abc.ABCMeta):
   interpolated and could vary in time.
   """
   runtime_params_config: RuntimeParametersConfig
+
+  def get_dynamic_params_kwargs(
+      self,
+      t: chex.Numeric,
+  ) -> dict[str, Any]:
+    """Returns the kwargs to be passed to the dynamic params constructor.
+
+    This method is intended to be called at each time step during the simulation
+    to get the dynamic parameters for this provider. For interpolated variables
+    this method will interpolate the variables at the given time. For any fields
+    that are themselves `RuntimeParametersProvider` this method will build the
+    dynamic params for those fields as well.
+
+    Args:
+      t: The time to interpolate the dynamic parameters at.
+    Returns:
+      A dict of kwargs to be passed to the dynamic params constructor.
+    """
+    dynamic_params_kwargs = dataclasses.asdict(self.runtime_params_config)
+    # Convert any Enums to their values.
+    dynamic_params_kwargs = {
+        k: v.value if isinstance(v, enum.Enum) else v
+        for k, v in dynamic_params_kwargs.items()
+    }
+    for field in dataclasses.fields(self):
+      field_value = getattr(self, field.name)
+      match field_value:
+        case RuntimeParametersConfig():
+          continue
+        case RuntimeParametersProvider():
+          dynamic_params_kwargs[field.name] = field_value.build_dynamic_params(
+              t
+          )
+        case interpolated_param.InterpolatedParamBase():
+          dynamic_params_kwargs[field.name] = field_value.get_value(t)
+        # Some interpolated param fields can also be None.
+        case None:
+          dynamic_params_kwargs[field.name] = None
+        case _:
+          raise ValueError(
+              f'Unable to construct dynamic param for param {field.name} with'
+              f' type {type(field_value)}.'
+          )
+
+    return dynamic_params_kwargs
 
   @abc.abstractmethod
   def build_dynamic_params(

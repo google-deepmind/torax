@@ -105,28 +105,7 @@ class RuntimeParamsProvider(
   rho_outer: interpolated_param.InterpolatedVarSingleAxis
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        chimin=self.runtime_params_config.chimin,
-        chimax=self.runtime_params_config.chimax,
-        Demin=self.runtime_params_config.Demin,
-        Demax=self.runtime_params_config.Demax,
-        Vemin=self.runtime_params_config.Vemin,
-        Vemax=self.runtime_params_config.Vemax,
-        apply_inner_patch=bool(self.apply_inner_patch.get_value(t)),
-        De_inner=float(self.De_inner.get_value(t)),
-        Ve_inner=float(self.Ve_inner.get_value(t)),
-        chii_inner=float(self.chii_inner.get_value(t)),
-        chie_inner=float(self.chie_inner.get_value(t)),
-        rho_inner=float(self.rho_inner.get_value(t)),
-        apply_outer_patch=bool(self.apply_outer_patch.get_value(t)),
-        De_outer=float(self.De_outer.get_value(t)),
-        Ve_outer=float(self.Ve_outer.get_value(t)),
-        chii_outer=float(self.chii_outer.get_value(t)),
-        chie_outer=float(self.chie_outer.get_value(t)),
-        rho_outer=float(self.rho_outer.get_value(t)),
-        smoothing_sigma=self.runtime_params_config.smoothing_sigma,
-        smooth_everywhere=self.runtime_params_config.smooth_everywhere,
-    )
+    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)

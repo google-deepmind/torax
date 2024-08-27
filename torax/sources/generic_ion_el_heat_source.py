@@ -70,16 +70,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
       self,
       t: chex.Numeric,
   ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
-        w=float(self.w.get_value(t)),
-        rsource=float(self.rsource.get_value(t)),
-        Ptot=float(self.Ptot.get_value(t)),
-        el_heat_fraction=float(self.el_heat_fraction.get_value(t)),
-        mode=self.runtime_params_config.mode.value,
-        is_explicit=self.runtime_params_config.is_explicit,
-        formula=self.formula.build_dynamic_params(t),
-        prescribed_values=self.prescribed_values.get_value(t),
-    )
+    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)

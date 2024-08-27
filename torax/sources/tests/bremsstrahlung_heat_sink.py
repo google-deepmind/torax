@@ -21,6 +21,7 @@ from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax import core_profile_setters
+from torax import geometry
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -100,6 +101,12 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
     # Expect the relativistic correction to increase the total power.
     self.assertGreater(P_brem_total_stott, P_brem_total)
+
+  def test_runtime_params_builds_dynamic_params(self):
+    runtime_params = bremsstrahlung_heat_sink.RuntimeParams()
+    geo = geometry.build_circular_geometry()
+    provider = runtime_params.make_provider(geo.torax_mesh)
+    provider.build_dynamic_params(t=0.0)
 
 
 if __name__ == '__main__':

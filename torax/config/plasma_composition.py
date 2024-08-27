@@ -61,12 +61,7 @@ class PlasmaCompositionProvider(
   def build_dynamic_params(
       self, t: chex.Numeric
   ) -> DynamicPlasmaComposition:
-    return DynamicPlasmaComposition(
-        Ai=self.runtime_params_config.Ai,
-        Zi=self.runtime_params_config.Zi,
-        Zeff=float(self.Zeff.get_value(t)),
-        Zimp=float(self.Zimp.get_value(t)),
-    )
+    return DynamicPlasmaComposition(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass

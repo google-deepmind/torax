@@ -98,39 +98,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   runtime_params_config: RuntimeParams
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        chimin=self.runtime_params_config.chimin,
-        chimax=self.runtime_params_config.chimax,
-        Demin=self.runtime_params_config.Demin,
-        Demax=self.runtime_params_config.Demax,
-        Vemin=self.runtime_params_config.Vemin,
-        Vemax=self.runtime_params_config.Vemax,
-        apply_inner_patch=bool(self.apply_inner_patch.get_value(t)),
-        De_inner=float(self.De_inner.get_value(t)),
-        Ve_inner=float(self.Ve_inner.get_value(t)),
-        chii_inner=float(self.chii_inner.get_value(t)),
-        chie_inner=float(self.chie_inner.get_value(t)),
-        rho_inner=float(self.rho_inner.get_value(t)),
-        apply_outer_patch=bool(self.apply_outer_patch.get_value(t)),
-        De_outer=float(self.De_outer.get_value(t)),
-        Ve_outer=float(self.Ve_outer.get_value(t)),
-        chii_outer=float(self.chii_outer.get_value(t)),
-        chie_outer=float(self.chie_outer.get_value(t)),
-        rho_outer=float(self.rho_outer.get_value(t)),
-        smoothing_sigma=self.runtime_params_config.smoothing_sigma,
-        smooth_everywhere=self.runtime_params_config.smooth_everywhere,
-        coll_mult=self.runtime_params_config.coll_mult,
-        include_ITG=self.runtime_params_config.include_ITG,
-        include_TEM=self.runtime_params_config.include_TEM,
-        include_ETG=self.runtime_params_config.include_ETG,
-        ITG_flux_ratio_correction=self.runtime_params_config.ITG_flux_ratio_correction,
-        ETG_correction_factor=self.runtime_params_config.ETG_correction_factor,
-        DVeff=self.runtime_params_config.DVeff,
-        An_min=self.runtime_params_config.An_min,
-        avoid_big_negative_s=self.runtime_params_config.avoid_big_negative_s,
-        smag_alpha_correction=self.runtime_params_config.smag_alpha_correction,
-        q_sawtooth_proxy=self.runtime_params_config.q_sawtooth_proxy,
-    )
+    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)

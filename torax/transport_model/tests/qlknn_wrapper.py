@@ -124,6 +124,12 @@ class QlknnWrapperTest(parameterized.TestCase):
       )
       npt.assert_array_equal(filtered_model_output[key], expected)
 
+  def test_runtime_params_builds_dynamic_params(self):
+    runtime_params = qlknn_wrapper.RuntimeParams()
+    geo = geometry.build_circular_geometry()
+    provider = runtime_params.make_provider(geo.torax_mesh)
+    provider.build_dynamic_params(t=0.0)
+
 
 if __name__ == '__main__':
   absltest.main()

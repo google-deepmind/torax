@@ -74,12 +74,7 @@ class ExponentialProvider(base.RuntimeParametersProvider['DynamicExponential']):
       self,
       t: chex.Numeric,
     ) -> DynamicExponential:
-    return DynamicExponential(
-        total=float(self.total.get_value(t)),
-        c1=float(self.c1.get_value(t)),
-        c2=float(self.c2.get_value(t)),
-        use_normalized_r=self.runtime_params_config.use_normalized_r,
-    )
+    return DynamicExponential(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)
@@ -129,12 +124,7 @@ class GaussianProvider(base.RuntimeParametersProvider['DynamicGaussian']):
       self,
       t: chex.Numeric,
     ) -> DynamicGaussian:
-    return DynamicGaussian(
-        total=float(self.total.get_value(t)),
-        c1=float(self.c1.get_value(t)),
-        c2=float(self.c2.get_value(t)),
-        use_normalized_r=self.runtime_params_config.use_normalized_r,
-    )
+    return DynamicGaussian(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)

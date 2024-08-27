@@ -301,13 +301,7 @@ class _FakeSourceRuntimeParamsProvider(
       self,
       t: chex.Numeric,
   ) -> '_FakeSourceDynamicRuntimeParams':
-    return _FakeSourceDynamicRuntimeParams(
-        foo=float(self.foo.get_value(t)),
-        mode=self.runtime_params_config.mode.value,
-        is_explicit=self.runtime_params_config.is_explicit,
-        formula=self.formula.build_dynamic_params(t),
-        prescribed_values=self.prescribed_values.get_value(t),
-    )
+    return _FakeSourceDynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)

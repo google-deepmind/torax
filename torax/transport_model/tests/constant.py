@@ -11,36 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Tests for generic_ion_el_heat_source."""
-
+"""Tests for constant transport model."""
 from absl.testing import absltest
 from torax import geometry
-from torax.sources import generic_ion_el_heat_source
-from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source
-from torax.sources.tests import test_lib
+from torax.transport_model import constant
 
 
-class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
-  """Tests for GenericIonElectronHeatSource."""
-
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=generic_ion_el_heat_source.GenericIonElectronHeatSource,
-        source_class_builder=generic_ion_el_heat_source.GenericIonElectronHeatSourceBuilder,
-        unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
-        ],
-        expected_affected_core_profiles=(
-            source.AffectedCoreProfile.TEMP_ION,
-            source.AffectedCoreProfile.TEMP_EL,
-        ),
-    )
+class RuntimeParamsTest(absltest.TestCase):
 
   def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = generic_ion_el_heat_source.RuntimeParams()
+    runtime_params = constant.RuntimeParams()
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)

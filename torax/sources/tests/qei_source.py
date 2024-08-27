@@ -129,6 +129,12 @@ class QeiSourceTest(test_lib.SourceTestCase):
               core_profiles,
           )
 
+  def test_runtime_params_builds_dynamic_params(self):
+    runtime_params = qei_source.RuntimeParams()
+    geo = geometry.build_circular_geometry()
+    provider = runtime_params.make_provider(geo.torax_mesh)
+    provider.build_dynamic_params(t=0.0)
+
 
 if __name__ == '__main__':
   absltest.main()

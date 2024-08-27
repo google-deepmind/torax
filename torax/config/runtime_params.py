@@ -72,20 +72,15 @@ class GeneralRuntimeParamsProvider(
       self,
       t: chex.Numeric,
   ) -> DynamicGeneralRuntimeParams:
-    return DynamicGeneralRuntimeParams(
-        dynamic_plasma_composition=self.plasma_composition.build_dynamic_params(
-            t
-        ),
-        dynamic_profile_conditions=self.profile_conditions.build_dynamic_params(
-            t
-        ),
-        dynamic_numerics=self.numerics.build_dynamic_params(t),
-    )
+    dynamic_params_kwargs = self.get_dynamic_params_kwargs(t)
+    # TODO(b/362436011)
+    del dynamic_params_kwargs['output_dir']
+    return DynamicGeneralRuntimeParams(**dynamic_params_kwargs)
 
 
 @chex.dataclass
 class DynamicGeneralRuntimeParams:
   """General runtime input parameters for the `torax` module."""
-  dynamic_plasma_composition: plasma_composition_lib.DynamicPlasmaComposition
-  dynamic_profile_conditions: profile_conditions_lib.DynamicProfileConditions
-  dynamic_numerics: numerics_lib.DynamicNumerics
+  plasma_composition: plasma_composition_lib.DynamicPlasmaComposition
+  profile_conditions: profile_conditions_lib.DynamicProfileConditions
+  numerics: numerics_lib.DynamicNumerics

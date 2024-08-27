@@ -259,9 +259,9 @@ class DynamicRuntimeParamsSliceProvider:
         ),
         stepper=self._stepper.build_dynamic_params(t),
         sources=_build_dynamic_sources(self._sources_providers, t,),
-        plasma_composition=dynamic_general_runtime_params.dynamic_plasma_composition,
-        profile_conditions=dynamic_general_runtime_params.dynamic_profile_conditions,
-        numerics=dynamic_general_runtime_params.dynamic_numerics,
+        plasma_composition=dynamic_general_runtime_params.plasma_composition,
+        profile_conditions=dynamic_general_runtime_params.profile_conditions,
+        numerics=dynamic_general_runtime_params.numerics,
     )
 
 

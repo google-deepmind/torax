@@ -79,17 +79,7 @@ class RuntimeParamsProvider(
       self,
       t: chex.Numeric,
   ) ->  DynamicRuntimeParams:
-    return  DynamicRuntimeParams(
-        Iext=float(self.Iext.get_value(t)),
-        fext=float(self.fext.get_value(t)),
-        wext=float(self.wext.get_value(t)),
-        rext=float(self.rext.get_value(t)),
-        use_absolute_jext=self.runtime_params_config.use_absolute_jext,
-        mode=self.runtime_params_config.mode.value,
-        is_explicit=self.runtime_params_config.is_explicit,
-        formula=self.formula.build_dynamic_params(t),
-        prescribed_values=self.prescribed_values.get_value(t),
-    )
+    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)

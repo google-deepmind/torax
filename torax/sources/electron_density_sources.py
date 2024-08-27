@@ -61,14 +61,7 @@ class GasPuffRuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
       self,
       t: chex.Numeric,
   ) -> DynamicGasPuffRuntimeParams:
-    return DynamicGasPuffRuntimeParams(
-        puff_decay_length=float(self.puff_decay_length.get_value(t)),
-        S_puff_tot=float(self.S_puff_tot.get_value(t)),
-        mode=self.runtime_params_config.mode.value,
-        is_explicit=self.runtime_params_config.is_explicit,
-        formula=self.formula.build_dynamic_params(t),
-        prescribed_values=self.prescribed_values.get_value(t),
-    )
+    return DynamicGasPuffRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)
@@ -223,17 +216,7 @@ class PelletRuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
       self,
       t: chex.Numeric,
   ) -> DynamicPelletRuntimeParams:
-    return DynamicPelletRuntimeParams(
-        pellet_width=float(self.pellet_width.get_value(t)),
-        pellet_deposition_location=float(
-            self.pellet_deposition_location.get_value(t)
-        ),
-        S_pellet_tot=float(self.S_pellet_tot.get_value(t)),
-        mode=self.runtime_params_config.mode.value,
-        is_explicit=self.runtime_params_config.is_explicit,
-        formula=self.formula.build_dynamic_params(t),
-        prescribed_values=self.prescribed_values.get_value(t),
-    )
+    return DynamicPelletRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)
