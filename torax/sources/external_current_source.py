@@ -86,18 +86,15 @@ class RuntimeParamsProvider(
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime parameters for the external current source."""
 
-  Iext: float
-  fext: float
-  wext: float
-  rext: float
+  Iext: jax.Array
+  fext: jax.Array
+  wext: jax.Array
+  rext: jax.Array
   use_absolute_jext: bool
 
   def sanity_check(self):
     """Checks that all parameters are valid."""
-    # Using object.__setattr__ to get around the fact this is a frozen dataclass
-    object.__setattr__(
-        self, 'wext', jax_utils.error_if_negative(self.wext, 'wext')
-    )
+    jax_utils.error_if_negative(self.wext, 'wext')
 
   def __post_init__(self):
     self.sanity_check()

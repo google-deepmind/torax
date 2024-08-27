@@ -20,6 +20,7 @@ import dataclasses
 from typing import Callable
 
 import chex
+import jax
 from jax import numpy as jnp
 from torax import constants as constants_module
 from torax import geometry
@@ -77,56 +78,25 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
 
-  chi_e_bohm_coeff: float
-  chi_e_gyrobohm_coeff: float
-  chi_i_bohm_coeff: float
-  chi_i_gyrobohm_coeff: float
-  d_face_c1: float
-  d_face_c2: float
+  chi_e_bohm_coeff: jax.Array
+  chi_e_gyrobohm_coeff: jax.Array
+  chi_i_bohm_coeff: jax.Array
+  chi_i_gyrobohm_coeff: jax.Array
+  d_face_c1: jax.Array
+  d_face_c2: jax.Array
 
   def sanity_check(self):
     runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
-
-    # Using the object.__setattr__ call to get around the fact that this
-    # dataclass is frozen.
-    object.__setattr__(
-        self,
-        'chi_e_bohm_coeff',
-        jax_utils.error_if_negative(self.chi_e_bohm_coeff, 'chi_e_bohm_coeff'),
+    jax_utils.error_if_negative(self.chi_e_bohm_coeff, 'chi_e_bohm_coeff')
+    jax_utils.error_if_negative(
+        self.chi_e_gyrobohm_coeff, 'chi_e_gyrobohm_coeff'
     )
-    object.__setattr__(
-        self,
-        'chi_e_gyrobohm_coeff',
-        jax_utils.error_if_negative(
-            self.chi_e_gyrobohm_coeff, 'chi_e_gyrobohm_coeff'
-        ),
+    jax_utils.error_if_negative(self.chi_i_bohm_coeff, 'chi_i_bohm_coeff')
+    jax_utils.error_if_negative(
+        self.chi_i_gyrobohm_coeff, 'chi_i_gyrobohm_coeff'
     )
-    object.__setattr__(
-        self,
-        'chi_i_bohm_coeff',
-        jax_utils.error_if_negative(self.chi_i_bohm_coeff, 'chi_i_bohm_coeff'),
-    )
-    object.__setattr__(
-        self,
-        'chi_i_gyrobohm_coeff',
-        jax_utils.error_if_negative(
-            self.chi_i_gyrobohm_coeff, 'chi_i_gyrobohm_coeff'
-        ),
-    )
-    object.__setattr__(
-        self,
-        'd_face_c1',
-        jax_utils.error_if_negative(
-            self.d_face_c1, 'd_face_c1'
-        ),
-    )
-    object.__setattr__(
-        self,
-        'd_face_c2',
-        jax_utils.error_if_negative(
-            self.d_face_c2, 'd_face_c2'
-        ),
-    )
+    jax_utils.error_if_negative(self.d_face_c1, 'd_face_c1')
+    jax_utils.error_if_negative(self.d_face_c2, 'd_face_c2')
 
 
 class BohmGyroBohmModel(transport_model.TransportModel):

@@ -123,8 +123,8 @@ def coll_exchange(
 
 def internal_boundary(
     geo: Geometry,
-    Ped_top: float,
-    set_pedestal: bool,
+    Ped_top: jax.Array,
+    set_pedestal: jax.Array,
 ) -> jax.Array:
   # Create Boolean mask FiPy CellVariable with True where the internal boundary
   # condition is

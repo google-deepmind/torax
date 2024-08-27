@@ -20,6 +20,7 @@ import dataclasses
 import logging
 
 import chex
+import jax
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
@@ -260,28 +261,28 @@ class ProfileConditionsProvider(
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
-  Ip: float
-  Ti_bound_right: float
-  Te_bound_right: float
+  Ip: jax.Array
+  Ti_bound_right: jax.Array
+  Te_bound_right: jax.Array
   # Temperature profiles defined on the cell grid.
-  Te: chex.Array
-  Ti: chex.Array
+  Te: jax.Array
+  Ti: jax.Array
   # If provided as array, Psi profile defined on the cell grid.
-  psi: chex.Array | None
+  psi: jax.Array | None
   # Electron density profile on the cell grid.
-  ne: chex.Array
+  ne: jax.Array
   normalize_to_nbar: bool
-  nbar: float
+  nbar: jax.Array
   ne_is_fGW: bool
-  ne_bound_right: float
+  ne_bound_right: jax.Array
   ne_bound_right_is_fGW: bool
   ne_bound_right_is_absolute: bool
-  set_pedestal: bool
-  Tiped: float
-  Teped: float
-  neped: float
+  set_pedestal: jax.Array
+  Tiped: jax.Array
+  Teped: jax.Array
+  neped: jax.Array
   neped_is_fGW: bool
-  Ped_top: float
+  Ped_top: jax.Array
   nu: float
   initial_j_is_total_current: bool
   initial_psi_from_j: bool

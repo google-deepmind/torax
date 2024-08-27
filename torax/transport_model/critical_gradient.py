@@ -20,6 +20,7 @@ import dataclasses
 from typing import Callable
 
 import chex
+import jax
 from jax import numpy as jnp
 from torax import constants as constants_module
 from torax import geometry
@@ -77,19 +78,13 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
   alpha: float
   chistiff: float
-  chiei_ratio: float
-  chi_D_ratio: float
-  VR_D_ratio: float
+  chiei_ratio: jax.Array
+  chi_D_ratio: jax.Array
+  VR_D_ratio: jax.Array
 
   def sanity_check(self):
     runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
-    # Using the object.__setattr__ call to get around the fact that this
-    # dataclass is frozen.
-    object.__setattr__(
-        self,
-        'chi_D_ratio',
-        jax_utils.error_if_negative(self.chi_D_ratio, 'chi_D_ratio'),
-    )
+    jax_utils.error_if_negative(self.chi_D_ratio, 'chi_D_ratio')
 
   def __post_init__(self):
     self.sanity_check()

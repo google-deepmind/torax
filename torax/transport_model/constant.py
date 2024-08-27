@@ -23,6 +23,7 @@ import dataclasses
 from typing import Callable
 
 import chex
+import jax
 from jax import numpy as jnp
 from torax import geometry
 from torax import interpolated_param
@@ -77,29 +78,17 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   See base class runtime_params.DynamicRuntimeParams docstring for more info.
   """
 
-  chii_const: float
-  chie_const: float
-  De_const: float
-  Ve_const: float
+  chii_const: jax.Array
+  chie_const: jax.Array
+  De_const: jax.Array
+  Ve_const: jax.Array
 
   def sanity_check(self):
     """Make sure all the parameters are valid."""
     runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
-    # Using the object.__setattr__ call to get around the fact that this
-    # dataclass is frozen.
-    object.__setattr__(
-        self, 'De_const', jax_utils.error_if_negative(self.De_const, 'De_const')
-    )
-    object.__setattr__(
-        self,
-        'chii_const',
-        jax_utils.error_if_negative(self.chii_const, 'chii_const'),
-    )
-    object.__setattr__(
-        self,
-        'chie_const',
-        jax_utils.error_if_negative(self.chie_const, 'chie_const'),
-    )
+    jax_utils.error_if_negative(self.De_const, 'De_const')
+    jax_utils.error_if_negative(self.chii_const, 'chii_const')
+    jax_utils.error_if_negative(self.chie_const, 'chie_const')
 
 
 class ConstantTransportModel(transport_model.TransportModel):

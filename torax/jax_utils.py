@@ -86,8 +86,8 @@ def enable_errors(value: bool):
 
 
 def error_if(
-    var: jax.Array | float,
-    cond: jax.Array | bool,
+    var: jax.Array,
+    cond: jax.Array,
     msg: str,
 ) -> jax.Array:
   """Raises error if cond is true, and `errors_enabled` is True.
@@ -96,7 +96,7 @@ def error_if(
 
   Args:
     var: The variable to pass through.
-    cond: Error if cond is true.
+    cond: Boolean array, error if cond is true.
     msg: Message to print on error.
 
   Returns:
@@ -110,7 +110,7 @@ def error_if(
 
 
 def error_if_not_positive(
-    var: jax.Array | float, name: str, to_wrap: Optional[jax.Array] = None
+    var: jax.Array, name: str, to_wrap: Optional[jax.Array] = None
 ) -> jax.Array:
   """Check that a variable is positive.
 
@@ -125,7 +125,6 @@ def error_if_not_positive(
   Returns:
     var: Identity wrapper that must be used for the check to be included.
   """
-  var = jnp.array(var)
   msg = f'{name} must be > 0.'
   min_var = jnp.min(var)
   if to_wrap is None:
@@ -134,7 +133,7 @@ def error_if_not_positive(
 
 
 def error_if_negative(
-    var: jax.Array | float, name: str, to_wrap: Optional[jax.Array] = None
+    var: jax.Array, name: str, to_wrap: Optional[jax.Array] = None
 ) -> jax.Array:
   """Check that a variable is non-negative.
 
@@ -149,7 +148,6 @@ def error_if_negative(
   Returns:
     var: Identity wrapper that must be used for the check to be included.
   """
-  var = jnp.array(var)
   msg = f'{name} must be >= 0.'
   min_var = jnp.min(var)
   if to_wrap is None:

@@ -23,6 +23,7 @@ from __future__ import annotations
 from typing import TypeAlias
 
 import chex
+import jax
 from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
@@ -112,98 +113,53 @@ class RuntimeParamsProvider(
 class DynamicRuntimeParams:
   """Input params for the transport model which can be used as compiled args."""
 
-  chimin: float
-  chimax: float
-  Demin: float
-  Demax: float
-  Vemin: float
-  Vemax: float
-  apply_inner_patch: bool
-  De_inner: float
-  Ve_inner: float
-  chii_inner: float
-  chie_inner: float
-  rho_inner: float
-  apply_outer_patch: bool
-  De_outer: float
-  Ve_outer: float
-  chii_outer: float
-  chie_outer: float
-  rho_outer: float
-  smoothing_sigma: float
-  smooth_everywhere: bool
+  chimin: jax.Array
+  chimax: jax.Array
+  Demin: jax.Array
+  Demax: jax.Array
+  Vemin: jax.Array
+  Vemax: jax.Array
+  apply_inner_patch: jax.Array
+  De_inner: jax.Array
+  Ve_inner: jax.Array
+  chii_inner: jax.Array
+  chie_inner: jax.Array
+  rho_inner: jax.Array
+  apply_outer_patch: jax.Array
+  De_outer: jax.Array
+  Ve_outer: jax.Array
+  chii_outer: jax.Array
+  chie_outer: jax.Array
+  rho_outer: jax.Array
+  smoothing_sigma: jax.Array
+  smooth_everywhere: jax.Array
 
   def sanity_check(self):
     """Make sure all the parameters are valid."""
-    # Using the object.__setattr__ call to get around the fact that this
-    # dataclass is frozen.
-    object.__setattr__(
-        self, 'chimin', jax_utils.error_if_negative(self.chimin, 'chimin')
+    jax_utils.error_if_negative(self.chimin, 'chimin')
+    jax_utils.error_if(
+        self.chimax, self.chimax <= self.chimin, 'chimax must be > chimin'
     )
-    object.__setattr__(
-        self,
-        'chimax',
-        jax_utils.error_if(
-            self.chimax, self.chimax <= self.chimin, 'chimax must be > chimin'
-        ),
+    jax_utils.error_if_negative(self.Demin, 'Demin')
+    jax_utils.error_if(
+        self.Demax, self.Demax <= self.Demin, 'Demax must be > Demin'
     )
-    object.__setattr__(
-        self, 'Demin', jax_utils.error_if_negative(self.Demin, 'Demin')
+    jax_utils.error_if(
+        self.Vemax, self.Vemax <= self.Vemin, 'Vemax must be > Vemin'
     )
-    object.__setattr__(
-        self,
-        'Demax',
-        jax_utils.error_if(
-            self.Demax, self.Demax <= self.Demin, 'Demax must be > Demin'
-        ),
+    jax_utils.error_if_negative(self.De_inner, 'De_inner')
+    jax_utils.error_if_negative(self.chii_inner, 'chii_inner')
+    jax_utils.error_if_negative(self.chie_inner, 'chie_inner')
+    jax_utils.error_if(
+        self.rho_inner, self.rho_inner > 1.0, 'rho_inner must be <= 1.'
     )
-    object.__setattr__(
-        self,
-        'Vemax',
-        jax_utils.error_if(
-            self.Vemax, self.Vemax <= self.Vemin, 'Vemax must be > Vemin'
-        ),
+    jax_utils.error_if(
+        self.rho_outer, self.rho_outer > 1.0, 'rho_outer must be <= 1.'
     )
-    object.__setattr__(
-        self, 'De_inner', jax_utils.error_if_negative(self.De_inner, 'De_inner')
-    )
-    object.__setattr__(
-        self,
-        'chii_inner',
-        jax_utils.error_if_negative(self.chii_inner, 'chii_inner'),
-    )
-    object.__setattr__(
-        self,
-        'chie_inner',
-        jax_utils.error_if_negative(self.chie_inner, 'chie_inner'),
-    )
-    object.__setattr__(
-        self,
-        'rho_inner',
-        jax_utils.error_if_negative(self.rho_inner, 'rho_inner'),
-    )
-    object.__setattr__(
-        self,
-        'rho_inner',
-        jax_utils.error_if(
-            self.rho_inner, self.rho_inner > 1.0, 'rho_inner must be <= 1.'
-        ),
-    )
-    object.__setattr__(
-        self,
-        'rho_outer',
-        jax_utils.error_if(
-            self.rho_outer, self.rho_outer > 1.0, 'rho_outer must be <= 1.'
-        ),
-    )
-    object.__setattr__(
-        self,
-        'rho_outer',
-        jax_utils.error_if(
-            self.rho_outer,
-            self.rho_outer <= self.rho_inner,
-            'rho_outer must be > rho_inner',
-        ),
+    jax_utils.error_if(
+        self.rho_outer,
+        self.rho_outer <= self.rho_inner,
+        'rho_outer must be > rho_inner',
     )
 
   def __post_init__(self):

@@ -49,7 +49,7 @@ class Currents:
   # pylint: disable=invalid-name
   # Using physics notation naming convention
   I_bootstrap: jax.Array
-  Ip: float
+  Ip: jax.Array
   sigma: jax.Array
   jtot_hires: Optional[jax.Array] = None
 
