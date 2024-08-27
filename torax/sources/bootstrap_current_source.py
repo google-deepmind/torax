@@ -27,7 +27,6 @@ from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
-from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.sources import runtime_params as runtime_params_lib
@@ -45,17 +44,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
       self,
       torax_mesh: geometry.Grid1D | None = None,
   ) -> RuntimeParamsProvider:
-    if torax_mesh is None:
-      raise ValueError(
-          'torax_mesh is required for BootstrapCurrentSource.'
-      )
-    return RuntimeParamsProvider(
-        runtime_params_config=self,
-        formula=self.formula.make_provider(torax_mesh),
-        prescribed_values=config_args.get_interpolated_var_2d(
-            self.prescribed_values, torax_mesh.cell_centers
-        ),
-    )
+    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass

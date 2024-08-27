@@ -23,7 +23,6 @@ import jax
 from torax import geometry
 from torax import interpolated_param
 from torax import state
-from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
@@ -48,19 +47,7 @@ class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
       raise ValueError(
           'torax_mesh is required for GasPuffRuntimeParams.make_provider.'
       )
-    return GasPuffRuntimeParamsProvider(
-        runtime_params_config=self,
-        formula=self.formula.make_provider(torax_mesh),
-        prescribed_values=config_args.get_interpolated_var_2d(
-            self.prescribed_values, torax_mesh.cell_centers
-        ),
-        puff_decay_length=config_args.get_interpolated_var_single_axis(
-            self.puff_decay_length,
-        ),
-        S_puff_tot=config_args.get_interpolated_var_single_axis(
-            self.S_puff_tot,
-        ),
-    )
+    return GasPuffRuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass
@@ -134,25 +121,8 @@ class NBIParticleRuntimeParams(runtime_params_lib.RuntimeParams):
       self,
       torax_mesh: geometry.Grid1D | None = None,
   ) -> NBIParticleRuntimeParamsProvider:
-    if torax_mesh is None:
-      raise ValueError(
-          'torax_mesh is required for NBIParticleRuntimeParams.make_provider.'
-      )
     return NBIParticleRuntimeParamsProvider(
-        runtime_params_config=self,
-        formula=self.formula.make_provider(torax_mesh),
-        prescribed_values=config_args.get_interpolated_var_2d(
-            self.prescribed_values, torax_mesh.cell_centers
-        ),
-        nbi_particle_width=config_args.get_interpolated_var_single_axis(
-            self.nbi_particle_width,
-        ),
-        nbi_deposition_location=config_args.get_interpolated_var_single_axis(
-            self.nbi_deposition_location,
-        ),
-        S_nbi_tot=config_args.get_interpolated_var_single_axis(
-            self.S_nbi_tot,
-        ),
+        **self.get_provider_kwargs(torax_mesh)
     )
 
 
@@ -238,26 +208,7 @@ class PelletRuntimeParams(runtime_params_lib.RuntimeParams):
       self,
       torax_mesh: geometry.Grid1D | None = None,
   ) -> PelletRuntimeParamsProvider:
-    if torax_mesh is None:
-      raise ValueError(
-          'torax_mesh is required for PelletRuntimeParams.make_provider.'
-      )
-    return PelletRuntimeParamsProvider(
-        runtime_params_config=self,
-        formula=self.formula.make_provider(torax_mesh),
-        prescribed_values=config_args.get_interpolated_var_2d(
-            self.prescribed_values, torax_mesh.cell_centers
-        ),
-        pellet_width=config_args.get_interpolated_var_single_axis(
-            self.pellet_width,
-        ),
-        pellet_deposition_location=config_args.get_interpolated_var_single_axis(
-            self.pellet_deposition_location,
-        ),
-        S_pellet_tot=config_args.get_interpolated_var_single_axis(
-            self.S_pellet_tot,
-        ),
-    )
+    return PelletRuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass

@@ -25,7 +25,6 @@ from jax import numpy as jnp
 from torax import geometry
 from torax import interpolated_param
 from torax import state
-from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -54,23 +53,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
       self,
       torax_mesh: geometry.Grid1D | None = None,
   ) -> 'RuntimeParamsProvider':
-    if torax_mesh is None:
-      raise ValueError(
-          'torax_mesh is required for GenericIonElectronHeatSource.'
-      )
-    return RuntimeParamsProvider(
-        runtime_params_config=self,
-        formula=self.formula.make_provider(torax_mesh),
-        prescribed_values=config_args.get_interpolated_var_2d(
-            self.prescribed_values, torax_mesh.cell_centers
-        ),
-        w=config_args.get_interpolated_var_single_axis(self.w),
-        rsource=config_args.get_interpolated_var_single_axis(self.rsource),
-        Ptot=config_args.get_interpolated_var_single_axis(self.Ptot),
-        el_heat_fraction=config_args.get_interpolated_var_single_axis(
-            self.el_heat_fraction
-        ),
-    )
+    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass

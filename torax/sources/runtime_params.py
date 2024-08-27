@@ -23,7 +23,6 @@ import chex
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
-from torax.config import config_args
 from torax.sources import formula_config
 
 
@@ -101,18 +100,7 @@ class RuntimeParams(base.RuntimeParametersConfig):
       self,
       torax_mesh: geometry.Grid1D | None = None,
   ) -> RuntimeParamsProvider:
-    # TODO(b/360831279): Push some of this logic into the base class.
-    if torax_mesh is None:
-      raise ValueError(
-          'torax_mesh is required for RuntimeParams.make_provider.'
-      )
-    return RuntimeParamsProvider(
-        runtime_params_config=self,
-        formula=self.formula.make_provider(torax_mesh),
-        prescribed_values=config_args.get_interpolated_var_2d(
-            self.prescribed_values, torax_mesh.cell_centers
-        ),
-    )
+    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass

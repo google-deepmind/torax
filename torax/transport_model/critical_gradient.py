@@ -26,7 +26,6 @@ from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
 from torax import state
-from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
@@ -56,42 +55,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
       self, torax_mesh: geometry.Grid1D | None = None
   ) -> RuntimeParamsProvider:
     # TODO(b/360831279)
-    return RuntimeParamsProvider(
-        runtime_params_config=self,
-        apply_inner_patch=config_args.get_interpolated_var_single_axis(
-            self.apply_inner_patch
-        ),
-        De_inner=config_args.get_interpolated_var_single_axis(self.De_inner),
-        Ve_inner=config_args.get_interpolated_var_single_axis(self.Ve_inner),
-        chii_inner=config_args.get_interpolated_var_single_axis(
-            self.chii_inner
-        ),
-        chie_inner=config_args.get_interpolated_var_single_axis(
-            self.chie_inner
-        ),
-        rho_inner=config_args.get_interpolated_var_single_axis(self.rho_inner),
-        apply_outer_patch=config_args.get_interpolated_var_single_axis(
-            self.apply_outer_patch
-        ),
-        De_outer=config_args.get_interpolated_var_single_axis(self.De_outer),
-        Ve_outer=config_args.get_interpolated_var_single_axis(self.Ve_outer),
-        chii_outer=config_args.get_interpolated_var_single_axis(
-            self.chii_outer
-        ),
-        chie_outer=config_args.get_interpolated_var_single_axis(
-            self.chie_outer
-        ),
-        rho_outer=config_args.get_interpolated_var_single_axis(self.rho_outer),
-        chiei_ratio=config_args.get_interpolated_var_single_axis(
-            self.chiei_ratio
-        ),
-        chi_D_ratio=config_args.get_interpolated_var_single_axis(
-            self.chi_D_ratio
-        ),
-        VR_D_ratio=config_args.get_interpolated_var_single_axis(
-            self.VR_D_ratio
-        ),
-    )
+    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass
