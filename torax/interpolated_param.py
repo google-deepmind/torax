@@ -140,7 +140,9 @@ class StepInterpolatedParam(InterpolatedParamBase):
       self,
       x: chex.Numeric,
   ) -> chex.Array:
-    idx = jnp.max(jnp.argwhere(self._padded_xs < x).flatten())
+    idx = jnp.max(
+        jnp.argwhere(self._padded_xs < x, size=len(self._padded_xs)).flatten()
+    )
     return self._padded_ys[idx]
 
 
