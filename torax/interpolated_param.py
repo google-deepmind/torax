@@ -79,9 +79,9 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
     diff = jnp.sum(jnp.abs(jnp.sort(self.xs) - self.xs))
     jax_utils.error_if(diff, diff > 1e-8, 'xs must be sorted.')
     if self.ys.ndim == 1:
-      self._fn = jnp.interp
+      self._fn = jax_utils.jit(jnp.interp)
     elif self.ys.ndim == 2:
-      self._fn = jax.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
+      self._fn = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
     else:
       raise ValueError(
           f'ys must be either 1D or 2D. Given: {self.ys.shape}.'
@@ -100,6 +100,14 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
       x: chex.Numeric,
   ) -> chex.Array:
     return self._fn(x, self.xs, self.ys)
+
+
+@jax_utils.jit
+def step_interpolate(
+    padded_xs: jax.Array, padded_ys: jax.Array, x: jax.Array
+) -> jax.Array:
+  idx = jnp.max(jnp.argwhere(padded_xs < x, size=len(padded_xs)).flatten())
+  return padded_ys[idx]
 
 
 class StepInterpolatedParam(InterpolatedParamBase):
@@ -140,10 +148,7 @@ class StepInterpolatedParam(InterpolatedParamBase):
       self,
       x: chex.Numeric,
   ) -> chex.Array:
-    idx = jnp.max(
-        jnp.argwhere(self._padded_xs < x, size=len(self._padded_xs)).flatten()
-    )
-    return self._padded_ys[idx]
+    return step_interpolate(self._padded_xs, self._padded_ys, x)
 
 
 # Config input types convertible to InterpolatedParam objects.
