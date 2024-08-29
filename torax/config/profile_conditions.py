@@ -20,7 +20,7 @@ import dataclasses
 import logging
 
 import chex
-import jax
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
@@ -261,28 +261,28 @@ class ProfileConditionsProvider(
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
-  Ip: jax.Array
-  Ti_bound_right: jax.Array
-  Te_bound_right: jax.Array
+  Ip: array_typing.ScalarFloat
+  Ti_bound_right: array_typing.ScalarFloat
+  Te_bound_right: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.
-  Te: jax.Array
-  Ti: jax.Array
+  Te: array_typing.ArrayFloat
+  Ti: array_typing.ArrayFloat
   # If provided as array, Psi profile defined on the cell grid.
-  psi: jax.Array | None
+  psi: array_typing.ArrayFloat | None
   # Electron density profile on the cell grid.
-  ne: jax.Array
+  ne: array_typing.ArrayFloat
   normalize_to_nbar: bool
-  nbar: jax.Array
+  nbar: array_typing.ScalarFloat
   ne_is_fGW: bool
-  ne_bound_right: jax.Array
+  ne_bound_right: array_typing.ScalarFloat
   ne_bound_right_is_fGW: bool
   ne_bound_right_is_absolute: bool
-  set_pedestal: jax.Array
-  Tiped: jax.Array
-  Teped: jax.Array
-  neped: jax.Array
+  set_pedestal: array_typing.ScalarBool
+  Tiped: array_typing.ScalarFloat
+  Teped: array_typing.ScalarFloat
+  neped: array_typing.ScalarFloat
   neped_is_fGW: bool
-  Ped_top: jax.Array
+  Ped_top: array_typing.ScalarFloat
   nu: float
   initial_j_is_total_current: bool
   initial_psi_from_j: bool
