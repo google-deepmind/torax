@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import chex
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
@@ -129,7 +130,7 @@ class NumericsProvider(base.RuntimeParametersProvider['DynamicNumerics']):
         enable_prescribed_profile_evolution=self.runtime_params_config.enable_prescribed_profile_evolution,
         calcphibdot=self.runtime_params_config.calcphibdot,
         q_correction_factor=self.runtime_params_config.q_correction_factor,
-        resistivity_mult=float(self.resistivity_mult.get_value(t)),
+        resistivity_mult=self.resistivity_mult.get_value(t),
         nref=self.runtime_params_config.nref,
         largeValue_T=self.runtime_params_config.largeValue_T,
         largeValue_n=self.runtime_params_config.largeValue_n,
@@ -149,7 +150,7 @@ class DynamicNumerics:
   fixed_dt: float
   dt_reduction_factor: float
   q_correction_factor: float
-  resistivity_mult: float
+  resistivity_mult: array_typing.ScalarFloat
   nref: float
   largeValue_T: float
   largeValue_n: float

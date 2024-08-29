@@ -20,8 +20,8 @@ import dataclasses
 from typing import Callable
 
 import chex
-import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import constants as constants_module
 from torax import geometry
 from torax import interpolated_param
@@ -78,9 +78,9 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
   alpha: float
   chistiff: float
-  chiei_ratio: jax.Array
-  chi_D_ratio: jax.Array
-  VR_D_ratio: jax.Array
+  chiei_ratio: array_typing.ScalarFloat
+  chi_D_ratio: array_typing.ScalarFloat
+  VR_D_ratio: array_typing.ScalarFloat
 
   def sanity_check(self):
     runtime_params_lib.DynamicRuntimeParams.sanity_check(self)

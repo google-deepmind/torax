@@ -22,6 +22,7 @@ from typing import Optional
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax import state
@@ -75,10 +76,10 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  w: float
-  rsource: float
-  Ptot: float
-  el_heat_fraction: float
+  w: array_typing.ScalarFloat
+  rsource: array_typing.ScalarFloat
+  Ptot: array_typing.ScalarFloat
+  el_heat_fraction: array_typing.ScalarFloat
 
 
 def calc_generic_heat_source(

@@ -20,6 +20,7 @@ import dataclasses
 
 import chex
 import jax
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax import state
@@ -66,8 +67,8 @@ class GasPuffRuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 @chex.dataclass(frozen=True)
 class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  puff_decay_length: float
-  S_puff_tot: float
+  puff_decay_length: array_typing.ScalarFloat
+  S_puff_tot: array_typing.ScalarFloat
 
 
 # Default formula: exponential with nref normalization.
@@ -149,9 +150,9 @@ class NBIParticleRuntimeParamsProvider(
 
 @chex.dataclass(frozen=True)
 class DynamicNBIParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  nbi_particle_width: float
-  nbi_deposition_location: float
-  S_nbi_tot: float
+  nbi_particle_width: array_typing.ScalarFloat
+  nbi_deposition_location: array_typing.ScalarFloat
+  S_nbi_tot: array_typing.ScalarFloat
 
 
 def _calc_nbi_source(
@@ -221,9 +222,9 @@ class PelletRuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 @chex.dataclass(frozen=True)
 class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  pellet_width: float
-  pellet_deposition_location: float
-  S_pellet_tot: float
+  pellet_width: array_typing.ScalarFloat
+  pellet_deposition_location: array_typing.ScalarFloat
+  S_pellet_tot: array_typing.ScalarFloat
 
 
 def _calc_pellet_source(

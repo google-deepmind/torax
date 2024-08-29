@@ -24,6 +24,7 @@ from typing import TypeAlias
 
 import chex
 import jax
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
@@ -119,18 +120,18 @@ class DynamicRuntimeParams:
   Demax: jax.Array
   Vemin: jax.Array
   Vemax: jax.Array
-  apply_inner_patch: jax.Array
-  De_inner: jax.Array
-  Ve_inner: jax.Array
-  chii_inner: jax.Array
-  chie_inner: jax.Array
-  rho_inner: jax.Array
-  apply_outer_patch: jax.Array
-  De_outer: jax.Array
-  Ve_outer: jax.Array
-  chii_outer: jax.Array
-  chie_outer: jax.Array
-  rho_outer: jax.Array
+  apply_inner_patch: array_typing.ScalarBool
+  De_inner: array_typing.ScalarFloat
+  Ve_inner: array_typing.ScalarFloat
+  chii_inner: array_typing.ScalarFloat
+  chie_inner: array_typing.ScalarFloat
+  rho_inner: array_typing.ScalarFloat
+  apply_outer_patch: array_typing.ScalarBool
+  De_outer: array_typing.ScalarFloat
+  Ve_outer: array_typing.ScalarFloat
+  chii_outer: array_typing.ScalarFloat
+  chie_outer: array_typing.ScalarFloat
+  rho_outer: array_typing.ScalarFloat
   smoothing_sigma: jax.Array
   smooth_everywhere: jax.Array
 

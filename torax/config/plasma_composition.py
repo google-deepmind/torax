@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import chex
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
@@ -68,5 +69,5 @@ class PlasmaCompositionProvider(
 class DynamicPlasmaComposition:
   Ai: float
   Zi: float
-  Zeff: float
-  Zimp: float
+  Zeff: array_typing.ScalarFloat
+  Zimp: array_typing.ScalarFloat

@@ -23,6 +23,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from jax.scipy import integrate
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
@@ -86,10 +87,10 @@ class RuntimeParamsProvider(
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime parameters for the external current source."""
 
-  Iext: jax.Array
-  fext: jax.Array
-  wext: jax.Array
-  rext: jax.Array
+  Iext: array_typing.ScalarFloat
+  fext: array_typing.ScalarFloat
+  wext: array_typing.ScalarFloat
+  rext: array_typing.ScalarFloat
   use_absolute_jext: bool
 
   def sanity_check(self):

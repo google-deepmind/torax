@@ -20,6 +20,7 @@ import dataclasses
 from typing import TypeAlias
 
 import chex
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
@@ -80,9 +81,9 @@ class ExponentialProvider(base.RuntimeParametersProvider['DynamicExponential']):
 @chex.dataclass(frozen=True)
 class DynamicExponential(DynamicFormula):
 
-  total: float
-  c1: float
-  c2: float
+  total: array_typing.ScalarFloat
+  c1: array_typing.ScalarFloat
+  c2: array_typing.ScalarFloat
   use_normalized_r: bool
 
 
@@ -130,8 +131,8 @@ class GaussianProvider(base.RuntimeParametersProvider['DynamicGaussian']):
 @chex.dataclass(frozen=True)
 class DynamicGaussian(DynamicFormula):
 
-  total: float
-  c1: float
-  c2: float
+  total: array_typing.ScalarFloat
+  c1: array_typing.ScalarFloat
+  c2: array_typing.ScalarFloat
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool

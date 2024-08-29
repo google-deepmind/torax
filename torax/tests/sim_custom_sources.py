@@ -20,6 +20,7 @@ import dataclasses
 
 from absl.testing import absltest
 import chex
+from torax import array_typing
 from torax import geometry
 from torax import geometry_provider
 from torax import interpolated_param
@@ -344,14 +345,14 @@ class _CustomSourceRuntimeParamsProvider(
 class _CustomSourceDynamicRuntimeParams(
     runtime_params_lib.DynamicRuntimeParams
 ):
-  puff_decay_length: float
-  S_puff_tot: float
-  nbi_particle_width: float
-  nbi_deposition_location: float
-  S_nbi_tot: float
-  pellet_width: float
-  pellet_deposition_location: float
-  S_pellet_tot: float
+  puff_decay_length: array_typing.ScalarFloat
+  S_puff_tot: array_typing.ScalarFloat
+  nbi_particle_width: array_typing.ScalarFloat
+  nbi_deposition_location: array_typing.ScalarFloat
+  S_nbi_tot: array_typing.ScalarFloat
+  pellet_width: array_typing.ScalarFloat
+  pellet_deposition_location: array_typing.ScalarFloat
+  S_pellet_tot: array_typing.ScalarFloat
 
 
 # pylint: enable=invalid-name

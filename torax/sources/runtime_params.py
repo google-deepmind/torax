@@ -20,6 +20,7 @@ import dataclasses
 import enum
 
 import chex
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
@@ -134,4 +135,4 @@ class DynamicRuntimeParams:
   mode: int
   is_explicit: bool
   formula: formula_config.DynamicFormula
-  prescribed_values: chex.Array
+  prescribed_values: array_typing.ArrayFloat

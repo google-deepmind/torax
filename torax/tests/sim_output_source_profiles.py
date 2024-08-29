@@ -27,6 +27,7 @@ import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax import array_typing
 from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
@@ -306,7 +307,7 @@ class _FakeSourceRuntimeParamsProvider(
 
 @chex.dataclass(frozen=True)
 class _FakeSourceDynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  foo: float
+  foo: array_typing.ScalarFloat
 
 
 class _FakeSimulationStepFn(sim_lib.SimulationStepFn):

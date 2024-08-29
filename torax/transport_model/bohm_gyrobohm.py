@@ -20,8 +20,8 @@ import dataclasses
 from typing import Callable
 
 import chex
-import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import constants as constants_module
 from torax import geometry
 from torax import interpolated_param
@@ -78,12 +78,12 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
 
-  chi_e_bohm_coeff: jax.Array
-  chi_e_gyrobohm_coeff: jax.Array
-  chi_i_bohm_coeff: jax.Array
-  chi_i_gyrobohm_coeff: jax.Array
-  d_face_c1: jax.Array
-  d_face_c2: jax.Array
+  chi_e_bohm_coeff: array_typing.ScalarFloat
+  chi_e_gyrobohm_coeff: array_typing.ScalarFloat
+  chi_i_bohm_coeff: array_typing.ScalarFloat
+  chi_i_gyrobohm_coeff: array_typing.ScalarFloat
+  d_face_c1: array_typing.ScalarFloat
+  d_face_c2: array_typing.ScalarFloat
 
   def sanity_check(self):
     runtime_params_lib.DynamicRuntimeParams.sanity_check(self)

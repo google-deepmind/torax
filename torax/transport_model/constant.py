@@ -23,8 +23,8 @@ import dataclasses
 from typing import Callable
 
 import chex
-import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
@@ -78,10 +78,10 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   See base class runtime_params.DynamicRuntimeParams docstring for more info.
   """
 
-  chii_const: jax.Array
-  chie_const: jax.Array
-  De_const: jax.Array
-  Ve_const: jax.Array
+  chii_const: array_typing.ScalarFloat
+  chie_const: array_typing.ScalarFloat
+  De_const: array_typing.ScalarFloat
+  Ve_const: array_typing.ScalarFloat
 
   def sanity_check(self):
     """Make sure all the parameters are valid."""
