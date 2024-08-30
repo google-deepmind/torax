@@ -301,7 +301,8 @@ def main(
   output_file = write_simulation_output_to_file(output_dir, ds)
 
   if log_sim_output:
-    history = output.StateHistory(torax_outputs)
-    log_simulation_output_to_stdout(history.core_profiles, geo, history.times)
+    log_simulation_output_to_stdout(
+        state_history.core_profiles, geo, state_history.times
+    )
 
   return ds, output_file
