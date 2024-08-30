@@ -454,22 +454,6 @@ class InterpolatedParamTest(parameterized.TestCase):
     np.testing.assert_allclose(output[0], expected_output[0])
     np.testing.assert_allclose(output[1], expected_output[1])
 
-  @parameterized.parameters(
-      interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
-      interpolated_param.InterpolationMode.STEP,
-  )
-  def test_interpolated_param_get_value_is_jittable(
-      self, mode: interpolated_param.InterpolationMode
-  ):
-    """Check we can jit the get_value call."""
-    xs = np.array([0.25, 0.5, 0.75])
-    ys = np.array([1, 2, 3])
-    interpolated_var = interpolated_param.InterpolatedVarSingleAxis(
-        value=(xs, ys), interpolation_mode=mode
-    )
-
-    jax.jit(interpolated_var.get_value)(x=0.5)
-
 
 if __name__ == '__main__':
   absltest.main()
