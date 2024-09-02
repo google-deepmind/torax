@@ -325,7 +325,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
     # disable error checking in residual, since Newton-Raphson routine has
     # error checking based on result of each linear step
 
-    # Unpack the outputs of the optimizer_solve_block.
+    # Unpack the outputs of the newton_raphson_solve_block.
     x_new, stepper_numeric_outputs, (core_sources, core_transport) = (
         newton_raphson_solve_block.newton_raphson_solve_block(
             dt=dt,
