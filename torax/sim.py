@@ -1344,15 +1344,29 @@ def update_current_distribution(
       core_profiles=core_profiles,
   )
 
+  # Calculate splitting of currents depending on input runtime params.
+  dynamic_jext_params = core_profile_setters.get_jext_params(
+      dynamic_runtime_params_slice, source_models
+  )
+
+  # calculate "External" current profile (e.g. ECCD)
+  # form of external current on face grid
+  jext_face = source_models.jext.get_value(
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      dynamic_source_runtime_params=dynamic_jext_params,
+      geo=geo,
+  )
+  jext = geometry.face_to_cell(jext_face)
+
   johm = (
       core_profiles.currents.jtot
       - bootstrap_profile.j_bootstrap
-      - core_profiles.currents.jext
+      - jext
   )
   johm_face = (
       core_profiles.currents.jtot_face
       - bootstrap_profile.j_bootstrap_face
-      - core_profiles.currents.jext_face
+      - jext_face
   )
 
   currents = dataclasses.replace(
@@ -1362,6 +1376,8 @@ def update_current_distribution(
       I_bootstrap=bootstrap_profile.I_bootstrap,
       johm=johm,
       johm_face=johm_face,
+      jext=jext,
+      jext_face=jext_face,
       Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
   )
   new_core_profiles = dataclasses.replace(

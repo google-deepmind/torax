@@ -216,7 +216,7 @@ def _prescribe_currents_no_bootstrap(
   # Calculate splitting of currents depending on input runtime params.
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip
 
-  dynamic_jext_params = _get_jext_params(
+  dynamic_jext_params = get_jext_params(
       dynamic_runtime_params_slice, source_models
   )
   if dynamic_jext_params.use_absolute_jext:
@@ -335,7 +335,7 @@ def _prescribe_currents_with_bootstrap(
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
   # Calculate splitting of currents depending on input runtime params
-  dynamic_jext_params = _get_jext_params(
+  dynamic_jext_params = get_jext_params(
       dynamic_runtime_params_slice, source_models
   )
   if dynamic_jext_params.use_absolute_jext:
@@ -449,7 +449,7 @@ def _calculate_currents_from_psi(
   )
 
   # Calculate splitting of currents depending on input runtime params.
-  dynamic_jext_params = _get_jext_params(
+  dynamic_jext_params = get_jext_params(
       dynamic_runtime_params_slice, source_models
   )
 
@@ -969,7 +969,7 @@ def _get_jtot_hires(
   return jtot_hires
 
 
-def _get_jext_params(
+def get_jext_params(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     source_models: source_models_lib.SourceModels,
 ) -> external_current_source.DynamicRuntimeParams:
