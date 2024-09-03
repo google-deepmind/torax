@@ -146,10 +146,9 @@ def prepare_qualikiz_inputs(
   # of the q-profile. This does not impact qlknn output, which is
   # always stable at r=0 due to the zero gradient boundary conditions.
 
-  q, _ = physics.calc_q_from_jtot_psi(
+  q, _ = physics.calc_q_from_psi(
       geo=geo,
       psi=core_profiles.psi,
-      jtot_face=core_profiles.currents.jtot_face,
       q_correction_factor=q_correction_factor,
   )
   smag = physics.calc_s_from_psi_rmid(

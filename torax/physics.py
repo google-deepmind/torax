@@ -57,10 +57,9 @@ def update_jtot_q_face_s_face(
       geo,
       core_profiles.psi,
   )
-  q_face, _ = calc_q_from_jtot_psi(
+  q_face, _ = calc_q_from_psi(
       geo=geo,
       psi=core_profiles.psi,
-      jtot_face=jtot_face,
       q_correction_factor=q_correction_factor,
   )
   s_face = calc_s_from_psi(
@@ -135,10 +134,9 @@ def internal_boundary(
   return mask_np
 
 
-def calc_q_from_jtot_psi(
+def calc_q_from_psi(
     geo: Geometry,
     psi: cell_variable.CellVariable,
-    jtot_face: jax.Array,
     q_correction_factor: float,
 ) -> tuple[chex.Array, chex.Array]:
   """Calculates the q-profile (q) given current (jtot) and poloidal flux (psi).
@@ -150,7 +148,6 @@ def calc_q_from_jtot_psi(
   Args:
     geo: Magnetic geometry.
     psi: Poloidal flux.
-    jtot_face: Total toroidal current density on face grid.
     q_correction_factor: ad-hoc fix for non-physical circular geometry model
       such that q(r=a) = 3 for standard ITER parameters;
 
@@ -165,10 +162,13 @@ def calc_q_from_jtot_psi(
   inv_iota = jnp.abs(
       (2 * geo.Phib * geo.rho_face_norm[1:]) / psi.face_grad()[1:]
   )
-  # use on-axis definition of q (Wesson 2004, Eq 3.48)
-  q0 = 2 * geo.B0 / (constants.CONSTANTS.mu0 * jtot_face[0] * geo.Rmaj)
-  q0 = jnp.expand_dims(q0, 0)
-  q_face = jnp.concatenate([q0, inv_iota])
+
+  # Use L'Hôpital's rule to calculate iota on-axis, with psi_face_grad()[0]=0.
+  inv_iota0 = jnp.expand_dims(
+      jnp.abs((2 * geo.Phib * geo.drho_norm) / psi.face_grad()[1]), 0
+  )
+
+  q_face = jnp.concatenate([inv_iota0, inv_iota])
   q_face *= jnp.where(
       geo.geometry_type == geometry.GeometryType.CIRCULAR.value,
       q_correction_factor,

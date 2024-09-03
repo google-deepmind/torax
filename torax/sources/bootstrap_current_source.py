@@ -140,9 +140,6 @@ class BootstrapCurrentSource(source.Source):
     temp_el = temp_el or core_profiles.temp_el
     ne = ne if ne is not None else core_profiles.ne
     ni = ni if ni is not None else core_profiles.ni
-    jtot_face = (
-        jtot_face if jtot_face is not None else core_profiles.currents.jtot_face
-    )
     psi = psi or core_profiles.psi
     # pytype: enable=attribute-error
     bootstrap_current = calc_neoclassical(
@@ -153,7 +150,6 @@ class BootstrapCurrentSource(source.Source):
         temp_el=temp_el,
         ne=ne,
         ni=ni,
-        jtot_face=jtot_face,
         psi=psi,
     )
     zero_profile = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
@@ -202,7 +198,6 @@ def calc_neoclassical(
     temp_el: cell_variable.CellVariable,
     ne: cell_variable.CellVariable,
     ni: cell_variable.CellVariable,
-    jtot_face: jax.Array,
     psi: cell_variable.CellVariable,
 ) -> source_profiles.BootstrapCurrentProfile:
   """Calculates sigmaneo, j_bootstrap, and I_bootstrap.
@@ -217,7 +212,6 @@ def calc_neoclassical(
     temp_el: Ion temperature.
     ne: Electron density.
     ni: Main ion density.
-    jtot_face: Total current density on face grid.
     psi: Poloidal flux.
 
   Returns:
@@ -258,10 +252,9 @@ def calc_neoclassical(
 
   # We don't store q_cell in the evolving core profiles, so we need to
   # recalculate it.
-  q_face, _ = physics.calc_q_from_jtot_psi(
+  q_face, _ = physics.calc_q_from_psi(
       geo=geo,
       psi=psi,
-      jtot_face=jtot_face,
       q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
   )
   nuestar = (

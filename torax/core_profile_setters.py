@@ -711,10 +711,9 @@ def initial_core_profiles(
       source_models=source_models,
   )
   s_face = physics.calc_s_from_psi(geo, psi)
-  q_face, _ = physics.calc_q_from_jtot_psi(
+  q_face, _ = physics.calc_q_from_psi(
       geo=geo,
       psi=psi,
-      jtot_face=currents.jtot_face,
       q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
   )
 

@@ -17,9 +17,7 @@
 from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
-from jax import numpy as jnp
 import numpy as np
-from torax import constants
 from torax import core_profile_setters
 from torax import geometry
 from torax import physics
@@ -52,32 +50,25 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         )
     )
 
-    # Dummy value for jtot for unit testing purposes.
-    jtot = jnp.ones(geo.torax_mesh.nx)
-
-    q_face_jax, q_cell_jax = physics.calc_q_from_jtot_psi(
+    q_face_jax, q_cell_jax = physics.calc_q_from_psi(
         geo,
         references.psi,
-        jtot,
         dynamic_runtime_params_slice.numerics.q_correction_factor,
     )
 
     # Make ground truth
     def calc_q_from_psi(runtime_params, geo):
       """Reference implementation from PINT."""
-      consts = constants.CONSTANTS
       iota = np.zeros(geo.torax_mesh.nx + 1)  # on face grid
-      q = np.zeros(geo.torax_mesh.nx + 1)  # on face grid
       # We use the reference value of psi here because the original code
       # for calculating psi depends on FiPy, and we don't want to install that
       iota[1:] = np.abs(
           references.psi_face_grad[1:] / (2 * geo.Phib * geo.rho_face_norm[1:])
       )
-      q[1:] = 1 / iota[1:]
-      # Change from PINT: we don't read jtot from `geo`
-      q[0] = (
-          2 * geo.B0 / (consts.mu0 * jtot[0] * geo.Rmaj)
-      )  # use on-axis definition of q (Wesson 2004, Eq 3.48)
+      iota[0] = np.abs(
+          references.psi_face_grad[1] / (2 * geo.Phib * geo.drho_norm)
+      )
+      q = 1 / iota
       q *= runtime_params.numerics.q_correction_factor
 
       def face_to_cell(face):

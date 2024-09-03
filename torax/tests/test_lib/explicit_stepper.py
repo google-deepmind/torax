@@ -129,10 +129,9 @@ class ExplicitStepper(stepper_lib.Stepper):
         **updated_boundary_conditions['temp_ion'],
     )
 
-    q_face, _ = physics.calc_q_from_jtot_psi(
+    q_face, _ = physics.calc_q_from_psi(
         geo=geo_t,
         psi=core_profiles_t.psi,
-        jtot_face=core_profiles_t.currents.jtot,
         q_correction_factor=dynamic_runtime_params_slice_t.numerics.q_correction_factor,
     )
     s_face = physics.calc_s_from_psi(geo_t, core_profiles_t.psi)
