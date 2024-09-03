@@ -343,6 +343,11 @@ def load_data(filename: str) -> PlotData:
         'r_cell_norm': 'rho_cell_norm',
         'r_face_norm': 'rho_face_norm',
     })
+  # Handle potential jext coordinate name variations
+  if output.CORE_PROFILES_JEXT in ds:
+    jext = ds[output.CORE_PROFILES_JEXT].to_numpy()
+  else:
+    jext = ds['jext'].to_numpy()
   return PlotData(
       ti=ds[output.TEMP_ION].to_numpy(),
       te=ds[output.TEMP_EL].to_numpy(),
@@ -350,7 +355,7 @@ def load_data(filename: str) -> PlotData:
       j=ds[output.JTOT].to_numpy(),
       johm=ds[output.JOHM].to_numpy(),
       j_bootstrap=ds[output.J_BOOTSTRAP].to_numpy(),
-      jext=ds[output.CORE_PROFILES_JEXT].to_numpy(),
+      jext=jext,
       q=ds[output.Q_FACE].to_numpy(),
       s=ds[output.S_FACE].to_numpy(),
       chi_i=ds[output.CHI_FACE_ION].to_numpy(),
