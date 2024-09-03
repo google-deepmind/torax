@@ -350,7 +350,7 @@ def load_data(filename: str) -> PlotData:
       j=ds[output.JTOT].to_numpy(),
       johm=ds[output.JOHM].to_numpy(),
       j_bootstrap=ds[output.J_BOOTSTRAP].to_numpy(),
-      jext=ds[output.JEXT].to_numpy(),
+      jext=ds[output.CORE_PROFILES_JEXT].to_numpy(),
       q=ds[output.Q_FACE].to_numpy(),
       s=ds[output.S_FACE].to_numpy(),
       chi_i=ds[output.CHI_FACE_ION].to_numpy(),

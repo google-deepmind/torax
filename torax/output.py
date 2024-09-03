@@ -44,7 +44,9 @@ JTOT = "jtot"
 JTOT_FACE = "jtot_face"
 JOHM = "johm"
 JOHM_FACE = "johm_face"
-JEXT = "jext"
+# TODO(b/338033916): rename when we have a solution for hierarchical outputs.
+# Add `core_profiles` prefix here to avoid name clash with core_sources.jext.
+CORE_PROFILES_JEXT = "core_profiles_jext"
 JEXT_FACE = "jext_face"
 J_BOOTSTRAP = "j_bootstrap"
 J_BOOTSTRAP_FACE = "j_bootstrap_face"
@@ -87,10 +89,6 @@ def load_state_file(
     with open(path, "rb") as f:
       logging.info("Loading %s from state file %s, time %s", data_var, path, t)
       da = xr.load_dataset(f).sel(time=slice(t, None)).data_vars[data_var]
-      earliest_time = float(da.coords["time"][0])
-      logging.info("Earliest time in file: %.2f", earliest_time)
-      # Shift the time coordinate to start at 0.
-      da = da.assign_coords({"time": da.coords["time"] - earliest_time})
       if RHO_CELL_NORM in da.coords:
         return da.rename({RHO_CELL_NORM: config_args.RHO_NORM})
       else:
@@ -181,7 +179,7 @@ class StateHistory:
     xr_dict[JTOT_FACE] = self.core_profiles.currents.jtot_face
     xr_dict[JOHM] = self.core_profiles.currents.johm
     xr_dict[JOHM_FACE] = self.core_profiles.currents.johm_face
-    xr_dict[JEXT] = self.core_profiles.currents.jext
+    xr_dict[CORE_PROFILES_JEXT] = self.core_profiles.currents.jext
     xr_dict[JEXT_FACE] = self.core_profiles.currents.jext_face
 
     xr_dict[J_BOOTSTRAP] = self.core_profiles.currents.j_bootstrap
@@ -195,8 +193,8 @@ class StateHistory:
     xr_dict[NREF] = self.core_profiles.nref
 
     xr_dict = {
-        k: self._pack_into_data_array(k, name, geo)
-        for k, name in xr_dict.items()
+        name: self._pack_into_data_array(name, data, geo)
+        for name, data in xr_dict.items()
     }
 
     return xr_dict
@@ -214,8 +212,8 @@ class StateHistory:
     xr_dict[V_FACE_EL] = self.core_transport.v_face_el
 
     xr_dict = {
-        k: self._pack_into_data_array(k, name, geo)
-        for k, name in xr_dict.items()
+        name: self._pack_into_data_array(name, data, geo)
+        for name, data in xr_dict.items()
     }
 
     return xr_dict
@@ -230,8 +228,8 @@ class StateHistory:
       xr_dict[profile] = self.core_sources.profiles[profile]
 
     xr_dict = {
-        k: self._pack_into_data_array(k, name, geo)
-        for k, name in xr_dict.items()
+        name: self._pack_into_data_array(name, data, geo)
+        for name, data in xr_dict.items()
     }
 
     return xr_dict
