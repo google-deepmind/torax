@@ -7,6 +7,10 @@ TORAX file output is written to a ``state_history.nc`` netCDF file. The ``output
 string is set in the config dict **runtime_params** key, with default
 ``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``.
 
+Currently we do not support backwards compatibility for old netCDF files. We
+have some limited support for being able to use old TORAX netCDF files with
+plotting (see :ref:`plotting`) but don't make any guarantees on this!
+
 The output is an `[xarray] <https://docs.xarray.dev>`_ DataSet. The Dataset
 is a flat structure containing ``xarray.DataArray`` type data variables,
 corresponding to a subset of the TORAX internal ``Geometry``, ``core_profiles``,
