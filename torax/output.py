@@ -221,10 +221,16 @@ class StateHistory:
   def _save_core_sources(
       self,
       geo: geometry.Geometry,
+      existing_keys: set[str],
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core sources to a dict."""
     xr_dict = {}
     for profile in self.core_sources.profiles:
+      if profile in existing_keys:
+        logging.warning(
+            "Overlapping key %s between sources and other data structures",
+            profile,
+        )
       xr_dict[profile] = self.core_sources.profiles[profile]
 
     xr_dict = {
@@ -281,7 +287,8 @@ class StateHistory:
 
     xr_dict.update(self._get_core_profiles(geo,))
     xr_dict.update(self._save_core_transport(geo,))
-    xr_dict.update(self._save_core_sources(geo,))
+    existing_keys = set(xr_dict.keys())
+    xr_dict.update(self._save_core_sources(geo, existing_keys))
 
     ds = xr.Dataset(
         xr_dict,
