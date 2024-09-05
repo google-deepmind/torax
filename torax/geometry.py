@@ -852,6 +852,10 @@ class StandardGeometryIntermediates:
     Phi = LY['FtPQ'] / vacuum_tor_b_field * B0
     rhon = np.sqrt(Phi / Phi[-1])
     psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']
+    # To avoid possible divisions by zero in diverted geometry. Value of what
+    # replaces the zero does not matter, since it will be replaced by a spline
+    # extrapolation in the post_init.
+    LY_Q1Q = np.where(LY['Q1Q'] != 0, LY['Q1Q'], constants.CONSTANTS.eps)
     return cls(
         Ip_from_parameters=Ip_from_parameters,
         Rmaj=Rmaj,
@@ -863,12 +867,10 @@ class StandardGeometryIntermediates:
         Rin=LY['rgeom'] - LY['aminor'],
         Rout=LY['rgeom'] + LY['aminor'],
         F=np.abs(LY['TQ']),
-        # TODO change this to avoid the possible divide by zero.
-        int_dl_over_Bp=1 / LY['Q1Q'],
+        int_dl_over_Bp=1 / LY_Q1Q,
         flux_surf_avg_1_over_R2=LY['Q2Q'],
         flux_surf_avg_Bp2=np.abs(LY['Q3Q']) / (4 * np.pi**2),
-        # TODO change this to use Q5Q when fbt bug is fixed.
-        flux_surf_avg_RBp=np.sqrt(np.abs(LY['Q4Q'])) / (2 * np.pi),
+        flux_surf_avg_RBp=np.abs(LY['Q5Q']) / (2 * np.pi),
         flux_surf_avg_R2Bp2=np.abs(LY['Q4Q']) / (2 * np.pi) ** 2,
         delta_upper_face=LY['deltau'],
         delta_lower_face=LY['deltal'],
