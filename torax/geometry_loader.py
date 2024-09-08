@@ -28,6 +28,7 @@ class GeometrySource(enum.Enum):
 
   CHEASE = 0
   FBT = 1
+  EQDSK = 2
 
 
 def _load_CHEASE_data(  # pylint: disable=invalid-name
@@ -58,6 +59,11 @@ def _load_fbt_data(file_path: str) -> dict[str, np.ndarray]:
   """Loads the data from a FBT-LY file into a dictionary."""
   return scipy.io.loadmat(file_path, squeeze_me=True)
 
+from eqdsk import EQDSKInterface
+def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
+    eq = EQDSKInterface.from_file(file_path, no_cocos=True) # should probably handle COCOS shenanigans...
+    return eq.__dict__
+
 
 def load_geo_data(
     geometry_dir: str | None,
@@ -84,5 +90,9 @@ def load_geo_data(
       return _load_fbt_data(
           file_path=filepath
       )
+    case GeometrySource.EQDSK:
+        return _load_eqdsk_data(
+            file_path=filepath
+        )
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')
