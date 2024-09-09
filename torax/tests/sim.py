@@ -496,60 +496,107 @@ class SimTest(sim_test_case.SimTestCase):
     )
     self.assertNotEmpty(spectator.arrays)
 
-  def test_core_profiles_are_recomputable(self):
-    """Tests that core profiles from a previous run are recomputable."""
-    test_config = 'test_iterhybrid_rampup'
+  # pylint: disable=invalid-name
+  @parameterized.product(
+      test_config=(
+          'test_psi_heat_dens',
+          'test_psichease_ip_parameters',
+          'test_psichease_ip_chease',
+          'test_psichease_prescribed_jtot',
+          'test_psichease_prescribed_johm',
+          'test_iterhybrid_rampup',
+      ),
+      halfway=(False, True),
+  )
+  def test_core_profiles_are_recomputable(self, test_config, halfway):
+    """Tests that core profiles from a previous run are recomputable.
+
+    In this test we:
+    - Load up a reference file and build a sim from its config.
+    - Get profile values from either halfway or final time of the sim.
+    - Override the dynamic runtime params slice with values from the reference.
+    - Check that the initial core_profiles are equal.
+    - In the case of loading from halfway, run the sim to the end and also check
+    against reference.
+
+    Args:
+      test_config: the config id under test.
+      halfway: Whether to load from halfway (or the end if not) to test in case
+      there is different behaviour for the final step.
+    """
     profiles = [
         output.TEMP_ION,
+        output.TEMP_ION_RIGHT_BC,
         output.TEMP_EL,
+        output.TEMP_EL_RIGHT_BC,
         output.NE,
         output.NI,
         output.NE_RIGHT_BC,
+        output.NI_RIGHT_BC,
         output.PSI,
+        output.PSIDOT,
         output.IP,
         output.NREF,
         output.Q_FACE,
         output.S_FACE,
+        output.J_BOOTSTRAP,
+        output.JOHM,
+        output.CORE_PROFILES_JEXT,
+        output.JTOT,
+        output.JTOT_FACE,
+        output.JEXT_FACE,
+        output.JOHM_FACE,
+        output.J_BOOTSTRAP_FACE,
+        output.I_BOOTSTRAP,
+        output.SIGMA,
     ]
-    ref_profiles, _ = self._get_refs(test_config + '.nc', profiles)
+    ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
+    if halfway:
+      index = len(ref_time) // 2
+    else:
+      index = -1
+    loading_time = ref_time[index]
 
-    # Build the runtime params at t=0.0, everything else should be from t=80.0.
+    # Build the sim and runtime params at t=`loading_time`.
     sim = self._get_sim(test_config + '.py')
-    geo = sim.geometry_provider(t=80.0)
+    geo = sim.geometry_provider(t=loading_time)
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        t=0.0,
+        t=loading_time,
     )
     source_models = sim.source_models_builder()
 
-    # Load in the reference core profiles from t=80.0 (the last step).
-    Ip = ref_profiles[output.IP][-1]  # pylint: disable=invalid-name
-    temp_el = ref_profiles[output.TEMP_EL][-1, :]
-    temp_ion = ref_profiles[output.TEMP_ION][-1, :]
-    ne = ref_profiles[output.NE][-1, :]
-    ne_bound_right = ref_profiles[output.NE_RIGHT_BC][-1]
-    ni = ref_profiles[output.NI][-1, :]
-    psi = ref_profiles[output.PSI][-1, :]
-    nref = ref_profiles[output.NREF][-1]
-    q_face = ref_profiles[output.Q_FACE][-1, :]
-    s_face = ref_profiles[output.S_FACE][-1, :]
-    # Override the dynamic runtime params with the values from t=80.0.
+    # Load in the reference core profiles.
+    Ip = ref_profiles[output.IP][index]
+    temp_el = ref_profiles[output.TEMP_EL][index, :]
+    temp_el_bc = ref_profiles[output.TEMP_EL_RIGHT_BC][index]
+    temp_ion = ref_profiles[output.TEMP_ION][index, :]
+    temp_ion_bc = ref_profiles[output.TEMP_ION_RIGHT_BC][index]
+    ne = ref_profiles[output.NE][index, :]
+    ne_bound_right = ref_profiles[output.NE_RIGHT_BC][index]
+    psi = ref_profiles[output.PSI][index, :]
+
+    # Override the dynamic runtime params with the loaded values.
     dynamic_runtime_params_slice.profile_conditions.Ip = Ip
     dynamic_runtime_params_slice.profile_conditions.Te = temp_el
+    dynamic_runtime_params_slice.profile_conditions.Te_bound_right = temp_el_bc
     dynamic_runtime_params_slice.profile_conditions.Ti = temp_ion
+    dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = temp_ion_bc
     dynamic_runtime_params_slice.profile_conditions.ne = ne
     dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
         ne_bound_right
     )
+    dynamic_runtime_params_slice.profile_conditions.psi = psi
+    # When loading from file we want ne not to have transformations.
+    # Both ne and the boundary condition are given in absolute values (not fGW).
     dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = (
         False
     )
+    dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
     dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
         True
     )
-    dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
-    dynamic_runtime_params_slice.profile_conditions.psi = psi
+    # Additionally we want to avoid normalizing to nbar.
     dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar = False
-    dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
 
     # Get initial core profiles for the overriden dynamic runtime params.
     initial_state = sim_lib.get_initial_state(
@@ -558,17 +605,103 @@ class SimTest(sim_test_case.SimTestCase):
         source_models,
         sim.time_step_calculator,
     )
-    core_profiles = initial_state.core_profiles
 
-    # Check for agreement with the reference profiles.
-    np.testing.assert_allclose(core_profiles.temp_el.value, temp_el)
-    np.testing.assert_allclose(core_profiles.temp_ion.value, temp_ion)
-    np.testing.assert_allclose(core_profiles.ne.value, ne)
-    np.testing.assert_allclose(core_profiles.ni.value, ni)
-    np.testing.assert_allclose(core_profiles.psi.value, psi)
-    np.testing.assert_allclose(core_profiles.nref, nref)
-    np.testing.assert_allclose(core_profiles.q_face, q_face)
-    np.testing.assert_allclose(core_profiles.s_face, s_face)
+    # Check for agreement with the reference core profiles.
+    verify_core_profiles(ref_profiles, index, initial_state.core_profiles)
+
+    if halfway:
+      # Run sim till the end and check that final core profiles match reference.
+      initial_state.t = ref_time[index]
+      step_fn = sim_lib.SimulationStepFn(
+          stepper=sim.stepper,
+          time_step_calculator=sim.time_step_calculator,
+          transport_model=sim.transport_model,
+      )
+      torax_outputs = sim_lib.run_simulation(
+          static_runtime_params_slice=sim.static_runtime_params_slice,
+          dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
+          geometry_provider=sim.geometry_provider,
+          initial_state=initial_state,
+          time_step_calculator=sim.time_step_calculator,
+          step_fn=step_fn,
+      )
+      final_core_profiles = torax_outputs[-1].core_profiles
+      verify_core_profiles(ref_profiles, -1, final_core_profiles)
+    # pylint: enable=invalid-name
+
+
+def verify_core_profiles(ref_profiles, index, core_profiles):
+  """Verify core profiles matches a reference at given index."""
+  np.testing.assert_allclose(
+      core_profiles.temp_el.value, ref_profiles[output.TEMP_EL][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.temp_ion.value, ref_profiles[output.TEMP_ION][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.ne.value, ref_profiles[output.NE][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.ne.right_face_constraint,
+      ref_profiles[output.NE_RIGHT_BC][index],
+  )
+  np.testing.assert_allclose(
+      core_profiles.psi.value, ref_profiles[output.PSI][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.psidot.value, ref_profiles[output.PSIDOT][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.ni.value, ref_profiles[output.NI][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.ni.right_face_constraint,
+      ref_profiles[output.NI_RIGHT_BC][index],
+  )
+
+  np.testing.assert_allclose(
+      core_profiles.q_face, ref_profiles[output.Q_FACE][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.s_face, ref_profiles[output.S_FACE][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.nref, ref_profiles[output.NREF][index]
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.j_bootstrap,
+      ref_profiles[output.J_BOOTSTRAP][index, :],
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.j_bootstrap_face,
+      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.jtot, ref_profiles[output.JTOT][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.jtot_face, ref_profiles[output.JTOT_FACE][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.jext,
+      ref_profiles[output.CORE_PROFILES_JEXT][index, :],
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.jext_face, ref_profiles[output.JEXT_FACE][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.johm_face, ref_profiles[output.JOHM_FACE][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.I_bootstrap,
+      ref_profiles[output.I_BOOTSTRAP][index],
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.Ip, ref_profiles[output.IP][index]
+  )
 
 
 if __name__ == '__main__':
