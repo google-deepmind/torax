@@ -27,6 +27,7 @@ it easier to print error messages in context).
 from __future__ import annotations
 
 import dataclasses
+import enum
 import time
 from typing import Any, Optional
 
@@ -53,6 +54,34 @@ from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
+
+
+@enum.unique
+class SimError(enum.Enum):
+  """Integer enum for sim error handling."""
+
+  NO_ERROR = 0
+  NAN_DETECTED = 1
+
+
+@chex.dataclass(frozen=True)
+class ToraxSimOutputs:
+  """Output structure returned by `run_simulation()`.
+
+  Contains the error state and the history of the simulation state.
+  Can be extended in the future to include more metadata about the simulation.
+
+  Attributes:
+    sim_error: simulation error state: NO_ERROR for no error, NAN_DETECTED for
+      NaNs found in core profiles.
+    sim_history: history of the simulation state.
+  """
+
+  # Error state
+  sim_error: SimError
+
+  # Time-dependent TORAX outputs
+  sim_history: tuple[state.ToraxSimState, ...]
 
 
 def _log_timestep(
@@ -808,7 +837,7 @@ class Sim:
       self,
       log_timestep_info: bool = False,
       spectator: spectator_lib.Spectator | None = None,
-  ) -> tuple[state.ToraxSimState, ...]:
+  ) -> ToraxSimOutputs:
     """Runs the transport simulation over a prescribed time interval.
 
     See `run_simulation` for details.
@@ -938,7 +967,7 @@ def run_simulation(
     step_fn: SimulationStepFn,
     log_timestep_info: bool = False,
     spectator: spectator_lib.Spectator | None = None,
-) -> tuple[state.ToraxSimState, ...]:
+) -> ToraxSimOutputs:
   """Runs the transport simulation over a prescribed time interval.
 
   This is the main entrypoint for running a TORAX simulation.
@@ -982,9 +1011,12 @@ def run_simulation(
       the Spectator class docstring for more details.
 
   Returns:
-    tuple of ToraxSimState objects, one for each time step. There are N+1
-    objects returned, where N is the number of simulation steps taken. The first
-    object in the tuple is for the initial state.
+    ToraxSimOutputs, containing information on the sim error state, and the
+    simulation history, consisting of a tuple of ToraxSimState objects, one for
+    each time step. There are N+1 objects returned, where N is the number of
+    simulation steps taken. The first object in the tuple is for the initial
+    state. If the sim error state is 1, then a trunctated simulation history is
+    returned up until the last valid timestep.
   """
 
   # Provide logging information on precision setting
@@ -1001,7 +1033,7 @@ def run_simulation(
 
   running_main_loop_start_time = time.time()
   wall_clock_step_times = []
-  torax_outputs = [
+  sim_history = [
       initial_state,
   ]
   dynamic_runtime_params_slice, geo = (
@@ -1028,6 +1060,10 @@ def run_simulation(
     spectator.before_step()
 
   sim_state = initial_state
+
+  # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
+  # the appropriate error code.
+  sim_error = SimError.NO_ERROR
   # Keep advancing the simulation until the time_step_calculator tells us we are
   # done.
   while time_step_calculator.not_done(
@@ -1099,10 +1135,24 @@ def run_simulation(
             geometry_provider,
         )
     )
-    torax_outputs.append(sim_state)
     wall_clock_step_times.append(time.time() - step_start_time)
+    # If the core profiles have NaNs, exit simulation loop early, and output
+    # the truncated simulation history for user inspection.
+    # We don't raise an Exception because we want to return the truncated
+    # simulation history to the user, and not directly exit the function early.
+    if not sim_state.core_profiles.has_nans():
+      sim_history.append(sim_state)
+    else:
+      logging.error("""
+          Simulation stopped due to NaNs in core profiles.
+          Possible cause is negative temperatures or densities.
+          Output file contains all profiles up to the last valid step.
+          """)
+      sim_error = SimError.NAN_DETECTED
+      break
+
   # Log final timestep
-  if log_timestep_info:
+  if log_timestep_info and sim_error == SimError.NO_ERROR:
     # The "sim_state" here has been updated by the loop above.
     _log_timestep(
         sim_state.t,
@@ -1149,7 +1199,7 @@ def run_simulation(
     long_first_step = False
 
   wall_clock_time_elapsed = time.time() - running_main_loop_start_time
-  simulation_time = torax_outputs[-1].t - torax_outputs[0].t
+  simulation_time = sim_history[-1].t - sim_history[0].t
   if long_first_step:
     # Don't include the long first step in the total time logged.
     wall_clock_time_elapsed -= wall_clock_step_times[0]
@@ -1158,7 +1208,9 @@ def run_simulation(
       simulation_time,
       wall_clock_time_elapsed,
   )
-  return tuple(torax_outputs)
+  return ToraxSimOutputs(
+      sim_error=sim_error, sim_history=tuple(sim_history)
+  )
 
 
 def _update_spectator(
@@ -1358,11 +1410,7 @@ def update_current_distribution(
   )
   jext = geometry.face_to_cell(jext_face)
 
-  johm = (
-      core_profiles.currents.jtot
-      - bootstrap_profile.j_bootstrap
-      - jext
-  )
+  johm = core_profiles.currents.jtot - bootstrap_profile.j_bootstrap - jext
   johm_face = (
       core_profiles.currents.jtot_face
       - bootstrap_profile.j_bootstrap_face

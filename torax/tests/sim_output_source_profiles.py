@@ -185,7 +185,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
 
-    sim_states = sim_lib.run_simulation(
+    sim_outputs = sim_lib.run_simulation(
         initial_state=sim_lib.get_initial_state(
             dynamic_runtime_params_slice=initial_dcs,
             geo=geo,
@@ -204,7 +204,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # on the state and config at time t. So both the implicit and explicit
     # profiles of each time step should be equal in this case (especially
     # because we are using the fake step function defined below).
-    for i, sim_state in enumerate(sim_states):
+    for i, sim_state in enumerate(sim_outputs.sim_history):
       np.testing.assert_allclose(
           sim_state.core_sources.profiles['implicit_ne_source'], i + 1
       )

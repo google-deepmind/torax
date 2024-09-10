@@ -20,6 +20,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import geometry
+from torax import sim as sim_lib
 from torax import state
 from torax.config import config_args
 from torax.sources import source_profiles
@@ -76,6 +77,9 @@ RHO_FACE = "rho_face"
 RHO_CELL = "rho_cell"
 TIME = "time"
 
+# Simulation error state.
+SIM_ERROR = "sim_error"
+
 # Tuple of (path_to_xarray_file, time_to_load_from).
 FilepathAndTime: TypeAlias = tuple[str, float]
 
@@ -98,12 +102,15 @@ def load_state_file(
 
 
 class StateHistory:
-  """A history of the state of the simulation."""
+  """A history of the state of the simulation and its error state."""
 
-  def __init__(self, states: tuple[state.ToraxSimState, ...]):
-    core_profiles = [state.core_profiles.history_elem() for state in states]
-    core_sources = [state.core_sources for state in states]
-    transport = [state.core_transport for state in states]
+  def __init__(self, sim_outputs: sim_lib.ToraxSimOutputs):
+    core_profiles = [
+        state.core_profiles.history_elem()
+        for state in sim_outputs.sim_history
+    ]
+    core_sources = [state.core_sources for state in sim_outputs.sim_history]
+    transport = [state.core_transport for state in sim_outputs.sim_history]
     stack = lambda *ys: jnp.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
@@ -114,8 +121,9 @@ class StateHistory:
     self.core_transport: state.CoreTransport = jax.tree_util.tree_map(
         stack, *transport
     )
-    self.times = jnp.array([state.t for state in states])
+    self.times = jnp.array([state.t for state in sim_outputs.sim_history])
     chex.assert_rank(self.times, 1)
+    self.sim_error = sim_outputs.sim_error
 
   def _pack_into_data_array(
       self,
@@ -151,15 +159,14 @@ class StateHistory:
     return xr.DataArray(data, dims=dims, name=name)
 
   def _get_core_profiles(
-      self, geo: geometry.Geometry,
+      self,
+      geo: geometry.Geometry,
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core profiles to a dict."""
     xr_dict = {}
 
     xr_dict[TEMP_EL] = self.core_profiles.temp_el.value
-    xr_dict[TEMP_EL_RIGHT_BC] = (
-        self.core_profiles.temp_el.right_face_constraint
-    )
+    xr_dict[TEMP_EL_RIGHT_BC] = self.core_profiles.temp_el.right_face_constraint
     xr_dict[TEMP_ION] = self.core_profiles.temp_ion.value
     xr_dict[TEMP_ION_RIGHT_BC] = (
         self.core_profiles.temp_ion.right_face_constraint
@@ -259,7 +266,7 @@ class StateHistory:
         - rho_face: The toroidal coordinate on the face grid.
         - rho_cell: The toroidal coordinate on the cell grid.
       The dataset contains data variables for quantities in the CoreProfiles,
-      CoreTransport, and CoreSources.
+      CoreTransport, and CoreSources, as well as time and the sim_error state.
     """
     # TODO(b/338033916). Extend outputs with:
     # Post-processed integrals, more geo outputs.
@@ -285,8 +292,16 @@ class StateHistory:
         SPR_FACE: xr.DataArray(geo.spr_face, dims=[RHO_FACE], name=SPR_FACE),
     }
 
-    xr_dict.update(self._get_core_profiles(geo,))
-    xr_dict.update(self._save_core_transport(geo,))
+    xr_dict.update(
+        self._get_core_profiles(
+            geo,
+        )
+    )
+    xr_dict.update(
+        self._save_core_transport(
+            geo,
+        )
+    )
     existing_keys = set(xr_dict.keys())
     xr_dict.update(self._save_core_sources(geo, existing_keys))
 
@@ -300,4 +315,8 @@ class StateHistory:
             RHO_CELL: rho_cell,
         },
     )
+
+    # Add sim_error as a new variable
+    ds[SIM_ERROR] = self.sim_error.value
+
     return ds

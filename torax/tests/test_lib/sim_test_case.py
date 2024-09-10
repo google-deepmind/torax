@@ -282,10 +282,10 @@ class SimTestCase(parameterized.TestCase):
     )
 
     # Run full simulation
-    torax_outputs = sim.run()
+    sim_outputs = sim.run()
 
     # Extract core profiles history for analysis against references
-    history = output.StateHistory(torax_outputs)
+    history = output.StateHistory(sim_outputs)
     ds = history.simulation_output_to_xr(geo)
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
 

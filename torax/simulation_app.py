@@ -289,12 +289,12 @@ def main(
       )
 
   log_to_stdout('Starting simulation.', color=AnsiColors.GREEN)
-  torax_outputs = sim.run(
+  sim_outputs = sim.run(
       log_timestep_info=log_sim_progress,
       spectator=spectator,
   )
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
-  state_history = output.StateHistory(torax_outputs)
+  state_history = output.StateHistory(sim_outputs)
 
   ds = state_history.simulation_output_to_xr(geo)
 

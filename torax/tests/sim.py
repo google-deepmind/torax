@@ -26,6 +26,7 @@ import numpy as np
 import torax
 from torax import output
 from torax import sim as sim_lib
+from torax.config import build_sim as build_sim_lib
 from torax.config import numerics as numerics_lib
 from torax.sources import source_models as source_models_lib
 from torax.spectators import spectator as spectator_lib
@@ -151,7 +152,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-
       # Tests that Newton-Raphson gets the same result as the linear solver
       # when using linear initial guess and 0 iterations
       # Making sure to use a test involving Pereverzev-Corrigan for this,
@@ -348,7 +348,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_rampup.py',
           _ALL_PROFILES,
           0,
-          1e-6
+          1e-6,
       ),
       # Tests time-dependent circular geometry.
       (
@@ -420,7 +420,8 @@ class SimTest(sim_test_case.SimTestCase):
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     geo_provider = torax.ConstantGeometryProvider(
-        torax.build_circular_geometry())
+        torax.build_circular_geometry()
+    )
 
     sim = sim_lib.build_sim_object(
         runtime_params=runtime_params,
@@ -431,8 +432,8 @@ class SimTest(sim_test_case.SimTestCase):
         time_step_calculator=time_step_calculator,
     )
 
-    torax_outputs = sim.run()
-    history = output.StateHistory(torax_outputs)
+    sim_outputs = sim.run()
+    history = output.StateHistory(sim_outputs)
 
     history_length = history.core_profiles.temp_ion.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
@@ -617,7 +618,7 @@ class SimTest(sim_test_case.SimTestCase):
           time_step_calculator=sim.time_step_calculator,
           transport_model=sim.transport_model,
       )
-      torax_outputs = sim_lib.run_simulation(
+      sim_outputs = sim_lib.run_simulation(
           static_runtime_params_slice=sim.static_runtime_params_slice,
           dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
           geometry_provider=sim.geometry_provider,
@@ -625,9 +626,23 @@ class SimTest(sim_test_case.SimTestCase):
           time_step_calculator=sim.time_step_calculator,
           step_fn=step_fn,
       )
-      final_core_profiles = torax_outputs[-1].core_profiles
+      final_core_profiles = sim_outputs.sim_history[-1].core_profiles
       verify_core_profiles(ref_profiles, -1, final_core_profiles)
     # pylint: enable=invalid-name
+
+  def test_nans_trigger_error(self):
+    """Verify that NaNs in profile evolution triggers early stopping and an error."""
+
+    config_module = self._get_config_module('test_iterhybrid_makenans.py')
+    sim = build_sim_lib.build_sim_from_config(config_module.CONFIG)
+    sim_outputs = sim.run()
+
+    state_history = output.StateHistory(sim_outputs)
+    self.assertEqual(state_history.sim_error, sim_lib.SimError.NAN_DETECTED)
+    assert (
+        state_history.times[-1]
+        < config_module.CONFIG['runtime_params']['numerics']['t_final']
+    )
 
 
 def verify_core_profiles(ref_profiles, index, core_profiles):

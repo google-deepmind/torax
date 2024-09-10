@@ -25,6 +25,7 @@ from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider
 from torax import output
+from torax import sim as sim_lib
 from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
@@ -100,8 +101,11 @@ class StateHistoryTest(parameterized.TestCase):
             inner_solver_iterations=1,
         ),
     )
+    sim_error = sim_lib.SimError.NO_ERROR
 
-    output.StateHistory((sim_state,))
+    output.StateHistory(
+        sim_lib.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,))
+    )
 
   def test_state_history_to_xr(self):
     """Smoke test the `StateHistory.simulation_output_to_xr` method."""
@@ -120,7 +124,10 @@ class StateHistoryTest(parameterized.TestCase):
             inner_solver_iterations=1,
         ),
     )
-    history = output.StateHistory((sim_state,))
+    sim_error = sim_lib.SimError.NO_ERROR
+    history = output.StateHistory(
+        sim_lib.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,))
+    )
 
     history.simulation_output_to_xr(self.geo)
 
@@ -142,7 +149,10 @@ class StateHistoryTest(parameterized.TestCase):
             inner_solver_iterations=1,
         ),
     )
-    history = output.StateHistory((sim_state,))
+    sim_error = sim_lib.SimError.NO_ERROR
+    history = output.StateHistory(
+        sim_lib.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,))
+    )
     # Output to an xr.Dataset and save to disk.
     ds = history.simulation_output_to_xr(self.geo)
     path = os.path.join(self.create_tempdir().full_path, 'state.nc')

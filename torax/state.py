@@ -53,6 +53,20 @@ class Currents:
   sigma: jax.Array
   jtot_hires: Optional[jax.Array] = None
 
+  def has_nans(self) -> bool:
+    """Checks for NaNs in all attributes of Currents."""
+
+    def _check_for_nans(x: Any) -> bool:
+      if isinstance(x, jax.Array):
+        return jnp.any(jnp.isnan(x)).item()
+      else:
+        return False
+
+    return any(
+        _check_for_nans(getattr(self, field))
+        for field in self.__dataclass_fields__
+    )
+
 
 @chex.dataclass(frozen=True, eq=False)
 class CoreProfiles:
@@ -99,6 +113,26 @@ class CoreProfiles:
         q_face=self.q_face,
         s_face=self.s_face,
         nref=self.nref,
+    )
+
+  def has_nans(self) -> bool:
+    """Checks for NaNs in all attributes of CoreProfiles."""
+
+    def _check_for_nans(x: Any) -> bool:
+      if isinstance(x, jax.Array):
+        return jnp.any(jnp.isnan(x)).item()
+      elif isinstance(x, (int, float)):
+        return jnp.isnan(x).item()
+      elif isinstance(x, Currents):
+        return x.has_nans()  # Check for NaNs within nested Currents dataclass
+      elif isinstance(x, cell_variable.CellVariable):
+        return jnp.any(jnp.isnan(x.value)).item()
+      else:
+        return False
+
+    return any(
+        _check_for_nans(getattr(self, field))
+        for field in self.__dataclass_fields__
     )
 
   def index(self, i: int) -> CoreProfiles:
@@ -215,6 +249,7 @@ class StepperNumericOutputs:
     inner_solver_iterations: Total number of iterations performed in the solver
       across all iterations of the stepper.
   """
+
   outer_stepper_iterations: int = 0
   stepper_error_state: int = 0
   inner_solver_iterations: int = 0
