@@ -638,7 +638,7 @@ class SimTest(sim_test_case.SimTestCase):
     sim_outputs = sim.run()
 
     state_history = output.StateHistory(sim_outputs)
-    self.assertEqual(state_history.sim_error, sim_lib.SimError.NAN_DETECTED)
+    self.assertEqual(state_history.sim_error, output.SimError.NAN_DETECTED)
     assert (
         state_history.times[-1]
         < config_module.CONFIG['runtime_params']['numerics']['t_final']

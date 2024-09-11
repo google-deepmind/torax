@@ -27,7 +27,6 @@ it easier to print error messages in context).
 from __future__ import annotations
 
 import dataclasses
-import enum
 import time
 from typing import Any, Optional
 
@@ -41,6 +40,7 @@ from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
 from torax import jax_utils
+from torax import output
 from torax import physics
 from torax import state
 from torax.config import config_args
@@ -54,34 +54,6 @@ from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
-
-
-@enum.unique
-class SimError(enum.Enum):
-  """Integer enum for sim error handling."""
-
-  NO_ERROR = 0
-  NAN_DETECTED = 1
-
-
-@chex.dataclass(frozen=True)
-class ToraxSimOutputs:
-  """Output structure returned by `run_simulation()`.
-
-  Contains the error state and the history of the simulation state.
-  Can be extended in the future to include more metadata about the simulation.
-
-  Attributes:
-    sim_error: simulation error state: NO_ERROR for no error, NAN_DETECTED for
-      NaNs found in core profiles.
-    sim_history: history of the simulation state.
-  """
-
-  # Error state
-  sim_error: SimError
-
-  # Time-dependent TORAX outputs
-  sim_history: tuple[state.ToraxSimState, ...]
 
 
 def _log_timestep(
@@ -837,7 +809,7 @@ class Sim:
       self,
       log_timestep_info: bool = False,
       spectator: spectator_lib.Spectator | None = None,
-  ) -> ToraxSimOutputs:
+  ) -> output.ToraxSimOutputs:
     """Runs the transport simulation over a prescribed time interval.
 
     See `run_simulation` for details.
@@ -967,7 +939,7 @@ def run_simulation(
     step_fn: SimulationStepFn,
     log_timestep_info: bool = False,
     spectator: spectator_lib.Spectator | None = None,
-) -> ToraxSimOutputs:
+) -> output.ToraxSimOutputs:
   """Runs the transport simulation over a prescribed time interval.
 
   This is the main entrypoint for running a TORAX simulation.
@@ -1063,7 +1035,7 @@ def run_simulation(
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
   # the appropriate error code.
-  sim_error = SimError.NO_ERROR
+  sim_error = output.SimError.NO_ERROR
   # Keep advancing the simulation until the time_step_calculator tells us we are
   # done.
   while time_step_calculator.not_done(
@@ -1148,11 +1120,11 @@ def run_simulation(
           Possible cause is negative temperatures or densities.
           Output file contains all profiles up to the last valid step.
           """)
-      sim_error = SimError.NAN_DETECTED
+      sim_error = output.SimError.NAN_DETECTED
       break
 
   # Log final timestep
-  if log_timestep_info and sim_error == SimError.NO_ERROR:
+  if log_timestep_info and sim_error == output.SimError.NO_ERROR:
     # The "sim_state" here has been updated by the loop above.
     _log_timestep(
         sim_state.t,
@@ -1208,7 +1180,7 @@ def run_simulation(
       simulation_time,
       wall_clock_time_elapsed,
   )
-  return ToraxSimOutputs(
+  return output.ToraxSimOutputs(
       sim_error=sim_error, sim_history=tuple(sim_history)
   )
 

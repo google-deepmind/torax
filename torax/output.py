@@ -13,20 +13,49 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
-from typing import TypeAlias
+from __future__ import annotations
+
+import enum
 
 from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
 from torax import geometry
-from torax import sim as sim_lib
 from torax import state
 from torax.config import config_args
 from torax.sources import source_profiles
 import xarray as xr
 
 import os
+
+
+@enum.unique
+class SimError(enum.Enum):
+  """Integer enum for sim error handling."""
+
+  NO_ERROR = 0
+  NAN_DETECTED = 1
+
+
+@chex.dataclass(frozen=True)
+class ToraxSimOutputs:
+  """Output structure returned by `run_simulation()`.
+
+  Contains the error state and the history of the simulation state.
+  Can be extended in the future to include more metadata about the simulation.
+
+  Attributes:
+    sim_error: simulation error state: NO_ERROR for no error, NAN_DETECTED for
+      NaNs found in core profiles.
+    sim_history: history of the simulation state.
+  """
+
+  # Error state
+  sim_error: SimError
+
+  # Time-dependent TORAX outputs
+  sim_history: tuple[state.ToraxSimState, ...]
 
 
 # Core profiles.
@@ -80,31 +109,26 @@ TIME = "time"
 # Simulation error state.
 SIM_ERROR = "sim_error"
 
-# Tuple of (path_to_xarray_file, time_to_load_from).
-FilepathAndTime: TypeAlias = tuple[str, float]
-
 
 def load_state_file(
-    filepath_and_time: FilepathAndTime, data_var: str
-) -> xr.DataArray:
+    filepath: str, time: float,
+) -> xr.Dataset:
   """Loads a state file from a filepath."""
-  path, t = filepath_and_time
-  if os.path.exists(path):
-    with open(path, "rb") as f:
-      logging.info("Loading %s from state file %s, time %s", data_var, path, t)
-      da = xr.load_dataset(f).sel(time=slice(t, None)).data_vars[data_var]
-      if RHO_CELL_NORM in da.coords:
-        return da.rename({RHO_CELL_NORM: config_args.RHO_NORM})
-      else:
-        return da
+  if os.path.exists(filepath):
+    with open(filepath, "rb") as f:
+      logging.info("Loading state file %s, time %s", filepath, time)
+      ds = xr.load_dataset(f).sel(time=time, method="nearest").squeeze()
+      ds = ds.rename({RHO_CELL_NORM: config_args.RHO_NORM})
+      ds.close()  # Release any resources.
+      return ds
   else:
-    raise ValueError(f"File {path} does not exist.")
+    raise ValueError(f"File {filepath} does not exist.")
 
 
 class StateHistory:
   """A history of the state of the simulation and its error state."""
 
-  def __init__(self, sim_outputs: sim_lib.ToraxSimOutputs):
+  def __init__(self, sim_outputs: ToraxSimOutputs):
     core_profiles = [
         state.core_profiles.history_elem()
         for state in sim_outputs.sim_history
