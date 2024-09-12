@@ -4,12 +4,15 @@ import dataclasses
 
 import chex
 import jax
-from jax import numpy as jnp
+from jax.scipy import integrate
 
-from torax import constants, geometry, jax_utils, physics, state
-from torax.config import config_args, runtime_params_slice
+from torax import geometry
+from torax import state
+from torax.config import config_args
+from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_models
 
 
 def ecrh_model_func(
@@ -22,11 +25,19 @@ def ecrh_model_func(
     """Model function for the ECRH current source."""
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
-    flux_surface_averaged_ec_power_density = None
+    c0 = 3.27e-3
+    ec_power_density = dynamic_runtime_params_slice.ec_power_density
+    ec_power = integrate.trapezoid(ec_power_density * geo.vpr, geo.rho_norm)
+    ec_power_density_times_rho = ec_power_density * geo.rho_norm
+    form_factor = ec_power_density_times_rho / integrate.trapezoid(
+        ec_power_density_times_rho / geo.spr_cell, geo.rho_norm
+    )
 
     return (
-        dynamic_source_runtime_params.global_efficiency
-        * flux_surface_averaged_ec_power_density
+        dynamic_source_runtime_params.dimensionless_efficiency
+        / (c0 * geo.rmid)
+        * ec_power
+        * form_factor
         * (
             dynamic_runtime_params_slice.profile_conditions.Te
             / dynamic_runtime_params_slice.profile_conditions.ne
@@ -36,12 +47,11 @@ def ecrh_model_func(
 
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
-    # Global current drive efficiency (commonly referred to as zeta_cd)
-    # Units: 10^13 A eV^-1 W^-1 m^-3
-    # SI units: 6.242e31 s5 m^-7 kg^-2 A
-    # Default value from Section 3.6 in Tholerus et al. (2024)
-    #   doi: 10.1088/1741-4326/ad6ea2
-    global_efficiency: float = 18.2
+    # Current drive efficiency
+    dimensionless_efficiency: float = 0.2
+
+    # EC power density profile
+    ec_power_density: runtime_params_lib.interpolated_param.TimeInterpolated
 
     def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
         return DynamicRuntimeParams(
@@ -55,7 +65,8 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-    global_efficiency: float
+    dimensionless_efficiency: float
+    ec_power_density: jax.Array
 
 
 @dataclasses.dataclass(kw_only=True)
