@@ -22,17 +22,11 @@ import dataclasses
 
 from torax.sources import source
 
-
 # The current sources below don't have any source-specific implementations, so
 # their bodies are empty. You can refer to their base class to see the
 # implementation. We define new classes here to:
 #  a) support any future source-specific implementation.
 #  b) better readability and human-friendly error messages when debugging.
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ECRHCurrentSource(source.SingleProfilePsiSource):
-  """ECRH current density source for the psi equation."""
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -49,7 +43,6 @@ class LHCurrentSource(source.SingleProfilePsiSource):
 class NBICurrentSource(source.SingleProfilePsiSource):
   """NBI current density source for the psi equation."""
 
-ECRHCurrentSourceBuilder = source.make_source_builder(ECRHCurrentSource)
 ICRHCurrentSourceBuilder = source.make_source_builder(ICRHCurrentSource)
 LHCurrentSourceBuilder = source.make_source_builder(LHCurrentSource)
 NBICurrentSourceBuilder = source.make_source_builder(NBICurrentSource)
