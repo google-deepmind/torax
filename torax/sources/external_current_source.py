@@ -91,7 +91,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   fext: array_typing.ScalarFloat
   wext: array_typing.ScalarFloat
   rext: array_typing.ScalarFloat
-  use_absolute_jext: bool
+  use_absolute_jext: array_typing.ScalarBool
 
   def sanity_check(self):
     """Checks that all parameters are valid."""

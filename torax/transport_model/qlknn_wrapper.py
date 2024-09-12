@@ -31,6 +31,7 @@ from typing import Callable, Final
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
@@ -103,11 +104,11 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(qualikiz_utils.QualikizDynamicRuntimeParams):
-  include_ITG: bool
-  include_TEM: bool
-  include_ETG: bool
-  ITG_flux_ratio_correction: float
-  ETG_correction_factor: float
+  include_ITG: array_typing.ScalarBool
+  include_TEM: array_typing.ScalarBool
+  include_ETG: array_typing.ScalarBool
+  ITG_flux_ratio_correction: array_typing.ScalarFloat
+  ETG_correction_factor: array_typing.ScalarFloat
 
 
 _EPSILON_NN: Final[float] = (

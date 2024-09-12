@@ -141,18 +141,18 @@ class NumericsProvider(base.RuntimeParametersProvider['DynamicNumerics']):
 class DynamicNumerics:
   """Generic numeric parameters for the simulation."""
 
-  t_initial: float
-  t_final: float
-  exact_t_final: bool
-  maxdt: float
-  mindt: float
-  dtmult: float
-  fixed_dt: float
-  dt_reduction_factor: float
-  q_correction_factor: float
+  t_initial: array_typing.ScalarFloat
+  t_final: array_typing.ScalarFloat
+  exact_t_final: array_typing.ScalarBool
+  maxdt: array_typing.ScalarFloat
+  mindt: array_typing.ScalarFloat
+  dtmult: array_typing.ScalarFloat
+  fixed_dt: array_typing.ScalarFloat
+  dt_reduction_factor: array_typing.ScalarFloat
+  q_correction_factor: array_typing.ScalarFloat
   resistivity_mult: array_typing.ScalarFloat
-  nref: float
-  largeValue_T: float
-  largeValue_n: float
-  enable_prescribed_profile_evolution: bool
-  calcphibdot: bool
+  nref: array_typing.ScalarFloat
+  largeValue_T: array_typing.ScalarFloat
+  largeValue_n: array_typing.ScalarFloat
+  enable_prescribed_profile_evolution: array_typing.ScalarBool
+  calcphibdot: array_typing.ScalarBool

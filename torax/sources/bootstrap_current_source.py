@@ -22,6 +22,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from jax.scipy import integrate
+from torax import array_typing
 from torax import constants
 from torax import geometry
 from torax import jax_utils
@@ -61,7 +62,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  bootstrap_mult: float
+  bootstrap_mult: array_typing.ScalarFloat
 
 
 def _default_output_shapes(geo) -> tuple[int, int, int, int]:

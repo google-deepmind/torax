@@ -23,6 +23,7 @@ from typing import Type
 
 import chex
 import jax
+from torax import array_typing
 from torax import geometry
 from torax import sim
 from torax import state
@@ -153,9 +154,9 @@ class OptimizerRuntimeParams(runtime_params_lib.RuntimeParams):
 
 @chex.dataclass(frozen=True)
 class DynamicOptimizerRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  initial_guess_mode: int
-  maxiter: int
-  tol: float
+  initial_guess_mode: array_typing.ScalarInt
+  maxiter: array_typing.ScalarInt
+  tol: array_typing.ScalarFloat
 
 
 class OptimizerThetaMethod(NonlinearThetaMethod):

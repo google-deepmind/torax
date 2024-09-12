@@ -271,18 +271,18 @@ class DynamicProfileConditions:
   psi: array_typing.ArrayFloat | None
   # Electron density profile on the cell grid.
   ne: array_typing.ArrayFloat
-  normalize_to_nbar: bool
+  normalize_to_nbar: array_typing.ScalarBool
   nbar: array_typing.ScalarFloat
-  ne_is_fGW: bool
+  ne_is_fGW: array_typing.ScalarBool
   ne_bound_right: array_typing.ScalarFloat
-  ne_bound_right_is_fGW: bool
-  ne_bound_right_is_absolute: bool
+  ne_bound_right_is_fGW: array_typing.ScalarBool
+  ne_bound_right_is_absolute: array_typing.ScalarBool
   set_pedestal: array_typing.ScalarBool
   Tiped: array_typing.ScalarFloat
   Teped: array_typing.ScalarFloat
   neped: array_typing.ScalarFloat
-  neped_is_fGW: bool
+  neped_is_fGW: array_typing.ScalarBool
   Ped_top: array_typing.ScalarFloat
-  nu: float
-  initial_j_is_total_current: bool
-  initial_psi_from_j: bool
+  nu: array_typing.ScalarFloat
+  initial_j_is_total_current: array_typing.ScalarBool
+  initial_psi_from_j: array_typing.ScalarBool

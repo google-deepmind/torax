@@ -16,6 +16,7 @@
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import constants as constants_module
 from torax import geometry
 from torax import physics
@@ -27,12 +28,12 @@ from torax.transport_model import runtime_params as runtime_params_lib
 @chex.dataclass(frozen=True)
 class QualikizDynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Shared parameters for Qualikiz-based models."""
-  coll_mult: float
-  DVeff: bool
-  An_min: float
-  avoid_big_negative_s: bool
-  smag_alpha_correction: bool
-  q_sawtooth_proxy: bool
+  coll_mult: array_typing.ScalarFloat
+  DVeff: array_typing.ScalarBool
+  An_min: array_typing.ScalarFloat
+  avoid_big_negative_s: array_typing.ScalarBool
+  smag_alpha_correction: array_typing.ScalarBool
+  q_sawtooth_proxy: array_typing.ScalarBool
 
 
 @chex.dataclass(frozen=True)

@@ -67,7 +67,7 @@ class PlasmaCompositionProvider(
 
 @chex.dataclass
 class DynamicPlasmaComposition:
-  Ai: float
-  Zi: float
+  Ai: array_typing.ScalarFloat
+  Zi: array_typing.ScalarFloat
   Zeff: array_typing.ScalarFloat
   Zimp: array_typing.ScalarFloat

@@ -68,6 +68,7 @@ For example:
 
 .. code-block:: python
 
+    from torax import array_typing
     from torax.transport_model import runtime_params as transport_params
 
     @chex.dataclass
@@ -94,8 +95,8 @@ For example:
     @chex.dataclass(frozen=True)
     class MyCustomDynamicRuntimeParams(transport_params.DynamicRuntimeParams):
       """The dynamic slice of the complete runtime params, interpolated for a single time."""
-      foo: float
-      bar: float
+      foo: array_typing.ScalarFloat
+      bar: array_typing.ScalarFloat
 
 
     class MyCustomTransportModel(TransportModel):

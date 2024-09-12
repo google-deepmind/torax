@@ -21,8 +21,9 @@ import typeguard
 
 
 F = TypeVar("F", bound=Callable)
-ScalarFloat = jt.Float[jt.Array, ""]
 ScalarBool = jt.Bool[jt.Array, ""]
+ScalarFloat = jt.Float[jt.Array, ""]
+ScalarInt = jt.Int[jt.Array, ""]
 ArrayFloat = jt.Bool[jt.Array, "rhon"]
 
 

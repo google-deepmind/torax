@@ -132,7 +132,7 @@ class DynamicRuntimeParams:
 
   # This maps to the enum value for the Mode enum. The enum itself is not
   # JAX-friendly.
-  mode: int
-  is_explicit: bool
+  mode: array_typing.ScalarInt
+  is_explicit: array_typing.ScalarBool
   formula: formula_config.DynamicFormula
   prescribed_values: array_typing.ArrayFloat

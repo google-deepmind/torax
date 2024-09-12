@@ -76,8 +76,8 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the CGM transport model."""
 
-  alpha: float
-  chistiff: float
+  alpha: array_typing.ScalarFloat
+  chistiff: array_typing.ScalarFloat
   chiei_ratio: array_typing.ScalarFloat
   chi_D_ratio: array_typing.ScalarFloat
   VR_D_ratio: array_typing.ScalarFloat

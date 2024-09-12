@@ -21,6 +21,7 @@ import dataclasses
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import geometry
 from torax import physics
 from torax import state
@@ -60,7 +61,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  Qei_mult: float
+  Qei_mult: array_typing.ScalarFloat
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

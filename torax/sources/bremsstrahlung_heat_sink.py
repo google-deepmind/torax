@@ -23,6 +23,7 @@ import dataclasses
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
@@ -56,7 +57,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  use_relativistic_correction: bool
+  use_relativistic_correction: array_typing.ScalarBool
 
 
 def calc_bremsstrahlung(

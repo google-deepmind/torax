@@ -22,6 +22,7 @@ import enum
 from typing import Any, Generic, TypeVar
 
 import chex
+from jax import numpy as jnp
 from torax import geometry
 from torax import interpolated_param
 from torax.config import config_args
@@ -181,9 +182,9 @@ class RuntimeParametersProvider(Generic[DynamicT], metaclass=abc.ABCMeta):
       A dict of kwargs to be passed to the dynamic params constructor.
     """
     dynamic_params_kwargs = dataclasses.asdict(self.runtime_params_config)
-    # Convert any Enums to their values.
+    # Convert any Enums to their values and cast everything to a jax array.
     dynamic_params_kwargs = {
-        k: v.value if isinstance(v, enum.Enum) else v
+        k: jnp.array(v.value) if isinstance(v, enum.Enum) else v
         for k, v in dynamic_params_kwargs.items()
     }
     for field in dataclasses.fields(self):
