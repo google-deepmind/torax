@@ -680,6 +680,10 @@ The configurable runtime parameters of each source are as follows:
     Source values come from a prescribed (possibly time-dependent) formula that is not dependent on the state of the system. The formula type (Gaussian, exponential)
     is set by ``formula_type``.
 
+* ``'PRESCRIBED'``
+    Source values are arbitrarily prescribed by the user. The value is set by ``prescribed_values``, and can contain the same
+    data structures as :ref:`Time-varying arrays`.
+
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purposes, set:
 
 .. code-block:: python
@@ -687,6 +691,22 @@ For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purp
     'sources': {
         'fusion_heat_source': {'mode': 'ZERO'},
     }
+
+To set 'j_ext' to a prescribed value based on a tuple of numpy arrays, e.g. as defined or loaded from a file in the
+preamble to the CONFIG dict within config module, set:
+
+.. code-block:: python
+
+    'sources': {
+        'jext': {
+            'mode': 'PRESCRIBED',
+            'prescribed_values': (times, rhon, jext_profiles),
+        },
+
+where the example ``times`` is a 1D numpy array of times, ``rhon`` is a 1D numpy array of normalized toroidal flux
+coordinates, and ``jext_profiles`` is a 2D numpy array of the jext profile at each time. These names are arbitrary,
+and can be set to anything convenient.
+
 
 ``is_explicit`` (bool)
   Defines whether the source is to be considered explicit or implicit. Explicit sources are calculated based on the simulation state at the
