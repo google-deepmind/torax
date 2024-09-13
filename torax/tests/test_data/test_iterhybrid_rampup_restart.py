@@ -26,4 +26,5 @@ CONFIG['restart'] = {
     ),
     'time': 40,  # halfway in simulation.
     'do_restart': True,
+    'stitch': True,
 }

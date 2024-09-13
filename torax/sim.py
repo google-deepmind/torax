@@ -863,7 +863,12 @@ def override_initial_runtime_params_from_file(
   """Override parts of runtime params slice from state in a file."""
   if file_restart.do_restart:
     # pylint: disable=invalid-name
-    ds = output.load_state_file(file_restart.filename, file_restart.time,)
+    ds = output.load_state_file(file_restart.filename,)
+    # Remap coordinates in saved file to be consistent with expectations of
+    # how config_args parses xarrays.
+    ds = ds.rename({output.RHO_CELL_NORM: config_args.RHO_NORM})
+    # Find the closest time in the given dataset and squeeze any size 1 dims.
+    ds = ds.sel(time=file_restart.time, method='nearest').squeeze()
     dynamic_runtime_params_slice.numerics.t_initial = file_restart.time
     dynamic_runtime_params_slice.profile_conditions.Ip = ds.data_vars[
         output.IP

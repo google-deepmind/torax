@@ -23,7 +23,7 @@ import jax
 from jax import numpy as jnp
 from torax import geometry
 from torax import state
-from torax.config import config_args
+from torax.config import runtime_params
 from torax.sources import source_profiles
 import xarray as xr
 
@@ -118,14 +118,12 @@ def safe_load_dataset(filepath: str) -> xr.Dataset:
 
 
 def load_state_file(
-    filepath: str, time: float,
+    filepath: str,
 ) -> xr.Dataset:
   """Loads a state file from a filepath."""
   if os.path.exists(filepath):
     ds = safe_load_dataset(filepath)
-    logging.info("Loading state file %s, time %s", filepath, time)
-    ds = ds.sel(time=time, method="nearest").squeeze()
-    ds = ds.rename({RHO_CELL_NORM: config_args.RHO_NORM})
+    logging.info("Loading state file %s", filepath)
     return ds
   else:
     raise ValueError(f"File {filepath} does not exist.")
@@ -280,12 +278,16 @@ class StateHistory:
   def simulation_output_to_xr(
       self,
       geo: geometry.Geometry,
+      file_restart: runtime_params.FileRestart | None = None,
   ) -> xr.Dataset:
     """Build an xr.Dataset of the simulation output.
 
     Args:
       geo: The geometry of the simulation. This is used to retrieve the TORAX
         mesh grid values.
+      file_restart: If provided, contains information on a file this sim was
+        restarted from, this is useful in case we want to stitch that to the
+        beggining of this sim output.
 
     Returns:
       An xr.Dataset of the simulation output. The dataset contains the following
@@ -345,6 +347,14 @@ class StateHistory:
             RHO_CELL: rho_cell,
         },
     )
+
+    if file_restart is not None and file_restart.stitch:
+      previous_ds = load_state_file(
+          file_restart.filename,
+      )
+      # Do a minimal concat to avoid concatting any non time indexed vars.
+      ds = xr.concat([previous_ds, ds], dim=TIME, data_vars="minimal")
+      ds = ds.drop_duplicates(dim=TIME)
 
     # Add sim_error as a new variable
     ds[SIM_ERROR] = self.sim_error.value

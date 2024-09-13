@@ -1206,6 +1206,9 @@ state of the previous one at ``t=10`` we could add the following to our config:
       'filename': '/path/to/torax_state_file.nc',
       'time': 10,
       'do_restart': True,  # Toggle to enable/disable a restart.
+      # Whether or not to pre"stitch" the contents of the loaded state file up
+      # to `time` with the output state file from this simulation.
+      'stitch': True,
   }
 
 The subsequence simulation will then recreate the state from ``t=10`` in the

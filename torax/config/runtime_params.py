@@ -35,6 +35,7 @@ class FileRestart:
   time: float
   # Toggle loading initial state from file or not.
   do_restart: bool
+  stitch: bool
 
 
 # NOMUTANTS -- It's expected for the tests to pass with different defaults.
