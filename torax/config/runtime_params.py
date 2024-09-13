@@ -27,6 +27,16 @@ from torax.config import profile_conditions as profile_conditions_lib
 from typing_extensions import override
 
 
+@dataclasses.dataclass
+class FileRestart:
+  # Filename to load initial state from.
+  filename: str
+  # Time in state file at which to load from.
+  time: float
+  # Toggle loading initial state from file or not.
+  do_restart: bool
+
+
 # NOMUTANTS -- It's expected for the tests to pass with different defaults.
 @chex.dataclass
 class GeneralRuntimeParams(base.RuntimeParametersConfig):

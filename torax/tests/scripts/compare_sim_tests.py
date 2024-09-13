@@ -20,6 +20,7 @@ from typing import Sequence
 from absl import app
 from absl import flags
 import numpy as np
+from torax import output
 from torax.tests import test_lib
 import xarray as xr
 
@@ -88,8 +89,8 @@ def _compare_sim_test_outputs(failed_test_dir: str) -> None:
       's_face',
   ]
   # Load the Datasets
-  ds_old = xr.open_dataset(old_file)
-  ds_new = xr.open_dataset(new_file)
+  ds_old = output.safe_load_dataset(old_file)
+  ds_new = output.safe_load_dataset(new_file)
   print(f'Comparing {old_file} and {new_file}:')
   for profile_name in profile_names:
     _print_diff(profile_name, ds_old, ds_new)

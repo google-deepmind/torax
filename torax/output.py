@@ -110,17 +110,23 @@ TIME = "time"
 SIM_ERROR = "sim_error"
 
 
+def safe_load_dataset(filepath: str) -> xr.Dataset:
+  with open(filepath, "rb") as f:
+    with xr.open_dataset(f) as ds_open:
+      ds = ds_open.compute()
+  return ds
+
+
 def load_state_file(
     filepath: str, time: float,
 ) -> xr.Dataset:
   """Loads a state file from a filepath."""
   if os.path.exists(filepath):
-    with open(filepath, "rb") as f:
-      logging.info("Loading state file %s, time %s", filepath, time)
-      ds = xr.load_dataset(f).sel(time=time, method="nearest").squeeze()
-      ds = ds.rename({RHO_CELL_NORM: config_args.RHO_NORM})
-      ds.close()  # Release any resources.
-      return ds
+    ds = safe_load_dataset(filepath)
+    logging.info("Loading state file %s, time %s", filepath, time)
+    ds = ds.sel(time=time, method="nearest").squeeze()
+    ds = ds.rename({RHO_CELL_NORM: config_args.RHO_NORM})
+    return ds
   else:
     raise ValueError(f"File {filepath} does not exist.")
 

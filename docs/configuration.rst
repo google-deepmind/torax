@@ -1190,3 +1190,37 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'calculator_type': 'fixed',
       },
   }
+
+
+Restarting a simulation
+=======================
+In order to restart a simulation a field can be added to the config.
+
+For example following a simulation in which a state file is saved to
+``/path/to/torax_state_file.nc``, if we want to start a new simulation from the
+state of the previous one at ``t=10`` we could add the following to our config:
+
+.. code-block:: python
+
+  {
+      'filename': '/path/to/torax_state_file.nc',
+      'time': 10,
+      'do_restart': True,  # Toggle to enable/disable a restart.
+  }
+
+The subsequence simulation will then recreate the state from ``t=10`` in the
+previous simulation and then run the simulation from that point in time. For
+all subsequent steps the dynamic runtime parameters will be constructed using
+the given runtime parameter configuration (from ``t=10`` onwards).
+
+We envisage this feature being useful for example to:
+
+* restart a(n expensive) simulation that was healthy up till a certain time and
+  then failed. After discovering the issue for breakage you could then restart
+  the sim from the last healthy point.
+
+* do uncertainty quantification by sweeping lots of configs following running
+  a simulation up to a certain point in time. After running the initial
+  simulation you could then modify and sweep the runtime parameter config in
+  order to do some uncertainty quantification.
+

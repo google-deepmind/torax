@@ -107,4 +107,5 @@ CANONICAL_ORDER = [
     'maxiter',
     'tol',
     'delta_reduction_factor',
+    'file_restart',
 ]

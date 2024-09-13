@@ -728,6 +728,7 @@ class Sim:
       transport_model: transport_model_lib.TransportModel | None = None,
       stepper: stepper_lib.Stepper | None = None,
       step_fn: SimulationStepFn | None = None,
+      file_restart: general_runtime_params.FileRestart | None = None,
   ):
     self._static_runtime_params_slice = static_runtime_params_slice
     self._dynamic_runtime_params_slice_provider = (
@@ -761,6 +762,11 @@ class Sim:
       self._stepper = step_fn.stepper
       self._transport_model = step_fn.transport_model
     self._step_fn = step_fn
+    self._file_restart = file_restart
+
+  @property
+  def file_restart(self) -> general_runtime_params.FileRestart | None:
+    return self._file_restart
 
   @property
   def time_step_calculator(self) -> ts.TimeStepCalculator:
@@ -849,6 +855,60 @@ class Sim:
     )
 
 
+def override_initial_runtime_params_from_file(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+    file_restart: general_runtime_params.FileRestart,
+) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
+  """Override parts of runtime params slice from state in a file."""
+  if file_restart.do_restart:
+    # pylint: disable=invalid-name
+    ds = output.load_state_file(file_restart.filename, file_restart.time,)
+    dynamic_runtime_params_slice.numerics.t_initial = file_restart.time
+    dynamic_runtime_params_slice.profile_conditions.Ip = ds.data_vars[
+        output.IP
+    ].to_numpy()
+    dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
+        output.TEMP_EL
+    ].to_numpy()
+    dynamic_runtime_params_slice.profile_conditions.Te_bound_right = (
+        ds.data_vars[output.TEMP_EL_RIGHT_BC].to_numpy()
+    )
+    dynamic_runtime_params_slice.profile_conditions.Ti = ds.data_vars[
+        output.TEMP_ION
+    ].to_numpy()
+    dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = (
+        ds.data_vars[output.TEMP_ION_RIGHT_BC].to_numpy()
+    )
+    dynamic_runtime_params_slice.profile_conditions.ne = ds.data_vars[
+        output.NE
+    ].to_numpy()
+    dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
+        ds.data_vars[output.NE_RIGHT_BC].to_numpy()
+    )
+    dynamic_runtime_params_slice.profile_conditions.psi = ds.data_vars[
+        output.PSI
+    ].to_numpy()
+    # When loading from file we want ne not to have transformations.
+    # Both ne and the boundary condition are given in absolute values (not fGW).
+    dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = (
+        False
+    )
+    dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
+    dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
+        True
+    )
+    # Additionally we want to avoid normalizing to nbar.
+    dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar = False
+    # pylint: enable=invalid-name
+
+    dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
+        dynamic_runtime_params_slice, geo
+    )
+
+  return dynamic_runtime_params_slice, geo
+
+
 def build_sim_object(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -856,6 +916,7 @@ def build_sim_object(
     transport_model_builder: transport_model_lib.TransportModelBuilder,
     source_models_builder: source_models_lib.SourceModelsBuilder,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
+    file_restart: Optional[general_runtime_params.FileRestart] = None,
 ) -> Sim:
   """Builds a Sim object from the input runtime params and sim components.
 
@@ -875,6 +936,11 @@ def build_sim_object(
     source_models_builder: Builds the SourceModels and holds its runtime_params.
     time_step_calculator: The time_step_calculator, if built, otherwise a
       ChiTimeStepCalculator will be built by default.
+    file_restart: If provided we will reconstruct the initial state from the
+      provided file at the given time step. This state from the file will only
+      be used for constructing the initial state (as well as the config) and for
+      all subsequent steps, the evolved state and runtime parameters from config
+      are used.
 
   Returns:
     sim: The built Sim instance.
@@ -903,17 +969,27 @@ def build_sim_object(
   if time_step_calculator is None:
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
 
-  # build dynamic_runtime_params_slice at t_initial for initial conditions
-  dynamic_runtime_params_slice, geo = (
+  # Build dynamic_runtime_params_slice at t_initial for initial conditions.
+  dynamic_runtime_params_slice_for_init, geo_for_init = (
       get_consistent_dynamic_runtime_params_slice_and_geometry(
           runtime_params.numerics.t_initial,
           dynamic_runtime_params_slice_provider,
           geometry_provider,
       )
   )
+  if file_restart is not None and file_restart.do_restart:
+    # Override some of dynamic runtime params slice from t=t_initial.
+    dynamic_runtime_params_slice_for_init, geo_for_init = (
+        override_initial_runtime_params_from_file(
+            dynamic_runtime_params_slice_for_init,
+            geo_for_init,
+            file_restart,
+        )
+    )
+
   initial_state = get_initial_state(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
+      geo=geo_for_init,
       source_models=stepper.source_models,
       time_step_calculator=time_step_calculator,
   )
@@ -927,6 +1003,7 @@ def build_sim_object(
       transport_model=transport_model,
       stepper=stepper,
       source_models_builder=source_models_builder,
+      file_restart=file_restart,
   )
 
 
