@@ -54,6 +54,7 @@ Block1DCoeffsCallback: TypeAlias = block_1d_coeffs.Block1DCoeffsCallback
         'convection_neumann_mode',
         'theta_imp',
     ],
+    assert_max_traces=1,
 )
 def theta_method_matrix_equation(
     dt: jax.Array,
@@ -296,6 +297,7 @@ def theta_method_block_residual(
         'source_models',
         'evolving_names',
     ],
+    assert_max_traces=1,
 )
 def theta_method_block_jacobian(*args, **kwargs):
   return jax.jacfwd(theta_method_block_residual, has_aux=True)(*args, **kwargs)
@@ -309,6 +311,7 @@ def theta_method_block_jacobian(*args, **kwargs):
         'source_models',
         'evolving_names',
     ],
+    assert_max_traces=1,
 )
 def theta_method_block_loss(
     x_new_guess_vec: jax.Array,

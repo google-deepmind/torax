@@ -16,6 +16,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import jax
 from jax import numpy as jnp
 from torax import jax_utils
@@ -62,6 +63,26 @@ class JaxUtilsTest(parameterized.TestCase):
       self._should_not_error()
 
     self._should_error()
+
+  def test_jit(self):
+    """Test for jax_utils.jit."""
+
+    x1 = jnp.array(3.3)
+
+    def f(x, y):
+      if y:
+        return jnp.sin(x)
+      else:
+        return jnp.cos(x)
+
+    out_ref = f(x1, y=True)
+
+    f_jit = jax_utils.jit(f, static_argnames=["y"], assert_max_traces=1)
+    self.assertTrue(hasattr(f_jit, "lower"))
+    chex.assert_trees_all_close(f_jit(x1, y=True), out_ref)
+
+    with self.assertRaises(AssertionError):
+      f_jit(jnp.array([3.3]), y=False)
 
 
 if __name__ == "__main__":
