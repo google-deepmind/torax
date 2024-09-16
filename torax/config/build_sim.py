@@ -489,7 +489,7 @@ def build_transport_model_builder_from_config(
     if 'model_path' in qlknn_params:
       model_path = qlknn_params.pop('model_path')
     else:
-      model_path = ''
+      model_path = qlknn_wrapper.get_default_model_path()
     qlknn_params.update(transport_config)
     # Remove params from the other models, if present.
     qlknn_params.pop('constant_params', None)
@@ -497,7 +497,9 @@ def build_transport_model_builder_from_config(
     qlknn_params.pop('bohm-gyrobohm_params', None)
     return qlknn_wrapper.QLKNNTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
-            qlknn_wrapper.RuntimeParams(),
+            qlknn_wrapper.get_default_runtime_params_from_model_path(
+                model_path
+            ),
             **qlknn_params,
         ),
         model_path=model_path,
