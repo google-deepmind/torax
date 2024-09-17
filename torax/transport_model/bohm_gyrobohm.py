@@ -195,7 +195,7 @@ class BohmGyroBohmModel(transport_model.TransportModel):
 
     # Pinch velocity
     v_face_el = (
-        0.5 * d_face_el * geo.area_face**2 / (geo.volume_face * geo.vpr_face)
+        0.5 * d_face_el * geo.area_face**2 * geo.rho_b / (geo.volume_face * geo.vpr_face + 1e-3)
     )
 
     return state.CoreTransport(
