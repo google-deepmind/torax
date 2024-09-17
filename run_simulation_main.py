@@ -109,6 +109,12 @@ _QLKNN_MODEL_PATH = flags.DEFINE_string(
     f' "{qlknn_wrapper.DEFAULT_MODEL_PATH}".',
 )
 
+_OUTPUT_DIR = flags.DEFINE_string(
+    'output_dir',
+    None,
+    'If provided, overrides the default output directory.',
+)
+
 jax.config.parse_flags_with_absl()
 
 
@@ -461,11 +467,16 @@ def main(_):
             config_module_str, qlknn_model_path, _PYTHON_CONFIG_PACKAGE.value
         )
     )
+    output_dir = (
+        _OUTPUT_DIR.value
+        if _OUTPUT_DIR.value is not None
+        else new_runtime_params.output_dir
+    )
     build_time = time.time() - start_time
     start_time = time.time()
     _, output_file = _call_sim_app_main(
         sim=sim,
-        output_dir=new_runtime_params.output_dir,
+        output_dir=output_dir,
         log_sim_progress=log_sim_progress,
         plot_sim_progress=plot_sim_progress,
         log_sim_output=log_sim_output,
