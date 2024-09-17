@@ -193,11 +193,13 @@ class BohmGyroBohmModel(transport_model.TransportModel):
     )
 
     # d_face_el is zero on-axis by definition
-    # To avoid 0/0, we set the first element to 0 manually
+    # We also add a small epsilon to the denominator to avoid the cases where
+    # chi_i + chi_e = 0
     d_face_el = jnp.concatenate(
         [
             jnp.zeros(1),
-            weighting[1:] * chi_e[1:] * chi_i[1:] / (chi_e[1:] + chi_i[1:]),
+            weighting[1:] * chi_e[1:] * chi_i[1:]
+            / (chi_e[1:] + chi_i[1:] + constants_module.CONSTANTS.eps),
         ]
     )
 
