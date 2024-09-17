@@ -191,11 +191,30 @@ class BohmGyroBohmModel(transport_model.TransportModel):
         )
         * geo.rho_face_norm
     )
-    d_face_el = weighting * chi_e * chi_i / (chi_e + chi_i)
+
+    # d_face_el is zero on-axis by definition
+    # We also add a small epsilon to the denominator to avoid the cases where
+    # chi_i + chi_e = 0
+    d_face_el = jnp.concatenate(
+        [
+            jnp.zeros(1),
+            weighting[1:] * chi_e[1:] * chi_i[1:]
+            / (chi_e[1:] + chi_i[1:] + constants_module.CONSTANTS.eps),
+        ]
+    )
 
     # Pinch velocity
-    v_face_el = (
-        0.5 * d_face_el * geo.area_face**2 / (geo.volume_face * geo.vpr_face)
+    # v_face_el is also zero on-axis by definition
+    # To avoid 0/0, we set the first element to 0 manually
+    v_face_el = jnp.concatenate(
+        [
+            jnp.zeros(1),
+            0.5
+            * d_face_el[1:]
+            * geo.area_face[1:] ** 2
+            * geo.rho_b
+            / (geo.volume_face[1:] * geo.vpr_face[1:]),
+        ]
     )
 
     return state.CoreTransport(

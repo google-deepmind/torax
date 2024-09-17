@@ -101,8 +101,8 @@ class SimTest(sim_test_case.SimTestCase):
       ),
       # Tests BgB model heat transport only
       (
-          'test_bohmgyrobohm_heat',
-          'test_bohmgyrobohm_heat.py',
+          'test_bohmgyrobohm_all',
+          'test_bohmgyrobohm_all.py',
           _ALL_PROFILES,
           0,
       ),
