@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests BgB heat transport.
+"""Tests BgB transport.
 
-- BgB transport model (heat transport only)
+- BgB transport model (heat + particle transport)
 - Linear stepper with Pereverzev-Corrigan
 - Chi time step calculator
 - Circular geometry
@@ -32,7 +32,12 @@
 CONFIG = {
     'runtime_params': {
         'numerics': {
-            't_final': 1,
+            'ion_heat_eq': True,
+            'el_heat_eq': True,
+            'dens_eq': True,
+            'current_eq': True,
+            'resistivity_mult': 100,  # to shorten current diffusion time
+            't_final': 2,
         },
     },
     'geometry': {
@@ -41,6 +46,7 @@ CONFIG = {
     'sources': {
         # Current sources (for psi equation)
         'jext': {},
+        'j_bootstrap': {},
         # Electron density sources/sink (for the ne equation).
         'nbi_particle_source': {},
         'gas_puff_source': {},
