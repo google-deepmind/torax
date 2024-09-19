@@ -19,6 +19,7 @@ import os
 import numpy as np
 import scipy
 
+from eqdsk import EQDSKInterface
 # Internal import.
 
 
@@ -59,10 +60,11 @@ def _load_fbt_data(file_path: str) -> dict[str, np.ndarray]:
   """Loads the data from a FBT-LY file into a dictionary."""
   return scipy.io.loadmat(file_path, squeeze_me=True)
 
-from eqdsk import EQDSKInterface
+
 def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
-    eq = EQDSKInterface.from_file(file_path, no_cocos=True) # should probably handle COCOS shenanigans...
-    return eq.__dict__
+    eqdsk_data = EQDSKInterface.from_file(file_path, no_cocos=True) 
+    # TODO: handle COCOS shenanigans
+    return eqdsk_data.__dict__ # dict(eqdsk_data)
 
 
 def load_geo_data(

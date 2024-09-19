@@ -888,13 +888,12 @@ class StandardGeometryIntermediates:
         hires_fac: int = 4,
         Ip_from_parameters: bool = True,
         n_rho: int = 25,
-        # NOTE: The other geometry factors are coming from eqdsk...
     ):
-        # helper function to calculate area of a polygon given curve along x, z
+        """NOTE: Different from other geometry loaders, the shaping factors are coming from eqdsk"""
+
+        
         def calculate_area(x, z):
-            # Gauss-shoelace formula (https://en.wikipedia.org/wiki/Shoelace_formula)
-            # could likely use the determinant approach
-            #  0.5 * np.abs(np.dot(x, np.roll(z, 1)) - np.dot(z, np.roll(x, 1)))
+            """Gauss-shoelace formula (https://en.wikipedia.org/wiki/Shoelace_formula)"""
             n = len(x)
             area = 0.0
             for i in range(n):
@@ -961,17 +960,16 @@ class StandardGeometryIntermediates:
         # -----------------------------------------------------------
 
         # Gathering area for profiles
-        areas, volumes                = [], []
-        R_inboard, R_outboard         = [], []
-        flux_surf_avg_1_over_R2_eqdsk = [] # <1/R**2>
-        flux_surf_avg_Bp2_eqdsk       = [] # <Bp**2>
-        flux_surf_avg_RBp_eqdsk       = [] # <|grad(psi)|>
-        flux_surf_avg_R2Bp2_eqdsk     = [] # <|grad(psi)|**2>
-        int_dl_over_Bp_eqdsk          = [] # int(Rdl / | grad(psi) |)
-        Ip_eqdsk                      = [] # Toroidal plasma current
-        delta_upper_face_eqdsk        = [] # Upper face delta
-        delta_lower_face_eqdsk        = [] # Lower face delta
-
+        areas, volumes                = np.empty(len(surfaces)), np.empty(len(surfaces)) 
+        R_inboard, R_outboard         = np.empty(len(surfaces)), np.empty(len(surfaces))
+        flux_surf_avg_1_over_R2_eqdsk = np.empty(len(surfaces)) # <1/R**2>
+        flux_surf_avg_Bp2_eqdsk       = np.empty(len(surfaces)) # <Bp**2>
+        flux_surf_avg_RBp_eqdsk       = np.empty(len(surfaces)) # <|grad(psi)|>
+        flux_surf_avg_R2Bp2_eqdsk     = np.empty(len(surfaces)) # <|grad(psi)|**2>
+        int_dl_over_Bp_eqdsk          = np.empty(len(surfaces)) # int(Rdl / | grad(psi) |)
+        Ip_eqdsk                      = np.empty(len(surfaces)) # Toroidal plasma current
+        delta_upper_face_eqdsk        = np.empty(len(surfaces)) # Upper face delta
+        delta_lower_face_eqdsk        = np.empty(len(surfaces)) # Lower face delta
 
         # ---- Compute
         for n, (x_surface, z_surface) in enumerate(surfaces):
@@ -1015,32 +1013,18 @@ class StandardGeometryIntermediates:
             surface_delta_lower_face = (Rmaj - X_lowerextent) / max(x_surface)
 
             # Append to lists
-            areas.append(area)
-            volumes.append(volume)
-            R_inboard.append(x_surface.min())
-            R_outboard.append(x_surface.max())
-            int_dl_over_Bp_eqdsk.append(surface_int_dl_over_bpol)
-            flux_surf_avg_1_over_R2_eqdsk.append(surface_FSA_int_one_over_r2)
-            flux_surf_avg_RBp_eqdsk.append(surface_FSA_abs_grad_psi)
-            flux_surf_avg_R2Bp2_eqdsk.append(surface_FSA_abs_grad_psi2)
-            flux_surf_avg_Bp2_eqdsk.append(surface_FSA_Bpol_sqrd)
-            Ip_eqdsk.append(surface_int_bpol_dl / constants.CONSTANTS.mu0)
-            delta_upper_face_eqdsk.append(surface_delta_upper_face)
-            delta_lower_face_eqdsk.append(surface_delta_lower_face)
-
-        # Cast all as arrays
-        areas = np.array(areas)
-        volumes = np.array(volumes)
-        R_inboard = np.array(R_inboard)
-        R_outboard = np.array(R_outboard)
-        int_dl_over_Bp_eqdsk = np.array(int_dl_over_Bp_eqdsk)
-        flux_surf_avg_1_over_R2_eqdsk = np.array(flux_surf_avg_1_over_R2_eqdsk)
-        flux_surf_avg_RBp_eqdsk = np.array(flux_surf_avg_RBp_eqdsk)
-        flux_surf_avg_R2Bp2_eqdsk = np.array(flux_surf_avg_R2Bp2_eqdsk)
-        flux_surf_avg_Bp2_eqdsk = np.array(flux_surf_avg_Bp2_eqdsk)
-        Ip_eqdsk = np.array(Ip_eqdsk)
-        delta_upper_face_eqdsk = np.array(delta_upper_face_eqdsk)
-        delta_lower_face_eqdsk = np.array(delta_lower_face_eqdsk)
+            areas[n] = area 
+            volumes[n] = volume 
+            R_inboard[n] = x_surface.min() 
+            R_outboard[n] = x_surface.max() 
+            int_dl_over_Bp_eqdsk[n] = surface_int_dl_over_bpol 
+            flux_surf_avg_1_over_R2_eqdsk[n] = surface_FSA_int_one_over_r2 
+            flux_surf_avg_RBp_eqdsk[n] = surface_FSA_abs_grad_psi 
+            flux_surf_avg_R2Bp2_eqdsk[n] = surface_FSA_abs_grad_psi2
+            flux_surf_avg_Bp2_eqdsk[n] = surface_FSA_Bpol_sqrd 
+            Ip_eqdsk[n] = surface_int_bpol_dl / constants.CONSTANTS.mu0 
+            delta_upper_face_eqdsk[n] = surface_delta_upper_face 
+            delta_lower_face_eqdsk[n] = surface_delta_lower_face 
 
         # q-profile on interpolation
         q_profile = q_interp(psi_interpolant)
