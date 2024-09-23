@@ -22,6 +22,7 @@ from typing import Any, Optional
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import geometry
 from torax.config import config_args
 from torax.fvm import cell_variable
@@ -38,20 +39,20 @@ class Currents:
   that may be interesting for the end user to plot, etc.
   """
 
-  jtot: jax.Array
-  jtot_face: jax.Array
-  johm: jax.Array
-  johm_face: jax.Array
-  jext: jax.Array
-  jext_face: jax.Array
-  j_bootstrap: jax.Array
-  j_bootstrap_face: jax.Array
+  jtot: array_typing.ArrayFloat
+  jtot_face: array_typing.ArrayFloat
+  johm: array_typing.ArrayFloat
+  johm_face: array_typing.ArrayFloat
+  jext: array_typing.ArrayFloat
+  jext_face: array_typing.ArrayFloat
+  j_bootstrap: array_typing.ArrayFloat
+  j_bootstrap_face: array_typing.ArrayFloat
   # pylint: disable=invalid-name
   # Using physics notation naming convention
-  I_bootstrap: jax.Array
-  Ip: jax.Array
-  sigma: jax.Array
-  jtot_hires: Optional[jax.Array] = None
+  I_bootstrap: array_typing.ScalarFloat
+  Ip: array_typing.ScalarFloat
+  sigma: array_typing.ArrayFloat
+  jtot_hires: Optional[array_typing.ArrayFloat] = None
 
   def has_nans(self) -> bool:
     """Checks for NaNs in all attributes of Currents."""
@@ -87,10 +88,12 @@ class CoreProfiles:
   )  # Time derivative of poloidal flux (loop voltage)
   ne: cell_variable.CellVariable  # Electron density
   ni: cell_variable.CellVariable  # Main ion density
+  # Impurity density (currently only 1 supported)
+  nimp: cell_variable.CellVariable
   currents: Currents
-  q_face: jax.Array
-  s_face: jax.Array
-  nref: jax.Array  # Reference density for ion and electron density
+  q_face: array_typing.ArrayFloat
+  s_face: array_typing.ArrayFloat
+  nref: array_typing.ScalarFloat  # Reference density
 
   def history_elem(self) -> CoreProfiles:
     """Returns the current CoreProfiles as a history entry.
@@ -109,6 +112,7 @@ class CoreProfiles:
         psidot=self.psidot.history_elem(),
         ne=self.ne.history_elem(),
         ni=self.ni.history_elem(),
+        nimp=self.nimp.history_elem(),
         currents=self.currents,
         q_face=self.q_face,
         s_face=self.s_face,
@@ -235,6 +239,42 @@ class CoreTransport:
     )
 
 
+@chex.dataclass(frozen=True, eq=False)
+class PostProcessedOutputs:
+  """Collection of outputs calculated after each simulation step.
+
+  These variables are not used internally, but are useful as outputs or
+  intermediate observations for overarching workflows.
+
+  Attributes:
+    pressure_thermal_ion_face: Ion thermal pressure on the face grid
+    pressure_thermal_el_face: Electron thermal pressure on the face grid
+    pressure_thermal_tot_face: Total thermal pressure on the face grid
+    wth_thermal_ion: Ion thermal stored energy (scalar)
+    wth_thermal_el: Electron thermal stored energy (scalar)
+    wth_thermal_tot: Total thermal stored energy (scalar)
+  """
+
+  pressure_thermal_ion_face: array_typing.ArrayFloat
+  pressure_thermal_el_face: array_typing.ArrayFloat
+  pressure_thermal_tot_face: array_typing.ArrayFloat
+  wth_thermal_ion: array_typing.ScalarFloat
+  wth_thermal_el: array_typing.ScalarFloat
+  wth_thermal_tot: array_typing.ScalarFloat
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> PostProcessedOutputs:
+    """Returns a PostProcessedOutputs with all zeros, used for initializing."""
+    return cls(
+        pressure_thermal_ion_face=jnp.zeros(geo.rho_face.shape),
+        pressure_thermal_el_face=jnp.zeros(geo.rho_face.shape),
+        pressure_thermal_tot_face=jnp.zeros(geo.rho_face.shape),
+        wth_thermal_ion=jnp.array(0.0),
+        wth_thermal_el=jnp.array(0.0),
+        wth_thermal_tot=jnp.array(0.0),
+    )
+
+
 @chex.dataclass
 class StepperNumericOutputs:
   """Numerical quantities related to the stepper.
@@ -281,6 +321,8 @@ class ToraxSimState:
       at time t, but is not guaranteed to be. In case exact source profiles are
       required for each time step, they must be recomputed manually after
       running `run_simulation()`.
+    post_processed_outputs: variables for output or intermediate observations
+      for overarching workflows, calculated after each simulation step.
     time_step_calculator_state: the state of the TimeStepper.
     stepper_numeric_outputs: Numerical quantities related to the stepper.
   """
@@ -293,6 +335,9 @@ class ToraxSimState:
   core_profiles: CoreProfiles
   core_transport: CoreTransport
   core_sources: source_profiles.SourceProfiles
+
+  # Post-processed outputs after a step.
+  post_processed_outputs: PostProcessedOutputs
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.

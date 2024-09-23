@@ -63,6 +63,12 @@ TEMP_EL = "temp_el"
 TEMP_EL_RIGHT_BC = "temp_el_right_bc"
 TEMP_ION = "temp_ion"
 TEMP_ION_RIGHT_BC = "temp_ion_right_bc"
+PRESSURE_ION = "pressure_ion"
+PRESSURE_EL = "pressure_el"
+PRESSURE_TOT = "pressure_tot"
+WTH_ION = "wth_ion"
+WTH_EL = "wth_el"
+WTH_TOT = "wth_tot"
 PSI = "psi"
 PSIDOT = "psidot"
 PSI_RIGHT_GRAD_BC = "psi_right_grad_bc"
@@ -134,11 +140,13 @@ class StateHistory:
 
   def __init__(self, sim_outputs: ToraxSimOutputs):
     core_profiles = [
-        state.core_profiles.history_elem()
-        for state in sim_outputs.sim_history
+        state.core_profiles.history_elem() for state in sim_outputs.sim_history
     ]
     core_sources = [state.core_sources for state in sim_outputs.sim_history]
     transport = [state.core_transport for state in sim_outputs.sim_history]
+    post_processed_ouput = [
+        state.post_processed_outputs for state in sim_outputs.sim_history
+    ]
     stack = lambda *ys: jnp.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
@@ -148,6 +156,9 @@ class StateHistory:
     )
     self.core_transport: state.CoreTransport = jax.tree_util.tree_map(
         stack, *transport
+    )
+    self.post_processed_outputs: state.PostProcessedOutputs = (
+        jax.tree_util.tree_map(stack, *post_processed_ouput)
     )
     self.times = jnp.array([state.t for state in sim_outputs.sim_history])
     chex.assert_rank(self.times, 1)
@@ -190,7 +201,7 @@ class StateHistory:
       self,
       geo: geometry.Geometry,
   ) -> dict[str, xr.DataArray | None]:
-    """Saves the core profiles to a dict."""
+    """Saves the core profiles to a dict including relevant post_processed_outputs."""
     xr_dict = {}
 
     xr_dict[TEMP_EL] = self.core_profiles.temp_el.value
@@ -226,6 +237,18 @@ class StateHistory:
     xr_dict[Q_FACE] = self.core_profiles.q_face
     xr_dict[S_FACE] = self.core_profiles.s_face
     xr_dict[NREF] = self.core_profiles.nref
+
+    # Post processed quantities
+    xr_dict[PRESSURE_ION] = (
+        self.post_processed_outputs.pressure_thermal_ion_face
+    )
+    xr_dict[PRESSURE_EL] = self.post_processed_outputs.pressure_thermal_el_face
+    xr_dict[PRESSURE_TOT] = (
+        self.post_processed_outputs.pressure_thermal_tot_face
+    )
+    xr_dict[WTH_ION] = self.post_processed_outputs.wth_thermal_ion
+    xr_dict[WTH_EL] = self.post_processed_outputs.wth_thermal_el
+    xr_dict[WTH_TOT] = self.post_processed_outputs.wth_thermal_tot
 
     xr_dict = {
         name: self._pack_into_data_array(name, data, geo)

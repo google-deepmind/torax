@@ -144,10 +144,9 @@ def _get_ne(
 
       dr_edge = geo.Rout_face[-1] - geo.Rout_face[-2]
 
-      C = (
-          target_nbar
-          - 0.5 * ne_face[-1] * dr_edge / Rmin_out
-      ) / (nbar_from_ne_face_inner + 0.5 * ne_face[-2] * dr_edge / Rmin_out)
+      C = (target_nbar - 0.5 * ne_face[-1] * dr_edge / Rmin_out) / (
+          nbar_from_ne_face_inner + 0.5 * ne_face[-2] * dr_edge / Rmin_out
+      )
   else:
     C = 1
 
@@ -165,7 +164,11 @@ def _get_ne(
 def updated_density(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
+) -> tuple[
+    cell_variable.CellVariable,
+    cell_variable.CellVariable,
+    cell_variable.CellVariable,
+]:
   """Updated particle density. Used upon initialization and if dens_eq=False."""
   ne = _get_ne(
       dynamic_runtime_params_slice,
@@ -177,10 +180,10 @@ def updated_density(
   # Assume isotopic balance for DT fusion power. Solve for ni based on:
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
 
-  dilution_factor = physics.get_main_ion_dilution_factor(
-      dynamic_runtime_params_slice.plasma_composition.Zimp,
-      dynamic_runtime_params_slice.plasma_composition.Zeff,
-  )
+  Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
+  Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
+
+  dilution_factor = physics.get_main_ion_dilution_factor(Zimp, Zeff)
 
   ni = cell_variable.CellVariable(
       value=ne.value * dilution_factor,
@@ -190,7 +193,17 @@ def updated_density(
           ne.right_face_constraint * dilution_factor
       ),
   )
-  return ne, ni
+
+  nimp = cell_variable.CellVariable(
+      value=(ne.value - ni.value) / Zimp,
+      dr=geo.drho_norm,
+      right_face_grad_constraint=None,
+      right_face_constraint=jnp.array(
+          ne.right_face_constraint - ni.right_face_constraint
+      )
+      / Zimp,
+  )
+  return ne, ni, nimp
 
 
 def _prescribe_currents_no_bootstrap(
@@ -700,7 +713,7 @@ def initial_core_profiles(
   # The default time in build_dynamic_runtime_params_slice is t_initial
   temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo)
   temp_el = updated_electron_temperature(dynamic_runtime_params_slice, geo)
-  ne, ni = updated_density(dynamic_runtime_params_slice, geo)
+  ne, ni, nimp = updated_density(dynamic_runtime_params_slice, geo)
   psi, currents = _initial_psi(
       dynamic_runtime_params_slice,
       geo,
@@ -729,6 +742,7 @@ def initial_core_profiles(
       temp_el=temp_el,
       ne=ne,
       ni=ni,
+      nimp=nimp,
       psi=psi,
       psidot=psidot,
       currents=currents,
@@ -806,14 +820,22 @@ def updated_prescribed_core_profiles(
       not static_runtime_params_slice.dens_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    ne, ni = updated_density(dynamic_runtime_params_slice, geo)
+    ne, ni, nimp = updated_density(dynamic_runtime_params_slice, geo)
     ne = ne.value
     ni = ni.value
+    nimp = nimp.value
   else:
     ne = core_profiles.ne.value
     ni = core_profiles.ni.value
+    nimp = core_profiles.nimp.value
 
-  return {'temp_ion': temp_ion, 'temp_el': temp_el, 'ne': ne, 'ni': ni}
+  return {
+      'temp_ion': temp_ion,
+      'temp_el': temp_el,
+      'ne': ne,
+      'ni': ni,
+      'nimp': nimp,
+  }
 
 
 def update_evolving_core_profiles(

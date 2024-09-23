@@ -42,6 +42,7 @@ from torax import geometry_provider as geometry_provider_lib
 from torax import jax_utils
 from torax import output
 from torax import physics
+from torax import post_processing
 from torax import state
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
@@ -137,7 +138,13 @@ class CoeffsCallback:
               dynamic_runtime_params_slice.plasma_composition.Zeff,
           ),
       )
-      core_profiles = dataclasses.replace(core_profiles, ni=ni)
+      nimp = dataclasses.replace(
+          core_profiles.nimp,
+          value=(core_profiles.ne.value - core_profiles.ni.value)
+          / dynamic_runtime_params_slice.plasma_composition.Zimp
+      )
+
+      core_profiles = dataclasses.replace(core_profiles, ni=ni, nimp=nimp)
 
     if allow_pereverzev:
       use_pereverzev = self.static_runtime_params_slice.stepper.use_pereverzev
@@ -472,12 +479,16 @@ class SimulationStepFn:
     )
     stepper_numeric_outputs.outer_stepper_iterations = 1
 
+    # post_processed_outputs set to zero since post-processing is done at the
+    # end of the simulation step following recalculation of explicit
+    # core_sources to be consistent with the final core_profiles.
     return state.ToraxSimState(
         t=input_state.t + dt,
         dt=dt,
         core_profiles=core_profiles,
         core_transport=core_transport,
         core_sources=core_sources,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(geo_t_plus_dt),
         time_step_calculator_state=time_step_calculator_state,
         stepper_numeric_outputs=stepper_numeric_outputs,
     )
@@ -665,6 +676,7 @@ class SimulationStepFn:
         geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
     )
+    output_state = post_processing.make_outputs(output_state, geo_t_plus_dt)
 
     return output_state
 
@@ -694,6 +706,7 @@ def get_initial_state(
           qei=source_profiles_lib.QeiInfo.zeros(geo),
       ),
       core_transport=state.CoreTransport.zeros(geo),
+      post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
       time_step_calculator_state=time_step_calculator.initial_state(),
       stepper_numeric_outputs=state.StepperNumericOutputs(
           stepper_error_state=0,
@@ -863,7 +876,7 @@ def override_initial_runtime_params_from_file(
   """Override parts of runtime params slice from state in a file."""
   if file_restart.do_restart:
     # pylint: disable=invalid-name
-    ds = output.load_state_file(file_restart.filename,)
+    ds = output.load_state_file(file_restart.filename)
     # Remap coordinates in saved file to be consistent with expectations of
     # how config_args parses xarrays.
     ds = ds.rename({output.RHO_CELL_NORM: config_args.RHO_NORM})
@@ -1087,9 +1100,7 @@ def run_simulation(
 
   running_main_loop_start_time = time.time()
   wall_clock_step_times = []
-  sim_history = [
-      initial_state,
-  ]
+
   dynamic_runtime_params_slice, geo = (
       get_consistent_dynamic_runtime_params_slice_and_geometry(
           initial_state.t,
@@ -1120,6 +1131,11 @@ def run_simulation(
   sim_error = output.SimError.NO_ERROR
   # Keep advancing the simulation until the time_step_calculator tells us we are
   # done.
+
+  # Initialize first_step, used to post-process and append the initial state to
+  # the sim_history.
+  first_step = True
+  sim_history = []
   while time_step_calculator.not_done(
       sim_state.t,
       dynamic_runtime_params_slice,
@@ -1174,6 +1190,12 @@ def run_simulation(
       spectator.after_step()
       # Now prep the spectator for the following time step.
       spectator.before_step()
+
+    if first_step:
+      # Initialize the sim_history with the initial state.
+      sim_state = post_processing.make_outputs(sim_state, geo)
+      sim_history.append(sim_state)
+      first_step = False
     sim_state = step_fn(
         static_runtime_params_slice,
         dynamic_runtime_params_slice_provider,
