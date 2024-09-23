@@ -101,7 +101,7 @@ def coll_exchange(
       - 0.5 * jnp.log(core_profiles.ne.value * n_scale)
       + jnp.log(core_profiles.temp_el.value)
   )
-  # collisionality
+  # ion-electron collisionality
   log_tau_e = (
       jnp.log(12 * jnp.pi**1.5 / (core_profiles.ne.value * nref * lam_ei))
       - 4 * jnp.log(constants.CONSTANTS.qe)
