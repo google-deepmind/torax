@@ -209,7 +209,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     with self.subTest('with_defaults_and_without_custom_source'):
       # Need to run the sim once to build the step_fn.
       sim_outputs = sim.run()
-      history = output.StateHistory(sim_outputs)
+      history = output.StateHistory(sim_outputs, sim.source_models)
       self._check_profiles_vs_expected(
           core_profiles=history.core_profiles,
           t=history.times,
@@ -252,7 +252,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         static_runtime_params_slice=sim.static_runtime_params_slice,
         time_step_calculator=sim.time_step_calculator,
     )
-    history = output.StateHistory(sim_outputs)
+    history = output.StateHistory(sim_outputs, sim.source_models)
     self._check_profiles_vs_expected(
         core_profiles=history.core_profiles,
         t=history.times,

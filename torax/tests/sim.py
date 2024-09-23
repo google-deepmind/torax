@@ -441,7 +441,7 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     sim_outputs = sim.run()
-    history = output.StateHistory(sim_outputs)
+    history = output.StateHistory(sim_outputs, sim.source_models)
 
     history_length = history.core_profiles.temp_ion.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
@@ -609,10 +609,12 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Get initial core profiles for the overriden dynamic runtime params.
     initial_state = sim_lib.get_initial_state(
+        sim.static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
         sim.time_step_calculator,
+        sim.step_fn,
     )
 
     # Check for agreement with the reference core profiles.
@@ -645,7 +647,7 @@ class SimTest(sim_test_case.SimTestCase):
     sim = build_sim_lib.build_sim_from_config(config_module.CONFIG)
     sim_outputs = sim.run()
 
-    state_history = output.StateHistory(sim_outputs)
+    state_history = output.StateHistory(sim_outputs, sim.source_models)
     self.assertEqual(state_history.sim_error, output.SimError.NAN_DETECTED)
     assert (
         state_history.times[-1]
@@ -687,7 +689,7 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     sim_outputs = sim.run()
-    history = output.StateHistory(sim_outputs)
+    history = output.StateHistory(sim_outputs, sim.source_models)
     ref_idx_offset = np.where(ref_times == history.times[0])
 
     for i in range(len(history.times)):

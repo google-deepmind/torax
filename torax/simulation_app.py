@@ -199,10 +199,12 @@ def update_sim(
       dynamic_runtime_params_slice, geo
   )
   initial_state = sim_lib.get_initial_state(
+      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
       time_step_calculator=sim.time_step_calculator,
       source_models=sim.source_models,
+      step_fn=sim.step_fn,
   )
   return sim_lib.Sim(
       time_step_calculator=sim.time_step_calculator,
@@ -294,7 +296,7 @@ def main(
       spectator=spectator,
   )
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
-  state_history = output.StateHistory(sim_outputs)
+  state_history = output.StateHistory(sim_outputs, sim.source_models)
 
   ds = state_history.simulation_output_to_xr(geo, sim.file_restart)
 

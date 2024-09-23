@@ -19,14 +19,13 @@ from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax import core_profile_setters
 from torax import geometry
-from torax import sim as sim_lib
 from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
-from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -66,15 +65,13 @@ class TransportSmoothingTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
-    time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
-    input_state = sim_lib.get_initial_state(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        time_step_calculator=time_calculator,
-        source_models=source_models,
+    core_profiles = core_profile_setters.initial_core_profiles(
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
     )
     transport_coeffs = transport_model(
-        dynamic_runtime_params_slice, geo, input_state.core_profiles
+        dynamic_runtime_params_slice, geo, core_profiles
     )
     chi_face_ion_orig = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el_orig = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
@@ -203,15 +200,13 @@ class TransportSmoothingTest(parameterized.TestCase):
             torax_mesh=geo.torax_mesh,
         )(t=runtime_params.numerics.t_initial,)
     )
-    time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
-    input_state = sim_lib.get_initial_state(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        time_step_calculator=time_calculator,
-        source_models=source_models,
+    core_profiles = core_profile_setters.initial_core_profiles(
+        dynamic_runtime_params_slice,
+        geo,
+        source_models,
     )
     transport_coeffs = transport_model(
-        dynamic_runtime_params_slice, geo, input_state.core_profiles
+        dynamic_runtime_params_slice, geo, core_profiles
     )
     chi_face_ion_orig = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el_orig = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])

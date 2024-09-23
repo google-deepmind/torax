@@ -24,6 +24,7 @@ from jax import numpy as jnp
 from torax import geometry
 from torax import state
 from torax.config import runtime_params
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 import xarray as xr
 
@@ -138,7 +139,11 @@ def load_state_file(
 class StateHistory:
   """A history of the state of the simulation and its error state."""
 
-  def __init__(self, sim_outputs: ToraxSimOutputs):
+  def __init__(
+      self,
+      sim_outputs: ToraxSimOutputs,
+      source_models: source_models_lib.SourceModels,
+  ):
     core_profiles = [
         state.core_profiles.history_elem() for state in sim_outputs.sim_history
     ]
@@ -163,6 +168,7 @@ class StateHistory:
     self.times = jnp.array([state.t for state in sim_outputs.sim_history])
     chex.assert_rank(self.times, 1)
     self.sim_error = sim_outputs.sim_error
+    self.source_models = source_models
 
   def _pack_into_data_array(
       self,
@@ -283,13 +289,27 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core sources to a dict."""
     xr_dict = {}
+
+    xr_dict[self.source_models.qei_source_name] = (
+        self.core_sources.qei.qei_coef
+        * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
+    )
+
     for profile in self.core_sources.profiles:
       if profile in existing_keys:
         logging.warning(
             "Overlapping key %s between sources and other data structures",
             profile,
         )
-      xr_dict[profile] = self.core_sources.profiles[profile]
+      if profile in self.source_models.ion_el_sources:
+        xr_dict[f"{profile}_ion"] = self.core_sources.profiles[profile][
+            :, 0, ...
+        ]
+        xr_dict[f"{profile}_el"] = self.core_sources.profiles[profile][
+            :, 1, ...
+        ]
+      else:
+        xr_dict[profile] = self.core_sources.profiles[profile]
 
     xr_dict = {
         name: self._pack_into_data_array(name, data, geo)

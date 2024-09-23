@@ -282,7 +282,7 @@ class SimTestCase(parameterized.TestCase):
     sim_outputs = sim.run()
 
     # Extract core profiles history for analysis against references
-    history = output.StateHistory(sim_outputs)
+    history = output.StateHistory(sim_outputs, sim.source_models)
     ds = history.simulation_output_to_xr(geo, sim.file_restart)
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
 
