@@ -223,7 +223,7 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
   def not_done(
       self,
       t: float | jax.Array,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      t_final: float,
       state,
   ) -> bool | jax.Array:
     return t < 2

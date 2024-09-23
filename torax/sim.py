@@ -1134,7 +1134,7 @@ def run_simulation(
   sim_history = []
   while time_step_calculator.not_done(
       sim_state.t,
-      dynamic_runtime_params_slice,
+      dynamic_runtime_params_slice.numerics.t_final,
       sim_state.time_step_calculator_state,
   ):
     # Measure how long in wall clock time each simulation step takes.
@@ -1175,14 +1175,6 @@ def run_simulation(
         dynamic_runtime_params_slice_provider,
         geometry_provider,
         sim_state,
-    )
-    # Update the runtime config for the next iteration.
-    dynamic_runtime_params_slice, geo = (
-        get_consistent_dynamic_runtime_params_slice_and_geometry(
-            sim_state.t,
-            dynamic_runtime_params_slice_provider,
-            geometry_provider,
-        )
     )
     wall_clock_step_times.append(time.time() - step_start_time)
     # If the core profiles have NaNs, exit simulation loop early, and output

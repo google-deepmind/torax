@@ -52,10 +52,10 @@ class TimeStepCalculator(Protocol[State]):
   def not_done(
       self,
       t: Union[float, jax.Array],
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      t_final: float,
       state: State,
   ) -> Union[bool, jax.Array]:
-    return t < dynamic_runtime_params_slice.numerics.t_final
+    return t < t_final
 
   @abc.abstractmethod
   def next_dt(
