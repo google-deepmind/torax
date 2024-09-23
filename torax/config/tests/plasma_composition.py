@@ -16,6 +16,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
 from torax import geometry
 from torax import interpolated_param
 from torax.config import plasma_composition
@@ -25,10 +26,75 @@ class PlasmaCompositionTest(parameterized.TestCase):
   """Unit tests for the `torax.config.plasma_composition` module."""
 
   def test_plasma_composition_make_provider(self):
+    """Checks provider construction with no issues."""
     pc = plasma_composition.PlasmaComposition()
     geo = geometry.build_circular_geometry()
     provider = pc.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
+
+  @parameterized.parameters(
+      (1.0,),
+      (1.6,),
+      (2.5,),
+  )
+  def test_zeff_accepts_float_inputs(self, zeff: float):
+    """Tests that zeff accepts a single float input."""
+    geo = geometry.build_circular_geometry()
+    pc = plasma_composition.PlasmaComposition(Zeff=zeff)
+    provider = pc.make_provider(geo.torax_mesh)
+    dynamic_pc = provider.build_dynamic_params(t=0.0)
+    # Check that the values in both Zeff and Zeff_face are the same
+    # and consistent with the zeff float input
+    np.testing.assert_allclose(
+        dynamic_pc.Zeff,
+        zeff,
+    )
+    np.testing.assert_allclose(
+        dynamic_pc.Zeff_face,
+        zeff,
+    )
+
+  def test_zeff_and_zeff_face_match_expected(self):
+    """Checks that Zeff and Zeff_face are calculated as expected."""
+    # Define an arbitrary Zeff profile
+    zeff_profile = {
+        0.0: {0.0: 1.0, 0.5: 1.3, 1.0: 1.6},
+        1.0: {0.0: 1.8, 0.5: 2.1, 1.0: 2.4},
+    }
+
+    geo = geometry.build_circular_geometry()
+    pc = plasma_composition.PlasmaComposition(Zeff=zeff_profile)
+    provider = pc.make_provider(geo.torax_mesh)
+
+    # Check values at t=0.0
+    dynamic_pc = provider.build_dynamic_params(t=0.0)
+    expected_zeff = np.interp(
+        geo.rho_norm,
+        np.array(list(zeff_profile[0.0])),
+        np.array(list(zeff_profile[0.0].values())),
+    )
+    expected_zeff_face = np.interp(
+        geo.rho_face_norm,
+        np.array(list(zeff_profile[0.0])),
+        np.array(list(zeff_profile[0.0].values())),
+    )
+    np.testing.assert_allclose(dynamic_pc.Zeff, expected_zeff)
+    np.testing.assert_allclose(dynamic_pc.Zeff_face, expected_zeff_face)
+
+    # Check values at t=0.5 (interpolated in time)
+    dynamic_pc = provider.build_dynamic_params(t=0.5)
+    expected_zeff = np.interp(
+        geo.rho_norm,
+        np.array([0.0, 0.5, 1.0]),
+        np.array([1.4, 1.7, 2.0]),
+    )
+    expected_zeff_face = np.interp(
+        geo.rho_face_norm,
+        np.array([0.0, 0.5, 1.0]),
+        np.array([1.4, 1.7, 2.0]),
+    )
+    np.testing.assert_allclose(dynamic_pc.Zeff, expected_zeff)
+    np.testing.assert_allclose(dynamic_pc.Zeff_face, expected_zeff_face)
 
   def test_interpolated_vars_are_only_constructed_once(
       self,

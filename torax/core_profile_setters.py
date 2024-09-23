@@ -182,15 +182,19 @@ def updated_density(
 
   Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
   Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
+  Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
 
   dilution_factor = physics.get_main_ion_dilution_factor(Zimp, Zeff)
+  dilution_factor_edge = physics.get_main_ion_dilution_factor(
+      Zimp, Zeff_face[-1]
+  )
 
   ni = cell_variable.CellVariable(
       value=ne.value * dilution_factor,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(
-          ne.right_face_constraint * dilution_factor
+          ne.right_face_constraint * dilution_factor_edge
       ),
   )
 
@@ -919,9 +923,9 @@ def compute_boundary_conditions(
   # Assume isotopic balance for DT fusion power. Solve for ni based on:
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
 
-  dilution_factor = physics.get_main_ion_dilution_factor(
+  dilution_factor_edge = physics.get_main_ion_dilution_factor(
       dynamic_runtime_params_slice.plasma_composition.Zimp,
-      dynamic_runtime_params_slice.plasma_composition.Zeff,
+      dynamic_runtime_params_slice.plasma_composition.Zeff_face[-1],
   )
   return {
       'temp_ion': dict(
@@ -942,7 +946,9 @@ def compute_boundary_conditions(
       'ni': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
+          right_face_constraint=jnp.array(
+              ne_bound_right * dilution_factor_edge
+          ),
       ),
       'psi': dict(
           right_face_grad_constraint=_calculate_psi_grad_constraint(

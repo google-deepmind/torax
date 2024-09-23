@@ -26,7 +26,6 @@ from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
 from typing_extensions import override
-import xarray as xr
 
 
 # pylint: disable=invalid-name
@@ -43,12 +42,8 @@ class ProfileConditions(
 
   # Temperature boundary conditions at r=Rmin. If this is `None` the boundary
   # condition will instead be taken from `Ti` and `Te` at rhon=1.
-  Ti_bound_right: interpolated_param.TimeInterpolated | None = (
-      None
-  )
-  Te_bound_right: interpolated_param.TimeInterpolated | None = (
-      None
-  )
+  Ti_bound_right: interpolated_param.TimeInterpolated | None = None
+  Te_bound_right: interpolated_param.TimeInterpolated | None = None
   # Prescribed or evolving values for temperature at different times.
   Ti: interpolated_param.InterpolatedVarTimeRhoInput = dataclasses.field(
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
@@ -86,9 +81,7 @@ class ProfileConditions(
   # be set to `False` and `ne_bound_right_is_fGW` will be set to `ne_is_fGW`.
   # If `ne_bound_right` is not `None` then `ne_bound_right_is_absolute` will be
   # set to `True`.
-  ne_bound_right: interpolated_param.TimeInterpolated | None = (
-      None
-  )
+  ne_bound_right: interpolated_param.TimeInterpolated | None = None
   ne_bound_right_is_fGW: bool = False
   ne_bound_right_is_absolute: bool = False
 
@@ -129,39 +122,8 @@ class ProfileConditions(
         f' profile for {value_name} must include a rho=1.0 boundary'
         ' condition.'
     )
-    match values:
-      # In case of constant profile case expect an explicit boundary condition.
-      case float():
-        raise ValueError(error_message)
-      # In case of constant profile case expect an explicit boundary condition.
-      case int():
-        raise ValueError(error_message)
-      case dict():
-        # Initial condition dict shortcut.
-        if all(isinstance(v, float) for v in values.values()):
-          if 1.0 not in values:
-            raise ValueError(error_message)
-        else:
-          # Check for all times that the boundary condition is defined.
-          for _, value in values.items():
-            if 1.0 not in value:
-              raise ValueError(error_message)
-      case xr.DataArray():
-        if 1.0 not in values.coords[config_args.RHO_NORM]:
-          raise ValueError(error_message)
-      # Arrays case.
-      case _:
-        if not isinstance(values, tuple):
-          raise ValueError(f'Cannot identify a valid way to map {values}.')
-        # Initial condition array shortcut.
-        if len(values) == 2:
-          rho_norm, _ = values
-        elif len(values) == 3:
-          _, rho_norm, _ = values
-        else:
-          raise ValueError('Only array tuples of length 2 or 3 are supported.')
-        if 1.0 not in rho_norm:
-          raise ValueError(error_message)
+    if not interpolated_param.rhonorm1_defined_in_timerhoinput(values):
+      raise ValueError(error_message)
 
   def __post_init__(self):
     if self.Ti_bound_right is None:
@@ -182,7 +144,8 @@ class ProfileConditions(
 
   @override
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None,
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
   ) -> ProfileConditionsProvider:
     provider_kwargs = self.get_provider_kwargs(torax_mesh)
     if torax_mesh is None:

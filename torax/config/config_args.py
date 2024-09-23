@@ -72,7 +72,7 @@ def input_is_an_interpolated_var_single_axis(
 
 
 def _is_bool(
-    interp_input: interpolated_param.InterpolatedVarSingleAxisInput
+    interp_input: interpolated_param.InterpolatedVarSingleAxisInput,
 ) -> bool:
   if isinstance(interp_input, dict):
     if not interp_input:
@@ -97,14 +97,11 @@ def get_interpolated_var_single_axis(
 
   Args:
     interpolated_var_single_axis_input: Input that can be used to construct a
-    `interpolated_param.InterpolatedVarSingleAxis` object.
-    Can be either:
-    - Python primitives.
-    - An xr.DataArray.
-    - A tuple(axis_array, values_array).
+      `interpolated_param.InterpolatedVarSingleAxis` object. Can be either:
+      Python primitives, an xr.DataArray, a tuple(axis_array, values_array).
+      See torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars
+      for more information on the supported inputs.
 
-    See torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars
-    for more information on the supported inputs.
   Returns:
     A constructed interpolated var.
   """
@@ -150,6 +147,7 @@ def input_is_an_interpolated_var_time_rho(
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
   """Returns True if the input config field is a TimeRhoInterpolated."""
+
   def _check(ft):
     """Checks if the input field type is an InterpolatedVarTimeRho."""
     try:
@@ -291,9 +289,14 @@ def get_interpolated_var_2d(
     rho_norm: The rho_norm values to interpolate at (usually the TORAX mesh).
 
   Returns:
-    An InterpolatedVarTimeRho object which has been preinterpolaed onto the
+    An InterpolatedVarTimeRho object which has been preinterpolated onto the
     provided rho_norm values.
   """
+  # if isinstance(time_rho_interpolated_input, float):
+  #   values = _load_from_float(
+  #       time_rho_interpolated_input,
+  #       rho_norm,
+  #   )
   if isinstance(time_rho_interpolated_input, xr.DataArray):
     values = _load_from_xr_array(
         time_rho_interpolated_input,

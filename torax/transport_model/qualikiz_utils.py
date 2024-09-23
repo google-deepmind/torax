@@ -38,7 +38,7 @@ class QualikizDynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 @chex.dataclass(frozen=True)
 class QualikizInputs():
   """Inputs to Qualikiz-based models."""
-  Zeff: chex.Array
+  Zeff_face: chex.Array
   Ati: chex.Array
   Ate: chex.Array
   Ane: chex.Array
@@ -57,7 +57,7 @@ class QualikizInputs():
 
 
 def prepare_qualikiz_inputs(
-    zeff: chex.Numeric,
+    Zeff_face: chex.Array,
     nref: chex.Numeric,
     Ai: chex.Numeric,
     q_correction_factor: chex.Numeric,
@@ -117,7 +117,6 @@ def prepare_qualikiz_inputs(
   # mutants have no effect.
 
   # set up input vectors (all as jax.numpy arrays on face grid)
-  Zeff = zeff * jnp.ones_like(geo.rho_face)
 
   # R/LTi profile from current timestep temp_ion
   Ati = -Rmaj * temp_ion_face_grad / temp_ion_face
@@ -170,7 +169,7 @@ def prepare_qualikiz_inputs(
       geo=geo,
       core_profiles=core_profiles,
       nref=nref,
-      Zeff=zeff,
+      Zeff_face=Zeff_face,
       coll_mult=transport.coll_mult,
   )
   log_nu_star_face = jnp.log10(nu_star)
@@ -219,7 +218,7 @@ def prepare_qualikiz_inputs(
   )
   normni = raw_ni_face / raw_ne_face
   return QualikizInputs(
-      Zeff=Zeff,
+      Zeff_face=Zeff_face,
       Ati=Ati,
       Ate=Ate,
       Ane=Ane,

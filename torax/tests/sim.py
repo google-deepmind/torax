@@ -334,6 +334,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with non-constant Zeff profile.
+      (
+          'test_iterhybrid_predictor_corrector_zeffprofile',
+          'test_iterhybrid_predictor_corrector_zeffprofile.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Tests Newton-Raphson nonlinear solver for ITER-hybrid-like-config
       (
           'test_iterhybrid_newton',

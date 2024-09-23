@@ -40,8 +40,8 @@ _trapz = jax.scipy.integrate.trapezoid
 
 def get_main_ion_dilution_factor(
     Zimp: float,
-    Zeff: float,
-) -> float:
+    Zeff: jax.Array,
+) -> jax.Array:
   return (Zimp - Zeff) / (Zimp - 1)
 
 
@@ -291,7 +291,7 @@ def calc_nu_star(
     geo: Geometry,
     core_profiles: state.CoreProfiles,
     nref: float,
-    Zeff: float,
+    Zeff_face: jax.Array,
     coll_mult: float,
 ) -> jax.Array:
   """Calculates nu star.
@@ -300,7 +300,7 @@ def calc_nu_star(
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
     nref: Reference value for normalization
-    Zeff: Effective ion charge.
+    Zeff_face: Effective ion charge on face grid.
     coll_mult: Collisionality multiplier in QLKNN for sensitivity testing.
 
   Returns:
@@ -323,7 +323,7 @@ def calc_nu_star(
   nu_e = (
       1
       / 1.09e-3
-      * Zeff
+      * Zeff_face
       * (raw_ne_face / 1e19 * nref)
       * lambde
       / (temp_electron_face) ** 1.5

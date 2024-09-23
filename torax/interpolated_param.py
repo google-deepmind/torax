@@ -25,6 +25,8 @@ import numpy as np
 from torax import jax_utils
 import xarray as xr
 
+RHO_NORM = 'rho_norm'
+
 
 class InterpolatedParamBase(abc.ABC):
   """Base class for interpolated params.
@@ -83,9 +85,7 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
     elif self.ys.ndim == 2:
       self._fn = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
     else:
-      raise ValueError(
-          f'ys must be either 1D or 2D. Given: {self.ys.shape}.'
-      )
+      raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
   @property
   def xs(self) -> chex.Array:
@@ -119,9 +119,7 @@ class StepInterpolatedParam(InterpolatedParamBase):
     self._ys = ys
     jax_utils.assert_rank(self.xs, 1)
     if len(self.ys.shape) != 1 and len(self.ys.shape) != 2:
-      raise ValueError(
-          f'ys must be either 1D or 2D. Given: {self.ys.shape}.'
-      )
+      raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
     if self.xs.shape[0] != self.ys.shape[0]:
       raise ValueError(
           'xs and ys must have the same number of elements in the first '
@@ -168,6 +166,48 @@ InterpolatedVarTimeRhoInput = (
     | tuple[chex.Array, chex.Array, chex.Array]
     | tuple[chex.Array, chex.Array]
 )
+
+
+def rhonorm1_defined_in_timerhoinput(
+    values: InterpolatedVarTimeRhoInput,
+) -> bool:
+  """Checks if the boundary condition at rho=1.0 is always defined."""
+  match values:
+    # In case of constant profile case expect an explicit boundary condition.
+    case float():
+      return False
+    # In case of constant profile case expect an explicit boundary condition.
+    case int():
+      return False
+    case dict():
+      # Initial condition dict shortcut.
+      if all(isinstance(v, float) for v in values.values()):
+        if 1.0 not in values:
+          return False
+      else:
+        # Check for all times that the boundary condition is defined.
+        for _, value in values.items():
+          if 1.0 not in value:
+            return False
+    case xr.DataArray():
+      if 1.0 not in values.coords[RHO_NORM]:
+        return False
+    # Arrays case.
+    case _:
+      if not isinstance(values, tuple):
+        raise ValueError(f'Cannot identify a valid way to map {values}.')
+      # Initial condition array shortcut. Disable bad-unpacking: pytype bug.
+      # pytype: disable=bad-unpacking
+      if len(values) == 2:
+        rho_norm, _ = values
+      elif len(values) == 3:
+        _, rho_norm, _ = values
+      else:
+      # pytype: enable=bad-unpacking
+        raise ValueError('Only array tuples of length 2 or 3 are supported.')
+      if 1.0 not in rho_norm:
+        return False
+  return True
 
 
 def convert_input_to_xs_ys(
@@ -350,6 +390,5 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
 # If a string is provided, it is assumed to be an InterpolationMode else, the
 # default piecewise linear interpolation is used.
 TimeInterpolated = (
-    InterpolatedVarSingleAxisInput
-    | tuple[InterpolatedVarSingleAxisInput, str]
+    InterpolatedVarSingleAxisInput | tuple[InterpolatedVarSingleAxisInput, str]
 )

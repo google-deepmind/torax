@@ -113,9 +113,16 @@ class ConfigArgsTest(parameterized.TestCase):
   def test_interpolated_var_time_rho_parses_float_input(self):
     """Tests that InterpolatedVarTimeRho parses float inputs correctly."""
     interpolated_var_time_rho = config_args.get_interpolated_var_2d(
-        time_rho_interpolated_input=1.0, rho_norm=np.array(0.0)
+        time_rho_interpolated_input=1.0, rho_norm=np.array([0.0, 0.5, 1.0])
     )
-    np.testing.assert_allclose(interpolated_var_time_rho.get_value(x=0.0), 1.0)
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(x=0.0),
+        np.array([1.0, 1.0, 1.0]),
+    )
+    np.testing.assert_allclose(
+        interpolated_var_time_rho.get_value(x=5.0),
+        np.array([1.0, 1.0, 1.0]),
+    )
     self.assertLen(interpolated_var_time_rho.sorted_indices, 1)
     self.assertIn(0.0, interpolated_var_time_rho.sorted_indices)
 

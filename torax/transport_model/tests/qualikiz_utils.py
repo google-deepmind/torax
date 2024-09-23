@@ -57,7 +57,7 @@ class QualikizUtilsTest(parameterized.TestCase):
     )
 
     qualikiz_inputs = qualikiz_utils.prepare_qualikiz_inputs(
-        zeff=runtime_config_inputs.Zeff,
+        Zeff_face=runtime_config_inputs.Zeff_face,
         nref=runtime_config_inputs.nref,
         Ai=runtime_config_inputs.Ai,
         q_correction_factor=runtime_config_inputs.q_correction_factor,
@@ -66,7 +66,7 @@ class QualikizUtilsTest(parameterized.TestCase):
         core_profiles=core_profiles,
     )
     vector_keys = [
-        'Zeff',
+        'Zeff_face',
         'Ati',
         'Ate',
         'Ane',
@@ -115,7 +115,7 @@ class QualikizUtilsTest(parameterized.TestCase):
         source_models=source_models,
     )
     qualikiz_inputs = qualikiz_utils.prepare_qualikiz_inputs(
-        zeff=runtime_config_inputs.Zeff,
+        Zeff_face=runtime_config_inputs.Zeff_face,
         nref=runtime_config_inputs.nref,
         Ai=runtime_config_inputs.Ai,
         q_correction_factor=runtime_config_inputs.q_correction_factor,
