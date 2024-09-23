@@ -738,9 +738,7 @@ class Sim:
       initial_state: state.ToraxSimState,
       time_step_calculator: ts.TimeStepCalculator,
       source_models_builder: source_models_lib.SourceModelsBuilder,
-      transport_model: transport_model_lib.TransportModel | None = None,
-      stepper: stepper_lib.Stepper | None = None,
-      step_fn: SimulationStepFn | None = None,
+      step_fn: SimulationStepFn,
       file_restart: general_runtime_params.FileRestart | None = None,
   ):
     self._static_runtime_params_slice = static_runtime_params_slice
@@ -751,29 +749,8 @@ class Sim:
     self._initial_state = initial_state
     self._time_step_calculator = time_step_calculator
     self.source_models_builder = source_models_builder
-    if step_fn is None:
-      if stepper is None or transport_model is None:
-        raise ValueError(
-            'If step_fn is None, must provide both stepper and transport_model.'
-        )
-      self._stepper = stepper
-      self._transport_model = transport_model
-    else:
-      ignored_params = [
-          name
-          for param, name in [
-              (stepper, 'stepper'),
-              (transport_model, 'transport_model'),
-          ]
-          if param is not None
-      ]
-      if ignored_params:
-        logging.warning(
-            'step_fn is not None, so the following parameters are ignored: %s',
-            ignored_params,
-        )
-      self._stepper = step_fn.stepper
-      self._transport_model = step_fn.transport_model
+    self._stepper = step_fn.stepper
+    self._transport_model = step_fn.transport_model
     self._step_fn = step_fn
     self._file_restart = file_restart
 
@@ -806,7 +783,7 @@ class Sim:
     return self._static_runtime_params_slice
 
   @property
-  def step_fn(self) -> SimulationStepFn | None:
+  def step_fn(self) -> SimulationStepFn:
     return self._step_fn
 
   @property
@@ -1012,14 +989,19 @@ def build_sim_object(
       time_step_calculator=time_step_calculator,
   )
 
+  step_fn = SimulationStepFn(
+      stepper=stepper,
+      time_step_calculator=time_step_calculator,
+      transport_model=transport_model,
+  )
+
   return Sim(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       geometry_provider=geometry_provider,
       initial_state=initial_state,
       time_step_calculator=time_step_calculator,
-      transport_model=transport_model,
-      stepper=stepper,
+      step_fn=step_fn,
       source_models_builder=source_models_builder,
       file_restart=file_restart,
   )

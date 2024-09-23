@@ -265,8 +265,6 @@ class SimTestCase(parameterized.TestCase):
           geometry_provider=sim.geometry_provider,
           dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
           static_runtime_params_slice=sim.static_runtime_params_slice,
-          stepper=sim.stepper,
-          transport_model=sim.transport_model,
           step_fn=sim.step_fn,
           source_models_builder=sim.source_models_builder,
       )
