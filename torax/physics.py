@@ -81,7 +81,6 @@ def update_jtot_q_face_s_face(
 def coll_exchange(
     core_profiles: state.CoreProfiles,
     nref: float,
-    Ai: float,
     Qei_mult: float,
 ) -> jax.Array:
   """Computes collisional ion-electron heat exchange coefficient.
@@ -89,7 +88,6 @@ def coll_exchange(
   Args:
     core_profiles: Core plasma profiles.
     nref: Reference value for normalization
-    Ai: amu of main ion (if multiple isotope, make average)
     Qei_mult: multiplier for ion-electron heat exchange term
 
   Returns:
@@ -112,7 +110,10 @@ def coll_exchange(
   # pylint: disable=invalid-name
   log_Qei_coef = (
       jnp.log(Qei_mult * 1.5 * core_profiles.ne.value * nref)
-      + jnp.log(constants.CONSTANTS.keV2J / (Ai * constants.CONSTANTS.mp))
+      + jnp.log(
+          constants.CONSTANTS.keV2J
+          / (core_profiles.Ai * constants.CONSTANTS.mp)
+      )
       + jnp.log(2 * constants.CONSTANTS.me)
       - log_tau_e
   )

@@ -62,7 +62,6 @@ class QualikizInputs:
 def prepare_qualikiz_inputs(
     Zeff_face: chex.Array,
     nref: chex.Numeric,
-    Ai: chex.Numeric,
     q_correction_factor: chex.Numeric,
     transport: QualikizDynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -106,7 +105,7 @@ def prepare_qualikiz_inputs(
   # gyrobohm diffusivity
   # (defined here with Lref=Rmin due to QLKNN training set normalization)
   chiGB = (
-      (Ai * constants.mp) ** 0.5
+      (core_profiles.Ai * constants.mp) ** 0.5
       / (constants.qe * geo.B0) ** 2
       * (temp_ion_face * constants.keV2J) ** 1.5
       / Rmin

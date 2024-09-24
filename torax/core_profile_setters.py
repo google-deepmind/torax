@@ -765,6 +765,7 @@ def initial_core_profiles(
       ne=ne,
       ni=ni,
       Zi=dynamic_runtime_params_slice.plasma_composition.Zi,
+      Ai=dynamic_runtime_params_slice.plasma_composition.Ai,
       nimp=nimp,
       Zimp=dynamic_runtime_params_slice.plasma_composition.Zimp,
       psi=psi,

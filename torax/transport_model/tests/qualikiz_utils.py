@@ -59,7 +59,6 @@ class QualikizUtilsTest(parameterized.TestCase):
     qualikiz_inputs = qualikiz_utils.prepare_qualikiz_inputs(
         Zeff_face=runtime_config_inputs.Zeff_face,
         nref=runtime_config_inputs.nref,
-        Ai=runtime_config_inputs.Ai,
         q_correction_factor=runtime_config_inputs.q_correction_factor,
         transport=runtime_config_inputs.transport,
         geo=geo,
@@ -119,7 +118,6 @@ class QualikizUtilsTest(parameterized.TestCase):
     qualikiz_inputs = qualikiz_utils.prepare_qualikiz_inputs(
         Zeff_face=runtime_config_inputs.Zeff_face,
         nref=runtime_config_inputs.nref,
-        Ai=runtime_config_inputs.Ai,
         q_correction_factor=runtime_config_inputs.q_correction_factor,
         transport=runtime_config_inputs.transport,
         geo=geo,

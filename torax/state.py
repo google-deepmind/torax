@@ -97,6 +97,7 @@ class CoreProfiles:
   nref: array_typing.ScalarFloat  # Reference density
   # pylint: disable=invalid-name
   Zi: array_typing.ScalarFloat  # Main ion charge
+  Ai: array_typing.ScalarFloat  # Main ion mass [amu]
   Zimp: array_typing.ScalarFloat  # Impurity charge
   # pylint: enable=invalid-name
 
