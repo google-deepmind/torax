@@ -70,6 +70,22 @@ def _log_timestep(
   )
 
 
+def _log_sim_error(sim_error: state.SimError) -> None:
+  """Logs simulation error."""
+  if sim_error == state.SimError.NAN_DETECTED:
+    logging.error("""
+        Simulation stopped due to NaNs in core profiles.
+        Possible cause is negative temperatures or densities.
+        Output file contains all profiles up to the last valid step.
+        """)
+  elif sim_error == state.SimError.QUASINEUTRALITY_BROKEN:
+    logging.error("""
+        Simulation stopped due to quasineutrality being violated.
+        Possible cause is bad handling of impurity species.
+        Output file contains all profiles up to the last valid step.
+        """)
+
+
 def get_consistent_dynamic_runtime_params_slice_and_geometry(
     t: chex.Numeric,
     dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
@@ -130,20 +146,11 @@ class CoeffsCallback:
     # update ion density in core_profiles if ne is being evolved.
     # Necessary for consistency in iterative nonlinear solutions
     if 'ne' in self.evolving_names:
-      ni = dataclasses.replace(
-          core_profiles.ni,
-          value=core_profiles.ne.value
-          * physics.get_main_ion_dilution_factor(
-              dynamic_runtime_params_slice.plasma_composition.Zimp,
-              dynamic_runtime_params_slice.plasma_composition.Zeff,
-          ),
+      ni, nimp = core_profile_setters._updated_ion_density(
+          dynamic_runtime_params_slice,
+          geo,
+          core_profiles.ne,
       )
-      nimp = dataclasses.replace(
-          core_profiles.nimp,
-          value=(core_profiles.ne.value - core_profiles.ni.value)
-          / dynamic_runtime_params_slice.plasma_composition.Zimp
-      )
-
       core_profiles = dataclasses.replace(core_profiles, ni=ni, nimp=nimp)
 
     if allow_pereverzev:
@@ -1124,14 +1131,13 @@ def run_simulation(
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
   # the appropriate error code.
-  sim_error = output.SimError.NO_ERROR
-  # Keep advancing the simulation until the time_step_calculator tells us we are
-  # done.
+  sim_error = state.SimError.NO_ERROR
 
   # Initialize first_step, used to post-process and append the initial state to
   # the sim_history.
   first_step = True
   sim_history = []
+  # Advance the simulation until the time_step_calculator tells us we are done.
   while time_step_calculator.not_done(
       sim_state.t,
       dynamic_runtime_params_slice.numerics.t_final,
@@ -1177,23 +1183,19 @@ def run_simulation(
         sim_state,
     )
     wall_clock_step_times.append(time.time() - step_start_time)
-    # If the core profiles have NaNs, exit simulation loop early, and output
-    # the truncated simulation history for user inspection.
+
+    # Checks if sim_state is valid. If not, exit simulation early.
     # We don't raise an Exception because we want to return the truncated
-    # simulation history to the user, and not directly exit the function early.
-    if not sim_state.core_profiles.has_nans():
-      sim_history.append(sim_state)
-    else:
-      logging.error("""
-          Simulation stopped due to NaNs in core profiles.
-          Possible cause is negative temperatures or densities.
-          Output file contains all profiles up to the last valid step.
-          """)
-      sim_error = output.SimError.NAN_DETECTED
+    # simulation history to the user for inspection.
+    sim_error = sim_state.check_for_errors()
+    if sim_error != state.SimError.NO_ERROR:
+      _log_sim_error(sim_error)
       break
+    else:
+      sim_history.append(sim_state)
 
   # Log final timestep
-  if log_timestep_info and sim_error == output.SimError.NO_ERROR:
+  if log_timestep_info and sim_error == state.SimError.NO_ERROR:
     # The "sim_state" here has been updated by the loop above.
     _log_timestep(
         sim_state.t,
@@ -1541,8 +1543,19 @@ def provide_core_profiles_t_plus_dt(
       value=updated_values['ni'],
       **updated_boundary_conditions['ni'],
   )
+  nimp = dataclasses.replace(
+      core_profiles_t.nimp,
+      value=updated_values['nimp'],
+      **updated_boundary_conditions['nimp'],
+  )
   core_profiles_t_plus_dt = dataclasses.replace(
-      core_profiles_t, temp_ion=temp_ion, temp_el=temp_el, psi=psi, ne=ne, ni=ni
+      core_profiles_t,
+      temp_ion=temp_ion,
+      temp_el=temp_el,
+      psi=psi,
+      ne=ne,
+      ni=ni,
+      nimp=nimp,
   )
   return core_profiles_t_plus_dt
 

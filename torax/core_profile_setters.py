@@ -161,24 +161,20 @@ def _get_ne(
   return ne
 
 
-def updated_density(
+def _updated_ion_density(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
+    ne: cell_variable.CellVariable,
 ) -> tuple[
     cell_variable.CellVariable,
     cell_variable.CellVariable,
-    cell_variable.CellVariable,
 ]:
-  """Updated particle density. Used upon initialization and if dens_eq=False."""
-  ne = _get_ne(
-      dynamic_runtime_params_slice,
-      geo,
-  )
-
-  # define ion profile based on (flat) Zeff and single assumed impurity
+  """Updated ion densities based on electron density and plasma composition."""
+  # define ion profile based on Zeff and single assumed impurity
   # with Zimp. main ion limited to hydrogenic species for now.
   # Assume isotopic balance for DT fusion power. Solve for ni based on:
-  # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
+  # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne ,
+  # where all density units are in nref
 
   Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
   Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
@@ -207,6 +203,28 @@ def updated_density(
       )
       / Zimp,
   )
+  return ni, nimp
+
+
+def updated_density(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
+) -> tuple[
+    cell_variable.CellVariable,
+    cell_variable.CellVariable,
+    cell_variable.CellVariable,
+]:
+  """Updated particle density. Used upon initialization and if dens_eq=False."""
+  ne = _get_ne(
+      dynamic_runtime_params_slice,
+      geo,
+  )
+  ni, nimp = _updated_ion_density(
+      dynamic_runtime_params_slice,
+      geo,
+      ne,
+  )
+
   return ne, ni, nimp
 
 
@@ -746,7 +764,9 @@ def initial_core_profiles(
       temp_el=temp_el,
       ne=ne,
       ni=ni,
+      Zi=dynamic_runtime_params_slice.plasma_composition.Zi,
       nimp=nimp,
+      Zimp=dynamic_runtime_params_slice.plasma_composition.Zimp,
       psi=psi,
       psidot=psidot,
       currents=currents,
@@ -845,6 +865,7 @@ def updated_prescribed_core_profiles(
 def update_evolving_core_profiles(
     x_new: tuple[cell_variable.CellVariable, ...],
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
     core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],
 ) -> state.CoreProfiles:
@@ -853,6 +874,7 @@ def update_evolving_core_profiles(
   Args:
     x_new: The new values of the evolving variables.
     dynamic_runtime_params_slice: The dynamic runtime params slice.
+    geo: Magnetic geometry.
     core_profiles: The old set of core plasma profiles.
     evolving_names: The names of the evolving variables.
   """
@@ -868,14 +890,8 @@ def update_evolving_core_profiles(
   temp_el = get_update(x_new, 'temp_el')
   psi = get_update(x_new, 'psi')
   ne = get_update(x_new, 'ne')
-  ni = dataclasses.replace(
-      core_profiles.ni,
-      value=ne.value
-      * physics.get_main_ion_dilution_factor(
-          dynamic_runtime_params_slice.plasma_composition.Zimp,
-          dynamic_runtime_params_slice.plasma_composition.Zeff,
-      ),
-  )
+
+  ni, nimp = _updated_ion_density(dynamic_runtime_params_slice, geo, ne)
 
   return dataclasses.replace(
       core_profiles,
@@ -884,6 +900,7 @@ def update_evolving_core_profiles(
       psi=psi,
       ne=ne,
       ni=ni,
+      nimp=nimp,
   )
 
 
@@ -927,6 +944,12 @@ def compute_boundary_conditions(
       dynamic_runtime_params_slice.plasma_composition.Zimp,
       dynamic_runtime_params_slice.plasma_composition.Zeff_face[-1],
   )
+
+  ni_bound_right = ne_bound_right * dilution_factor_edge
+  nimp_bound_right = (
+      ne_bound_right - ni_bound_right
+  ) / dynamic_runtime_params_slice.plasma_composition.Zimp
+
   return {
       'temp_ion': dict(
           left_face_grad_constraint=jnp.zeros(()),
@@ -946,9 +969,12 @@ def compute_boundary_conditions(
       'ni': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(
-              ne_bound_right * dilution_factor_edge
-          ),
+          right_face_constraint=jnp.array(ni_bound_right),
+      ),
+      'nimp': dict(
+          left_face_grad_constraint=jnp.zeros(()),
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(nimp_bound_right),
       ),
       'psi': dict(
           right_face_grad_constraint=_calculate_psi_grad_constraint(

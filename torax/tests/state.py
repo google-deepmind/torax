@@ -14,6 +14,7 @@
 
 """Unit tests for torax.state and torax.core_profile_setters."""
 
+import dataclasses
 import functools
 from typing import Callable
 
@@ -204,6 +205,32 @@ class InitialStatesTest(parameterized.TestCase):
         core_profiles.temp_el.right_face_constraint, 42.0
     )
     np.testing.assert_allclose(core_profiles.ne.right_face_constraint, 0.1)
+
+  def test_core_profiles_quasineutrality_check(self):
+    """Tests core_profiles quasineutrality check on initial state."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
+    geo_provider = geometry_provider.ConstantGeometryProvider(
+        geometry.build_circular_geometry())
+    dynamic_runtime_params_slice, geo = (
+        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
+            runtime_params,
+            geo_provider,
+            sources=source_models_builder.runtime_params,
+        )
+    )
+    core_profiles = core_profile_setters.initial_core_profiles(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        source_models=source_models,
+    )
+    assert core_profiles.quasineutrality_satisfied()
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        Zi=core_profiles.Zi * 2.0,
+    )
+    assert not core_profiles.quasineutrality_satisfied()
 
   @parameterized.parameters([
       dict(geo_builder=geometry.build_circular_geometry),

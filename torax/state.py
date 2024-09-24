@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+import enum
 from typing import Any, Optional
 
 import chex
@@ -94,6 +95,10 @@ class CoreProfiles:
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
   nref: array_typing.ScalarFloat  # Reference density
+  # pylint: disable=invalid-name
+  Zi: array_typing.ScalarFloat  # Main ion charge
+  Zimp: array_typing.ScalarFloat  # Impurity charge
+  # pylint: enable=invalid-name
 
   def history_elem(self) -> CoreProfiles:
     """Returns the current CoreProfiles as a history entry.
@@ -138,6 +143,13 @@ class CoreProfiles:
         _check_for_nans(getattr(self, field))
         for field in self.__dataclass_fields__
     )
+
+  def quasineutrality_satisfied(self) -> bool:
+    """Checks if quasineutrality is satisfied."""
+    return jnp.allclose(
+        self.ni.value * self.Zi + self.nimp.value * self.Zimp,
+        self.ne.value,
+    ).item()
 
   def index(self, i: int) -> CoreProfiles:
     """If the CoreProfiles is a history, returns the i-th CoreProfiles."""
@@ -295,6 +307,15 @@ class StepperNumericOutputs:
   inner_solver_iterations: int = 0
 
 
+@enum.unique
+class SimError(enum.Enum):
+  """Integer enum for sim error handling."""
+
+  NO_ERROR = 0
+  NAN_DETECTED = 1
+  QUASINEUTRALITY_BROKEN = 2
+
+
 @chex.dataclass
 class ToraxSimState:
   """Full simulator state.
@@ -343,3 +364,12 @@ class ToraxSimState:
   # TORAX.
   time_step_calculator_state: Any
   stepper_numeric_outputs: StepperNumericOutputs
+
+  def check_for_errors(self) -> SimError:
+    """Checks for errors in the simulation state."""
+    if self.core_profiles.has_nans():
+      return SimError.NAN_DETECTED
+    elif not self.core_profiles.quasineutrality_satisfied():
+      return SimError.QUASINEUTRALITY_BROKEN
+    else:
+      return SimError.NO_ERROR

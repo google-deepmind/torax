@@ -27,6 +27,7 @@ import numpy as np
 import torax
 from torax import output
 from torax import sim as sim_lib
+from torax import state
 from torax.config import build_sim as build_sim_lib
 from torax.config import numerics as numerics_lib
 from torax.sources import source_models as source_models_lib
@@ -648,7 +649,7 @@ class SimTest(sim_test_case.SimTestCase):
     sim_outputs = sim.run()
 
     state_history = output.StateHistory(sim_outputs, sim.source_models)
-    self.assertEqual(state_history.sim_error, output.SimError.NAN_DETECTED)
+    self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
     assert (
         state_history.times[-1]
         < config_module.CONFIG['runtime_params']['numerics']['t_final']

@@ -15,8 +15,6 @@
 """Module containing functions for saving and loading simulation output."""
 from __future__ import annotations
 
-import enum
-
 from absl import logging
 import chex
 import jax
@@ -29,14 +27,6 @@ from torax.sources import source_profiles
 import xarray as xr
 
 import os
-
-
-@enum.unique
-class SimError(enum.Enum):
-  """Integer enum for sim error handling."""
-
-  NO_ERROR = 0
-  NAN_DETECTED = 1
 
 
 @chex.dataclass(frozen=True)
@@ -53,7 +43,7 @@ class ToraxSimOutputs:
   """
 
   # Error state
-  sim_error: SimError
+  sim_error: state.SimError
 
   # Time-dependent TORAX outputs
   sim_history: tuple[state.ToraxSimState, ...]

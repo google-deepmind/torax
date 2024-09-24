@@ -103,7 +103,7 @@ class StateHistoryTest(parameterized.TestCase):
             inner_solver_iterations=1,
         ),
     )
-    sim_error = output.SimError.NO_ERROR
+    sim_error = state.SimError.NO_ERROR
 
     history = output.StateHistory(
         output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
@@ -139,7 +139,7 @@ class StateHistoryTest(parameterized.TestCase):
             inner_solver_iterations=1,
         ),
     )
-    sim_error = output.SimError.NO_ERROR
+    sim_error = state.SimError.NO_ERROR
 
     output.StateHistory(
         output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
@@ -164,7 +164,7 @@ class StateHistoryTest(parameterized.TestCase):
             inner_solver_iterations=1,
         ),
     )
-    sim_error = output.SimError.NO_ERROR
+    sim_error = state.SimError.NO_ERROR
     history = output.StateHistory(
         output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
         self.source_models,
@@ -192,7 +192,7 @@ class StateHistoryTest(parameterized.TestCase):
             inner_solver_iterations=1,
         ),
     )
-    sim_error = output.SimError.NO_ERROR
+    sim_error = state.SimError.NO_ERROR
     history = output.StateHistory(
         output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
         self.source_models,
