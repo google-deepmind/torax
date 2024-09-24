@@ -65,12 +65,14 @@ class QualikizUtilsTest(parameterized.TestCase):
         geo=geo,
         core_profiles=core_profiles,
     )
+    # 1D array qualikiz_inputs
     vector_keys = [
         'Zeff_face',
         'Ati',
         'Ate',
         'Ane',
-        'Ani',
+        'Ani0',
+        'Ani1',
         'q',
         'smag',
         'x',
