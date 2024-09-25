@@ -4,83 +4,97 @@ import dataclasses
 
 import chex
 import jax
-from jax.scipy import integrate
+import jax.numpy as jnp
 
+from torax import array_typing
 from torax import geometry
+from torax import interpolated_param
 from torax import state
-from torax.config import config_args
 from torax.config import runtime_params_slice
+from torax.constants import CONSTANTS
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_models
-
-
-def ecrh_model_func(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    unused_model_func: source_models.SourceModels | None,
-) -> jax.Array:
-    """Model function for the ECRH current source."""
-    assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-
-    c0 = 3.27e-3
-    ec_power_density = dynamic_runtime_params_slice.ec_power_density
-    ec_power = integrate.trapezoid(ec_power_density * geo.vpr, geo.rho_norm)
-    ec_power_density_times_rho = ec_power_density * geo.rho_norm
-    form_factor = ec_power_density_times_rho / integrate.trapezoid(
-        ec_power_density_times_rho / geo.spr_cell, geo.rho_norm
-    )
-
-    return (
-        dynamic_source_runtime_params.dimensionless_efficiency
-        / (c0 * geo.rmid)
-        * ec_power
-        * form_factor
-        * (
-            dynamic_runtime_params_slice.profile_conditions.Te
-            / dynamic_runtime_params_slice.profile_conditions.ne
-        )
-    )
 
 
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
-    # Current drive efficiency
-    dimensionless_efficiency: float = 0.2
+    """Runtime parameters for the electron-cyclotron current source."""
+
+    # Local current drive efficiency
+    dimensionless_efficiency: runtime_params_lib.TimeInterpolated
 
     # EC power density profile
-    ec_power_density: runtime_params_lib.interpolated_param.TimeInterpolated
+    ec_power_density: runtime_params_lib.TimeInterpolated
 
-    def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-        return DynamicRuntimeParams(
-            **config_args.get_init_kwargs(
-                input_config=self,
-                output_type=DynamicRuntimeParams,
-                t=t,
-            )
-        )
+    def make_provider(self, torax_mesh: geometry.Grid1D | None = None):
+        if torax_mesh is None:
+            raise ValueError("torax_mesh is required for RuntimeParams.make_provider.")
+        return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+    """Provides runtime parameters for the electron-cyclotron current source for a given time and geometry."""
+
+    runtime_params_config: RuntimeParams
+    ec_power_density: interpolated_param.InterpolatedVarTimeRho
+    dimensionless_efficiency: interpolated_param.InterpolatedVarSingleAxis
+
+    def build_dynamic_params(
+        self,
+        t: chex.Numeric,
+    ) -> DynamicRuntimeParams:
+        return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-    dimensionless_efficiency: float
-    ec_power_density: jax.Array
+    """Runtime parameters for the electron-cyclotron current source for a given time and geometry."""
+
+    ec_power_density: array_typing.ArrayFloat
+    dimensionless_efficiency: array_typing.ScalarFloat
 
 
-@dataclasses.dataclass(kw_only=True)
-class ECRHCurrentSource(source.SingleProfilePsiSource):
-    """ECRH current density source for the psi equation."""
+def _calc_eccd_current(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+) -> jax.Array:
+    """Model function for the ECRH current source."""
+    assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
-    supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.mode.MODEL,
-        runtime_params_lib.mode.PRESCRIBED,
+    # Source:
+    # Electron cyclotron current drive efficiency in general tokamak geometry
+    # Lin-Liu, Chan, and Prater, 2003
+    # https://doi.org/10.1063/1.1610472
+
+    ne_face_in_m3 = (
+        core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
     )
-    model_func: source.SourceProfileFunction = ecrh_model_func
+    Te_face_in_eV = core_profiles.temp_el.face_value() * 1e3
+
+    # Flux-surface averaged j profile
+    return (
+        2
+        * jnp.pi
+        * CONSTANTS.epsilon0**2
+        / CONSTANTS.qe**3
+        * dynamic_source_runtime_params.dimensionless_efficiency
+        * dynamic_source_runtime_params.ec_power_density
+        * Te_face_in_eV
+        / ne_face_in_m3
+    )
 
 
-ECRHCurrentSourceBuilder = source.make_source_builder(
-    ECRHCurrentSource, runtime_params_type=RuntimeParams
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+class ElectronCyclotronCurrentSource(source.SingleProfilePsiSource):
+    """Electron cyclotron current source for the Psi equation."""
+
+    formula: source.SourceProfileFunction = _calc_eccd_current
+
+
+ElectronCyclotronCurrentSourceBuilder = source.make_source_builder(
+    ElectronCyclotronCurrentSource, runtime_params_type=RuntimeParams
 )
