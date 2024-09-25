@@ -20,10 +20,10 @@ from torax.sources import source
 class RuntimeParams(runtime_params_lib.RuntimeParams):
     """Runtime parameters for the electron-cyclotron current source."""
 
-    # Local current drive efficiency
-    dimensionless_efficiency: runtime_params_lib.TimeInterpolated
+    # Global dimensionless current drive efficiency
+    global_efficiency: runtime_params_lib.TimeInterpolated
 
-    # EC power density profile
+    # EC power density profile on the rho grid; units [W/m^2]
     ec_power_density: runtime_params_lib.TimeInterpolated
 
     def make_provider(self, torax_mesh: geometry.Grid1D | None = None):
@@ -38,7 +38,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
     runtime_params_config: RuntimeParams
     ec_power_density: interpolated_param.InterpolatedVarTimeRho
-    dimensionless_efficiency: interpolated_param.InterpolatedVarSingleAxis
+    global_efficiency: interpolated_param.InterpolatedVarSingleAxis
 
     def build_dynamic_params(
         self,
@@ -52,7 +52,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     """Runtime parameters for the electron-cyclotron current source for a given time and geometry."""
 
     ec_power_density: array_typing.ArrayFloat
-    dimensionless_efficiency: array_typing.ScalarFloat
+    global_efficiency: array_typing.ScalarFloat
 
 
 def _calc_eccd_current(
@@ -62,29 +62,47 @@ def _calc_eccd_current(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
-    """Model function for the ECRH current source."""
+    """Model function for the ECRH current source.
+
+    Calculated as:
+
+    .. math::
+      j_{EC} = \\frac{\\epsilon_0^2}{q_e^3} \\eta_{cd} \\frac{q_{EC} T_e}{n_e R_{maj}}
+
+    where:
+    - :math:`j_{EC}` is the flux-surface averaged EC current drive profile in A/m^2,
+    - :math:`\\epsilon_0` is the permittivity of free space in SI units,
+    - :math:`q_e` is the elementary charge in C,
+    - :math:`\\eta_{cd}` is the dimensionless global current drive efficiency,
+    - :math:`q_{EC}` is the EC power density in W/m^2,
+    - :math:`T_e` is the electron temperature in J,
+    - :math:`n_e` is the electron density in m^-3,
+    - :math:`R_{maj}` is the major radius in m.
+    """
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
-    # Source:
+    # Sources:
     # Electron cyclotron current drive efficiency in general tokamak geometry
-    # Lin-Liu, Chan, and Prater, 2003
-    # https://doi.org/10.1063/1.1610472
+    #   Lin-Liu, Chan, and Prater, 2003
+    #   https://doi.org/10.1063/1.1610472
+    # Flat-top plasma operational space of the STEP power plant
+    #   Tholerus et al., 2024
+    #   https://doi.org/10.1088/1741-4326/ad6ea2
 
     ne_face_in_m3 = (
         core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
     )
-    Te_face_in_eV = core_profiles.temp_el.face_value() * 1e3
+    Te_face_in_J = core_profiles.temp_el.face_value() * CONSTANTS.keV2J
 
-    # Flux-surface averaged j profile
+    # Flux-surface averaged j profile, <j_ec> [A/m^2]
     return (
-        2
-        * jnp.pi
-        * CONSTANTS.epsilon0**2
-        / CONSTANTS.qe**3
-        * dynamic_source_runtime_params.dimensionless_efficiency
-        * dynamic_source_runtime_params.ec_power_density
-        * Te_face_in_eV
-        / ne_face_in_m3
+        CONSTANTS.epsilon0**2 # [m^-3 kg^-1 s^4 A^2]
+        / CONSTANTS.qe**3 # [C^3] = [A^3 s^3]
+        * dynamic_source_runtime_params.global_efficiency # [dimensionless]
+        * dynamic_source_runtime_params.ec_power_density # [W/m^2] = [kg s^-3]
+        / geo.Rmaj # [m]
+        * Te_face_in_J # [J] = [kg m^2 s^-2]
+        / ne_face_in_m3 # [m^-3]
     )
 
 
