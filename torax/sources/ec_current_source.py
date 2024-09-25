@@ -110,7 +110,12 @@ def _calc_eccd_current(
 class ElectronCyclotronCurrentSource(source.SingleProfilePsiSource):
     """Electron cyclotron current source for the Psi equation."""
 
-    formula: source.SourceProfileFunction = _calc_eccd_current
+    supported_modes: tuple[runtime_params_lib.Mode, ...] = (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.MODEL_BASED,
+    )
+
+    model_func: source.SourceProfileFunction = _calc_eccd_current
 
 
 ElectronCyclotronCurrentSourceBuilder = source.make_source_builder(
