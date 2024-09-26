@@ -729,6 +729,7 @@ def get_initial_state(
       core_profiles=initial_core_profiles,
       source_models=step_fn.stepper.source_models,
   )
+
   return state.ToraxSimState(
       t=jnp.array(dynamic_runtime_params_slice.numerics.t_initial),
       dt=jnp.zeros(()),
@@ -1567,18 +1568,7 @@ def get_initial_source_profiles(
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> source_profiles_lib.SourceProfiles:
-  """Returns the "implicit" profiles for the initial state in run_simulation().
-
-  The source profiles returned as part of each time step's state in
-  run_simulation() is computed based on the core profiles at that time step.
-  However, for the first time step, only the explicit sources are computed.
-  The
-  implicit profiles are computed based on the "live" state that is evolving,
-  "which depending on the stepper used is either consistent (within tolerance)
-  with the state at the next timestep (nonlinear solver), or an approximation
-  thereof (linear stepper or predictor-corrector)." So for the first time step,
-  we need to prepopulate the state with the implicit profiles for the starting
-  core profiles.
+  """Returns the source profiles for the initial state in run_simulation().
 
   Args:
     static_runtime_params_slice: Runtime parameters which, when they change,
@@ -1592,8 +1582,8 @@ def get_initial_source_profiles(
     source_models: Source models used to compute core source profiles.
 
   Returns:
-    SourceProfiles from implicit source models based on the core profiles from
-    the starting state.
+    Implicit and explicit SourceProfiles from source models based on the core
+    profiles from the starting state.
   """
   implicit_profiles = source_models_lib.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -1612,7 +1602,19 @@ def get_initial_source_profiles(
       core_profiles=core_profiles,
   )
   implicit_profiles = dataclasses.replace(implicit_profiles, qei=qei)
-  return implicit_profiles
+  # Also add in the explicit sources to the initial sources.
+  explicit_source_profiles = source_models_lib.build_source_profiles(
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_models=source_models,
+      explicit=True,
+  )
+  initial_profiles = merge_source_profiles(
+      explicit_source_profiles=explicit_source_profiles,
+      implicit_source_profiles=implicit_profiles,
+  )
+  return initial_profiles
 
 
 # This function can be jitted if source_models is a static argument. However,
