@@ -25,7 +25,7 @@ from typing import Any
 
 from torax.sources import bootstrap_current_source
 from torax.sources import bremsstrahlung_heat_sink
-from torax.sources import ec_current_source
+from torax.sources import electron_cyclotron_source
 from torax.sources import electron_density_sources
 from torax.sources import external_current_source
 from torax.sources import fusion_heat_source
@@ -49,13 +49,13 @@ def get_default_runtime_params(
       return external_current_source.RuntimeParams(
           mode=runtime_params_lib.Mode.FORMULA_BASED,
       )
-    case 'eccd':
-      return ec_current_source.RuntimeParams(
-          mode=runtime_params_lib.Mode.ZERO,
-      )
     case 'nbi_particle_source':
       return electron_density_sources.NBIParticleRuntimeParams(
           mode=runtime_params_lib.Mode.FORMULA_BASED,
+      )
+    case 'echcd':
+      return electron_cyclotron_source.RuntimeParams(
+          mode=runtime_params_lib.Mode.ZERO,
       )
     case 'gas_puff_source':
       return electron_density_sources.GasPuffRuntimeParams(
@@ -96,8 +96,8 @@ def get_source_type(source_name: str) -> type[source.Source]:
       return bootstrap_current_source.BootstrapCurrentSource
     case 'jext':
       return external_current_source.ExternalCurrentSource
-    case 'eccd':
-      return ec_current_source.ElectronCyclotronCurrentSource
+    case 'echcd':
+      return electron_cyclotron_source.ElectronCyclotronSource
     case 'nbi_particle_source':
       return electron_density_sources.NBIParticleSource
     case 'gas_puff_source':
@@ -183,8 +183,8 @@ def get_source_builder_type(source_name: str) -> Any:
     case 'jext':
       return external_current_source.ExternalCurrentSourceBuilder
 
-    case 'eccd':
-      return ec_current_source.ElectronCyclotronCurrentSourceBuilder
+    case 'echcd':
+      return electron_cyclotron_source.ElectronCyclotronSourceBuilder
 
     case 'nbi_particle_source':
       return electron_density_sources.NBIParticleSourceBuilder
