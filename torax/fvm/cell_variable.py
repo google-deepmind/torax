@@ -236,7 +236,10 @@ class CellVariable:
     if self.right_face_constraint is not None:
       right_face = jnp.array([self.right_face_constraint])
     else:
-      right_face = self.value[..., -1:]
+      # Maintain right_face consistent with right_face_grad_constraint
+      right_face = (
+          self.value[..., -1:] + self.right_face_grad_constraint * self.dr / 2
+      )
     return jnp.concatenate([left_face, inner, right_face], axis=-1)
 
   def grad(self) -> jax.Array:

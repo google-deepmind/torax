@@ -263,17 +263,30 @@ class PostProcessedOutputs:
     pressure_thermal_ion_face: Ion thermal pressure on the face grid
     pressure_thermal_el_face: Electron thermal pressure on the face grid
     pressure_thermal_tot_face: Total thermal pressure on the face grid
+    pprime_face: Derivative of total pressure with respect to poloidal flux on
+      the face grid
     wth_thermal_ion: Ion thermal stored energy (scalar)
     wth_thermal_el: Electron thermal stored energy (scalar)
     wth_thermal_tot: Total thermal stored energy (scalar)
+    FFprime_face: FF' on the face grid, where F is the toroidal flux function.
+    psi_norm_face: Normalized poloidal flux on the face grid.
+    psi_face: Poloidal flux on the face grid.
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
   pressure_thermal_el_face: array_typing.ArrayFloat
   pressure_thermal_tot_face: array_typing.ArrayFloat
+  pprime_face: array_typing.ArrayFloat
   wth_thermal_ion: array_typing.ScalarFloat
   wth_thermal_el: array_typing.ScalarFloat
   wth_thermal_tot: array_typing.ScalarFloat
+  # pylint: disable=invalid-name
+  FFprime_face: array_typing.ArrayFloat
+  # pylint: enable=invalid-name
+  psi_norm_face: array_typing.ArrayFloat
+  # psi_face included in post_processed output for convenience, since the
+  # CellVariable history method destroys class methods like `face_value`.
+  psi_face: array_typing.ArrayFloat
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> PostProcessedOutputs:
@@ -282,9 +295,13 @@ class PostProcessedOutputs:
         pressure_thermal_ion_face=jnp.zeros(geo.rho_face.shape),
         pressure_thermal_el_face=jnp.zeros(geo.rho_face.shape),
         pressure_thermal_tot_face=jnp.zeros(geo.rho_face.shape),
+        pprime_face=jnp.zeros(geo.rho_face.shape),
         wth_thermal_ion=jnp.array(0.0),
         wth_thermal_el=jnp.array(0.0),
         wth_thermal_tot=jnp.array(0.0),
+        FFprime_face=jnp.zeros(geo.rho_face.shape),
+        psi_norm_face=jnp.zeros(geo.rho_face.shape),
+        psi_face=jnp.zeros(geo.rho_face.shape),
     )
 
 

@@ -184,7 +184,9 @@ def calc_jtot_from_psi(
     geo: Geometry,
     psi: cell_variable.CellVariable,
 ) -> tuple[chex.Array, chex.Array]:
-  """Calculates current (jtot) from poloidal flux (psi).
+  """Calculates FSA toroidal current density (jtot) from poloidal flux (psi).
+
+  Calculation based on jtot = dI/dS
 
   Args:
     geo: Torus geometry.
@@ -209,9 +211,8 @@ def calc_jtot_from_psi(
 
   jtot_face_bulk = dI_tot_drhon[1:] / geo.spr_face[1:]
 
-  # For now set on-axis to the same as the second grid point, due to 0/0
-  # division.
-  jtot_face_axis = jtot_face_bulk[0]
+  # Set on-axis jtot according to L'Hôpital's rule, noting that I[0]=S[0]=0.
+  jtot_face_axis = I_tot[1] / geo.area_face[1]
 
   jtot_face = jnp.concatenate([jnp.array([jtot_face_axis]), jtot_face_bulk])
   jtot = geometry.face_to_cell(jtot_face)
