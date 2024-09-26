@@ -21,10 +21,10 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
     """Runtime parameters for the electron-cyclotron current source."""
 
     # Global dimensionless current drive efficiency
-    global_efficiency: runtime_params_lib.TimeInterpolated
+    global_efficiency: runtime_params_lib.interpolated_param.InterpolatedVarSingleAxisInput
 
     # EC power density profile on the rho grid; units [W/m^2]
-    ec_power_density: runtime_params_lib.TimeInterpolated
+    ec_power_density: runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
 
     def make_provider(self, torax_mesh: geometry.Grid1D | None = None):
         if torax_mesh is None:
@@ -37,8 +37,8 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
     """Provides runtime parameters for the electron-cyclotron current source for a given time and geometry."""
 
     runtime_params_config: RuntimeParams
-    ec_power_density: interpolated_param.InterpolatedVarTimeRho
     global_efficiency: interpolated_param.InterpolatedVarSingleAxis
+    ec_power_density: interpolated_param.InterpolatedVarTimeRho
 
     def build_dynamic_params(
         self,
@@ -51,8 +51,8 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     """Runtime parameters for the electron-cyclotron current source for a given time and geometry."""
 
-    ec_power_density: array_typing.ArrayFloat
     global_efficiency: array_typing.ScalarFloat
+    ec_power_density: array_typing.ArrayFloat
 
 
 def _calc_eccd_current(
