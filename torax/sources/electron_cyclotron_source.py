@@ -22,10 +22,12 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
     # Global dimensionless current drive efficiency
     global_efficiency: (
-        runtime_params_lib.interpolated_param.InterpolatedVarSingleAxisInput
+        runtime_params_lib.interpolated_param.TimeInterpolated
     )
 
     # EC power density profile on the rho grid; units [W/m^2]
+    # TODO: Create a interpolated_param.TimeRhoInterpolated that can handle
+    # interpolation modes in both rho and time
     ec_power_density: runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
 
     def make_provider(self, torax_mesh: geometry.Grid1D | None = None):
