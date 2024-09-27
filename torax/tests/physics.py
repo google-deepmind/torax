@@ -17,6 +17,7 @@
 from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
+from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
 from torax import geometry
@@ -175,6 +176,24 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     )
 
     np.testing.assert_allclose(s, references.s)
+
+  def test_fast_ion_fractional_heating_formula(self):
+    """Compare `ion_heat_fraction` to a reference value."""
+    # Inertial energy small compared to critical energy, all energy to ions.
+    birth_energy = 1e-3
+    temp_el = jnp.array(0.1, dtype=jnp.float32)
+    fast_ion_mass = 1
+    frac_i = physics.fast_ion_fractional_heating_formula(
+        birth_energy, temp_el, fast_ion_mass
+    )
+    np.testing.assert_allclose(frac_i, 1.0, atol=1e-3)
+
+    # Inertial energy large compared to critical energy, all energy to e-.
+    birth_energy = 1e10
+    frac_i = physics.fast_ion_fractional_heating_formula(
+        birth_energy, temp_el, fast_ion_mass
+    )
+    np.testing.assert_allclose(frac_i, 0.0, atol=1e-9)
 
 
 if __name__ == '__main__':

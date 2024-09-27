@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 from torax import constants
 from torax import geometry
+from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
@@ -103,22 +104,14 @@ def calc_fusion(
   alpha_fraction = 3.5 / 17.6  # fusion power fraction to alpha particles
 
   # Fractional fusion power ions/electrons.
-  # From Mikkelsen Nucl. Tech. Fusion 237 4 1983
-  D1 = 88.0 / core_profiles.temp_el.value
-  D2 = jnp.sqrt(D1)
-  frac_i = (
-      2
-      * (
-          0.166667 * jnp.log((1.0 - D2 + D1) / (1.0 + 2.0 * D2 + D1))
-          + 0.57735026
-          * (jnp.arctan(0.57735026 * (2.0 * D2 - 1.0)) + 0.52359874)
-      )
-      / D1
+  birth_energy = 3520  # Birth energy of alpha particles is 3.52MeV.
+  alpha_mass = 4.002602
+  frac_i = physics.fast_ion_fractional_heating_formula(
+      birth_energy, core_profiles.temp_el.value, alpha_mass,
   )
   frac_e = 1.0 - frac_i
   Pfus_i = Pfus_cell * frac_i * alpha_fraction
   Pfus_e = Pfus_cell * frac_e * alpha_fraction
-
   return Ptot, Pfus_i, Pfus_e
 
 

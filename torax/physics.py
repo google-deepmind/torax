@@ -357,4 +357,40 @@ def calc_nu_star(
   return nustar
 
 
+def fast_ion_fractional_heating_formula(
+    birth_energy: float,
+    temp_el: jax.Array,
+    fast_ion_mass: float,
+) -> jax.Array:
+  """Returns the fraction of heating that goes to the ions.
+
+  From eq. 5 and eq. 26 in Mikkelsen Nucl. Tech. Fusion 237 4 1983.
+  Note there is a typo in eq. 26  where a `2x` term is missing in the numerator
+  of the log.
+
+  Args:
+    birth_energy: Birth energy of the fast ions in keV.
+    temp_el: Electron temperature.
+    fast_ion_mass: Mass of the fast ions in amu.
+
+  Returns:
+    The fraction of heating that goes to the ions.
+  """
+  critical_energy = 10 * fast_ion_mass * temp_el  # Eq. 5.
+  energy_ratio = birth_energy / critical_energy
+
+  # Eq. 26.
+  x_squared = energy_ratio
+  x = jnp.sqrt(x_squared)
+  frac_i = (
+      2
+      * (
+          (1/6) * jnp.log((1.0 - x + x_squared) / (1.0 + 2.0 * x + x_squared))
+          + (jnp.arctan((2.0 * x - 1.0) / jnp.sqrt(3)) + jnp.pi/6) / jnp.sqrt(3)
+      )
+      / x_squared
+  )
+  return frac_i
+
+
 # pylint: enable=invalid-name
