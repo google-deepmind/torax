@@ -270,14 +270,14 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime params for the custom source defined in the test case above."""
 
-  puff_decay_length: runtime_params_lib.TimeInterpolated
-  S_puff_tot: runtime_params_lib.TimeInterpolated
-  nbi_particle_width: runtime_params_lib.TimeInterpolated
-  nbi_deposition_location: runtime_params_lib.TimeInterpolated
-  S_nbi_tot: runtime_params_lib.TimeInterpolated
-  pellet_width: runtime_params_lib.TimeInterpolated
-  pellet_deposition_location: runtime_params_lib.TimeInterpolated
-  S_pellet_tot: runtime_params_lib.TimeInterpolated
+  puff_decay_length: runtime_params_lib.TimeInterpolatedInput
+  S_puff_tot: runtime_params_lib.TimeInterpolatedInput
+  nbi_particle_width: runtime_params_lib.TimeInterpolatedInput
+  nbi_deposition_location: runtime_params_lib.TimeInterpolatedInput
+  S_nbi_tot: runtime_params_lib.TimeInterpolatedInput
+  pellet_width: runtime_params_lib.TimeInterpolatedInput
+  pellet_deposition_location: runtime_params_lib.TimeInterpolatedInput
+  S_pellet_tot: runtime_params_lib.TimeInterpolatedInput
 
   def make_provider(
       self,

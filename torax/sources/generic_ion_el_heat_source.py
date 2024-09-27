@@ -42,13 +42,13 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   # external heat source parameters
   # Gaussian width in normalized radial coordinate
-  w: runtime_params_lib.TimeInterpolated = 0.25
+  w: runtime_params_lib.TimeInterpolatedInput = 0.25
   # Source Gaussian central location (in normalized r)
-  rsource: runtime_params_lib.TimeInterpolated = 0.0
+  rsource: runtime_params_lib.TimeInterpolatedInput = 0.0
   # total heating
-  Ptot: runtime_params_lib.TimeInterpolated = 120e6
+  Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
   # electron heating fraction
-  el_heat_fraction: runtime_params_lib.TimeInterpolated = 0.66666
+  el_heat_fraction: runtime_params_lib.TimeInterpolatedInput = 0.66666
 
   def make_provider(
       self,

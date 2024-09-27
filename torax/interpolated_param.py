@@ -389,6 +389,6 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
 # Type-alias for a variable (in rho_norm) to be interpolated in time.
 # If a string is provided, it is assumed to be an InterpolationMode else, the
 # default piecewise linear interpolation is used.
-TimeInterpolated = (
+TimeInterpolatedInput = (
     InterpolatedVarSingleAxisInput | tuple[InterpolatedVarSingleAxisInput, str]
 )

@@ -38,12 +38,12 @@ class ProfileConditions(
   # total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data
-  Ip: interpolated_param.TimeInterpolated = 15.0
+  Ip: interpolated_param.TimeInterpolatedInput = 15.0
 
   # Temperature boundary conditions at r=Rmin. If this is `None` the boundary
   # condition will instead be taken from `Ti` and `Te` at rhon=1.
-  Ti_bound_right: interpolated_param.TimeInterpolated | None = None
-  Te_bound_right: interpolated_param.TimeInterpolated | None = None
+  Ti_bound_right: interpolated_param.TimeInterpolatedInput | None = None
+  Te_bound_right: interpolated_param.TimeInterpolatedInput | None = None
   # Prescribed or evolving values for temperature at different times.
   Ti: interpolated_param.InterpolatedVarTimeRhoInput = dataclasses.field(
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
@@ -69,7 +69,7 @@ class ProfileConditions(
   # In units of reference density if ne_is_fGW = False.
   # In Greenwald fraction if ne_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: interpolated_param.TimeInterpolated = 0.85
+  nbar: interpolated_param.TimeInterpolatedInput = 0.85
   # Toggle units of nbar
   ne_is_fGW: bool = True
 
@@ -81,24 +81,24 @@ class ProfileConditions(
   # be set to `False` and `ne_bound_right_is_fGW` will be set to `ne_is_fGW`.
   # If `ne_bound_right` is not `None` then `ne_bound_right_is_absolute` will be
   # set to `True`.
-  ne_bound_right: interpolated_param.TimeInterpolated | None = None
+  ne_bound_right: interpolated_param.TimeInterpolatedInput | None = None
   ne_bound_right_is_fGW: bool = False
   ne_bound_right_is_absolute: bool = False
 
   # Internal boundary condition (pedestal)
   # Do not set internal boundary condition if this is False
-  set_pedestal: interpolated_param.TimeInterpolated = True
+  set_pedestal: interpolated_param.TimeInterpolatedInput = True
   # ion pedestal top temperature in keV
-  Tiped: interpolated_param.TimeInterpolated = 5.0
+  Tiped: interpolated_param.TimeInterpolatedInput = 5.0
   # electron pedestal top temperature in keV
-  Teped: interpolated_param.TimeInterpolated = 5.0
+  Teped: interpolated_param.TimeInterpolatedInput = 5.0
   # pedestal top electron density
   # In units of reference density if neped_is_fGW = False.
   # In Greenwald fraction if neped_is_fGW = True.
-  neped: interpolated_param.TimeInterpolated = 0.7
+  neped: interpolated_param.TimeInterpolatedInput = 0.7
   neped_is_fGW: bool = False
   # Set ped top location.
-  Ped_top: interpolated_param.TimeInterpolated = 0.91
+  Ped_top: interpolated_param.TimeInterpolatedInput = 0.91
 
   # current profiles (broad "Ohmic" + localized "external" currents)
   # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu

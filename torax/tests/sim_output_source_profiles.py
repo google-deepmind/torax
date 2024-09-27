@@ -241,7 +241,7 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
 
 @dataclasses.dataclass(kw_only=True)
 class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
-  foo: runtime_params_lib.TimeInterpolated
+  foo: runtime_params_lib.TimeInterpolatedInput
 
   def make_provider(
       self,

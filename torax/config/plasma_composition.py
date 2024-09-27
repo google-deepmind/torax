@@ -44,7 +44,7 @@ class PlasmaComposition(
   Zeff: interpolated_param.InterpolatedVarTimeRhoInput = dataclasses.field(
       default_factory=lambda: 1.0
   )
-  Zimp: interpolated_param.TimeInterpolated = (
+  Zimp: interpolated_param.TimeInterpolatedInput = (
       10.0  # impurity charge state assumed for dilution
   )
 

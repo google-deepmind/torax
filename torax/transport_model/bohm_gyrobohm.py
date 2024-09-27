@@ -41,16 +41,16 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   """
 
   # Prefactor for Bohm term for electron heat conductivity.
-  chi_e_bohm_coeff: runtime_params_lib.TimeInterpolated = 8e-5
+  chi_e_bohm_coeff: runtime_params_lib.TimeInterpolatedInput = 8e-5
   # Prefactor for GyroBohm term for electron heat conductivity.
-  chi_e_gyrobohm_coeff: runtime_params_lib.TimeInterpolated = 5e-6
+  chi_e_gyrobohm_coeff: runtime_params_lib.TimeInterpolatedInput = 5e-6
   # Prefactor for Bohm term for ion heat conductivity.
-  chi_i_bohm_coeff: runtime_params_lib.TimeInterpolated = 8e-5
+  chi_i_bohm_coeff: runtime_params_lib.TimeInterpolatedInput = 8e-5
   # Prefactor for GyroBohm term for ion heat conductivity.
-  chi_i_gyrobohm_coeff: runtime_params_lib.TimeInterpolated = 5e-6
+  chi_i_gyrobohm_coeff: runtime_params_lib.TimeInterpolatedInput = 5e-6
   # Constants for the electron diffusivity weighting factor.
-  d_face_c1: runtime_params_lib.TimeInterpolated = 1.0
-  d_face_c2: runtime_params_lib.TimeInterpolated = 0.3
+  d_face_c1: runtime_params_lib.TimeInterpolatedInput = 1.0
+  d_face_c2: runtime_params_lib.TimeInterpolatedInput = 0.3
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None

@@ -47,10 +47,10 @@ def input_is_an_interpolated_var_single_axis(
       return (
           # If the type comes as a string rather than an object, the Union check
           # below won't work, so we check for the full name here.
-          ft == 'TimeInterpolated'
+          ft == 'TimeInterpolatedInput'
           or
-          # Common alias for TimeInterpolated in a few files.
-          (isinstance(ft, str) and 'TimeInterpolated' in ft)
+          # Common alias for TimeInterpolatedInput in a few files.
+          (isinstance(ft, str) and 'TimeInterpolatedInput' in ft)
           or
           # Otherwise, check if it is actually the InterpolatedVarSingleAxis.
           ft == 'interpolated_param.InterpolatedVarSingleAxis'

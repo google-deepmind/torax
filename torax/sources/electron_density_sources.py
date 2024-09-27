@@ -36,9 +36,9 @@ from torax.sources import source_models
 class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for GasPuffSource."""
   # exponential decay length of gas puff ionization [normalized radial coord]
-  puff_decay_length: runtime_params_lib.TimeInterpolated = 0.05
+  puff_decay_length: runtime_params_lib.TimeInterpolatedInput = 0.05
   # total gas puff particles/s
-  S_puff_tot: runtime_params_lib.TimeInterpolated = 1e22
+  S_puff_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
 
   def make_provider(
       self,
@@ -105,11 +105,11 @@ class NBIParticleRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for NBI particle source."""
 
   # NBI particle source Gaussian width in normalized radial coord
-  nbi_particle_width: runtime_params_lib.TimeInterpolated = 0.25
+  nbi_particle_width: runtime_params_lib.TimeInterpolatedInput = 0.25
   # NBI particle source Gaussian central location in normalized radial coord
-  nbi_deposition_location: runtime_params_lib.TimeInterpolated = 0.0
+  nbi_deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.0
   # NBI total particle source
-  S_nbi_tot: runtime_params_lib.TimeInterpolated = 1e22
+  S_nbi_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
 
   def make_provider(
       self,
@@ -191,12 +191,12 @@ class PelletRuntimeParams(runtime_params_lib.RuntimeParams):
 
   # Gaussian width of pellet deposition [normalized radial coord],
   # (continuous pellet model)
-  pellet_width: runtime_params_lib.TimeInterpolated = 0.1
+  pellet_width: runtime_params_lib.TimeInterpolatedInput = 0.1
   # Pellet source Gaussian central location [normalized radial coord]
   # (continuous pellet model)
-  pellet_deposition_location: runtime_params_lib.TimeInterpolated = 0.85
+  pellet_deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.85
   # total pellet particles/s (continuous pellet model)
-  S_pellet_tot: runtime_params_lib.TimeInterpolated = 2e22
+  S_pellet_tot: runtime_params_lib.TimeInterpolatedInput = 2e22
 
   def make_provider(
       self,
