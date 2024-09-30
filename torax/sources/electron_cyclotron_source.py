@@ -21,12 +21,14 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
     """Runtime parameters for the electron-cyclotron source."""
 
     # Global dimensionless current drive efficiency
-    global_efficiency: runtime_params_lib.interpolated_param.TimeInterpolated
+    global_efficiency: runtime_params_lib.interpolated_param.TimeInterpolated = 1.0
 
     # EC power density profile on the rho grid; units [W/m^3]
     # TODO: Create a interpolated_param.TimeRhoInterpolated that can handle
     # interpolation modes in both rho and time
-    ec_power_density: runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
+    ec_power_density: runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput = {
+        0.0: {0.0: 0.0, 1.0: 0.0}
+    }
 
     def make_provider(self, torax_mesh: geometry.Grid1D | None = None):
         if torax_mesh is None:
