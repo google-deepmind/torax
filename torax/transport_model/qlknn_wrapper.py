@@ -97,6 +97,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   smag_alpha_correction: bool = True
   # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
   q_sawtooth_proxy: bool = True
+  # clip inputs within desired margin of the QLKNN training set boundaries
+  clip_inputs: bool = False
+  clip_margin: float = 0.95
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
@@ -121,6 +124,8 @@ class DynamicRuntimeParams(qualikiz_utils.QualikizDynamicRuntimeParams):
   include_ETG: bool
   ITG_flux_ratio_correction: float
   ETG_correction_factor: float
+  clip_inputs: bool
+  clip_margin: float
 
 
 _EPSILON_NN: Final[float] = (
@@ -165,8 +170,7 @@ class QLKNNRuntimeConfigInputs:
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
   ) -> 'QLKNNRuntimeConfigInputs':
     assert isinstance(
-        dynamic_runtime_params_slice.transport,
-        DynamicRuntimeParams
+        dynamic_runtime_params_slice.transport, DynamicRuntimeParams
     )
     return QLKNNRuntimeConfigInputs(
         nref=dynamic_runtime_params_slice.numerics.nref,
@@ -205,6 +209,34 @@ def filter_model_output(
     )
 
   return {k: filter_flux(k, v) for k, v in model_output.items()}
+
+
+def clip_inputs(
+    feature_scan: jax.Array,
+    clip_margin: float,
+    inputs_and_ranges: dict[str, dict[str, float]],
+) -> jax.Array:
+  """Clip input values according to the training set limits + optional user-defined margin for qlknn."""
+  for i, key in enumerate(inputs_and_ranges.keys()):
+    bounds = inputs_and_ranges[key]
+    # set min or max if present in the bounds dict
+    min_val = bounds.get('min', -jnp.inf)
+    max_val = bounds.get('max', jnp.inf)
+    # increase/decrease bounds based on clip_margin
+    min_val += jnp.where(
+        jnp.isfinite(min_val), jnp.abs(min_val) * (1 - clip_margin), 0.0
+    )
+    max_val -= jnp.where(
+        jnp.isfinite(max_val), jnp.abs(max_val) * (1 - clip_margin), 0.0
+    )
+    feature_scan = feature_scan.at[:, i].set(
+        jnp.clip(
+            feature_scan[:, i],
+            min_val,
+            max_val,
+        )
+    )
+  return feature_scan
 
 
 class QLKNNTransportModel(transport_model.TransportModel):
@@ -293,21 +325,35 @@ class QLKNNTransportModel(transport_model.TransportModel):
         x=qualikiz_inputs.x * qualikiz_inputs.epsilon_lcfs / _EPSILON_NN,
     )
     if version == '10D':
-      keys = [
-          'Zeff_face',
-          'Ati',
-          'Ate',
-          'Ane',
-          'q',
-          'smag',
-          'x',
-          'Ti_Te',
-          'log_nu_star_face',
-      ]
+      # Ranges are from the training set boundaries and can be optionally used
+      # to clip the input values within a desired margin.
+      inputs_and_ranges = {
+          'Zeff_face': {'min': 1.0, 'max': 3.0},
+          'Ati': {'min': 0.0, 'max': 14.0},
+          'Ate': {'min': 0.0, 'max': 14.0},
+          'Ane': {'min': -5.0, 'max': 6.0},
+          'q': {'min': 0.66, 'max': 15},
+          'smag': {'min': -1.0, 'max': 5.0},
+          'x': {'min': 0.09, 'max': 0.99},
+          'Ti_Te': {'min': 0.25, 'max': 2.5},
+          'log_nu_star_face': {'min': -5.0, 'max': 0.0},
+      }
     else:
       raise ValueError(f'Unknown model version: {version}')
 
-    feature_scan = jnp.array([getattr(qualikiz_inputs, key) for key in keys]).T
+    feature_scan = jnp.array(
+        [getattr(qualikiz_inputs, key) for key in inputs_and_ranges.keys()]
+    ).T
+    # Clip inputs if requested.
+    feature_scan = jax.lax.cond(
+        runtime_config_inputs.transport.clip_inputs,
+        lambda: clip_inputs(
+            feature_scan,
+            runtime_config_inputs.transport.clip_margin,
+            inputs_and_ranges,
+        ),  # Called when True
+        lambda: feature_scan,  # Called when False
+    )
     model_output = model.predict(feature_scan)
     model_output = filter_model_output(
         model_output=model_output,

@@ -65,7 +65,8 @@ class QlknnWrapperTest(parameterized.TestCase):
     qlknn(dynamic_runtime_params_slice, geo, core_profiles)
     self.assertEqual(
         qlknn._combined._cache_size(),  # pylint: disable=protected-access
-        cache_size)
+        cache_size,
+    )
 
   def test_hash_and_eq(self):
     # Test that hash and eq are invariant to copying, so that they will work
@@ -123,6 +124,31 @@ class QlknnWrapperTest(parameterized.TestCase):
           jnp.ones(shape) if include_dict.get('etg', True) else jnp.zeros(shape)
       )
       npt.assert_array_equal(filtered_model_output[key], expected)
+
+  def test_clip_inputs(self):
+    """Tests that the inputs are properly clipped."""
+    feature_scan = jnp.array([
+        [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+        [1.0, 2.8, 2.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+    ])
+    inputs_and_ranges = {
+        'a': {'min': 0.0, 'max': 10.0},
+        'b': {'min': 2.5, 'max': 10.0},
+        'c': {'min': 0.0, 'max': 2.5},
+        'd': {'min': 12.0, 'max': 15.0},
+        'e': {'min': 0.0, 'max': 3.0},
+    }
+    clip_margin = 0.95
+    expected = jnp.array([
+        [1.0, 2.625, 2.375, 12.6, 2.85, 6.0, 7.0, 8.0, 9.0],
+        [1.0, 2.8, 2.0, 12.6, 2.85, 6.0, 7.0, 8.0, 9.0],
+    ])
+    clipped_feature_scan = qlknn_wrapper.clip_inputs(
+        feature_scan=feature_scan,
+        inputs_and_ranges=inputs_and_ranges,
+        clip_margin=clip_margin,
+    )
+    npt.assert_allclose(clipped_feature_scan, expected)
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = qlknn_wrapper.RuntimeParams()

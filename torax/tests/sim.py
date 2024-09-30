@@ -335,6 +335,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with clipped QLKNN inputs.
+      (
+          'test_iterhybrid_predictor_corrector_clip_inputs',
+          'test_iterhybrid_predictor_corrector_clip_inputs.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Predictor-corrector solver with non-constant Zeff profile.
       (
           'test_iterhybrid_predictor_corrector_zeffprofile',
