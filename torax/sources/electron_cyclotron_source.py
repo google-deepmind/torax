@@ -94,13 +94,13 @@ def _calc_heating_and_linliu_current(
     # - ne^-1: [m^3]
 
     total_ec_power = jax.scipy.integrate.trapezoid(
-        dynamic_source_runtime_params.ec_power_density * geo.vpr_face, geo.rho_face_norm
+        dynamic_source_runtime_params.ec_power_density * geo.rho_face_norm, geo.rho_face_norm
     )
     weighted_ec_power = jax.scipy.integrate.trapezoid(
         dynamic_source_runtime_params.ec_power_density
         * core_profiles.temp_el.face_value()
         / core_profiles.ne.face_value()
-        * geo.vpr_face,
+        * geo.rho_face_norm,
         geo.rho_face_norm,
     )
     local_efficiency = weighted_ec_power / total_ec_power
