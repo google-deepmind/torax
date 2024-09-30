@@ -21,9 +21,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
     """Runtime parameters for the electron-cyclotron source."""
 
     # Global dimensionless current drive efficiency
-    global_efficiency: (
-        runtime_params_lib.interpolated_param.TimeInterpolated
-    )
+    global_efficiency: runtime_params_lib.interpolated_param.TimeInterpolated
 
     # EC power density profile on the rho grid; units [W/m^3]
     # TODO: Create a interpolated_param.TimeRhoInterpolated that can handle
@@ -66,36 +64,25 @@ def _calc_heating_and_linliu_current(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
-    """Model function for the ECRH current source.
+    """Model function for the electron-cyclotron source.
 
-    Calculated as:
-
-    .. math::
-      j_{EC} = \\frac{\\epsilon_0^2}{q_e^3} \\eta_{cd} \\frac{q_{EC} T_e}{n_e}
-
-    where:
-    - :math:`j_{EC}` is the flux-surface averaged EC current drive profile in A/m^2,
-    - :math:`\\epsilon_0` is the permittivity of free space in SI units,
-    - :math:`q_e` is the elementary charge in C,
-    - :math:`\\eta_{cd}` is the dimensionless global current drive efficiency,
-    - :math:`q_{EC}` is the EC power density in W/m^3,
-    - :math:`T_e` is the electron temperature in J,
-    - :math:`n_e` is the electron density in m^-3,
-    - :math:`R_{maj}` is the major radius in m.
+    Returns:
+      (ec_power_density, j_parallel_ec)
     """
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
     # Sources:
-    # Electron cyclotron current drive efficiency in general tokamak geometry
+    # Original equation for local efficiency from
+    # - Electron cyclotron current drive efficiency in general tokamak geometry
     #   Lin-Liu, Chan, and Prater, 2003
     #   https://doi.org/10.1063/1.1610472
-
-    ne_face_in_m3 = (
-        core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
-    )
-    Te_face_in_J = core_profiles.temp_el.face_value() * CONSTANTS.keV2J
-
-    # Flux-surface averaged j profile, <j_ec> [A/m^2]
+    # Conversion to global dimensionless efficiency from
+    # - Flat-top plasma operational space of the STEP power plant
+    #   Tholerus et al., 2024
+    #   https://doi.org/10.1088/1741-4326/ad6ea2
+    #
+    # Note an additional B0 term appears, as TORAX expects <j.B> rather than <j.B>/B0
+    #
     # Units:
     # - epsilon0^2: [m^-6 kg^-2 s^8 A^4]
     # - qe^-3: [C^-3] = [A^-3 s^-3]
@@ -103,18 +90,37 @@ def _calc_heating_and_linliu_current(
     # - ec_power_density: [W/m^3] = [kg m^-1 s^-3]
     # - Te: [J] = [kg m^2 s^-2]
     # - ne^-1: [m^3]
-    # Compute via log for numerical stability
-    log_j_ec = (
-        2 * jnp.log(CONSTANTS.epsilon0)
-        - 3 * jnp.log(CONSTANTS.qe)
-        + jnp.log(dynamic_source_runtime_params.global_efficiency)
-        + jnp.log(dynamic_source_runtime_params.ec_power_density)
-        + jnp.log(Te_face_in_J)
-        - jnp.log(ne_face_in_m3),
-    )
-    j_ec = jnp.exp(log_j_ec)
 
-    return jnp.stack([dynamic_source_runtime_params.ec_power_density, j_ec])
+    ne_face_in_m3 = (
+        core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+    )
+    Te_face_in_J = core_profiles.temp_el.face_value() * CONSTANTS.keV2J
+
+    total_ec_power = jax.scipy.integrate.trapezoid(
+        dynamic_source_runtime_params.ec_power_density * geo.vpr_face, geo.rho_face_norm
+    )
+    weighted_ec_power = jax.scipy.integrate.trapezoid(
+        dynamic_source_runtime_params.ec_power_density
+        * Te_face_in_J
+        / ne_face_in_m3
+        * geo.vpr_face,
+        geo.rho_face_norm,
+    )
+    local_efficiency = weighted_ec_power / total_ec_power
+    j_ec_parallel = (
+        dynamic_source_runtime_params.global_efficiency
+        * 2
+        * jnp.pi
+        * CONSTANTS.epsilon0**2
+        / CONSTANTS.qe**3
+        * local_efficiency
+        * dynamic_source_runtime_params.ec_power_density
+    )
+
+    return jnp.stack(
+        [dynamic_source_runtime_params.ec_power_density, j_ec_parallel * geo.B0]
+    )
+
 
 def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
     return (2,) + source.ProfileType.CELL.get_profile_shape(geo)
