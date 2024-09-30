@@ -91,31 +91,39 @@ def _calc_heating_and_linliu_current(
     # - Te: [J] = [kg m^2 s^-2]
     # - ne^-1: [m^3]
 
-    ne_face_in_m3 = (
-        core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
-    )
-    Te_face_in_J = core_profiles.temp_el.face_value() * CONSTANTS.keV2J
-
     total_ec_power = jax.scipy.integrate.trapezoid(
         dynamic_source_runtime_params.ec_power_density * geo.vpr_face, geo.rho_face_norm
     )
     weighted_ec_power = jax.scipy.integrate.trapezoid(
         dynamic_source_runtime_params.ec_power_density
-        * Te_face_in_J
-        / ne_face_in_m3
+        * core_profiles.temp_el.face_value()
+        / core_profiles.ne.face_value()
         * geo.vpr_face,
         geo.rho_face_norm,
     )
     local_efficiency = weighted_ec_power / total_ec_power
-    j_ec_parallel = (
-        dynamic_source_runtime_params.global_efficiency
-        * 2
-        * jnp.pi
-        * CONSTANTS.epsilon0**2
-        / CONSTANTS.qe**3
-        * local_efficiency
-        * dynamic_source_runtime_params.ec_power_density
+    # Compute via the log for numerical stability
+    # This is equivalent to:
+    # j_ec_parallel = (
+    #     global_efficiency
+    #     * 2 * jnp.pi * epsilon0 ** 2
+    #     / qe ** -3
+    #     * local_efficiency (in J and m^-3)
+    #     * ec_power_density
+    # )
+    log_j_ec_parallel = (
+        jnp.log(dynamic_source_runtime_params.global_efficiency)
+        + jnp.log(2 * jnp.pi)
+        + 2 * jnp.log(CONSTANTS.epsilon0)
+        - 3 * jnp.log(CONSTANTS.qe)
+        + jnp.log(local_efficiency)
+        # Convert from keV to J - moved inside the log from the local_efficiency integral
+        + jnp.log(CONSTANTS.keV2J)
+        # Convert from nref to m^-3 - moved inside the log from the local_efficiency integral
+        - jnp.log(dynamic_runtime_params_slice.numerics.nref)
+        + jnp.log(dynamic_source_runtime_params.ec_power_density)
     )
+    j_ec_parallel = jnp.exp(log_j_ec_parallel)
 
     return jnp.stack(
         [dynamic_source_runtime_params.ec_power_density, j_ec_parallel * geo.B0]
