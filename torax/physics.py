@@ -23,6 +23,7 @@ import dataclasses
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import constants
 from torax import geometry
 from torax import jax_utils
@@ -358,10 +359,10 @@ def calc_nu_star(
 
 
 def fast_ion_fractional_heating_formula(
-    birth_energy: float,
-    temp_el: jax.Array,
+    birth_energy: float | array_typing.ArrayFloat,
+    temp_el: array_typing.ArrayFloat,
     fast_ion_mass: float,
-) -> jax.Array:
+) -> array_typing.ArrayFloat:
   """Returns the fraction of heating that goes to the ions.
 
   From eq. 5 and eq. 26 in Mikkelsen Nucl. Tech. Fusion 237 4 1983.
