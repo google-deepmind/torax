@@ -94,10 +94,12 @@ def _calc_puff_source(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class GasPuffSource(source.SingleProfileNeSource):
+class GasPuffSource(source.SingleProfileSource):
   """Gas puff source for the ne equation."""
-
   formula: source.SourceProfileFunction = _calc_puff_source
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.NE,
+  )
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -179,10 +181,12 @@ def _calc_nbi_source(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class NBIParticleSource(source.SingleProfileNeSource):
+class NBIParticleSource(source.SingleProfileSource):
   """Neutral-beam injection source for the ne equation."""
-
   formula: source.SourceProfileFunction = _calc_nbi_source
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.NE,
+  )
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -249,10 +253,12 @@ def _calc_pellet_source(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class PelletSource(source.SingleProfileNeSource):
+class PelletSource(source.SingleProfileSource):
   """Pellet source for the ne equation."""
-
   formula: source.SourceProfileFunction = _calc_pellet_source
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.NE,
+  )
 
 
 # pylint: enable=invalid-name
@@ -265,8 +271,11 @@ class PelletSource(source.SingleProfileNeSource):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class RecombinationDensitySink(source.SingleProfileNeSource):
+class RecombinationDensitySink(source.SingleProfileSource):
   """Recombination sink for the electron density equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.NE,
+  )
 
 
 PelletSourceBuilder = source.make_source_builder(

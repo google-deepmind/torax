@@ -522,42 +522,6 @@ def get_source_profiles(
   return output
 
 
-# Convenience classes to reduce a little boilerplate for some of the common
-# sources defined in the other files in this folder.
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class SingleProfilePsiSource(SingleProfileSource):
-
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
-      AffectedCoreProfile.PSI,
-  )
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class SingleProfileNeSource(SingleProfileSource):
-
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
-      AffectedCoreProfile.NE,
-  )
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class SingleProfileTempIonSource(SingleProfileSource):
-
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
-      AffectedCoreProfile.TEMP_ION,
-  )
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class SingleProfileTempElSource(SingleProfileSource):
-
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = (
-      AffectedCoreProfile.TEMP_EL,
-  )
-
-
 def _get_ion_el_output_shape(geo):
   return (2,) + ProfileType.CELL.get_profile_shape(geo)
 
@@ -755,7 +719,10 @@ def make_source_builder(
     for f in source_fields:
       v = source_init_kwargs[f.name]
       if isinstance(f.type, str):
-        if f.type == 'tuple[AffectedCoreProfile, ...]':
+        if f.type in [
+            'tuple[AffectedCoreProfile, ...]',
+            'tuple[source.AffectedCoreProfile, ...]',
+        ]:
           assert isinstance(v, tuple)
           assert all([isinstance(var, AffectedCoreProfile) for var in v])
         elif f.type == 'tuple[runtime_params_lib.Mode, ...]':
@@ -882,12 +849,3 @@ def make_source_builder(
 
 SourceBuilder = make_source_builder(Source)
 SingleProfileSourceBuilder = make_source_builder(SingleProfileSource)
-SingleProfilePsiSourceBuilder = make_source_builder(SingleProfilePsiSource)
-SingleProfileNeSourceBuilder = make_source_builder(SingleProfileNeSource)
-SingleProfileTempIonSourceBuilder = make_source_builder(
-    SingleProfileTempIonSource
-)
-SingleProfileTempElSourceBuilder = make_source_builder(
-    SingleProfileTempElSource
-)
-IonElectronSourceBuilder = make_source_builder(IonElectronSource)
