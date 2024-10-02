@@ -24,8 +24,22 @@ from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import state
+from torax.sources import source_profiles
 
 _trapz = jax.scipy.integrate.trapezoid
+
+ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
+    'generic_ion_el_heat_source': 'P_generic',
+    'fusion_heat_source': 'P_alpha',
+}
+EL_HEAT_SOURCE_TRANSFORMATIONS = {
+    'ohmic_heat_source': 'P_ohmic',
+    'bremsstrahlung_heat_sink': 'P_brems',
+}
+EXTERNAL_HEATING_SOURCES = [
+    'generic_ion_el_heat_source',
+    'ohmic_heat_source',
+]
 
 
 @jax_utils.jit
@@ -178,6 +192,82 @@ def _compute_stored_thermal_energy(
   return wth_el, wth_ion, wth_tot
 
 
+@jax_utils.jit
+def _calculate_integrated_heat_sources(
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    core_sources: source_profiles.SourceProfiles,
+) -> dict[str, jax.Array]:
+  """Calculates total integrated internal and external source powers.
+
+  Args:
+    geo: Magnetic geometry
+    core_profiles: Kinetic profiles such as temperature and density
+    core_sources: Internal and external sources
+
+  Returns:
+    Dictionary with integrated quantities for all existing sources.
+    See state.PostProcessedOutputs for the full list of keys.
+
+    Output dict used to update the `PostProcessedOutputs` object in the
+    output `ToraxSimState`. Sources that don't exist do not have integrated
+    quantities included in the returned dict. The corresponding
+    `PostProcessedOutputs` attributes remain at their initialized zero values.
+  """
+  integrated = {}
+
+  # Initialize total alpha power to zero. Needed for Q calculation.
+  integrated['P_alpha_tot'] = jnp.array(0.0)
+
+  # electron-ion heat exchange always exists, and is not in
+  # core_sources.profiles, so we calculate it here.
+  qei = core_sources.qei.qei_coef * (
+      core_profiles.temp_el.value - core_profiles.temp_ion.value
+  )
+  integrated['P_ei_exchange_ion'] = _trapz(qei * geo.vpr, geo.rho_norm)
+  integrated['P_ei_exchange_el'] = -integrated['P_ei_exchange_ion']
+
+  # Initialize total electron and ion powers
+  integrated['P_heating_tot_ion'] = integrated['P_ei_exchange_ion']
+  integrated['P_heating_tot_el'] = integrated['P_ei_exchange_el']
+  integrated['P_external_ion'] = jnp.array(0.0)
+  integrated['P_external_el'] = jnp.array(0.0)
+
+  # Calculate integrated sources with convenient names, transformed from
+  # TORAX internal names.
+  for key, value in ION_EL_HEAT_SOURCE_TRANSFORMATIONS.items():
+    # Only populate integrated dict with sources that exist.
+    if key in core_sources.profiles:
+      profile_ion, profile_el = core_sources.profiles[key]
+      integrated[f'{value}_ion'] = _trapz(profile_ion * geo.vpr, geo.rho_norm)
+      integrated[f'{value}_el'] = _trapz(profile_el * geo.vpr, geo.rho_norm)
+      integrated[f'{value}_tot'] = (
+          integrated[f'{value}_ion'] + integrated[f'{value}_el']
+      )
+      integrated['P_heating_tot_ion'] += integrated[f'{value}_ion']
+      integrated['P_heating_tot_el'] += integrated[f'{value}_el']
+      if key in EXTERNAL_HEATING_SOURCES:
+        integrated['P_external_ion'] += integrated[f'{value}_ion']
+        integrated['P_external_el'] += integrated[f'{value}_el']
+
+  for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
+    # Only populate integrated dict with sources that exist.
+    if key in core_sources.profiles:
+      profile = core_sources.profiles[key]
+      integrated[f'{value}'] = _trapz(profile * geo.vpr, geo.rho_norm)
+      integrated['P_heating_tot_el'] += integrated[f'{value}']
+      if key in EXTERNAL_HEATING_SOURCES:
+        integrated['P_external_el'] += integrated[f'{value}']
+  integrated['P_heating_tot'] = (
+      integrated['P_heating_tot_ion'] + integrated['P_heating_tot_el']
+  )
+  integrated['P_external_tot'] = (
+      integrated['P_external_ion'] + integrated['P_external_el']
+  )
+
+  return integrated
+
+
 def make_outputs(
     sim_state: state.ToraxSimState, geo: geometry.Geometry
 ) -> state.ToraxSimState:
@@ -197,30 +287,49 @@ def make_outputs(
       pressure_thermal_tot_face,
   ) = _compute_pressure(sim_state.core_profiles)
   pprime_face = _compute_pprime(sim_state.core_profiles)
-  wth_el, wth_ion, wth_tot = _compute_stored_thermal_energy(
+  # pylint: disable=invalid-name
+  W_thermal_el, W_thermal_ion, W_thermal_tot = _compute_stored_thermal_energy(
       pressure_thermal_el_face,
       pressure_thermal_ion_face,
       pressure_thermal_tot_face,
       geo,
   )
-  # pylint: disable=invalid-name
   FFprime_face = _compute_FFprime(sim_state.core_profiles, geo)
   # pylint: enable=invalid-name
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
   psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
+  integrated_heat_sources = _calculate_integrated_heat_sources(
+      geo,
+      sim_state.core_profiles,
+      sim_state.core_sources,
+  )
+  # pylint: disable=invalid-name
+  # Calculate fusion gain with a zero division guard.
+  # Total energy released per reaction is 5 times the alpha particle energy.
+  Q_fusion = (
+      integrated_heat_sources['P_alpha_tot']
+      * 5.0
+      / (integrated_heat_sources['P_external_tot'] + constants.CONSTANTS.eps)
+  )
+
+  updated_post_processed_outputs = dataclasses.replace(
+      sim_state.post_processed_outputs,
+      pressure_thermal_ion_face=pressure_thermal_ion_face,
+      pressure_thermal_el_face=pressure_thermal_el_face,
+      pressure_thermal_tot_face=pressure_thermal_tot_face,
+      pprime_face=pprime_face,
+      W_thermal_ion=W_thermal_ion,
+      W_thermal_el=W_thermal_el,
+      W_thermal_tot=W_thermal_tot,
+      FFprime_face=FFprime_face,
+      psi_norm_face=psi_norm_face,
+      psi_face=sim_state.core_profiles.psi.face_value(),
+      **integrated_heat_sources,
+      Q_fusion=Q_fusion,
+  )
+  # pylint: enable=invalid-name
   return dataclasses.replace(
       sim_state,
-      post_processed_outputs=state.PostProcessedOutputs(
-          pressure_thermal_ion_face=pressure_thermal_ion_face,
-          pressure_thermal_el_face=pressure_thermal_el_face,
-          pressure_thermal_tot_face=pressure_thermal_tot_face,
-          pprime_face=pprime_face,
-          wth_thermal_ion=wth_ion,
-          wth_thermal_el=wth_el,
-          wth_thermal_tot=wth_tot,
-          FFprime_face=FFprime_face,
-          psi_norm_face=psi_norm_face,
-          psi_face=sim_state.core_profiles.psi.face_value(),
-      ),
+      post_processed_outputs=updated_post_processed_outputs,
   )

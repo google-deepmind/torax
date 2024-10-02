@@ -260,33 +260,73 @@ class PostProcessedOutputs:
   intermediate observations for overarching workflows.
 
   Attributes:
-    pressure_thermal_ion_face: Ion thermal pressure on the face grid
-    pressure_thermal_el_face: Electron thermal pressure on the face grid
-    pressure_thermal_tot_face: Total thermal pressure on the face grid
+    pressure_thermal_ion_face: Ion thermal pressure on the face grid [Pa]
+    pressure_thermal_el_face: Electron thermal pressure on the face grid [Pa]
+    pressure_thermal_tot_face: Total thermal pressure on the face grid [Pa]
     pprime_face: Derivative of total pressure with respect to poloidal flux on
-      the face grid
-    wth_thermal_ion: Ion thermal stored energy (scalar)
-    wth_thermal_el: Electron thermal stored energy (scalar)
-    wth_thermal_tot: Total thermal stored energy (scalar)
-    FFprime_face: FF' on the face grid, where F is the toroidal flux function.
-    psi_norm_face: Normalized poloidal flux on the face grid.
-    psi_face: Poloidal flux on the face grid.
+      the face grid [Pa/Wb]
+    W_thermal_ion: Ion thermal stored energy [J]
+    W_thermal_el: Electron thermal stored energy [J]
+    W_thermal_tot: Total thermal stored energy [J]
+    FFprime_face: FF' on the face grid, where F is the toroidal flux function
+    psi_norm_face: Normalized poloidal flux on the face grid [Wb]
+    psi_face: Poloidal flux on the face grid [Wb]
+    P_heating_tot_ion: Total ion heating power with all sources: auxiliary
+      heating + ion-electron exchange + Ohmic + fusion [W]
+    P_heating_tot_el: Total electron heating power, with all sources: auxiliary
+      heating + ion-electron exchange + Ohmic + fusion [W]
+    P_heating_tot: Total heating power, with all sources: auxiliary heating
+      + ion-electron exchange + Ohmic + fusion [W]
+    P_external_ion: Total external ion heating power: auxiliary heating + Ohmic
+      [W]
+    P_external_el: Total external electron heating power: auxiliary heating +
+      Ohmic [W]
+    P_external_tot: Total external heating power: auxiliary heating + Ohmic [W]
+    P_ei_exchange_ion: Electron-ion heat exchange power to ions [W]
+    P_ei_exchange_el: Electron-ion heat exchange power to electrons [W]
+    P_generic_ion: Total generic_ion_el_heat_source power to ions [W]
+    P_generic_el: Total generic_ion_el_heat_source power to electrons [W]
+    P_generic_tot: Total generic_ion_el_heat power [W]
+    P_alpha_ion: Total fusion power to ions [W]
+    P_alpha_el: Total fusion power to electrons [W]
+    P_alpha_tot: Total fusion power to plasma [W]
+    P_ohmic: Ohmic heating power to electrons [W]
+    P_brems: Bremsstrahlung electron heat sink [W]
+    Q_fusion: Fusion power gain
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
   pressure_thermal_el_face: array_typing.ArrayFloat
   pressure_thermal_tot_face: array_typing.ArrayFloat
   pprime_face: array_typing.ArrayFloat
-  wth_thermal_ion: array_typing.ScalarFloat
-  wth_thermal_el: array_typing.ScalarFloat
-  wth_thermal_tot: array_typing.ScalarFloat
   # pylint: disable=invalid-name
+  W_thermal_ion: array_typing.ScalarFloat
+  W_thermal_el: array_typing.ScalarFloat
+  W_thermal_tot: array_typing.ScalarFloat
   FFprime_face: array_typing.ArrayFloat
-  # pylint: enable=invalid-name
   psi_norm_face: array_typing.ArrayFloat
   # psi_face included in post_processed output for convenience, since the
   # CellVariable history method destroys class methods like `face_value`.
   psi_face: array_typing.ArrayFloat
+  # Integrated heat sources
+  P_heating_tot_ion: array_typing.ScalarFloat
+  P_heating_tot_el: array_typing.ScalarFloat
+  P_heating_tot: array_typing.ScalarFloat
+  P_external_ion: array_typing.ScalarFloat
+  P_external_el: array_typing.ScalarFloat
+  P_external_tot: array_typing.ScalarFloat
+  P_ei_exchange_ion: array_typing.ScalarFloat
+  P_ei_exchange_el: array_typing.ScalarFloat
+  P_generic_ion: array_typing.ScalarFloat
+  P_generic_el: array_typing.ScalarFloat
+  P_generic_tot: array_typing.ScalarFloat
+  P_alpha_ion: array_typing.ScalarFloat
+  P_alpha_el: array_typing.ScalarFloat
+  P_alpha_tot: array_typing.ScalarFloat
+  P_ohmic: array_typing.ScalarFloat
+  P_brems: array_typing.ScalarFloat
+  Q_fusion: array_typing.ScalarFloat
+  # pylint: enable=invalid-name
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> PostProcessedOutputs:
@@ -296,12 +336,29 @@ class PostProcessedOutputs:
         pressure_thermal_el_face=jnp.zeros(geo.rho_face.shape),
         pressure_thermal_tot_face=jnp.zeros(geo.rho_face.shape),
         pprime_face=jnp.zeros(geo.rho_face.shape),
-        wth_thermal_ion=jnp.array(0.0),
-        wth_thermal_el=jnp.array(0.0),
-        wth_thermal_tot=jnp.array(0.0),
+        W_thermal_ion=jnp.array(0.0),
+        W_thermal_el=jnp.array(0.0),
+        W_thermal_tot=jnp.array(0.0),
         FFprime_face=jnp.zeros(geo.rho_face.shape),
         psi_norm_face=jnp.zeros(geo.rho_face.shape),
         psi_face=jnp.zeros(geo.rho_face.shape),
+        P_heating_tot_ion=jnp.array(0.0),
+        P_heating_tot_el=jnp.array(0.0),
+        P_heating_tot=jnp.array(0.0),
+        P_external_ion=jnp.array(0.0),
+        P_external_el=jnp.array(0.0),
+        P_external_tot=jnp.array(0.0),
+        P_ei_exchange_ion=jnp.array(0.0),
+        P_ei_exchange_el=jnp.array(0.0),
+        P_generic_ion=jnp.array(0.0),
+        P_generic_el=jnp.array(0.0),
+        P_generic_tot=jnp.array(0.0),
+        P_alpha_ion=jnp.array(0.0),
+        P_alpha_el=jnp.array(0.0),
+        P_alpha_tot=jnp.array(0.0),
+        P_ohmic=jnp.array(0.0),
+        P_brems=jnp.array(0.0),
+        Q_fusion=jnp.array(0.0),
     )
 
 

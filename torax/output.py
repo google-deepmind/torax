@@ -15,6 +15,8 @@
 """Module containing functions for saving and loading simulation output."""
 from __future__ import annotations
 
+import dataclasses
+
 from absl import logging
 import chex
 import jax
@@ -54,12 +56,6 @@ TEMP_EL = "temp_el"
 TEMP_EL_RIGHT_BC = "temp_el_right_bc"
 TEMP_ION = "temp_ion"
 TEMP_ION_RIGHT_BC = "temp_ion_right_bc"
-PRESSURE_ION = "pressure_ion"
-PRESSURE_EL = "pressure_el"
-PRESSURE_TOT = "pressure_tot"
-WTH_ION = "wth_ion"
-WTH_EL = "wth_el"
-WTH_TOT = "wth_tot"
 PSI = "psi"
 PSIDOT = "psidot"
 PSI_RIGHT_GRAD_BC = "psi_right_grad_bc"
@@ -103,6 +99,9 @@ RHO_FACE = "rho_face"
 RHO_CELL = "rho_cell"
 TIME = "time"
 
+# Post processed outputs
+Q_FUSION = "Q_fusion"
+
 # Simulation error state.
 SIM_ERROR = "sim_error"
 
@@ -139,7 +138,7 @@ class StateHistory:
     ]
     core_sources = [state.core_sources for state in sim_outputs.sim_history]
     transport = [state.core_transport for state in sim_outputs.sim_history]
-    post_processed_ouput = [
+    post_processed_output = [
         state.post_processed_outputs for state in sim_outputs.sim_history
     ]
     stack = lambda *ys: jnp.stack(ys)
@@ -153,7 +152,7 @@ class StateHistory:
         stack, *transport
     )
     self.post_processed_outputs: state.PostProcessedOutputs = (
-        jax.tree_util.tree_map(stack, *post_processed_ouput)
+        jax.tree_util.tree_map(stack, *post_processed_output)
     )
     self.times = jnp.array([state.t for state in sim_outputs.sim_history])
     chex.assert_rank(self.times, 1)
@@ -197,7 +196,7 @@ class StateHistory:
       self,
       geo: geometry.Geometry,
   ) -> dict[str, xr.DataArray | None]:
-    """Saves the core profiles to a dict including relevant post_processed_outputs."""
+    """Saves the core profiles to a dict."""
     xr_dict = {}
 
     xr_dict[TEMP_EL] = self.core_profiles.temp_el.value
@@ -233,18 +232,6 @@ class StateHistory:
     xr_dict[Q_FACE] = self.core_profiles.q_face
     xr_dict[S_FACE] = self.core_profiles.s_face
     xr_dict[NREF] = self.core_profiles.nref
-
-    # Post processed quantities
-    xr_dict[PRESSURE_ION] = (
-        self.post_processed_outputs.pressure_thermal_ion_face
-    )
-    xr_dict[PRESSURE_EL] = self.post_processed_outputs.pressure_thermal_el_face
-    xr_dict[PRESSURE_TOT] = (
-        self.post_processed_outputs.pressure_thermal_tot_face
-    )
-    xr_dict[WTH_ION] = self.post_processed_outputs.wth_thermal_ion
-    xr_dict[WTH_EL] = self.post_processed_outputs.wth_thermal_el
-    xr_dict[WTH_TOT] = self.post_processed_outputs.wth_thermal_tot
 
     xr_dict = {
         name: self._pack_into_data_array(name, data, geo)
@@ -285,6 +272,7 @@ class StateHistory:
         * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
     )
 
+    # Add source profiles
     for profile in self.core_sources.profiles:
       if profile in existing_keys:
         logging.warning(
@@ -305,6 +293,19 @@ class StateHistory:
         name: self._pack_into_data_array(name, data, geo)
         for name, data in xr_dict.items()
     }
+
+    return xr_dict
+
+  def _save_post_processed_outputs(
+      self,
+      geo: geometry.Geometry,
+  ) -> dict[str, xr.DataArray | None]:
+    """Saves the post processed outputs to a dict."""
+    xr_dict = {}
+    for field_name, data in dataclasses.asdict(
+        self.post_processed_outputs
+    ).items():
+      xr_dict[field_name] = self._pack_into_data_array(field_name, data, geo)
 
     return xr_dict
 
@@ -357,18 +358,12 @@ class StateHistory:
         SPR_FACE: xr.DataArray(geo.spr_face, dims=[RHO_FACE], name=SPR_FACE),
     }
 
-    xr_dict.update(
-        self._get_core_profiles(
-            geo,
-        )
-    )
-    xr_dict.update(
-        self._save_core_transport(
-            geo,
-        )
-    )
+    # Update dict with flattened StateHistory dataclass containers
+    xr_dict.update(self._get_core_profiles(geo))
+    xr_dict.update(self._save_core_transport(geo))
     existing_keys = set(xr_dict.keys())
     xr_dict.update(self._save_core_sources(geo, existing_keys))
+    xr_dict.update(self._save_post_processed_outputs(geo))
 
     ds = xr.Dataset(
         xr_dict,

@@ -437,7 +437,7 @@ def jaxopt_solver(
   Returns:
     x_new_vec: Flattened evolving profile array after jaxopt evolution.
     final_loss: loss after jaxopt evolution
-    aux_output: auxilliary outputs from calc_coeffs.
+    aux_output: auxiliary outputs from calc_coeffs.
     num_iterations: number of iterations ran in jaxopt
   """
 
