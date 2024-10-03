@@ -20,12 +20,15 @@ from torax.sources import source
 class RuntimeParams(runtime_params_lib.RuntimeParams):
     """Runtime parameters for the electron-cyclotron source."""
 
-    # Global dimensionless current drive efficiency
-    global_efficiency: runtime_params_lib.interpolated_param.TimeInterpolated = 1.0
+    # Local dimensionless current drive efficiency
+    # Zeta from Lin-Liu, Chan, and Prater, 2003, eq 44
+    # TODO: support either a scalar or a profile; if scalar axis,
+    # then produce profile by ones*value
+    cd_efficiency: runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput = {
+        0.0: {0.0: 0.2, 1.0: 0.2}
+    }
 
     # EC power density profile on the rho grid; units [W/m^3]
-    # TODO: Create a interpolated_param.TimeRhoInterpolated that can handle
-    # interpolation modes in both rho and time
     ec_power_density: runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput = {
         0.0: {0.0: 0.0, 1.0: 0.0}
     }
@@ -41,7 +44,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
     """Provides runtime parameters for the electron-cyclotron source for a given time and geometry."""
 
     runtime_params_config: RuntimeParams
-    global_efficiency: interpolated_param.InterpolatedVarSingleAxis
+    cd_efficiency: interpolated_param.InterpolatedVarSingleAxis
     ec_power_density: interpolated_param.InterpolatedVarTimeRho
 
     def build_dynamic_params(
@@ -55,11 +58,11 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
 
-    global_efficiency: array_typing.ScalarFloat
+    cd_efficiency: array_typing.ScalarFloat
     ec_power_density: array_typing.ArrayFloat
 
 
-def _calc_heating_and_linliu_current(
+def _calc_heating_and_current(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
@@ -73,62 +76,34 @@ def _calc_heating_and_linliu_current(
     """
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
-    # Sources:
-    # Original equation for local efficiency from
-    # - Electron cyclotron current drive efficiency in general tokamak geometry
-    #   Lin-Liu, Chan, and Prater, 2003
-    #   https://doi.org/10.1063/1.1610472
-    # Conversion to global dimensionless efficiency from
-    # - Flat-top plasma operational space of the STEP power plant
-    #   Tholerus et al., 2024
-    #   https://doi.org/10.1088/1741-4326/ad6ea2
-    #
-    # Note an additional B0 term appears, as TORAX expects <j.B> rather than <j.B>/B0
-    #
-    # Units:
-    # - epsilon0^2: [m^-6 kg^-2 s^8 A^4]
-    # - qe^-3: [C^-3] = [A^-3 s^-3]
-    # - global_efficiency: [dimensionless]
-    # - ec_power_density: [W/m^3] = [kg m^-1 s^-3]
-    # - Te: [J] = [kg m^2 s^-2]
-    # - ne^-1: [m^3]
-
-    total_ec_power = jax.scipy.integrate.trapezoid(
-        dynamic_source_runtime_params.ec_power_density * geo.rho_face_norm, geo.rho_face_norm
-    )
-    weighted_ec_power = jax.scipy.integrate.trapezoid(
-        dynamic_source_runtime_params.ec_power_density
-        * core_profiles.temp_el.face_value()
-        / core_profiles.ne.face_value()
-        * geo.rho_face_norm,
-        geo.rho_face_norm,
-    )
-    local_efficiency = weighted_ec_power / total_ec_power
     # Compute via the log for numerical stability
     # This is equivalent to:
-    # j_ec_parallel = (
-    #     global_efficiency
-    #     * 2 * jnp.pi * epsilon0 ** 2
-    #     / qe ** -3
-    #     * local_efficiency (in J and m^-3)
+    # j_ec = (
+    #     epsilon0**2 / qe**3
+    #     * dV/drho * <1/R^2> F^2
+    #     / (2 * pi * Rmaj * B0)
+    #     * ne [m^-3] / Te [J]
+    #     * cd_efficiency
     #     * ec_power_density
     # )
-    log_j_ec_parallel = (
-        jnp.log(dynamic_source_runtime_params.global_efficiency)
-        + jnp.log(2 * jnp.pi)
-        + 2 * jnp.log(CONSTANTS.epsilon0)
+    log_j_ec = (
+        2 * jnp.log(CONSTANTS.epsilon0)
         - 3 * jnp.log(CONSTANTS.qe)
-        + jnp.log(local_efficiency)
-        # Convert from keV to J - moved inside the log from the local_efficiency integral
-        + jnp.log(CONSTANTS.keV2J)
-        # Convert from nref to m^-3 - moved inside the log from the local_efficiency integral
-        - jnp.log(dynamic_runtime_params_slice.numerics.nref)
+        + jnp.log(geo.vpr)  # dV/drho
+        + jnp.log(geo.g3)  # <1/R^2>
+        + jnp.log(geo.F)  # BxR
+        - jnp.log(2 * jnp.pi * geo.Rmaj * geo.B0)
+        + jnp.log(core_profiles.ne)
+        + jnp.log(dynamic_runtime_params_slice.numerics.nref)  # Convert ne to m^-3
+        - jnp.log(core_profiles.Te)
+        - jnp.log(CONSTANTS.keV2J)  # Convert Te to J
+        + jnp.log(dynamic_source_runtime_params.cd_efficiency)
         + jnp.log(dynamic_source_runtime_params.ec_power_density)
     )
-    j_ec_parallel = jnp.exp(log_j_ec_parallel)
+    flux_surface_avg_j_ec_dot_B = jnp.exp(log_j_ec)
 
     return jnp.stack(
-        [dynamic_source_runtime_params.ec_power_density, j_ec_parallel * geo.B0]
+        [dynamic_source_runtime_params.ec_power_density, flux_surface_avg_j_ec_dot_B]
     )
 
 
@@ -158,7 +133,7 @@ class ElectronCyclotronSource(source.Source):
         runtime_params_lib.Mode.MODEL_BASED,
     )
 
-    model_func: source.SourceProfileFunction = _calc_heating_and_linliu_current
+    model_func: source.SourceProfileFunction = _calc_heating_and_current
 
     def get_value(
         self,
