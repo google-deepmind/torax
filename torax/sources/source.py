@@ -519,74 +519,8 @@ def get_source_profiles(
   return output
 
 
-def _get_ion_el_output_shape(geo):
+def get_ion_el_output_shape(geo):
   return (2,) + ProfileType.CELL.get_profile_shape(geo)
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class IonElectronSource(Source):
-  """Base class for a source/sink that can be used for both ions / electrons.
-
-  Some ion and electron heat sources share a lot of computation resulting in
-  values that are often simply proportionally scaled versions of the other. To
-  help with defining those sources where you'd like to (a) keep the values
-  similar and (b) get some small efficiency gain by doing some computations
-  once instead of twice (once for ions and again for electrons), this class
-  gives a hook for doing that.
-
-  This class is set to always return 2 source profiles on the cell grid, the
-  first being ion profile and the second being the electron profile.
-  """
-
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param.
-  affected_core_profiles: tuple[AffectedCoreProfile, ...] = dataclasses.field(
-      init=False,
-      default=(
-          AffectedCoreProfile.TEMP_ION,
-          AffectedCoreProfile.TEMP_EL,
-      ),
-  )
-
-  # Don't include output_shape_getter in the __init__ arguments.
-  # Freeze this parameter so that it always outputs 2 cell profiles.
-  output_shape_getter: SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: _get_ion_el_output_shape,
-  )
-
-  def get_value(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
-  ) -> jax.Array:
-    """Computes the ion and electron values of the source.
-
-    Args:
-      dynamic_runtime_params_slice: Input config which can change from time step
-        to time step.
-      dynamic_source_runtime_params: Slice of this source's runtime parameters
-        at a specific time t.
-      geo: Geometry of the torus.
-      core_profiles: Core plasma profiles used to compute the source's profiles.
-
-    Returns:
-      2 stacked arrays, the first for the ion profile and the second for the
-      electron profile.
-    """
-    output_shape = self.output_shape_getter(geo)
-    profile = super().get_value(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_source_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-    )
-    assert isinstance(profile, jax.Array)
-    chex.assert_rank(profile, 2)
-    chex.assert_shape(profile, output_shape)
-    return profile
 
 
 class SourceBuilderProtocol(Protocol):

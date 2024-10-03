@@ -184,7 +184,7 @@ class IonElSourceTestCase(SourceTestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources['foo']
-    self.assertIsInstance(source, source_lib.IonElectronSource)
+    self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -221,7 +221,7 @@ class IonElSourceTestCase(SourceTestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources['foo']
-    self.assertIsInstance(source, source_lib.IonElectronSource)
+    self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,

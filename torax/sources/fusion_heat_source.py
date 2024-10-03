@@ -136,9 +136,25 @@ def fusion_heat_model_func(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class FusionHeatSource(source.IonElectronSource):
+class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
-
+  # Fusion heat source affects temp_ion and temp_el.
+  # affected_core_profiles is removed from __init__ effectively freezing it.
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      dataclasses.field(
+          init=False,
+          default=(
+              source.AffectedCoreProfile.TEMP_ION,
+              source.AffectedCoreProfile.TEMP_EL,
+          ),
+      )
+  )
+  # This source always outputs 2 cell profiles.
+  # output_shape_getter is removed from __init__ effectively freezing it.
+  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
+      init=False,
+      default_factory=lambda: source.get_ion_el_output_shape,
+  )
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
