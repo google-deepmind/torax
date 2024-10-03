@@ -84,9 +84,6 @@ class AffectedCoreProfile(enum.IntEnum):
   The profiles of each source/sink are terms included in equations evolving
   different core profiles. This enum maps a source to those equations.
   """
-
-  # Source profile is not used for any core profile equation
-  NONE = 0
   # Current density equation.
   PSI = 1
   # Electron density equation.
