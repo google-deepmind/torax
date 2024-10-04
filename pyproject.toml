@@ -27,7 +27,7 @@ dependencies = [
     "numpy>=1.24.1",
     "setuptools;python_version>='3.10'",
     "chex>=0.1.85",
-    "equinox @ git+https://github.com/patrick-kidger/equinox@1e601672d38d2c4d483535070a3572d8e8508a20",
+    "equinox>=0.11.3",
     "PyYAML>=6.0.1",
     "xarray>=2023.12.0",
     "netcdf4>=1.6.5,<1.7.1",

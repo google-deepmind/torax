@@ -17,7 +17,6 @@
 import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
@@ -195,7 +194,7 @@ class SourceTest(parameterized.TestCase):
         source_models=source_models,
     )
     # But calling requesting ZERO shouldn't work.
-    with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
+    with self.assertRaises(RuntimeError):
       source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
           dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[

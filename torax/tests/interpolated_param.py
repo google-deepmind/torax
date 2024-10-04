@@ -207,7 +207,7 @@ class InterpolatedParamTest(parameterized.TestCase):
         xs=jnp.array([1.0, 2.0, 3.0, 4.0]),
         ys=jnp.array([1.0, 2.0, 3.0, 4.0]),
     )
-    with self.assertRaises(jax.lib.xla_extension.XlaRuntimeError):
+    with self.assertRaises(RuntimeError):
       range_class(
           xs=jnp.array([4.0, 2.0, 1.0, 3.0]),
           ys=jnp.array([1.0, 2.0, 3.0, 4.0]),

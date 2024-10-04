@@ -16,7 +16,6 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 from jax import numpy as jnp
 from torax import jax_utils
 
@@ -29,8 +28,8 @@ class JaxUtilsTest(parameterized.TestCase):
     x = jnp.array(0)
     cond = x == 0
 
-    with self.assertRaises(jax.lib.xla_extension.XlaRuntimeError):
-      x = jax_utils.error_if(x, cond, msg="")
+    with self.assertRaises(RuntimeError):
+      jax_utils.error_if(x, cond, msg="")
 
   def _should_not_error(self):
     """Call error_if, expecting it to be disabled.
@@ -41,7 +40,7 @@ class JaxUtilsTest(parameterized.TestCase):
     x = jnp.array(0)
     cond = x == 0
 
-    x = jax_utils.error_if(x, cond, msg="")
+    jax_utils.error_if(x, cond, msg="")
 
   def test_enable_errors(self):
     """Test that jax_utils.enable_errors enables / disables errors."""

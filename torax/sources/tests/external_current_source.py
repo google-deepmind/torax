@@ -15,7 +15,6 @@
 """Tests for external_current_source."""
 
 from absl.testing import absltest
-import jax
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -79,7 +78,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     source = source_builder()
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
+        with self.assertRaises(RuntimeError):
           source_builder.runtime_params.mode = unsupported_mode
           dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
               runtime_params,

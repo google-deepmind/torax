@@ -158,7 +158,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
           )
       )
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
+        with self.assertRaises(RuntimeError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
@@ -248,7 +248,7 @@ class IonElSourceTestCase(SourceTestCase):
           )
       )
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
+        with self.assertRaises(RuntimeError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
