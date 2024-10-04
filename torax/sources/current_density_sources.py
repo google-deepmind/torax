@@ -31,7 +31,7 @@ from torax.sources import source
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ECRHCurrentSource(source.SingleProfileSource):
+class ECRHCurrentSource(source.Source):
   """ECRH current density source for the psi equation."""
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.PSI,
@@ -39,7 +39,7 @@ class ECRHCurrentSource(source.SingleProfileSource):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ICRHCurrentSource(source.SingleProfileSource):
+class ICRHCurrentSource(source.Source):
   """ICRH current density source for the psi equation."""
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.PSI,
@@ -47,7 +47,7 @@ class ICRHCurrentSource(source.SingleProfileSource):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class LHCurrentSource(source.SingleProfileSource):
+class LHCurrentSource(source.Source):
   """LH current density source for the psi equation."""
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.PSI,
@@ -55,7 +55,7 @@ class LHCurrentSource(source.SingleProfileSource):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class NBICurrentSource(source.SingleProfileSource):
+class NBICurrentSource(source.Source):
   """NBI current density source for the psi equation."""
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.PSI,

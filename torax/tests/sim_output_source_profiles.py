@@ -109,7 +109,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
     # Include 2 versions of this source, one implicit and one explicit.
     source_models_builder = source_models_lib.SourceModelsBuilder({
-        'implicit_ne_source': source.SingleProfileSourceBuilder(
+        'implicit_ne_source': source.SourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
@@ -121,7 +121,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
                 foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
             ),
         ),
-        'explicit_ne_source': source.SingleProfileSourceBuilder(
+        'explicit_ne_source': source.SourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,

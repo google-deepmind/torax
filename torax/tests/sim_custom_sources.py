@@ -142,7 +142,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     # Add the custom source with the correct params, but keep it turned off to
     # start.
     source_models_builder.source_builders[custom_source_name] = (
-        source.SingleProfileSourceBuilder(
+        source.SourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,

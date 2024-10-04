@@ -630,12 +630,16 @@ def ohmic_model_func(
 # OhmicHeatSource is a special case and defined here to avoid circular
 # dependencies, since it depends on the psi sources
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class OhmicHeatSource(source_lib.SingleProfileSource):
+class OhmicHeatSource(source_lib.Source):
   """Ohmic heat source for electron heat equation.
 
   Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
   """
-
+  # output_shape_getter is removed from __init__ as it is fixed to this value.
+  output_shape_getter: source_lib.SourceOutputShapeFunction = dataclasses.field(
+      init=False,
+      default_factory=lambda: source_lib.get_cell_profile_shape,
+  )
   # Users must pass in a pointer to the complete set of sources to this object.
   source_models: SourceModels
 

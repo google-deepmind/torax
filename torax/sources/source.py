@@ -136,7 +136,12 @@ class Source:
       runtime_params_lib.Mode.PRESCRIBED,
   )
 
-  output_shape_getter: SourceOutputShapeFunction = get_cell_profile_shape
+  # output_shape_getter is removed from __init__ as it is fixed to this value.
+  # For different output shapes, override this attribute.
+  output_shape_getter: SourceOutputShapeFunction = dataclasses.field(
+      init=False,
+      default_factory=lambda: get_cell_profile_shape,
+  )
 
   model_func: SourceProfileFunction | None = None
 
@@ -272,153 +277,22 @@ class Source:
     """
     # Get a valid index that defaults to 0 if not present.
     affected_core_profile_ints = self.affected_core_profiles_ints
-    idx = jnp.argmax(
-        jnp.asarray(affected_core_profile_ints) == affected_core_profile
-    )
-    return jnp.where(
-        affected_core_profile in affected_core_profile_ints,
-        profile[idx, ...],
-        jnp.zeros_like(geo.rho),
-    )
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class SingleProfileSource(Source):
-  """Source providing a single output profile on the cell grid.
-
-  Most sources in TORAX are instances (or subclasses) of this class.
-
-  You can define custom sources inline when constructing the full list of
-  sources to use in TORAX.
-
-  .. code-block:: python
-
-    # Define an electron-density source with a Gaussian profile.
-    my_custom_source_builder = source.SingleProfileSourceBuilder(
-        supported_modes=(
-            runtime_params_lib.Mode.ZERO,
-            runtime_params_lib.Mode.FORMULA_BASED,
-        ),
-        affected_core_profiles=[source.AffectedCoreProfile.NE],
-        formula=formulas.Gaussian(my_custom_source_name),
-    )
-    # Define its runtime parameters (this could be done in the constructor as
-    # well).
-    my_custom_source_builder.runtime_params = runtime_params_lib.RuntimeParams(
-        mode=runtime_params_lib.Mode.FORMULA_BASED,
-        formula=formula_config.Gaussian(
-            total=1.0,
-            c1=2.0,
-            c2=3.0,
-        ),
-    )
-    all_torax_sources_builder = source_models_lib.SourceModelsBuilder(
-        sources_builder={
-            'my_custom_source': my_custom_source_builder,
-        }
-    )
-
-  If you want to create a subclass of SingleProfileSource with frozen
-  parameters, you can provide default implementations/attributes. This is an
-  example of a model-based source with a frozen custom model that cannot be
-  changed by a runtime_params, along with custom runtime parameters specific to
-  this
-  source:
-
-  .. code-block:: python
-
-    @dataclasses.dataclass(kw_only=True)
-    class FooRuntimeParams(runtime_params_lib.RuntimeParams):
-      foo_param: runtime_params_lib.TimeInterpolatedInput
-      bar_param: float
-
-      def (build_dynamic_params(self, t: chex.Numeric)
-      -> DynamicFooRuntimeParams):
-      return DynamicFooRuntimeParams(
-          **config_args.get_init_kwargs(
-              input_config=self,
-              output_type=DynamicFooRuntimeParams,
-              t=t,
-          )
+    if len(affected_core_profile_ints) == 1:
+      return jnp.where(
+          affected_core_profile in self.affected_core_profiles_ints,
+          profile,
+          jnp.zeros_like(geo.rho),
       )
-
-    @chex.dataclass(frozen=True)
-    class DynamicFooRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-      foo_param: float
-      bar_param: float
-
-    def _my_foo_model(
-        dynamic_runtime_params_slice,
-        dynamic_source_runtime_params,
-        geo,
-        core_profiles,
-        source_models,
-    ) -> jax.Array:
-      assert isinstance(dynamic_source_runtime_params, DynamicFooRuntimeParams)
-      # implement your foo model.
-
-    @dataclasses.dataclass(kw_only=True)
-    class FooSource(SingleProfileSource):
-
-      # Provide a default set of params.
-      runtime_params: FooRuntimeParams = dataclasses.field(
-          default_factory=lambda: FooRuntimeParams(
-              foo_param={0.0: 10.0, 1.0: 20.0, 2.0: 35.0},
-              bar_param: 1.234,
-          )
+    else:
+      idx = jnp.argmax(
+          jnp.asarray(affected_core_profile_ints) == affected_core_profile
       )
-
-      # By default, FooSource's can be model-based or set to 0.
-      supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-          runtime_params_lib.Mode.ZERO,
-          runtime_params_lib.Mode.MODEL_BASED,
+      chex.assert_rank(profile, 2)
+      return jnp.where(
+          affected_core_profile in affected_core_profile_ints,
+          profile[idx, ...],
+          jnp.zeros_like(geo.rho),
       )
-
-      # Don't include model_func in the __init__ arguments and freeze it.
-      model_func: SourceProfileFunction = dataclasses.field(
-          init=False,
-          default_factory=lambda: _my_foo_model,
-      )
-  """
-
-  # Don't include output_shape_getter in the __init__ arguments.
-  # Freeze this parameter so that it always outputs a single cell profile.
-  output_shape_getter: SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: get_cell_profile_shape,
-  )
-
-  def get_value(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
-  ) -> jax.Array:
-    """Returns the profile for this source during one time step."""
-    output_shape = self.output_shape_getter(geo)
-    profile = super().get_value(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_source_runtime_params,
-        geo=geo,
-        core_profiles=core_profiles,
-    )
-    assert isinstance(profile, jax.Array)
-    chex.assert_rank(profile, 1)
-    chex.assert_shape(profile, output_shape)
-    return profile
-
-  def get_source_profile_for_affected_core_profile(
-      self,
-      profile: chex.ArrayTree,
-      affected_core_profile: int,
-      geo: geometry.Geometry,
-  ) -> jax.Array:
-    return jnp.where(
-        affected_core_profile in self.affected_core_profiles_ints,
-        profile,
-        jnp.zeros_like(geo.rho),
-    )
 
 
 class ProfileType(enum.Enum):
@@ -437,10 +311,6 @@ class ProfileType(enum.Enum):
         ProfileType.FACE: geo.rho_face.shape,
     }
     return profile_type_to_len[self]
-
-  def get_zero_profile(self, geo: geometry.Geometry) -> jax.Array:
-    """Returns a source profile with all zeros."""
-    return jnp.zeros(self.get_profile_shape(geo))
 
 
 # pytype bug: 'source_models.SourceModels' not treated as a forward ref
@@ -779,4 +649,3 @@ def make_source_builder(
 
 
 SourceBuilder = make_source_builder(Source)
-SingleProfileSourceBuilder = make_source_builder(SingleProfileSource)

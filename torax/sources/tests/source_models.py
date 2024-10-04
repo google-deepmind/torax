@@ -14,6 +14,8 @@
 
 """Tests for SourceModels and functions computing the source profiles."""
 
+import dataclasses
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -28,6 +30,14 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
+
+
+@dataclasses.dataclass(frozen=True)
+class FooSource(source_lib.Source):
+  """A test source."""
+  output_shape_getter = lambda: source_lib.get_ion_el_output_shape
+
+FooSourceBuilder = source_lib.make_source_builder(FooSource,)
 
 
 class SourceModelsTest(parameterized.TestCase):
@@ -140,18 +150,12 @@ class SourceProfilesTest(parameterized.TestCase):
           jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo)),
       ])
 
-    foo_source_builder = source_lib.SourceBuilder(
-        # Test a fake source that somehow affects both electron temp and
-        # electron density.
+    foo_source_builder = FooSourceBuilder(
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.TEMP_EL,
             source_lib.AffectedCoreProfile.NE,
         ),
         supported_modes=(runtime_params_lib.Mode.FORMULA_BASED,),
-        output_shape_getter=(
-            lambda geo: (2,)
-            + source_lib.ProfileType.CELL.get_profile_shape(geo)
-        ),
         formula=foo_formula,
     )
     # Set the source mode to FORMULA.

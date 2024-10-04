@@ -17,6 +17,7 @@
 import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
@@ -26,6 +27,13 @@ from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+
+
+def get_zero_profile(
+    profile_type: source_lib.ProfileType, geo: geometry.Geometry,
+) -> jax.Array:
+  """Returns a source profile with all zeros."""
+  return  jnp.zeros(profile_type.get_profile_shape(geo))
 
 
 class SourceTest(parameterized.TestCase):
@@ -123,7 +131,6 @@ class SourceTest(parameterized.TestCase):
   def test_zero_profile_works_by_default(self):
     """The default source impl should support profiles with all zeros."""
     source_builder = source_lib.SourceBuilder(
-        output_shape_getter=source_lib.get_cell_profile_shape,
         affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -157,7 +164,7 @@ class SourceTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         profile,
-        source_lib.ProfileType.CELL.get_zero_profile(geo),
+        get_zero_profile(source_lib.ProfileType.CELL, geo),
     )
 
   def test_unsupported_modes_raise_errors(self):
@@ -167,7 +174,6 @@ class SourceTest(parameterized.TestCase):
             # Only support formula-based profiles.
             runtime_params_lib.Mode.FORMULA_BASED,
         ),
-        output_shape_getter=source_lib.get_cell_profile_shape,
         affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
     # But set the runtime params of the source to use ZERO as the mode.
@@ -212,7 +218,6 @@ class SourceTest(parameterized.TestCase):
             runtime_params_lib.Mode.FORMULA_BASED,
             runtime_params_lib.Mode.PRESCRIBED,
         ),
-        output_shape_getter=source_lib.get_cell_profile_shape,
         affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -259,7 +264,7 @@ class SourceTest(parameterized.TestCase):
       )
       np.testing.assert_allclose(
           profile,
-          source_lib.ProfileType.CELL.get_zero_profile(geo),
+          get_zero_profile(source_lib.ProfileType.CELL, geo),
       )
     with self.subTest('formula'):
       dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -284,7 +289,7 @@ class SourceTest(parameterized.TestCase):
       )
       np.testing.assert_allclose(
           profile,
-          source_lib.ProfileType.CELL.get_zero_profile(geo),
+          get_zero_profile(source_lib.ProfileType.CELL, geo),
       )
     with self.subTest('prescribed'):
       dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -309,7 +314,7 @@ class SourceTest(parameterized.TestCase):
       )
       np.testing.assert_allclose(
           profile,
-          source_lib.ProfileType.CELL.get_zero_profile(geo),
+          get_zero_profile(source_lib.ProfileType.CELL, geo),
       )
 
   def test_overriding_default_formula(self):
@@ -318,7 +323,6 @@ class SourceTest(parameterized.TestCase):
     output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
     source_builder = source_lib.SourceBuilder(
-        output_shape_getter=lambda _0: output_shape,
         formula=lambda _0, _1, _2, _3, _4: expected_output,
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.TEMP_ION,
@@ -363,7 +367,6 @@ class SourceTest(parameterized.TestCase):
     expected_output = jnp.ones(output_shape)
     source_builder = source_lib.SourceBuilder(
         supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
-        output_shape_getter=lambda _0: output_shape,
         model_func=lambda _0, _1, _2, _3, _4: expected_output,
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.TEMP_ION,
@@ -410,7 +413,6 @@ class SourceTest(parameterized.TestCase):
     # Create the source
     source_builder = source_lib.SourceBuilder(
         supported_modes=(runtime_params_lib.Mode.PRESCRIBED,),
-        output_shape_getter=lambda _0: output_shape,
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.TEMP_ION,
             source_lib.AffectedCoreProfile.TEMP_EL,
@@ -454,10 +456,14 @@ class SourceTest(parameterized.TestCase):
   def test_retrieving_profile_for_affected_state(self):
     """Grabbing the correct profile works for all mesh state attributes."""
     output_shape = (2, 4)  # Some arbitrary shape.
+
+    @dataclasses.dataclass(frozen=True)
+    class TestSource(source_lib.Source):
+      output_shape_getter = lambda _0: output_shape
+
     profile = jnp.asarray([[1, 2, 3, 4], [5, 6, 7, 8]])  # from get_value()
-    source = source_lib.Source(
+    source = TestSource(
         supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
-        output_shape_getter=lambda _0: output_shape,
         model_func=lambda _0, _1, _2, _3, _4: profile,
         affected_core_profiles=(
             source_lib.AffectedCoreProfile.PSI,
@@ -490,8 +496,8 @@ class SingleProfileSourceTest(parameterized.TestCase):
     """The user-specified formula should override the default formula."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry(n_rho=5)
-    expected_output = jnp.ones(5)  # 5 matches the geo.
-    source_builder = source_lib.SingleProfileSourceBuilder(
+    expected_output = jnp.ones((5))  # 5 matches the geo.
+    source_builder = source_lib.SourceBuilder(
         formula=lambda _0, _1, _2, _3, _4: expected_output,
         affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
@@ -525,52 +531,10 @@ class SingleProfileSourceTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(profile, expected_output)
 
-  def test_multiple_profiles_raises_error(self):
-    """A formula which outputs the wrong shape will raise an error."""
-    source_builder = source_lib.SingleProfileSourceBuilder(
-        formula=lambda _0, _1, _2, _3, _4: jnp.ones((2, 5)),
-        affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_ION,
-            source_lib.AffectedCoreProfile.NE,
-        ),
-    )
-    source_builder.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'foo': source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources['foo']
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(n_rho=5)
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            sources=source_models_builder.runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=runtime_params.numerics.t_initial,
-        )
-    )
-    core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        # defaults are enough for this.
-        source_models=source_models,
-    )
-    with self.assertRaises(AssertionError):
-      source.get_value(
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-              'foo'
-          ],
-          geo=geo,
-          core_profiles=core_profiles,
-      )
-
   def test_retrieving_profile_for_affected_state(self):
     """Grabbing the correct profile works for all mesh state attributes."""
     profile = jnp.asarray([1, 2, 3, 4])  # from get_value()
-    source = source_lib.SingleProfileSource(
+    source = source_lib.Source(
         supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
         model_func=lambda _0, _1, _2, _3, _4: profile,
         affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),

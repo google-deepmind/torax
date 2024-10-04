@@ -139,7 +139,7 @@ def bremsstrahlung_model_func(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class BremsstrahlungHeatSink(source.SingleProfileSource):
+class BremsstrahlungHeatSink(source.Source):
   """Fusion heat source for both ion and electron heat."""
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
