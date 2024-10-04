@@ -52,6 +52,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   # Toggles if external current is provided absolutely or as a fraction of Ip.
   use_absolute_jext: bool = False
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   @property
   def grid_type(self) -> base.GridType:

@@ -49,6 +49,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
   # electron heating fraction
   el_heat_fraction: runtime_params_lib.TimeInterpolatedInput = 0.66666
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   def make_provider(
       self,

@@ -664,7 +664,7 @@ class OhmicHeatSource(source_lib.SingleProfileSource):
 
 
 OhmicHeatSourceBuilder = source_lib.make_source_builder(
-    OhmicHeatSource, links_back=True
+    OhmicHeatSource, links_back=True,
 )
 
 
@@ -1007,19 +1007,28 @@ class SourceModelsBuilder:
       elif isinstance(builder, qei_source_lib.QeiSourceBuilder):  # pytype: disable=wrong-arg-types
         qei_found = True
 
+    # These are special sources that must be present for every TORAX run.
     # If these sources are missing, we need to include builders for them.
+    # We also ZERO out these sources if they are not explicitly provided.
     # The SourceModels would also build them, but then there'd be no
     # user-editable runtime params for them.
     if not bootstrap_found:
       source_builders['j_bootstrap'] = (
           bootstrap_current_source.BootstrapCurrentSourceBuilder()
       )
+      source_builders['j_bootstrap'].runtime_params.mode = (
+          runtime_params_lib.Mode.ZERO
+      )
     if not qei_found:
       source_builders['qei_source'] = qei_source_lib.QeiSourceBuilder()
+      source_builders['qei_source'].runtime_params.mode = (
+          runtime_params_lib.Mode.ZERO
+      )
     if not jext_found:
       source_builders['jext'] = (
           external_current_source.ExternalCurrentSourceBuilder()
       )
+      source_builders['jext'].runtime_params.mode = runtime_params_lib.Mode.ZERO
 
     self.source_builders = source_builders
 

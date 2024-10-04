@@ -39,6 +39,7 @@ class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
   puff_decay_length: runtime_params_lib.TimeInterpolatedInput = 0.05
   # total gas puff particles/s
   S_puff_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   def make_provider(
       self,
@@ -112,6 +113,7 @@ class NBIParticleRuntimeParams(runtime_params_lib.RuntimeParams):
   nbi_deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.0
   # NBI total particle source
   S_nbi_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   def make_provider(
       self,
@@ -201,6 +203,7 @@ class PelletRuntimeParams(runtime_params_lib.RuntimeParams):
   pellet_deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.85
   # total pellet particles/s (continuous pellet model)
   S_pellet_tot: runtime_params_lib.TimeInterpolatedInput = 2e22
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   def make_provider(
       self,

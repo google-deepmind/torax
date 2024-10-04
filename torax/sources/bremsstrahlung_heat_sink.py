@@ -34,6 +34,7 @@ from torax.sources import source_models
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool = False
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
       self,

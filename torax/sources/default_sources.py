@@ -40,45 +40,29 @@ def get_default_runtime_params(
   """Returns default RuntimeParams for the given source."""
   match source_name:
     case 'j_bootstrap':
-      return bootstrap_current_source.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
-      )
+      return bootstrap_current_source.RuntimeParams()
     case 'jext':
-      return external_current_source.RuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return external_current_source.RuntimeParams()
     case 'nbi_particle_source':
-      return electron_density_sources.NBIParticleRuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return electron_density_sources.NBIParticleRuntimeParams()
     case 'gas_puff_source':
-      return electron_density_sources.GasPuffRuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return electron_density_sources.GasPuffRuntimeParams()
     case 'pellet_source':
-      return electron_density_sources.PelletRuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return electron_density_sources.PelletRuntimeParams()
     case 'generic_ion_el_heat_source':
-      return ion_el_heat.RuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return ion_el_heat.RuntimeParams()
     case 'fusion_heat_source':
       return runtime_params_lib.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
+          mode=runtime_params_lib.Mode.MODEL_BASED
       )
     case 'qei_source':
-      return qei_source.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
-      )
+      return qei_source.RuntimeParams()
     case 'ohmic_heat_source':
       return runtime_params_lib.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
+          mode=runtime_params_lib.Mode.MODEL_BASED
       )
     case 'bremsstrahlung_heat_sink':
-      return bremsstrahlung_heat_sink.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
-      )
+      return bremsstrahlung_heat_sink.RuntimeParams()
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
 

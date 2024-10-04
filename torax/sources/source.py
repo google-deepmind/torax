@@ -536,7 +536,7 @@ class SourceBuilderProtocol(Protocol):
       back to its SourceModels.
   """
 
-  runtime_params: Any
+  runtime_params: runtime_params_lib.RuntimeParams
   links_back: bool
 
   def __call__(self, *args: Any, **kwargs: Any) -> Any:
