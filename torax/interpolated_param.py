@@ -355,6 +355,9 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
       self,
       values: Mapping[float, tuple[chex.Array, chex.Array]],
       rho_norm: chex.Array,
+      time_interpolation_mode: InterpolationMode = (
+          InterpolationMode.PIECEWISE_LINEAR
+      ),
       rho_interpolation_mode: InterpolationMode = (
           InterpolationMode.PIECEWISE_LINEAR
       ),
@@ -364,6 +367,7 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     Args:
       values: Mapping of times to (rho_norm, values) arrays of equal length.
       rho_norm: The grid to interpolate onto.
+      time_interpolation_mode: The mode in which to do time interpolation.
       rho_interpolation_mode: The mode in which to do rho interpolation.
     """
     self.rho_norm = rho_norm
@@ -378,7 +382,8 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
         axis=0,
     )
     self._time_interpolated_var = InterpolatedVarSingleAxis(
-        (self.sorted_indices, rho_norm_interpolated_values)
+        value=(self.sorted_indices, rho_norm_interpolated_values),
+        interpolation_mode=time_interpolation_mode,
     )
 
   def get_value(self, x: chex.Numeric) -> chex.Array:
@@ -391,4 +396,11 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
 # default piecewise linear interpolation is used.
 TimeInterpolatedInput = (
     InterpolatedVarSingleAxisInput | tuple[InterpolatedVarSingleAxisInput, str]
+)
+# Type-alias for a variable to be interpolated in time and rho_norm.
+# If two strings are provided, they are assumed to be an InterpolationMode for
+# time and rho_norm respectively, otherwise the default piecewise linear
+# interpolation is used for both.
+TimeRhoInterpolatedInput = (
+    InterpolatedVarTimeRhoInput | tuple[InterpolatedVarTimeRhoInput, str, str]
 )
