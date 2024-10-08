@@ -52,15 +52,11 @@ def get_default_runtime_params(
     case 'generic_ion_el_heat_source':
       return ion_el_heat.RuntimeParams()
     case 'fusion_heat_source':
-      return runtime_params_lib.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED
-      )
+      return fusion_heat_source.FusionHeatSourceRuntimeParams()
     case 'qei_source':
       return qei_source.RuntimeParams()
     case 'ohmic_heat_source':
-      return runtime_params_lib.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED
-      )
+      return source_models_lib.OhmicRuntimeParams()
     case 'bremsstrahlung_heat_sink':
       return bremsstrahlung_heat_sink.RuntimeParams()
     case _:

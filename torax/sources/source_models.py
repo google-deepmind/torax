@@ -667,8 +667,14 @@ class OhmicHeatSource(source_lib.Source):
   )
 
 
+@dataclasses.dataclass
+class OhmicRuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime params for OhmicHeatSource."""
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+
 OhmicHeatSourceBuilder = source_lib.make_source_builder(
-    OhmicHeatSource, links_back=True,
+    OhmicHeatSource, links_back=True, runtime_params_type=OhmicRuntimeParams,
 )
 
 
