@@ -418,8 +418,3 @@ def calc_neoclassical(
       j_bootstrap_face=j_bootstrap_face,
       I_bootstrap=I_bootstrap,
   )
-
-
-BootstrapCurrentSourceBuilder = source.make_source_builder(
-    BootstrapCurrentSource, runtime_params_type=RuntimeParams
-)

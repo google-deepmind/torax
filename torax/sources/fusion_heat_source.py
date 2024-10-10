@@ -168,8 +168,3 @@ class FusionHeatSource(source.Source):
 class FusionHeatSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime params for FusionHeatSource."""
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-
-FusionHeatSourceBuilder = source.make_source_builder(
-    FusionHeatSource, runtime_params_type=FusionHeatSourceRuntimeParams,
-)
