@@ -28,6 +28,7 @@ from torax.sources import electron_density_sources
 from torax.sources import external_current_source
 from torax.sources import fusion_heat_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
+from torax.sources import ohmic_heat_source
 from torax.sources import qei_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -56,7 +57,7 @@ def get_default_runtime_params(
     case 'qei_source':
       return qei_source.RuntimeParams()
     case 'ohmic_heat_source':
-      return source_models_lib.OhmicRuntimeParams()
+      return ohmic_heat_source.OhmicRuntimeParams()
     case 'bremsstrahlung_heat_sink':
       return bremsstrahlung_heat_sink.RuntimeParams()
     case _:
@@ -83,7 +84,7 @@ def get_source_type(source_name: str) -> type[source.Source]:
     case 'qei_source':
       return qei_source.QeiSource
     case 'ohmic_heat_source':
-      return source_models_lib.OhmicHeatSource
+      return ohmic_heat_source.OhmicHeatSource
     case 'bremsstrahlung_heat_sink':
       return bremsstrahlung_heat_sink.BremsstrahlungHeatSink
     case _:
@@ -173,7 +174,7 @@ def get_source_builder_type(source_name: str) -> Any:
       return qei_source.QeiSourceBuilder
 
     case 'ohmic_heat_source':
-      return source_models_lib.OhmicHeatSourceBuilder
+      return ohmic_heat_source.OhmicHeatSourceBuilder
 
     case 'bremsstrahlung_heat_sink':
       return bremsstrahlung_heat_sink.BremsstrahlungHeatSinkBuilder

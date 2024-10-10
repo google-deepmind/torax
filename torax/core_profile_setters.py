@@ -31,6 +31,7 @@ from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
 from torax.sources import external_current_source
+from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 
@@ -781,7 +782,7 @@ def initial_core_profiles(
   # phibdot calculation.
   psidot = dataclasses.replace(
       psidot,
-      value=source_models_lib.calc_psidot(
+      value=ohmic_heat_source.calc_psidot(
           dynamic_runtime_params_slice,
           geo,
           core_profiles,

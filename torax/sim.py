@@ -48,6 +48,7 @@ from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.spectators import spectator as spectator_lib
@@ -1487,7 +1488,7 @@ def update_psidot(
 
   psidot = dataclasses.replace(
       core_profiles.psidot,
-      value=source_models_lib.calc_psidot(
+      value=ohmic_heat_source.calc_psidot(
           dynamic_runtime_params_slice,
           geo,
           core_profiles,
