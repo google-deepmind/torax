@@ -28,7 +28,7 @@ class ChargeExchangeHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.ChargeExchangeHeatSink,
-        source_class_builder=ion_el_heat_sources.ChargeExchangeHeatSinkBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -43,7 +43,7 @@ class CyclotronRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.CyclotronRadiationHeatSink,
-        source_class_builder=ion_el_heat_sources.CyclotronRadiationHeatSinkBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -58,7 +58,7 @@ class ECRHHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.ECRHHeatSource,
-        source_class_builder=ion_el_heat_sources.ECRHHeatSourceBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -73,7 +73,7 @@ class ICRHHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.ICRHHeatSource,
-        source_class_builder=ion_el_heat_sources.ICRHHeatSourceBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -88,7 +88,7 @@ class LHHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.LHHeatSource,
-        source_class_builder=ion_el_heat_sources.LHHeatSourceBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -103,7 +103,7 @@ class LineRadiationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.LineRadiationHeatSink,
-        source_class_builder=ion_el_heat_sources.LineRadiationHeatSinkBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -118,7 +118,7 @@ class NBIElectronHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.NBIElectronHeatSource,
-        source_class_builder=ion_el_heat_sources.NBIElectronHeatSourceBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -133,7 +133,7 @@ class NBIIonHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.NBIIonHeatSource,
-        source_class_builder=ion_el_heat_sources.NBIIonHeatSourceBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -148,7 +148,7 @@ class RecombinationHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=ion_el_heat_sources.RecombinationHeatSink,
-        source_class_builder=ion_el_heat_sources.RecombinationHeatSinkBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],

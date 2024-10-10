@@ -148,27 +148,15 @@ def _default_formula(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
-
-  # Generic heat source affects temp_ion and temp_el.
-  # affected_core_profiles is removed from __init__ effectively freezing it.
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default=(
-              source.AffectedCoreProfile.TEMP_ION,
-              source.AffectedCoreProfile.TEMP_EL,
-          ),
-      )
-  )
-  # This source always outputs 2 cell profiles.
-  # output_shape_getter is removed from __init__ effectively freezing it.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_ion_el_output_shape,
-  )
   formula: source.SourceProfileFunction = _default_formula
 
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (
+        source.AffectedCoreProfile.TEMP_ION,
+        source.AffectedCoreProfile.TEMP_EL,
+    )
 
-GenericIonElectronHeatSourceBuilder = source.make_source_builder(
-    GenericIonElectronHeatSource, runtime_params_type=RuntimeParams
-)
+  @property
+  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
+    return source.get_ion_el_output_shape

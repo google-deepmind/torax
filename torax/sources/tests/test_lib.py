@@ -34,6 +34,19 @@ from torax.sources import source_models as source_models_lib
 jax.config.update('jax_enable_x64', True)
 
 
+class TestSource(source_lib.Source):
+  """A test source."""
+
+  @property
+  def affected_core_profiles(
+      self,
+  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
+    return (source_lib.AffectedCoreProfile.NE,)
+
+
+TestSourceBuilder = source_lib.make_source_builder(TestSource)
+
+
 class SourceTestCase(parameterized.TestCase):
   """Base test class for sources.
 
@@ -50,7 +63,7 @@ class SourceTestCase(parameterized.TestCase):
   def setUpClass(
       cls,
       source_class: Type[source_lib.Source],
-      source_class_builder: source_lib.SourceBuilderProtocol,
+      runtime_params_class: Type[runtime_params_lib.RuntimeParams],
       unsupported_modes: Sequence[runtime_params_lib.Mode],
       expected_affected_core_profiles: tuple[
           source_lib.AffectedCoreProfile, ...
@@ -58,7 +71,10 @@ class SourceTestCase(parameterized.TestCase):
   ):
     super().setUpClass()
     cls._source_class = source_class
-    cls._source_class_builder = source_class_builder
+    cls._source_class_builder = source_lib.make_source_builder(
+        source_type=source_class,
+        runtime_params_type=runtime_params_class,
+    )
     cls._unsupported_modes = unsupported_modes
     cls._expected_affected_core_profiles = expected_affected_core_profiles
 
