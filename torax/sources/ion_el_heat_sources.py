@@ -100,17 +100,3 @@ class RecombinationHeatSink(source.Source):
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.TEMP_EL,
   )
-
-ChargeExchangeHeatSinkBuilder = source.make_source_builder(
-    ChargeExchangeHeatSink
-)
-CyclotronRadiationHeatSinkBuilder = source.make_source_builder(
-    CyclotronRadiationHeatSink
-)
-ECRHHeatSourceBuilder = source.make_source_builder(ECRHHeatSource)
-ICRHHeatSourceBuilder = source.make_source_builder(ICRHHeatSource)
-LHHeatSourceBuilder = source.make_source_builder(LHHeatSource)
-LineRadiationHeatSinkBuilder = source.make_source_builder(LineRadiationHeatSink)
-NBIElectronHeatSourceBuilder = source.make_source_builder(NBIElectronHeatSource)
-NBIIonHeatSourceBuilder = source.make_source_builder(NBIIonHeatSource)
-RecombinationHeatSinkBuilder = source.make_source_builder(RecombinationHeatSink)

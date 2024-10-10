@@ -31,7 +31,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=external_current_source.ExternalCurrentSource,
-        source_class_builder=external_current_source.ExternalCurrentSourceBuilder,
+        runtime_params_class=external_current_source.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
@@ -40,7 +40,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
 
   def test_source_value(self):
     """Tests that a formula-based source provides values."""
-    source_builder = external_current_source.ExternalCurrentSourceBuilder()
+    source_builder = self._source_class_builder()
     source = source_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     # Must be circular for jext_hires call.
@@ -74,7 +74,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
   def test_invalid_source_types_raise_errors(self):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
-    source_builder = external_current_source.ExternalCurrentSourceBuilder()
+    source_builder = self._source_class_builder()
     source = source_builder()
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
@@ -98,7 +98,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
   def test_profile_is_on_face_grid(self):
     """Tests that the profile is given on the face grid."""
     geo = geometry.build_circular_geometry()
-    source_builder = external_current_source.ExternalCurrentSourceBuilder()
+    source_builder = self._source_class_builder()
     source = source_builder()
     self.assertEqual(
         source.output_shape_getter(geo),

@@ -28,7 +28,7 @@ class ECRHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=cds.ECRHCurrentSource,
-        source_class_builder=cds.ECRHCurrentSourceBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -43,7 +43,7 @@ class ICRHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=cds.ICRHCurrentSource,
-        source_class_builder=cds.ICRHCurrentSourceBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -58,7 +58,7 @@ class LHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=cds.LHCurrentSource,
-        source_class_builder=cds.LHCurrentSourceBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],
@@ -73,7 +73,7 @@ class NBICurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=cds.NBICurrentSource,
-        source_class_builder=cds.NBICurrentSourceBuilder,
+        runtime_params_class=runtime_params.RuntimeParams,
         unsupported_modes=[
             runtime_params.Mode.MODEL_BASED,
         ],

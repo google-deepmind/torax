@@ -266,8 +266,3 @@ class ExternalCurrentSource(source.Source):
         prescribed_values=hires_prescribed_values,
         source_models=getattr(self, 'source_models', None),
     )
-
-
-ExternalCurrentSourceBuilder = source.make_source_builder(
-    ExternalCurrentSource, runtime_params_type=RuntimeParams
-)

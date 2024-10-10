@@ -50,7 +50,7 @@ class SourceTestCase(parameterized.TestCase):
   def setUpClass(
       cls,
       source_class: Type[source_lib.Source],
-      source_class_builder: source_lib.SourceBuilderProtocol,
+      runtime_params_class: Type[runtime_params_lib.RuntimeParams],
       unsupported_modes: Sequence[runtime_params_lib.Mode],
       expected_affected_core_profiles: tuple[
           source_lib.AffectedCoreProfile, ...
@@ -58,7 +58,10 @@ class SourceTestCase(parameterized.TestCase):
   ):
     super().setUpClass()
     cls._source_class = source_class
-    cls._source_class_builder = source_class_builder
+    cls._source_class_builder = source_lib.make_source_builder(
+        source_type=source_class,
+        runtime_params_type=runtime_params_class,
+    )
     cls._unsupported_modes = unsupported_modes
     cls._expected_affected_core_profiles = expected_affected_core_profiles
 
