@@ -34,7 +34,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=qei_source.QeiSource,
-        source_class_builder=qei_source.QeiSourceBuilder,
+        runtime_params_class=qei_source.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
@@ -46,7 +46,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
 
   def test_source_value(self):
     """Checks that the default implementation from Sources gives values."""
-    source_builder = qei_source.QeiSourceBuilder()
+    source_builder = self._source_class_builder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'qei_source': source_builder}
     )
@@ -80,7 +80,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     self.assertIsNotNone(qei)
 
   def test_invalid_source_types_raise_errors(self):
-    source_builder = qei_source.QeiSourceBuilder()
+    source_builder = self._source_class_builder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'qei_source': source_builder}
     )

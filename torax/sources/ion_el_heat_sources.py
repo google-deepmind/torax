@@ -28,89 +28,82 @@ from torax.sources import source
 # implementation. We define new classes here to:
 #  a) support any future source-specific implementation.
 #  b) better readability and human-friendly error messages when debugging.
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ChargeExchangeHeatSink(source.Source):
   """Charge exchange loss term for the ion temp equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_ION,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_ION,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation loss term for the electron temp equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_EL,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_EL,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ECRHHeatSource(source.Source):
   """ECRH heat source for the electron temp equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_EL,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_EL,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ICRHHeatSource(source.Source):
   """ICRH heat source for the ion temp equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_ION,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_ION,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class LHHeatSource(source.Source):
   """LH heat source for the electron temp equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_EL,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_EL,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class LineRadiationHeatSink(source.Source):
   """Line radiation loss sink for the electron temp equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_EL,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_EL,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class NBIElectronHeatSource(source.Source):
   """NBI heat source for the electron temp equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_EL,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_EL,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class NBIIonHeatSource(source.Source):
   """NBI heat source for the ion temp equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_ION,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_ION,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class RecombinationHeatSink(source.Source):
   """Recombination loss sink for the electron temp equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_EL,
-  )
 
-ChargeExchangeHeatSinkBuilder = source.make_source_builder(
-    ChargeExchangeHeatSink
-)
-CyclotronRadiationHeatSinkBuilder = source.make_source_builder(
-    CyclotronRadiationHeatSink
-)
-ECRHHeatSourceBuilder = source.make_source_builder(ECRHHeatSource)
-ICRHHeatSourceBuilder = source.make_source_builder(ICRHHeatSource)
-LHHeatSourceBuilder = source.make_source_builder(LHHeatSource)
-LineRadiationHeatSinkBuilder = source.make_source_builder(LineRadiationHeatSink)
-NBIElectronHeatSourceBuilder = source.make_source_builder(NBIElectronHeatSource)
-NBIIonHeatSourceBuilder = source.make_source_builder(NBIIonHeatSource)
-RecombinationHeatSinkBuilder = source.make_source_builder(RecombinationHeatSink)
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_EL,)
