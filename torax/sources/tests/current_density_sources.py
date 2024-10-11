@@ -15,25 +15,11 @@
 """Tests for current_density_sources."""
 
 from absl.testing import absltest
+
 from torax.sources import current_density_sources as cds
 from torax.sources import runtime_params
 from torax.sources import source
 from torax.sources.tests import test_lib
-
-
-class ECRHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
-  """Tests for ECRHCurrentSource."""
-
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=cds.ECRHCurrentSource,
-        source_class_builder=cds.ECRHCurrentSourceBuilder,
-        unsupported_modes=[
-            runtime_params.Mode.MODEL_BASED,
-        ],
-        expected_affected_core_profiles=(source.AffectedCoreProfile.PSI,),
-    )
 
 
 class ICRHCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
