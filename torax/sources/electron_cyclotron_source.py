@@ -93,9 +93,9 @@ def _calc_heating_and_current(
         jnp.log(2 * jnp.pi / geo.Rmaj) * 2 * jnp.log(CONSTANTS.epsilon0)
         - 3 * jnp.log(CONSTANTS.qe)
         + jnp.log(geo.F)  # BxR
-        + jnp.log(core_profiles.Te)
+        + jnp.log(core_profiles.temp_el.value)
         + jnp.log(CONSTANTS.keV2J)  # Convert Te to J
-        - jnp.log(core_profiles.ne)
+        - jnp.log(core_profiles.ne.value)
         - jnp.log(dynamic_runtime_params_slice.numerics.nref)  # Convert ne to m^-3
         + jnp.log(dynamic_source_runtime_params.cd_efficiency)
         + jnp.log(dynamic_source_runtime_params.ec_power_density)
