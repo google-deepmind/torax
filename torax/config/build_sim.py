@@ -219,6 +219,12 @@ def build_sim_from_config(
     )
   runtime_params = build_runtime_params_from_config(config['runtime_params'])
   geo_provider = build_geometry_provider_from_config(config['geometry'])
+
+  if 'restart' in config:
+    file_restart = runtime_params_lib.FileRestart(**config['restart'])
+  else:
+    file_restart = None
+
   return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
@@ -232,6 +238,7 @@ def build_sim_from_config(
       time_step_calculator=build_time_step_calculator_from_config(
           config['time_step_calculator']
       ),
+      file_restart=file_restart,
   )
 
 
@@ -482,7 +489,7 @@ def build_transport_model_builder_from_config(
     if 'model_path' in qlknn_params:
       model_path = qlknn_params.pop('model_path')
     else:
-      model_path = ''
+      model_path = qlknn_wrapper.get_default_model_path()
     qlknn_params.update(transport_config)
     # Remove params from the other models, if present.
     qlknn_params.pop('constant_params', None)
@@ -490,7 +497,9 @@ def build_transport_model_builder_from_config(
     qlknn_params.pop('bohm-gyrobohm_params', None)
     return qlknn_wrapper.QLKNNTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
-            qlknn_wrapper.RuntimeParams(),
+            qlknn_wrapper.get_default_runtime_params_from_model_path(
+                model_path
+            ),
             **qlknn_params,
         ),
         model_path=model_path,

@@ -53,10 +53,23 @@ def get_default_model_path() -> str:
   return os.environ.get(MODEL_PATH_ENV_VAR, DEFAULT_MODEL_PATH)
 
 
+def get_default_runtime_params_from_model_path(
+    model_path: str,
+) -> RuntimeParams:
+  """Returns default runtime params for the model version given the path."""
+  version = _get_model(model_path).version
+  if version == '10D':
+    return RuntimeParams()
+  else:
+    raise ValueError(f'Unknown model version: {version}')
+
+
 # pylint: disable=invalid-name
 @chex.dataclass
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Extends the base runtime params with additional params for this model.
+
+  These are the default values for the QLKNN10D model.
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
@@ -348,10 +361,14 @@ def _default_qlknn_builder(model_path: str) -> QLKNNTransportModel:
 class QLKNNTransportModelBuilder(transport_model.TransportModelBuilder):
   """Builds a class QLKNNTransportModel."""
 
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-  model_path: str | None = None
+  runtime_params: RuntimeParams | None = None
+  model_path: str = dataclasses.field(default_factory=get_default_model_path)
+
+  def __post_init__(self):
+    if self.runtime_params is None:
+      self.runtime_params = get_default_runtime_params_from_model_path(
+          self.model_path
+      )
 
   _builder: Callable[
       [str],
@@ -361,6 +378,4 @@ class QLKNNTransportModelBuilder(transport_model.TransportModelBuilder):
   def __call__(
       self,
   ) -> QLKNNTransportModel:
-    if not self.model_path:
-      self.model_path = get_default_model_path()
     return self._builder(self.model_path)

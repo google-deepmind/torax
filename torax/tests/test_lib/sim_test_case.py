@@ -39,7 +39,6 @@ from torax.tests.test_lib import paths
 from torax.time_step_calculator import array_time_step_calculator
 from torax.transport_model import runtime_params as transport_params_lib
 from torax.transport_model import transport_model as transport_model_lib
-import xarray as xr
 
 PYTHON_MODULE_PREFIX = '.tests.test_data.'
 PYTHON_CONFIG_PACKAGE = 'torax'
@@ -104,7 +103,7 @@ class SimTestCase(parameterized.TestCase):
     """Gets reference values for the requested state profiles."""
     expected_results_path = self._expected_results_path(ref_name)
     self.assertTrue(os.path.exists(expected_results_path))
-    ds = xr.open_dataset(expected_results_path)
+    ds = output.safe_load_dataset(expected_results_path)
     self.assertNotEmpty(profiles)
     ref_profiles = {profile: ds[profile].to_numpy() for profile in profiles}
     if 'time' in ds:
@@ -286,7 +285,7 @@ class SimTestCase(parameterized.TestCase):
 
     # Extract core profiles history for analysis against references
     history = output.StateHistory(sim_outputs)
-    ds = history.simulation_output_to_xr(geo)
+    ds = history.simulation_output_to_xr(geo, sim.file_restart)
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
 
     self._check_profiles_vs_expected(

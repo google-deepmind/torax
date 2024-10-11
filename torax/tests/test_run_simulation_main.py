@@ -35,6 +35,7 @@ from absl.testing import absltest
 from absl.testing import flagsaver
 from absl.testing import parameterized
 import numpy as np
+from torax import output as output_lib
 import torax
 # run_simulation_main.py is in the repo root, which is the parent directory
 # of the actual module
@@ -50,7 +51,6 @@ finally:
  del sys.path[-1]
 from torax import simulation_app
 from torax.tests.test_lib import paths
-import xarray as xr
 
 
 class RunSimulationMainTest(parameterized.TestCase):
@@ -212,8 +212,8 @@ class RunSimulationMainTest(parameterized.TestCase):
     ground_truth_after = after[: -len(".py")] + ".nc"
 
     def check(output_path, ground_truth_path):
-      output = xr.open_dataset(output_path)
-      ground_truth = xr.open_dataset(ground_truth_path)
+      output = output_lib.safe_load_dataset(output_path)
+      ground_truth = output_lib.safe_load_dataset(ground_truth_path)
 
       for key in output:
         self.assertIn(key, ground_truth)

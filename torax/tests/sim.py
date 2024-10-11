@@ -22,6 +22,7 @@ from typing import Optional, Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import numpy as np
 import torax
 from torax import output
@@ -643,6 +644,54 @@ class SimTest(sim_test_case.SimTestCase):
         state_history.times[-1]
         < config_module.CONFIG['runtime_params']['numerics']['t_final']
     )
+
+  def test_restart_sim_from_file(self):
+    test_config_state_file = 'test_iterhybrid_rampup.nc'
+    restart_config = 'test_iterhybrid_rampup_restart.py'
+    sim = self._get_sim(restart_config)
+    profiles = [
+        output.TEMP_ION,
+        output.TEMP_ION_RIGHT_BC,
+        output.TEMP_EL,
+        output.TEMP_EL_RIGHT_BC,
+        output.NE,
+        output.NI,
+        output.NE_RIGHT_BC,
+        output.NI_RIGHT_BC,
+        output.PSI,
+        output.PSIDOT,
+        output.IP,
+        output.NREF,
+        output.Q_FACE,
+        output.S_FACE,
+        output.J_BOOTSTRAP,
+        output.JOHM,
+        output.CORE_PROFILES_JEXT,
+        output.JTOT,
+        output.JTOT_FACE,
+        output.JEXT_FACE,
+        output.JOHM_FACE,
+        output.J_BOOTSTRAP_FACE,
+        output.I_BOOTSTRAP,
+        output.SIGMA,
+    ]
+    ref_profiles, ref_times = self._get_refs(
+        test_config_state_file, profiles=profiles
+    )
+
+    sim_outputs = sim.run()
+    history = output.StateHistory(sim_outputs)
+    ref_idx_offset = np.where(ref_times == history.times[0])
+
+    for i in range(len(history.times)):
+      core_profile_t = jax.tree.map(
+          lambda x, idx=i: x[idx], history.core_profiles
+      )
+      verify_core_profiles(
+          ref_profiles,
+          i + ref_idx_offset[0][0],
+          core_profile_t,
+      )
 
 
 def verify_core_profiles(ref_profiles, index, core_profiles):

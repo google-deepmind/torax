@@ -296,7 +296,7 @@ def main(
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
   state_history = output.StateHistory(sim_outputs)
 
-  ds = state_history.simulation_output_to_xr(geo)
+  ds = state_history.simulation_output_to_xr(geo, sim.file_restart)
 
   output_file = write_simulation_output_to_file(output_dir, ds)
 
