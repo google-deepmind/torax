@@ -26,7 +26,6 @@ from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
 from typing_extensions import override
-import xarray as xr
 
 
 # pylint: disable=invalid-name
@@ -39,16 +38,12 @@ class ProfileConditions(
   # total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data
-  Ip: interpolated_param.TimeInterpolated = 15.0
+  Ip: interpolated_param.TimeInterpolatedInput = 15.0
 
   # Temperature boundary conditions at r=Rmin. If this is `None` the boundary
   # condition will instead be taken from `Ti` and `Te` at rhon=1.
-  Ti_bound_right: interpolated_param.TimeInterpolated | None = (
-      None
-  )
-  Te_bound_right: interpolated_param.TimeInterpolated | None = (
-      None
-  )
+  Ti_bound_right: interpolated_param.TimeInterpolatedInput | None = None
+  Te_bound_right: interpolated_param.TimeInterpolatedInput | None = None
   # Prescribed or evolving values for temperature at different times.
   Ti: interpolated_param.InterpolatedVarTimeRhoInput = dataclasses.field(
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}
@@ -74,7 +69,7 @@ class ProfileConditions(
   # In units of reference density if ne_is_fGW = False.
   # In Greenwald fraction if ne_is_fGW = True.
   # nGW = Ip/(pi*a^2) with a in m, nGW in 10^20 m-3, Ip in MA
-  nbar: interpolated_param.TimeInterpolated = 0.85
+  nbar: interpolated_param.TimeInterpolatedInput = 0.85
   # Toggle units of nbar
   ne_is_fGW: bool = True
 
@@ -86,26 +81,24 @@ class ProfileConditions(
   # be set to `False` and `ne_bound_right_is_fGW` will be set to `ne_is_fGW`.
   # If `ne_bound_right` is not `None` then `ne_bound_right_is_absolute` will be
   # set to `True`.
-  ne_bound_right: interpolated_param.TimeInterpolated | None = (
-      None
-  )
+  ne_bound_right: interpolated_param.TimeInterpolatedInput | None = None
   ne_bound_right_is_fGW: bool = False
   ne_bound_right_is_absolute: bool = False
 
   # Internal boundary condition (pedestal)
   # Do not set internal boundary condition if this is False
-  set_pedestal: interpolated_param.TimeInterpolated = True
+  set_pedestal: interpolated_param.TimeInterpolatedInput = True
   # ion pedestal top temperature in keV
-  Tiped: interpolated_param.TimeInterpolated = 5.0
+  Tiped: interpolated_param.TimeInterpolatedInput = 5.0
   # electron pedestal top temperature in keV
-  Teped: interpolated_param.TimeInterpolated = 5.0
+  Teped: interpolated_param.TimeInterpolatedInput = 5.0
   # pedestal top electron density
   # In units of reference density if neped_is_fGW = False.
   # In Greenwald fraction if neped_is_fGW = True.
-  neped: interpolated_param.TimeInterpolated = 0.7
+  neped: interpolated_param.TimeInterpolatedInput = 0.7
   neped_is_fGW: bool = False
   # Set ped top location.
-  Ped_top: interpolated_param.TimeInterpolated = 0.91
+  Ped_top: interpolated_param.TimeInterpolatedInput = 0.91
 
   # current profiles (broad "Ohmic" + localized "external" currents)
   # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
@@ -129,39 +122,8 @@ class ProfileConditions(
         f' profile for {value_name} must include a rho=1.0 boundary'
         ' condition.'
     )
-    match values:
-      # In case of constant profile case expect an explicit boundary condition.
-      case float():
-        raise ValueError(error_message)
-      # In case of constant profile case expect an explicit boundary condition.
-      case int():
-        raise ValueError(error_message)
-      case dict():
-        # Initial condition dict shortcut.
-        if all(isinstance(v, float) for v in values.values()):
-          if 1.0 not in values:
-            raise ValueError(error_message)
-        else:
-          # Check for all times that the boundary condition is defined.
-          for _, value in values.items():
-            if 1.0 not in value:
-              raise ValueError(error_message)
-      case xr.DataArray():
-        if 1.0 not in values.coords[config_args.RHO_NORM]:
-          raise ValueError(error_message)
-      # Arrays case.
-      case _:
-        if not isinstance(values, tuple):
-          raise ValueError(f'Cannot identify a valid way to map {values}.')
-        # Initial condition array shortcut.
-        if len(values) == 2:
-          rho_norm, _ = values
-        elif len(values) == 3:
-          _, rho_norm, _ = values
-        else:
-          raise ValueError('Only array tuples of length 2 or 3 are supported.')
-        if 1.0 not in rho_norm:
-          raise ValueError(error_message)
+    if not interpolated_param.rhonorm1_defined_in_timerhoinput(values):
+      raise ValueError(error_message)
 
   def __post_init__(self):
     if self.Ti_bound_right is None:
@@ -182,7 +144,8 @@ class ProfileConditions(
 
   @override
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None,
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
   ) -> ProfileConditionsProvider:
     provider_kwargs = self.get_provider_kwargs(torax_mesh)
     if torax_mesh is None:

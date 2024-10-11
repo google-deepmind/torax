@@ -144,7 +144,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
       ),
   ])
   def test_face_grad_constraints(
-      self, seed: int, references_getter: Callable[[], torax_refs.References],
+      self,
+      seed: int,
+      references_getter: Callable[[], torax_refs.References],
   ):
     """Test that CellVariable.face_grad solves constrained problems."""
     references = references_getter()
@@ -171,9 +173,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     left_value = dataclasses.replace(  # pytype: disable=wrong-arg-types  # dataclasses-replace-types
         variable, left_face_constraint=1.0, left_face_grad_constraint=None
     )
-    self.assertEqual(
-        left_value.face_grad()[0], -1.0 / (0.5 * geo.drho)
-    )
+    self.assertEqual(left_value.face_grad()[0], -1.0 / (0.5 * geo.drho))
 
     # Left side, face grad constraint
     left_grad = dataclasses.replace(  # pytype: disable=wrong-arg-types  # dataclasses-replace-types
@@ -187,9 +187,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_constraint=2.0,
         right_face_grad_constraint=None,
     )
-    self.assertEqual(
-        right_value.face_grad()[-1], 1.0 / (0.5 * geo.drho)
-    )
+    self.assertEqual(right_value.face_grad()[-1], 1.0 / (0.5 * geo.drho))
 
     # Right side, face grad constraint
     right_grad = dataclasses.replace(  # pytype: disable=wrong-arg-types  # dataclasses-replace-types
@@ -198,6 +196,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_grad_constraint=1.0,
     )
     self.assertEqual(right_grad.face_grad()[-1], 1.0)
+
+    # Check if face_value at right edge consistent with the grad constraint
+    expected_edge_face_value = (
+        right_grad.value[-1]
+        + 0.5 * geo.drho * right_grad.right_face_grad_constraint
+    )
+    self.assertEqual(right_grad.face_value()[-1], expected_edge_face_value)
 
   @parameterized.parameters([
       dict(num_cells=2, theta_imp=0, time_steps=29),

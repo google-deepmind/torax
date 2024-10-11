@@ -34,6 +34,7 @@ from torax.sources import source_models
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool = False
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
       self,
@@ -62,7 +63,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 def calc_bremsstrahlung(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
-    Zeff: float,
+    Zeff_face: chex.Array,
     nref: float,
     use_relativistic_correction: bool = False,
 ) -> tuple[chex.Array, chex.Array]:
@@ -75,7 +76,7 @@ def calc_bremsstrahlung(
   Args:
       core_profiles (state.CoreProfiles): core plasma profiles.
       geo (geometry.Geometry): geometry object.
-      Zeff (float): effective charge number.
+      Zeff_face (float): effective charge number on face grid.
       nref (float): reference density.
       use_relativistic_correction (bool, optional): Set to true to include the
         relativistic correction from Stott. Defaults to False.
@@ -89,14 +90,14 @@ def calc_bremsstrahlung(
   Te_kev = core_profiles.temp_el.face_value()
 
   P_brem_profile_face: jax.Array = (
-      5.35e-3 * Zeff * ne20**2 * jnp.sqrt(Te_kev)
+      5.35e-3 * Zeff_face * ne20**2 * jnp.sqrt(Te_kev)
   )  # MW/m^3
 
   def calc_relativistic_correction() -> jax.Array:
     # Apply the Stott relativistic correction.
     Tm = 511.0  # m_e * c**2 in keV
     correction = (1.0 + 2.0 * Te_kev / Tm) * (
-        1.0 + (2.0 / Zeff) * (1.0 - 1.0 / (1.0 + Te_kev / Tm))
+        1.0 + (2.0 / Zeff_face) * (1.0 - 1.0 / (1.0 + Te_kev / Tm))
     )
     return correction
 
@@ -129,7 +130,7 @@ def bremsstrahlung_model_func(
   _, P_brem_profile = calc_bremsstrahlung(
       core_profiles,
       geo,
-      dynamic_runtime_params_slice.plasma_composition.Zeff,
+      dynamic_runtime_params_slice.plasma_composition.Zeff_face,
       dynamic_runtime_params_slice.numerics.nref,
       use_relativistic_correction=dynamic_source_runtime_params.use_relativistic_correction,
   )
@@ -138,16 +139,17 @@ def bremsstrahlung_model_func(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class BremsstrahlungHeatSink(source.SingleProfileTempElSource):
+class BremsstrahlungHeatSink(source.Source):
   """Fusion heat source for both ion and electron heat."""
-
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
       runtime_params_lib.Mode.PRESCRIBED,
   )
-
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_EL,
+  )
 
 
 BremsstrahlungHeatSinkBuilder = source.make_source_builder(

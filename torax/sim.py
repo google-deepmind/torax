@@ -42,11 +42,13 @@ from torax import geometry_provider as geometry_provider_lib
 from torax import jax_utils
 from torax import output
 from torax import physics
+from torax import post_processing
 from torax import state
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.spectators import spectator as spectator_lib
@@ -67,6 +69,22 @@ def _log_timestep(
       dt,
       outer_stepper_iterations,
   )
+
+
+def _log_sim_error(sim_error: state.SimError) -> None:
+  """Logs simulation error."""
+  if sim_error == state.SimError.NAN_DETECTED:
+    logging.error("""
+        Simulation stopped due to NaNs in core profiles.
+        Possible cause is negative temperatures or densities.
+        Output file contains all profiles up to the last valid step.
+        """)
+  elif sim_error == state.SimError.QUASINEUTRALITY_BROKEN:
+    logging.error("""
+        Simulation stopped due to quasineutrality being violated.
+        Possible cause is bad handling of impurity species.
+        Output file contains all profiles up to the last valid step.
+        """)
 
 
 def get_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -129,15 +147,12 @@ class CoeffsCallback:
     # update ion density in core_profiles if ne is being evolved.
     # Necessary for consistency in iterative nonlinear solutions
     if 'ne' in self.evolving_names:
-      ni = dataclasses.replace(
-          core_profiles.ni,
-          value=core_profiles.ne.value
-          * physics.get_main_ion_dilution_factor(
-              dynamic_runtime_params_slice.plasma_composition.Zimp,
-              dynamic_runtime_params_slice.plasma_composition.Zeff,
-          ),
+      ni, nimp = core_profile_setters._updated_ion_density(
+          dynamic_runtime_params_slice,
+          geo,
+          core_profiles.ne,
       )
-      core_profiles = dataclasses.replace(core_profiles, ni=ni)
+      core_profiles = dataclasses.replace(core_profiles, ni=ni, nimp=nimp)
 
     if allow_pereverzev:
       use_pereverzev = self.static_runtime_params_slice.stepper.use_pereverzev
@@ -246,7 +261,6 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state.ToraxSimState:
     """Advances the simulation state one time step.
 
@@ -267,8 +281,6 @@ class SimulationStepFn:
         (in order to support time-dependent geometries).
       input_state: State at the start of the time step, including the core
         profiles which are being evolved.
-      explicit_source_profiles: Explicit source profiles computed based on the
-        core profiles at the start of the time step.
 
     Returns:
       ToraxSimState containing:
@@ -288,6 +300,26 @@ class SimulationStepFn:
             dynamic_runtime_params_slice_provider,
             geometry_provider,
         )
+    )
+
+    # This only computes sources set to explicit in the
+    # DynamicSourceConfigSlice. All implicit sources will have their profiles
+    # set to 0.
+    explicit_source_profiles = source_models_lib.build_source_profiles(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
+        geo=geo_t,
+        core_profiles=input_state.core_profiles,
+        source_models=self.stepper.source_models,
+        explicit=True,
+    )
+
+    # The previous time step's state has an incomplete set of source profiles
+    # which was computed based on the previous time step's "guess" of the core
+    # profiles at this time step's t. We can merge those "implicit" source
+    # profiles with the explicit ones computed here.
+    input_state.core_sources = merge_source_profiles(
+        explicit_source_profiles=explicit_source_profiles,
+        implicit_source_profiles=input_state.core_sources,
     )
 
     dt, time_step_calculator_state = self.init_time_step_calculator(
@@ -472,12 +504,16 @@ class SimulationStepFn:
     )
     stepper_numeric_outputs.outer_stepper_iterations = 1
 
+    # post_processed_outputs set to zero since post-processing is done at the
+    # end of the simulation step following recalculation of explicit
+    # core_sources to be consistent with the final core_profiles.
     return state.ToraxSimState(
         t=input_state.t + dt,
         dt=dt,
         core_profiles=core_profiles,
         core_transport=core_transport,
         core_sources=core_sources,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(geo_t_plus_dt),
         time_step_calculator_state=time_step_calculator_state,
         stepper_numeric_outputs=stepper_numeric_outputs,
     )
@@ -665,15 +701,18 @@ class SimulationStepFn:
         geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
     )
+    output_state = post_processing.make_outputs(output_state, geo_t_plus_dt)
 
     return output_state
 
 
 def get_initial_state(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
     time_step_calculator: ts.TimeStepCalculator,
+    step_fn: SimulationStepFn,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = core_profile_setters.initial_core_profiles(
@@ -681,19 +720,25 @@ def get_initial_state(
       geo,
       source_models,
   )
+  # Populate the starting state with source profiles from the implicit sources
+  # before starting the run-loop. The explicit source profiles will be computed
+  # inside the loop and will be merged with these implicit source profiles.
+  initial_core_sources = get_initial_source_profiles(
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      geo=geo,
+      core_profiles=initial_core_profiles,
+      source_models=step_fn.stepper.source_models,
+  )
+
   return state.ToraxSimState(
       t=jnp.array(dynamic_runtime_params_slice.numerics.t_initial),
       dt=jnp.zeros(()),
       core_profiles=initial_core_profiles,
       # This will be overridden within run_simulation().
-      core_sources=source_profiles_lib.SourceProfiles(
-          profiles={},
-          j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-              geo
-          ),
-          qei=source_profiles_lib.QeiInfo.zeros(geo),
-      ),
+      core_sources=initial_core_sources,
       core_transport=state.CoreTransport.zeros(geo),
+      post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
       time_step_calculator_state=time_step_calculator.initial_state(),
       stepper_numeric_outputs=state.StepperNumericOutputs(
           stepper_error_state=0,
@@ -725,9 +770,7 @@ class Sim:
       initial_state: state.ToraxSimState,
       time_step_calculator: ts.TimeStepCalculator,
       source_models_builder: source_models_lib.SourceModelsBuilder,
-      transport_model: transport_model_lib.TransportModel | None = None,
-      stepper: stepper_lib.Stepper | None = None,
-      step_fn: SimulationStepFn | None = None,
+      step_fn: SimulationStepFn,
       file_restart: general_runtime_params.FileRestart | None = None,
   ):
     self._static_runtime_params_slice = static_runtime_params_slice
@@ -738,29 +781,8 @@ class Sim:
     self._initial_state = initial_state
     self._time_step_calculator = time_step_calculator
     self.source_models_builder = source_models_builder
-    if step_fn is None:
-      if stepper is None or transport_model is None:
-        raise ValueError(
-            'If step_fn is None, must provide both stepper and transport_model.'
-        )
-      self._stepper = stepper
-      self._transport_model = transport_model
-    else:
-      ignored_params = [
-          name
-          for param, name in [
-              (stepper, 'stepper'),
-              (transport_model, 'transport_model'),
-          ]
-          if param is not None
-      ]
-      if ignored_params:
-        logging.warning(
-            'step_fn is not None, so the following parameters are ignored: %s',
-            ignored_params,
-        )
-      self._stepper = step_fn.stepper
-      self._transport_model = step_fn.transport_model
+    self._stepper = step_fn.stepper
+    self._transport_model = step_fn.transport_model
     self._step_fn = step_fn
     self._file_restart = file_restart
 
@@ -793,7 +815,7 @@ class Sim:
     return self._static_runtime_params_slice
 
   @property
-  def step_fn(self) -> SimulationStepFn | None:
+  def step_fn(self) -> SimulationStepFn:
     return self._step_fn
 
   @property
@@ -863,7 +885,7 @@ def override_initial_runtime_params_from_file(
   """Override parts of runtime params slice from state in a file."""
   if file_restart.do_restart:
     # pylint: disable=invalid-name
-    ds = output.load_state_file(file_restart.filename,)
+    ds = output.load_state_file(file_restart.filename)
     # Remap coordinates in saved file to be consistent with expectations of
     # how config_args parses xarrays.
     ds = ds.rename({output.RHO_CELL_NORM: config_args.RHO_NORM})
@@ -992,11 +1014,19 @@ def build_sim_object(
         )
     )
 
+  step_fn = SimulationStepFn(
+      stepper=stepper,
+      time_step_calculator=time_step_calculator,
+      transport_model=transport_model,
+  )
+
   initial_state = get_initial_state(
+      static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
       geo=geo_for_init,
       source_models=stepper.source_models,
       time_step_calculator=time_step_calculator,
+      step_fn=step_fn,
   )
 
   return Sim(
@@ -1005,8 +1035,7 @@ def build_sim_object(
       geometry_provider=geometry_provider,
       initial_state=initial_state,
       time_step_calculator=time_step_calculator,
-      transport_model=transport_model,
-      stepper=stepper,
+      step_fn=step_fn,
       source_models_builder=source_models_builder,
       file_restart=file_restart,
   )
@@ -1087,26 +1116,13 @@ def run_simulation(
 
   running_main_loop_start_time = time.time()
   wall_clock_step_times = []
-  sim_history = [
-      initial_state,
-  ]
+
   dynamic_runtime_params_slice, geo = (
       get_consistent_dynamic_runtime_params_slice_and_geometry(
           initial_state.t,
           dynamic_runtime_params_slice_provider,
           geometry_provider,
       )
-  )
-
-  # Populate the starting state with source profiles from the implicit sources
-  # before starting the run-loop. The explicit source profiles will be computed
-  # inside the loop and will be merged with these implicit source profiles.
-  initial_state.core_sources = get_initial_source_profiles(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      core_profiles=initial_state.core_profiles,
-      source_models=step_fn.stepper.source_models,
   )
   if spectator is not None:
     # Because of the updates we apply to the core sources during the next
@@ -1117,12 +1133,16 @@ def run_simulation(
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
   # the appropriate error code.
-  sim_error = output.SimError.NO_ERROR
-  # Keep advancing the simulation until the time_step_calculator tells us we are
-  # done.
+  sim_error = state.SimError.NO_ERROR
+
+  # Initialize first_step, used to post-process and append the initial state to
+  # the sim_history.
+  first_step = True
+  sim_history = []
+  # Advance the simulation until the time_step_calculator tells us we are done.
   while time_step_calculator.not_done(
       sim_state.t,
-      dynamic_runtime_params_slice,
+      dynamic_runtime_params_slice.numerics.t_final,
       sim_state.time_step_calculator_state,
   ):
     # Measure how long in wall clock time each simulation step takes.
@@ -1144,28 +1164,6 @@ def run_simulation(
           logging.info(
               'Solver converged only within coarse tolerance in previous step.'
           )
-
-    # This only computes sources set to explicit in the
-    # DynamicSourceConfigSlice. All implicit sources will have their profiles
-    # set to 0.
-    explicit_source_profiles = source_models_lib.build_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        core_profiles=sim_state.core_profiles,
-        source_models=step_fn.stepper.source_models,
-        explicit=True,
-    )
-
-    # The previous time step's state has an incomplete set of source profiles
-    # which was computed based on the previous time step's "guess" of the core
-    # profiles at this time step's t. We can merge those "implicit" source
-    # profiles with the explicit ones computed here.
-    sim_state.core_sources = merge_source_profiles(
-        explicit_source_profiles=explicit_source_profiles,
-        implicit_source_profiles=sim_state.core_sources,
-        source_models=step_fn.stepper.source_models,
-        qei_core_profiles=sim_state.core_profiles,
-    )
     # Make sure to "spectate" the state after the source profiles  have been
     # merged and updated in the output sim_state.
     if spectator is not None:
@@ -1174,39 +1172,32 @@ def run_simulation(
       spectator.after_step()
       # Now prep the spectator for the following time step.
       spectator.before_step()
+
+    if first_step:
+      # Initialize the sim_history with the initial state.
+      sim_state = post_processing.make_outputs(sim_state, geo)
+      sim_history.append(sim_state)
+      first_step = False
     sim_state = step_fn(
         static_runtime_params_slice,
         dynamic_runtime_params_slice_provider,
         geometry_provider,
         sim_state,
-        explicit_source_profiles,
-    )
-    # Update the runtime config for the next iteration.
-    dynamic_runtime_params_slice, geo = (
-        get_consistent_dynamic_runtime_params_slice_and_geometry(
-            sim_state.t,
-            dynamic_runtime_params_slice_provider,
-            geometry_provider,
-        )
     )
     wall_clock_step_times.append(time.time() - step_start_time)
-    # If the core profiles have NaNs, exit simulation loop early, and output
-    # the truncated simulation history for user inspection.
+
+    # Checks if sim_state is valid. If not, exit simulation early.
     # We don't raise an Exception because we want to return the truncated
-    # simulation history to the user, and not directly exit the function early.
-    if not sim_state.core_profiles.has_nans():
-      sim_history.append(sim_state)
-    else:
-      logging.error("""
-          Simulation stopped due to NaNs in core profiles.
-          Possible cause is negative temperatures or densities.
-          Output file contains all profiles up to the last valid step.
-          """)
-      sim_error = output.SimError.NAN_DETECTED
+    # simulation history to the user for inspection.
+    sim_error = sim_state.check_for_errors()
+    if sim_error != state.SimError.NO_ERROR:
+      _log_sim_error(sim_error)
       break
+    else:
+      sim_history.append(sim_state)
 
   # Log final timestep
-  if log_timestep_info and sim_error == output.SimError.NO_ERROR:
+  if log_timestep_info and sim_error == state.SimError.NO_ERROR:
     # The "sim_state" here has been updated by the loop above.
     _log_timestep(
         sim_state.t,
@@ -1227,8 +1218,6 @@ def run_simulation(
   sim_state.core_sources = merge_source_profiles(
       explicit_source_profiles=explicit_source_profiles,
       implicit_source_profiles=sim_state.core_sources,
-      source_models=step_fn.stepper.source_models,
-      qei_core_profiles=sim_state.core_profiles,
   )
   if spectator is not None:
     # Complete the last time step.
@@ -1499,7 +1488,7 @@ def update_psidot(
 
   psidot = dataclasses.replace(
       core_profiles.psidot,
-      value=source_models_lib.calc_psidot(
+      value=ohmic_heat_source.calc_psidot(
           dynamic_runtime_params_slice,
           geo,
           core_profiles,
@@ -1556,8 +1545,19 @@ def provide_core_profiles_t_plus_dt(
       value=updated_values['ni'],
       **updated_boundary_conditions['ni'],
   )
+  nimp = dataclasses.replace(
+      core_profiles_t.nimp,
+      value=updated_values['nimp'],
+      **updated_boundary_conditions['nimp'],
+  )
   core_profiles_t_plus_dt = dataclasses.replace(
-      core_profiles_t, temp_ion=temp_ion, temp_el=temp_el, psi=psi, ne=ne, ni=ni
+      core_profiles_t,
+      temp_ion=temp_ion,
+      temp_el=temp_el,
+      psi=psi,
+      ne=ne,
+      ni=ni,
+      nimp=nimp,
   )
   return core_profiles_t_plus_dt
 
@@ -1569,18 +1569,7 @@ def get_initial_source_profiles(
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> source_profiles_lib.SourceProfiles:
-  """Returns the "implicit" profiles for the initial state in run_simulation().
-
-  The source profiles returned as part of each time step's state in
-  run_simulation() is computed based on the core profiles at that time step.
-  However, for the first time step, only the explicit sources are computed.
-  The
-  implicit profiles are computed based on the "live" state that is evolving,
-  "which depending on the stepper used is either consistent (within tolerance)
-  with the state at the next timestep (nonlinear solver), or an approximation
-  thereof (linear stepper or predictor-corrector)." So for the first time step,
-  we need to prepopulate the state with the implicit profiles for the starting
-  core profiles.
+  """Returns the source profiles for the initial state in run_simulation().
 
   Args:
     static_runtime_params_slice: Runtime parameters which, when they change,
@@ -1594,8 +1583,8 @@ def get_initial_source_profiles(
     source_models: Source models used to compute core source profiles.
 
   Returns:
-    SourceProfiles from implicit source models based on the core profiles from
-    the starting state.
+    Implicit and explicit SourceProfiles from source models based on the core
+    profiles from the starting state.
   """
   implicit_profiles = source_models_lib.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -1614,7 +1603,19 @@ def get_initial_source_profiles(
       core_profiles=core_profiles,
   )
   implicit_profiles = dataclasses.replace(implicit_profiles, qei=qei)
-  return implicit_profiles
+  # Also add in the explicit sources to the initial sources.
+  explicit_source_profiles = source_models_lib.build_source_profiles(
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_models=source_models,
+      explicit=True,
+  )
+  initial_profiles = merge_source_profiles(
+      explicit_source_profiles=explicit_source_profiles,
+      implicit_source_profiles=implicit_profiles,
+  )
+  return initial_profiles
 
 
 # This function can be jitted if source_models is a static argument. However,
@@ -1623,8 +1624,6 @@ def get_initial_source_profiles(
 def merge_source_profiles(
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     implicit_source_profiles: source_profiles_lib.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
-    qei_core_profiles: state.CoreProfiles,
 ) -> source_profiles_lib.SourceProfiles:
   """Returns a SourceProfiles that merges the input profiles.
 
@@ -1645,8 +1644,6 @@ def merge_source_profiles(
       SourceProfiles dict will include keys for both the explicit and implicit
       sources, but only the implicit sources will have non-zero profiles. See
       source.py and runtime_params.py for more info on explicit vs. implicit.
-    source_models: Source models used to compute the profiles given.
-    qei_core_profiles: The core profiles used to compute the Qei source.
 
   Returns:
     A SourceProfiles with non-zero profiles for all sources, both explicit and
@@ -1666,35 +1663,6 @@ def merge_source_profiles(
       explicit_source_profiles.profiles,
       implicit_source_profiles.profiles,
   )
-  # For ease of comprehension, we convert the units of the Qei source and add it
-  # to the list of other profiles before returning it.
-  summed_other_profiles[source_models.qei_source_name] = (
-      summed_qei_info.qei_coef
-      * (qei_core_profiles.temp_el.value - qei_core_profiles.temp_ion.value)
-  )
-  # Also for better comprehension of the outputs, any known source model output
-  # profiles that contain both the ion and electron heat profiles (i.e. they are
-  # 2D with the separate profiles stacked) are unstacked here.
-  for source_name in source_models.ion_el_sources:
-    if source_name in summed_other_profiles:
-      # The profile in summed_other_profiles is 2D. We want to split it up.
-      if (
-          f'{source_name}_ion' in summed_other_profiles
-          or f'{source_name}_el' in summed_other_profiles
-      ):
-        raise ValueError(
-            'Source model names are too close. Trying to save the output from '
-            f'the source {source_name} in 2 components: {source_name}_ion and '
-            f'{source_name}_el, but there is already a source output with that '
-            'name. Rename your sources to avoid this collision.'
-        )
-      summed_other_profiles[f'{source_name}_ion'] = summed_other_profiles[
-          source_name
-      ][0, ...]
-      summed_other_profiles[f'{source_name}_el'] = summed_other_profiles[
-          source_name
-      ][1, ...]
-      del summed_other_profiles[source_name]
   return source_profiles_lib.SourceProfiles(
       profiles=summed_other_profiles,
       j_bootstrap=summed_bootstrap_profile,

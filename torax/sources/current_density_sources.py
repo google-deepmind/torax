@@ -22,6 +22,7 @@ import dataclasses
 
 from torax.sources import source
 
+
 # The current sources below don't have any source-specific implementations, so
 # their bodies are empty. You can refer to their base class to see the
 # implementation. We define new classes here to:
@@ -30,18 +31,27 @@ from torax.sources import source
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ICRHCurrentSource(source.SingleProfilePsiSource):
+class ICRHCurrentSource(source.Source):
   """ICRH current density source for the psi equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.PSI,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class LHCurrentSource(source.SingleProfilePsiSource):
+class LHCurrentSource(source.Source):
   """LH current density source for the psi equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.PSI,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class NBICurrentSource(source.SingleProfilePsiSource):
+class NBICurrentSource(source.Source):
   """NBI current density source for the psi equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.PSI,
+  )
 
 ICRHCurrentSourceBuilder = source.make_source_builder(ICRHCurrentSource)
 LHCurrentSourceBuilder = source.make_source_builder(LHCurrentSource)

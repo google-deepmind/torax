@@ -23,7 +23,7 @@ import chex
 from torax import interpolated_param
 
 
-TimeInterpolated: TypeAlias = interpolated_param.TimeInterpolated
+TimeInterpolatedInput: TypeAlias = interpolated_param.TimeInterpolatedInput
 
 
 @dataclasses.dataclass(kw_only=True)

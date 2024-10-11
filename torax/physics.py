@@ -23,6 +23,7 @@ import dataclasses
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import constants
 from torax import geometry
 from torax import jax_utils
@@ -40,8 +41,8 @@ _trapz = jax.scipy.integrate.trapezoid
 
 def get_main_ion_dilution_factor(
     Zimp: float,
-    Zeff: float,
-) -> float:
+    Zeff: jax.Array,
+) -> jax.Array:
   return (Zimp - Zeff) / (Zimp - 1)
 
 
@@ -81,7 +82,6 @@ def update_jtot_q_face_s_face(
 def coll_exchange(
     core_profiles: state.CoreProfiles,
     nref: float,
-    Ai: float,
     Qei_mult: float,
 ) -> jax.Array:
   """Computes collisional ion-electron heat exchange coefficient.
@@ -89,7 +89,6 @@ def coll_exchange(
   Args:
     core_profiles: Core plasma profiles.
     nref: Reference value for normalization
-    Ai: amu of main ion (if multiple isotope, make average)
     Qei_mult: multiplier for ion-electron heat exchange term
 
   Returns:
@@ -101,7 +100,7 @@ def coll_exchange(
       - 0.5 * jnp.log(core_profiles.ne.value * n_scale)
       + jnp.log(core_profiles.temp_el.value)
   )
-  # collisionality
+  # ion-electron collisionality
   log_tau_e = (
       jnp.log(12 * jnp.pi**1.5 / (core_profiles.ne.value * nref * lam_ei))
       - 4 * jnp.log(constants.CONSTANTS.qe)
@@ -112,7 +111,10 @@ def coll_exchange(
   # pylint: disable=invalid-name
   log_Qei_coef = (
       jnp.log(Qei_mult * 1.5 * core_profiles.ne.value * nref)
-      + jnp.log(constants.CONSTANTS.keV2J / (Ai * constants.CONSTANTS.mp))
+      + jnp.log(
+          constants.CONSTANTS.keV2J
+          / (core_profiles.Ai * constants.CONSTANTS.mp)
+      )
       + jnp.log(2 * constants.CONSTANTS.me)
       - log_tau_e
   )
@@ -183,7 +185,9 @@ def calc_jtot_from_psi(
     geo: Geometry,
     psi: cell_variable.CellVariable,
 ) -> tuple[chex.Array, chex.Array]:
-  """Calculates current (jtot) from poloidal flux (psi).
+  """Calculates FSA toroidal current density (jtot) from poloidal flux (psi).
+
+  Calculation based on jtot = dI/dS
 
   Args:
     geo: Torus geometry.
@@ -208,9 +212,8 @@ def calc_jtot_from_psi(
 
   jtot_face_bulk = dI_tot_drhon[1:] / geo.spr_face[1:]
 
-  # For now set on-axis to the same as the second grid point, due to 0/0
-  # division.
-  jtot_face_axis = jtot_face_bulk[0]
+  # Set on-axis jtot according to L'Hôpital's rule, noting that I[0]=S[0]=0.
+  jtot_face_axis = I_tot[1] / geo.area_face[1]
 
   jtot_face = jnp.concatenate([jnp.array([jtot_face_axis]), jtot_face_bulk])
   jtot = geometry.face_to_cell(jtot_face)
@@ -291,7 +294,7 @@ def calc_nu_star(
     geo: Geometry,
     core_profiles: state.CoreProfiles,
     nref: float,
-    Zeff: float,
+    Zeff_face: jax.Array,
     coll_mult: float,
 ) -> jax.Array:
   """Calculates nu star.
@@ -300,7 +303,7 @@ def calc_nu_star(
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
     nref: Reference value for normalization
-    Zeff: Effective ion charge.
+    Zeff_face: Effective ion charge on face grid.
     coll_mult: Collisionality multiplier in QLKNN for sensitivity testing.
 
   Returns:
@@ -323,7 +326,7 @@ def calc_nu_star(
   nu_e = (
       1
       / 1.09e-3
-      * Zeff
+      * Zeff_face
       * (raw_ne_face / 1e19 * nref)
       * lambde
       / (temp_electron_face) ** 1.5
@@ -353,6 +356,42 @@ def calc_nu_star(
   nustar = nu_e * tau_bounce
 
   return nustar
+
+
+def fast_ion_fractional_heating_formula(
+    birth_energy: float | array_typing.ArrayFloat,
+    temp_el: array_typing.ArrayFloat,
+    fast_ion_mass: float,
+) -> array_typing.ArrayFloat:
+  """Returns the fraction of heating that goes to the ions.
+
+  From eq. 5 and eq. 26 in Mikkelsen Nucl. Tech. Fusion 237 4 1983.
+  Note there is a typo in eq. 26  where a `2x` term is missing in the numerator
+  of the log.
+
+  Args:
+    birth_energy: Birth energy of the fast ions in keV.
+    temp_el: Electron temperature.
+    fast_ion_mass: Mass of the fast ions in amu.
+
+  Returns:
+    The fraction of heating that goes to the ions.
+  """
+  critical_energy = 10 * fast_ion_mass * temp_el  # Eq. 5.
+  energy_ratio = birth_energy / critical_energy
+
+  # Eq. 26.
+  x_squared = energy_ratio
+  x = jnp.sqrt(x_squared)
+  frac_i = (
+      2
+      * (
+          (1/6) * jnp.log((1.0 - x + x_squared) / (1.0 + 2.0 * x + x_squared))
+          + (jnp.arctan((2.0 * x - 1.0) / jnp.sqrt(3)) + jnp.pi/6) / jnp.sqrt(3)
+      )
+      / x_squared
+  )
+  return frac_i
 
 
 # pylint: enable=invalid-name

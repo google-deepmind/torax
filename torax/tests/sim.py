@@ -27,6 +27,7 @@ import numpy as np
 import torax
 from torax import output
 from torax import sim as sim_lib
+from torax import state
 from torax.config import build_sim as build_sim_lib
 from torax.config import numerics as numerics_lib
 from torax.sources import source_models as source_models_lib
@@ -101,8 +102,8 @@ class SimTest(sim_test_case.SimTestCase):
       ),
       # Tests BgB model heat transport only
       (
-          'test_bohmgyrobohm_heat',
-          'test_bohmgyrobohm_heat.py',
+          'test_bohmgyrobohm_all',
+          'test_bohmgyrobohm_all.py',
           _ALL_PROFILES,
           0,
       ),
@@ -334,6 +335,20 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with clipped QLKNN inputs.
+      (
+          'test_iterhybrid_predictor_corrector_clip_inputs',
+          'test_iterhybrid_predictor_corrector_clip_inputs.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Predictor-corrector solver with non-constant Zeff profile.
+      (
+          'test_iterhybrid_predictor_corrector_zeffprofile',
+          'test_iterhybrid_predictor_corrector_zeffprofile.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Tests Newton-Raphson nonlinear solver for ITER-hybrid-like-config
       (
           'test_iterhybrid_newton',
@@ -434,7 +449,7 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     sim_outputs = sim.run()
-    history = output.StateHistory(sim_outputs)
+    history = output.StateHistory(sim_outputs, sim.source_models)
 
     history_length = history.core_profiles.temp_ion.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
@@ -602,10 +617,12 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Get initial core profiles for the overriden dynamic runtime params.
     initial_state = sim_lib.get_initial_state(
+        sim.static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
         sim.time_step_calculator,
+        sim.step_fn,
     )
 
     # Check for agreement with the reference core profiles.
@@ -638,8 +655,8 @@ class SimTest(sim_test_case.SimTestCase):
     sim = build_sim_lib.build_sim_from_config(config_module.CONFIG)
     sim_outputs = sim.run()
 
-    state_history = output.StateHistory(sim_outputs)
-    self.assertEqual(state_history.sim_error, output.SimError.NAN_DETECTED)
+    state_history = output.StateHistory(sim_outputs, sim.source_models)
+    self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
     assert (
         state_history.times[-1]
         < config_module.CONFIG['runtime_params']['numerics']['t_final']
@@ -680,7 +697,7 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     sim_outputs = sim.run()
-    history = output.StateHistory(sim_outputs)
+    history = output.StateHistory(sim_outputs, sim.source_models)
     ref_idx_offset = np.where(ref_times == history.times[0])
 
     for i in range(len(history.times)):

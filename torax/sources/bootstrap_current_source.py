@@ -37,8 +37,10 @@ from torax.sources import source_profiles
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Configuration parameters for the bootstrap current source."""
+
   # Multiplication factor for bootstrap current
   bootstrap_mult: float = 1.0
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
       self,
@@ -50,6 +52,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 @chex.dataclass
 class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   """Provides runtime parameters for a given time and geometry."""
+
   runtime_params_config: RuntimeParams
 
   def build_dynamic_params(
@@ -226,7 +229,7 @@ def calc_neoclassical(
 
   true_ne_face = ne.face_value() * dynamic_runtime_params_slice.numerics.nref
   true_ni_face = ni.face_value() * dynamic_runtime_params_slice.numerics.nref
-  Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
+  Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
 
   # # local r/R0 on face grid
   epsilon = (geo.Rout_face - geo.Rin_face) / (geo.Rout_face + geo.Rin_face)
@@ -237,7 +240,7 @@ def calc_neoclassical(
   ftrap = 1.0 - jnp.sqrt(aa) * (1.0 - epseff) / (1.0 + 2.0 * jnp.sqrt(epseff))
 
   # Spitzer conductivity
-  NZ = 0.58 + 0.74 / (0.76 + Zeff)
+  NZ = 0.58 + 0.74 / (0.76 + Zeff_face)
   lnLame = (
       31.3 - 0.5 * jnp.log(true_ne_face) + jnp.log(temp_el.face_value() * 1e3)
   )
@@ -248,7 +251,9 @@ def calc_neoclassical(
       + 1.5 * jnp.log(temp_ion.face_value() * 1e3)
   )
 
-  sigsptz = 1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Zeff / NZ / lnLame
+  sigsptz = (
+      1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Zeff_face / NZ / lnLame
+  )
 
   # We don't store q_cell in the evolving core profiles, so we need to
   # recalculate it.
@@ -262,7 +267,7 @@ def calc_neoclassical(
       * q_face
       * geo.Rmaj
       * true_ne_face
-      * Zeff
+      * Zeff_face
       * lnLame
       / (
           ((temp_el.face_value() * 1e3) ** 2)
@@ -274,7 +279,7 @@ def calc_neoclassical(
       * q_face
       * geo.Rmaj
       * true_ni_face
-      * Zeff**4
+      * Zeff_face**4
       * lnLami
       / (
           ((temp_ion.face_value() * 1e3) ** 2)
@@ -286,10 +291,12 @@ def calc_neoclassical(
   ft33 = ftrap / (
       1.0
       + (0.55 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.45 * (1.0 - ftrap) * nuestar / (Zeff**1.5)
+      + 0.45 * (1.0 - ftrap) * nuestar / (Zeff_face**1.5)
   )
   signeo_face = 1.0 - ft33 * (
-      1.0 + 0.36 / Zeff - ft33 * (0.59 / Zeff - 0.23 / Zeff * ft33)
+      1.0
+      + 0.36 / Zeff_face
+      - ft33 * (0.59 / Zeff_face - 0.23 / Zeff_face * ft33)
   )
   sigmaneo = sigsptz * signeo_face
 
@@ -297,54 +304,58 @@ def calc_neoclassical(
   denom = (
       1.0
       + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5 * (1.0 - ftrap) * nuestar / Zeff
+      + 0.5 * (1.0 - ftrap) * nuestar / Zeff_face
   )
   ft31 = ftrap / denom
   ft32ee = ftrap / (
       1
       + 0.26 * (1 - ftrap) * jnp.sqrt(nuestar)
-      + 0.18 * (1 - 0.37 * ftrap) * nuestar / jnp.sqrt(Zeff)
+      + 0.18 * (1 - 0.37 * ftrap) * nuestar / jnp.sqrt(Zeff_face)
   )
   ft32ei = ftrap / (
       1
       + (1 + 0.6 * ftrap) * jnp.sqrt(nuestar)
-      + 0.85 * (1 - 0.37 * ftrap) * nuestar * (1 + Zeff)
+      + 0.85 * (1 - 0.37 * ftrap) * nuestar * (1 + Zeff_face)
   )
   ft34 = ftrap / (
       1.0
       + (1 - 0.1 * ftrap) * jnp.sqrt(nuestar)
-      + 0.5 * (1.0 - 0.5 * ftrap) * nuestar / Zeff
+      + 0.5 * (1.0 - 0.5 * ftrap) * nuestar / Zeff_face
   )
 
   F32ee = (
-      (0.05 + 0.62 * Zeff) / (Zeff * (1 + 0.44 * Zeff)) * (ft32ee - ft32ee**4)
+      (0.05 + 0.62 * Zeff_face)
+      / (Zeff_face * (1 + 0.44 * Zeff_face))
+      * (ft32ee - ft32ee**4)
       + 1
-      / (1 + 0.22 * Zeff)
+      / (1 + 0.22 * Zeff_face)
       * (ft32ee**2 - ft32ee**4 - 1.2 * (ft32ee**3 - ft32ee**4))
-      + 1.2 / (1 + 0.5 * Zeff) * ft32ee**4
+      + 1.2 / (1 + 0.5 * Zeff_face) * ft32ee**4
   )
 
   F32ei = (
-      -(0.56 + 1.93 * Zeff) / (Zeff * (1 + 0.44 * Zeff)) * (ft32ei - ft32ei**4)
+      -(0.56 + 1.93 * Zeff_face)
+      / (Zeff_face * (1 + 0.44 * Zeff_face))
+      * (ft32ei - ft32ei**4)
       + 4.95
-      / (1 + 2.48 * Zeff)
+      / (1 + 2.48 * Zeff_face)
       * (ft32ei**2 - ft32ei**4 - 0.55 * (ft32ei**3 - ft32ei**4))
-      - 1.2 / (1 + 0.5 * Zeff) * ft32ei**4
+      - 1.2 / (1 + 0.5 * Zeff_face) * ft32ei**4
   )
 
-  term_0 = (1 + 1.4 / (Zeff + 1)) * ft31
-  term_1 = -1.9 / (Zeff + 1) * ft31**2
-  term_2 = 0.3 / (Zeff + 1) * ft31**3
-  term_3 = 0.2 / (Zeff + 1) * ft31**4
+  term_0 = (1 + 1.4 / (Zeff_face + 1)) * ft31
+  term_1 = -1.9 / (Zeff_face + 1) * ft31**2
+  term_2 = 0.3 / (Zeff_face + 1) * ft31**3
+  term_3 = 0.2 / (Zeff_face + 1) * ft31**4
   L31 = term_0 + term_1 + term_2 + term_3
 
   L32 = F32ee + F32ei
 
   L34 = (
-      (1 + 1.4 / (Zeff + 1)) * ft34
-      - 1.9 / (Zeff + 1) * ft34**2
-      + 0.3 / (Zeff + 1) * ft34**3
-      + 0.2 / (Zeff + 1) * ft34**4
+      (1 + 1.4 / (Zeff_face + 1)) * ft34
+      - 1.9 / (Zeff_face + 1) * ft34**2
+      + 0.3 / (Zeff_face + 1) * ft34**3
+      + 0.2 / (Zeff_face + 1) * ft34**4
   )
 
   alpha0 = -1.17 * (1 - ftrap) / (1 - 0.22 * ftrap - 0.19 * ftrap**2)

@@ -305,7 +305,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(jext.wext, 0.0)
     # But negative values will cause an error.
-    with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
+    with self.assertRaises(RuntimeError):
       dcs_provider(t=1.0,)
 
   @parameterized.parameters(

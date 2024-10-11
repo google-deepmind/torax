@@ -45,13 +45,13 @@ class ArrayTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
   def not_done(
       self,
       t: Union[float, jax.Array],
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      t_final: float,
       state: State,
   ) -> Union[jax.Array, bool]:
     """Returns True until the whole array has been visited, then False."""
     del (
         t,
-        dynamic_runtime_params_slice,
+        t_final,
     )  # Unused for this type of TimeStepCalculator.
     idx = state
     return idx < self.arr.shape[0] - 1

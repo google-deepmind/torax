@@ -84,6 +84,24 @@ Time-varying arrays
 Time-varying arrays can be defined using either primitives, an
 ``xarray.DataArray`` or a ``tuple`` of ``Array``.
 
+Specifying interpolation methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+By default piecewise linear interpolation is used to interpolate values in time.
+To specify a different interpolation method, use the following syntax of a tuple
+with two elements. The first element in the tuple is the usual value for the
+time-varying-array (as defined below), the second value is a dict with keys
+``time_interpolation_mode`` and ``rho_interpolation_mode`` and values the
+desired interpolation modes.
+
+.. code-block:: python
+
+  (time_varying_array_value, {'time_interpolation_mode': 'STEP', 'rho_interpolation_mode': 'PIECEWISE_LINEAR'})
+
+Currently two interpolation modes are supported:
+
+* ``'STEP'``
+* ``'PIECEWISE_LINEAR'``
+
 Using primitives
 ^^^^^^^^^^^^^^^^
 

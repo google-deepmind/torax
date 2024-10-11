@@ -80,7 +80,7 @@ class Numerics(base.RuntimeParametersConfig):
   q_correction_factor: float = 1.25
   # 1/multiplication factor for sigma (conductivity) to reduce current
   # diffusion timescale to be closer to heat diffusion timescale
-  resistivity_mult: interpolated_param.TimeInterpolated = 1.0
+  resistivity_mult: interpolated_param.TimeInterpolatedInput = 1.0
 
   # density profile info
   # Reference value for normalization

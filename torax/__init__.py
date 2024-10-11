@@ -102,6 +102,7 @@ CANONICAL_ORDER = [
     'time_step_calculator',
     'coeffs_callback',
     'evolving_names',
+    'step_fn',
     'spectator',
     'explicit',
     'maxiter',

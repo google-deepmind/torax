@@ -255,6 +255,7 @@ def theta_method_block_residual(
   core_profiles_t_plus_dt = core_profile_setters.update_evolving_core_profiles(
       x_new_guess,
       dynamic_runtime_params_slice_t_plus_dt,
+      geo_t_plus_dt,
       core_profiles_t_plus_dt,
       evolving_names,
   )
@@ -436,7 +437,7 @@ def jaxopt_solver(
   Returns:
     x_new_vec: Flattened evolving profile array after jaxopt evolution.
     final_loss: loss after jaxopt evolution
-    aux_output: auxilliary outputs from calc_coeffs.
+    aux_output: auxiliary outputs from calc_coeffs.
     num_iterations: number of iterations ran in jaxopt
   """
 

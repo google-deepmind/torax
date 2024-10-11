@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import dataclasses
+import enum
 from typing import Any, Optional
 
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import geometry
 from torax.config import config_args
 from torax.fvm import cell_variable
@@ -38,20 +40,20 @@ class Currents:
   that may be interesting for the end user to plot, etc.
   """
 
-  jtot: jax.Array
-  jtot_face: jax.Array
-  johm: jax.Array
-  johm_face: jax.Array
-  jext: jax.Array
-  jext_face: jax.Array
-  j_bootstrap: jax.Array
-  j_bootstrap_face: jax.Array
+  jtot: array_typing.ArrayFloat
+  jtot_face: array_typing.ArrayFloat
+  johm: array_typing.ArrayFloat
+  johm_face: array_typing.ArrayFloat
+  jext: array_typing.ArrayFloat
+  jext_face: array_typing.ArrayFloat
+  j_bootstrap: array_typing.ArrayFloat
+  j_bootstrap_face: array_typing.ArrayFloat
   # pylint: disable=invalid-name
   # Using physics notation naming convention
-  I_bootstrap: jax.Array
-  Ip: jax.Array
-  sigma: jax.Array
-  jtot_hires: Optional[jax.Array] = None
+  I_bootstrap: array_typing.ScalarFloat
+  Ip: array_typing.ScalarFloat
+  sigma: array_typing.ArrayFloat
+  jtot_hires: Optional[array_typing.ArrayFloat] = None
 
   def has_nans(self) -> bool:
     """Checks for NaNs in all attributes of Currents."""
@@ -87,10 +89,17 @@ class CoreProfiles:
   )  # Time derivative of poloidal flux (loop voltage)
   ne: cell_variable.CellVariable  # Electron density
   ni: cell_variable.CellVariable  # Main ion density
+  # Impurity density (currently only 1 supported)
+  nimp: cell_variable.CellVariable
   currents: Currents
-  q_face: jax.Array
-  s_face: jax.Array
-  nref: jax.Array  # Reference density for ion and electron density
+  q_face: array_typing.ArrayFloat
+  s_face: array_typing.ArrayFloat
+  nref: array_typing.ScalarFloat  # Reference density
+  # pylint: disable=invalid-name
+  Zi: array_typing.ScalarFloat  # Main ion charge
+  Ai: array_typing.ScalarFloat  # Main ion mass [amu]
+  Zimp: array_typing.ScalarFloat  # Impurity charge
+  # pylint: enable=invalid-name
 
   def history_elem(self) -> CoreProfiles:
     """Returns the current CoreProfiles as a history entry.
@@ -109,6 +118,7 @@ class CoreProfiles:
         psidot=self.psidot.history_elem(),
         ne=self.ne.history_elem(),
         ni=self.ni.history_elem(),
+        nimp=self.nimp.history_elem(),
         currents=self.currents,
         q_face=self.q_face,
         s_face=self.s_face,
@@ -134,6 +144,13 @@ class CoreProfiles:
         _check_for_nans(getattr(self, field))
         for field in self.__dataclass_fields__
     )
+
+  def quasineutrality_satisfied(self) -> bool:
+    """Checks if quasineutrality is satisfied."""
+    return jnp.allclose(
+        self.ni.value * self.Zi + self.nimp.value * self.Zimp,
+        self.ne.value,
+    ).item()
 
   def index(self, i: int) -> CoreProfiles:
     """If the CoreProfiles is a history, returns the i-th CoreProfiles."""
@@ -235,6 +252,116 @@ class CoreTransport:
     )
 
 
+@chex.dataclass(frozen=True, eq=False)
+class PostProcessedOutputs:
+  """Collection of outputs calculated after each simulation step.
+
+  These variables are not used internally, but are useful as outputs or
+  intermediate observations for overarching workflows.
+
+  Attributes:
+    pressure_thermal_ion_face: Ion thermal pressure on the face grid [Pa]
+    pressure_thermal_el_face: Electron thermal pressure on the face grid [Pa]
+    pressure_thermal_tot_face: Total thermal pressure on the face grid [Pa]
+    pprime_face: Derivative of total pressure with respect to poloidal flux on
+      the face grid [Pa/Wb]
+    W_thermal_ion: Ion thermal stored energy [J]
+    W_thermal_el: Electron thermal stored energy [J]
+    W_thermal_tot: Total thermal stored energy [J]
+    FFprime_face: FF' on the face grid, where F is the toroidal flux function
+    psi_norm_face: Normalized poloidal flux on the face grid [Wb]
+    psi_face: Poloidal flux on the face grid [Wb]
+    P_heating_tot_ion: Total ion heating power with all sources: auxiliary
+      heating + ion-electron exchange + Ohmic + fusion [W]
+    P_heating_tot_el: Total electron heating power, with all sources: auxiliary
+      heating + ion-electron exchange + Ohmic + fusion [W]
+    P_heating_tot: Total heating power, with all sources: auxiliary heating
+      + ion-electron exchange + Ohmic + fusion [W]
+    P_external_ion: Total external ion heating power: auxiliary heating + Ohmic
+      [W]
+    P_external_el: Total external electron heating power: auxiliary heating +
+      Ohmic [W]
+    P_external_tot: Total external heating power: auxiliary heating + Ohmic [W]
+    P_ei_exchange_ion: Electron-ion heat exchange power to ions [W]
+    P_ei_exchange_el: Electron-ion heat exchange power to electrons [W]
+    P_generic_ion: Total generic_ion_el_heat_source power to ions [W]
+    P_generic_el: Total generic_ion_el_heat_source power to electrons [W]
+    P_generic_tot: Total generic_ion_el_heat power [W]
+    P_alpha_ion: Total fusion power to ions [W]
+    P_alpha_el: Total fusion power to electrons [W]
+    P_alpha_tot: Total fusion power to plasma [W]
+    P_ohmic: Ohmic heating power to electrons [W]
+    P_brems: Bremsstrahlung electron heat sink [W]
+    Q_fusion: Fusion power gain
+  """
+
+  pressure_thermal_ion_face: array_typing.ArrayFloat
+  pressure_thermal_el_face: array_typing.ArrayFloat
+  pressure_thermal_tot_face: array_typing.ArrayFloat
+  pprime_face: array_typing.ArrayFloat
+  # pylint: disable=invalid-name
+  W_thermal_ion: array_typing.ScalarFloat
+  W_thermal_el: array_typing.ScalarFloat
+  W_thermal_tot: array_typing.ScalarFloat
+  FFprime_face: array_typing.ArrayFloat
+  psi_norm_face: array_typing.ArrayFloat
+  # psi_face included in post_processed output for convenience, since the
+  # CellVariable history method destroys class methods like `face_value`.
+  psi_face: array_typing.ArrayFloat
+  # Integrated heat sources
+  P_heating_tot_ion: array_typing.ScalarFloat
+  P_heating_tot_el: array_typing.ScalarFloat
+  P_heating_tot: array_typing.ScalarFloat
+  P_external_ion: array_typing.ScalarFloat
+  P_external_el: array_typing.ScalarFloat
+  P_external_tot: array_typing.ScalarFloat
+  P_ei_exchange_ion: array_typing.ScalarFloat
+  P_ei_exchange_el: array_typing.ScalarFloat
+  P_generic_ion: array_typing.ScalarFloat
+  P_generic_el: array_typing.ScalarFloat
+  P_generic_tot: array_typing.ScalarFloat
+  P_alpha_ion: array_typing.ScalarFloat
+  P_alpha_el: array_typing.ScalarFloat
+  P_alpha_tot: array_typing.ScalarFloat
+  P_ohmic: array_typing.ScalarFloat
+  P_brems: array_typing.ScalarFloat
+  Q_fusion: array_typing.ScalarFloat
+  # pylint: enable=invalid-name
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> PostProcessedOutputs:
+    """Returns a PostProcessedOutputs with all zeros, used for initializing."""
+    return cls(
+        pressure_thermal_ion_face=jnp.zeros(geo.rho_face.shape),
+        pressure_thermal_el_face=jnp.zeros(geo.rho_face.shape),
+        pressure_thermal_tot_face=jnp.zeros(geo.rho_face.shape),
+        pprime_face=jnp.zeros(geo.rho_face.shape),
+        W_thermal_ion=jnp.array(0.0),
+        W_thermal_el=jnp.array(0.0),
+        W_thermal_tot=jnp.array(0.0),
+        FFprime_face=jnp.zeros(geo.rho_face.shape),
+        psi_norm_face=jnp.zeros(geo.rho_face.shape),
+        psi_face=jnp.zeros(geo.rho_face.shape),
+        P_heating_tot_ion=jnp.array(0.0),
+        P_heating_tot_el=jnp.array(0.0),
+        P_heating_tot=jnp.array(0.0),
+        P_external_ion=jnp.array(0.0),
+        P_external_el=jnp.array(0.0),
+        P_external_tot=jnp.array(0.0),
+        P_ei_exchange_ion=jnp.array(0.0),
+        P_ei_exchange_el=jnp.array(0.0),
+        P_generic_ion=jnp.array(0.0),
+        P_generic_el=jnp.array(0.0),
+        P_generic_tot=jnp.array(0.0),
+        P_alpha_ion=jnp.array(0.0),
+        P_alpha_el=jnp.array(0.0),
+        P_alpha_tot=jnp.array(0.0),
+        P_ohmic=jnp.array(0.0),
+        P_brems=jnp.array(0.0),
+        Q_fusion=jnp.array(0.0),
+    )
+
+
 @chex.dataclass
 class StepperNumericOutputs:
   """Numerical quantities related to the stepper.
@@ -253,6 +380,15 @@ class StepperNumericOutputs:
   outer_stepper_iterations: int = 0
   stepper_error_state: int = 0
   inner_solver_iterations: int = 0
+
+
+@enum.unique
+class SimError(enum.Enum):
+  """Integer enum for sim error handling."""
+
+  NO_ERROR = 0
+  NAN_DETECTED = 1
+  QUASINEUTRALITY_BROKEN = 2
 
 
 @chex.dataclass
@@ -281,6 +417,8 @@ class ToraxSimState:
       at time t, but is not guaranteed to be. In case exact source profiles are
       required for each time step, they must be recomputed manually after
       running `run_simulation()`.
+    post_processed_outputs: variables for output or intermediate observations
+      for overarching workflows, calculated after each simulation step.
     time_step_calculator_state: the state of the TimeStepper.
     stepper_numeric_outputs: Numerical quantities related to the stepper.
   """
@@ -294,7 +432,19 @@ class ToraxSimState:
   core_transport: CoreTransport
   core_sources: source_profiles.SourceProfiles
 
+  # Post-processed outputs after a step.
+  post_processed_outputs: PostProcessedOutputs
+
   # Other "side" states used for logging and feeding to other components of
   # TORAX.
   time_step_calculator_state: Any
   stepper_numeric_outputs: StepperNumericOutputs
+
+  def check_for_errors(self) -> SimError:
+    """Checks for errors in the simulation state."""
+    if self.core_profiles.has_nans():
+      return SimError.NAN_DETECTED
+    elif not self.core_profiles.quasineutrality_satisfied():
+      return SimError.QUASINEUTRALITY_BROKEN
+    else:
+      return SimError.NO_ERROR

@@ -265,8 +265,6 @@ class SimTestCase(parameterized.TestCase):
           geometry_provider=sim.geometry_provider,
           dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
           static_runtime_params_slice=sim.static_runtime_params_slice,
-          stepper=sim.stepper,
-          transport_model=sim.transport_model,
           step_fn=sim.step_fn,
           source_models_builder=sim.source_models_builder,
       )
@@ -284,7 +282,7 @@ class SimTestCase(parameterized.TestCase):
     sim_outputs = sim.run()
 
     # Extract core profiles history for analysis against references
-    history = output.StateHistory(sim_outputs)
+    history = output.StateHistory(sim_outputs, sim.source_models)
     ds = history.simulation_output_to_xr(geo, sim.file_restart)
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
 

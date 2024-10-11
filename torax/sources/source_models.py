@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 import functools
 
 import jax
@@ -24,11 +23,8 @@ import jax.numpy as jnp
 from torax import constants
 from torax import geometry
 from torax import jax_utils
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
-from torax.fvm import convection_terms
-from torax.fvm import diffusion_terms
 from torax.sources import bootstrap_current_source
 from torax.sources import external_current_source
 from torax.sources import qei_source as qei_source_lib
@@ -494,180 +490,6 @@ def calc_and_sum_sources_psi(
   )
 
 
-@functools.partial(
-    jax_utils.jit,
-    static_argnames=[
-        'source_models',
-    ],
-)
-def calc_psidot(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: SourceModels,
-) -> jax.Array:
-  r"""Calculates psidot (loop voltage). Used for the Ohmic electron heat source.
-
-  psidot is an interesting TORAX output, and is thus also saved in
-  core_profiles.
-
-  psidot = \partial psi / \partial t, and is derived from the same components
-  that form the psi block in the coupled PDE equations. Thus, a similar
-  (but abridged) formulation as in sim.calc_coeffs and fvm._calc_c is used here
-
-  Args:
-    dynamic_runtime_params_slice: Simulation configuration at this timestep
-    geo: Torus geometry
-    core_profiles: Core plasma profiles.
-    source_models: All TORAX source/sinks.
-
-  Returns:
-    psidot: on cell grid
-  """
-  consts = constants.CONSTANTS
-
-  psi_sources, sigma, sigma_face = calc_and_sum_sources_psi(
-      dynamic_runtime_params_slice,
-      geo,
-      core_profiles,
-      source_models,
-  )
-  # Calculate transient term
-  toc_psi = (
-      1.0
-      / dynamic_runtime_params_slice.numerics.resistivity_mult
-      * geo.rho_norm
-      * sigma
-      * consts.mu0
-      * 16
-      * jnp.pi**2
-      * geo.Phib**2
-      / geo.F**2
-  )
-  # Calculate diffusion term coefficient
-  d_face_psi = geo.g2g3_over_rhon_face
-  # Add phibdot terms to poloidal flux convection
-  v_face_psi = (
-      -8.0
-      * jnp.pi**2
-      * consts.mu0
-      * geo.Phibdot
-      * geo.Phib
-      * sigma_face
-      * geo.rho_face_norm**2
-      / geo.F_face**2
-  )
-
-  # Add effective phibdot poloidal flux source term
-  ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
-      sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
-  )
-
-  psi_sources += (
-      -8.0
-      * jnp.pi**2
-      * consts.mu0
-      * geo.Phibdot
-      * geo.Phib
-      * ddrnorm_sigma_rnorm2_over_f2
-  )
-
-  diffusion_mat, diffusion_vec = diffusion_terms.make_diffusion_terms(
-      d_face_psi, core_profiles.psi
-  )
-
-  # Set the psi convection term for psidot used in ohmic power, always with
-  # the default 'ghost' mode. Impact of different modes would mildly impact
-  # Ohmic power at the LCFS which has negligible impact on simulations.
-  # Allowing it to be configurable introduces more complexity in the code by
-  # needing to pass in the mode from the static_runtime_params across multiple
-  # functions.
-  conv_mat, conv_vec = convection_terms.make_convection_terms(
-      v_face_psi,
-      d_face_psi,
-      core_profiles.psi,
-  )
-
-  c_mat = diffusion_mat + conv_mat
-  c = diffusion_vec + conv_vec
-
-  c += psi_sources
-
-  psidot = (jnp.dot(c_mat, core_profiles.psi.value) + c) / toc_psi
-
-  return psidot
-
-
-def ohmic_model_func(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: SourceModels | None = None,
-) -> jax.Array:
-  """Returns the Ohmic source for electron heat equation."""
-  del dynamic_source_runtime_params
-
-  if source_models is None:
-    raise TypeError('source_models is a required argument for ohmic_model_func')
-
-  jtot, _ = physics.calc_jtot_from_psi(
-      geo,
-      core_profiles.psi,
-  )
-
-  psidot = calc_psidot(
-      dynamic_runtime_params_slice,
-      geo,
-      core_profiles,
-      source_models,
-  )
-
-  pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
-  return pohm
-
-
-# OhmicHeatSource is a special case and defined here to avoid circular
-# dependencies, since it depends on the psi sources
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class OhmicHeatSource(source_lib.SingleProfileSource):
-  """Ohmic heat source for electron heat equation.
-
-  Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
-  """
-
-  # Users must pass in a pointer to the complete set of sources to this object.
-  source_models: SourceModels
-
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.MODEL_BASED,
-  )
-
-  # Freeze these params and do not include them in the __init__.
-  affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default=(source_lib.AffectedCoreProfile.TEMP_EL,),
-      )
-  )
-
-  # The model function is fixed to ohmic_model_func because that is the only
-  # supported implementation of this source.
-  # However, since this is a param in the parent dataclass, we need to (a)
-  # remove the parameter from the init args and (b) set the default to the
-  # desired value.
-  model_func: source_lib.SourceProfileFunction | None = dataclasses.field(
-      init=False,
-      default_factory=lambda: ohmic_model_func,
-  )
-
-
-OhmicHeatSourceBuilder = source_lib.make_source_builder(
-    OhmicHeatSource, links_back=True
-)
-
-
 class SourceModels:
   """Source/sink models for the different equations being evolved in Torax.
 
@@ -1007,19 +829,28 @@ class SourceModelsBuilder:
       elif isinstance(builder, qei_source_lib.QeiSourceBuilder):  # pytype: disable=wrong-arg-types
         qei_found = True
 
+    # These are special sources that must be present for every TORAX run.
     # If these sources are missing, we need to include builders for them.
+    # We also ZERO out these sources if they are not explicitly provided.
     # The SourceModels would also build them, but then there'd be no
     # user-editable runtime params for them.
     if not bootstrap_found:
       source_builders['j_bootstrap'] = (
           bootstrap_current_source.BootstrapCurrentSourceBuilder()
       )
+      source_builders['j_bootstrap'].runtime_params.mode = (
+          runtime_params_lib.Mode.ZERO
+      )
     if not qei_found:
       source_builders['qei_source'] = qei_source_lib.QeiSourceBuilder()
+      source_builders['qei_source'].runtime_params.mode = (
+          runtime_params_lib.Mode.ZERO
+      )
     if not jext_found:
       source_builders['jext'] = (
           external_current_source.ExternalCurrentSourceBuilder()
       )
+      source_builders['jext'].runtime_params.mode = runtime_params_lib.Mode.ZERO
 
     self.source_builders = source_builders
 

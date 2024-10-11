@@ -15,7 +15,7 @@
 """Module containing functions for saving and loading simulation output."""
 from __future__ import annotations
 
-import enum
+import dataclasses
 
 from absl import logging
 import chex
@@ -24,18 +24,11 @@ from jax import numpy as jnp
 from torax import geometry
 from torax import state
 from torax.config import runtime_params
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 import xarray as xr
 
 import os
-
-
-@enum.unique
-class SimError(enum.Enum):
-  """Integer enum for sim error handling."""
-
-  NO_ERROR = 0
-  NAN_DETECTED = 1
 
 
 @chex.dataclass(frozen=True)
@@ -52,7 +45,7 @@ class ToraxSimOutputs:
   """
 
   # Error state
-  sim_error: SimError
+  sim_error: state.SimError
 
   # Time-dependent TORAX outputs
   sim_history: tuple[state.ToraxSimState, ...]
@@ -106,6 +99,9 @@ RHO_FACE = "rho_face"
 RHO_CELL = "rho_cell"
 TIME = "time"
 
+# Post processed outputs
+Q_FUSION = "Q_fusion"
+
 # Simulation error state.
 SIM_ERROR = "sim_error"
 
@@ -132,13 +128,19 @@ def load_state_file(
 class StateHistory:
   """A history of the state of the simulation and its error state."""
 
-  def __init__(self, sim_outputs: ToraxSimOutputs):
+  def __init__(
+      self,
+      sim_outputs: ToraxSimOutputs,
+      source_models: source_models_lib.SourceModels,
+  ):
     core_profiles = [
-        state.core_profiles.history_elem()
-        for state in sim_outputs.sim_history
+        state.core_profiles.history_elem() for state in sim_outputs.sim_history
     ]
     core_sources = [state.core_sources for state in sim_outputs.sim_history]
     transport = [state.core_transport for state in sim_outputs.sim_history]
+    post_processed_output = [
+        state.post_processed_outputs for state in sim_outputs.sim_history
+    ]
     stack = lambda *ys: jnp.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
@@ -149,9 +151,13 @@ class StateHistory:
     self.core_transport: state.CoreTransport = jax.tree_util.tree_map(
         stack, *transport
     )
+    self.post_processed_outputs: state.PostProcessedOutputs = (
+        jax.tree_util.tree_map(stack, *post_processed_output)
+    )
     self.times = jnp.array([state.t for state in sim_outputs.sim_history])
     chex.assert_rank(self.times, 1)
     self.sim_error = sim_outputs.sim_error
+    self.source_models = source_models
 
   def _pack_into_data_array(
       self,
@@ -260,18 +266,46 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core sources to a dict."""
     xr_dict = {}
+
+    xr_dict[self.source_models.qei_source_name] = (
+        self.core_sources.qei.qei_coef
+        * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
+    )
+
+    # Add source profiles
     for profile in self.core_sources.profiles:
       if profile in existing_keys:
         logging.warning(
             "Overlapping key %s between sources and other data structures",
             profile,
         )
-      xr_dict[profile] = self.core_sources.profiles[profile]
+      if profile in self.source_models.ion_el_sources:
+        xr_dict[f"{profile}_ion"] = self.core_sources.profiles[profile][
+            :, 0, ...
+        ]
+        xr_dict[f"{profile}_el"] = self.core_sources.profiles[profile][
+            :, 1, ...
+        ]
+      else:
+        xr_dict[profile] = self.core_sources.profiles[profile]
 
     xr_dict = {
         name: self._pack_into_data_array(name, data, geo)
         for name, data in xr_dict.items()
     }
+
+    return xr_dict
+
+  def _save_post_processed_outputs(
+      self,
+      geo: geometry.Geometry,
+  ) -> dict[str, xr.DataArray | None]:
+    """Saves the post processed outputs to a dict."""
+    xr_dict = {}
+    for field_name, data in dataclasses.asdict(
+        self.post_processed_outputs
+    ).items():
+      xr_dict[field_name] = self._pack_into_data_array(field_name, data, geo)
 
     return xr_dict
 
@@ -324,18 +358,12 @@ class StateHistory:
         SPR_FACE: xr.DataArray(geo.spr_face, dims=[RHO_FACE], name=SPR_FACE),
     }
 
-    xr_dict.update(
-        self._get_core_profiles(
-            geo,
-        )
-    )
-    xr_dict.update(
-        self._save_core_transport(
-            geo,
-        )
-    )
+    # Update dict with flattened StateHistory dataclass containers
+    xr_dict.update(self._get_core_profiles(geo))
+    xr_dict.update(self._save_core_transport(geo))
     existing_keys = set(xr_dict.keys())
     xr_dict.update(self._save_core_sources(geo, existing_keys))
+    xr_dict.update(self._save_post_processed_outputs(geo))
 
     ds = xr.Dataset(
         xr_dict,

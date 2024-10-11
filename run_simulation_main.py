@@ -109,6 +109,18 @@ _QLKNN_MODEL_PATH = flags.DEFINE_string(
     f' "{qlknn_wrapper.DEFAULT_MODEL_PATH}".',
 )
 
+_OUTPUT_DIR = flags.DEFINE_string(
+    'output_dir',
+    None,
+    'If provided, overrides the default output directory.',
+)
+
+_PLOT_CONFIG_MODULE = flags.DEFINE_string(
+    'plot_config',
+    'torax.plotting.configs.default_plot_config',  # Default
+    'Module path to the plot config.',
+)
+
 jax.config.parse_flags_with_absl()
 
 
@@ -248,10 +260,8 @@ def change_config(
     new_runtime_params = build_sim.build_runtime_params_from_config(
         sim_config['runtime_params']
     )
-    new_geo_provider = (
-        build_sim.build_geometry_provider_from_config(
-            sim_config['geometry'],
-        )
+    new_geo_provider = build_sim.build_geometry_provider_from_config(
+        sim_config['geometry'],
     )
     new_transport_model_builder = (
         build_sim.build_transport_model_builder_from_config(
@@ -420,17 +430,28 @@ def _post_run_plotting(
         color=simulation_app.AnsiColors.RED,
     )
     return
+  try:
+    plot_config = config_loader.import_module(
+        _PLOT_CONFIG_MODULE.value
+    ).PLOT_CONFIG
+  except (ModuleNotFoundError, AttributeError) as e:
+    logging.exception(
+        'Error loading plot config module %s: %s', _PLOT_CONFIG_MODULE.value, e
+    )
+    return
   match input_text:
     case '0':
-      return plotruns_lib.plot_run(output_files[-1])
+      return plotruns_lib.plot_run(plot_config, output_files[-1])
     case '1':
       if len(output_files) == 1:
         simulation_app.log_to_stdout(
             'Only one output run file found, only plotting the last run.',
             color=simulation_app.AnsiColors.RED,
         )
-        return plotruns_lib.plot_run(output_files[-1])
-      return plotruns_lib.plot_run(output_files[-1], output_files[-2])
+        return plotruns_lib.plot_run(plot_config, output_files[-1])
+      return plotruns_lib.plot_run(
+          plot_config, output_files[-1], output_files[-2]
+      )
     case '2':
       reference_run = _REFERENCE_RUN.value
       if reference_run is None:
@@ -438,7 +459,7 @@ def _post_run_plotting(
             'No reference run provided, only plotting the last run.',
             color=simulation_app.AnsiColors.RED,
         )
-      return plotruns_lib.plot_run(output_files[-1], reference_run)
+      return plotruns_lib.plot_run(plot_config, output_files[-1], reference_run)
     case _:
       raise ValueError('Unknown command')
 
@@ -461,11 +482,16 @@ def main(_):
             config_module_str, qlknn_model_path, _PYTHON_CONFIG_PACKAGE.value
         )
     )
+    output_dir = (
+        _OUTPUT_DIR.value
+        if _OUTPUT_DIR.value is not None
+        else new_runtime_params.output_dir
+    )
     build_time = time.time() - start_time
     start_time = time.time()
     _, output_file = _call_sim_app_main(
         sim=sim,
-        output_dir=new_runtime_params.output_dir,
+        output_dir=output_dir,
         log_sim_progress=log_sim_progress,
         plot_sim_progress=plot_sim_progress,
         log_sim_output=log_sim_output,

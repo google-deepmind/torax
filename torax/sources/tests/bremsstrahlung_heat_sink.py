@@ -78,7 +78,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         bremsstrahlung_heat_sink.calc_bremsstrahlung(
             core_profiles,
             geo,
-            dynamic_runtime_params_slice.plasma_composition.Zeff,
+            dynamic_runtime_params_slice.plasma_composition.Zeff_face,
             dynamic_runtime_params_slice.numerics.nref,
         )
     )
@@ -90,7 +90,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         bremsstrahlung_heat_sink.calc_bremsstrahlung(
             core_profiles,
             geo,
-            dynamic_runtime_params_slice.plasma_composition.Zeff,
+            dynamic_runtime_params_slice.plasma_composition.Zeff_face,
             dynamic_runtime_params_slice.numerics.nref,
             use_relativistic_correction=True,
         )

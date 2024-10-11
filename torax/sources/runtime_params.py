@@ -27,7 +27,7 @@ from torax.config import base
 from torax.sources import formula_config
 
 
-TimeInterpolated = interpolated_param.TimeInterpolated
+TimeInterpolatedInput = interpolated_param.TimeInterpolatedInput
 
 
 @enum.unique
