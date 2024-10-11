@@ -868,20 +868,17 @@ The following sources defined in TORAX but not yet implemented. They are listed 
 echcd
 ^^^^^
 
-Electron-cyclotron heating and current drive, based on the local efficiency model in [[Lin-Liu et al., 2003](https://doi.org/10.1063/1.1610472)]
-and the global efficiency model in [[Tholerus et al., 2024](https://doi.org/10.1088/1741-4326/ad6ea2)].
+Electron-cyclotron heating and current drive, based on the local efficiency model in [[Lin-Liu et al., 2003](https://doi.org/10.1063/1.1610472)].
 
     ``mode`` (str = 'model')
 
     ``ec_power_density`` **time-varying-array**
         EC power density deposition profile, in units of :math:`W/m^3`.
 
-    ``global_efficiency`` **time-varying-scalar**
-        Dimensionless efficiency factor for conversion of EC power to current.
+    ``cd_efficiency`` **time-varying-scalar**
+        Dimensionless efficiency profile for conversion of EC power to current.
 
-
-ECRHHeatSource
-^^^^^^^^^^^^^^
+See :ref:`physics_models` for more detail.
 
 ICRHHeatSource
 ^^^^^^^^^^^^^^
