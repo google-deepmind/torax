@@ -78,32 +78,30 @@ def _calc_heating_and_current(
 
     # Compute via the log for numerical stability
     # This is equivalent to:
-    # j_ec = (
-    #     epsilon0**2 / qe**3
-    #     * dV/drho * <1/R^2> F^2
-    #     / (2 * pi * Rmaj * B0)
-    #     * ne [m^-3] / Te [J]
+    # <j_ec.B> = (
+    #     2 * pi * epsilon0**2
+    #     / (qe**3 * R_maj)
+    #     * F
+    #     * Te [J] / ne [m^-3]
     #     * cd_efficiency
     #     * ec_power_density
     # )
-    log_j_ec = (
-        2 * jnp.log(CONSTANTS.epsilon0)
+    log_j_ec_dot_B = (
+        jnp.log(2 * jnp.pi / geo.Rmaj)
+        * 2 * jnp.log(CONSTANTS.epsilon0)
         - 3 * jnp.log(CONSTANTS.qe)
-        + jnp.log(geo.vpr)  # dV/drho
-        + jnp.log(geo.g3)  # <1/R^2>
         + jnp.log(geo.F)  # BxR
-        - jnp.log(2 * jnp.pi * geo.Rmaj * geo.B0)
-        + jnp.log(core_profiles.ne)
-        + jnp.log(dynamic_runtime_params_slice.numerics.nref)  # Convert ne to m^-3
-        - jnp.log(core_profiles.Te)
-        - jnp.log(CONSTANTS.keV2J)  # Convert Te to J
+        + jnp.log(core_profiles.Te)
+        + jnp.log(CONSTANTS.keV2J)  # Convert Te to J
+        - jnp.log(core_profiles.ne)
+        - jnp.log(dynamic_runtime_params_slice.numerics.nref)  # Convert ne to m^-3
         + jnp.log(dynamic_source_runtime_params.cd_efficiency)
         + jnp.log(dynamic_source_runtime_params.ec_power_density)
     )
-    flux_surface_avg_j_ec_dot_B = jnp.exp(log_j_ec)
+    j_ec_dot_B = jnp.exp(log_j_ec_dot_B)
 
     return jnp.stack(
-        [dynamic_source_runtime_params.ec_power_density, flux_surface_avg_j_ec_dot_B]
+        [dynamic_source_runtime_params.ec_power_density, j_ec_dot_B]
     )
 
 

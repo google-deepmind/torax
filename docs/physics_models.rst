@@ -360,16 +360,17 @@ An Electron-Cyclotron Heating and Current Drive source is under development (see
 
 Electron-Cyclotron Heating and Current Drive
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The electron-cyclotron current drive can be calculated from the heating power density, :math:`p_{EC} [Wm^{-3}]`,
-and the global EC efficiency, :math:`\zeta_{EC}`.
+The electron-cyclotron current drive can be calculated from the heating power density, :math:`Q_\mathrm{EC}(\rho) [Wm^{-3}]`,
+and a dimensionless EC current drive efficiency profile, :math:`\zeta_\mathrm{EC}(\rho)`.
 The current drive in :math:`[Am^{-2}]` is then given by:
 
 .. math::
 
-    \langle j_{EC} \cdot B \rangle = \frac{2\pi \epsilon_0^2 B_0}{e^3} \zeta_{EC} \frac{ \int{p_{EC} \frac{T_e}{n_e} \rho d\rho}{\int p_{EC} \rho d\rho} p_{EC}
+    j_\mathrm{EC} = \frac{2\pi\epsilon_0^2 F}{e^3 R_\mathrm{maj}} \frac{T_e}{n_e} \zeta_{EC} Q_\mathrm{EC}
 
-where :math:`\epsilon_0` is the vacuum permittivity, :math:`B_0` is the magnetic field on axis, :math:`e`
-is the elementary charge, :math:`T_e` is the electron temperature, :math:`n_e` is the electron density.
+where :math:`\epsilon_0` is the vacuum permittivity, :math:`F = B_\phi R`, :math:`e` is the elementary charge,
+:math:`R_\mathrm{maj}` is the device major radius, `:math:`T_e` is the electron temperature in joules, and
+:math:`n_e` is the electron density per cubic meter.
 
 Particle Sources
 ----------------
