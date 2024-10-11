@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+from dataclasses import field
 
 import chex
 import jax
@@ -15,6 +16,10 @@ from torax.constants import CONSTANTS
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
+InterpolatedVarTimeRhoInput = (
+    runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
+)
+
 
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
@@ -24,14 +29,14 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
     # Zeta from Lin-Liu, Chan, and Prater, 2003, eq 44
     # TODO: support either a scalar or a profile; if scalar axis,
     # then produce profile by ones*value
-    cd_efficiency: runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput = {
-        0.0: {0.0: 0.2, 1.0: 0.2}
-    }
+    cd_efficiency: InterpolatedVarTimeRhoInput = field(
+        default_factory=lambda: {0.0: {0.0: 0.2, 1.0: 0.2}}
+    )
 
     # EC power density profile on the rho grid; units [W/m^3]
-    ec_power_density: runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput = {
-        0.0: {0.0: 0.0, 1.0: 0.0}
-    }
+    ec_power_density: InterpolatedVarTimeRhoInput = field(
+        default_factory=lambda: {0.0: {0.0: 0.2, 1.0: 0.2}}
+    )
 
     def make_provider(self, torax_mesh: geometry.Grid1D | None = None):
         if torax_mesh is None:
@@ -44,7 +49,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
     """Provides runtime parameters for the electron-cyclotron source for a given time and geometry."""
 
     runtime_params_config: RuntimeParams
-    cd_efficiency: interpolated_param.InterpolatedVarSingleAxis
+    cd_efficiency: interpolated_param.InterpolatedVarTimeRho
     ec_power_density: interpolated_param.InterpolatedVarTimeRho
 
     def build_dynamic_params(
@@ -58,24 +63,22 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
 
-    cd_efficiency: array_typing.ScalarFloat
+    cd_efficiency: array_typing.ArrayFloat
     ec_power_density: array_typing.ArrayFloat
 
 
 def _calc_heating_and_current(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    source_models: runtime_params_lib.SourceModels,
 ) -> jax.Array:
     """Model function for the electron-cyclotron source.
 
     Returns:
       (ec_power_density, j_parallel_ec)
     """
-    assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-
     # Compute via the log for numerical stability
     # This is equivalent to:
     # <j_ec.B> = (
@@ -87,8 +90,7 @@ def _calc_heating_and_current(
     #     * ec_power_density
     # )
     log_j_ec_dot_B = (
-        jnp.log(2 * jnp.pi / geo.Rmaj)
-        * 2 * jnp.log(CONSTANTS.epsilon0)
+        jnp.log(2 * jnp.pi / geo.Rmaj) * 2 * jnp.log(CONSTANTS.epsilon0)
         - 3 * jnp.log(CONSTANTS.qe)
         + jnp.log(geo.F)  # BxR
         + jnp.log(core_profiles.Te)
@@ -100,9 +102,7 @@ def _calc_heating_and_current(
     )
     j_ec_dot_B = jnp.exp(log_j_ec_dot_B)
 
-    return jnp.stack(
-        [dynamic_source_runtime_params.ec_power_density, j_ec_dot_B]
-    )
+    return jnp.stack([dynamic_source_runtime_params.ec_power_density, j_ec_dot_B])
 
 
 def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
