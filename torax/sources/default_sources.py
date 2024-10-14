@@ -47,7 +47,7 @@ def get_default_runtime_params(
     case 'jext':
       return external_current_source.RuntimeParams()
     case 'nbi_particle_source':
-      return electron_density_sources.NBIParticleRuntimeParams()      )
+      return electron_density_sources.NBIParticleRuntimeParams()
     case 'echcd':
       return electron_cyclotron_source.RuntimeParams()
     case 'gas_puff_source':
