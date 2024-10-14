@@ -35,7 +35,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
     # EC power density profile on the rho grid; units [W/m^3]
     ec_power_density: InterpolatedVarTimeRhoInput = field(
-        default_factory=lambda: {0.0: {0.0: 0.2, 1.0: 0.2}}
+        default_factory=lambda: {0.0: {0.0: 0.0, 1.0: 0.0}}
     )
 
     def make_provider(self, torax_mesh: geometry.Grid1D | None = None):

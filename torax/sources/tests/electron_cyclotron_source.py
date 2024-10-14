@@ -96,7 +96,6 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         source_models = source_models_builder()
         source = source_models.sources["foo"]
         self.assertIsInstance(source, source_lib.Source)
-        # The provider is reused
         dynamic_runtime_params_slice_provider = (
             runtime_params_slice.DynamicRuntimeParamsSliceProvider(
                 runtime_params=runtime_params,
@@ -115,8 +114,8 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         )
 
         for unsupported_mode in self._unsupported_modes:
-            # Create a new slice with the given mode
             source_builder.runtime_params.mode = unsupported_mode
+            # Construct a new slice with the given mode
             dynamic_runtime_params_slice = (
                 runtime_params_slice.DynamicRuntimeParamsSliceProvider(
                     runtime_params=runtime_params,
