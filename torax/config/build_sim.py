@@ -358,7 +358,6 @@ def build_sources_builder_from_config(
 def _build_single_source_builder_from_config(
     source_name: str,
     source_config: dict[str, Any],
-    extra_init_kwargs: dict[str, Any] | None = None,
 ) -> source_lib.SourceBuilderProtocol:
   """Builds a source builder from the input config."""
   runtime_params = default_sources.get_default_runtime_params(
@@ -396,16 +395,7 @@ def _build_single_source_builder_from_config(
   kwargs = {'runtime_params': runtime_params}
   if formula is not None:
     kwargs['formula'] = formula
-  if extra_init_kwargs is not None:
-    kwargs.update(extra_init_kwargs)
-  # pylint: disable=missing-kwoa
-  # pytype: disable=missing-parameter
-  assert not isinstance(formula, dict)
-  if 'formula' in kwargs:
-    assert not isinstance(kwargs['formula'], dict)
   return default_sources.get_source_builder_type(source_name)(**kwargs)
-  # pylint: enable=missing-kwoa
-  # pytype: enable=missing-parameter
 
 
 def build_transport_model_builder_from_config(
