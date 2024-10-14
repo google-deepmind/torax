@@ -96,6 +96,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         source_models = source_models_builder()
         source = source_models.sources["foo"]
         self.assertIsInstance(source, source_lib.Source)
+        # The provider is reused
         dynamic_runtime_params_slice_provider = (
             runtime_params_slice.DynamicRuntimeParamsSliceProvider(
                 runtime_params=runtime_params,
@@ -103,10 +104,10 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
                 torax_mesh=geo.torax_mesh,
             )
         )
+        # This slice is needed to create the core_profiles
         dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
             t=runtime_params.numerics.t_initial,
         )
-
         core_profiles = core_profile_setters.initial_core_profiles(
             dynamic_runtime_params_slice=dynamic_runtime_params_slice,
             geo=geo,
@@ -114,7 +115,17 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         )
 
         for unsupported_mode in self._unsupported_modes:
+            # Create a new slice with the given mode
             source_builder.runtime_params.mode = unsupported_mode
+            dynamic_runtime_params_slice = (
+                runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+                    runtime_params=runtime_params,
+                    sources=source_models_builder.runtime_params,
+                    torax_mesh=geo.torax_mesh,
+                )(
+                    t=runtime_params.numerics.t_initial,
+                )
+            )
             with self.subTest(unsupported_mode.name):
                 with self.assertRaises(RuntimeError):
                     source.get_value(
