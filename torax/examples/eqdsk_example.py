@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ITER hybrid scenario based (roughly) on van Mulders NF 2021."""
-
+""" Modified iterhybrid predictor with EQDSK geometry. To show how to reference EQDSK in a config. """
 import copy 
-from torax.tests.test_data import test_iterhybrid_rampup_short
+from torax.examples import iterhybrid_predictor_corrector
 
-CONFIG = copy.deepcopy(test_iterhybrid_rampup_short.CONFIG)
+
+CONFIG = copy.deepcopy(iterhybrid_predictor_corrector.CONFIG)
 CONFIG['geometry'] = {
         'geometry_type': 'EQDSK',
         'geometry_file': 'eqdsk_cocos02.eqdsk',
