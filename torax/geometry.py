@@ -938,7 +938,7 @@ class StandardGeometryIntermediates:
 
         # set epsilon based on floating point precision of psi grid
         # NOTE: this is hacky and should be replaced with a more robust method
-        epsilon = 1e-7
+        epsilon = constants.CONSTANTS.eps # 1e-7
 
         psi_interpolant  = np.linspace(eqfile['psimag'] + epsilon, eqfile['psibdry'] - epsilon, 100)
 
