@@ -206,29 +206,21 @@ def _calculate_Iext(
 class ExternalCurrentSource(source.Source):
   """External current density source profile."""
 
-  # The ExternalCurrentSource returns a profile on the face grid, unlike most
-  # other sources.
-  output_shape_getter: source.SourceOutputShapeFunction = (
-      source.ProfileType.FACE.get_profile_shape
-  )
-
   supported_types: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.FORMULA_BASED,
       runtime_params_lib.Mode.PRESCRIBED,
   )
-
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # "Freeze" this param.
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default_factory=lambda: (source.AffectedCoreProfile.PSI,),
-      )
-  )
-
   formula: source.SourceProfileFunction = _calculate_jext_face
   hires_formula: source.SourceProfileFunction = _calculate_jext_hires
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.PSI,)
+
+  @property
+  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
+    return source.ProfileType.FACE.get_profile_shape
 
   def jext_hires(
       self,

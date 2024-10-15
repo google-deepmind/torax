@@ -88,21 +88,18 @@ class BootstrapCurrentSource(source.Source):
   - bootstrap current (on cell and face grids)
   - total integrated bootstrap current
   """
-
-  output_shape_getter: source.SourceOutputShapeFunction = _default_output_shapes
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
   )
 
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param.
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default_factory=lambda: (source.AffectedCoreProfile.PSI,),
-      )
-  )
+  @property
+  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
+    return _default_output_shapes
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.PSI,)
 
   def get_value(
       self,

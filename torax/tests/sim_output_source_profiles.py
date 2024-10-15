@@ -36,9 +36,9 @@ from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.sources.tests import test_lib
 from torax.stepper import runtime_params as stepper_runtime_params
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
@@ -108,24 +108,22 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
     # Include 2 versions of this source, one implicit and one explicit.
     source_models_builder = source_models_lib.SourceModelsBuilder({
-        'implicit_ne_source': source.SourceBuilder(
+        'implicit_ne_source': test_lib.TestSourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
             ),
-            affected_core_profiles=(source.AffectedCoreProfile.NE,),
             formula=custom_source_formula,
             runtime_params=_FakeSourceRuntimeParams(
                 mode=runtime_params_lib.Mode.FORMULA_BASED,
                 foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
             ),
         ),
-        'explicit_ne_source': source.SourceBuilder(
+        'explicit_ne_source': test_lib.TestSourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
             ),
-            affected_core_profiles=(source.AffectedCoreProfile.NE,),
             formula=custom_source_formula,
             runtime_params=_FakeSourceRuntimeParams(
                 mode=runtime_params_lib.Mode.FORMULA_BASED,

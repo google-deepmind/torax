@@ -71,24 +71,17 @@ class QeiSource(source.Source):
   This is a special-case source because it can provide both implicit and
   explicit terms in our solver. See sim.py for how this is used.
   """
-
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.MODEL_BASED,
       runtime_params_lib.Mode.ZERO,
   )
 
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param. Qei is a special-case source and affects these equations
-  # in a slightly different manner than the rest of the sources.
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default_factory=lambda: (
-              source.AffectedCoreProfile.TEMP_ION,
-              source.AffectedCoreProfile.TEMP_EL,
-          ),
-      )
-  )
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (
+        source.AffectedCoreProfile.TEMP_ION,
+        source.AffectedCoreProfile.TEMP_EL,
+    )
 
   def get_qei(
       self,
