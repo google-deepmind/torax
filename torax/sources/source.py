@@ -393,6 +393,7 @@ def get_ion_el_output_shape(geo):
   return (2,) + ProfileType.CELL.get_profile_shape(geo)
 
 
+@dataclasses.dataclass(frozen=False, kw_only=True)
 class SourceBuilderProtocol(Protocol):
   """Make a best effort to define what SourceBuilders are with type hints.
 

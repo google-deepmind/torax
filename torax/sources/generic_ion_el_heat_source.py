@@ -167,8 +167,3 @@ class GenericIonElectronHeatSource(source.Source):
       default_factory=lambda: source.get_ion_el_output_shape,
   )
   formula: source.SourceProfileFunction = _default_formula
-
-
-GenericIonElectronHeatSourceBuilder = source.make_source_builder(
-    GenericIonElectronHeatSource, runtime_params_type=RuntimeParams
-)

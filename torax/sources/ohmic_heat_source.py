@@ -210,10 +210,3 @@ class OhmicHeatSource(source_lib.Source):
       init=False,
       default_factory=lambda: ohmic_model_func,
   )
-
-
-OhmicHeatSourceBuilder = source_lib.make_source_builder(
-    OhmicHeatSource,
-    links_back=True,
-    runtime_params_type=OhmicRuntimeParams,
-)

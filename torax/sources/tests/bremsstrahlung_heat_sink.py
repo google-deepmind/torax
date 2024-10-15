@@ -37,7 +37,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
-        source_class_builder=bremsstrahlung_heat_sink.BremsstrahlungHeatSinkBuilder,
+        runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],

@@ -36,7 +36,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=fusion_heat_source.FusionHeatSource,
-        source_class_builder=fusion_heat_source.FusionHeatSourceBuilder,
+        runtime_params_class=fusion_heat_source.FusionHeatSourceRuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],

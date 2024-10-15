@@ -60,8 +60,3 @@ class NBICurrentSource(source.Source):
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.PSI,
   )
-
-ECRHCurrentSourceBuilder = source.make_source_builder(ECRHCurrentSource)
-ICRHCurrentSourceBuilder = source.make_source_builder(ICRHCurrentSource)
-LHCurrentSourceBuilder = source.make_source_builder(LHCurrentSource)
-NBICurrentSourceBuilder = source.make_source_builder(NBICurrentSource)

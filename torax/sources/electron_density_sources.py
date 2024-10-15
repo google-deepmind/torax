@@ -299,17 +299,3 @@ class RecombinationDensitySink(source.Source):
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.NE,
   )
-
-
-PelletSourceBuilder = source.make_source_builder(
-    PelletSource, runtime_params_type=PelletRuntimeParams
-)
-GasPuffSourceBuilder = source.make_source_builder(
-    GasPuffSource, runtime_params_type=GasPuffRuntimeParams
-)
-NBIParticleSourceBuilder = source.make_source_builder(
-    NBIParticleSource, runtime_params_type=NBIParticleRuntimeParams
-)
-RecombinationDensitySinkBuilder = source.make_source_builder(
-    RecombinationDensitySink
-)

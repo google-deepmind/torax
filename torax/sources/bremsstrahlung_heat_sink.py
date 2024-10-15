@@ -150,8 +150,3 @@ class BremsstrahlungHeatSink(source.Source):
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.TEMP_EL,
   )
-
-
-BremsstrahlungHeatSinkBuilder = source.make_source_builder(
-    BremsstrahlungHeatSink, runtime_params_type=RuntimeParams
-)

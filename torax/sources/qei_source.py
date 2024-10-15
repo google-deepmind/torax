@@ -131,11 +131,6 @@ class QeiSource(source.Source):
     raise NotImplementedError('This method is not valid for QeiSource.')
 
 
-QeiSourceBuilder = source.make_source_builder(
-    QeiSource, runtime_params_type=RuntimeParams
-)
-
-
 def _model_based_qei(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,

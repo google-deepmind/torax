@@ -65,8 +65,20 @@ def register_new_source(
     source_class: Type[source.Source],
     default_runtime_params_class: Type[runtime_params.RuntimeParams],
     source_builder_class: source.SourceBuilderProtocol | None = None,
+    links_back: bool = False,
 ):
-  """Register a source class, default runtime params and (optional) builder."""
+  """Register source class, default runtime params and (optional) builder for this source.
+
+  Args:
+    source_name: The name of the source.
+    source_class: The source class.
+    default_runtime_params_class: The default runtime params class.
+    source_builder_class: The source builder class. If None, a default builder
+      is created which uses the source class and default runtime params class to
+      construct a builder for that source.
+    links_back: Whether the source requires a reference to all the source
+      models.
+  """
   if source_name in _REGISTERED_SOURCES:
     raise ValueError(f'Source:{source_name} has already been registered.')
 
@@ -74,6 +86,7 @@ def register_new_source(
     builder_class = source.make_source_builder(
         source_class,
         runtime_params_type=default_runtime_params_class,
+        links_back=links_back,
     )
   else:
     builder_class = source_builder_class
@@ -139,7 +152,7 @@ def register_torax_sources():
       'ohmic_heat_source',
       ohmic_heat_source.OhmicHeatSource,
       default_runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
-      source_builder_class=ohmic_heat_source.OhmicHeatSourceBuilder,
+      links_back=True,
   )
   register_new_source(
       'bremsstrahlung_heat_sink',

@@ -821,21 +821,26 @@ class SourceModelsBuilder:
     # The SourceModels would also build them, but then there'd be no
     # user-editable runtime params for them.
     if not bootstrap_found:
-      source_builders['j_bootstrap'] = (
-          bootstrap_current_source.BootstrapCurrentSourceBuilder()
-      )
+      source_builders['j_bootstrap'] = source_lib.make_source_builder(
+          bootstrap_current_source.BootstrapCurrentSource,
+          runtime_params_type=bootstrap_current_source.RuntimeParams,
+      )()
       source_builders['j_bootstrap'].runtime_params.mode = (
           runtime_params_lib.Mode.ZERO
       )
     if not qei_found:
-      source_builders['qei_source'] = qei_source_lib.QeiSourceBuilder()
+      source_builders['qei_source'] = source_lib.make_source_builder(
+          qei_source_lib.QeiSource,
+          runtime_params_type=qei_source_lib.RuntimeParams,
+      )()
       source_builders['qei_source'].runtime_params.mode = (
           runtime_params_lib.Mode.ZERO
       )
     if not jext_found:
-      source_builders['jext'] = (
-          external_current_source.ExternalCurrentSourceBuilder()
-      )
+      source_builders['jext'] = source_lib.make_source_builder(
+          external_current_source.ExternalCurrentSource,
+          runtime_params_type=external_current_source.RuntimeParams,
+      )()
       source_builders['jext'].runtime_params.mode = runtime_params_lib.Mode.ZERO
 
     self.source_builders = source_builders
