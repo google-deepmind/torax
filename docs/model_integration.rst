@@ -74,7 +74,7 @@ For example:
     class MyCustomRuntimeParams(transport_params.RuntimeParams):
       """Defines runtime inputs to the custom transport model."""
 
-      foo: transport_params.TimeInterpolated = 1.0
+      foo: transport_params.TimeInterpolatedInput = 1.0
       bar: float = 2.0  # cannot change over the simulation run.
 
       def build_dynamic_params(self, t: chex.Numeric) -> MyCustomDynamicRuntimeParams:

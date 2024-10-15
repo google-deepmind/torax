@@ -93,7 +93,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     source_builder.runtime_params.mode = source.supported_modes[0]
-    self.assertIsInstance(source, source_lib.SingleProfileSource)
+    self.assertIsInstance(source, source_lib.Source)
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -131,7 +131,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources['foo']
-    self.assertIsInstance(source, source_lib.SingleProfileSource)
+    self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -158,7 +158,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
           )
       )
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
+        with self.assertRaises(RuntimeError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
@@ -184,7 +184,7 @@ class IonElSourceTestCase(SourceTestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources['foo']
-    self.assertIsInstance(source, source_lib.IonElectronSource)
+    self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -221,7 +221,7 @@ class IonElSourceTestCase(SourceTestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources['foo']
-    self.assertIsInstance(source, source_lib.IonElectronSource)
+    self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -248,7 +248,7 @@ class IonElSourceTestCase(SourceTestCase):
           )
       )
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
+        with self.assertRaises(RuntimeError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[

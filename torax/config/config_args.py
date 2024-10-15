@@ -31,6 +31,8 @@ import xarray as xr
 # TypeVar for generic dataclass types.
 _T = TypeVar('_T')
 RHO_NORM = 'rho_norm'
+TIME_INTERPOLATION_MODE = 'time_interpolation_mode'
+RHO_INTERPOLATION_MODE = 'rho_interpolation_mode'
 
 
 def input_is_an_interpolated_var_single_axis(
@@ -47,10 +49,10 @@ def input_is_an_interpolated_var_single_axis(
       return (
           # If the type comes as a string rather than an object, the Union check
           # below won't work, so we check for the full name here.
-          ft == 'TimeInterpolated'
+          ft == 'TimeInterpolatedInput'
           or
-          # Common alias for TimeInterpolated in a few files.
-          (isinstance(ft, str) and 'TimeInterpolated' in ft)
+          # Common alias for TimeInterpolatedInput in a few files.
+          (isinstance(ft, str) and 'TimeInterpolatedInput' in ft)
           or
           # Otherwise, check if it is actually the InterpolatedVarSingleAxis.
           ft == 'interpolated_param.InterpolatedVarSingleAxis'
@@ -72,7 +74,7 @@ def input_is_an_interpolated_var_single_axis(
 
 
 def _is_bool(
-    interp_input: interpolated_param.InterpolatedVarSingleAxisInput
+    interp_input: interpolated_param.InterpolatedVarSingleAxisInput,
 ) -> bool:
   if isinstance(interp_input, dict):
     if not interp_input:
@@ -97,14 +99,11 @@ def get_interpolated_var_single_axis(
 
   Args:
     interpolated_var_single_axis_input: Input that can be used to construct a
-    `interpolated_param.InterpolatedVarSingleAxis` object.
-    Can be either:
-    - Python primitives.
-    - An xr.DataArray.
-    - A tuple(axis_array, values_array).
+      `interpolated_param.InterpolatedVarSingleAxis` object. Can be either:
+      Python primitives, an xr.DataArray, a tuple(axis_array, values_array).
+      See torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars
+      for more information on the supported inputs.
 
-    See torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars
-    for more information on the supported inputs.
   Returns:
     A constructed interpolated var.
   """
@@ -150,6 +149,7 @@ def input_is_an_interpolated_var_time_rho(
     input_config_fields_to_types: dict[str, Any],
 ) -> bool:
   """Returns True if the input config field is a TimeRhoInterpolated."""
+
   def _check(ft):
     """Checks if the input field type is an InterpolatedVarTimeRho."""
     try:
@@ -285,15 +285,41 @@ def get_interpolated_var_2d(
   2. An xr.DataArray is passed in, see _load_from_xr_array for details.
   3. A tuple of arrays is passed in, see _load_from_arrays for details.
 
+  Additionally the interpolation mode for rhon and time can be specified as
+  strings by passing a 3-tuple with the first element being the input, the
+  second element being the time interpolation mode and the third element
+  being the rhon interpolation mode.
+
   Args:
     time_rho_interpolated_input: An input that can be used to construct a
       InterpolatedVarTimeRho object.
     rho_norm: The rho_norm values to interpolate at (usually the TORAX mesh).
 
   Returns:
-    An InterpolatedVarTimeRho object which has been preinterpolaed onto the
+    An InterpolatedVarTimeRho object which has been preinterpolated onto the
     provided rho_norm values.
   """
+  # Potentially parse the interpolation modes from the input.
+  time_interpolation_mode = (
+      interpolated_param.InterpolationMode.PIECEWISE_LINEAR
+  )
+  rho_interpolation_mode = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
+  if isinstance(time_rho_interpolated_input, tuple):
+    if (
+        len(time_rho_interpolated_input) == 2
+        and isinstance(time_rho_interpolated_input[1], dict)
+    ):
+      # Second and third elements in tuple are interpreted as interpolation
+      # modes.
+      time_interpolation_mode = interpolated_param.InterpolationMode[
+          time_rho_interpolated_input[1][TIME_INTERPOLATION_MODE].upper()
+      ]
+      rho_interpolation_mode = interpolated_param.InterpolationMode[
+          time_rho_interpolated_input[1][RHO_INTERPOLATION_MODE].upper()
+      ]
+      # First element in tuple assumed to be the input.
+      time_rho_interpolated_input = time_rho_interpolated_input[0]
+
   if isinstance(time_rho_interpolated_input, xr.DataArray):
     values = _load_from_xr_array(
         time_rho_interpolated_input,
@@ -316,6 +342,8 @@ def get_interpolated_var_2d(
   time_rho_interpolated = interpolated_param.InterpolatedVarTimeRho(
       values=values,
       rho_norm=rho_norm,
+      time_interpolation_mode=time_interpolation_mode,
+      rho_interpolation_mode=rho_interpolation_mode,
   )
   return time_rho_interpolated
 

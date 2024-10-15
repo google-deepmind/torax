@@ -31,6 +31,7 @@ from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
 from torax.sources import external_current_source
+from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 
@@ -144,10 +145,9 @@ def _get_ne(
 
       dr_edge = geo.Rout_face[-1] - geo.Rout_face[-2]
 
-      C = (
-          target_nbar
-          - 0.5 * ne_face[-1] * dr_edge / Rmin_out
-      ) / (nbar_from_ne_face_inner + 0.5 * ne_face[-2] * dr_edge / Rmin_out)
+      C = (target_nbar - 0.5 * ne_face[-1] * dr_edge / Rmin_out) / (
+          nbar_from_ne_face_inner + 0.5 * ne_face[-2] * dr_edge / Rmin_out
+      )
   else:
     C = 1
 
@@ -162,24 +162,28 @@ def _get_ne(
   return ne
 
 
-def updated_density(
+def _updated_ion_density(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-) -> tuple[cell_variable.CellVariable, cell_variable.CellVariable]:
-  """Updated particle density. Used upon initialization and if dens_eq=False."""
-  ne = _get_ne(
-      dynamic_runtime_params_slice,
-      geo,
-  )
-
-  # define ion profile based on (flat) Zeff and single assumed impurity
+    ne: cell_variable.CellVariable,
+) -> tuple[
+    cell_variable.CellVariable,
+    cell_variable.CellVariable,
+]:
+  """Updated ion densities based on electron density and plasma composition."""
+  # define ion profile based on Zeff and single assumed impurity
   # with Zimp. main ion limited to hydrogenic species for now.
   # Assume isotopic balance for DT fusion power. Solve for ni based on:
-  # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
+  # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne ,
+  # where all density units are in nref
 
-  dilution_factor = physics.get_main_ion_dilution_factor(
-      dynamic_runtime_params_slice.plasma_composition.Zimp,
-      dynamic_runtime_params_slice.plasma_composition.Zeff,
+  Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
+  Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
+  Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
+
+  dilution_factor = physics.get_main_ion_dilution_factor(Zimp, Zeff)
+  dilution_factor_edge = physics.get_main_ion_dilution_factor(
+      Zimp, Zeff_face[-1]
   )
 
   ni = cell_variable.CellVariable(
@@ -187,10 +191,42 @@ def updated_density(
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(
-          ne.right_face_constraint * dilution_factor
+          ne.right_face_constraint * dilution_factor_edge
       ),
   )
-  return ne, ni
+
+  nimp = cell_variable.CellVariable(
+      value=(ne.value - ni.value) / Zimp,
+      dr=geo.drho_norm,
+      right_face_grad_constraint=None,
+      right_face_constraint=jnp.array(
+          ne.right_face_constraint - ni.right_face_constraint
+      )
+      / Zimp,
+  )
+  return ni, nimp
+
+
+def updated_density(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
+) -> tuple[
+    cell_variable.CellVariable,
+    cell_variable.CellVariable,
+    cell_variable.CellVariable,
+]:
+  """Updated particle density. Used upon initialization and if dens_eq=False."""
+  ne = _get_ne(
+      dynamic_runtime_params_slice,
+      geo,
+  )
+  ni, nimp = _updated_ion_density(
+      dynamic_runtime_params_slice,
+      geo,
+      ne,
+  )
+
+  return ne, ni, nimp
 
 
 def _prescribe_currents_no_bootstrap(
@@ -700,7 +736,7 @@ def initial_core_profiles(
   # The default time in build_dynamic_runtime_params_slice is t_initial
   temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo)
   temp_el = updated_electron_temperature(dynamic_runtime_params_slice, geo)
-  ne, ni = updated_density(dynamic_runtime_params_slice, geo)
+  ne, ni, nimp = updated_density(dynamic_runtime_params_slice, geo)
   psi, currents = _initial_psi(
       dynamic_runtime_params_slice,
       geo,
@@ -729,6 +765,10 @@ def initial_core_profiles(
       temp_el=temp_el,
       ne=ne,
       ni=ni,
+      Zi=dynamic_runtime_params_slice.plasma_composition.Zi,
+      Ai=dynamic_runtime_params_slice.plasma_composition.Ai,
+      nimp=nimp,
+      Zimp=dynamic_runtime_params_slice.plasma_composition.Zimp,
       psi=psi,
       psidot=psidot,
       currents=currents,
@@ -742,7 +782,7 @@ def initial_core_profiles(
   # phibdot calculation.
   psidot = dataclasses.replace(
       psidot,
-      value=source_models_lib.calc_psidot(
+      value=ohmic_heat_source.calc_psidot(
           dynamic_runtime_params_slice,
           geo,
           core_profiles,
@@ -806,19 +846,28 @@ def updated_prescribed_core_profiles(
       not static_runtime_params_slice.dens_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    ne, ni = updated_density(dynamic_runtime_params_slice, geo)
+    ne, ni, nimp = updated_density(dynamic_runtime_params_slice, geo)
     ne = ne.value
     ni = ni.value
+    nimp = nimp.value
   else:
     ne = core_profiles.ne.value
     ni = core_profiles.ni.value
+    nimp = core_profiles.nimp.value
 
-  return {'temp_ion': temp_ion, 'temp_el': temp_el, 'ne': ne, 'ni': ni}
+  return {
+      'temp_ion': temp_ion,
+      'temp_el': temp_el,
+      'ne': ne,
+      'ni': ni,
+      'nimp': nimp,
+  }
 
 
 def update_evolving_core_profiles(
     x_new: tuple[cell_variable.CellVariable, ...],
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: Geometry,
     core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],
 ) -> state.CoreProfiles:
@@ -827,6 +876,7 @@ def update_evolving_core_profiles(
   Args:
     x_new: The new values of the evolving variables.
     dynamic_runtime_params_slice: The dynamic runtime params slice.
+    geo: Magnetic geometry.
     core_profiles: The old set of core plasma profiles.
     evolving_names: The names of the evolving variables.
   """
@@ -842,14 +892,8 @@ def update_evolving_core_profiles(
   temp_el = get_update(x_new, 'temp_el')
   psi = get_update(x_new, 'psi')
   ne = get_update(x_new, 'ne')
-  ni = dataclasses.replace(
-      core_profiles.ni,
-      value=ne.value
-      * physics.get_main_ion_dilution_factor(
-          dynamic_runtime_params_slice.plasma_composition.Zimp,
-          dynamic_runtime_params_slice.plasma_composition.Zeff,
-      ),
-  )
+
+  ni, nimp = _updated_ion_density(dynamic_runtime_params_slice, geo, ne)
 
   return dataclasses.replace(
       core_profiles,
@@ -858,6 +902,7 @@ def update_evolving_core_profiles(
       psi=psi,
       ne=ne,
       ni=ni,
+      nimp=nimp,
   )
 
 
@@ -897,10 +942,16 @@ def compute_boundary_conditions(
   # Assume isotopic balance for DT fusion power. Solve for ni based on:
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
 
-  dilution_factor = physics.get_main_ion_dilution_factor(
+  dilution_factor_edge = physics.get_main_ion_dilution_factor(
       dynamic_runtime_params_slice.plasma_composition.Zimp,
-      dynamic_runtime_params_slice.plasma_composition.Zeff,
+      dynamic_runtime_params_slice.plasma_composition.Zeff_face[-1],
   )
+
+  ni_bound_right = ne_bound_right * dilution_factor_edge
+  nimp_bound_right = (
+      ne_bound_right - ni_bound_right
+  ) / dynamic_runtime_params_slice.plasma_composition.Zimp
+
   return {
       'temp_ion': dict(
           left_face_grad_constraint=jnp.zeros(()),
@@ -920,7 +971,12 @@ def compute_boundary_conditions(
       'ni': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(ne_bound_right * dilution_factor),
+          right_face_constraint=jnp.array(ni_bound_right),
+      ),
+      'nimp': dict(
+          left_face_grad_constraint=jnp.zeros(()),
+          right_face_grad_constraint=None,
+          right_face_constraint=jnp.array(nimp_bound_right),
       ),
       'psi': dict(
           right_face_grad_constraint=_calculate_psi_grad_constraint(

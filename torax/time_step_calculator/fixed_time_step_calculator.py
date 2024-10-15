@@ -17,8 +17,6 @@
 Steps through time using a constant time step.
 """
 
-from typing import Union
-
 import jax
 from jax import numpy as jnp
 from torax import geometry
@@ -40,15 +38,6 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
 
   def initial_state(self):
     return STATE
-
-  def not_done(
-      self,
-      t: Union[float, jax.Array],
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      state: State,
-  ) -> Union[bool, jax.Array]:
-    """Returns True if iteration not done (t < runtime_params.numerics.t_final)."""
-    return t < dynamic_runtime_params_slice.numerics.t_final
 
   def next_dt(
       self,

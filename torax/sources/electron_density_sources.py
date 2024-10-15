@@ -36,9 +36,10 @@ from torax.sources import source_models
 class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for GasPuffSource."""
   # exponential decay length of gas puff ionization [normalized radial coord]
-  puff_decay_length: runtime_params_lib.TimeInterpolated = 0.05
+  puff_decay_length: runtime_params_lib.TimeInterpolatedInput = 0.05
   # total gas puff particles/s
-  S_puff_tot: runtime_params_lib.TimeInterpolated = 1e22
+  S_puff_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   def make_provider(
       self,
@@ -94,10 +95,17 @@ def _calc_puff_source(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class GasPuffSource(source.SingleProfileNeSource):
+class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
-
+  # output_shape_getter is removed from __init__ as it is fixed to this value.
+  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
+      init=False,
+      default_factory=lambda: source.get_cell_profile_shape,
+  )
   formula: source.SourceProfileFunction = _calc_puff_source
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.NE,
+  )
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -105,11 +113,12 @@ class NBIParticleRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for NBI particle source."""
 
   # NBI particle source Gaussian width in normalized radial coord
-  nbi_particle_width: runtime_params_lib.TimeInterpolated = 0.25
+  nbi_particle_width: runtime_params_lib.TimeInterpolatedInput = 0.25
   # NBI particle source Gaussian central location in normalized radial coord
-  nbi_deposition_location: runtime_params_lib.TimeInterpolated = 0.0
+  nbi_deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.0
   # NBI total particle source
-  S_nbi_tot: runtime_params_lib.TimeInterpolated = 1e22
+  S_nbi_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   def make_provider(
       self,
@@ -179,10 +188,17 @@ def _calc_nbi_source(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class NBIParticleSource(source.SingleProfileNeSource):
+class NBIParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
-
+  # output_shape_getter is removed from __init__ as it is fixed to this value.
+  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
+      init=False,
+      default_factory=lambda: source.get_cell_profile_shape,
+  )
   formula: source.SourceProfileFunction = _calc_nbi_source
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.NE,
+  )
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -191,12 +207,13 @@ class PelletRuntimeParams(runtime_params_lib.RuntimeParams):
 
   # Gaussian width of pellet deposition [normalized radial coord],
   # (continuous pellet model)
-  pellet_width: runtime_params_lib.TimeInterpolated = 0.1
+  pellet_width: runtime_params_lib.TimeInterpolatedInput = 0.1
   # Pellet source Gaussian central location [normalized radial coord]
   # (continuous pellet model)
-  pellet_deposition_location: runtime_params_lib.TimeInterpolated = 0.85
+  pellet_deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.85
   # total pellet particles/s (continuous pellet model)
-  S_pellet_tot: runtime_params_lib.TimeInterpolated = 2e22
+  S_pellet_tot: runtime_params_lib.TimeInterpolatedInput = 2e22
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   def make_provider(
       self,
@@ -249,10 +266,17 @@ def _calc_pellet_source(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class PelletSource(source.SingleProfileNeSource):
+class PelletSource(source.Source):
   """Pellet source for the ne equation."""
-
+  # output_shape_getter is removed from __init__ as it is fixed to this value.
+  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
+      init=False,
+      default_factory=lambda: source.get_cell_profile_shape,
+  )
   formula: source.SourceProfileFunction = _calc_pellet_source
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.NE,
+  )
 
 
 # pylint: enable=invalid-name
@@ -265,8 +289,16 @@ class PelletSource(source.SingleProfileNeSource):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class RecombinationDensitySink(source.SingleProfileNeSource):
+class RecombinationDensitySink(source.Source):
   """Recombination sink for the electron density equation."""
+  # output_shape_getter is removed from __init__ as it is fixed to this value.
+  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
+      init=False,
+      default_factory=lambda: source.get_cell_profile_shape,
+  )
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.NE,
+  )
 
 
 PelletSourceBuilder = source.make_source_builder(

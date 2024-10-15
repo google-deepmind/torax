@@ -28,7 +28,6 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import array_typing
-from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
 from torax import interpolated_param
@@ -37,7 +36,6 @@ from torax import state as state_module
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.fvm import cell_variable
 from torax.sources import default_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -58,19 +56,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            sources=source_models_builder.runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=runtime_params.numerics.t_initial,
-        )
-    )
     # Technically, the merge_source_profiles() function should be called with
     # source profiles where, for every source, only one of the implicit or
     # explicit profiles has non-zero values. That is what makes the summing
@@ -88,27 +76,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         source_models=source_models,
         value=2.0,
     )
-    qei_core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        source_models=source_models,
-    )
-    qei_core_profiles = dataclasses.replace(
-        qei_core_profiles,
-        temp_ion=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.rho) * 1.0,
-            dr=geo.drho,
-        ),
-        temp_el=cell_variable.CellVariable(
-            value=jnp.ones_like(geo.rho) * 3.0,
-            dr=geo.drho,
-        ),
-    )
     merged_profiles = sim_lib.merge_source_profiles(  # pylint: disable=protected-access
-        source_models=source_models,
         implicit_source_profiles=fake_implicit_source_profiles,
         explicit_source_profiles=fake_explicit_source_profiles,
-        qei_core_profiles=qei_core_profiles,
     )
     # All the profiles in the merged profiles should be a 1D array with all 3s.
     # Except the Qei profile, which is a special case.
@@ -117,11 +87,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         np.testing.assert_allclose(profile, 3.0)
       else:
         np.testing.assert_allclose(profile, 6.0)
-    # Make sure the combo ion-el heat sources were split up.
+    # Make sure the combo ion-el heat sources are present.
     for name in ['generic_ion_el_heat_source', 'fusion_heat_source']:
-      self.assertNotIn(name, merged_profiles.profiles)
-      self.assertIn(f'{name}_ion', merged_profiles.profiles)
-      self.assertIn(f'{name}_el', merged_profiles.profiles)
+      self.assertIn(name, merged_profiles.profiles)
 
   def test_first_and_last_source_profiles(self):
     """Tests that the first and last source profiles contain correct data."""
@@ -141,7 +109,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
     # Include 2 versions of this source, one implicit and one explicit.
     source_models_builder = source_models_lib.SourceModelsBuilder({
-        'implicit_ne_source': source.SingleProfileSourceBuilder(
+        'implicit_ne_source': source.SourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
@@ -153,7 +121,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
                 foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
             ),
         ),
-        'explicit_ne_source': source.SingleProfileSourceBuilder(
+        'explicit_ne_source': source.SourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
@@ -185,12 +153,14 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         runtime_params_slice.build_static_runtime_params_slice(runtime_params)
     )
 
-    sim_states = sim_lib.run_simulation(
+    sim_outputs = sim_lib.run_simulation(
         initial_state=sim_lib.get_initial_state(
+            static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice=initial_dcs,
             geo=geo,
             time_step_calculator=time_stepper,
             source_models=source_models,
+            step_fn=step_fn,
         ),
         step_fn=step_fn,
         geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
@@ -204,7 +174,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # on the state and config at time t. So both the implicit and explicit
     # profiles of each time step should be equal in this case (especially
     # because we are using the fake step function defined below).
-    for i, sim_state in enumerate(sim_states):
+    for i, sim_state in enumerate(sim_outputs.sim_history):
       np.testing.assert_allclose(
           sim_state.core_sources.profiles['implicit_ne_source'], i + 1
       )
@@ -253,7 +223,7 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
   def not_done(
       self,
       t: float | jax.Array,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      t_final: float,
       state,
   ) -> bool | jax.Array:
     return t < 2
@@ -271,7 +241,7 @@ class _FakeTimeStepCalculator(ts.TimeStepCalculator):
 
 @dataclasses.dataclass(kw_only=True)
 class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
-  foo: runtime_params_lib.TimeInterpolated
+  foo: runtime_params_lib.TimeInterpolatedInput
 
   def make_provider(
       self,
@@ -335,7 +305,6 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state_module.ToraxSimState,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> state_module.ToraxSimState:
     dt, ts_state = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(

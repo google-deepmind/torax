@@ -84,6 +84,24 @@ Time-varying arrays
 Time-varying arrays can be defined using either primitives, an
 ``xarray.DataArray`` or a ``tuple`` of ``Array``.
 
+Specifying interpolation methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+By default piecewise linear interpolation is used to interpolate values in time.
+To specify a different interpolation method, use the following syntax of a tuple
+with two elements. The first element in the tuple is the usual value for the
+time-varying-array (as defined below), the second value is a dict with keys
+``time_interpolation_mode`` and ``rho_interpolation_mode`` and values the
+desired interpolation modes.
+
+.. code-block:: python
+
+  (time_varying_array_value, {'time_interpolation_mode': 'STEP', 'rho_interpolation_mode': 'PIECEWISE_LINEAR'})
+
+Currently two interpolation modes are supported:
+
+* ``'STEP'``
+* ``'PIECEWISE_LINEAR'``
+
 Using primitives
 ^^^^^^^^^^^^^^^^
 
@@ -680,6 +698,10 @@ The configurable runtime parameters of each source are as follows:
     Source values come from a prescribed (possibly time-dependent) formula that is not dependent on the state of the system. The formula type (Gaussian, exponential)
     is set by ``formula_type``.
 
+* ``'PRESCRIBED'``
+    Source values are arbitrarily prescribed by the user. The value is set by ``prescribed_values``, and can contain the same
+    data structures as :ref:`Time-varying arrays`.
+
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purposes, set:
 
 .. code-block:: python
@@ -687,6 +709,22 @@ For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purp
     'sources': {
         'fusion_heat_source': {'mode': 'ZERO'},
     }
+
+To set 'j_ext' to a prescribed value based on a tuple of numpy arrays, e.g. as defined or loaded from a file in the
+preamble to the CONFIG dict within config module, set:
+
+.. code-block:: python
+
+    'sources': {
+        'jext': {
+            'mode': 'PRESCRIBED',
+            'prescribed_values': (times, rhon, jext_profiles),
+        },
+
+where the example ``times`` is a 1D numpy array of times, ``rhon`` is a 1D numpy array of normalized toroidal flux
+coordinates, and ``jext_profiles`` is a 2D numpy array of the jext profile at each time. These names are arbitrary,
+and can be set to anything convenient.
+
 
 ``is_explicit`` (bool)
   Defines whether the source is to be considered explicit or implicit. Explicit sources are calculated based on the simulation state at the
@@ -1169,7 +1207,6 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'smoothing_sigma': 0.1,
           'qlknn_params': {
               'DVeff': True,
-              'coll_mult': 0.25,
               'include_ITG': True,
               'include_TEM': True,
               'include_ETG': True,
@@ -1191,3 +1228,40 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'calculator_type': 'fixed',
       },
   }
+
+
+Restarting a simulation
+=======================
+In order to restart a simulation a field can be added to the config.
+
+For example following a simulation in which a state file is saved to
+``/path/to/torax_state_file.nc``, if we want to start a new simulation from the
+state of the previous one at ``t=10`` we could add the following to our config:
+
+.. code-block:: python
+
+  {
+      'filename': '/path/to/torax_state_file.nc',
+      'time': 10,
+      'do_restart': True,  # Toggle to enable/disable a restart.
+      # Whether or not to pre"stitch" the contents of the loaded state file up
+      # to `time` with the output state file from this simulation.
+      'stitch': True,
+  }
+
+The subsequence simulation will then recreate the state from ``t=10`` in the
+previous simulation and then run the simulation from that point in time. For
+all subsequent steps the dynamic runtime parameters will be constructed using
+the given runtime parameter configuration (from ``t=10`` onwards).
+
+We envisage this feature being useful for example to:
+
+* restart a(n expensive) simulation that was healthy up till a certain time and
+  then failed. After discovering the issue for breakage you could then restart
+  the sim from the last healthy point.
+
+* do uncertainty quantification by sweeping lots of configs following running
+  a simulation up to a certain point in time. After running the initial
+  simulation you could then modify and sweep the runtime parameter config in
+  order to do some uncertainty quantification.
+

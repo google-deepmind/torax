@@ -16,18 +16,20 @@
 
 Constant transport coefficient model, circular geometry.
 """
-import jax.numpy as jnp
+import numpy as np
 
 
 # Define the jext profile
 def gaussian(r, center, width, amplitude):
-  return amplitude * jnp.exp(-((r - center) ** 2) / (2 * width**2))
+  return amplitude * np.exp(-((r - center) ** 2) / (2 * width**2))
 
 
-gauss_r = jnp.linspace(0, 1, 32)
-jext_profile_0 = gaussian(gauss_r, center=0.35, width=0.05, amplitude=1e6)
-jext_profile_1 = gaussian(gauss_r, center=0.15, width=0.1, amplitude=1e6)
-
+times = np.array([0, 2.5])
+gauss_r = np.linspace(0, 1, 32)
+jext_profiles = np.array([
+    gaussian(gauss_r, center=0.35, width=0.05, amplitude=1e6),
+    gaussian(gauss_r, center=0.15, width=0.1, amplitude=1e6),
+])
 
 # Create the config
 CONFIG = {
@@ -54,17 +56,8 @@ CONFIG = {
     'sources': {
         # Only drive the external current source
         'jext': {
-            'mode': 'prescribed',
-            'prescribed_values': {
-                0: {
-                    r_i.item(): jext_i.item()
-                    for r_i, jext_i in zip(gauss_r, jext_profile_0)
-                },
-                2.5: {
-                    r_i.item(): jext_i.item()
-                    for r_i, jext_i in zip(gauss_r, jext_profile_1)
-                },
-            },
+            'mode': 'PRESCRIBED',
+            'prescribed_values': (times, gauss_r, jext_profiles),
         },
         # Disable density sources/sinks
         'nbi_particle_source': {

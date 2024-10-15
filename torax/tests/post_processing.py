@@ -1,0 +1,269 @@
+# Copyright 2024 DeepMind Technologies Limited
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Tests for post_processing.py."""
+
+import dataclasses
+from absl.testing import absltest
+from absl.testing import parameterized
+import jax
+import numpy as np
+from torax import constants
+from torax import core_profile_setters
+from torax import geometry
+from torax import geometry_provider
+from torax import post_processing
+from torax import state
+from torax.config import runtime_params as runtime_params_lib
+from torax.fvm import cell_variable
+from torax.sources import default_sources
+from torax.sources import source_profiles as source_profiles_lib
+from torax.tests.test_lib import torax_refs
+
+
+class PostProcessingTest(parameterized.TestCase):
+  """Unit tests for the `post_processing` module."""
+
+  def setUp(self):
+    super().setUp()
+    runtime_params = runtime_params_lib.GeneralRuntimeParams()
+    self.geo = geometry.build_circular_geometry()
+    geo_provider = geometry_provider.ConstantGeometryProvider(self.geo)
+    source_models_builder = default_sources.get_default_sources_builder()
+    source_models = source_models_builder()
+    dynamic_runtime_params_slice, geo = (
+        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
+            runtime_params,
+            geo_provider,
+            sources=source_models_builder.runtime_params,
+        )
+    )
+    # Make some dummy source profiles.
+    ones = np.ones_like(geo.rho)
+    self.source_profiles = source_profiles_lib.SourceProfiles(
+        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+            geo
+        ),
+        qei=source_profiles_lib.QeiInfo.zeros(geo),
+        profiles={
+            'bremsstrahlung_heat_sink': -ones,
+            'ohmic_heat_source': ones * 5,
+            'fusion_heat_source': np.stack([ones, ones]),
+            'generic_ion_el_heat_source': np.stack([2 * ones, 3 * ones]),
+        },
+    )
+    self.core_profiles = core_profile_setters.initial_core_profiles(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        source_models=source_models,
+    )
+
+  def test_make_outputs(self):
+    """Test that post-processing outputs are added to the state."""
+    sim_state = state.ToraxSimState(
+        core_profiles=self.core_profiles,
+        core_transport=state.CoreTransport.zeros(self.geo),
+        core_sources=self.source_profiles,
+        t=jax.numpy.array(0.0),
+        dt=jax.numpy.array(0.1),
+        time_step_calculator_state=None,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
+        stepper_numeric_outputs=state.StepperNumericOutputs(
+            outer_stepper_iterations=1,
+            stepper_error_state=1,
+            inner_solver_iterations=1,
+        ),
+    )
+
+    updated_sim_state = post_processing.make_outputs(sim_state, self.geo)
+
+    # Check that the outputs were updated.
+    for field in state.PostProcessedOutputs.__dataclass_fields__:
+      with self.subTest(field=field):
+        try:
+          np.testing.assert_array_equal(
+              getattr(updated_sim_state.post_processed_outputs, field),
+              getattr(sim_state.post_processed_outputs, field),
+          )
+        except AssertionError:
+          # At least one field is different, so the test passes.
+          return
+    # If no assertion error was raised, then all fields are the same
+    # so raise an error.
+    raise AssertionError('PostProcessedOutputs did not change.')
+
+  def test_compute_pressure(self):
+    """Test that pressure is computed correctly."""
+
+    def _make_constant_core_profile(
+        value: float,
+    ) -> cell_variable.CellVariable:
+      return cell_variable.CellVariable(
+          value=value * np.ones_like(self.geo.rho_norm),
+          left_face_grad_constraint=np.zeros(()),
+          left_face_constraint=None,
+          right_face_grad_constraint=None,
+          right_face_constraint=jax.numpy.array(value),
+          dr=self.geo.drho_norm,
+      )
+
+    # Override all densities and temperatures to constant values
+    core_profiles = dataclasses.replace(
+        self.core_profiles,
+        temp_ion=_make_constant_core_profile(1.0),
+        temp_el=_make_constant_core_profile(2.0),
+        ne=_make_constant_core_profile(3.0),
+        ni=_make_constant_core_profile(2.5),
+        nimp=_make_constant_core_profile(0.25),
+    )
+    # pylint: disable=protected-access
+    p_el, p_ion, p_tot = post_processing._compute_pressure(core_profiles)
+    # pylint: enable=protected-access
+    # Make sure that we are grabbing the values from the face grid.
+    self.assertEqual(p_el.shape, self.geo.rho_face.shape)
+    # Ignore boundary condition terms and just check formula sanity.
+    np.testing.assert_allclose(
+        p_el, 6 * constants.CONSTANTS.keV2J * core_profiles.nref
+    )
+    np.testing.assert_allclose(
+        p_ion,
+        2.75 * constants.CONSTANTS.keV2J * core_profiles.nref,
+    )
+    np.testing.assert_allclose(
+        p_tot,
+        8.75 * constants.CONSTANTS.keV2J * core_profiles.nref,
+    )
+
+  def test_compute_stored_thermal_energy(self):
+    """Test that stored thermal energy is computed correctly."""
+    geo = geometry.build_circular_geometry()
+    p_el = np.ones_like(geo.rho_face)
+    p_ion = 2 * np.ones_like(geo.rho_face)
+    p_tot = p_el + p_ion
+    # pylint: disable=protected-access
+    wth_el, wth_ion, wth_tot = post_processing._compute_stored_thermal_energy(
+        p_el, p_ion, p_tot, geo
+    )
+    # pylint: enable=protected-access
+
+    volume = np.trapz(geo.vpr_face, geo.rho_face_norm)
+
+    np.testing.assert_allclose(wth_el, 1.5 * p_el[0] * volume)
+    np.testing.assert_allclose(wth_ion, 1.5 * p_ion[0] * volume)
+    np.testing.assert_allclose(wth_tot, 1.5 * p_tot[0] * volume)
+
+  def test_calculate_integrated_heat_sources(self):
+    """Checks integrated quantities match expectations."""
+    # pylint: disable=protected-access
+    integrated_heat_sources = (
+        post_processing._calculate_integrated_heat_sources(
+            self.geo,
+            self.core_profiles,
+            self.source_profiles,
+        )
+    )
+    # pylint: enable=protected-access
+
+    expected_keys = {
+        'P_ei_exchange_ion',
+        'P_ei_exchange_el',
+        'P_generic_ion',
+        'P_generic_el',
+        'P_generic_tot',
+        'P_alpha_ion',
+        'P_alpha_el',
+        'P_alpha_tot',
+        'P_ohmic',
+        'P_brems',
+        'P_heating_tot_ion',
+        'P_heating_tot_el',
+        'P_heating_tot',
+        'P_external_ion',
+        'P_external_el',
+        'P_external_tot',
+    }
+
+    self.assertSameElements(integrated_heat_sources.keys(), expected_keys)
+
+    volume = np.trapz(self.geo.vpr, self.geo.rho_norm)
+
+    # Check sums of electron and ion heating.
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_generic_ion']
+        + integrated_heat_sources['P_alpha_ion']
+        + integrated_heat_sources['P_ei_exchange_ion'],
+        integrated_heat_sources['P_heating_tot_ion'],
+    )
+
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_generic_el']
+        + integrated_heat_sources['P_ohmic']
+        + integrated_heat_sources['P_brems']
+        + integrated_heat_sources['P_alpha_el']
+        + integrated_heat_sources['P_ei_exchange_el'],
+        integrated_heat_sources['P_heating_tot_el'],
+    )
+
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_heating_tot_el']
+        + integrated_heat_sources['P_heating_tot_ion'],
+        integrated_heat_sources['P_heating_tot'],
+    )
+
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_external_el']
+        + integrated_heat_sources['P_external_ion'],
+        integrated_heat_sources['P_external_tot'],
+    )
+
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_external_tot']
+        + integrated_heat_sources['P_brems'],
+        + integrated_heat_sources['P_alpha_tot'],
+        integrated_heat_sources['P_heating_tot'],
+    )
+
+    # Check expected values.
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_generic_ion'], 2 * volume
+    )
+
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_generic_el'], 3 * volume
+    )
+
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_generic_tot'], 5 * volume
+    )
+
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_alpha_ion'],
+        integrated_heat_sources['P_alpha_el'],
+    )
+
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_ohmic'], 5 * volume,
+    )
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_brems'], -volume,
+    )
+
+    np.testing.assert_allclose(
+        integrated_heat_sources['P_ei_exchange_ion'],
+        -integrated_heat_sources['P_ei_exchange_el'],
+    )
+
+
+if __name__ == '__main__':
+  absltest.main()

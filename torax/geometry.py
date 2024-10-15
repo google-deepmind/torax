@@ -640,7 +640,7 @@ class StandardGeometryIntermediates:
   In particular these are the values that are used when interpolating different
   geometries.
 
-  TODO(b/323504363): Specify the expected COCOS format.
+  TODO(b/335204606): Specify the expected COCOS format.
   NOTE: Right now, TORAX does not have a specified COCOS format. Our team is
   working on adding this and updating documentation to make that clear. Of
   course, the CHEASE input data is COCOS 2, still.

@@ -117,6 +117,33 @@ variable.
   --config='torax.examples.basic_config' \
   --qlknn_model_path=<path_to_qlknn_model>
 
+output_dir
+^^^^^^^^^^
+Override the default output directory. If not provided, it will be set to
+``output_dir`` defined in the config. If that is not defined, will default to
+``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``.
+
+.. code-block:: console
+
+  python3 run_simulation_main.py \
+  --config='torax.examples.basic_config' \
+  --output_dir=<output_dir>
+
+plot_config
+^^^^^^^^^^^
+Sets the plotting configuration used for the post-simulation plotting options.
+This flag should point to a python module path containing a `PLOT_CONFIG` variable
+which is an instance of `torax.plotting.plotruns_lib.FigureProperties`.
+By default, `torax.plotting.configs.default_plot_config` is used.
+See :ref:`plotting` for further details and examples. An example using a non-default
+plot config is shown below.
+
+.. code-block:: console
+
+  python3 run_simulation_main.py \
+  --config='torax.examples.basic_config' \
+  --plot_config=torax.plotting.configs.simple_plot_config
+
 Post-simulation
 ---------------
 
@@ -147,17 +174,14 @@ root directory:
 
 .. code-block:: console
 
-  python3 plotting/plotruns.py --outfile <full_path_to_simulation_output>
+  python3 plotting/plotruns.py --outfile <full_path_to_simulation_output> \\
+   --plot_config <module_path_to_plot_config>
 
-Alternatively, ``plotting/plotruns.py`` can be replaced by the relative path and the
-command run from anywhere. The command will plot the following outputs:
-
-* Ion and electron heat conductivity
-* Ion and electron temperature
-* Electron density
-* Total, Ohmic, bootstrap, and external current
-* q-profile
-* Magnetic shear
+Replace <full_path_to_simulation_output> with the full path to your simulation's
+output file. Optionally, specify a custom plot configuration module using
+``--plot_config``, with the module path for the plotting configuration module.
+If no ``--plot_config`` is specified, the default configuration at
+``torax.plotting.configs.default_plot_config`` is used.
 
 A slider allows to scroll through the output of all simulation timesteps.
 
@@ -166,7 +190,7 @@ To plot the output of two simulations on top of each other, run the following co
 .. code-block:: console
 
   python3 plotting/plotruns.py --outfile <full_path_to_simulation_output1> \\
-   <full_path_to_simulation_output2>
+   <full_path_to_simulation_output2> --plot_config <module_path_to_plot_config>
 
 
 Cleaning up

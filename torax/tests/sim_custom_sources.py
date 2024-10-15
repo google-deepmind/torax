@@ -142,7 +142,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     # Add the custom source with the correct params, but keep it turned off to
     # start.
     source_models_builder.source_builders[custom_source_name] = (
-        source.SingleProfileSourceBuilder(
+        source.SourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
@@ -208,8 +208,8 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     # Make sure the config copied here works with these references.
     with self.subTest('with_defaults_and_without_custom_source'):
       # Need to run the sim once to build the step_fn.
-      torax_outputs = sim.run()
-      history = output.StateHistory(torax_outputs)
+      sim_outputs = sim.run()
+      history = output.StateHistory(sim_outputs, sim.source_models)
       self._check_profiles_vs_expected(
           core_profiles=history.core_profiles,
           t=history.times,
@@ -244,7 +244,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       ref_time: chex.Array,
   ):
     """Runs sim with new runtime params and checks the profiles vs. expected."""
-    torax_outputs = sim_lib.run_simulation(
+    sim_outputs = sim_lib.run_simulation(
         initial_state=sim.initial_state,
         step_fn=sim.step_fn,
         geometry_provider=sim.geometry_provider,
@@ -252,7 +252,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         static_runtime_params_slice=sim.static_runtime_params_slice,
         time_step_calculator=sim.time_step_calculator,
     )
-    history = output.StateHistory(torax_outputs)
+    history = output.StateHistory(sim_outputs, sim.source_models)
     self._check_profiles_vs_expected(
         core_profiles=history.core_profiles,
         t=history.times,
@@ -270,14 +270,14 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime params for the custom source defined in the test case above."""
 
-  puff_decay_length: runtime_params_lib.TimeInterpolated
-  S_puff_tot: runtime_params_lib.TimeInterpolated
-  nbi_particle_width: runtime_params_lib.TimeInterpolated
-  nbi_deposition_location: runtime_params_lib.TimeInterpolated
-  S_nbi_tot: runtime_params_lib.TimeInterpolated
-  pellet_width: runtime_params_lib.TimeInterpolated
-  pellet_deposition_location: runtime_params_lib.TimeInterpolated
-  S_pellet_tot: runtime_params_lib.TimeInterpolated
+  puff_decay_length: runtime_params_lib.TimeInterpolatedInput
+  S_puff_tot: runtime_params_lib.TimeInterpolatedInput
+  nbi_particle_width: runtime_params_lib.TimeInterpolatedInput
+  nbi_deposition_location: runtime_params_lib.TimeInterpolatedInput
+  S_nbi_tot: runtime_params_lib.TimeInterpolatedInput
+  pellet_width: runtime_params_lib.TimeInterpolatedInput
+  pellet_deposition_location: runtime_params_lib.TimeInterpolatedInput
+  S_pellet_tot: runtime_params_lib.TimeInterpolatedInput
 
   def make_provider(
       self,

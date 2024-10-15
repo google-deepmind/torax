@@ -49,14 +49,13 @@ class TimeStepCalculator(Protocol[State]):
   def initial_state(self) -> State:
     """Returns the initial internal state of the time stepper."""
 
-  @abc.abstractmethod
   def not_done(
       self,
       t: Union[float, jax.Array],
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      t_final: float,
       state: State,
   ) -> Union[bool, jax.Array]:
-    """If True, next_dt may be called again."""
+    return t < t_final
 
   @abc.abstractmethod
   def next_dt(

@@ -16,7 +16,6 @@
 
 import dataclasses
 from absl.testing import absltest
-import jax
 from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
@@ -106,7 +105,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     )
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(jax.lib.xla_client.XlaRuntimeError):
+        with self.assertRaises(RuntimeError):
           dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
               runtime_params,
               sources={

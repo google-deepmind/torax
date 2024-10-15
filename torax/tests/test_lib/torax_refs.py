@@ -158,7 +158,7 @@ def circular_references() -> References:
       47.64848792277505,
   ]).astype('float64')
   jtot = np.array([
-      2.66395965857762e06,
+      2.65603608751821e+06,
       2.63507449221355e06,
       2.57171291638819e06,
       2.49295208016546e06,
@@ -312,7 +312,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       50.41748508435973,
   ]).astype('float64')
   jtot = np.array([
-      839160.0965218098,
+      813157.2571536204,
       864851.9422342945,
       919092.3553600532,
       1013723.9182892411,
@@ -466,7 +466,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       64.25482269382653,
   ]).astype('float64')
   jtot = np.array([
-      1069471.8930054302,
+      1036332.4408819571,
       1102214.9976678425,
       1171341.970629782,
       1291945.6518146081,

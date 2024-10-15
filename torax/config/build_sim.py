@@ -223,6 +223,12 @@ def build_sim_from_config(
     )
   runtime_params = build_runtime_params_from_config(config['runtime_params'])
   geo_provider = build_geometry_provider_from_config(config['geometry'])
+
+  if 'restart' in config:
+    file_restart = runtime_params_lib.FileRestart(**config['restart'])
+  else:
+    file_restart = None
+
   return sim_lib.build_sim_object(
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
@@ -236,6 +242,7 @@ def build_sim_from_config(
       time_step_calculator=build_time_step_calculator_from_config(
           config['time_step_calculator']
       ),
+      file_restart=file_restart,
   )
 
 
@@ -355,7 +362,6 @@ def build_sources_builder_from_config(
 def _build_single_source_builder_from_config(
     source_name: str,
     source_config: dict[str, Any],
-    extra_init_kwargs: dict[str, Any] | None = None,
 ) -> source_lib.SourceBuilderProtocol:
   """Builds a source builder from the input config."""
   runtime_params = default_sources.get_default_runtime_params(
@@ -393,16 +399,7 @@ def _build_single_source_builder_from_config(
   kwargs = {'runtime_params': runtime_params}
   if formula is not None:
     kwargs['formula'] = formula
-  if extra_init_kwargs is not None:
-    kwargs.update(extra_init_kwargs)
-  # pylint: disable=missing-kwoa
-  # pytype: disable=missing-parameter
-  assert not isinstance(formula, dict)
-  if 'formula' in kwargs:
-    assert not isinstance(kwargs['formula'], dict)
   return default_sources.get_source_builder_type(source_name)(**kwargs)
-  # pylint: enable=missing-kwoa
-  # pytype: enable=missing-parameter
 
 
 def build_transport_model_builder_from_config(
@@ -486,7 +483,7 @@ def build_transport_model_builder_from_config(
     if 'model_path' in qlknn_params:
       model_path = qlknn_params.pop('model_path')
     else:
-      model_path = ''
+      model_path = qlknn_wrapper.get_default_model_path()
     qlknn_params.update(transport_config)
     # Remove params from the other models, if present.
     qlknn_params.pop('constant_params', None)
@@ -494,7 +491,9 @@ def build_transport_model_builder_from_config(
     qlknn_params.pop('bohm-gyrobohm_params', None)
     return qlknn_wrapper.QLKNNTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
-            qlknn_wrapper.RuntimeParams(),
+            qlknn_wrapper.get_default_runtime_params_from_model_path(
+                model_path
+            ),
             **qlknn_params,
         ),
         model_path=model_path,

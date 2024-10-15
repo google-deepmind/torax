@@ -18,7 +18,6 @@ Steps through time using a heuristic based on chi_max.
 """
 
 import functools
-from typing import Union
 
 import jax
 from jax import numpy as jnp
@@ -42,15 +41,6 @@ class ChiTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
 
   def initial_state(self):
     return STATE
-
-  def not_done(
-      self,
-      t: Union[float, jax.Array],
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      state: State,
-  ) -> Union[bool, jax.Array]:
-    """Returns True if iteration not done (t < runtime_params.numerics.t_final)."""
-    return t < dynamic_runtime_params_slice.numerics.t_final
 
   @functools.partial(jax_utils.jit, static_argnames=['self'])
   def next_dt(

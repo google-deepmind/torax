@@ -150,6 +150,7 @@ class Stepper(abc.ABC):
         core_profile_setters.update_evolving_core_profiles(
             x_new,
             dynamic_runtime_params_slice_t_plus_dt,
+            geo_t_plus_dt,
             core_profiles_t_plus_dt,
             evolving_names,
         )

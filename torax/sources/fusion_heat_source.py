@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 from torax import constants
 from torax import geometry
+from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
@@ -103,22 +104,14 @@ def calc_fusion(
   alpha_fraction = 3.5 / 17.6  # fusion power fraction to alpha particles
 
   # Fractional fusion power ions/electrons.
-  # From Mikkelsen Nucl. Tech. Fusion 237 4 1983
-  D1 = 88.0 / core_profiles.temp_el.value
-  D2 = jnp.sqrt(D1)
-  frac_i = (
-      2
-      * (
-          0.166667 * jnp.log((1.0 - D2 + D1) / (1.0 + 2.0 * D2 + D1))
-          + 0.57735026
-          * (jnp.arctan(0.57735026 * (2.0 * D2 - 1.0)) + 0.52359874)
-      )
-      / D1
+  birth_energy = 3520  # Birth energy of alpha particles is 3.52MeV.
+  alpha_mass = 4.002602
+  frac_i = physics.fast_ion_fractional_heating_formula(
+      birth_energy, core_profiles.temp_el.value, alpha_mass,
   )
   frac_e = 1.0 - frac_i
   Pfus_i = Pfus_cell * frac_i * alpha_fraction
   Pfus_e = Pfus_cell * frac_e * alpha_fraction
-
   return Ptot, Pfus_i, Pfus_e
 
 
@@ -143,9 +136,25 @@ def fusion_heat_model_func(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class FusionHeatSource(source.IonElectronSource):
+class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
-
+  # Fusion heat source affects temp_ion and temp_el.
+  # affected_core_profiles is removed from __init__ effectively freezing it.
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      dataclasses.field(
+          init=False,
+          default=(
+              source.AffectedCoreProfile.TEMP_ION,
+              source.AffectedCoreProfile.TEMP_EL,
+          ),
+      )
+  )
+  # This source always outputs 2 cell profiles.
+  # output_shape_getter is removed from __init__ effectively freezing it.
+  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
+      init=False,
+      default_factory=lambda: source.get_ion_el_output_shape,
+  )
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
@@ -155,4 +164,12 @@ class FusionHeatSource(source.IonElectronSource):
   model_func: source.SourceProfileFunction = fusion_heat_model_func
 
 
-FusionHeatSourceBuilder = source.make_source_builder(FusionHeatSource)
+@dataclasses.dataclass
+class FusionHeatSourceRuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime params for FusionHeatSource."""
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+
+FusionHeatSourceBuilder = source.make_source_builder(
+    FusionHeatSource, runtime_params_type=FusionHeatSourceRuntimeParams,
+)

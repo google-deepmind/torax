@@ -16,204 +16,406 @@
 
 from collections.abc import Sequence
 import dataclasses
-import functools
+import enum
 from os import path
-from typing import Any
+from typing import Any, List
 
 import matplotlib
+from matplotlib import gridspec
 from matplotlib import widgets
 import matplotlib.pyplot as plt
 import numpy as np
 from torax import output
 import xarray as xr
 
+# Constants for figure setup, plot labels, and formatting.
+# The axes are designed to be plotted in the order they appear in the list,
+# first ascending in columns, then rows.
+
+
+class PlotType(enum.Enum):
+  """Enum for plot types.
+
+  SPATIAL: Spatial plots, e.g., 1D profiles as a function of toroidal flux
+  coordinate. Plots change with time, and are modified by the slider.
+  TIME_SERIES: Time series plots. 0D profiles plotting as a function of time.
+  These plots are not modified by the slider.
+  """
+
+  SPATIAL = 1
+  TIME_SERIES = 2
+
+
+@dataclasses.dataclass
+class PlotProperties:
+  """Dataclass for individual plot properties."""
+
+  attrs: tuple[str, ...]
+  labels: tuple[str, ...]
+  ylabel: str
+  legend_fontsize: int | None = None  # None reverts to default matplotlib value
+  upper_percentile: float = 100.0
+  lower_percentile: float = 0.0
+  include_first_timepoint: bool = True
+  ylim_min_zero: bool = True
+  plot_type: PlotType = PlotType.SPATIAL
+  suppress_zero_values: bool = False  # If True, all-zero-data is not plotted
+
+
+@dataclasses.dataclass
+class FigureProperties:
+  """Dataclass for all figure related data."""
+
+  rows: int
+  cols: int
+  axes: tuple[PlotProperties, ...]
+  figure_size_factor: float = 5.0
+  tick_fontsize: int = 10
+  axes_fontsize: int = 10
+  title_fontsize: int = 16
+  default_legend_fontsize: int = 10
+  colors: tuple[str, ...] = ('r', 'b', 'g', 'm', 'y', 'c')
+
+  def __post_init__(self):
+    if len(self.axes) > self.rows * self.cols:
+      raise ValueError('len(axes) in plot_config is more than rows * columns.')
+
 
 @dataclasses.dataclass
 class PlotData:
   """Dataclass for all plot related data."""
 
-  ti: np.ndarray
-  te: np.ndarray
-  ne: np.ndarray
-  j: np.ndarray
-  johm: np.ndarray
-  j_bootstrap: np.ndarray
-  jext: np.ndarray
-  q: np.ndarray
-  s: np.ndarray
-  chi_i: np.ndarray
-  chi_e: np.ndarray
-  t: np.ndarray
-  rho_cell_coord: np.ndarray
-  rho_face_coord: np.ndarray
+  ti: np.ndarray  # [keV]
+  te: np.ndarray  # [keV]
+  ne: np.ndarray  # [10^20 m^-3]
+  psi: np.ndarray  # [Wb]
+  psidot: np.ndarray  # [Wb/s]
+  j: np.ndarray  # [MA/m^2]
+  johm: np.ndarray  # [MA/m^2]
+  j_bootstrap: np.ndarray  # [MA/m^2]
+  jext: np.ndarray  # [MA/m^2]
+  q: np.ndarray  # Dimensionless
+  s: np.ndarray  # Dimensionless
+  chi_i: np.ndarray  # [m^2/s]
+  chi_e: np.ndarray  # [m^2/s]
+  d_e: np.ndarray  # [m^2/s]
+  v_e: np.ndarray  # [m/s]
+  q_icrh_i: np.ndarray  # [MW/m^3]
+  q_icrh_e: np.ndarray  # [MW/m^3]
+  q_nbi_i: np.ndarray  # [MW/m^3]
+  q_nbi_e: np.ndarray  # [MW/m^3]
+  q_nbi_e: np.ndarray  # [MW/m^3]
+  q_gen_i: np.ndarray  # [MW/m^3]
+  q_gen_e: np.ndarray  # [MW/m^3]
+  q_ecrh: np.ndarray  # [MW/m^3]
+  q_alpha_i: np.ndarray  # [MW/m^3]
+  q_alpha_e: np.ndarray  # [MW/m^3]
+  q_ohmic: np.ndarray  # [MW/m^3]
+  q_brems: np.ndarray  # [MW/m^3]
+  q_ei: np.ndarray  # [MW/m^3]
+  Q_fusion: np.ndarray  # pylint: disable=invalid-name  # Dimensionless
+  s_puff: np.ndarray  # [10^20 m^-3 s^-1]
+  s_nbi: np.ndarray  # [10^20 m^-3 s^-1]
+  s_pellet: np.ndarray  # [10^20 m^-3 s^-1]
+  i_total: np.ndarray  # [MA]
+  i_bootstrap: np.ndarray  # [MA]
+  p_auxiliary: np.ndarray  # [MW]
+  p_ohmic: np.ndarray  # [MW]
+  p_alpha: np.ndarray  # [MW]
+  p_sink: np.ndarray  # [MW]
+  t: np.ndarray  # [s]
+  rho_cell_coord: np.ndarray  # Normalized toroidal flux coordinate
+  rho_face_coord: np.ndarray  # Normalized toroidal flux coordinate
 
-  def __post_init__(self):
-    self.tmin = min(self.t)
-    self.tmax = max(self.t)
-    self.ymax_t = np.amax([self.ti, self.te])
-    self.ymax_n = np.amax(self.ne)
-    self.ymax_j = np.amax([np.amax(self.j), np.amax(self.johm)])
-    self.ymin_j = np.amin([np.amin(self.j), np.amin(self.johm)])
-    self.ymin_j = np.amin(self.j)
-    self.ymax_q = np.amax(self.q)
-    self.ymax_s = np.amax(self.s)
-    self.ymin_s = np.amin(self.s)
-    # avoid initial condition for chi ymax, since can be unphysically high
-    self.ymax_chi_i = np.amax(self.chi_i[1:, :])
-    self.ymax_chi_e = np.amax(self.chi_e[1:, :])
-    self.dt = min(np.diff(self.t))
+
+def load_data(filename: str) -> PlotData:
+  """Loads an xr.Dataset from a file, handling potential coordinate name changes."""
+  ds = xr.open_dataset(filename)
+  # Handle potential time coordinate name variations
+  t = ds['time'].to_numpy() if 'time' in ds else ds['t'].to_numpy()
+  # Rename coordinates if they exist, ensuring compatibility with older datasets
+  if 'r_cell' in ds:
+    ds = ds.rename({
+        'r_cell': 'rho_cell',
+        'r_face': 'rho_face',
+        'r_cell_norm': 'rho_cell_norm',
+        'r_face_norm': 'rho_face_norm',
+    })
+  # Handle potential jext coordinate name variations
+  if output.CORE_PROFILES_JEXT not in ds:
+    ds[output.CORE_PROFILES_JEXT] = ds['jext']
+
+  def get_optional_data(ds, key, grid_type):
+    if grid_type.lower() not in ['cell', 'face']:
+      raise ValueError(
+          f'grid_type for {key} must be either "cell" or "face", got'
+          f' {grid_type}'
+      )
+    if key in ds:
+      return ds[key].to_numpy()
+    else:
+      return (
+          np.zeros_like(ds[output.TEMP_ION].to_numpy())
+          if grid_type == 'cell'
+          else np.zeros_like(ds[output.CHI_FACE_ION].to_numpy())
+      )
+
+  def _transform_data(ds: xr.Dataset):
+    """Transforms data in-place to the desired units."""
+    transformations = {
+        output.JTOT: 1e6,  # A/m^2 to MA/m^2
+        output.JOHM: 1e6,  # A/m^2 to MA/m^2
+        output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
+        output.CORE_PROFILES_JEXT: 1e6,  # A/m^2 to MA/m^2
+        output.I_BOOTSTRAP: 1e6,  # A to MA
+        'icrh_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
+        'icrh_heat_source_el': 1e6,  # W/m^3 to MW/m^3
+        'nbi_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
+        'nbi_heat_source_el': 1e6,  # W/m^3 to MW/m^3
+        'generic_ion_el_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
+        'generic_ion_el_heat_source_el': 1e6,  # W/m^3 to MW/m^3
+        'ecrh_heat_source': 1e6,  # W/m^3 to MW/m^3
+        'fusion_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
+        'fusion_heat_source_el': 1e6,  # W/m^3 to MW/m^3
+        'ohmic_heat_source': 1e6,  # W/m^3 to MW/m^3
+        'bremsstrahlung_heat_sink': 1e6,  # W/m^3 to MW/m^3
+        'qei_source': 1e6,  # W/m^3 to MW/m^3
+        'P_ohmic': 1e6,  # W to MW
+        'P_external_tot': 1e6,  # W to MW
+        'P_alpha_tot': 1e6,  # W to MW
+        'P_brems': 1e6,  # W to MW
+    }
+
+    for var_name, scale in transformations.items():
+      if var_name in ds:
+        ds[var_name] /= scale
+
+  _transform_data(ds)
+
+  return PlotData(
+      ti=ds[output.TEMP_ION].to_numpy(),
+      te=ds[output.TEMP_EL].to_numpy(),
+      ne=ds[output.NE].to_numpy(),
+      psi=ds[output.PSI].to_numpy(),
+      psidot=ds[output.PSIDOT].to_numpy(),
+      j=ds[output.JTOT].to_numpy(),
+      johm=ds[output.JOHM].to_numpy(),
+      j_bootstrap=ds[output.J_BOOTSTRAP].to_numpy(),
+      jext=ds[output.CORE_PROFILES_JEXT].to_numpy(),
+      q=ds[output.Q_FACE].to_numpy(),
+      s=ds[output.S_FACE].to_numpy(),
+      chi_i=ds[output.CHI_FACE_ION].to_numpy(),
+      chi_e=ds[output.CHI_FACE_EL].to_numpy(),
+      d_e=ds[output.D_FACE_EL].to_numpy(),
+      v_e=ds[output.V_FACE_EL].to_numpy(),
+      rho_cell_coord=ds[output.RHO_CELL_NORM].to_numpy(),
+      rho_face_coord=ds[output.RHO_FACE_NORM].to_numpy(),
+      q_icrh_i=get_optional_data(ds, 'icrh_heat_source_ion', 'cell'),
+      q_icrh_e=get_optional_data(ds, 'icrh_heat_source_el', 'cell'),
+      q_nbi_i=get_optional_data(ds, 'nbi_heat_source_ion', 'cell'),
+      q_nbi_e=get_optional_data(ds, 'nbi_heat_source_el', 'cell'),
+      q_gen_i=get_optional_data(ds, 'generic_ion_el_heat_source_ion', 'cell'),
+      q_gen_e=get_optional_data(ds, 'generic_ion_el_heat_source_el', 'cell'),
+      q_ecrh=get_optional_data(ds, 'ecrh_heat_source', 'cell'),
+      q_alpha_i=get_optional_data(ds, 'fusion_heat_source_ion', 'cell'),
+      q_alpha_e=get_optional_data(ds, 'fusion_heat_source_el', 'cell'),
+      q_ohmic=get_optional_data(ds, 'ohmic_heat_source', 'cell'),
+      q_brems=get_optional_data(ds, 'bremsstrahlung_heat_sink', 'cell'),
+      q_ei=ds['qei_source'].to_numpy(),  # ion heating/sink
+      Q_fusion=ds['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
+      s_puff=get_optional_data(ds, 'gas_puff_source', 'cell'),
+      s_nbi=get_optional_data(ds, 'nbi_particle_source', 'cell'),
+      s_pellet=get_optional_data(ds, 'pellet_source', 'cell'),
+      i_total=ds[output.IP].to_numpy(),
+      i_bootstrap=ds[output.I_BOOTSTRAP].to_numpy(),
+      p_ohmic=ds['P_ohmic'].to_numpy(),
+      p_auxiliary=(ds['P_external_tot'] - ds['P_ohmic']).to_numpy(),
+      p_alpha=ds['P_alpha_tot'].to_numpy(),
+      p_sink=ds['P_brems'].to_numpy(),
+      t=t,
+  )
 
 
-def plot_run(outfile: str, outfile2: str | None = None):
+def plot_run(
+    plot_config: FigureProperties, outfile: str, outfile2: str | None = None
+):
   """Plots a single run or comparison of two runs."""
-  filename1, filename2 = outfile, outfile2
   if not path.exists(outfile):
     raise ValueError(f'File {outfile} does not exist.')
   if outfile2 is not None and not path.exists(outfile2):
     raise ValueError(f'File {outfile2} does not exist.')
   plotdata1 = load_data(outfile)
-  plotdata2 = None
-  if outfile2 is not None:
-    plotdata2 = load_data(outfile2)
+  plotdata2 = load_data(outfile2) if outfile2 else None
 
-  fig, subfigures = create_figure()
-  ax2 = subfigures[1]
-  if outfile2 is not None:
-    ax2.set_title('(1)=' + filename1 + ', (2)=' + filename2)
-  else:
-    ax2.set_title('(1)=' + filename1)
+  # Attribute check. Sufficient to check one PlotData object.
+  plotdata_attrs = set(
+      plotdata1.__dataclass_fields__
+  )  # Get PlotData attributes
+  for cfg in plot_config.axes:
+    for attr in cfg.attrs:
+      if attr not in plotdata_attrs:
+        raise ValueError(
+            f"Attribute '{attr}' in plot_config does not exist in PlotData"
+        )
 
-  lines1 = get_lines(
-      plotdata1,
-      subfigures,
+  fig, axes, slider_ax = create_figure(plot_config)
+
+  # Title handling:
+  title_lines = [f'(1)={outfile}']
+  if outfile2:
+    title_lines.append(f'(2)={outfile2}')
+  fig.suptitle('\n'.join(title_lines))
+
+  lines1 = get_lines(plot_config, plotdata1, axes)
+  lines2 = (
+      get_lines(plot_config, plotdata2, axes, comp_plot=True)
+      if plotdata2
+      else None
   )
-  lines2 = None
-  if plotdata2 is not None:
-    lines2 = get_lines(plotdata2, subfigures, comp_plot=True)
 
-  format_plots(plotdata1, subfigures)
-  timeslider = create_slider(plotdata1, plotdata2)
+  format_plots(plot_config, plotdata1, plotdata2, axes)
+  timeslider = create_slider(slider_ax, plotdata1, plotdata2)
   fig.canvas.draw()
 
-  update = functools.partial(
-      _update,
-      plotdata1=plotdata1,
-      plotdata2=plotdata2,
-      lines1=lines1,
-      lines2=lines2,
-  )
-  # Call update function when slider value is changed.
+  def update(newtime):
+    """Update plots with new values following slider manipulation."""
+    fig.constrained_layout = False
+    _update(newtime, plot_config, plotdata1, lines1, plotdata2, lines2)
+    fig.constrained_layout = True
+    fig.canvas.draw_idle()
+
   timeslider.on_changed(update)
   fig.canvas.draw()
   plt.show()
-  fig.tight_layout()
 
 
 def _update(
     newtime,
+    plot_config: FigureProperties,
     plotdata1: PlotData,
     lines1: Sequence[matplotlib.lines.Line2D],
     plotdata2: PlotData | None = None,
     lines2: Sequence[matplotlib.lines.Line2D] | None = None,
 ):
   """Update plots with new values following slider manipulation."""
-  idx = np.abs(plotdata1.t - newtime).argmin()  # find index closest to new time
-  # pytype: disable=attribute-error
-  datalist1 = [
-      plotdata1.chi_i[idx, :],
-      plotdata1.chi_e[idx, :],
-      plotdata1.ti[idx, :],
-      plotdata1.te[idx, :],
-      plotdata1.ne[idx, :],
-      plotdata1.j[idx, :],
-      plotdata1.johm[idx, :],
-      plotdata1.j_bootstrap[idx, :],
-      plotdata1.jext[idx, :],
-      plotdata1.q[idx, :],
-      plotdata1.s[idx, :],
-  ]
-  for plotline1, data1 in zip(lines1, datalist1):
-    plotline1.set_ydata(data1)
-  if plotdata2 is not None and lines2 is not None:
-    idx = np.abs(
-        plotdata2.t - newtime
-    ).argmin()  # find index closest to new time
-    datalist2 = [
-        plotdata2.chi_i[idx, :],
-        plotdata2.chi_e[idx, :],
-        plotdata2.ti[idx, :],
-        plotdata2.te[idx, :],
-        plotdata2.ne[idx, :],
-        plotdata2.j[idx, :],
-        plotdata2.johm[idx, :],
-        plotdata2.j_bootstrap[idx, :],
-        plotdata2.jext[idx, :],
-        plotdata2.q[idx, :],
-        plotdata2.s[idx, :],
-    ]
-    for plotline2, data2 in zip(lines2, datalist2):
-      plotline2.set_ydata(data2)
-    # pytype: enable=attribute-error
+
+  def update_lines(plotdata, lines):
+    idx = np.abs(plotdata.t - newtime).argmin()
+    line_idx = 0
+    for cfg in plot_config.axes:  # Iterate through axes based on plot_config
+      if cfg.plot_type == PlotType.TIME_SERIES:
+        continue  # Time series plots do not need to be updated
+      for attr in cfg.attrs:  # Update all lines in current subplot.
+        data = getattr(plotdata, attr)
+        if cfg.suppress_zero_values and np.all(data == 0):
+          continue
+        lines[line_idx].set_ydata(data[idx, :])
+        line_idx += 1
+
+  update_lines(plotdata1, lines1)
+  if plotdata2 and lines2:
+    update_lines(plotdata2, lines2)
 
 
 def create_slider(
+    ax: matplotlib.axes.Axes,
     plotdata1: PlotData,
     plotdata2: PlotData | None = None,
 ) -> widgets.Slider:
   """Create a slider tool for the plot."""
-  plt.subplots_adjust(bottom=0.2)
-  axslide = plt.axes([0.12, 0.05, 0.75, 0.05])
+  tmin = (
+      min(plotdata1.t)
+      if plotdata2 is None
+      else min(min(plotdata1.t), min(plotdata2.t))
+  )
+  tmax = (
+      max(plotdata1.t)
+      if plotdata2 is None
+      else max(max(plotdata1.t), max(plotdata2.t))
+  )
 
-  # pytype: disable=attribute-error
-  if plotdata2 is not None:
-    dt = min(plotdata1.dt, plotdata2.dt)
-  else:
-    dt = plotdata1.dt
+  dt = (
+      min(np.diff(plotdata1.t))
+      if plotdata2 is None
+      else min(min(np.diff(plotdata1.t)), min(np.diff(plotdata2.t)))
+  )
 
   return widgets.Slider(
-      axslide,
+      ax,
       'Time [s]',
-      plotdata1.tmin,
-      plotdata1.tmax,
-      valinit=plotdata1.tmin,
+      tmin,
+      tmax,
+      valinit=tmin,
       valstep=dt,
   )
 
 
-def format_plots(plotdata: PlotData, subfigures: tuple[Any, ...]):
+def format_plots(
+    plot_config: FigureProperties,
+    plotdata1: PlotData,
+    plotdata2: PlotData | None,
+    axes: List[Any],
+):
   """Sets up plot formatting."""
-  ax1, ax2, ax3, ax4, ax5, ax6 = subfigures
 
-  # pytype: disable=attribute-error
-  ax1.set_xlabel('Normalized radius')
-  ax1.set_ylabel(r'Heat conductivity $[m^2/s]$')
-  ax1.legend()
+  # Set default legend fontsize for legends
+  matplotlib.rc('legend', fontsize=plot_config.default_legend_fontsize)
 
-  ax2.set_ylim([0, plotdata.ymax_t * 1.05])
-  ax2.set_xlabel('Normalized radius')
-  ax2.set_ylabel('Temperature [keV]')
-  ax2.legend()
+  def get_limit(plotdata, attrs, percentile, include_first_timepoint):
+    """Gets the limit for a set of attributes based a histogram percentile."""
+    if include_first_timepoint:
+      values = np.concatenate([getattr(plotdata, attr) for attr in attrs])
+    else:
+      values = np.concatenate(
+          [getattr(plotdata, attr)[1:, :] for attr in attrs]
+      )
+    return np.percentile(values, percentile)
 
-  ax3.set_ylim([0, plotdata.ymax_n * 1.05])
-  ax3.set_xlabel('Normalized radius')
-  ax3.set_ylabel(r'Electron density $[10^{20}~m^{-3}]$')
-  ax3.legend()
+  for ax, cfg in zip(axes, plot_config.axes):
+    if cfg.plot_type == PlotType.SPATIAL:
+      ax.set_xlabel('Normalized radius')
+    elif cfg.plot_type == PlotType.TIME_SERIES:
+      ax.set_xlabel('Time [s]')
+    else:
+      raise ValueError(f'Unknown plot type: {cfg.plot_type}')
+    ax.set_ylabel(cfg.ylabel)
 
-  ax4.set_ylim([min(plotdata.ymin_j * 1.05, 0), plotdata.ymax_j * 1.05])
-  ax4.set_xlabel('Normalized radius')
-  ax4.set_ylabel(r'Toroidal current $[A~m^{-2}]$')
-  ax4.legend(fontsize=10)
+    # Get limits for y-axis based on percentile values.
+    # 0.0 or 100.0 are special cases for simple min/max values.
+    ymin = get_limit(
+        plotdata1, cfg.attrs, cfg.lower_percentile, cfg.include_first_timepoint
+    )
+    ymax = get_limit(
+        plotdata1, cfg.attrs, cfg.upper_percentile, cfg.include_first_timepoint
+    )
 
-  ax5.set_ylim([0, plotdata.ymax_q * 1.05])
-  ax5.set_xlabel('Normalized radius')
-  ax5.set_ylabel('Safety factor')
-  ax5.legend()
+    if plotdata2:
+      ymin = min(
+          ymin,
+          get_limit(
+              plotdata2,
+              cfg.attrs,
+              cfg.lower_percentile,
+              cfg.include_first_timepoint,
+          ),
+      )
+      ymax = max(
+          ymax,
+          get_limit(
+              plotdata2,
+              cfg.attrs,
+              cfg.upper_percentile,
+              cfg.include_first_timepoint,
+          ),
+      )
 
-  ax6.set_ylim([min(plotdata.ymin_s * 1.05, 0), plotdata.ymax_s * 1.05])
-  ax6.set_xlabel('Normalized radius')
-  ax6.set_ylabel('Magnetic shear')
-  ax6.legend()
-  # pytype: enable=attribute-error
+    lower_bound = ymin / 1.05 if ymin > 0 else ymin * 1.05
+    if cfg.ylim_min_zero:
+      ax.set_ylim([min(lower_bound, 0), ymax * 1.05])
+    else:
+      ax.set_ylim([lower_bound, ymax * 1.05])
+
+    ax.legend(fontsize=cfg.legend_fontsize)
 
 
 def get_rho(
@@ -233,146 +435,77 @@ def get_rho(
 
 
 def get_lines(
+    plot_config: FigureProperties,
     plotdata: PlotData,
-    subfigures: tuple[Any, ...],
+    axes: List[Any],
     comp_plot: bool = False,
 ):
   """Gets lines for all plots."""
   lines = []
   # If comparison, first lines labeled (1) and solid, second set (2) and dashed.
-  if not comp_plot:
-    suffix = '~(1)'
-    dashed = ''
-  else:
-    suffix = '~(2)'
-    dashed = '--'
+  suffix = f' ({1 if not comp_plot else 2})'
+  dashed = '--' if comp_plot else ''
 
-  ax1, ax2, ax3, ax4, ax5, ax6 = subfigures
-
-  (line,) = ax1.plot(
-      get_rho(plotdata, 'chi_i'),
-      plotdata.chi_i[1, :],
-      'r' + dashed,
-      label=rf'$\chi_i{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax1.plot(
-      get_rho(plotdata, 'chi_e'),
-      plotdata.chi_e[1, :],
-      'b' + dashed,
-      label=rf'$\chi_e{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax2.plot(
-      get_rho(plotdata, 'ti'),
-      plotdata.ti[0, :],
-      'r' + dashed,
-      label=rf'$T_i{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax2.plot(
-      get_rho(plotdata, 'te'),
-      plotdata.te[0, :],
-      'b' + dashed,
-      label=rf'$T_e{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax3.plot(
-      get_rho(plotdata, 'ne'),
-      plotdata.ne[0, :],
-      'r' + dashed,
-      label=rf'$n_e{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax4.plot(
-      get_rho(plotdata, 'j'),
-      plotdata.j[0, :],
-      'r' + dashed,
-      label=rf'$j_{{tot}}{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax4.plot(
-      get_rho(plotdata, 'johm'),
-      plotdata.johm[0, :],
-      'b' + dashed,
-      label=rf'$j_{{ohm}}{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax4.plot(
-      get_rho(plotdata, 'j_bootstrap'),
-      plotdata.j_bootstrap[0, :],
-      'g' + dashed,
-      label=rf'$j_{{bs}}{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax4.plot(
-      get_rho(plotdata, 'jext'),
-      plotdata.jext[0, :],
-      'm' + dashed,
-      label=rf'$j_{{ext}}{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax5.plot(
-      get_rho(plotdata, 'q'),
-      plotdata.q[0, :],
-      'r' + dashed,
-      label=rf'$q{suffix}$',
-  )
-  lines.append(line)
-  (line,) = ax6.plot(
-      get_rho(plotdata, 's'),
-      plotdata.s[0, :],
-      'r' + dashed,
-      label=rf'$\hat{{s}}{suffix}$',
-  )
-  lines.append(line)
+  for ax, cfg in zip(axes, plot_config.axes):
+    line_idx = 0  # Reset color selection cycling for each plot.
+    if cfg.plot_type == PlotType.SPATIAL:
+      for attr, label in zip(cfg.attrs, cfg.labels):
+        data = getattr(plotdata, attr)
+        if cfg.suppress_zero_values and np.all(data == 0):
+          continue
+        rho = get_rho(plotdata, attr)
+        (line,) = ax.plot(
+            rho,
+            data[0, :],  # Plot data at time zero
+            plot_config.colors[line_idx % len(plot_config.colors)] + dashed,
+            label=f'{label}{suffix}',
+        )
+        lines.append(line)
+        line_idx += 1
+    elif cfg.plot_type == PlotType.TIME_SERIES:
+      for attr, label in zip(cfg.attrs, cfg.labels):
+        data = getattr(plotdata, attr)
+        if cfg.suppress_zero_values and np.all(data == 0):
+          continue
+        # No need to return a line since this will not need to be updated.
+        _ = ax.plot(
+            plotdata.t,
+            data,  # Plot entire time series
+            plot_config.colors[line_idx % len(plot_config.colors)] + dashed,
+            label=f'{label}{suffix}',
+        )
+        line_idx += 1
+    else:
+      raise ValueError(f'Unknown plot type: {cfg.plot_type}')
 
   return lines
 
 
-def load_data(filename: str) -> PlotData:
-  """Loads an xr.Dataset from a file, handling potential coordinate name changes."""
-  ds = xr.open_dataset(filename)
-  # Handle potential time coordinate name variations
-  t = ds['time'].to_numpy() if 'time' in ds else ds['t'].to_numpy()
-  # Rename coordinates if they exist, ensuring compatibility with older datasets
-  if 'r_cell' in ds:
-    ds = ds.rename({
-        'r_cell': 'rho_cell',
-        'r_face': 'rho_face',
-        'r_cell_norm': 'rho_cell_norm',
-        'r_face_norm': 'rho_face_norm',
-    })
-  # Handle potential jext coordinate name variations
-  if output.CORE_PROFILES_JEXT in ds:
-    jext = ds[output.CORE_PROFILES_JEXT].to_numpy()
-  else:
-    jext = ds['jext'].to_numpy()
-  return PlotData(
-      ti=ds[output.TEMP_ION].to_numpy(),
-      te=ds[output.TEMP_EL].to_numpy(),
-      ne=ds[output.NE].to_numpy(),
-      j=ds[output.JTOT].to_numpy(),
-      johm=ds[output.JOHM].to_numpy(),
-      j_bootstrap=ds[output.J_BOOTSTRAP].to_numpy(),
-      jext=jext,
-      q=ds[output.Q_FACE].to_numpy(),
-      s=ds[output.S_FACE].to_numpy(),
-      chi_i=ds[output.CHI_FACE_ION].to_numpy(),
-      chi_e=ds[output.CHI_FACE_EL].to_numpy(),
-      rho_cell_coord=ds[output.RHO_CELL_NORM].to_numpy(),
-      rho_face_coord=ds[output.RHO_FACE_NORM].to_numpy(),
-      t=t,
+def create_figure(plot_config: FigureProperties):
+  """Creates the figure and axes."""
+  rows = plot_config.rows
+  cols = plot_config.cols
+  matplotlib.rc('xtick', labelsize=plot_config.tick_fontsize)
+  matplotlib.rc('ytick', labelsize=plot_config.tick_fontsize)
+  matplotlib.rc('axes', labelsize=plot_config.axes_fontsize)
+  matplotlib.rc('figure', titlesize=plot_config.title_fontsize)
+  fig = plt.figure(
+      figsize=(
+          cols * plot_config.figure_size_factor,
+          rows * plot_config.figure_size_factor,
+      ),
+      constrained_layout=True,
   )
+  # Create the GridSpec - leave space for the slider at the bottom
+  gs = gridspec.GridSpec(
+      rows + 1, cols, figure=fig, height_ratios=[1] * rows + [0.2]
+  )  # Adjust 0.2 for slider height
 
-
-def create_figure():
-  fig = plt.figure(figsize=(15, 10))
-  ax1 = fig.add_subplot(231)
-  ax2 = fig.add_subplot(232)
-  ax3 = fig.add_subplot(233)
-  ax4 = fig.add_subplot(234)
-  ax5 = fig.add_subplot(235)
-  ax6 = fig.add_subplot(236)
-  subfigures = (ax1, ax2, ax3, ax4, ax5, ax6)
-  return fig, subfigures
+  axes = []
+  for i in range(rows * cols):
+    row = i // cols
+    col = i % cols
+    axes.append(fig.add_subplot(gs[row, col]))  # Add subplots to the grid
+  # slider spans all columns in the last row
+  slider_ax = fig.add_subplot(gs[rows, :])
+  return fig, axes, slider_ax

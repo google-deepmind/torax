@@ -34,7 +34,7 @@ from torax.config import base
 # Type-alias for clarity. While the InterpolatedVarSingleAxiss can vary across
 # any field, in these classes, we mainly use it to handle time-dependent
 # parameters.
-TimeInterpolated: TypeAlias = interpolated_param.TimeInterpolated
+TimeInterpolatedInput: TypeAlias = interpolated_param.TimeInterpolatedInput
 
 
 # pylint: disable=invalid-name
@@ -55,24 +55,24 @@ class RuntimeParams(base.RuntimeParametersConfig['RuntimeParamsProvider']):
   Vemax: float = 50.0  # minimum electron density convection
 
   # set inner core transport coefficients (ad-hoc MHD/EM transport)
-  apply_inner_patch: TimeInterpolated = False
-  De_inner: TimeInterpolated = 0.2
-  Ve_inner: TimeInterpolated = 0.0
-  chii_inner: TimeInterpolated = 1.0
-  chie_inner: TimeInterpolated = 1.0
+  apply_inner_patch: TimeInterpolatedInput = False
+  De_inner: TimeInterpolatedInput = 0.2
+  Ve_inner: TimeInterpolatedInput = 0.0
+  chii_inner: TimeInterpolatedInput = 1.0
+  chie_inner: TimeInterpolatedInput = 1.0
   # normalized radius below which patch is applied
-  rho_inner: TimeInterpolated = 0.3
+  rho_inner: TimeInterpolatedInput = 0.3
 
   # set outer core transport coefficients.
   # Useful for L-mode near-edge region where QLKNN10D is not applicable.
   # Only used when set_pedestal = False
-  apply_outer_patch: TimeInterpolated = False
-  De_outer: TimeInterpolated = 0.2
-  Ve_outer: TimeInterpolated = 0.0
-  chii_outer: TimeInterpolated = 1.0
-  chie_outer: TimeInterpolated = 1.0
+  apply_outer_patch: TimeInterpolatedInput = False
+  De_outer: TimeInterpolatedInput = 0.2
+  Ve_outer: TimeInterpolatedInput = 0.0
+  chii_outer: TimeInterpolatedInput = 1.0
+  chie_outer: TimeInterpolatedInput = 1.0
   # normalized radius above which patch is applied
-  rho_outer: TimeInterpolated = 0.9
+  rho_outer: TimeInterpolatedInput = 0.9
 
   # Width of HWHM Gaussian smoothing kernel operating on transport model outputs
   smoothing_sigma: float = 0.0

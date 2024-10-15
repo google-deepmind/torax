@@ -13,7 +13,9 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
-from typing import TypeAlias
+from __future__ import annotations
+
+import dataclasses
 
 from absl import logging
 import chex
@@ -21,11 +23,32 @@ import jax
 from jax import numpy as jnp
 from torax import geometry
 from torax import state
-from torax.config import config_args
+from torax.config import runtime_params
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 import xarray as xr
 
 import os
+
+
+@chex.dataclass(frozen=True)
+class ToraxSimOutputs:
+  """Output structure returned by `run_simulation()`.
+
+  Contains the error state and the history of the simulation state.
+  Can be extended in the future to include more metadata about the simulation.
+
+  Attributes:
+    sim_error: simulation error state: NO_ERROR for no error, NAN_DETECTED for
+      NaNs found in core profiles.
+    sim_history: history of the simulation state.
+  """
+
+  # Error state
+  sim_error: state.SimError
+
+  # Time-dependent TORAX outputs
+  sim_history: tuple[state.ToraxSimState, ...]
 
 
 # Core profiles.
@@ -76,34 +99,48 @@ RHO_FACE = "rho_face"
 RHO_CELL = "rho_cell"
 TIME = "time"
 
-# Tuple of (path_to_xarray_file, time_to_load_from).
-FilepathAndTime: TypeAlias = tuple[str, float]
+# Post processed outputs
+Q_FUSION = "Q_fusion"
+
+# Simulation error state.
+SIM_ERROR = "sim_error"
+
+
+def safe_load_dataset(filepath: str) -> xr.Dataset:
+  with open(filepath, "rb") as f:
+    with xr.open_dataset(f) as ds_open:
+      ds = ds_open.compute()
+  return ds
 
 
 def load_state_file(
-    filepath_and_time: FilepathAndTime, data_var: str
-) -> xr.DataArray:
+    filepath: str,
+) -> xr.Dataset:
   """Loads a state file from a filepath."""
-  path, t = filepath_and_time
-  if os.path.exists(path):
-    with open(path, "rb") as f:
-      logging.info("Loading %s from state file %s, time %s", data_var, path, t)
-      da = xr.load_dataset(f).sel(time=slice(t, None)).data_vars[data_var]
-      if RHO_CELL_NORM in da.coords:
-        return da.rename({RHO_CELL_NORM: config_args.RHO_NORM})
-      else:
-        return da
+  if os.path.exists(filepath):
+    ds = safe_load_dataset(filepath)
+    logging.info("Loading state file %s", filepath)
+    return ds
   else:
-    raise ValueError(f"File {path} does not exist.")
+    raise ValueError(f"File {filepath} does not exist.")
 
 
 class StateHistory:
-  """A history of the state of the simulation."""
+  """A history of the state of the simulation and its error state."""
 
-  def __init__(self, states: tuple[state.ToraxSimState, ...]):
-    core_profiles = [state.core_profiles.history_elem() for state in states]
-    core_sources = [state.core_sources for state in states]
-    transport = [state.core_transport for state in states]
+  def __init__(
+      self,
+      sim_outputs: ToraxSimOutputs,
+      source_models: source_models_lib.SourceModels,
+  ):
+    core_profiles = [
+        state.core_profiles.history_elem() for state in sim_outputs.sim_history
+    ]
+    core_sources = [state.core_sources for state in sim_outputs.sim_history]
+    transport = [state.core_transport for state in sim_outputs.sim_history]
+    post_processed_output = [
+        state.post_processed_outputs for state in sim_outputs.sim_history
+    ]
     stack = lambda *ys: jnp.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
@@ -114,8 +151,13 @@ class StateHistory:
     self.core_transport: state.CoreTransport = jax.tree_util.tree_map(
         stack, *transport
     )
-    self.times = jnp.array([state.t for state in states])
+    self.post_processed_outputs: state.PostProcessedOutputs = (
+        jax.tree_util.tree_map(stack, *post_processed_output)
+    )
+    self.times = jnp.array([state.t for state in sim_outputs.sim_history])
     chex.assert_rank(self.times, 1)
+    self.sim_error = sim_outputs.sim_error
+    self.source_models = source_models
 
   def _pack_into_data_array(
       self,
@@ -151,15 +193,14 @@ class StateHistory:
     return xr.DataArray(data, dims=dims, name=name)
 
   def _get_core_profiles(
-      self, geo: geometry.Geometry,
+      self,
+      geo: geometry.Geometry,
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core profiles to a dict."""
     xr_dict = {}
 
     xr_dict[TEMP_EL] = self.core_profiles.temp_el.value
-    xr_dict[TEMP_EL_RIGHT_BC] = (
-        self.core_profiles.temp_el.right_face_constraint
-    )
+    xr_dict[TEMP_EL_RIGHT_BC] = self.core_profiles.temp_el.right_face_constraint
     xr_dict[TEMP_ION] = self.core_profiles.temp_ion.value
     xr_dict[TEMP_ION_RIGHT_BC] = (
         self.core_profiles.temp_ion.right_face_constraint
@@ -225,13 +266,28 @@ class StateHistory:
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core sources to a dict."""
     xr_dict = {}
+
+    xr_dict[self.source_models.qei_source_name] = (
+        self.core_sources.qei.qei_coef
+        * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
+    )
+
+    # Add source profiles
     for profile in self.core_sources.profiles:
       if profile in existing_keys:
         logging.warning(
             "Overlapping key %s between sources and other data structures",
             profile,
         )
-      xr_dict[profile] = self.core_sources.profiles[profile]
+      if profile in self.source_models.ion_el_sources:
+        xr_dict[f"{profile}_ion"] = self.core_sources.profiles[profile][
+            :, 0, ...
+        ]
+        xr_dict[f"{profile}_el"] = self.core_sources.profiles[profile][
+            :, 1, ...
+        ]
+      else:
+        xr_dict[profile] = self.core_sources.profiles[profile]
 
     xr_dict = {
         name: self._pack_into_data_array(name, data, geo)
@@ -240,15 +296,32 @@ class StateHistory:
 
     return xr_dict
 
+  def _save_post_processed_outputs(
+      self,
+      geo: geometry.Geometry,
+  ) -> dict[str, xr.DataArray | None]:
+    """Saves the post processed outputs to a dict."""
+    xr_dict = {}
+    for field_name, data in dataclasses.asdict(
+        self.post_processed_outputs
+    ).items():
+      xr_dict[field_name] = self._pack_into_data_array(field_name, data, geo)
+
+    return xr_dict
+
   def simulation_output_to_xr(
       self,
       geo: geometry.Geometry,
+      file_restart: runtime_params.FileRestart | None = None,
   ) -> xr.Dataset:
     """Build an xr.Dataset of the simulation output.
 
     Args:
       geo: The geometry of the simulation. This is used to retrieve the TORAX
         mesh grid values.
+      file_restart: If provided, contains information on a file this sim was
+        restarted from, this is useful in case we want to stitch that to the
+        beggining of this sim output.
 
     Returns:
       An xr.Dataset of the simulation output. The dataset contains the following
@@ -259,7 +332,7 @@ class StateHistory:
         - rho_face: The toroidal coordinate on the face grid.
         - rho_cell: The toroidal coordinate on the cell grid.
       The dataset contains data variables for quantities in the CoreProfiles,
-      CoreTransport, and CoreSources.
+      CoreTransport, and CoreSources, as well as time and the sim_error state.
     """
     # TODO(b/338033916). Extend outputs with:
     # Post-processed integrals, more geo outputs.
@@ -285,10 +358,12 @@ class StateHistory:
         SPR_FACE: xr.DataArray(geo.spr_face, dims=[RHO_FACE], name=SPR_FACE),
     }
 
-    xr_dict.update(self._get_core_profiles(geo,))
-    xr_dict.update(self._save_core_transport(geo,))
+    # Update dict with flattened StateHistory dataclass containers
+    xr_dict.update(self._get_core_profiles(geo))
+    xr_dict.update(self._save_core_transport(geo))
     existing_keys = set(xr_dict.keys())
     xr_dict.update(self._save_core_sources(geo, existing_keys))
+    xr_dict.update(self._save_post_processed_outputs(geo))
 
     ds = xr.Dataset(
         xr_dict,
@@ -300,4 +375,16 @@ class StateHistory:
             RHO_CELL: rho_cell,
         },
     )
+
+    if file_restart is not None and file_restart.stitch:
+      previous_ds = load_state_file(
+          file_restart.filename,
+      )
+      # Do a minimal concat to avoid concatting any non time indexed vars.
+      ds = xr.concat([previous_ds, ds], dim=TIME, data_vars="minimal")
+      ds = ds.drop_duplicates(dim=TIME)
+
+    # Add sim_error as a new variable
+    ds[SIM_ERROR] = self.sim_error.value
+
     return ds

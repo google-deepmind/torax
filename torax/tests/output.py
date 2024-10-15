@@ -73,6 +73,7 @@ class StateHistoryTest(parameterized.TestCase):
         profiles={
             'bremsstrahlung_heat_sink': -ones,
             'ohmic_heat_source': ones * 5,
+            'fusion_heat_source': jnp.stack([ones, ones]),
         },
     )
 
@@ -82,6 +83,43 @@ class StateHistoryTest(parameterized.TestCase):
         source_models=source_models,
     )
     self.core_transport = state.CoreTransport.zeros(geo)
+    self.source_models = source_models
+
+  def test_state_history_saves_ion_el_source(self):
+    """Tests that an ion electron source is saved correctly."""
+    t = jnp.array(0.0)
+    dt = jnp.array(0.1)
+    sim_state = state.ToraxSimState(
+        core_profiles=self.core_profiles,
+        core_transport=self.core_transport,
+        core_sources=self.source_profiles,
+        t=t,
+        dt=dt,
+        time_step_calculator_state=None,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
+        stepper_numeric_outputs=state.StepperNumericOutputs(
+            outer_stepper_iterations=1,
+            stepper_error_state=1,
+            inner_solver_iterations=1,
+        ),
+    )
+    sim_error = state.SimError.NO_ERROR
+
+    history = output.StateHistory(
+        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
+        self.source_models,
+    )
+    output_xr = history.simulation_output_to_xr(self.geo)
+    self.assertIn('fusion_heat_source_ion', output_xr.data_vars)
+    self.assertIn('fusion_heat_source_el', output_xr.data_vars)
+    np.testing.assert_allclose(
+        output_xr.data_vars['fusion_heat_source_ion'].values[0, ...],
+        self.source_profiles.profiles['fusion_heat_source'][0],
+    )
+    np.testing.assert_allclose(
+        output_xr.data_vars['fusion_heat_source_el'].values[0, ...],
+        self.source_profiles.profiles['fusion_heat_source'][1],
+    )
 
   def test_state_history_init(self):
     """Smoke test the `StateHistory` constructor."""
@@ -94,14 +132,19 @@ class StateHistoryTest(parameterized.TestCase):
         t=t,
         dt=dt,
         time_step_calculator_state=None,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
         stepper_numeric_outputs=state.StepperNumericOutputs(
             outer_stepper_iterations=1,
             stepper_error_state=1,
             inner_solver_iterations=1,
         ),
     )
+    sim_error = state.SimError.NO_ERROR
 
-    output.StateHistory((sim_state,))
+    output.StateHistory(
+        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
+        self.source_models,
+    )
 
   def test_state_history_to_xr(self):
     """Smoke test the `StateHistory.simulation_output_to_xr` method."""
@@ -114,14 +157,20 @@ class StateHistoryTest(parameterized.TestCase):
         t=t,
         dt=dt,
         time_step_calculator_state=None,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
         stepper_numeric_outputs=state.StepperNumericOutputs(
             outer_stepper_iterations=1,
             stepper_error_state=1,
             inner_solver_iterations=1,
         ),
     )
-    history = output.StateHistory((sim_state,))
+    sim_error = state.SimError.NO_ERROR
+    history = output.StateHistory(
+        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
+        self.source_models,
+    )
 
+    history.simulation_output_to_xr(self.geo)
     history.simulation_output_to_xr(self.geo)
 
   def test_load_core_profiles_from_xr(self):
@@ -136,13 +185,18 @@ class StateHistoryTest(parameterized.TestCase):
         t=t,
         dt=dt,
         time_step_calculator_state=None,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
         stepper_numeric_outputs=state.StepperNumericOutputs(
             outer_stepper_iterations=1,
             stepper_error_state=1,
             inner_solver_iterations=1,
         ),
     )
-    history = output.StateHistory((sim_state,))
+    sim_error = state.SimError.NO_ERROR
+    history = output.StateHistory(
+        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
+        self.source_models,
+    )
     # Output to an xr.Dataset and save to disk.
     ds = history.simulation_output_to_xr(self.geo)
     path = os.path.join(self.create_tempdir().full_path, 'state.nc')

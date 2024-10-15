@@ -42,13 +42,14 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   # external heat source parameters
   # Gaussian width in normalized radial coordinate
-  w: runtime_params_lib.TimeInterpolated = 0.25
+  w: runtime_params_lib.TimeInterpolatedInput = 0.25
   # Source Gaussian central location (in normalized r)
-  rsource: runtime_params_lib.TimeInterpolated = 0.0
+  rsource: runtime_params_lib.TimeInterpolatedInput = 0.0
   # total heating
-  Ptot: runtime_params_lib.TimeInterpolated = 120e6
+  Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
   # electron heating fraction
-  el_heat_fraction: runtime_params_lib.TimeInterpolated = 0.66666
+  el_heat_fraction: runtime_params_lib.TimeInterpolatedInput = 0.66666
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   def make_provider(
       self,
@@ -145,9 +146,26 @@ def _default_formula(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class GenericIonElectronHeatSource(source.IonElectronSource):
+class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
+  # Generic heat source affects temp_ion and temp_el.
+  # affected_core_profiles is removed from __init__ effectively freezing it.
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      dataclasses.field(
+          init=False,
+          default=(
+              source.AffectedCoreProfile.TEMP_ION,
+              source.AffectedCoreProfile.TEMP_EL,
+          ),
+      )
+  )
+  # This source always outputs 2 cell profiles.
+  # output_shape_getter is removed from __init__ effectively freezing it.
+  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
+      init=False,
+      default_factory=lambda: source.get_ion_el_output_shape,
+  )
   formula: source.SourceProfileFunction = _default_formula
 
 

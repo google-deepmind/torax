@@ -93,7 +93,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # Add the custom source to the source_models, but keep it turned off for the
     # first run.
     source_models_builder.source_builders[custom_source_name] = (
-        source.SingleProfileSourceBuilder(
+        source.SourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
@@ -145,8 +145,8 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # Make sure the config copied here works with these references.
     with self.subTest('with_puff_and_without_custom_source'):
       # Need to run the sim once to build the step_fn.
-      torax_outputs = sim.run()
-      history = output.StateHistory(torax_outputs)
+      sim_outputs = sim.run()
+      history = output.StateHistory(sim_outputs, sim.source_models)
       self._check_profiles_vs_expected(
           core_profiles=history.core_profiles,
           t=history.times,
@@ -210,7 +210,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
       ref_time: chex.Array,
   ):
     """Runs sim with new runtime params and checks the profiles vs. expected."""
-    torax_outputs = sim_lib.run_simulation(
+    sim_outputs = sim_lib.run_simulation(
         static_runtime_params_slice=sim.static_runtime_params_slice,
         dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
         geometry_provider=sim.geometry_provider,
@@ -218,7 +218,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         time_step_calculator=sim.time_step_calculator,
         step_fn=sim.step_fn,
     )
-    history = output.StateHistory(torax_outputs)
+    history = output.StateHistory(sim_outputs, sim.source_models)
     self._check_profiles_vs_expected(
         core_profiles=history.core_profiles,
         t=history.times,

@@ -31,48 +31,75 @@ from torax.sources import source
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ChargeExchangeHeatSink(source.SingleProfileTempIonSource):
+class ChargeExchangeHeatSink(source.Source):
   """Charge exchange loss term for the ion temp equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_ION,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class CyclotronRadiationHeatSink(source.SingleProfileTempElSource):
+class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation loss term for the electron temp equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_EL,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ECRHHeatSource(source.SingleProfileTempElSource):
+class ECRHHeatSource(source.Source):
   """ECRH heat source for the electron temp equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_EL,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ICRHHeatSource(source.SingleProfileTempIonSource):
+class ICRHHeatSource(source.Source):
   """ICRH heat source for the ion temp equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_ION,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class LHHeatSource(source.SingleProfileTempElSource):
+class LHHeatSource(source.Source):
   """LH heat source for the electron temp equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_EL,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class LineRadiationHeatSink(source.SingleProfileTempElSource):
+class LineRadiationHeatSink(source.Source):
   """Line radiation loss sink for the electron temp equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_EL,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class NBIElectronHeatSource(source.SingleProfileTempElSource):
+class NBIElectronHeatSource(source.Source):
   """NBI heat source for the electron temp equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_EL,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class NBIIonHeatSource(source.SingleProfileTempIonSource):
+class NBIIonHeatSource(source.Source):
   """NBI heat source for the ion temp equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_ION,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class RecombinationHeatSink(source.SingleProfileTempElSource):
+class RecombinationHeatSink(source.Source):
   """Recombination loss sink for the electron temp equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.TEMP_EL,
+  )
 
 ChargeExchangeHeatSinkBuilder = source.make_source_builder(
     ChargeExchangeHeatSink

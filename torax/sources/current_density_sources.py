@@ -31,23 +31,35 @@ from torax.sources import source
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ECRHCurrentSource(source.SingleProfilePsiSource):
+class ECRHCurrentSource(source.Source):
   """ECRH current density source for the psi equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.PSI,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ICRHCurrentSource(source.SingleProfilePsiSource):
+class ICRHCurrentSource(source.Source):
   """ICRH current density source for the psi equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.PSI,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class LHCurrentSource(source.SingleProfilePsiSource):
+class LHCurrentSource(source.Source):
   """LH current density source for the psi equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.PSI,
+  )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class NBICurrentSource(source.SingleProfilePsiSource):
+class NBICurrentSource(source.Source):
   """NBI current density source for the psi equation."""
+  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
+      source.AffectedCoreProfile.PSI,
+  )
 
 ECRHCurrentSourceBuilder = source.make_source_builder(ECRHCurrentSource)
 ICRHCurrentSourceBuilder = source.make_source_builder(ICRHCurrentSource)

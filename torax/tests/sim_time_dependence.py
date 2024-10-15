@@ -102,10 +102,14 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         )
     )
     input_state = sim_lib.get_initial_state(
+        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params
+        ),
         dynamic_runtime_params_slice=initial_dynamic_runtime_params_slice,
         geo=geo,
         time_step_calculator=time_calculator,
         source_models=source_models,
+        step_fn=sim_step_fn,
     )
     output_state = sim_step_fn(
         static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
@@ -114,13 +118,6 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
         geometry_provider=geometry_provider,
         input_state=input_state,
-        explicit_source_profiles=source_models_lib.build_source_profiles(
-            source_models=source_models,
-            dynamic_runtime_params_slice=initial_dynamic_runtime_params_slice,
-            geo=geo,
-            core_profiles=input_state.core_profiles,
-            explicit=True,
-        ),
     )
     # The initial step will not work, so it should take several adaptive time
     # steps to get under the Ti_bound_right threshold set above if adaptive_dt

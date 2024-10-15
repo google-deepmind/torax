@@ -73,7 +73,7 @@ For nonlinear solvers, the stepper iterations can be more than 1 due to dt backt
 .. code-block:: console
 
   python3 run_simulation_main.py \
-   --config='torax.examples.basic_config' \
+  --config='torax.examples.basic_config' \
    --log_progress
 
 plot_progress
@@ -115,6 +115,33 @@ variable.
   python3 run_simulation_main.py \
   --config='torax.examples.basic_config' \
   --qlknn_model_path=<path_to_qlknn_model>
+
+output_dir
+^^^^^^^^^^
+Override the default output directory. If not provided, it will be set to
+``output_dir`` defined in the config. If that is not defined, will default to
+``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``.
+
+.. code-block:: console
+
+  python3 run_simulation_main.py \
+  --config='torax.examples.basic_config' \
+  --output_dir=<output_dir>
+
+plot_config
+^^^^^^^^^^^
+Sets the plotting configuration used for the post-simulation plotting options.
+This flag should point to a python module path containing a `PLOT_CONFIG` variable
+which is an instance of `torax.plotting.plotruns_lib.FigureProperties`.
+By default, `torax.plotting.configs.default_plot_config` is used.
+See :ref:`plotting` for further details and examples. An example using a non-default
+plot config is shown below.
+
+.. code-block:: console
+
+  python3 run_simulation_main.py \
+  --config='torax.examples.basic_config' \
+  --plot_config=torax.plotting.configs.simple_plot_config
 
 Post-simulation
 ---------------

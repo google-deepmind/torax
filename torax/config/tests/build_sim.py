@@ -143,7 +143,11 @@ class BuildSimTest(parameterized.TestCase):
     runtime_params = build_sim.build_runtime_params_from_config({
         'plasma_composition': {
             'Ai': 0.1,  # scalar fields.
-            'Zeff': {0: 0.1, 1: 0.2, 2: 0.3},  # time-dependent.
+            'Zeff': {
+                0: {0: 0.1, 1: 0.1},
+                1: {0: 0.2, 1: 0.2},
+                2: {0: 0.3, 1: 0.3},
+            },  # time-dependent with constant radial profile.
         },
         'profile_conditions': {
             'ne_is_fGW': False,  # scalar fields.

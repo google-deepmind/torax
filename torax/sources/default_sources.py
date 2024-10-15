@@ -28,6 +28,7 @@ from torax.sources import electron_density_sources
 from torax.sources import external_current_source
 from torax.sources import fusion_heat_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
+from torax.sources import ohmic_heat_source
 from torax.sources import qei_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -40,45 +41,25 @@ def get_default_runtime_params(
   """Returns default RuntimeParams for the given source."""
   match source_name:
     case 'j_bootstrap':
-      return bootstrap_current_source.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
-      )
+      return bootstrap_current_source.RuntimeParams()
     case 'jext':
-      return external_current_source.RuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return external_current_source.RuntimeParams()
     case 'nbi_particle_source':
-      return electron_density_sources.NBIParticleRuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return electron_density_sources.NBIParticleRuntimeParams()
     case 'gas_puff_source':
-      return electron_density_sources.GasPuffRuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return electron_density_sources.GasPuffRuntimeParams()
     case 'pellet_source':
-      return electron_density_sources.PelletRuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return electron_density_sources.PelletRuntimeParams()
     case 'generic_ion_el_heat_source':
-      return ion_el_heat.RuntimeParams(
-          mode=runtime_params_lib.Mode.FORMULA_BASED,
-      )
+      return ion_el_heat.RuntimeParams()
     case 'fusion_heat_source':
-      return runtime_params_lib.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
-      )
+      return fusion_heat_source.FusionHeatSourceRuntimeParams()
     case 'qei_source':
-      return qei_source.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
-      )
+      return qei_source.RuntimeParams()
     case 'ohmic_heat_source':
-      return runtime_params_lib.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
-      )
+      return ohmic_heat_source.OhmicRuntimeParams()
     case 'bremsstrahlung_heat_sink':
-      return bremsstrahlung_heat_sink.RuntimeParams(
-          mode=runtime_params_lib.Mode.MODEL_BASED,
-      )
+      return bremsstrahlung_heat_sink.RuntimeParams()
     case _:
       raise ValueError(f'Unknown source name: {source_name}')
 
@@ -103,7 +84,7 @@ def get_source_type(source_name: str) -> type[source.Source]:
     case 'qei_source':
       return qei_source.QeiSource
     case 'ohmic_heat_source':
-      return source_models_lib.OhmicHeatSource
+      return ohmic_heat_source.OhmicHeatSource
     case 'bremsstrahlung_heat_sink':
       return bremsstrahlung_heat_sink.BremsstrahlungHeatSink
     case _:
@@ -193,7 +174,7 @@ def get_source_builder_type(source_name: str) -> Any:
       return qei_source.QeiSourceBuilder
 
     case 'ohmic_heat_source':
-      return source_models_lib.OhmicHeatSourceBuilder
+      return ohmic_heat_source.OhmicHeatSourceBuilder
 
     case 'bremsstrahlung_heat_sink':
       return bremsstrahlung_heat_sink.BremsstrahlungHeatSinkBuilder

@@ -41,16 +41,16 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   """
 
   # Prefactor for Bohm term for electron heat conductivity.
-  chi_e_bohm_coeff: runtime_params_lib.TimeInterpolated = 8e-5
+  chi_e_bohm_coeff: runtime_params_lib.TimeInterpolatedInput = 8e-5
   # Prefactor for GyroBohm term for electron heat conductivity.
-  chi_e_gyrobohm_coeff: runtime_params_lib.TimeInterpolated = 5e-6
+  chi_e_gyrobohm_coeff: runtime_params_lib.TimeInterpolatedInput = 5e-6
   # Prefactor for Bohm term for ion heat conductivity.
-  chi_i_bohm_coeff: runtime_params_lib.TimeInterpolated = 8e-5
+  chi_i_bohm_coeff: runtime_params_lib.TimeInterpolatedInput = 8e-5
   # Prefactor for GyroBohm term for ion heat conductivity.
-  chi_i_gyrobohm_coeff: runtime_params_lib.TimeInterpolated = 5e-6
+  chi_i_gyrobohm_coeff: runtime_params_lib.TimeInterpolatedInput = 5e-6
   # Constants for the electron diffusivity weighting factor.
-  d_face_c1: runtime_params_lib.TimeInterpolated = 1.0
-  d_face_c2: runtime_params_lib.TimeInterpolated = 0.3
+  d_face_c1: runtime_params_lib.TimeInterpolatedInput = 1.0
+  d_face_c2: runtime_params_lib.TimeInterpolatedInput = 0.3
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
@@ -191,11 +191,30 @@ class BohmGyroBohmModel(transport_model.TransportModel):
         )
         * geo.rho_face_norm
     )
-    d_face_el = weighting * chi_e * chi_i / (chi_e + chi_i)
+
+    # d_face_el is zero on-axis by definition
+    # We also add a small epsilon to the denominator to avoid the cases where
+    # chi_i + chi_e = 0
+    d_face_el = jnp.concatenate(
+        [
+            jnp.zeros(1),
+            weighting[1:] * chi_e[1:] * chi_i[1:]
+            / (chi_e[1:] + chi_i[1:] + constants_module.CONSTANTS.eps),
+        ]
+    )
 
     # Pinch velocity
-    v_face_el = (
-        0.5 * d_face_el * geo.area_face**2 / (geo.volume_face * geo.vpr_face)
+    # v_face_el is also zero on-axis by definition
+    # To avoid 0/0, we set the first element to 0 manually
+    v_face_el = jnp.concatenate(
+        [
+            jnp.zeros(1),
+            0.5
+            * d_face_el[1:]
+            * geo.area_face[1:] ** 2
+            * geo.rho_b
+            / (geo.volume_face[1:] * geo.vpr_face[1:]),
+        ]
     )
 
     return state.CoreTransport(

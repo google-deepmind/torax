@@ -169,7 +169,6 @@ CONFIG = {
         'Vemax': 10,  # minimum electron convection
         'qlknn_params': {
             'DVeff': True,
-            'coll_mult': 0.25,
             'include_ITG': True,  # to toggle ITG modes on or off
             'include_TEM': True,  # to toggle TEM modes on or off
             'include_ETG': True,  # to toggle ETG modes on or off

@@ -27,7 +27,9 @@ class SourceProfiles:
   """Collection of profiles for all sources in TORAX.
 
   Most profiles are stored in the `profiles` attribute, but special-case
-  profiles are pulled out into their own attributes.
+  profiles `j_bootstrap` and `qei` are pulled out into their own attributes as
+  these sources need to exist for a TORAX run (though they could still be set
+  to zero using appropriate runtime params).
 
   The keys of profiles match the keys of the sources in the Sources object used
   to compute them.
@@ -38,6 +40,7 @@ class SourceProfiles:
   """
 
   profiles: dict[str, jax.Array]
+  # Special-case profiles.
   j_bootstrap: BootstrapCurrentProfile
   qei: QeiInfo
 

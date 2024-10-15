@@ -37,6 +37,7 @@ from torax.sources import source_profiles
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   # multiplier for ion-electron heat exchange term for sensitivity testing
   Qei_mult: float = 1.0
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
       self,
@@ -148,7 +149,6 @@ def _model_based_qei(
   qei_coef = physics.coll_exchange(
       core_profiles=core_profiles,
       nref=dynamic_runtime_params_slice.numerics.nref,
-      Ai=dynamic_runtime_params_slice.plasma_composition.Ai,
       Qei_mult=dynamic_source_runtime_params.Qei_mult,
   )
   implicit_ii = -qei_coef

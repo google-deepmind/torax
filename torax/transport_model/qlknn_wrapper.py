@@ -53,10 +53,23 @@ def get_default_model_path() -> str:
   return os.environ.get(MODEL_PATH_ENV_VAR, DEFAULT_MODEL_PATH)
 
 
+def get_default_runtime_params_from_model_path(
+    model_path: str,
+) -> RuntimeParams:
+  """Returns default runtime params for the model version given the path."""
+  version = _get_model(model_path).version
+  if version == '10D':
+    return RuntimeParams()
+  else:
+    raise ValueError(f'Unknown model version: {version}')
+
+
 # pylint: disable=invalid-name
 @chex.dataclass
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Extends the base runtime params with additional params for this model.
+
+  These are the default values for the QLKNN10D model.
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
@@ -84,6 +97,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   smag_alpha_correction: bool = True
   # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
   q_sawtooth_proxy: bool = True
+  # clip inputs within desired margin of the QLKNN training set boundaries
+  clip_inputs: bool = False
+  clip_margin: float = 0.95
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
@@ -108,6 +124,8 @@ class DynamicRuntimeParams(qualikiz_utils.QualikizDynamicRuntimeParams):
   include_ETG: bool
   ITG_flux_ratio_correction: float
   ETG_correction_factor: float
+  clip_inputs: bool
+  clip_margin: float
 
 
 _EPSILON_NN: Final[float] = (
@@ -140,8 +158,7 @@ class QLKNNRuntimeConfigInputs:
 
   # pylint: disable=invalid-name
   nref: float
-  Ai: float
-  Zeff: float
+  Zeff_face: chex.Array
   transport: DynamicRuntimeParams
   Ped_top: float
   set_pedestal: bool
@@ -153,13 +170,11 @@ class QLKNNRuntimeConfigInputs:
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
   ) -> 'QLKNNRuntimeConfigInputs':
     assert isinstance(
-        dynamic_runtime_params_slice.transport,
-        DynamicRuntimeParams
+        dynamic_runtime_params_slice.transport, DynamicRuntimeParams
     )
     return QLKNNRuntimeConfigInputs(
         nref=dynamic_runtime_params_slice.numerics.nref,
-        Ai=dynamic_runtime_params_slice.plasma_composition.Ai,
-        Zeff=dynamic_runtime_params_slice.plasma_composition.Zeff,
+        Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         transport=dynamic_runtime_params_slice.transport,
         Ped_top=dynamic_runtime_params_slice.profile_conditions.Ped_top,
         set_pedestal=dynamic_runtime_params_slice.profile_conditions.set_pedestal,
@@ -194,6 +209,34 @@ def filter_model_output(
     )
 
   return {k: filter_flux(k, v) for k, v in model_output.items()}
+
+
+def clip_inputs(
+    feature_scan: jax.Array,
+    clip_margin: float,
+    inputs_and_ranges: dict[str, dict[str, float]],
+) -> jax.Array:
+  """Clip input values according to the training set limits + optional user-defined margin for qlknn."""
+  for i, key in enumerate(inputs_and_ranges.keys()):
+    bounds = inputs_and_ranges[key]
+    # set min or max if present in the bounds dict
+    min_val = bounds.get('min', -jnp.inf)
+    max_val = bounds.get('max', jnp.inf)
+    # increase/decrease bounds based on clip_margin
+    min_val += jnp.where(
+        jnp.isfinite(min_val), jnp.abs(min_val) * (1 - clip_margin), 0.0
+    )
+    max_val -= jnp.where(
+        jnp.isfinite(max_val), jnp.abs(max_val) * (1 - clip_margin), 0.0
+    )
+    feature_scan = feature_scan.at[:, i].set(
+        jnp.clip(
+            feature_scan[:, i],
+            min_val,
+            max_val,
+        )
+    )
+  return feature_scan
 
 
 class QLKNNTransportModel(transport_model.TransportModel):
@@ -263,9 +306,8 @@ class QLKNNTransportModel(transport_model.TransportModel):
       v_face_ne: Convectivity for electron density, along faces.
     """
     qualikiz_inputs = qualikiz_utils.prepare_qualikiz_inputs(
-        zeff=runtime_config_inputs.Zeff,
+        Zeff_face=runtime_config_inputs.Zeff_face,
         nref=runtime_config_inputs.nref,
-        Ai=runtime_config_inputs.Ai,
         q_correction_factor=runtime_config_inputs.q_correction_factor,
         transport=runtime_config_inputs.transport,
         geo=geo,
@@ -283,21 +325,35 @@ class QLKNNTransportModel(transport_model.TransportModel):
         x=qualikiz_inputs.x * qualikiz_inputs.epsilon_lcfs / _EPSILON_NN,
     )
     if version == '10D':
-      keys = [
-          'Zeff',
-          'Ati',
-          'Ate',
-          'Ane',
-          'q',
-          'smag',
-          'x',
-          'Ti_Te',
-          'log_nu_star_face',
-      ]
+      # Ranges are from the training set boundaries and can be optionally used
+      # to clip the input values within a desired margin.
+      inputs_and_ranges = {
+          'Zeff_face': {'min': 1.0, 'max': 3.0},
+          'Ati': {'min': 0.0, 'max': 14.0},
+          'Ate': {'min': 0.0, 'max': 14.0},
+          'Ane': {'min': -5.0, 'max': 6.0},
+          'q': {'min': 0.66, 'max': 15},
+          'smag': {'min': -1.0, 'max': 5.0},
+          'x': {'min': 0.09, 'max': 0.99},
+          'Ti_Te': {'min': 0.25, 'max': 2.5},
+          'log_nu_star_face': {'min': -5.0, 'max': 0.0},
+      }
     else:
       raise ValueError(f'Unknown model version: {version}')
 
-    feature_scan = jnp.array([getattr(qualikiz_inputs, key) for key in keys]).T
+    feature_scan = jnp.array(
+        [getattr(qualikiz_inputs, key) for key in inputs_and_ranges.keys()]
+    ).T
+    # Clip inputs if requested.
+    feature_scan = jax.lax.cond(
+        runtime_config_inputs.transport.clip_inputs,
+        lambda: clip_inputs(
+            feature_scan,
+            runtime_config_inputs.transport.clip_margin,
+            inputs_and_ranges,
+        ),  # Called when True
+        lambda: feature_scan,  # Called when False
+    )
     model_output = model.predict(feature_scan)
     model_output = filter_model_output(
         model_output=model_output,
@@ -348,10 +404,14 @@ def _default_qlknn_builder(model_path: str) -> QLKNNTransportModel:
 class QLKNNTransportModelBuilder(transport_model.TransportModelBuilder):
   """Builds a class QLKNNTransportModel."""
 
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-  model_path: str | None = None
+  runtime_params: RuntimeParams | None = None
+  model_path: str = dataclasses.field(default_factory=get_default_model_path)
+
+  def __post_init__(self):
+    if self.runtime_params is None:
+      self.runtime_params = get_default_runtime_params_from_model_path(
+          self.model_path
+      )
 
   _builder: Callable[
       [str],
@@ -361,6 +421,4 @@ class QLKNNTransportModelBuilder(transport_model.TransportModelBuilder):
   def __call__(
       self,
   ) -> QLKNNTransportModel:
-    if not self.model_path:
-      self.model_path = get_default_model_path()
     return self._builder(self.model_path)

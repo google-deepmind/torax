@@ -27,7 +27,7 @@ from torax.config import base
 from torax.config import config_args
 
 
-TimeInterpolated: TypeAlias = interpolated_param.TimeInterpolated
+TimeInterpolatedInput: TypeAlias = interpolated_param.TimeInterpolatedInput
 
 
 @chex.dataclass(frozen=True)
@@ -43,9 +43,9 @@ class Exponential(base.RuntimeParametersConfig['ExponentialProvider']):
   """
 
   # floats to parameterize the different formulas.
-  total: TimeInterpolated = 1.0
-  c1: TimeInterpolated = 1.0
-  c2: TimeInterpolated = 1.0
+  total: TimeInterpolatedInput = 1.0
+  c1: TimeInterpolatedInput = 1.0
+  c2: TimeInterpolatedInput = 1.0
 
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False
@@ -95,9 +95,9 @@ class Gaussian(base.RuntimeParametersConfig['GaussianProvider']):
   """
 
   # floats to parameterize the different formulas.
-  total: TimeInterpolated = 1.0
-  c1: TimeInterpolated = 1.0
-  c2: TimeInterpolated = 1.0
+  total: TimeInterpolatedInput = 1.0
+  c1: TimeInterpolatedInput = 1.0
+  c2: TimeInterpolatedInput = 1.0
 
   # If True, uses r_norm when calculating the source profiles.
   use_normalized_r: bool = False
