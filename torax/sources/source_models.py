@@ -811,23 +811,9 @@ class SourceModelsBuilder:
     source_builders = source_builders or {}
 
     # Validate that these sources are found
-    bootstrap_found = False
-    qei_found = False
-    jext_found = False
-    for builder in source_builders.values():
-      # pytype thinks that SourceBuilderProtocols can't be passed to isinstance.
-      # It doesn't seem to understand that builders will always be specific
-      # instantiations of the protocol, not the protocol itself.
-      if isinstance(
-          builder, bootstrap_current_source.BootstrapCurrentSourceBuilder  # pytype: disable=wrong-arg-types
-      ):
-        bootstrap_found = True
-      elif isinstance(
-          builder, external_current_source.ExternalCurrentSourceBuilder  # pytype: disable=wrong-arg-types
-      ):
-        jext_found = True
-      elif isinstance(builder, qei_source_lib.QeiSourceBuilder):  # pytype: disable=wrong-arg-types
-        qei_found = True
+    bootstrap_found = False if 'j_bootstrap' not in source_builders else True
+    qei_found = False if 'qei_source' not in source_builders else True
+    jext_found = False if 'jext' not in source_builders else True
 
     # These are special sources that must be present for every TORAX run.
     # If these sources are missing, we need to include builders for them.

@@ -28,9 +28,9 @@ from torax import output
 from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.sources import default_sources
 from torax.sources import source as source_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import torax_refs
 import xarray as xr
 

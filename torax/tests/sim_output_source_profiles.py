@@ -16,7 +16,6 @@
 
 This is a separate file to not bloat the main sim.py test file.
 """
-
 from __future__ import annotations
 
 import dataclasses
@@ -36,12 +35,12 @@ from torax import state as state_module
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.sources import default_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import runtime_params as stepper_runtime_params
+from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import time_step_calculator as ts

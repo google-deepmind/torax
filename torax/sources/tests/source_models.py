@@ -25,11 +25,11 @@ import torax  # useful for setting up jax properly.
 from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params_slice
-from torax.sources import default_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.tests.test_lib import default_sources
 
 
 @dataclasses.dataclass(frozen=True)

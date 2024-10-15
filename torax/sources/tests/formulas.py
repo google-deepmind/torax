@@ -23,12 +23,12 @@ from torax.config import build_sim
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.sources import default_sources
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.stepper import linear_theta_method
+from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import sim_test_case
 from torax.transport_model import constant as constant_transport_model
 
