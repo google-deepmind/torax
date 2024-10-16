@@ -42,6 +42,7 @@ from typing import Type
 from torax.sources import bootstrap_current_source
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import electron_density_sources
+from torax.sources import electron_cyclotron_source
 from torax.sources import external_current_source
 from torax.sources import fusion_heat_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
@@ -117,6 +118,11 @@ def register_torax_sources():
       'jext',
       external_current_source.ExternalCurrentSource,
       default_runtime_params_class=external_current_source.RuntimeParams,
+  )
+  register_new_source(
+    'echcd',
+    electron_cyclotron_source.ElectronCyclotronSource,
+    default_runtime_params_class=electron_cyclotron_source.RuntimeParams,
   )
   register_new_source(
       'nbi_particle_source',

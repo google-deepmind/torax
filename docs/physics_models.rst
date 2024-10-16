@@ -356,6 +356,21 @@ For explicit sources, these can also come from external codes (not necessarily J
 
 Presently, a built-in non-physics-based Gaussian formulation of a generic ion and electron heat
 source is available in TORAX, with user configurable location, Gaussian width, and fractional heating of ions and electrons.
+An Electron-Cyclotron Heating and Current Drive source is under development (see below).
+
+Electron-Cyclotron Heating and Current Drive
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The electron-cyclotron current drive can be calculated from the heating power density, :math:`Q_\mathrm{EC}(\rho) [Wm^{-3}]`,
+and a dimensionless EC current drive efficiency profile, :math:`\zeta_\mathrm{EC}(\rho)`.
+The current drive in :math:`[Am^{-2}]` is then given by:
+
+.. math::
+
+    j_\mathrm{EC} = \frac{2\pi\epsilon_0^2 F}{e^3 R_\mathrm{maj}} \frac{T_e}{n_e} \zeta_{EC} Q_\mathrm{EC}
+
+where :math:`\epsilon_0` is the vacuum permittivity, :math:`F = B_\phi R`, :math:`e` is the elementary charge,
+:math:`R_\mathrm{maj}` is the device major radius, `:math:`T_e` is the electron temperature in joules, and
+:math:`n_e` is the electron density per cubic meter.
 
 Particle Sources
 ----------------

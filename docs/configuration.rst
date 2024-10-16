@@ -869,7 +869,7 @@ Bootstrap current calculated with the Sauter model.
 j_ext
 ^^^^^
 
-Generic external current profile, parameterized as a Gaussian (e.g. ECCD).
+Generic external current profile, parameterized as a Gaussian.
 
 ``mode`` (str = 'formula')
 
@@ -903,8 +903,20 @@ Bremsstrahlung model from Wesson, with an optional correction for relativistic e
 
 The following sources defined in TORAX but not yet implemented. They are listed here for completeness.
 
-ECRHHeatSource
-^^^^^^^^^^^^^^
+echcd
+^^^^^
+
+Electron-cyclotron heating and current drive, based on the local efficiency model in [[Lin-Liu et al., 2003](https://doi.org/10.1063/1.1610472)].
+
+    ``mode`` (str = 'model')
+
+    ``ec_power_density`` **time-varying-array**
+        EC power density deposition profile, in units of :math:`W/m^3`.
+
+    ``cd_efficiency`` **time-varying-scalar**
+        Dimensionless efficiency profile for conversion of EC power to current.
+
+See :ref:`physics_models` for more detail.
 
 ICRHHeatSource
 ^^^^^^^^^^^^^^

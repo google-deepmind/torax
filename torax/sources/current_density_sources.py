@@ -29,15 +29,6 @@ from torax.sources import source
 #  a) support any future source-specific implementation.
 #  b) better readability and human-friendly error messages when debugging.
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ECRHCurrentSource(source.Source):
-  """ECRH current density source for the psi equation."""
-
-  @property
-  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
-    return (source.AffectedCoreProfile.PSI,)
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ICRHCurrentSource(source.Source):
   """ICRH current density source for the psi equation."""
 
