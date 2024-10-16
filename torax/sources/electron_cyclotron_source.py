@@ -13,6 +13,7 @@ from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
 from torax.constants import CONSTANTS
+from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
@@ -33,10 +34,15 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
         default_factory=lambda: {0.0: {0.0: 0.2, 1.0: 0.2}}
     )
 
-    # EC power density profile on the rho grid; units [W/m^3]
-    ec_power_density: InterpolatedVarTimeRhoInput = field(
+    # Manual EC power density profile on the rho grid; units [W/m^3]
+    manual_ec_power_density: InterpolatedVarTimeRhoInput = field(
         default_factory=lambda: {0.0: {0.0: 0.0, 1.0: 0.0}}
     )
+
+    # Gaussian EC power density profile; units [W/m^3]
+    gaussian_ec_power_density_width: runtime_params_lib.TimeInterpolatedInput = 0.0
+    gaussian_ec_power_density_location: runtime_params_lib.TimeInterpolatedInput = 0.0
+    gaussian_ec_total_power: runtime_params_lib.TimeInterpolatedInput = 0.0
 
     def make_provider(self, torax_mesh: geometry.Grid1D | None = None):
         if torax_mesh is None:
@@ -50,7 +56,10 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
     runtime_params_config: RuntimeParams
     cd_efficiency: interpolated_param.InterpolatedVarTimeRho
-    ec_power_density: interpolated_param.InterpolatedVarTimeRho
+    manual_ec_power_density: interpolated_param.InterpolatedVarTimeRho
+    gaussian_ec_power_density_width: interpolated_param.InterpolatedVarSingleAxis
+    gaussian_ec_power_density_location: interpolated_param.InterpolatedVarSingleAxis
+    gaussian_ec_total_power: interpolated_param.InterpolatedVarSingleAxis
 
     def build_dynamic_params(
         self,
@@ -64,7 +73,10 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     """Runtime parameters for the electron-cyclotron source for a given time and geometry."""
 
     cd_efficiency: array_typing.ArrayFloat
-    ec_power_density: array_typing.ArrayFloat
+    manual_ec_power_density: array_typing.ArrayFloat
+    gaussian_ec_power_density_width: array_typing.ScalarFloat
+    gaussian_ec_power_density_location: array_typing.ScalarFloat
+    gaussian_ec_total_power: array_typing.ScalarFloat
 
 
 def _calc_heating_and_current(
@@ -79,7 +91,19 @@ def _calc_heating_and_current(
     Returns:
       (ec_power_density, j_parallel_ec)
     """
-    # Compute via the log for numerical stability
+    # Construct the profile
+    ec_power_density = (
+        dynamic_source_runtime_params.manual_ec_power_density
+        + formulas.gaussian_profile(
+            c1=dynamic_source_runtime_params.gaussian_ec_power_density_location,
+            c2=dynamic_source_runtime_params.gaussian_ec_power_density_width,
+            total=dynamic_source_runtime_params.gaussian_ec_total_power,
+            use_normalized_r=True,
+            geo=geo,
+        )
+    )
+
+    # Compute j.B via the log for numerical stability
     # This is equivalent to:
     # <j_ec.B> = (
     #     2 * pi * epsilon0**2
@@ -98,11 +122,11 @@ def _calc_heating_and_current(
         - jnp.log(core_profiles.ne.value)
         - jnp.log(dynamic_runtime_params_slice.numerics.nref)  # Convert ne to m^-3
         + jnp.log(dynamic_source_runtime_params.cd_efficiency)
-        + jnp.log(dynamic_source_runtime_params.ec_power_density)
+        + jnp.log(ec_power_density)
     )
     j_ec_dot_B = jnp.exp(log_j_ec_dot_B)
 
-    return jnp.stack([dynamic_source_runtime_params.ec_power_density, j_ec_dot_B])
+    return jnp.stack([ec_power_density, j_ec_dot_B])
 
 
 def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
