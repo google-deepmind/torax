@@ -31,6 +31,9 @@ from torax.sources import source
 from torax.sources import source_models
 
 
+SOURCE_NAME = 'bremsstrahlung_heat_sink'
+
+
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool = False

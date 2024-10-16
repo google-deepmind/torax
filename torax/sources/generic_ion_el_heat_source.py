@@ -31,6 +31,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
 
+SOURCE_NAME = 'generic_ion_el_heat_source'
 # Many variables throughout this function are capitalized based on physics
 # notational conventions rather than on Google Python style
 # pylint: disable=invalid-name

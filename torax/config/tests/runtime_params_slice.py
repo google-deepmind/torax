@@ -168,16 +168,20 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources={
-              'gas_puff_source': electron_density_sources.GasPuffRuntimeParams(
-                  puff_decay_length={0.0: 0.0, 1.0: 4.0},
-                  S_puff_tot={0.0: 0.0, 1.0: 5.0},
+              electron_density_sources.GAS_PUFF_SOURCE_NAME: (
+                  electron_density_sources.GasPuffRuntimeParams(
+                      puff_decay_length={0.0: 0.0, 1.0: 4.0},
+                      S_puff_tot={0.0: 0.0, 1.0: 5.0},
+                  )
               ),
-              'pellet_source': electron_density_sources.PelletRuntimeParams(
-                  pellet_width={0.0: 0.0, 1.0: 1.0},
-                  pellet_deposition_location={0.0: 0.0, 1.0: 2.0},
-                  S_pellet_tot={0.0: 0.0, 1.0: 3.0},
+              electron_density_sources.PELLET_SOURCE_NAME: (
+                  electron_density_sources.PelletRuntimeParams(
+                      pellet_width={0.0: 0.0, 1.0: 1.0},
+                      pellet_deposition_location={0.0: 0.0, 1.0: 2.0},
+                      S_pellet_tot={0.0: 0.0, 1.0: 3.0},
+                  )
               ),
-              'nbi_particle_source': (
+              electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME: (
                   electron_density_sources.NBIParticleRuntimeParams(
                       nbi_particle_width={0.0: 0.0, 1.0: 6.0},
                       nbi_deposition_location={0.0: 0.0, 1.0: 7.0},
@@ -189,9 +193,13 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       )(
           t=0.5,
       )
-      pellet_source = dcs.sources['pellet_source']
-      gas_puff_source = dcs.sources['gas_puff_source']
-      nbi_particle_source = dcs.sources['nbi_particle_source']
+      pellet_source = dcs.sources[electron_density_sources.PELLET_SOURCE_NAME]
+      gas_puff_source = dcs.sources[
+          electron_density_sources.GAS_PUFF_SOURCE_NAME
+      ]
+      nbi_particle_source = dcs.sources[
+          electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME
+      ]
       assert isinstance(
           pellet_source,
           electron_density_sources.DynamicPelletRuntimeParams,
@@ -222,11 +230,13 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources={
-              'gas_puff_source': sources_params_lib.RuntimeParams(
-                  formula=formula_config.Exponential(
-                      total={0.0: 0.0, 1.0: 1.0},
-                      c1={0.0: 0.0, 1.0: 2.0},
-                      c2={0.0: 0.0, 1.0: 3.0},
+              electron_density_sources.GAS_PUFF_SOURCE_NAME: (
+                  sources_params_lib.RuntimeParams(
+                      formula=formula_config.Exponential(
+                          total={0.0: 0.0, 1.0: 1.0},
+                          c1={0.0: 0.0, 1.0: 2.0},
+                          c2={0.0: 0.0, 1.0: 3.0},
+                      )
                   )
               ),
           },
@@ -234,29 +244,29 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       )(
           t=0.25,
       )
-      gas_puff_source = dcs.sources['gas_puff_source']
+      gas_puff_source = dcs.sources[
+          electron_density_sources.GAS_PUFF_SOURCE_NAME
+      ]
       assert isinstance(
           gas_puff_source.formula,
           formula_config.DynamicExponential,
       )
-      np.testing.assert_allclose(
-          gas_puff_source.formula.total, 0.25
-      )
+      np.testing.assert_allclose(gas_puff_source.formula.total, 0.25)
       np.testing.assert_allclose(gas_puff_source.formula.c1, 0.5)
-      np.testing.assert_allclose(
-          gas_puff_source.formula.c2, 0.75
-      )
+      np.testing.assert_allclose(gas_puff_source.formula.c2, 0.75)
 
     with self.subTest('gaussian_formula'):
       runtime_params = general_runtime_params.GeneralRuntimeParams()
       dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources={
-              'gas_puff_source': sources_params_lib.RuntimeParams(
-                  formula=formula_config.Gaussian(
-                      total={0.0: 0.0, 1.0: 1.0},
-                      c1={0.0: 0.0, 1.0: 2.0},
-                      c2={0.0: 0.0, 1.0: 3.0},
+              electron_density_sources.GAS_PUFF_SOURCE_NAME: (
+                  sources_params_lib.RuntimeParams(
+                      formula=formula_config.Gaussian(
+                          total={0.0: 0.0, 1.0: 1.0},
+                          c1={0.0: 0.0, 1.0: 2.0},
+                          c2={0.0: 0.0, 1.0: 3.0},
+                      )
                   )
               ),
           },
@@ -264,17 +274,13 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       )(
           t=0.25,
       )
-      gas_puff_source = dcs.sources['gas_puff_source']
-      assert isinstance(
-          gas_puff_source.formula, formula_config.DynamicGaussian
-      )
-      np.testing.assert_allclose(
-          gas_puff_source.formula.total, 0.25
-      )
+      gas_puff_source = dcs.sources[
+          electron_density_sources.GAS_PUFF_SOURCE_NAME
+      ]
+      assert isinstance(gas_puff_source.formula, formula_config.DynamicGaussian)
+      np.testing.assert_allclose(gas_puff_source.formula.total, 0.25)
       np.testing.assert_allclose(gas_puff_source.formula.c1, 0.5)
-      np.testing.assert_allclose(
-          gas_puff_source.formula.c2, 0.75
-      )
+      np.testing.assert_allclose(gas_puff_source.formula.c2, 0.75)
 
   def test_wext_in_dynamic_runtime_params_cannot_be_negative(self):
     """Tests that wext cannot be negative."""
@@ -283,30 +289,34 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={
-            'jext': external_current_source.RuntimeParams(
-                wext={0.0: 1.0, 1.0: -1.0}
+            external_current_source.SOURCE_NAME: (
+                external_current_source.RuntimeParams(
+                    wext={0.0: 1.0, 1.0: -1.0}
+                )
             ),
         },
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self._geo.torax_mesh,
     )
     # While wext is positive, this should be fine.
-    dcs = dcs_provider(t=0.0,)
-    jext = dcs.sources['jext']
-    assert isinstance(
-        jext, external_current_source.DynamicRuntimeParams
+    dcs = dcs_provider(
+        t=0.0,
     )
+    jext = dcs.sources[external_current_source.SOURCE_NAME]
+    assert isinstance(jext, external_current_source.DynamicRuntimeParams)
     np.testing.assert_allclose(jext.wext, 1.0)
     # Even 0 should be fine.
-    dcs = dcs_provider(t=0.5,)
-    jext = dcs.sources['jext']
-    assert isinstance(
-        jext, external_current_source.DynamicRuntimeParams
+    dcs = dcs_provider(
+        t=0.5,
     )
+    jext = dcs.sources[external_current_source.SOURCE_NAME]
+    assert isinstance(jext, external_current_source.DynamicRuntimeParams)
     np.testing.assert_allclose(jext.wext, 0.0)
     # But negative values will cause an error.
     with self.assertRaises(RuntimeError):
-      dcs_provider(t=1.0,)
+      dcs_provider(
+          t=1.0,
+      )
 
   @parameterized.parameters(
       (
@@ -471,7 +481,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Tests that the dynamic slice provider can be updated."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = default_sources.get_default_sources_builder()
-    source_models_builder.runtime_params['jext'].Iext = 1.0
+    source_models_builder.runtime_params[
+        external_current_source.SOURCE_NAME
+    ].Iext = 1.0
     geo = geometry.build_circular_geometry(n_rho=4)
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
@@ -485,7 +497,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       self.assertIn(key, dcs.sources)
 
     # Update an interpolated variable.
-    source_models_builder.runtime_params['jext'].Iext = 2.0
+    source_models_builder.runtime_params[
+        external_current_source.SOURCE_NAME
+    ].Iext = 2.0
 
     # Check pre-update that nothing has changed.
     dcs = provider(
@@ -493,7 +507,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     for key in source_models_builder.runtime_params.keys():
       self.assertIn(key, dcs.sources)
-    jext_source = dcs.sources['jext']
+    jext_source = dcs.sources[external_current_source.SOURCE_NAME]
     assert isinstance(jext_source, external_current_source.DynamicRuntimeParams)
     self.assertEqual(jext_source.Iext, 1.0)
 
@@ -508,7 +522,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     for key in source_models_builder.runtime_params.keys():
       self.assertIn(key, dcs.sources)
-    jext_source = dcs.sources['jext']
+    jext_source = dcs.sources[external_current_source.SOURCE_NAME]
     assert isinstance(jext_source, external_current_source.DynamicRuntimeParams)
     self.assertEqual(jext_source.Iext, 2.0)
 

@@ -34,6 +34,9 @@ from torax.sources import source
 from torax.sources import source_profiles
 
 
+SOURCE_NAME = 'j_bootstrap'
+
+
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Configuration parameters for the bootstrap current source."""
@@ -184,7 +187,7 @@ class BootstrapCurrentSource(source.Source):
   ) -> jax.Array:
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
-        profile['j_bootstrap'],
+        profile[SOURCE_NAME],
         jnp.zeros_like(geo.rho),
     )
 

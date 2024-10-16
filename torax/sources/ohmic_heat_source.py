@@ -31,6 +31,9 @@ from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 
 
+SOURCE_NAME = 'ohmic_heat_source'
+
+
 @functools.partial(
     jax_utils.jit,
     static_argnames=[

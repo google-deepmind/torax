@@ -94,6 +94,9 @@ def _calc_puff_source(
   )
 
 
+GAS_PUFF_SOURCE_NAME = 'gas_puff_source'
+
+
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
@@ -183,6 +186,9 @@ def _calc_nbi_source(
   )
 
 
+GENERIC_PARTICLE_SOURCE_NAME = 'nbi_particle_source'
+
+
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class NBIParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
@@ -255,6 +261,9 @@ def _calc_pellet_source(
       use_normalized_r=True,
       geo=geo,
   )
+
+
+PELLET_SOURCE_NAME = 'pellet_source'
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

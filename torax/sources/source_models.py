@@ -577,11 +577,11 @@ class SourceModels:
     # Some sources are accessed for specific use cases, so we extract those
     # ones and expose them directly.
     self._j_bootstrap = None
-    self._j_bootstrap_name = 'j_bootstrap'  # default, can be overridden below.
+    self._j_bootstrap_name = bootstrap_current_source.SOURCE_NAME
     self._jext = None
-    self._jext_name = 'jext'  # default, can be overridden below.
+    self._jext_name = external_current_source.SOURCE_NAME
     self._qei_source = None
-    self._qei_source_name = 'qei_source'  # default, can be overridden below.
+    self._qei_source_name = qei_source_lib.SOURCE_NAME
     # The rest of the sources are "standard".
     self._standard_sources = {}
 
@@ -811,9 +811,19 @@ class SourceModelsBuilder:
     source_builders = source_builders or {}
 
     # Validate that these sources are found
-    bootstrap_found = False if 'j_bootstrap' not in source_builders else True
-    qei_found = False if 'qei_source' not in source_builders else True
-    jext_found = False if 'jext' not in source_builders else True
+    bootstrap_found = (
+        False
+        if bootstrap_current_source.SOURCE_NAME not in source_builders
+        else True
+    )
+    qei_found = (
+        False if qei_source_lib.SOURCE_NAME not in source_builders else True
+    )
+    jext_found = (
+        False
+        if external_current_source.SOURCE_NAME not in source_builders
+        else True
+    )
 
     # These are special sources that must be present for every TORAX run.
     # If these sources are missing, we need to include builders for them.
@@ -821,27 +831,35 @@ class SourceModelsBuilder:
     # The SourceModels would also build them, but then there'd be no
     # user-editable runtime params for them.
     if not bootstrap_found:
-      source_builders['j_bootstrap'] = source_lib.make_source_builder(
-          bootstrap_current_source.BootstrapCurrentSource,
-          runtime_params_type=bootstrap_current_source.RuntimeParams,
-      )()
-      source_builders['j_bootstrap'].runtime_params.mode = (
-          runtime_params_lib.Mode.ZERO
+      source_builders[bootstrap_current_source.SOURCE_NAME] = (
+          source_lib.make_source_builder(
+              bootstrap_current_source.BootstrapCurrentSource,
+              runtime_params_type=bootstrap_current_source.RuntimeParams,
+          )()
       )
+      source_builders[
+          bootstrap_current_source.SOURCE_NAME
+      ].runtime_params.mode = runtime_params_lib.Mode.ZERO
     if not qei_found:
-      source_builders['qei_source'] = source_lib.make_source_builder(
-          qei_source_lib.QeiSource,
-          runtime_params_type=qei_source_lib.RuntimeParams,
-      )()
-      source_builders['qei_source'].runtime_params.mode = (
+      source_builders[qei_source_lib.SOURCE_NAME] = (
+          source_lib.make_source_builder(
+              qei_source_lib.QeiSource,
+              runtime_params_type=qei_source_lib.RuntimeParams,
+          )()
+      )
+      source_builders[qei_source_lib.SOURCE_NAME].runtime_params.mode = (
           runtime_params_lib.Mode.ZERO
       )
     if not jext_found:
-      source_builders['jext'] = source_lib.make_source_builder(
-          external_current_source.ExternalCurrentSource,
-          runtime_params_type=external_current_source.RuntimeParams,
-      )()
-      source_builders['jext'].runtime_params.mode = runtime_params_lib.Mode.ZERO
+      source_builders[external_current_source.SOURCE_NAME] = (
+          source_lib.make_source_builder(
+              external_current_source.ExternalCurrentSource,
+              runtime_params_type=external_current_source.RuntimeParams,
+          )()
+      )
+      source_builders[
+          external_current_source.SOURCE_NAME
+      ].runtime_params.mode = runtime_params_lib.Mode.ZERO
 
     self.source_builders = source_builders
 

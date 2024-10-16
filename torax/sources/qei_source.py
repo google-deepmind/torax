@@ -30,6 +30,7 @@ from torax.sources import source
 from torax.sources import source_profiles
 
 
+SOURCE_NAME = 'qei_source'
 # pylint: disable=invalid-name
 
 
