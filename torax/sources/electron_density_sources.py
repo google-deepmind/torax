@@ -97,15 +97,11 @@ def _calc_puff_source(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_cell_profile_shape,
-  )
   formula: source.SourceProfileFunction = _calc_puff_source
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.NE,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.NE,)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -190,15 +186,11 @@ def _calc_nbi_source(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class NBIParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_cell_profile_shape,
-  )
   formula: source.SourceProfileFunction = _calc_nbi_source
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.NE,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.NE,)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -268,48 +260,22 @@ def _calc_pellet_source(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class PelletSource(source.Source):
   """Pellet source for the ne equation."""
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_cell_profile_shape,
-  )
   formula: source.SourceProfileFunction = _calc_pellet_source
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.NE,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.NE,)
 
 
 # pylint: enable=invalid-name
-
 # The sources below don't have any source-specific implementations, so their
 # bodies are empty. You can refer to their base class to see the implementation.
 # We define new classes here to:
 #  a) support any future source-specific implementation.
 #  b) better readability and human-friendly error messages when debugging.
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class RecombinationDensitySink(source.Source):
   """Recombination sink for the electron density equation."""
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_cell_profile_shape,
-  )
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.NE,
   )
-
-
-PelletSourceBuilder = source.make_source_builder(
-    PelletSource, runtime_params_type=PelletRuntimeParams
-)
-GasPuffSourceBuilder = source.make_source_builder(
-    GasPuffSource, runtime_params_type=GasPuffRuntimeParams
-)
-NBIParticleSourceBuilder = source.make_source_builder(
-    NBIParticleSource, runtime_params_type=NBIParticleRuntimeParams
-)
-RecombinationDensitySinkBuilder = source.make_source_builder(
-    RecombinationDensitySink
-)

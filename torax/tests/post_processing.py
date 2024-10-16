@@ -27,8 +27,8 @@ from torax import post_processing
 from torax import state
 from torax.config import runtime_params as runtime_params_lib
 from torax.fvm import cell_variable
-from torax.sources import default_sources
 from torax.sources import source_profiles as source_profiles_lib
+from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import torax_refs
 
 

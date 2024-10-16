@@ -21,11 +21,11 @@ from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
 from torax.config import numerics as numerics_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.sources import default_sources
 from torax.sources import source_models as source_models_lib
 from torax.spectators import plotting
 from torax.spectators import spectator
 from torax.stepper import linear_theta_method
+from torax.tests.test_lib import default_sources
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
 

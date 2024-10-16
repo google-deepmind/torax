@@ -25,19 +25,34 @@ import torax  # useful for setting up jax properly.
 from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params_slice
-from torax.sources import default_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.tests.test_lib import default_sources
 
 
 @dataclasses.dataclass(frozen=True)
 class FooSource(source_lib.Source):
   """A test source."""
-  output_shape_getter = lambda: source_lib.get_ion_el_output_shape
 
-FooSourceBuilder = source_lib.make_source_builder(FooSource,)
+  @property
+  def affected_core_profiles(
+      self,
+  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
+    return (
+        source_lib.AffectedCoreProfile.TEMP_EL,
+        source_lib.AffectedCoreProfile.NE,
+    )
+
+  @property
+  def output_shape_getter(self) -> source_lib.SourceOutputShapeFunction:
+    return source_lib.get_ion_el_output_shape
+
+
+FooSourceBuilder = source_lib.make_source_builder(
+    FooSource,
+)
 
 
 class SourceModelsTest(parameterized.TestCase):
@@ -151,12 +166,12 @@ class SourceProfilesTest(parameterized.TestCase):
       ])
 
     foo_source_builder = FooSourceBuilder(
-        affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_EL,
-            source_lib.AffectedCoreProfile.NE,
-        ),
         supported_modes=(runtime_params_lib.Mode.FORMULA_BASED,),
         formula=foo_formula,
+    )
+    foo_source_builder.affected_core_profiles = (
+        source_lib.AffectedCoreProfile.TEMP_EL,
+        source_lib.AffectedCoreProfile.NE,
     )
     # Set the source mode to FORMULA.
     foo_source_builder.runtime_params.mode = (

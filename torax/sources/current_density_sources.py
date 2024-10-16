@@ -28,31 +28,28 @@ from torax.sources import source
 # implementation. We define new classes here to:
 #  a) support any future source-specific implementation.
 #  b) better readability and human-friendly error messages when debugging.
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ICRHCurrentSource(source.Source):
   """ICRH current density source for the psi equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.PSI,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.PSI,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class LHCurrentSource(source.Source):
   """LH current density source for the psi equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.PSI,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.PSI,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class NBICurrentSource(source.Source):
   """NBI current density source for the psi equation."""
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.PSI,
-  )
 
-ICRHCurrentSourceBuilder = source.make_source_builder(ICRHCurrentSource)
-LHCurrentSourceBuilder = source.make_source_builder(LHCurrentSource)
-NBICurrentSourceBuilder = source.make_source_builder(NBICurrentSource)
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.PSI,)

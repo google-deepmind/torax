@@ -32,11 +32,11 @@ from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.sources import default_sources
 from torax.sources import electron_density_sources
 from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source
+from torax.sources.tests import test_lib
 from torax.stepper import linear_theta_method
+from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import sim_test_case
 from torax.transport_model import constant as constant_transport_model
 
@@ -142,12 +142,11 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     # Add the custom source with the correct params, but keep it turned off to
     # start.
     source_models_builder.source_builders[custom_source_name] = (
-        source.SourceBuilder(
+        test_lib.TestSourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
             ),
-            affected_core_profiles=(source.AffectedCoreProfile.NE,),
             formula=custom_source_formula,
             runtime_params=_CustomSourceRuntimeParams(
                 mode=runtime_params_lib.Mode.ZERO,

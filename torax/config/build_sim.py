@@ -22,9 +22,9 @@ from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
-from torax.sources import default_sources
 from torax.sources import formula_config
 from torax.sources import formulas
+from torax.sources import register_source
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -360,9 +360,8 @@ def _build_single_source_builder_from_config(
     source_config: dict[str, Any],
 ) -> source_lib.SourceBuilderProtocol:
   """Builds a source builder from the input config."""
-  runtime_params = default_sources.get_default_runtime_params(
-      source_name,
-  )
+  registered_source = register_source.get_registered_source(source_name)
+  runtime_params = registered_source.default_runtime_params_class()
   # Update the defaults with the config provided.
   source_config = copy.copy(source_config)
   if 'mode' in source_config:
@@ -395,7 +394,8 @@ def _build_single_source_builder_from_config(
   kwargs = {'runtime_params': runtime_params}
   if formula is not None:
     kwargs['formula'] = formula
-  return default_sources.get_source_builder_type(source_name)(**kwargs)
+
+  return registered_source.source_builder_class(**kwargs)
 
 
 def build_transport_model_builder_from_config(

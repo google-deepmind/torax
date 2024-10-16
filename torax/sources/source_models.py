@@ -811,23 +811,9 @@ class SourceModelsBuilder:
     source_builders = source_builders or {}
 
     # Validate that these sources are found
-    bootstrap_found = False
-    qei_found = False
-    jext_found = False
-    for builder in source_builders.values():
-      # pytype thinks that SourceBuilderProtocols can't be passed to isinstance.
-      # It doesn't seem to understand that builders will always be specific
-      # instantiations of the protocol, not the protocol itself.
-      if isinstance(
-          builder, bootstrap_current_source.BootstrapCurrentSourceBuilder  # pytype: disable=wrong-arg-types
-      ):
-        bootstrap_found = True
-      elif isinstance(
-          builder, external_current_source.ExternalCurrentSourceBuilder  # pytype: disable=wrong-arg-types
-      ):
-        jext_found = True
-      elif isinstance(builder, qei_source_lib.QeiSourceBuilder):  # pytype: disable=wrong-arg-types
-        qei_found = True
+    bootstrap_found = False if 'j_bootstrap' not in source_builders else True
+    qei_found = False if 'qei_source' not in source_builders else True
+    jext_found = False if 'jext' not in source_builders else True
 
     # These are special sources that must be present for every TORAX run.
     # If these sources are missing, we need to include builders for them.
@@ -835,21 +821,26 @@ class SourceModelsBuilder:
     # The SourceModels would also build them, but then there'd be no
     # user-editable runtime params for them.
     if not bootstrap_found:
-      source_builders['j_bootstrap'] = (
-          bootstrap_current_source.BootstrapCurrentSourceBuilder()
-      )
+      source_builders['j_bootstrap'] = source_lib.make_source_builder(
+          bootstrap_current_source.BootstrapCurrentSource,
+          runtime_params_type=bootstrap_current_source.RuntimeParams,
+      )()
       source_builders['j_bootstrap'].runtime_params.mode = (
           runtime_params_lib.Mode.ZERO
       )
     if not qei_found:
-      source_builders['qei_source'] = qei_source_lib.QeiSourceBuilder()
+      source_builders['qei_source'] = source_lib.make_source_builder(
+          qei_source_lib.QeiSource,
+          runtime_params_type=qei_source_lib.RuntimeParams,
+      )()
       source_builders['qei_source'].runtime_params.mode = (
           runtime_params_lib.Mode.ZERO
       )
     if not jext_found:
-      source_builders['jext'] = (
-          external_current_source.ExternalCurrentSourceBuilder()
-      )
+      source_builders['jext'] = source_lib.make_source_builder(
+          external_current_source.ExternalCurrentSource,
+          runtime_params_type=external_current_source.RuntimeParams,
+      )()
       source_builders['jext'].runtime_params.mode = runtime_params_lib.Mode.ZERO
 
     self.source_builders = source_builders

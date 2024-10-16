@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Default plotting configuration for Torax runs."""
+"""Plotting configuration for Torax runs focusing on source profiles."""
 
 from torax.plotting import plotruns_lib
 
 PLOT_CONFIG = plotruns_lib.FigureProperties(
-    rows=3,
-    cols=5,
-    tick_fontsize=8,
-    axes_fontsize=8,
-    default_legend_fontsize=7,
+    rows=2,
+    cols=4,
+    tick_fontsize=10,
+    axes_fontsize=10,
+    default_legend_fontsize=9,
     figure_size_factor=5,
     title_fontsize=12,
     axes=(
@@ -39,34 +39,6 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylabel=r'Electron density $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('chi_i', 'chi_e'),
-            labels=(r'$\chi_\mathrm{i}$', r'$\chi_\mathrm{e}$'),
-            ylabel=r'Heat conductivity $[m^2/s]$',
-            upper_percentile=98.0,
-            include_first_timepoint=False,
-            ylim_min_zero=False,
-        ),
-        plotruns_lib.PlotProperties(
-            attrs=('d_e', 'v_e'),
-            labels=(r'$D_\mathrm{e}$', r'$V_\mathrm{e}$'),
-            ylabel=r'Diff $[m^2/s]$ or Conv $[m/s]$',
-            upper_percentile=98.0,
-            lower_percentile=2.0,
-            include_first_timepoint=False,
-            ylim_min_zero=False,
-        ),
-        plotruns_lib.PlotProperties(
-            plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('i_total', 'i_bootstrap'),
-            labels=(r'$I_\mathrm{p}$', r'$I_\mathrm{bs}$'),
-            ylabel=r'Current [MA]',
-        ),
-        plotruns_lib.PlotProperties(
-            attrs=('psi',),
-            labels=(r'$\psi$',),
-            ylabel=r'Poloidal flux [Wb]',
-        ),
-        plotruns_lib.PlotProperties(
             attrs=('j', 'johm', 'j_bootstrap', 'jext'),
             labels=(
                 r'$j_\mathrm{tot}$',
@@ -75,30 +47,20 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 r'$j_\mathrm{ext}$',
             ),
             ylabel=r'Toroidal current $[MA~m^{-2}]$',
-            legend_fontsize=7,  # Smaller fontsize for this plot
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('q',),
-            labels=(r'$q$',),
-            ylabel='Safety factor',
-        ),
-        plotruns_lib.PlotProperties(
-            attrs=('s',),
-            labels=(r'$\hat{s}$',),
-            ylabel='Magnetic shear',
-        ),
-        plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('Q_fusion',),
-            labels=(r'$Q_\mathrm{fusion}$',),
-            ylabel='Fusion gain',
-        ),
-        plotruns_lib.PlotProperties(
-            attrs=('psidot',),
-            labels=(r'$\dot{\psi}$',),
-            ylabel='Loop voltage',
-            upper_percentile=98.0,
+            attrs=('p_auxiliary', 'p_ohmic', 'p_alpha', 'p_sink'),
+            labels=(
+                r'$P_\mathrm{aux}$',
+                r'$P_\mathrm{ohm}$',
+                r'$P_\mathrm{\alpha}$',
+                r'$P_\mathrm{sink}$',
+            ),
+            ylabel=r'Total heating/sink powers $[MW]$',
+            legend_fontsize=8,  # Smaller fontsize for this plot
+            suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
             attrs=(
@@ -120,7 +82,6 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 r'$Q_\mathrm{generic,e}$',
             ),
             ylabel=r'External heat source density $[MW~m^{-3}]$',
-            legend_fontsize=7,  # Smaller fontsize for this plot
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
@@ -132,7 +93,6 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
                 r'$Q_\mathrm{ei}$',
             ),
             ylabel=r'Internal heat source density $[MW~m^{-3}]$',
-            legend_fontsize=6,  # Smaller fontsize for this plot
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
@@ -142,16 +102,13 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('p_auxiliary', 'p_ohmic', 'p_alpha', 'p_sink'),
+            attrs=('s_puff', 's_nbi', 's_pellet'),
             labels=(
-                r'$P_\mathrm{aux}$',
-                r'$P_\mathrm{ohm}$',
-                r'$P_\mathrm{\alpha}$',
-                r'$P_\mathrm{sink}$',
+                r'$S_\mathrm{puff}$',
+                r'$S_\mathrm{nbi}$',
+                r'$S_\mathrm{pellet}$',
             ),
-            ylabel=r'Total heating/sink powers $[MW]$',
-            legend_fontsize=6,  # Smaller fontsize for this plot
+            ylabel=r'Particle sources $[10^{20}~m^{-3}~s^{-1}]$',
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
     ),

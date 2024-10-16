@@ -13,18 +13,18 @@
 # limitations under the License.
 
 """Config for test_explicit. Basic test of explicit linear solver."""
-
 import dataclasses
+
 from torax import geometry
 from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.sources import default_sources
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_runtime_params
+from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
 from torax.transport_model import constant as constant_transport_model
 

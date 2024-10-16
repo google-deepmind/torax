@@ -24,12 +24,12 @@ from torax import geometry
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
-from torax.sources import default_sources
 from torax.sources import electron_density_sources
 from torax.sources import external_current_source
 from torax.sources import formula_config
 from torax.sources import runtime_params as sources_params_lib
 from torax.stepper import runtime_params as stepper_params_lib
+from torax.tests.test_lib import default_sources
 from torax.transport_model import runtime_params as transport_params_lib
 
 

@@ -36,7 +36,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=bootstrap_current_source.BootstrapCurrentSource,
-        source_class_builder=bootstrap_current_source.BootstrapCurrentSourceBuilder,
+        runtime_params_class=bootstrap_current_source.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
@@ -44,7 +44,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     )
 
   def test_source_value(self):
-    source_builder = bootstrap_current_source.BootstrapCurrentSourceBuilder()
+    source_builder = self._source_class_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
