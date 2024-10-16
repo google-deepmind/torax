@@ -175,8 +175,8 @@ output in ``state_history.nc``. This needs to be taken into account in analysis 
 ``s_puff`` (time, rho_cell)
   Gas puff particle source density  in :math:`[s^{-1} m^{-3}]`.
 
-``s_nbi`` (time, rho_cell)
-  NBI particle source density  in :math:`[s^{-1} m^{-3}]`.
+``s_generic`` (time, rho_cell)
+  Generic particle source density  in :math:`[s^{-1} m^{-3}]`.
 
 ``s_pellet`` (time, rho_cell)
   Pellet particle source density  in :math:`[s^{-1} m^{-3}]`.
