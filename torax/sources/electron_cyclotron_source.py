@@ -111,20 +111,7 @@ def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ElectronCyclotronSource(source.Source):
-    """Electron cyclotron source for the Psi and Te equations."""
-
-    affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = dataclasses.field(
-        init=False,
-        default=(
-            source.AffectedCoreProfile.TEMP_EL,
-            source.AffectedCoreProfile.PSI,
-        ),
-    )
-
-    output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-        init=False,
-        default_factory=lambda: _get_ec_output_shape,
-    )
+    """Electron cyclotron source for the Te and Psi equations."""
 
     supported_modes: tuple[runtime_params_lib.Mode, ...] = (
         runtime_params_lib.Mode.ZERO,
@@ -133,40 +120,10 @@ class ElectronCyclotronSource(source.Source):
 
     model_func: source.SourceProfileFunction = _calc_heating_and_current
 
-    def get_value(
-        self,
-        dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-        dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
-        geo: geometry.Geometry,
-        core_profiles: state.CoreProfiles | None = None,
-    ) -> jax.Array:
-        """Computes the TEMP_EL and PSI values of the source.
+    @property
+    def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+      return (source.AffectedCoreProfile.TEMP_EL, source.AffectedCoreProfile.PSI)
 
-        Args:
-          dynamic_runtime_params_slice: Input config which can change from time step
-            to time step.
-          dynamic_source_runtime_params: Slice of this source's runtime parameters
-            at a specific time t.
-          geo: Geometry of the torus.
-          core_profiles: Core plasma profiles used to compute the source's profiles.
-
-        Returns:
-          2 stacked arrays, the first for the TEMP_EL profile and the second for the
-          PSI profile.
-        """
-        output_shape = self.output_shape_getter(geo)
-        profile = super().get_value(
-            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-            dynamic_source_runtime_params=dynamic_source_runtime_params,
-            geo=geo,
-            core_profiles=core_profiles,
-        )
-        assert isinstance(profile, jax.Array)
-        chex.assert_rank(profile, 2)
-        chex.assert_shape(profile, output_shape)
-        return profile
-
-
-ElectronCyclotronSourceBuilder = source.make_source_builder(
-    ElectronCyclotronSource, runtime_params_type=RuntimeParams
-)
+    @property
+    def output_shape_getter(self) -> source.SourceOutputShapeFunction:
+      return _get_ec_output_shape

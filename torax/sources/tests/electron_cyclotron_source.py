@@ -37,7 +37,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     def setUpClass(cls):
         super().setUpClass(
             source_class=electron_cyclotron_source.ElectronCyclotronSource,
-            source_class_builder=electron_cyclotron_source.ElectronCyclotronSourceBuilder,
+            runtime_params_class=electron_cyclotron_source.RuntimeParams,
             unsupported_modes=[
                 runtime_params_lib.Mode.FORMULA_BASED,
                 runtime_params_lib.Mode.PRESCRIBED,
