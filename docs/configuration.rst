@@ -901,50 +901,6 @@ Bremsstrahlung model from Wesson, with an optional correction for relativistic e
 
 ``use_relativistic_correction`` (bool = False)
 
-The following sources defined in TORAX but not yet implemented. They are listed here for completeness.
-
-ECRHHeatSource
-^^^^^^^^^^^^^^
-
-ICRHHeatSource
-^^^^^^^^^^^^^^
-
-LHHeatSource
-^^^^^^^^^^^^
-
-NBIElectronHeatSource
-^^^^^^^^^^^^^^^^^^^^^
-
-NBIIonHeatSource
-^^^^^^^^^^^^^^^^
-
-LineRadiationHeatSink
-^^^^^^^^^^^^^^^^^^^^^
-
-CyclotronRadiationHeatSink
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-ChargeExchangeHeatSink
-^^^^^^^^^^^^^^^^^^^^^^
-
-RecombinationHeatSink
-^^^^^^^^^^^^^^^^^^^^^
-
-RecombinationDensitySink
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-ECRHCurrentSource
-^^^^^^^^^^^^^^^^^
-
-ICRHCurrentSource
-^^^^^^^^^^^^^^^^^
-
-LHCurrentSource
-^^^^^^^^^^^^^^^
-
-NBICurrentSource
-^^^^^^^^^^^^^^^^
-
 stepper
 -------
 
