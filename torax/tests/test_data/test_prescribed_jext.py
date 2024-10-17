@@ -60,8 +60,8 @@ CONFIG = {
             'prescribed_values': (times, gauss_r, jext_profiles),
         },
         # Disable density sources/sinks
-        'nbi_particle_source': {
-            'S_nbi_tot': 0.0,
+        'generic_particle_source': {
+            'S_tot': 0.0,
         },
         'gas_puff_source': {
             'S_puff_tot': 0.0,

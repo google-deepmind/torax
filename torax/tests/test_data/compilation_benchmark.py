@@ -58,8 +58,8 @@ CONFIG = {
         'gas_puff_source': {
             'S_puff_tot': 0.5e22,
         },
-        'nbi_particle_source': {
-            'S_nbi_tot': 0.3e22,
+        'generic_particle_source': {
+            'S_tot': 0.3e22,
         },
     },
     'transport': {

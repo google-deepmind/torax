@@ -85,7 +85,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     ].puff_decay_length = puff_decay_length
     source_models_builder.runtime_params[
         electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME
-    ].S_nbi_tot = 0.0
+    ].S_tot = 0.0
     # We need to turn off some other sources for test_particle_sources_constant
     # that are unrelated to our test for the ne custom source.
     source_models_builder.runtime_params[
