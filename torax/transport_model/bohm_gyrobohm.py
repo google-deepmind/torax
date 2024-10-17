@@ -192,6 +192,7 @@ class BohmGyroBohmModel(transport_model.TransportModel):
         * geo.rho_face_norm
     )
 
+    # Diffusion
     # d_face_el is zero on-axis by definition
     # We also add a small epsilon to the denominator to avoid the cases where
     # chi_i + chi_e = 0
@@ -203,10 +204,12 @@ class BohmGyroBohmModel(transport_model.TransportModel):
         ]
     )
 
-    # Pinch velocity
+    # Convection
     # v_face_el is also zero on-axis by definition
     # To avoid 0/0, we set the first element to 0 manually
-    v_face_el = jnp.concatenate(
+    # This definition for pinch velocity is from Tholerus et al.
+    # Pinch velocity = inward = -ve in TORAX
+    v_face_el = -jnp.concatenate(
         [
             jnp.zeros(1),
             0.5
