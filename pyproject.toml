@@ -70,3 +70,13 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["torax*"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--ignore=torax/tests/test_data",
+    "--ignore=torax/tests/scripts",
+    "--ignore-glob=*lib*",
+
+]
+testpaths = "**/tests"
+python_files = "*.py"
