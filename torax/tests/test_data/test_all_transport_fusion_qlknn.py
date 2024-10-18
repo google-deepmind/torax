@@ -14,7 +14,7 @@
 
 """Tests combined current, heat, and particle transport with QLKNN.
 
-qlknn transport model. Pedestal. Particle sources including NBI. PC method for
+qlknn transport model. Pedestal. Particle sources. PC method for
 density. D_e scaled from chi_e
 """
 
@@ -49,8 +49,8 @@ CONFIG = {
         },
         'jext': {},
         # Electron density sources/sink (for the ne equation).
-        'nbi_particle_source': {
-            'S_nbi_tot': 0.3e22,
+        'generic_particle_source': {
+            'S_tot': 0.3e22,
         },
         'gas_puff_source': {
             'S_puff_tot': 0.5e22,

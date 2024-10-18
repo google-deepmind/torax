@@ -47,7 +47,7 @@ def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
       'j_bootstrap',
       'jext',
       # Electron density sources/sink (for the ne equation).
-      'nbi_particle_source',
+      'generic_particle_source',
       'gas_puff_source',
       'pellet_source',
       # Ion and electron heat sources (for the temp-ion and temp-el eqs).

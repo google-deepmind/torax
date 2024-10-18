@@ -102,9 +102,6 @@ class PlotData:
   v_e: np.ndarray  # [m/s]
   q_icrh_i: np.ndarray  # [MW/m^3]
   q_icrh_e: np.ndarray  # [MW/m^3]
-  q_nbi_i: np.ndarray  # [MW/m^3]
-  q_nbi_e: np.ndarray  # [MW/m^3]
-  q_nbi_e: np.ndarray  # [MW/m^3]
   q_gen_i: np.ndarray  # [MW/m^3]
   q_gen_e: np.ndarray  # [MW/m^3]
   q_ecrh: np.ndarray  # [MW/m^3]
@@ -115,7 +112,7 @@ class PlotData:
   q_ei: np.ndarray  # [MW/m^3]
   Q_fusion: np.ndarray  # pylint: disable=invalid-name  # Dimensionless
   s_puff: np.ndarray  # [10^20 m^-3 s^-1]
-  s_nbi: np.ndarray  # [10^20 m^-3 s^-1]
+  s_generic: np.ndarray  # [10^20 m^-3 s^-1]
   s_pellet: np.ndarray  # [10^20 m^-3 s^-1]
   i_total: np.ndarray  # [MA]
   i_bootstrap: np.ndarray  # [MA]
@@ -212,8 +209,6 @@ def load_data(filename: str) -> PlotData:
       rho_face_coord=ds[output.RHO_FACE_NORM].to_numpy(),
       q_icrh_i=get_optional_data(ds, 'icrh_heat_source_ion', 'cell'),
       q_icrh_e=get_optional_data(ds, 'icrh_heat_source_el', 'cell'),
-      q_nbi_i=get_optional_data(ds, 'nbi_heat_source_ion', 'cell'),
-      q_nbi_e=get_optional_data(ds, 'nbi_heat_source_el', 'cell'),
       q_gen_i=get_optional_data(ds, 'generic_ion_el_heat_source_ion', 'cell'),
       q_gen_e=get_optional_data(ds, 'generic_ion_el_heat_source_el', 'cell'),
       q_ecrh=get_optional_data(ds, 'ecrh_heat_source', 'cell'),
@@ -224,7 +219,7 @@ def load_data(filename: str) -> PlotData:
       q_ei=ds['qei_source'].to_numpy(),  # ion heating/sink
       Q_fusion=ds['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
       s_puff=get_optional_data(ds, 'gas_puff_source', 'cell'),
-      s_nbi=get_optional_data(ds, 'nbi_particle_source', 'cell'),
+      s_generic=get_optional_data(ds, 'generic_particle_source', 'cell'),
       s_pellet=get_optional_data(ds, 'pellet_source', 'cell'),
       i_total=ds[output.IP].to_numpy(),
       i_bootstrap=ds[output.I_BOOTSTRAP].to_numpy(),

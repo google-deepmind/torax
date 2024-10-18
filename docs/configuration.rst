@@ -837,23 +837,23 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
 ``S_pellet_tot`` (float = 2e22), **time-varying-scalar**
   Total particle source in units of particles/s
 
-nbi_particle_source
+generic_particle_source
 ^^^^^^^^^^^^^^^^^^^
 
-Time dependent NBI Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
+Time dependent Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
 
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
   Uses the Gaussian formula with ``use_normalized_r=True``.
 
-``nbi_deposition_location`` (float = 0.0), **time-varying-scalar**
+``deposition_location`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
 
-``nbi_particle_width`` (float = 0.25), **time-varying-scalar**
+``particle_width`` (float = 0.25), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``S_nbi_tot`` (float = 1e22), **time-varying-scalar**
+``S_tot`` (float = 1e22), **time-varying-scalar**
   Total particle source.
 
 j_bootstrap
