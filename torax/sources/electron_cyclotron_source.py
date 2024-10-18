@@ -21,6 +21,8 @@ InterpolatedVarTimeRhoInput = (
     runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
 )
 
+SOURCE_NAME = "electron_cyclotron_source"
+
 
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):

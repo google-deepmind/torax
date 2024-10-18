@@ -901,8 +901,8 @@ Bremsstrahlung model from Wesson, with an optional correction for relativistic e
 
 ``use_relativistic_correction`` (bool = False)
 
-echcd
-^^^^^
+electron_cyclotron_source
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Electron-cyclotron heating and current drive, based on the local efficiency model in [[Lin-Liu et al., 2003](https://doi.org/10.1063/1.1610472)].
 Given an EC power density profile and efficiency profile, the model produces the corresponding EC-driven current density profile.

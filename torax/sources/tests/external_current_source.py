@@ -48,7 +48,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources={
-            'jext': source_builder.runtime_params,
+            external_current_source.SOURCE_NAME: source_builder.runtime_params,
         },
         torax_mesh=geo.torax_mesh,
     )(
@@ -59,14 +59,18 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     self.assertIsNotNone(
         source.get_value(
             dynamic_runtime_params_slice=dynamic_slice,
-            dynamic_source_runtime_params=dynamic_slice.sources['jext'],
+            dynamic_source_runtime_params=dynamic_slice.sources[
+                external_current_source.SOURCE_NAME
+            ],
             geo=geo,
         )
     )
     self.assertIsNotNone(
         source.jext_hires(
             dynamic_runtime_params_slice=dynamic_slice,
-            dynamic_source_runtime_params=dynamic_slice.sources['jext'],
+            dynamic_source_runtime_params=dynamic_slice.sources[
+                external_current_source.SOURCE_NAME
+            ],
             geo=geo,
         )
     )
@@ -83,7 +87,9 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
           dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
               runtime_params,
               sources={
-                  'jext': source_builder.runtime_params,
+                  external_current_source.SOURCE_NAME: (
+                      source_builder.runtime_params
+                  ),
               },
               torax_mesh=geo.torax_mesh,
           )(
@@ -91,7 +97,9 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
           )
           source.get_value(
               dynamic_runtime_params_slice=dynamic_slice,
-              dynamic_source_runtime_params=dynamic_slice.sources['jext'],
+              dynamic_source_runtime_params=dynamic_slice.sources[
+                  external_current_source.SOURCE_NAME
+              ],
               geo=geo,
           )
 
@@ -108,7 +116,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources={
-            'jext': source_builder.runtime_params,
+            external_current_source.SOURCE_NAME: source_builder.runtime_params,
         },
         torax_mesh=geo.torax_mesh,
     )(
@@ -117,7 +125,9 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     self.assertEqual(
         source.get_value(
             dynamic_runtime_params_slice,
-            dynamic_runtime_params_slice.sources['jext'],
+            dynamic_runtime_params_slice.sources[
+                external_current_source.SOURCE_NAME
+            ],
             geo,
             core_profiles=None,
         ).shape,

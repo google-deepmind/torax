@@ -48,10 +48,10 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'j_bootstrap': source_builder}
+        {bootstrap_current_source.SOURCE_NAME: source_builder}
     )
     source_models = source_models_builder()
-    source = source_models.sources['j_bootstrap']
+    source = source_models.sources[bootstrap_current_source.SOURCE_NAME]
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,

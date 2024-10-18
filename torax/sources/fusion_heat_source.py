@@ -30,6 +30,9 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
 
+SOURCE_NAME = 'fusion_heat_source'
+
+
 def calc_fusion(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,

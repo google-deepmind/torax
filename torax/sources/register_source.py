@@ -41,8 +41,8 @@ from typing import Type
 
 from torax.sources import bootstrap_current_source
 from torax.sources import bremsstrahlung_heat_sink
-from torax.sources import electron_density_sources
 from torax.sources import electron_cyclotron_source
+from torax.sources import electron_density_sources
 from torax.sources import external_current_source
 from torax.sources import fusion_heat_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
@@ -110,58 +110,59 @@ def get_registered_source(source_name: str) -> RegisteredSource:
 def register_torax_sources():
   """Register a set of sources commonly used in TORAX."""
   register_new_source(
-      'j_bootstrap',
+      bootstrap_current_source.SOURCE_NAME,
       source_class=bootstrap_current_source.BootstrapCurrentSource,
       default_runtime_params_class=bootstrap_current_source.RuntimeParams,
   )
   register_new_source(
-      'jext',
+      external_current_source.SOURCE_NAME,
       external_current_source.ExternalCurrentSource,
       default_runtime_params_class=external_current_source.RuntimeParams,
   )
   register_new_source(
-    'echcd',
+    electron_cyclotron_source.SOURCE_NAME,
     electron_cyclotron_source.ElectronCyclotronSource,
     default_runtime_params_class=electron_cyclotron_source.RuntimeParams,
   )
   register_new_source(
       'nbi_particle_source',
+      electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME,
       electron_density_sources.NBIParticleSource,
       default_runtime_params_class=electron_density_sources.NBIParticleRuntimeParams,
   )
   register_new_source(
-      'gas_puff_source',
+      electron_density_sources.GAS_PUFF_SOURCE_NAME,
       electron_density_sources.GasPuffSource,
       default_runtime_params_class=electron_density_sources.GasPuffRuntimeParams,
   )
   register_new_source(
-      'pellet_source',
+      electron_density_sources.PELLET_SOURCE_NAME,
       electron_density_sources.PelletSource,
       default_runtime_params_class=electron_density_sources.PelletRuntimeParams,
   )
   register_new_source(
-      'generic_ion_el_heat_source',
+      ion_el_heat.SOURCE_NAME,
       ion_el_heat.GenericIonElectronHeatSource,
       default_runtime_params_class=ion_el_heat.RuntimeParams,
   )
   register_new_source(
-      'fusion_heat_source',
+      fusion_heat_source.SOURCE_NAME,
       fusion_heat_source.FusionHeatSource,
       default_runtime_params_class=fusion_heat_source.FusionHeatSourceRuntimeParams
   )
   register_new_source(
-      'qei_source',
+      qei_source.SOURCE_NAME,
       qei_source.QeiSource,
       default_runtime_params_class=qei_source.RuntimeParams,
   )
   register_new_source(
-      'ohmic_heat_source',
+      ohmic_heat_source.SOURCE_NAME,
       ohmic_heat_source.OhmicHeatSource,
       default_runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
       links_back=True,
   )
   register_new_source(
-      'bremsstrahlung_heat_sink',
+      bremsstrahlung_heat_sink.SOURCE_NAME,
       bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
       default_runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
   )

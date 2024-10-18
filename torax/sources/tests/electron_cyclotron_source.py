@@ -82,7 +82,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
             geo=geo,
             core_profiles=core_profiles,
         )
-        # ECHCD provides TEMP_EL and PSI
+        # ElectronCyclotronSource provides TEMP_EL and PSI
         chex.assert_rank(value, 2)
 
     def test_invalid_source_types_raise_errors(self):

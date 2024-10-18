@@ -70,13 +70,11 @@ jobs:
           torax/config/tests/runtime_params.py \
           torax/fvm/tests/fvm.py \
           torax/sources/tests/bootstrap_current_source.py \
-          torax/sources/tests/current_density_sources.py \
           torax/sources/tests/electron_density_sources.py \
           torax/sources/tests/external_current_source.py \
           torax/sources/tests/formulas.py \
           torax/sources/tests/fusion_heat_source.py \
           torax/sources/tests/generic_ion_el_heat_source.py \
-          torax/sources/tests/ion_el_heat_sources.py \
           torax/sources/tests/qei_source.py \
           torax/sources/tests/source_models.py \
           torax/sources/tests/source.py \
@@ -93,14 +91,9 @@ jobs:
           torax/tests/sim_custom_sources.py \
           torax/tests/sim_time_dependence.py \
           torax/tests/sim.py \
+          torax/tests/sim_no_compile.py \
           torax/tests/state.py \
           torax/transport_model/tests/qlknn_wrapper.py \
           torax/transport_model/tests/transport_model.py \
           -vv -n auto \
           --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
-
-    # One test requires an extra environment variable, so we run it separately.
-    - name: Run sim_no_compile
-      if: ${{ matrix.shard-id == 1 }}
-      run: |
-        TORAX_COMPILATION_ENABLED=False pytest -vv -n auto torax/tests/sim_no_compile.py
