@@ -361,7 +361,7 @@ An Electron-Cyclotron Heating and Current Drive source is under development (see
 Electron-Cyclotron Heating and Current Drive
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The electron-cyclotron current drive can be calculated from the heating power density, :math:`Q_\mathrm{EC}(\rho) [Wm^{-3}]`,
-and a dimensionless EC current drive efficiency profile, :math:`\zeta_\mathrm{EC}(\rho)`.
+and a dimensionless EC current drive efficiency profile, :math:`\zeta_\mathrm{EC}(\rho)` [Lin-Liu et al., 2003]_.
 The current drive in :math:`[Am^{-2}]` is then given by:
 
 .. math::
@@ -371,6 +371,9 @@ The current drive in :math:`[Am^{-2}]` is then given by:
 where :math:`\epsilon_0` is the vacuum permittivity, :math:`F = B_\phi R`, :math:`e` is the elementary charge,
 :math:`R_\mathrm{maj}` is the device major radius, `:math:`T_e` is the electron temperature in joules, and
 :math:`n_e` is the electron density per cubic meter.
+
+.. [Lin-Liu et al., 2003] Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003). Electron cyclotron current drive efficiency in general tokamak geometry. Physics of Plasmas, 10(10), 4064-4071. https://doi.org/10.1063/1.1610472
+
 
 Particle Sources
 ----------------
