@@ -237,7 +237,7 @@ class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
   Ip: array_typing.ScalarFloat | None
-  Vloop_bound_right: array_typing.ScalarFloat
+  Vloop_bound_right: array_typing.ScalarFloat | None
   Ti_bound_right: array_typing.ScalarFloat
   Te_bound_right: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.

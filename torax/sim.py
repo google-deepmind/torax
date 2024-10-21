@@ -28,13 +28,15 @@ from __future__ import annotations
 
 import dataclasses
 import time
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
-from absl import logging
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
+from absl import logging
+
 from torax import calc_coeffs
 from torax import core_profile_setters
 from torax import geometry
@@ -485,6 +487,7 @@ class SimulationStepFn:
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
+        dt=dt,
     )
 
     # Initial trial for stepper. If did not converge (can happen for nonlinear
@@ -602,10 +605,11 @@ class SimulationStepFn:
       )
 
       core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
-          core_profiles_t=core_profiles_t,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
+          core_profiles_t=core_profiles_t,
+          dt=dt,
       )
       core_profiles, core_sources, core_transport, stepper_numeric_outputs = (
           self._stepper_fn(
@@ -1508,12 +1512,15 @@ def provide_core_profiles_t_plus_dt(
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
+    dt: jax.Array,
 ) -> state.CoreProfiles:
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
   updated_boundary_conditions = (
       core_profile_setters.compute_boundary_conditions(
           dynamic_runtime_params_slice_t_plus_dt,
+          core_profiles_t,
           geo_t_plus_dt,
+          dt,
       )
   )
   updated_values = core_profile_setters.updated_prescribed_core_profiles(
