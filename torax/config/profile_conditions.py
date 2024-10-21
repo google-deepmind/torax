@@ -20,12 +20,13 @@ import dataclasses
 import logging
 
 import chex
+from typing_extensions import override
+
 from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
-from typing_extensions import override
 
 
 # pylint: disable=invalid-name
@@ -38,7 +39,11 @@ class ProfileConditions(
   # total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data
-  Ip: interpolated_param.TimeInterpolatedInput = 15.0
+  Ip: interpolated_param.TimeInterpolatedInput | None = 15.0
+
+  # Boundary condition at LCFS for Vloop ( = dpsi/dt )
+  # Used if total plasma current is a state and edge flux is an input
+  Vloop_bound_right: interpolated_param.TimeInterpolatedInput | None = None
 
   # Temperature boundary conditions at r=Rmin. If this is `None` the boundary
   # condition will instead be taken from `Ti` and `Te` at rhon=1.
@@ -142,6 +147,12 @@ class ProfileConditions(
           'ne',
       )
 
+    # Check that only one of Vloop_bound_right and Ip are provided
+    # ^ is XOR
+    if not ((self.Ip is None) ^ (self.Vloop_bound_right is None)):
+      raise ValueError("Only one of Ip and Vloop_bound_right can be defined")
+
+
   @override
   def make_provider(
       self,
@@ -187,7 +198,8 @@ class ProfileConditionsProvider(
   """Provider to retrieve initial and prescribed values and boundary conditions."""
 
   runtime_params_config: ProfileConditions
-  Ip: interpolated_param.InterpolatedVarSingleAxis
+  Ip: interpolated_param.InterpolatedVarSingleAxis | None
+  Vloop_bound_right: interpolated_param.InterpolatedVarSingleAxis | None
   Ti_bound_right: (
       interpolated_param.InterpolatedVarSingleAxis
       | interpolated_param.InterpolatedVarTimeRho
@@ -224,7 +236,8 @@ class ProfileConditionsProvider(
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
-  Ip: array_typing.ScalarFloat
+  Ip: array_typing.ScalarFloat | None
+  Vloop_bound_right: array_typing.ScalarFloat | None
   Ti_bound_right: array_typing.ScalarFloat
   Te_bound_right: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.
