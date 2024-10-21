@@ -836,9 +836,6 @@ class StandardGeometryIntermediates:
       L_file: str,
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
-      Rmaj: float = 6.2,
-      Rmin: float = 2.0,
-      B0: float = 5.3,
       hires_fac: int = 4,
   ) -> StandardGeometryIntermediates:
     """Constructs a StandardGeometryIntermediates from an FBT-LY file."""
@@ -848,10 +845,12 @@ class StandardGeometryIntermediates:
     L = geometry_loader.load_geo_data(
         geometry_dir, L_file, geometry_loader.GeometrySource.FBT
     )
-    vacuum_tor_b_field = LY['rBt'] / Rmaj
-    Phi = LY['FtPQ'] / vacuum_tor_b_field * B0
-    rhon = np.sqrt(Phi / Phi[-1])
-    psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']
+    Rmaj = LY['rgeom'][-1]  # Major radius
+    B0 = LY['rBt'] / Rmaj  # Vacuum toroidal magnetic field on axis
+    Rmin = LY['aminor'][-1]  # Minor radius
+    Phi = LY['FtPQ']  # Toroidal flux including plasma contribution
+    rhon = np.sqrt(Phi / Phi[-1])  # Normalized toroidal flux coordinate
+    psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']  # Poloidal flux
     # To avoid possible divisions by zero in diverted geometry. Value of what
     # replaces the zero does not matter, since it will be replaced by a spline
     # extrapolation in the post_init.
