@@ -250,6 +250,29 @@ class ProfileConditionsTest(parameterized.TestCase):
           Ti_bound_right=None,
       )
 
+  def test_raises_error_if_Ip_and_Vloop_clash(self, values, raises):
+    """Tests that an error is raised if a) Vloop and Ip are both None or
+    b) Vloop and Ip are both not None."""
+    if raises:
+      with self.assertRaises(ValueError):
+        profile_conditions.ProfileConditions(
+            Ip=values,
+            Vloop_bound_right=values,
+        )
+      with self.assertRaises(ValueError):
+        profile_conditions.ProfileConditions(
+            Ip=None,
+            Vloop_bound_right=None,
+        )
+    else:
+      profile_conditions.ProfileConditions(
+          Ip=values,
+          Vloop_bound_right=values,
+      )
+      profile_conditions.ProfileConditions(
+          Ip=None,
+          Vloop_bound_right=None,
+      )
 
 if __name__ == '__main__':
   absltest.main()
