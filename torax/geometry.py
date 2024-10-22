@@ -829,7 +829,7 @@ class StandardGeometryIntermediates:
     )
 
   @classmethod
-  def from_fbt(
+  def from_fbt_single_slice(
       cls,
       geometry_dir: str | None,
       LY_file: str,
@@ -838,13 +838,52 @@ class StandardGeometryIntermediates:
       n_rho: int = 25,
       hires_fac: int = 4,
   ) -> StandardGeometryIntermediates:
-    """Constructs a StandardGeometryIntermediates from an FBT-LY file."""
+    """Returns StandardGeometryIntermediates from a single slice FBT LY file.
+
+    LY and L are FBT data files containing magnetic geometry information.
+    The majority of the needed information is in the LY file. The L file
+    is only needed to get the normalized poloidal flux coordinate, pQ.
+
+    This method is for cases when the LY file on disk corresponds to a single
+    time slice. Either a single time slice or sequence of time slices can be
+    provided in the geometry config.
+
+    Args:
+      geometry_dir: Directory where to find the FBT file describing the magnetic
+        geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
+        available. If that variable is not set and geometry_dir is not provided,
+        then it defaults to another dir. See `load_geo_data` implementation.
+      LY_file: File name for LY data.
+      L_file: File name for L data.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled
+      n_rho: Grid resolution used for all TORAX cell variables.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+
+    Returns:
+      A StandardGeometryIntermediates instance based on the input slice. This
+      can then be used to build a StandardGeometry by passing to
+      `build_standard_geometry`.
+    """
     LY = geometry_loader.load_geo_data(
         geometry_dir, LY_file, geometry_loader.GeometrySource.FBT
     )
     L = geometry_loader.load_geo_data(
         geometry_dir, L_file, geometry_loader.GeometrySource.FBT
     )
+    return cls._from_fbt(LY, L, Ip_from_parameters, n_rho, hires_fac)
+
+  @classmethod
+  def _from_fbt(
+      cls,
+      LY: dict[str, np.ndarray],
+      L: dict[str, np.ndarray],
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+      hires_fac: int = 4,
+  ) -> StandardGeometryIntermediates:
+    """Constructs a StandardGeometryIntermediates from a single FBT LY slice."""
     Rmaj = LY['rgeom'][-1]  # Major radius
     B0 = LY['rBt'] / Rmaj  # Vacuum toroidal magnetic field on axis
     Rmin = LY['aminor'][-1]  # Minor radius

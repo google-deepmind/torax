@@ -53,10 +53,13 @@ def _build_standard_geometry_provider(
   if geometry_type == 'chease':
     intermediate_builder = geometry.StandardGeometryIntermediates.from_chease
   elif geometry_type == 'fbt':
-    intermediate_builder = geometry.StandardGeometryIntermediates.from_fbt
+    intermediate_builder = (
+        geometry.StandardGeometryIntermediates.from_fbt_single_slice
+    )
   else:
     raise ValueError(f'Unknown geometry type: {geometry_type}')
   if 'geometry_configs' in kwargs:
+    # geometry config has sequence of standalone geometry files.
     if not isinstance(kwargs['geometry_configs'], dict):
       raise ValueError('geometry_configs must be a dict.')
     geometries = {}
