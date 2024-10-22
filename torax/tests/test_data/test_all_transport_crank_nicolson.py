@@ -15,7 +15,7 @@
 """Tests theta=0.5 (Crank-Nicolson) with all transport equations.
 
 Ip from parameters. current, heat, and particle transport. qlknn transport
-model. Pedestal. Particle sources including NBI. PC method for density. Deff +
+model. Pedestal. Particle sources. PC method for density. Deff +
 Veff model.
 """
 
@@ -53,8 +53,8 @@ CONFIG = {
         },
         'jext': {},
         # Electron density sources/sink (for the ne equation).
-        'nbi_particle_source': {
-            'S_nbi_tot': 0.3e22,
+        'generic_particle_source': {
+            'S_tot': 0.3e22,
         },
         'gas_puff_source': {
             'S_puff_tot': 0.5e22,

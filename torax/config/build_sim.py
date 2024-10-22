@@ -281,8 +281,8 @@ def build_sources_builder_from_config(
 
   -  `j_bootstrap`: `source.bootstrap_current_source.RuntimeParams`
   -  `jext`: `source.external_current_source.RuntimeParams`
-  -  `nbi_particle_source`:
-     `source.electron_density_sources.NBIParticleRuntimeParams`
+  -  `generic_particle_source`:
+     `source.electron_density_sources.GenericParticleSourceRuntimeParams`
   -  `gas_puff_source`: `source.electron_density_sources.GasPuffRuntimeParams`
   -  `pellet_source`: `source.electron_density_sources.PelletRuntimeParams`
   -  `generic_ion_el_heat_source`:

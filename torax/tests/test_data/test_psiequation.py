@@ -40,7 +40,7 @@ CONFIG = {
             'bootstrap_mult': 0.0,
         },
         'generic_ion_el_heat_source': {},
-        'nbi_particle_source': {},
+        'generic_particle_source': {},
         'gas_puff_source': {},
         'pellet_source': {},
         'jext': {},

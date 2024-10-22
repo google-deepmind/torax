@@ -66,8 +66,6 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             attrs=(
                 'q_icrh_i',
                 'q_icrh_e',
-                'q_nbi_i',
-                'q_nbi_e',
                 'q_ecrh',
                 'q_gen_i',
                 'q_gen_e',

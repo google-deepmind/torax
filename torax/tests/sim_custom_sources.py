@@ -76,10 +76,10 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
           S_puff_tot=dynamic_source_runtime_params.S_puff_tot,
           **ignored_default_kwargs,
       )
-      nbi_params = electron_density_sources.DynamicNBIParticleRuntimeParams(
-          nbi_deposition_location=dynamic_source_runtime_params.nbi_deposition_location,
-          nbi_particle_width=dynamic_source_runtime_params.nbi_particle_width,
-          S_nbi_tot=dynamic_source_runtime_params.S_nbi_tot,
+      params = electron_density_sources.DynamicParticleRuntimeParams(
+          deposition_location=dynamic_source_runtime_params.deposition_location,
+          particle_width=dynamic_source_runtime_params.particle_width,
+          S_tot=dynamic_source_runtime_params.S_tot,
           **ignored_default_kwargs,
       )
       pellet_params = electron_density_sources.DynamicPelletRuntimeParams(
@@ -95,9 +95,9 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
               dynamic_source_runtime_params=puff_params,
               geo=geo,
           )
-          + electron_density_sources._calc_nbi_source(
+          + electron_density_sources._calc_generic_particle_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              dynamic_source_runtime_params=nbi_params,
+              dynamic_source_runtime_params=params,
               geo=geo,
           )
           + electron_density_sources._calc_pellet_source(
@@ -113,11 +113,11 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 1
     source_models_builder.runtime_params['qei_source'].Qei_mult = 1
-    nbi_params = source_models_builder.runtime_params['nbi_particle_source']
+    params = source_models_builder.runtime_params['generic_particle_source']
     assert isinstance(
-        nbi_params, electron_density_sources.NBIParticleRuntimeParams
+        params, electron_density_sources.GenericParticleSourceRuntimeParams
     )
-    nbi_params.S_nbi_tot = 0.0
+    params.S_tot = 0.0
     pellet_params = source_models_builder.runtime_params['pellet_source']
     assert isinstance(
         pellet_params, electron_density_sources.PelletRuntimeParams
@@ -152,9 +152,9 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
                 mode=runtime_params_lib.Mode.ZERO,
                 puff_decay_length=gas_puff_params.puff_decay_length,
                 S_puff_tot=gas_puff_params.S_puff_tot,
-                nbi_particle_width=nbi_params.nbi_particle_width,
-                nbi_deposition_location=nbi_params.nbi_deposition_location,
-                S_nbi_tot=nbi_params.S_nbi_tot,
+                particle_width=params.particle_width,
+                deposition_location=params.deposition_location,
+                S_tot=params.S_tot,
                 pellet_width=pellet_params.pellet_width,
                 pellet_deposition_location=pellet_params.pellet_deposition_location,
                 S_pellet_tot=pellet_params.S_pellet_tot,
@@ -220,7 +220,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 
     with self.subTest('without_defaults_and_with_custom_source'):
       # Turn off the other sources and turn on the custom one.
-      nbi_params.mode = runtime_params_lib.Mode.ZERO
+      params.mode = runtime_params_lib.Mode.ZERO
       pellet_params.mode = runtime_params_lib.Mode.ZERO
       gas_puff_params.mode = runtime_params_lib.Mode.ZERO
       source_models_builder.runtime_params[custom_source_name].mode = (
@@ -271,9 +271,9 @@ class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
 
   puff_decay_length: runtime_params_lib.TimeInterpolatedInput
   S_puff_tot: runtime_params_lib.TimeInterpolatedInput
-  nbi_particle_width: runtime_params_lib.TimeInterpolatedInput
-  nbi_deposition_location: runtime_params_lib.TimeInterpolatedInput
-  S_nbi_tot: runtime_params_lib.TimeInterpolatedInput
+  particle_width: runtime_params_lib.TimeInterpolatedInput
+  deposition_location: runtime_params_lib.TimeInterpolatedInput
+  S_tot: runtime_params_lib.TimeInterpolatedInput
   pellet_width: runtime_params_lib.TimeInterpolatedInput
   pellet_deposition_location: runtime_params_lib.TimeInterpolatedInput
   S_pellet_tot: runtime_params_lib.TimeInterpolatedInput
@@ -296,13 +296,13 @@ class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
         S_puff_tot=config_args.get_interpolated_var_single_axis(
             self.S_puff_tot
         ),
-        nbi_particle_width=config_args.get_interpolated_var_single_axis(
-            self.nbi_particle_width
+        particle_width=config_args.get_interpolated_var_single_axis(
+            self.particle_width
         ),
-        nbi_deposition_location=config_args.get_interpolated_var_single_axis(
-            self.nbi_deposition_location
+        deposition_location=config_args.get_interpolated_var_single_axis(
+            self.deposition_location
         ),
-        S_nbi_tot=config_args.get_interpolated_var_single_axis(self.S_nbi_tot),
+        S_tot=config_args.get_interpolated_var_single_axis(self.S_tot),
         pellet_width=config_args.get_interpolated_var_single_axis(
             self.pellet_width
         ),
@@ -324,9 +324,9 @@ class _CustomSourceRuntimeParamsProvider(
   runtime_params_config: _CustomSourceRuntimeParams
   puff_decay_length: interpolated_param.InterpolatedVarSingleAxis
   S_puff_tot: interpolated_param.InterpolatedVarSingleAxis
-  nbi_particle_width: interpolated_param.InterpolatedVarSingleAxis
-  nbi_deposition_location: interpolated_param.InterpolatedVarSingleAxis
-  S_nbi_tot: interpolated_param.InterpolatedVarSingleAxis
+  particle_width: interpolated_param.InterpolatedVarSingleAxis
+  deposition_location: interpolated_param.InterpolatedVarSingleAxis
+  S_tot: interpolated_param.InterpolatedVarSingleAxis
   pellet_width: interpolated_param.InterpolatedVarSingleAxis
   pellet_deposition_location: interpolated_param.InterpolatedVarSingleAxis
   S_pellet_tot: interpolated_param.InterpolatedVarSingleAxis
@@ -346,9 +346,9 @@ class _CustomSourceDynamicRuntimeParams(
 ):
   puff_decay_length: array_typing.ScalarFloat
   S_puff_tot: array_typing.ScalarFloat
-  nbi_particle_width: array_typing.ScalarFloat
-  nbi_deposition_location: array_typing.ScalarFloat
-  S_nbi_tot: array_typing.ScalarFloat
+  particle_width: array_typing.ScalarFloat
+  deposition_location: array_typing.ScalarFloat
+  S_tot: array_typing.ScalarFloat
   pellet_width: array_typing.ScalarFloat
   pellet_deposition_location: array_typing.ScalarFloat
   S_pellet_tot: array_typing.ScalarFloat

@@ -178,14 +178,14 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests particle sources with constant transport. No NBI source
+      # Tests particle sources with constant transport. No particle source
       (
           'test_particle_sources_constant',
           'test_particle_sources_constant.py',
           _ALL_PROFILES,
           0,
       ),
-      # Tests all particle sources including NBI, with CGM transport
+      # Tests all particle sources including particle source, with CGM transport
       (
           'test_particle_sources_cgm',
           'test_particle_sources_cgm.py',

@@ -48,7 +48,7 @@ CONFIG = {
             'fext': 0.0,
             'Iext': 3.0,
         },
-        'nbi_particle_source': {},
+        'generic_particle_source': {},
         'gas_puff_source': {},
         'pellet_source': {},
         'generic_ion_el_heat_source': {},

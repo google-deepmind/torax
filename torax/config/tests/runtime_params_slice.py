@@ -182,10 +182,10 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
                   )
               ),
               electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME: (
-                  electron_density_sources.NBIParticleRuntimeParams(
-                      nbi_particle_width={0.0: 0.0, 1.0: 6.0},
-                      nbi_deposition_location={0.0: 0.0, 1.0: 7.0},
-                      S_nbi_tot={0.0: 0.0, 1.0: 8.0},
+                  electron_density_sources.GenericParticleSourceRuntimeParams(
+                      particle_width={0.0: 0.0, 1.0: 6.0},
+                      deposition_location={0.0: 0.0, 1.0: 7.0},
+                      S_tot={0.0: 0.0, 1.0: 8.0},
                   )
               ),
           },
@@ -197,7 +197,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       gas_puff_source = dcs.sources[
           electron_density_sources.GAS_PUFF_SOURCE_NAME
       ]
-      nbi_particle_source = dcs.sources[
+      generic_particle_source = dcs.sources[
           electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME
       ]
       assert isinstance(
@@ -209,8 +209,8 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           electron_density_sources.DynamicGasPuffRuntimeParams,
       )
       assert isinstance(
-          nbi_particle_source,
-          electron_density_sources.DynamicNBIParticleRuntimeParams,
+          generic_particle_source,
+          electron_density_sources.DynamicParticleRuntimeParams,
       )
       print(pellet_source.pellet_width)
       print(type(pellet_source.pellet_width))
@@ -219,11 +219,11 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       np.testing.assert_allclose(pellet_source.S_pellet_tot, 1.5)
       np.testing.assert_allclose(gas_puff_source.puff_decay_length, 2.0)
       np.testing.assert_allclose(gas_puff_source.S_puff_tot, 2.5)
-      np.testing.assert_allclose(nbi_particle_source.nbi_particle_width, 3.0)
+      np.testing.assert_allclose(generic_particle_source.particle_width, 3.0)
       np.testing.assert_allclose(
-          nbi_particle_source.nbi_deposition_location, 3.5
+          generic_particle_source.deposition_location, 3.5
       )
-      np.testing.assert_allclose(nbi_particle_source.S_nbi_tot, 4.0)
+      np.testing.assert_allclose(generic_particle_source.S_tot, 4.0)
 
     with self.subTest('exponential_formula'):
       runtime_params = general_runtime_params.GeneralRuntimeParams()

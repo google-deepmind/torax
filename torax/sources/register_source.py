@@ -120,8 +120,8 @@ def register_torax_sources():
   )
   register_new_source(
       electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME,
-      electron_density_sources.NBIParticleSource,
-      default_runtime_params_class=electron_density_sources.NBIParticleRuntimeParams,
+      electron_density_sources.GenericParticleSource,
+      default_runtime_params_class=electron_density_sources.GenericParticleSourceRuntimeParams,
   )
   register_new_source(
       electron_density_sources.GAS_PUFF_SOURCE_NAME,

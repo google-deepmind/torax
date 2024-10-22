@@ -15,7 +15,7 @@
 """Tests qlknn particle transport with deff + veff model. CHEASE geometry.
 
 Ip from parameters. current, heat, and particle transport. qlknn transport
-model. Pedestal. Particle sources including NBI. PC method for density. Deff +
+model. Pedestal. Particle sources. PC method for density. Deff +
 Veff model.
 """
 
@@ -49,8 +49,8 @@ CONFIG = {
             'w': 0.18202270915319393,
         },
         'qei_source': {},
-        'nbi_particle_source': {
-            'S_nbi_tot': 0.3e22,
+        'generic_particle_source': {
+            'S_tot': 0.3e22,
         },
         'gas_puff_source': {
             'S_puff_tot': 0.5e22,
