@@ -41,6 +41,8 @@ where :math:`J = \frac{F}{R_0 B_0} = \frac{RB_\phi}{R_0 B_0}`.
 
    \frac{F j^\mathrm{ec}_\mathrm{tor}}{2\pi R_0} \gg \frac{I^\mathrm{ec}_\mathrm{tor} \frac{\partial F}{\partial \rho}}{\frac{\partial V}{\partial \rho}}.
 
+In practice, we found that :math:`\frac{I^\mathrm{ec}_\mathrm{tor} \frac{\partial F}{\partial \rho}}{\frac{\partial V}{\partial \rho}} ~ 1e-5 \times \frac{F j^\mathrm{ec}_\mathrm{tor}}{2\pi R_0}`.
+
 Then:
 
 .. math::
