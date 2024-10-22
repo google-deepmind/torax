@@ -5,14 +5,14 @@ from flax import nnx
 
 @chex.dataclass(frozen=True)
 class TGLFInputs:
-    r"""Inputs to the TGLF model.
+    r"""Dimensionless inputs to the TGLF model.
 
     Attributes:
     -----------
-      Te_grad_norm: chex.Array
+      Te_grad: chex.Array
         Normalized electron temperature gradient: :math:`-{\frac {a}{T_{e}}}{\frac {dT_{e}}{dr}}`
 
-      Ti_grad_norm: chex.Array
+      Ti_grad: chex.Array
         Normalized ion temperature gradient: :math:`-{\frac {a}{T_{i}}}{\frac {dT_{i}}{dr}}`
 
       Ti_over_Te: chex.Array
@@ -28,10 +28,10 @@ class TGLFInputs:
         Safety factor, :math:`q`
 
       s_hat: chex.Array
-        s_hat = q_prime_loc * (r/q)**2
+        s_hat = r/q * dq/dr
 
-      ei_collision_freq: chex.Array
-        Electron-ion collision frequency: `:math:`{\frac {v_{ei}}{c_{s}/a}}`
+      nu_ee: chex.Array
+        Electron-electron collision frequency
 
       kappa: chex.Array
         Elongation of flux surface
