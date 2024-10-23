@@ -228,27 +228,6 @@ def _build_psi_profiles(
     dict of psi source profiles.
   """
   psi_profiles = {}
-  # jext is not one of the "standard sources" in SourceModels, so pull out it's
-  # profile separately.
-  # TODO(b/354190723): Move jext to a standard source.
-  dynamic_jext_runtime_params = dynamic_runtime_params_slice.sources[
-      source_models.jext_name
-  ]
-  psi_profiles[source_models.jext_name] = jax_utils.select(
-      jnp.logical_or(
-          explicit == dynamic_jext_runtime_params.is_explicit,
-          calculate_anyway,
-      ),
-      source_models.jext.get_value(
-          dynamic_runtime_params_slice,
-          dynamic_jext_runtime_params,
-          geo,
-          core_profiles,
-      ),
-      jnp.zeros_like(geo.rho_face),
-  )
-  # Iterate through the rest of the sources and compute profiles for the ones
-  # which relate to psi.
   for source_name, source in source_models.psi_sources.items():
     dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
         source_name
@@ -264,7 +243,7 @@ def _build_psi_profiles(
             geo,
             core_profiles,
         ),
-        jnp.zeros_like(geo.rho),
+        jnp.zeros(source.output_shape_getter(geo)),
     )
   return psi_profiles
 
@@ -370,9 +349,7 @@ def sum_sources_psi(
     source_models: SourceModels,
 ) -> jax.Array:
   """Computes psi source values for sim.calc_coeffs."""
-  total = source_profile.j_bootstrap.j_bootstrap + geometry.face_to_cell(
-      source_profile.profiles[source_models.jext_name]
-  )
+  total = source_profile.j_bootstrap.j_bootstrap
   for source_name, source in source_models.psi_sources.items():
     total += source.get_source_profile_for_affected_core_profile(
         profile=source_profile.profiles[source_name],
@@ -618,29 +595,30 @@ class SourceModels:
         self._qei_source_name = source_name
         self._qei_source = source
 
-    # Make sure defaults are set.
+    # Make sure defaults are set for the "special-case" sources.
     if self._j_bootstrap is None:
       self._j_bootstrap = bootstrap_current_source.BootstrapCurrentSource()
-    if self._jext is None:
-      self._jext = external_current_source.ExternalCurrentSource()
     if self._qei_source is None:
       self._qei_source = qei_source_lib.QeiSource()
+    # If jext wasn't provided, create a default one and add to standard sources.
+    if self._jext is None:
+      self._jext = external_current_source.ExternalCurrentSource()
+      self._add_standard_source(self._jext_name, self._jext)
 
     # Then add all the "standard" sources.
     for source_name, source in sources.items():
       if (
           isinstance(source, bootstrap_current_source.BootstrapCurrentSource)
-          or isinstance(source, external_current_source.ExternalCurrentSource)
           or isinstance(source, qei_source_lib.QeiSource)
       ):
         continue
       else:
-        self._add_source(source_name, source)
+        self._add_standard_source(source_name, source)
 
     # Now add the sources that link back
     for name, builder in source_builders.items():
       if builder.links_back:
-        self._add_source(name, builder(self))
+        self._add_standard_source(name, builder(self))
 
     # The instance is constructed, now freeze it
     self._frozen = True
@@ -657,7 +635,7 @@ class SourceModels:
       raise AttributeError('SourceModels is immutable.')
     return super().__setattr__(attr, value)
 
-  def _add_source(
+  def _add_standard_source(
       self,
       source_name: str,
       source: source_lib.Source,
@@ -679,7 +657,6 @@ class SourceModels:
     """
     if (
         isinstance(source, bootstrap_current_source.BootstrapCurrentSource)
-        or isinstance(source, external_current_source.ExternalCurrentSource)
         or isinstance(source, qei_source_lib.QeiSource)
     ):
       raise ValueError(
@@ -716,6 +693,7 @@ class SourceModels:
 
   @property
   def jext(self) -> external_current_source.ExternalCurrentSource:
+    # TODO(b/336995925): Modify to be a sum over all current sources.
     assert self._jext is not None
     return self._jext
 
@@ -774,7 +752,6 @@ class SourceModels:
   def sources(self) -> dict[str, source_lib.Source]:
     return self._standard_sources | {
         self._j_bootstrap_name: self.j_bootstrap,
-        self._jext_name: self.jext,
         self._qei_source_name: self.qei_source,
     }
 
@@ -885,9 +862,6 @@ def build_all_zero_profiles(
       source_name: jnp.zeros(source_model.output_shape_getter(geo))
       for source_name, source_model in source_models.standard_sources.items()
   }
-  profiles[source_models.jext_name] = jnp.zeros(
-      source_models.jext.output_shape_getter(geo)
-  )
   return source_profiles.SourceProfiles(
       profiles=profiles,
       j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),

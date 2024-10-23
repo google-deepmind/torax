@@ -23,6 +23,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from jax.scipy import integrate
+import jaxtyping as jt
 from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
@@ -32,6 +33,7 @@ from torax.config import base
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from typing_extensions import override
 
 
 SOURCE_NAME = 'jext'
@@ -222,6 +224,20 @@ class ExternalCurrentSource(source.Source):
   @property
   def output_shape_getter(self) -> source.SourceOutputShapeFunction:
     return source.ProfileType.FACE.get_profile_shape
+
+  @override
+  def get_source_profile_for_affected_core_profile(
+      self,
+      profile: jt.Float[jt.Array, 'rhon_face'],
+      affected_core_profile: int,
+      geo: geometry.Geometry,
+  ) -> jt.Float[jt.Array, 'rhon']:
+    return jnp.where(
+        affected_core_profile in self.affected_core_profiles_ints,
+        # Source profiles are always on cell grid so cast to cell grid.
+        geometry.face_to_cell(profile),
+        jnp.zeros_like(geo.rho),
+    )
 
   def jext_hires(
       self,

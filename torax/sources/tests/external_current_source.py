@@ -15,6 +15,9 @@
 """Tests for external_current_source."""
 
 from absl.testing import absltest
+from absl.testing import parameterized
+import chex
+import numpy as np
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -139,6 +142,39 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='psi_profile_yields_profile',
+          affected_core_profile=source_lib.AffectedCoreProfile.PSI,
+          expected_profile=np.array([1.5, 2.5]),
+      ),
+      dict(
+          testcase_name='unaffected_profile_yields_zeros',
+          affected_core_profile=source_lib.AffectedCoreProfile.TEMP_ION,
+          expected_profile=np.array([0.0, 0.0]),
+      ),
+  )
+  def test_get_source_profile_for_affected_core_profile_with(
+      self,
+      affected_core_profile: source_lib.AffectedCoreProfile,
+      expected_profile: chex.Array,
+  ):
+    source_builder = self._source_class_builder()
+    source = source_builder()
+
+    # Build a face profile with 3 values on a 2-cell grid.
+    geo = geometry.build_circular_geometry(n_rho=2)
+    face_profile = np.array([1, 2, 3])
+
+    np.testing.assert_allclose(
+        source.get_source_profile_for_affected_core_profile(
+            face_profile,
+            affected_core_profile.value,
+            geo,
+        ),
+        expected_profile,
+    )
 
 
 if __name__ == '__main__':
