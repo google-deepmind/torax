@@ -554,11 +554,8 @@ class SourceModels:
     # Some sources are accessed for specific use cases, so we extract those
     # ones and expose them directly.
     self._j_bootstrap = None
-    self._j_bootstrap_name = bootstrap_current_source.SOURCE_NAME
     self._jext = None
-    self._jext_name = external_current_source.SOURCE_NAME
     self._qei_source = None
-    self._qei_source_name = qei_source_lib.SOURCE_NAME
     # The rest of the sources are "standard".
     self._standard_sources = {}
 
@@ -569,30 +566,12 @@ class SourceModels:
     self._temp_el_sources: dict[str, source_lib.Source] = {}
 
     # First set the "special" sources.
-    for source_name, source in sources.items():
+    for source in sources.values():
       if isinstance(source, bootstrap_current_source.BootstrapCurrentSource):
-        if self._j_bootstrap is not None:
-          raise ValueError(
-              'Can only provide a single BootstrapCurrentSource. Provided two:'
-              f' {self._j_bootstrap_name} and {source_name}.'
-          )
-        self._j_bootstrap_name = source_name
         self._j_bootstrap = source
       elif isinstance(source, external_current_source.ExternalCurrentSource):
-        if self._jext is not None:
-          raise ValueError(
-              'Can only provide a single ExternalCurrentSource. Provided two:'
-              f' {self._jext_name} and {source_name}.'
-          )
-        self._jext_name = source_name
         self._jext = source
       elif isinstance(source, qei_source_lib.QeiSource):
-        if self._qei_source is not None:
-          raise ValueError(
-              'Can only provide a single QeiSource. Provided two:'
-              f' {self._qei_source_name} and {source_name}.'
-          )
-        self._qei_source_name = source_name
         self._qei_source = source
 
     # Make sure defaults are set for the "special-case" sources.
@@ -603,7 +582,7 @@ class SourceModels:
     # If jext wasn't provided, create a default one and add to standard sources.
     if self._jext is None:
       self._jext = external_current_source.ExternalCurrentSource()
-      self._add_standard_source(self._jext_name, self._jext)
+      self._add_standard_source(external_current_source.SOURCE_NAME, self._jext)
 
     # Then add all the "standard" sources.
     for source_name, source in sources.items():
@@ -684,31 +663,34 @@ class SourceModels:
 
   @property
   def j_bootstrap(self) -> bootstrap_current_source.BootstrapCurrentSource:
-    assert self._j_bootstrap is not None
+    if self._j_bootstrap is None:
+      raise ValueError('j_bootstrap is not initialized.')
     return self._j_bootstrap
 
   @property
   def j_bootstrap_name(self) -> str:
-    return self._j_bootstrap_name
+    return bootstrap_current_source.SOURCE_NAME
 
   @property
   def jext(self) -> external_current_source.ExternalCurrentSource:
     # TODO(b/336995925): Modify to be a sum over all current sources.
-    assert self._jext is not None
+    if self._jext is None:
+      raise ValueError('jext is not initialized.')
     return self._jext
 
   @property
   def jext_name(self) -> str:
-    return self._jext_name
+    return external_current_source.SOURCE_NAME
 
   @property
   def qei_source(self) -> qei_source_lib.QeiSource:
-    assert self._qei_source is not None
+    if self._qei_source is None:
+      raise ValueError('qei_source is not initialized.')
     return self._qei_source
 
   @property
   def qei_source_name(self) -> str:
-    return self._qei_source_name
+    return qei_source_lib.SOURCE_NAME
 
   @property
   def psi_sources(self) -> dict[str, source_lib.Source]:
@@ -751,8 +733,8 @@ class SourceModels:
   @property
   def sources(self) -> dict[str, source_lib.Source]:
     return self._standard_sources | {
-        self._j_bootstrap_name: self.j_bootstrap,
-        self._qei_source_name: self.qei_source,
+        self.j_bootstrap_name: self.j_bootstrap,
+        self.qei_source_name: self.qei_source,
     }
 
 
