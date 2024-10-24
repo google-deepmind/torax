@@ -147,7 +147,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         references.runtime_params.numerics.t_initial
     )
 
-    j, _ = physics.calc_jtot_from_psi(
+    j = physics.calc_jtot_from_psi(
         geo,
         references.psi,
     )

@@ -1273,20 +1273,20 @@ def _update_spectator(
       data=output_state.core_profiles.temp_el.value,
   )
   spectator.observe(
-      key='j_bootstrap_face',
-      data=output_state.core_profiles.currents.j_bootstrap_face,
+      key='j_bootstrap',
+      data=output_state.core_profiles.currents.j_bootstrap,
   )
   spectator.observe(
-      key='johm_face',
-      data=output_state.core_profiles.currents.johm_face,
+      key='johm',
+      data=output_state.core_profiles.currents.johm,
   )
   spectator.observe(
-      key='generic_current_source_face',
-      data=output_state.core_profiles.currents.generic_current_source_face,
+      key='generic_current_source',
+      data=output_state.core_profiles.currents.generic_current_source,
   )
   spectator.observe(
-      key='jtot_face',
-      data=output_state.core_profiles.currents.jtot_face,
+      key='jtot',
+      data=output_state.core_profiles.currents.jtot,
   )
   spectator.observe(
       key='chi_face_ion', data=output_state.core_transport.chi_face_ion
@@ -1460,21 +1460,13 @@ def update_current_distribution(
       - bootstrap_profile.j_bootstrap
       - generic_current
   )
-  johm_face = (
-      core_profiles.currents.jtot_face
-      - bootstrap_profile.j_bootstrap_face
-      - generic_current_face
-  )
 
   currents = dataclasses.replace(
       core_profiles.currents,
       j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
       johm=johm,
-      johm_face=johm_face,
       generic_current_source=generic_current,
-      generic_current_source_face=generic_current_face,
       Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
   )
   new_core_profiles = dataclasses.replace(

@@ -285,14 +285,13 @@ def _prescribe_currents_no_bootstrap(
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
-    johm_face = jtot_face - generic_current_face
+    jtot = geometry.face_to_cell(jtot_face)
+    johm = jtot - generic_current
   else:
     Cohm = Iohm * 1e6 / denom
     johm_face = jformula_face * Cohm
-    jtot_face = johm_face + generic_current_face
-
-  jtot = geometry.face_to_cell(jtot_face)
-  johm = geometry.face_to_cell(johm_face)
+    johm = geometry.face_to_cell(johm_face)
+    jtot = johm + generic_current
 
   jtot_hires = _get_jtot_hires(
       dynamic_runtime_params_slice,
@@ -305,14 +304,10 @@ def _prescribe_currents_no_bootstrap(
 
   currents = state.Currents(
       jtot=jtot,
-      jtot_face=jtot_face,
       jtot_hires=jtot_hires,
       johm=johm,
-      johm_face=johm_face,
       generic_current_source=generic_current,
-      generic_current_source_face=generic_current_face,
       j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
       Ip=Ip,
       sigma=bootstrap_profile.sigma,
@@ -328,7 +323,6 @@ def _prescribe_currents_with_bootstrap(
     temp_el: cell_variable.CellVariable,
     ne: cell_variable.CellVariable,
     ni: cell_variable.CellVariable,
-    jtot_face: jax.Array,
     psi: cell_variable.CellVariable,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
@@ -341,7 +335,6 @@ def _prescribe_currents_with_bootstrap(
     temp_el: Electron temperature.
     ne: Electron density.
     ni: Main ion density.
-    jtot_face: Total current density on face grid.
     psi: Poloidal flux.
     source_models: All TORAX source/sink functions. If not provided, uses the
       default sources.
@@ -365,7 +358,6 @@ def _prescribe_currents_with_bootstrap(
       temp_el=temp_el,
       ne=ne,
       ni=ni,
-      jtot_face=jtot_face,
       psi=psi,
   )
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
@@ -422,14 +414,10 @@ def _prescribe_currents_with_bootstrap(
 
   currents = state.Currents(
       jtot=jtot,
-      jtot_face=jtot_face,
       jtot_hires=jtot_hires,
       johm=johm,
-      johm_face=johm_face,
       generic_current_source=generic_current,
-      generic_current_source_face=generic_current_face,
       j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
       Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
       sigma=bootstrap_profile.sigma,
@@ -469,7 +457,7 @@ def _calculate_currents_from_psi(
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
 
-  jtot, jtot_face = physics.calc_jtot_from_psi(
+  jtot = physics.calc_jtot_from_psi(
       geo,
       psi,
   )
@@ -484,7 +472,6 @@ def _calculate_currents_from_psi(
       temp_el=temp_el,
       ne=ne,
       ni=ni,
-      jtot_face=jtot_face,
       psi=psi,
   )
 
@@ -507,20 +494,13 @@ def _calculate_currents_from_psi(
   # should be summing over all sources that can contribute current i.e. ECCD,
   # ICRH, NBI, LHCD.
   johm = jtot - generic_current - bootstrap_profile.j_bootstrap
-  johm_face = (
-      jtot_face - generic_current_face - bootstrap_profile.j_bootstrap_face
-  )
 
   currents = state.Currents(
       jtot=jtot,
-      jtot_face=jtot_face,
       jtot_hires=None,
       johm=johm,
-      johm_face=johm_face,
       generic_current_source=generic_current,
-      generic_current_source_face=generic_current_face,
       j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
       Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
       sigma=bootstrap_profile.sigma,
@@ -675,7 +655,6 @@ def _initial_psi(
         temp_el=temp_el,
         ne=ne,
         ni=ni,
-        jtot_face=currents_no_bootstrap.jtot_face,
         psi=psi_no_bootstrap,
         source_models=source_models,
     )

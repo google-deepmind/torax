@@ -52,9 +52,9 @@ def update_jtot_q_face_s_face(
     core_profiles: state.CoreProfiles,
     q_correction_factor: float,
 ) -> state.CoreProfiles:
-  """Updates jtot, jtot_face, q_face, and s_face."""
+  """Updates jtot, q_face, and s_face."""
 
-  jtot, jtot_face = calc_jtot_from_psi(
+  jtot = calc_jtot_from_psi(
       geo,
       core_profiles.psi,
   )
@@ -67,9 +67,7 @@ def update_jtot_q_face_s_face(
       geo,
       core_profiles.psi,
   )
-  currents = dataclasses.replace(
-      core_profiles.currents, jtot=jtot, jtot_face=jtot_face
-  )
+  currents = dataclasses.replace(core_profiles.currents, jtot=jtot,)
   new_core_profiles = dataclasses.replace(
       core_profiles,
       currents=currents,
@@ -184,7 +182,7 @@ def calc_q_from_psi(
 def calc_jtot_from_psi(
     geo: Geometry,
     psi: cell_variable.CellVariable,
-) -> tuple[chex.Array, chex.Array]:
+) -> chex.Array:
   """Calculates FSA toroidal current density (jtot) from poloidal flux (psi).
 
   Calculation based on jtot = dI/dS
@@ -195,7 +193,6 @@ def calc_jtot_from_psi(
 
   Returns:
     jtot: total current density (Amps / m^2) on cell grid
-    jtot_face: total current density (Amps / m^2) on face grid
   """
 
   # inside flux surface on face grid
@@ -218,7 +215,7 @@ def calc_jtot_from_psi(
   jtot_face = jnp.concatenate([jnp.array([jtot_face_axis]), jtot_face_bulk])
   jtot = geometry.face_to_cell(jtot_face)
 
-  return jtot, jtot_face
+  return jtot
 
 
 def calc_s_from_psi(

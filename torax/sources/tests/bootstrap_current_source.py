@@ -81,7 +81,6 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
             temp_el=core_profiles.temp_el,
             ne=core_profiles.ne,
             ni=core_profiles.ni,
-            jtot_face=core_profiles.currents.jtot_face,
             psi=core_profiles.psi,
         )
     )

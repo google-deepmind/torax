@@ -391,7 +391,6 @@ class StandardGeometry(Geometry):
   psi: chex.Array
   psi_from_Ip: chex.Array
   jtot: chex.Array
-  jtot_face: chex.Array
   delta_upper_face: chex.Array
   delta_lower_face: chex.Array
 
@@ -1154,7 +1153,6 @@ def build_standard_geometry(
   psi = rhon_interpolation_func(rho_norm, intermediate.psi)
   psi_from_Ip = rhon_interpolation_func(rho_norm, psi_from_Ip)
 
-  jtot_face = rhon_interpolation_func(rho_face_norm, jtot)
   jtot = rhon_interpolation_func(rho_norm, jtot)
 
   Rin_face = rhon_interpolation_func(rho_face_norm, intermediate.Rin)
@@ -1228,7 +1226,6 @@ def build_standard_geometry(
       psi=psi,
       psi_from_Ip=psi_from_Ip,
       jtot=jtot,
-      jtot_face=jtot_face,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
       volume_hires=volume_hires,

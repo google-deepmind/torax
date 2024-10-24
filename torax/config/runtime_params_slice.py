@@ -282,7 +282,6 @@ def make_ip_consistent(
           Ip=geo.Ip * Ip_scale_factor,
           psi_from_Ip=geo.psi_from_Ip * Ip_scale_factor,
           jtot=geo.jtot * Ip_scale_factor,
-          jtot_face=geo.jtot_face * Ip_scale_factor,
       )
       # pylint: enable=invalid-name
     else:
