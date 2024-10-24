@@ -114,7 +114,6 @@ class BootstrapCurrentSource(source.Source):
       temp_el: cell_variable.CellVariable | None = None,
       ne: cell_variable.CellVariable | None = None,
       ni: cell_variable.CellVariable | None = None,
-      jtot_face: jax.Array | None = None,
       psi: cell_variable.CellVariable | None = None,
   ) -> source_profiles.BootstrapCurrentProfile:
     # Make sure the input mode requested is supported.
@@ -131,12 +130,11 @@ class BootstrapCurrentSource(source.Source):
         not temp_el,
         ne is None,
         ni is None,
-        jtot_face is None,
         not psi,
     ]):
       raise ValueError(
           'If you cannot provide "core_profiles", then provide all of '
-          'temp_ion, temp_el, ne, ni, jtot_face, and psi.'
+          'temp_ion, temp_el, ne, ni, jtot, and psi.'
       )
     # pytype: disable=attribute-error
     temp_ion = temp_ion or core_profiles.temp_ion
