@@ -45,7 +45,7 @@ def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
   names = [
       # Current sources (for psi equation)
       'j_bootstrap',
-      'jext',
+      'generic_current_source',
       # Electron density sources/sink (for the ne equation).
       'generic_particle_source',
       'gas_puff_source',

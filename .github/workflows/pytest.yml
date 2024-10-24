@@ -71,7 +71,7 @@ jobs:
           torax/fvm/tests/fvm.py \
           torax/sources/tests/bootstrap_current_source.py \
           torax/sources/tests/electron_density_sources.py \
-          torax/sources/tests/external_current_source.py \
+          torax/sources/tests/generic_current_source.py \
           torax/sources/tests/formulas.py \
           torax/sources/tests/fusion_heat_source.py \
           torax/sources/tests/generic_ion_el_heat_source.py \

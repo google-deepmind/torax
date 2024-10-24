@@ -50,7 +50,7 @@ CONFIG = {
         'generic_particle_source': {},
         'gas_puff_source': {},
         'pellet_source': {},
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'qlknn',

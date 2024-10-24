@@ -300,7 +300,7 @@ def build_sources_builder_from_config(
   definitions (source names to dataclass):
 
   -  `j_bootstrap`: `source.bootstrap_current_source.RuntimeParams`
-  -  `jext`: `source.external_current_source.RuntimeParams`
+  -  `generic_current_source`: `source.generic_current_source.RuntimeParams`
   -  `generic_particle_source`:
      `source.electron_density_sources.GenericParticleSourceRuntimeParams`
   -  `gas_puff_source`: `source.electron_density_sources.GasPuffRuntimeParams`

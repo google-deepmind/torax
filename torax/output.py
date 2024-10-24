@@ -68,9 +68,10 @@ JTOT_FACE = "jtot_face"
 JOHM = "johm"
 JOHM_FACE = "johm_face"
 # TODO(b/338033916): rename when we have a solution for hierarchical outputs.
-# Add `core_profiles` prefix here to avoid name clash with core_sources.jext.
-CORE_PROFILES_JEXT = "core_profiles_jext"
-JEXT_FACE = "jext_face"
+# Add `core_profiles` prefix here to avoid name clash with
+# core_sources.generic_current.
+CORE_PROFILES_GENERIC_CURRENT = "core_profiles_generic_current_source"
+GENERIC_CURRENT_FACE = "generic_current_source_face"
 J_BOOTSTRAP = "j_bootstrap"
 J_BOOTSTRAP_FACE = "j_bootstrap_face"
 I_BOOTSTRAP = "I_bootstrap"
@@ -220,8 +221,12 @@ class StateHistory:
     xr_dict[JTOT_FACE] = self.core_profiles.currents.jtot_face
     xr_dict[JOHM] = self.core_profiles.currents.johm
     xr_dict[JOHM_FACE] = self.core_profiles.currents.johm_face
-    xr_dict[CORE_PROFILES_JEXT] = self.core_profiles.currents.jext
-    xr_dict[JEXT_FACE] = self.core_profiles.currents.jext_face
+    xr_dict[CORE_PROFILES_GENERIC_CURRENT] = (
+        self.core_profiles.currents.generic_current_source
+    )
+    xr_dict[GENERIC_CURRENT_FACE] = (
+        self.core_profiles.currents.generic_current_source_face
+    )
 
     xr_dict[J_BOOTSTRAP] = self.core_profiles.currents.j_bootstrap
     xr_dict[J_BOOTSTRAP_FACE] = self.core_profiles.currents.j_bootstrap_face

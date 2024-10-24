@@ -44,8 +44,8 @@ class Currents:
   jtot_face: array_typing.ArrayFloat
   johm: array_typing.ArrayFloat
   johm_face: array_typing.ArrayFloat
-  jext: array_typing.ArrayFloat
-  jext_face: array_typing.ArrayFloat
+  generic_current_source: array_typing.ArrayFloat
+  generic_current_source_face: array_typing.ArrayFloat
   j_bootstrap: array_typing.ArrayFloat
   j_bootstrap_face: array_typing.ArrayFloat
   # pylint: disable=invalid-name

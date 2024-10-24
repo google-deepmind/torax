@@ -54,7 +54,7 @@ CONFIG = {
             'S_pellet_tot': 1.0e22,
         },
         'j_bootstrap': {},
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'CGM',

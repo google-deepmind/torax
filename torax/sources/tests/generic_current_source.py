@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for external_current_source."""
+"""Tests for generic_current_source."""
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -21,20 +21,20 @@ import numpy as np
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.sources import external_current_source
+from torax.sources import generic_current_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources.tests import test_lib
 
 
-class ExternalCurrentSourceTest(test_lib.SourceTestCase):
-  """Tests for ExternalCurrentSource."""
+class GenericCurrentSourceTest(test_lib.SourceTestCase):
+  """Tests for GenericCurrentSource."""
 
   @classmethod
   def setUpClass(cls):
     super().setUpClass(
-        source_class=external_current_source.ExternalCurrentSource,
-        runtime_params_class=external_current_source.RuntimeParams,
+        source_class=generic_current_source.GenericCurrentSource,
+        runtime_params_class=generic_current_source.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
@@ -46,33 +46,33 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     source_builder = self._source_class_builder()
     source = source_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    # Must be circular for jext_hires call.
+    # Must be circular for generic_current_hires call.
     geo = geometry.build_circular_geometry()
     dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources={
-            external_current_source.SOURCE_NAME: source_builder.runtime_params,
+            generic_current_source.SOURCE_NAME: source_builder.runtime_params,
         },
         torax_mesh=geo.torax_mesh,
     )(
         t=runtime_params.numerics.t_initial,
     )
-    self.assertIsInstance(source, external_current_source.ExternalCurrentSource)
+    self.assertIsInstance(source, generic_current_source.GenericCurrentSource)
 
     self.assertIsNotNone(
         source.get_value(
             dynamic_runtime_params_slice=dynamic_slice,
             dynamic_source_runtime_params=dynamic_slice.sources[
-                external_current_source.SOURCE_NAME
+                generic_current_source.SOURCE_NAME
             ],
             geo=geo,
         )
     )
     self.assertIsNotNone(
-        source.jext_hires(
+        source.generic_current_source_hires(
             dynamic_runtime_params_slice=dynamic_slice,
             dynamic_source_runtime_params=dynamic_slice.sources[
-                external_current_source.SOURCE_NAME
+                generic_current_source.SOURCE_NAME
             ],
             geo=geo,
         )
@@ -90,7 +90,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
           dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
               runtime_params,
               sources={
-                  external_current_source.SOURCE_NAME: (
+                  generic_current_source.SOURCE_NAME: (
                       source_builder.runtime_params
                   ),
               },
@@ -101,7 +101,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_slice,
               dynamic_source_runtime_params=dynamic_slice.sources[
-                  external_current_source.SOURCE_NAME
+                  generic_current_source.SOURCE_NAME
               ],
               geo=geo,
           )
@@ -119,7 +119,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources={
-            external_current_source.SOURCE_NAME: source_builder.runtime_params,
+            generic_current_source.SOURCE_NAME: source_builder.runtime_params,
         },
         torax_mesh=geo.torax_mesh,
     )(
@@ -129,7 +129,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
         source.get_value(
             dynamic_runtime_params_slice,
             dynamic_runtime_params_slice.sources[
-                external_current_source.SOURCE_NAME
+                generic_current_source.SOURCE_NAME
             ],
             geo,
             core_profiles=None,
@@ -138,7 +138,7 @@ class ExternalCurrentSourceTest(test_lib.SourceTestCase):
     )
 
   def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = external_current_source.RuntimeParams()
+    runtime_params = generic_current_source.RuntimeParams()
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)

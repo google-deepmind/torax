@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests combined current diffusion and heat transport with use_absolute_jext.
+"""Tests combined current diffusion and heat transport with use_absolute_current.
 
 Implicit solver + pereverzev-corrigan, Ti+Te+Psi, Pei standard dens,
 pedestal, chi from qlknn.
 
-Same as test_psi_and_heat but with fext=0 but use_absolute_jext and Iext=3.
+Same as test_psi_and_heat but with fext=0 but use_absolute_current and Iext=3.
 Result should be the same as test_psi_and_heat since fext=0 is ignored.
 """
 
@@ -43,8 +43,8 @@ CONFIG = {
         'geometry_type': 'circular',
     },
     'sources': {
-        'jext': {
-            'use_absolute_jext': True,
+        'generic_current_source': {
+            'use_absolute_current': True,
             'fext': 0.0,
             'Iext': 3.0,
         },

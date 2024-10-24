@@ -26,7 +26,7 @@ from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.sources import bootstrap_current_source
-from torax.sources import external_current_source
+from torax.sources import generic_current_source
 from torax.sources import qei_source as qei_source_lib
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -528,13 +528,11 @@ class SourceModels:
       source_builders: Mapping of source model names to builders of the Source
         objects. The names (i.e. the keys of this dictionary) also define the
         keys in the output SourceProfiles which are computed from this
-        SourceModels object. NOTE - Some sources are "special-case": bootstrap
-        current, external current, and Qei. SourceModels will always instantiate
-        default objects for these types of sources unless they are provided by
-        this `sources` argument. Also, their default names are reserved, meaning
-        the input dictionary `sources` should not have the keys 'j_bootstrap',
-        'jext', or 'qei_source' unless those sources are one of these
-        "special-case" sources.
+        SourceModels object.
+
+    NOTE - Some sources are "special-case": bootstrap_current, generic_current,
+    and Qei. SourceModels will always instantiate default objects for these
+    types of sources unless they are provided by this `sources` argument.
 
     Raises:
       ValueError if there is a naming collision with the reserved names as
@@ -554,7 +552,7 @@ class SourceModels:
     # Some sources are accessed for specific use cases, so we extract those
     # ones and expose them directly.
     self._j_bootstrap = None
-    self._jext = None
+    self._generic_current = None
     self._qei_source = None
     # The rest of the sources are "standard".
     self._standard_sources = {}
@@ -569,8 +567,8 @@ class SourceModels:
     for source in sources.values():
       if isinstance(source, bootstrap_current_source.BootstrapCurrentSource):
         self._j_bootstrap = source
-      elif isinstance(source, external_current_source.ExternalCurrentSource):
-        self._jext = source
+      elif isinstance(source, generic_current_source.GenericCurrentSource):
+        self._generic_current = source
       elif isinstance(source, qei_source_lib.QeiSource):
         self._qei_source = source
 
@@ -579,17 +577,19 @@ class SourceModels:
       self._j_bootstrap = bootstrap_current_source.BootstrapCurrentSource()
     if self._qei_source is None:
       self._qei_source = qei_source_lib.QeiSource()
-    # If jext wasn't provided, create a default one and add to standard sources.
-    if self._jext is None:
-      self._jext = external_current_source.ExternalCurrentSource()
-      self._add_standard_source(external_current_source.SOURCE_NAME, self._jext)
+    # If the generic current source wasn't provided, create a default one and
+    # add to standard sources.
+    if self._generic_current is None:
+      self._generic_current = generic_current_source.GenericCurrentSource()
+      self._add_standard_source(
+          generic_current_source.SOURCE_NAME, self._generic_current
+      )
 
     # Then add all the "standard" sources.
     for source_name, source in sources.items():
-      if (
-          isinstance(source, bootstrap_current_source.BootstrapCurrentSource)
-          or isinstance(source, qei_source_lib.QeiSource)
-      ):
+      if isinstance(
+          source, bootstrap_current_source.BootstrapCurrentSource
+      ) or isinstance(source, qei_source_lib.QeiSource):
         continue
       else:
         self._add_standard_source(source_name, source)
@@ -672,15 +672,17 @@ class SourceModels:
     return bootstrap_current_source.SOURCE_NAME
 
   @property
-  def jext(self) -> external_current_source.ExternalCurrentSource:
+  def generic_current_source(
+      self,
+  ) -> generic_current_source.GenericCurrentSource:
     # TODO(b/336995925): Modify to be a sum over all current sources.
-    if self._jext is None:
-      raise ValueError('jext is not initialized.')
-    return self._jext
+    if self._generic_current is None:
+      raise ValueError('generic_current is not initialized.')
+    return self._generic_current
 
   @property
-  def jext_name(self) -> str:
-    return external_current_source.SOURCE_NAME
+  def generic_current_source_name(self) -> str:
+    return generic_current_source.SOURCE_NAME
 
   @property
   def qei_source(self) -> qei_source_lib.QeiSource:
@@ -725,8 +727,8 @@ class SourceModels:
   def standard_sources(self) -> dict[str, source_lib.Source]:
     """Returns all sources that are not used in special cases.
 
-    Practically, this means this includes all sources other than j_bootstrap,
-    jext, qei_source.
+    Practically, this means this includes all sources other than j_bootstrap and
+    qei_source.
     """
     return self._standard_sources
 
@@ -778,9 +780,9 @@ class SourceModelsBuilder:
     qei_found = (
         False if qei_source_lib.SOURCE_NAME not in source_builders else True
     )
-    jext_found = (
+    generic_current_found = (
         False
-        if external_current_source.SOURCE_NAME not in source_builders
+        if generic_current_source.SOURCE_NAME not in source_builders
         else True
     )
 
@@ -809,15 +811,15 @@ class SourceModelsBuilder:
       source_builders[qei_source_lib.SOURCE_NAME].runtime_params.mode = (
           runtime_params_lib.Mode.ZERO
       )
-    if not jext_found:
-      source_builders[external_current_source.SOURCE_NAME] = (
+    if not generic_current_found:
+      source_builders[generic_current_source.SOURCE_NAME] = (
           source_lib.make_source_builder(
-              external_current_source.ExternalCurrentSource,
-              runtime_params_type=external_current_source.RuntimeParams,
+              generic_current_source.GenericCurrentSource,
+              runtime_params_type=generic_current_source.RuntimeParams,
           )()
       )
       source_builders[
-          external_current_source.SOURCE_NAME
+          generic_current_source.SOURCE_NAME
       ].runtime_params.mode = runtime_params_lib.Mode.ZERO
 
     self.source_builders = source_builders

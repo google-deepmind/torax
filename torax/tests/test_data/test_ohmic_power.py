@@ -45,7 +45,7 @@ CONFIG = {
         },
         'qei_source': {},
         'ohmic_heat_source': {},
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'constant',

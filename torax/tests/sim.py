@@ -147,10 +147,10 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests implementation of use_absolute_jext
+      # Tests implementation of use_absolute_current
       (
-          'test_absolute_jext',
-          'test_absolute_jext.py',
+          'test_absolute_generic_current_source',
+          'test_absolute_generic_current_source.py',
           _ALL_PROFILES,
           0,
       ),
@@ -192,10 +192,10 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests specifying a prescribed time-varying arbitrary jext profile
+      # Tests specifying a prescribed time-varying arbitrary current profile
       (
-          'test_prescribed_jext',
-          'test_prescribed_jext.py',
+          'test_prescribed_generic_current_source',
+          'test_prescribed_generic_current_source.py',
           _ALL_PROFILES,
           0,
       ),
@@ -558,10 +558,10 @@ class SimTest(sim_test_case.SimTestCase):
         output.S_FACE,
         output.J_BOOTSTRAP,
         output.JOHM,
-        output.CORE_PROFILES_JEXT,
+        output.CORE_PROFILES_GENERIC_CURRENT,
         output.JTOT,
         output.JTOT_FACE,
-        output.JEXT_FACE,
+        output.GENERIC_CURRENT_FACE,
         output.JOHM_FACE,
         output.J_BOOTSTRAP_FACE,
         output.I_BOOTSTRAP,
@@ -683,10 +683,10 @@ class SimTest(sim_test_case.SimTestCase):
         output.S_FACE,
         output.J_BOOTSTRAP,
         output.JOHM,
-        output.CORE_PROFILES_JEXT,
+        output.CORE_PROFILES_GENERIC_CURRENT,
         output.JTOT,
         output.JTOT_FACE,
-        output.JEXT_FACE,
+        output.GENERIC_CURRENT_FACE,
         output.JOHM_FACE,
         output.J_BOOTSTRAP_FACE,
         output.I_BOOTSTRAP,
@@ -764,11 +764,12 @@ def verify_core_profiles(ref_profiles, index, core_profiles):
       core_profiles.currents.jtot_face, ref_profiles[output.JTOT_FACE][index, :]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jext,
-      ref_profiles[output.CORE_PROFILES_JEXT][index, :],
+      core_profiles.currents.generic_current_source,
+      ref_profiles[output.CORE_PROFILES_GENERIC_CURRENT][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jext_face, ref_profiles[output.JEXT_FACE][index, :]
+      core_profiles.currents.generic_current_source_face,
+      ref_profiles[output.GENERIC_CURRENT_FACE][index, :],
   )
   np.testing.assert_allclose(
       core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]

@@ -51,7 +51,7 @@ CONFIG = {
         'j_bootstrap': {
             'bootstrap_mult': 1.0,
         },
-        'jext': {},
+        'generic_current_source': {},
         # Electron density sources/sink (for the ne equation).
         'generic_particle_source': {
             'S_tot': 0.3e22,

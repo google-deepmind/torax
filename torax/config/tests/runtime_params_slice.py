@@ -25,8 +25,8 @@ from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.sources import electron_density_sources
-from torax.sources import external_current_source
 from torax.sources import formula_config
+from torax.sources import generic_current_source
 from torax.sources import runtime_params as sources_params_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.tests.test_lib import default_sources
@@ -289,10 +289,8 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={
-            external_current_source.SOURCE_NAME: (
-                external_current_source.RuntimeParams(
-                    wext={0.0: 1.0, 1.0: -1.0}
-                )
+            generic_current_source.SOURCE_NAME: (
+                generic_current_source.RuntimeParams(wext={0.0: 1.0, 1.0: -1.0})
             ),
         },
         stepper=stepper_params_lib.RuntimeParams(),
@@ -302,16 +300,20 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     dcs = dcs_provider(
         t=0.0,
     )
-    jext = dcs.sources[external_current_source.SOURCE_NAME]
-    assert isinstance(jext, external_current_source.DynamicRuntimeParams)
-    np.testing.assert_allclose(jext.wext, 1.0)
+    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    assert isinstance(
+        generic_current, generic_current_source.DynamicRuntimeParams
+    )
+    np.testing.assert_allclose(generic_current.wext, 1.0)
     # Even 0 should be fine.
     dcs = dcs_provider(
         t=0.5,
     )
-    jext = dcs.sources[external_current_source.SOURCE_NAME]
-    assert isinstance(jext, external_current_source.DynamicRuntimeParams)
-    np.testing.assert_allclose(jext.wext, 0.0)
+    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    assert isinstance(
+        generic_current, generic_current_source.DynamicRuntimeParams
+    )
+    np.testing.assert_allclose(generic_current.wext, 0.0)
     # But negative values will cause an error.
     with self.assertRaises(RuntimeError):
       dcs_provider(
@@ -482,7 +484,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params[
-        external_current_source.SOURCE_NAME
+        generic_current_source.SOURCE_NAME
     ].Iext = 1.0
     geo = geometry.build_circular_geometry(n_rho=4)
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
@@ -498,7 +500,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
     # Update an interpolated variable.
     source_models_builder.runtime_params[
-        external_current_source.SOURCE_NAME
+        generic_current_source.SOURCE_NAME
     ].Iext = 2.0
 
     # Check pre-update that nothing has changed.
@@ -507,9 +509,11 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     for key in source_models_builder.runtime_params.keys():
       self.assertIn(key, dcs.sources)
-    jext_source = dcs.sources[external_current_source.SOURCE_NAME]
-    assert isinstance(jext_source, external_current_source.DynamicRuntimeParams)
-    self.assertEqual(jext_source.Iext, 1.0)
+    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    assert isinstance(
+        generic_current, generic_current_source.DynamicRuntimeParams
+    )
+    self.assertEqual(generic_current.Iext, 1.0)
 
     # Update any interpolated variables and check that the change is reflected.
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
@@ -522,9 +526,11 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     for key in source_models_builder.runtime_params.keys():
       self.assertIn(key, dcs.sources)
-    jext_source = dcs.sources[external_current_source.SOURCE_NAME]
-    assert isinstance(jext_source, external_current_source.DynamicRuntimeParams)
-    self.assertEqual(jext_source.Iext, 2.0)
+    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    assert isinstance(
+        generic_current, generic_current_source.DynamicRuntimeParams
+    )
+    self.assertEqual(generic_current.Iext, 2.0)
 
   def test_update_dynamic_slice_provider_updates_transport(
       self,

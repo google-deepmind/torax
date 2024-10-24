@@ -19,14 +19,14 @@ Constant transport coefficient model, circular geometry.
 import numpy as np
 
 
-# Define the jext profile
+# Define the generic_current_source profile
 def gaussian(r, center, width, amplitude):
   return amplitude * np.exp(-((r - center) ** 2) / (2 * width**2))
 
 
 times = np.array([0, 2.5])
 gauss_r = np.linspace(0, 1, 32)
-jext_profiles = np.array([
+generic_current_source_profiles = np.array([
     gaussian(gauss_r, center=0.35, width=0.05, amplitude=1e6),
     gaussian(gauss_r, center=0.15, width=0.1, amplitude=1e6),
 ])
@@ -55,9 +55,13 @@ CONFIG = {
     },
     'sources': {
         # Only drive the external current source
-        'jext': {
+        'generic_current_source': {
             'mode': 'PRESCRIBED',
-            'prescribed_values': (times, gauss_r, jext_profiles),
+            'prescribed_values': (
+                times,
+                gauss_r,
+                generic_current_source_profiles,
+            ),
         },
         # Disable density sources/sinks
         'generic_particle_source': {

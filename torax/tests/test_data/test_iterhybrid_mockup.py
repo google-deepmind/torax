@@ -85,7 +85,7 @@ CONFIG = {
             # original simu)
             'bootstrap_mult': 1.0,
         },
-        'jext': {
+        'generic_current_source': {
             # total "external" current fraction
             'fext': 0.46,
             # width of "external" Gaussian current profile (normalized radial

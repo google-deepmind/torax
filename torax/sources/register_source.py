@@ -42,8 +42,8 @@ from typing import Type
 from torax.sources import bootstrap_current_source
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import electron_density_sources
-from torax.sources import external_current_source
 from torax.sources import fusion_heat_source
+from torax.sources import generic_current_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
 from torax.sources import ohmic_heat_source
 from torax.sources import qei_source
@@ -114,9 +114,9 @@ def register_torax_sources():
       default_runtime_params_class=bootstrap_current_source.RuntimeParams,
   )
   register_new_source(
-      external_current_source.SOURCE_NAME,
-      external_current_source.ExternalCurrentSource,
-      default_runtime_params_class=external_current_source.RuntimeParams,
+      generic_current_source.SOURCE_NAME,
+      generic_current_source.GenericCurrentSource,
+      default_runtime_params_class=generic_current_source.RuntimeParams,
   )
   register_new_source(
       electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME,

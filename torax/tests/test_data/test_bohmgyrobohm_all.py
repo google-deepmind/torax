@@ -20,7 +20,7 @@
 - Circular geometry
 - Sources:
   - No bootstrap
-  - jext
+  - generic_current_source
   - generic particle source
   - gas puff
   - pellet
@@ -52,7 +52,7 @@ CONFIG = {
     },
     'sources': {
         # Current sources (for psi equation)
-        'jext': {},
+        'generic_current_source': {},
         'j_bootstrap': {},
         # Electron density sources/sink (for the ne equation).
         'generic_particle_source': {},

@@ -30,7 +30,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import Geometry  # pylint: disable=g-importing-member
-from torax.sources import external_current_source
+from torax.sources import generic_current_source
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -252,13 +252,13 @@ def _prescribe_currents_no_bootstrap(
   # Calculate splitting of currents depending on input runtime params.
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip
 
-  dynamic_jext_params = get_jext_params(
+  dynamic_generic_current_params = get_generic_current_params(
       dynamic_runtime_params_slice, source_models
   )
-  if dynamic_jext_params.use_absolute_jext:
-    Iext = dynamic_jext_params.Iext
+  if dynamic_generic_current_params.use_absolute_current:
+    Iext = dynamic_generic_current_params.Iext
   else:
-    Iext = Ip * dynamic_jext_params.fext
+    Iext = Ip * dynamic_generic_current_params.fext
   # Total Ohmic current
   Iohm = Ip - Iext
 
@@ -269,12 +269,12 @@ def _prescribe_currents_no_bootstrap(
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_face = source_models.jext.get_value(
+  generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_jext_params,
+      dynamic_source_runtime_params=dynamic_generic_current_params,
       geo=geo,
   )
-  jext = geometry.face_to_cell(jext_face)
+  generic_current = geometry.face_to_cell(generic_current_face)
 
   # construct prescribed current formula on grid.
   jformula_face = (
@@ -285,22 +285,22 @@ def _prescribe_currents_no_bootstrap(
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
-    johm_face = jtot_face - jext_face
+    johm_face = jtot_face - generic_current_face
   else:
     Cohm = Iohm * 1e6 / denom
     johm_face = jformula_face * Cohm
-    jtot_face = johm_face + jext_face
+    jtot_face = johm_face + generic_current_face
 
   jtot = geometry.face_to_cell(jtot_face)
   johm = geometry.face_to_cell(johm_face)
 
   jtot_hires = _get_jtot_hires(
       dynamic_runtime_params_slice,
-      dynamic_jext_params,
+      dynamic_generic_current_params,
       geo,
       bootstrap_profile,
       Iohm,
-      source_models.jext,
+      source_models.generic_current_source,
   )
 
   currents = state.Currents(
@@ -309,8 +309,8 @@ def _prescribe_currents_no_bootstrap(
       jtot_hires=jtot_hires,
       johm=johm,
       johm_face=johm_face,
-      jext=jext,
-      jext_face=jext_face,
+      generic_current_source=generic_current,
+      generic_current_source_face=generic_current_face,
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
@@ -371,23 +371,23 @@ def _prescribe_currents_with_bootstrap(
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
   # Calculate splitting of currents depending on input runtime params
-  dynamic_jext_params = get_jext_params(
+  dynamic_generic_current_params = get_generic_current_params(
       dynamic_runtime_params_slice, source_models
   )
-  if dynamic_jext_params.use_absolute_jext:
-    Iext = dynamic_jext_params.Iext
+  if dynamic_generic_current_params.use_absolute_current:
+    Iext = dynamic_generic_current_params.Iext
   else:
-    Iext = Ip * dynamic_jext_params.fext
+    Iext = Ip * dynamic_generic_current_params.fext
   Iohm = Ip - Iext - f_bootstrap * Ip
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_face = source_models.jext.get_value(
+  generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_jext_params,
+      dynamic_source_runtime_params=dynamic_generic_current_params,
       geo=geo,
   )
-  jext = geometry.face_to_cell(jext_face)
+  generic_current = geometry.face_to_cell(generic_current_face)
 
   # construct prescribed current formula on grid.
   jformula_face = (
@@ -398,22 +398,26 @@ def _prescribe_currents_with_bootstrap(
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
-    johm_face = jtot_face - jext_face - bootstrap_profile.j_bootstrap_face
+    johm_face = (
+        jtot_face - generic_current_face - bootstrap_profile.j_bootstrap_face
+    )
   else:
     Cohm = Iohm * 1e6 / denom
     johm_face = jformula_face * Cohm
-    jtot_face = johm_face + jext_face + bootstrap_profile.j_bootstrap_face
+    jtot_face = (
+        johm_face + generic_current_face + bootstrap_profile.j_bootstrap_face
+    )
 
   jtot = geometry.face_to_cell(jtot_face)
   johm = geometry.face_to_cell(johm_face)
 
   jtot_hires = _get_jtot_hires(
       dynamic_runtime_params_slice,
-      dynamic_jext_params,
+      dynamic_generic_current_params,
       geo,
       bootstrap_profile,
       Iohm,
-      source_models.jext,
+      source_models.generic_current_source,
   )
 
   currents = state.Currents(
@@ -422,8 +426,8 @@ def _prescribe_currents_with_bootstrap(
       jtot_hires=jtot_hires,
       johm=johm,
       johm_face=johm_face,
-      jext=jext,
-      jext_face=jext_face,
+      generic_current_source=generic_current,
+      generic_current_source_face=generic_current_face,
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
@@ -485,25 +489,27 @@ def _calculate_currents_from_psi(
   )
 
   # Calculate splitting of currents depending on input runtime params.
-  dynamic_jext_params = get_jext_params(
+  dynamic_generic_current_params = get_generic_current_params(
       dynamic_runtime_params_slice, source_models
   )
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  jext_face = source_models.jext.get_value(
+  generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_jext_params,
+      dynamic_source_runtime_params=dynamic_generic_current_params,
       geo=geo,
   )
-  jext = geometry.face_to_cell(jext_face)
+  generic_current = geometry.face_to_cell(generic_current_face)
 
   # TODO(b/336995925): TORAX currently only uses the external current source,
-  # jext, when computing the jtot initial currents from psi. Really, though, we
+  # generic_current, when computing the jtot initial currents from psi.
   # should be summing over all sources that can contribute current i.e. ECCD,
   # ICRH, NBI, LHCD.
-  johm = jtot - jext - bootstrap_profile.j_bootstrap
-  johm_face = jtot_face - jext_face - bootstrap_profile.j_bootstrap_face
+  johm = jtot - generic_current - bootstrap_profile.j_bootstrap
+  johm_face = (
+      jtot_face - generic_current_face - bootstrap_profile.j_bootstrap_face
+  )
 
   currents = state.Currents(
       jtot=jtot,
@@ -511,8 +517,8 @@ def _calculate_currents_from_psi(
       jtot_hires=None,
       johm=johm,
       johm_face=johm_face,
-      jext=jext,
-      jext_face=jext_face,
+      generic_current_source=generic_current,
+      generic_current_source_face=generic_current_face,
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
@@ -990,11 +996,11 @@ def compute_boundary_conditions(
 # pylint: disable=invalid-name
 def _get_jtot_hires(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_jext_params: external_current_source.DynamicRuntimeParams,
+    dynamic_generic_current_params: generic_current_source.DynamicRuntimeParams,
     geo: Geometry,
     bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
     Iohm: jax.Array | float,
-    jext_source: external_current_source.ExternalCurrentSource,
+    generic_current: generic_current_source.GenericCurrentSource,
 ) -> jax.Array:
   """Calculates jtot hires."""
   j_bootstrap_hires = jnp.interp(
@@ -1002,9 +1008,9 @@ def _get_jtot_hires(
   )
 
   # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
-  jext_hires = jext_source.jext_hires(
+  generic_current_hires = generic_current.generic_current_source_hires(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_jext_params,
+      dynamic_source_runtime_params=dynamic_generic_current_params,
       geo=geo,
   )
 
@@ -1021,28 +1027,32 @@ def _get_jtot_hires(
   else:
     Cohm_hires = Iohm * 1e6 / denom
     johm_hires = jformula_hires * Cohm_hires
-    jtot_hires = johm_hires + jext_hires + j_bootstrap_hires
+    jtot_hires = johm_hires + generic_current_hires + j_bootstrap_hires
   return jtot_hires
 
 
-def get_jext_params(
+def get_generic_current_params(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     source_models: source_models_lib.SourceModels,
-) -> external_current_source.DynamicRuntimeParams:
+) -> generic_current_source.DynamicRuntimeParams:
   """Returns dynamic runtime params for the external current source."""
-  assert source_models.jext_name in dynamic_runtime_params_slice.sources, (
-      f'{source_models.jext_name} not found in'
+  assert (
+      source_models.generic_current_source_name
+      in dynamic_runtime_params_slice.sources
+  ), (
+      f'{source_models.generic_current_source_name} not found in'
       ' dynamic_runtime_params_slice.sources. Check to make sure the'
       ' DynamicRuntimeParamsSlice was built with `sources` that include the'
       ' external current source.'
   )
-  dynamic_jext_params = dynamic_runtime_params_slice.sources[
-      source_models.jext_name
+  dynamic_generic_current_params = dynamic_runtime_params_slice.sources[
+      source_models.generic_current_source_name
   ]
   assert isinstance(
-      dynamic_jext_params, external_current_source.DynamicRuntimeParams
+      dynamic_generic_current_params,
+      generic_current_source.DynamicRuntimeParams,
   )
-  return dynamic_jext_params
+  return dynamic_generic_current_params
 
 
 # pylint: enable=invalid-name

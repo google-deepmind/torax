@@ -291,7 +291,7 @@ class BuildSimTest(parameterized.TestCase):
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models_builder.runtime_params['jext'].mode,
+        source_models_builder.runtime_params['generic_current_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
@@ -319,7 +319,7 @@ class BuildSimTest(parameterized.TestCase):
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models_builder.runtime_params['jext'].mode,
+        source_models_builder.runtime_params['generic_current_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(

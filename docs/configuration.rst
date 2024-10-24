@@ -727,13 +727,13 @@ preamble to the CONFIG dict within config module, set:
 .. code-block:: python
 
     'sources': {
-        'jext': {
+        'generic_current_source': {
             'mode': 'PRESCRIBED',
-            'prescribed_values': (times, rhon, jext_profiles),
+            'prescribed_values': (times, rhon, current_profiles),
         },
 
 where the example ``times`` is a 1D numpy array of times, ``rhon`` is a 1D numpy array of normalized toroidal flux
-coordinates, and ``jext_profiles`` is a 2D numpy array of the jext profile at each time. These names are arbitrary,
+coordinates, and ``current_profiles`` is a 2D numpy array of the current profile at each time. These names are arbitrary,
 and can be set to anything convenient.
 
 
@@ -877,8 +877,8 @@ Bootstrap current calculated with the Sauter model.
 ``bootstrap_mult`` (float = 1.0)
   Multiplication factor for bootstrap current for testing purposes.
 
-j_ext
-^^^^^
+generic_current_source
+^^^^^^^^^^^^^^^^^^^^^^
 
 Generic external current profile, parameterized as a Gaussian (e.g. ECCD).
 
@@ -894,13 +894,13 @@ Generic external current profile, parameterized as a Gaussian (e.g. ECCD).
   Gaussian width of current profile in units of :math:`\hat{\rho}`.
 
 ``Iext`` (float = 3.0), **time-varying-scalar**
-  Total current in MA. Only used if ``use_absolute_jext==True``.
+  Total current in MA. Only used if ``use_absolute_current==True``.
 
 ``fext`` (float = 0.2), **time-varying-scalar**
   Sets total ``j_ext`` to be a fraction ``fext`` of the total plasma current.
-  Only used if ``use_absolute_jext==False``.
+  Only used if ``use_absolute_current==False``.
 
-``use_absolute_jext`` (bool = False)
+``use_absolute_current`` (bool = False)
   Toggles relative vs absolute external current setting.
 
 bremsstrahlung_heat_sink
@@ -1131,7 +1131,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       },
       'sources': {
           'j_bootstrap': {},
-          'jext': {
+          'generic_current_source': {
               'fext': 0.15,
               'wext': 0.075,
               'rext': 0.36,
