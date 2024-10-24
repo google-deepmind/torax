@@ -53,9 +53,29 @@ def _build_standard_geometry_provider(
   if geometry_type == 'chease':
     intermediate_builder = geometry.StandardGeometryIntermediates.from_chease
   elif geometry_type == 'fbt':
-    intermediate_builder = (
-        geometry.StandardGeometryIntermediates.from_fbt_single_slice
-    )
+    # Check if parameters indicate a bundled FBT file and input validity.
+    if 'LY_bundle_file' in kwargs:
+      if 'geometry_configs' in kwargs:
+        raise ValueError(
+            "Cannot use 'geometry_configs' together with a bundled FBT file"
+        )
+      if 'LY_file' in kwargs:
+        raise ValueError(
+            "Cannot use 'LY_file' together with a bundled FBT file"
+        )
+      # Build and return the GeometryProvider for the bundled case.
+      intermediates = geometry.StandardGeometryIntermediates.from_fbt_bundle(
+          **kwargs,
+      )
+      geometries = {
+          t: geometry.build_standard_geometry(intermediates[t])
+          for t in intermediates
+      }
+      return geometry.StandardGeometryProvider.create_provider(geometries)
+    else:
+      intermediate_builder = (
+          geometry.StandardGeometryIntermediates.from_fbt_single_slice
+      )
   else:
     raise ValueError(f'Unknown geometry type: {geometry_type}')
   if 'geometry_configs' in kwargs:

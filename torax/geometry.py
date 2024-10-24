@@ -875,6 +875,113 @@ class StandardGeometryIntermediates:
     return cls._from_fbt(LY, L, Ip_from_parameters, n_rho, hires_fac)
 
   @classmethod
+  def from_fbt_bundle(
+      cls,
+      geometry_dir: str | None,
+      LY_bundle_file: str,
+      L_file: str,
+      LY_to_torax_times: np.ndarray | None,
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+      hires_fac: int = 4,
+  ) -> dict[float, StandardGeometryIntermediates]:
+    """Returns StandardGeometryIntermediates from a bundled FBT LY file.
+
+    LY_bundle_file is an FBT data file containing a bundle of LY geometry
+    slices at different times, packaged within a single file (as opposed to
+    a sequence of standalone LY files). LY_to_torax_times is a 1D array of
+    times, defining the times in the TORAX simulation corresponding to each
+    slice in the LY bundle. All times in the LY bundle must be mapped to
+    times in TORAX.
+
+    Args:
+      geometry_dir: Directory where to find the FBT file describing the magnetic
+        geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
+        available. If that variable is not set and geometry_dir is not provided,
+        then it defaults to another dir. See `load_geo_data` implementation.
+      LY_bundle_file: File name for bundled LY data, e.g. as produced by liuqe
+        meqlpack.
+      L_file: File name for L data. Assumed to be the same L data for all LY
+        slices in the bundle.
+      LY_to_torax_times: User-provided times which map the times of the LY
+        geometry slices to TORAX simulation times. A ValueError is raised if the
+        number of array elements doesn't match the length of the LY_bundle array
+        data. If None, then the times are taken from the LY_bundle_file itself.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled.
+      n_rho: Grid resolution used for all TORAX cell variables.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+
+    Returns:
+      A mapping from user-provided (or inferred) times to
+      StandardGeometryIntermediates instances based on the input slices. This
+      can then be used to build a StandardGeometryProvider.
+    """
+
+    LY_bundle = geometry_loader.load_geo_data(
+        geometry_dir, LY_bundle_file, geometry_loader.GeometrySource.FBT
+    )['LY']
+
+    # Load the L file associated with the LY bundle.
+    L = geometry_loader.load_geo_data(
+        geometry_dir, L_file, geometry_loader.GeometrySource.FBT
+    )
+
+    if LY_to_torax_times is None:
+      LY_to_torax_times = LY_bundle['t'].item()  # ndarray of times
+    else:
+      if len(LY_to_torax_times) != len(LY_bundle['t'].item()):
+        raise ValueError(
+            f"""
+            Length of LY_to_torax_times must match length of LY bundle data:
+            len(LY_to_torax_times)={len(LY_to_torax_times)},
+            len(LY_bundle['t'].item())={len(LY_bundle['t'].item())}
+            """
+        )
+
+    intermediates = {}
+    for idx, t in enumerate(LY_to_torax_times):
+      data_slice = cls._get_LY_single_slice_from_bundle(LY_bundle, idx)
+      intermediates[t] = cls._from_fbt(
+          data_slice, L, Ip_from_parameters, n_rho, hires_fac
+      )
+
+    return intermediates
+
+  @classmethod
+  def _get_LY_single_slice_from_bundle(
+      cls,
+      LY_bundle: np.ndarray,
+      idx: int,
+  ) -> dict[str, np.ndarray]:
+    """Returns a single LY slice from a bundled LY file, at index idx."""
+
+    # The keys below are the relevant LY keys for the FBT geometry provider.
+    relevant_keys = [
+        'rBt',
+        'aminor',
+        'rgeom',
+        'TQ',
+        'FB',
+        'FA',
+        'Q1Q',
+        'Q2Q',
+        'Q3Q',
+        'Q4Q',
+        'Q5Q',
+        'ItQ',
+        'deltau',
+        'deltal',
+        'FtPQ',
+    ]
+    # The item() is needed due to the particular structure of the LY bundle.
+    LY_single_slice = {
+        key: LY_bundle[key].item()[..., idx] for key in relevant_keys
+    }
+    return LY_single_slice
+
+  @classmethod
   def _from_fbt(
       cls,
       LY: dict[str, np.ndarray],

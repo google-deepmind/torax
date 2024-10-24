@@ -409,7 +409,15 @@ geometry
   The geometry directory is set with the ``TORAX_GEOMETRY_DIR`` environment variable. If none is set, then the default is ``torax/data/third_party/geo``.
 
 ``LY_file`` (str = None)
-  Only used for ``geometry_type='fbt'``. Sets the FBT LY geometry file loaded.
+  Only used for ``geometry_type='fbt'``. Sets a single-slice FBT LY geometry file to be loaded.
+
+``LY_bundle_file`` (str = None)
+  Only used for ``geometry_type='fbt'``. Sets the FBT LY bundle file to be loaded, corresponding to multiple time-slices.
+
+``LY_to_torax_times`` (ndarray = None)
+  Only used for ``geometry_type='fbt'``. Sets the TORAX simulation times corresponding to the individual slices in the
+  FBT LY bundle file. If not provided, then the times are taken from the LY_bundle_file itself. The length of the array
+  must match the number of slices in the bundle.
 
 ``L_file`` (str = None)
   Only used for ``geometry_type='fbt'``. Sets the FBT L geometry file loaded.
@@ -422,13 +430,13 @@ geometry
   or from the geometry file. If True, then the :math:`\psi` calculated from the geometry file is scaled to match the desired :math:`I_p`.
 
 ``Rmaj`` (float = 6.2)
-  Major radius (R) in meters.
+  Major radius (R) in meters. Not used for ``geometry_type='fbt'``, where Rmaj is taken from the FBT geometry file.
 
 ``Rmin`` (float = 2.0)
-  Minor radius (a) in meters.
+  Minor radius (a) in meters. Not used for ``geometry_type='fbt'``, where Rmin is taken from the FBT geometry file.
 
 ``B0`` (float = 5.3)
-  Toroidal magnetic field on axis [T].
+  Vacuum toroidal magnetic field on axis [T].  Not used for ``geometry_type='fbt'``, where B0 is taken from the FBT geometry file.
 
 ``kappa`` (float = 1.72)
   Only used for ``geometry_type='circular'``. Sets the plasma elongation used for volume, area and q-profile corrections.
@@ -438,9 +446,9 @@ geometry
   with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
 
 For setting up time-dependent geometry, a subset of varying geometry parameters
-and input files are defined in a ``geometry_configs`` dict, which is a
+and input files can be defined in a ``geometry_configs`` dict, which is a
 time-series of {time: {configs}} pairs. For example, a time-dependent geometry
-input with 3 time-slices of FBT geometries can be set up as:
+input with 3 time-slices of single-time-slice FBT geometries can be set up as:
 
 .. code-block:: python
 
@@ -451,26 +459,29 @@ input with 3 time-slices of FBT geometries can be set up as:
           20.0: {
               'LY_file': 'LY_early_rampup.mat',
               'L_file': 'L_early_rampup.mat',
-              'Rmaj': 6.2,
-              'Rmin': 2.0,
-              'B0': 5,3,
           },
           50.0: {
               'LY_file': 'LY_mid_rampup.mat',
               'L_file': 'L_mid_rampup.mat',
-              'Rmaj': 6.2,
-              'Rmin': 2.0,
-              'B0': 5,3,
           },
           100.0: {
               'LY_file': 'LY_endof_rampup.mat',
               'L_file': 'L_endof_rampup.mat',
-              'Rmaj': 6.2,
-              'Rmin': 2.0,
-              'B0': 5,3,
           },
       },
   },
+
+Alternatively, for FBT data specifically, TORAX supports loading a bundle of LY
+files packaged within a single ``.mat`` file using LIUQE meqlpack. This eliminates
+the need to specify multiple individual LY files in the ``geometry_configs`` parameter.
+
+To use this feature, set ``LY_bundle_file`` to the corresponding ``.mat`` file containing
+the LY bundle. Optionally set ``LY_to_torax_times`` as a NumPy array corresponding to times
+of the individual LY slices within the bundle. If not provided, then the times are taken
+from the bundle file itself.
+
+Note that ``LY_bundle_file`` cannot coexist with ``LY_file`` or ``geometry_configs`` in the
+same configuration, and will raise an error if so.
 
 All file loading and geometry processing is done upon simulation initialization.
 The geometry inputs into the TORAX PDE coefficients are then time-interpolated
