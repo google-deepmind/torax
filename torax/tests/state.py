@@ -357,7 +357,6 @@ class InitialStatesTest(parameterized.TestCase):
         temp_el=core_profiles3.temp_el,
         ne=core_profiles3.ne,
         ni=core_profiles3.ni,
-        jtot_face=core_profiles3_helper.currents.jtot_face,
         psi=core_profiles3_helper.psi,
     )
     f_bootstrap = bootstrap_profile.I_bootstrap / (

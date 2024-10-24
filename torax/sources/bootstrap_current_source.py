@@ -114,7 +114,6 @@ class BootstrapCurrentSource(source.Source):
       temp_el: cell_variable.CellVariable | None = None,
       ne: cell_variable.CellVariable | None = None,
       ni: cell_variable.CellVariable | None = None,
-      jtot_face: jax.Array | None = None,
       psi: cell_variable.CellVariable | None = None,
   ) -> source_profiles.BootstrapCurrentProfile:
     # Make sure the input mode requested is supported.
@@ -131,7 +130,6 @@ class BootstrapCurrentSource(source.Source):
         not temp_el,
         ne is None,
         ni is None,
-        jtot_face is None,
         not psi,
     ]):
       raise ValueError(

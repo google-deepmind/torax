@@ -328,7 +328,6 @@ def _prescribe_currents_with_bootstrap(
     temp_el: cell_variable.CellVariable,
     ne: cell_variable.CellVariable,
     ni: cell_variable.CellVariable,
-    jtot_face: jax.Array,
     psi: cell_variable.CellVariable,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
@@ -341,7 +340,6 @@ def _prescribe_currents_with_bootstrap(
     temp_el: Electron temperature.
     ne: Electron density.
     ni: Main ion density.
-    jtot_face: Total current density on face grid.
     psi: Poloidal flux.
     source_models: All TORAX source/sink functions. If not provided, uses the
       default sources.
@@ -365,7 +363,6 @@ def _prescribe_currents_with_bootstrap(
       temp_el=temp_el,
       ne=ne,
       ni=ni,
-      jtot_face=jtot_face,
       psi=psi,
   )
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
@@ -484,7 +481,6 @@ def _calculate_currents_from_psi(
       temp_el=temp_el,
       ne=ne,
       ni=ni,
-      jtot_face=jtot_face,
       psi=psi,
   )
 
@@ -675,7 +671,6 @@ def _initial_psi(
         temp_el=temp_el,
         ne=ne,
         ni=ni,
-        jtot_face=currents_no_bootstrap.jtot_face,
         psi=psi_no_bootstrap,
         source_models=source_models,
     )
