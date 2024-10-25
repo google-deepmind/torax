@@ -303,6 +303,13 @@ def _calc_coeffs_full(
       explicit_source_profiles.j_bootstrap.j_bootstrap,
       implicit_source_profiles.j_bootstrap.j_bootstrap,
   )
+  j_bootstrap_face = jax_utils.select(
+      dynamic_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ].is_explicit,
+      explicit_source_profiles.j_bootstrap.j_bootstrap_face,
+      implicit_source_profiles.j_bootstrap.j_bootstrap_face,
+  )
   I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
       dynamic_runtime_params_slice.sources[
           source_models.j_bootstrap_name
@@ -328,12 +335,9 @@ def _calc_coeffs_full(
   currents = dataclasses.replace(
       core_profiles.currents,
       j_bootstrap=j_bootstrap,
+      j_bootstrap_face=j_bootstrap_face,
       generic_current_source=generic_current,
-      johm=(
-          core_profiles.currents.jtot
-          - j_bootstrap
-          - generic_current
-      ),
+      johm=(core_profiles.currents.jtot - j_bootstrap - generic_current),
       I_bootstrap=I_bootstrap,
       sigma=sigma,
   )

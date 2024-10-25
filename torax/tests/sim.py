@@ -557,6 +557,7 @@ class SimTest(sim_test_case.SimTestCase):
         output.Q_FACE,
         output.S_FACE,
         output.J_BOOTSTRAP,
+        output.J_BOOTSTRAP_FACE,
         output.JOHM,
         output.CORE_PROFILES_GENERIC_CURRENT,
         output.JTOT,
@@ -684,6 +685,7 @@ class SimTest(sim_test_case.SimTestCase):
         output.JTOT,
         output.JTOT_FACE,
         output.I_BOOTSTRAP,
+        output.J_BOOTSTRAP_FACE,
         output.SIGMA,
     ]
     ref_profiles, ref_times = self._get_refs(
@@ -752,6 +754,10 @@ def verify_core_profiles(ref_profiles, index, core_profiles):
   )
   np.testing.assert_allclose(
       core_profiles.currents.jtot_face, ref_profiles[output.JTOT_FACE][index, :]
+  )
+  np.testing.assert_allclose(
+      core_profiles.currents.j_bootstrap_face,
+      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
   )
   np.testing.assert_allclose(
       core_profiles.currents.generic_current_source,

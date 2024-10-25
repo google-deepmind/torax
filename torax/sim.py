@@ -1273,8 +1273,8 @@ def _update_spectator(
       data=output_state.core_profiles.temp_el.value,
   )
   spectator.observe(
-      key='j_bootstrap',
-      data=output_state.core_profiles.currents.j_bootstrap,
+      key='j_bootstrap_face',
+      data=output_state.core_profiles.currents.j_bootstrap_face,
   )
   spectator.observe(
       key='johm',
@@ -1285,8 +1285,8 @@ def _update_spectator(
       data=output_state.core_profiles.currents.generic_current_source,
   )
   spectator.observe(
-      key='jtot',
-      data=output_state.core_profiles.currents.jtot,
+      key='jtot_face',
+      data=output_state.core_profiles.currents.jtot_face,
   )
   spectator.observe(
       key='chi_face_ion', data=output_state.core_transport.chi_face_ion
@@ -1464,6 +1464,7 @@ def update_current_distribution(
   currents = dataclasses.replace(
       core_profiles.currents,
       j_bootstrap=bootstrap_profile.j_bootstrap,
+      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
       johm=johm,
       generic_current_source=generic_current,

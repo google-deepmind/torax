@@ -71,6 +71,7 @@ JOHM = "johm"
 # core_sources.generic_current.
 CORE_PROFILES_GENERIC_CURRENT = "core_profiles_generic_current_source"
 J_BOOTSTRAP = "j_bootstrap"
+J_BOOTSTRAP_FACE = "j_bootstrap_face"
 I_BOOTSTRAP = "I_bootstrap"
 SIGMA = "sigma"
 Q_FACE = "q_face"
@@ -222,6 +223,7 @@ class StateHistory:
     )
 
     xr_dict[J_BOOTSTRAP] = self.core_profiles.currents.j_bootstrap
+    xr_dict[J_BOOTSTRAP_FACE] = self.core_profiles.currents.j_bootstrap_face
     xr_dict[IP] = self.core_profiles.currents.Ip
     xr_dict[I_BOOTSTRAP] = self.core_profiles.currents.I_bootstrap
     xr_dict[SIGMA] = self.core_profiles.currents.sigma
