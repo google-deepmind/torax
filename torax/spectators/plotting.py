@@ -268,9 +268,9 @@ def get_default_plot_config(
       'Qfus_e': lambda arr: arr / 1e3,
       'Qei': lambda arr: arr / 1e3,
       'jtot_face': lambda arr: arr / 1e6,
-      'generic_current_source_face': lambda arr: arr / 1e6,
-      'j_bootstrap_face': lambda arr: arr / 1e6,
-      'johm_face': lambda arr: arr / 1e6,
+      'generic_current_source': lambda arr: arr / 1e6,
+      'j_bootstrap': lambda arr: arr / 1e6,
+      'johm': lambda arr: arr / 1e6,
   }
 
   def get_plot(
@@ -352,12 +352,12 @@ def get_default_plot_config(
       ),
       get_plot(
           keys=(
-              'jtot_face',
-              'generic_current_source_face',
-              'j_bootstrap_face',
-              'johm_face',
+              'jtot',
+              'generic_current_source',
+              'j_bootstrap',
+              'johm',
           ),
-          x_axis=geo.rho_face_norm,
+          x_axis=geo.rho_norm,
           x_label='Normalized radius',
           y_label=r'Current $[MA~m^{-2}]$',
           labels=(

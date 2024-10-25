@@ -561,9 +561,6 @@ class SimTest(sim_test_case.SimTestCase):
         output.CORE_PROFILES_GENERIC_CURRENT,
         output.JTOT,
         output.JTOT_FACE,
-        output.GENERIC_CURRENT_FACE,
-        output.JOHM_FACE,
-        output.J_BOOTSTRAP_FACE,
         output.I_BOOTSTRAP,
         output.SIGMA,
     ]
@@ -686,9 +683,6 @@ class SimTest(sim_test_case.SimTestCase):
         output.CORE_PROFILES_GENERIC_CURRENT,
         output.JTOT,
         output.JTOT_FACE,
-        output.GENERIC_CURRENT_FACE,
-        output.JOHM_FACE,
-        output.J_BOOTSTRAP_FACE,
         output.I_BOOTSTRAP,
         output.SIGMA,
     ]
@@ -754,10 +748,6 @@ def verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.J_BOOTSTRAP][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap_face,
-      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
-  )
-  np.testing.assert_allclose(
       core_profiles.currents.jtot, ref_profiles[output.JTOT][index, :]
   )
   np.testing.assert_allclose(
@@ -768,14 +758,7 @@ def verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.CORE_PROFILES_GENERIC_CURRENT][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.generic_current_source_face,
-      ref_profiles[output.GENERIC_CURRENT_FACE][index, :],
-  )
-  np.testing.assert_allclose(
       core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.johm_face, ref_profiles[output.JOHM_FACE][index, :]
   )
   np.testing.assert_allclose(
       core_profiles.currents.I_bootstrap,

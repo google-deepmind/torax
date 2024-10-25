@@ -371,21 +371,21 @@ class InitialStatesTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        core_profiles1.currents.generic_current_source_face
-        + core_profiles1.currents.johm_face,
-        jtot_formula_face,
+        core_profiles1.currents.generic_current_source
+        + core_profiles1.currents.johm,
+        geometry.face_to_cell(jtot_formula_face),
         rtol=1e-12,
         atol=1e-12,
     )
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        core_profiles1.currents.johm_face,
-        johm_formula_face,
+        core_profiles1.currents.johm,
+        geometry.face_to_cell(johm_formula_face),
     )
     np.testing.assert_allclose(
-        core_profiles2.currents.johm_face,
-        johm_formula_face,
+        core_profiles2.currents.johm,
+        geometry.face_to_cell(johm_formula_face),
         rtol=1e-12,
         atol=1e-12,
     )
@@ -396,8 +396,8 @@ class InitialStatesTest(parameterized.TestCase):
         jtot_formula_face,
     )
     np.testing.assert_allclose(
-        core_profiles3.currents.johm_face,
-        jtot_formula_face * (1 - f_bootstrap),
+        core_profiles3.currents.johm,
+        geometry.face_to_cell(jtot_formula_face) * (1 - f_bootstrap),
         rtol=1e-12,
         atol=1e-12,
     )

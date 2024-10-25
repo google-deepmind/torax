@@ -126,20 +126,11 @@ core_profiles
 ``j_bootstrap`` (time, rho_cell)
   Bootstrap current density on cell grid, in :math:`[A/m^2]`
 
-``j_bootstrap_face`` (time, rho_face)
-  Bootstrap current density on face grid, in :math:`[A/m^2]`
-
 ``generic_current_source`` (time, rho_cell)
   External non-inductive current density on cell grid, as defined by the generic ``generic_current_source`` source, in :math:`[A/m^2]`.
 
-``generic_current_source_face`` (time, rho_face)
-  External non-inductive current density on face grid as defined by the generic ``generic_current_source`` source, in :math:`[A/m^2]`.
-
 ``johm`` (time, rho_cell)
   Ohmic current density on cell grid in :math:`[A/m^2]`.
-
-``johm_face`` (time, rho_face)
-  Ohmic current density on face grid in :math:`[A/m^2]`.
 
 ``jtot`` (time, rho_cell)
   Total current density on cell grid in :math:`[A/m^2]`.
