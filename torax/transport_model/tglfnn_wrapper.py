@@ -14,6 +14,7 @@ def prepare_tglfnn_inputs(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     q_correction_factor: chex.Numeric,
+    kappa: chex.Numeric,
     nref: chex.Numeric,
 ) -> TGLFInputs:
     # Temperatures
