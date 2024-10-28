@@ -285,6 +285,15 @@ class StateHistory:
         xr_dict[f"{profile}_el"] = self.core_sources.profiles[profile][
             :, 1, ...
         ]
+      # TODO(b/376010694): better automation of splitting profiles into
+      # separate variables.
+      elif profile == "electron_cyclotron_source":
+        xr_dict[f"{profile}_el"] = self.core_sources.profiles[profile][
+            :, 0, ...
+        ]
+        xr_dict[f"{profile}_j"] = self.core_sources.profiles[profile][
+            :, 1, ...
+        ]
       else:
         xr_dict[profile] = self.core_sources.profiles[profile]
 

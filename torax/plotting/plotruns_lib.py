@@ -93,6 +93,7 @@ class PlotData:
   j: np.ndarray  # [MA/m^2]
   johm: np.ndarray  # [MA/m^2]
   j_bootstrap: np.ndarray  # [MA/m^2]
+  j_ecrh: np.ndarray  # [MA/m^2]
   generic_current_source: np.ndarray  # [MA/m^2]
   q: np.ndarray  # Dimensionless
   s: np.ndarray  # Dimensionless
@@ -116,6 +117,8 @@ class PlotData:
   s_pellet: np.ndarray  # [10^20 m^-3 s^-1]
   i_total: np.ndarray  # [MA]
   i_bootstrap: np.ndarray  # [MA]
+  i_generic: np.ndarray  # [MA]
+  i_ecrh: np.ndarray  # [MA]
   p_auxiliary: np.ndarray  # [MW]
   p_ohmic: np.ndarray  # [MW]
   p_alpha: np.ndarray  # [MW]
@@ -165,13 +168,14 @@ def load_data(filename: str) -> PlotData:
         output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
         output.CORE_PROFILES_GENERIC_CURRENT: 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
+        'electron_cyclotron_source_j': 1e6,  # A/m^2 to MA/m^2
         'icrh_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'icrh_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'nbi_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'nbi_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'generic_ion_el_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'generic_ion_el_heat_source_el': 1e6,  # W/m^3 to MW/m^3
-        'ecrh_heat_source': 1e6,  # W/m^3 to MW/m^3
+        'electron_cyclotron_source_el': 1e6,  # W/m^3 to MW/m^3
         'fusion_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'fusion_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'ohmic_heat_source': 1e6,  # W/m^3 to MW/m^3
@@ -181,6 +185,9 @@ def load_data(filename: str) -> PlotData:
         'P_external_tot': 1e6,  # W to MW
         'P_alpha_tot': 1e6,  # W to MW
         'P_brems': 1e6,  # W to MW
+        'P_ecrh': 1e6,  # W to MW
+        'I_ecrh': 1e6,  # A to MA
+        'I_generic': 1e6,  # A to MA
     }
 
     for var_name, scale in transformations.items():
@@ -201,6 +208,7 @@ def load_data(filename: str) -> PlotData:
       generic_current_source=ds[
           output.CORE_PROFILES_GENERIC_CURRENT
       ].to_numpy(),
+      j_ecrh=get_optional_data(ds, 'electron_cyclotron_source_j', 'cell'),
       q=ds[output.Q_FACE].to_numpy(),
       s=ds[output.S_FACE].to_numpy(),
       chi_i=ds[output.CHI_FACE_ION].to_numpy(),
@@ -213,7 +221,7 @@ def load_data(filename: str) -> PlotData:
       q_icrh_e=get_optional_data(ds, 'icrh_heat_source_el', 'cell'),
       q_gen_i=get_optional_data(ds, 'generic_ion_el_heat_source_ion', 'cell'),
       q_gen_e=get_optional_data(ds, 'generic_ion_el_heat_source_el', 'cell'),
-      q_ecrh=get_optional_data(ds, 'ecrh_heat_source', 'cell'),
+      q_ecrh=get_optional_data(ds, 'electron_cyclotron_source_el', 'cell'),
       q_alpha_i=get_optional_data(ds, 'fusion_heat_source_ion', 'cell'),
       q_alpha_e=get_optional_data(ds, 'fusion_heat_source_el', 'cell'),
       q_ohmic=get_optional_data(ds, 'ohmic_heat_source', 'cell'),
@@ -225,6 +233,8 @@ def load_data(filename: str) -> PlotData:
       s_pellet=get_optional_data(ds, 'pellet_source', 'cell'),
       i_total=ds[output.IP].to_numpy(),
       i_bootstrap=ds[output.I_BOOTSTRAP].to_numpy(),
+      i_generic=ds['I_generic'].to_numpy(),
+      i_ecrh=ds['I_ecrh'].to_numpy(),
       p_ohmic=ds['P_ohmic'].to_numpy(),
       p_auxiliary=(ds['P_external_tot'] - ds['P_ohmic']).to_numpy(),
       p_alpha=ds['P_alpha_tot'].to_numpy(),

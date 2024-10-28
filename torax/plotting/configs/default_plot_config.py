@@ -57,9 +57,15 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('i_total', 'i_bootstrap'),
-            labels=(r'$I_\mathrm{p}$', r'$I_\mathrm{bs}$'),
+            attrs=('i_total', 'i_bootstrap', 'i_generic', 'i_ecrh'),
+            labels=(
+                r'$I_\mathrm{p}$',
+                r'$I_\mathrm{bs}$',
+                r'$I_\mathrm{generic}$',
+                r'$I_\mathrm{ecrh}$',
+            ),
             ylabel=r'Current [MA]',
+            suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
             attrs=('psi',),
@@ -67,12 +73,19 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylabel=r'Poloidal flux [Wb]',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('j', 'johm', 'j_bootstrap', 'generic_current_source'),
+            attrs=(
+                'j',
+                'johm',
+                'j_bootstrap',
+                'generic_current_source',
+                'j_ecrh',
+            ),
             labels=(
                 r'$j_\mathrm{tot}$',
                 r'$j_\mathrm{ohm}$',
                 r'$j_\mathrm{bs}$',
-                r'$j_\mathrm{ext}$',
+                r'$j_\mathrm{generic}$',
+                r'$j_\mathrm{ecrh}$',
             ),
             ylabel=r'Toroidal current $[MA~m^{-2}]$',
             legend_fontsize=7,  # Smaller fontsize for this plot
@@ -111,9 +124,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             labels=(
                 r'$Q_\mathrm{ICRH,i}$',
                 r'$Q_\mathrm{ICRH,e}$',
-                r'$Q_\mathrm{NBI,i}$',
-                r'$Q_\mathrm{NBI,e}$',
-                r'$Q_\mathrm{ERCH}$',
+                r'$Q_\mathrm{ECRH,e}$',
                 r'$Q_\mathrm{generic,i}$',
                 r'$Q_\mathrm{generic,e}$',
             ),

@@ -429,20 +429,12 @@ def calc_and_sum_sources_psi(
       calculate_anyway=True,
   )
   total = 0
-  psi_profiles_on_cell_grid = {
-      key: profile
-      for key, profile in psi_profiles.items()
-      if profile.shape == geo.rho.shape
-  }
-  for key in psi_profiles_on_cell_grid:
-    total += psi_profiles_on_cell_grid[key]
-  psi_profiles_on_face_grid = {
-      key: profile
-      for key, profile in psi_profiles.items()
-      if profile.shape == geo.rho_face.shape
-  }
-  for key in psi_profiles_on_face_grid:
-    total += geometry.face_to_cell(psi_profiles_on_face_grid[key])
+  for source_name, source in source_models.psi_sources.items():
+    total += source.get_source_profile_for_affected_core_profile(
+        profile=psi_profiles[source_name],
+        affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
+        geo=geo,
+    )
   dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]

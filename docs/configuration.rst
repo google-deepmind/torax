@@ -880,7 +880,7 @@ Bootstrap current calculated with the Sauter model.
 generic_current_source
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Generic external current profile, parameterized as a Gaussian (e.g. ECCD).
+Generic external current profile, parameterized as a Gaussian.
 
 ``mode`` (str = 'formula')
 
@@ -911,6 +911,37 @@ Bremsstrahlung model from Wesson, with an optional correction for relativistic e
 ``mode`` (str = 'model')
 
 ``use_relativistic_correction`` (bool = False)
+
+electron_cyclotron_source
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Electron-cyclotron heating and current drive, based on the local efficiency model in `Lin-Liu et al., 2003 <https://doi.org/10.1063/1.1610472>`_.
+Given an EC power density profile and efficiency profile, the model produces the corresponding EC-driven current density profile.
+The user has three options:
+
+1. Provide an entire EC power density profile manually (via ``manual_ec_power_density``).
+2. Provide the parameters of a Gaussian EC deposition (via ``gaussian_ec_power_density_width``, ``gaussian_ec_power_density_location``, and ``gaussian_ec_total_power``).
+3. Any combination of the above.
+
+By default, both the manual and Gaussian profiles are zero. The manual and Gaussian profiles are summed together to produce the final EC deposition profile.
+
+    ``mode`` (str = 'model')
+
+    ``manual_ec_power_density`` **time-varying-array**
+        EC power density deposition profile, in units of :math:`W/m^3`.
+
+    ``gaussian_ec_power_density_width`` **time-varying-scalar**
+        Width of Gaussian EC power density deposition profile.
+
+    ``gaussian_ec_power_density_location`` **time-varying-scalar**
+        Location of Gaussian EC power density deposition profile on the normalized rho grid.
+
+    ``gaussian_ec_total_power`` **time-varying-scalar**
+        Integral of the Gaussian EC power density profile, setting the total power.
+
+    ``cd_efficiency`` **time-varying-scalar**
+        Dimensionless local efficiency profile for conversion of EC power to current.
+
+See :ref:`physics_models` for more detail.
 
 stepper
 -------
@@ -1231,4 +1262,3 @@ We envisage this feature being useful for example to:
   a simulation up to a certain point in time. After running the initial
   simulation you could then modify and sweep the runtime parameter config in
   order to do some uncertainty quantification.
-

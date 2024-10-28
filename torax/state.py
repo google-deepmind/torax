@@ -290,6 +290,9 @@ class PostProcessedOutputs:
     P_alpha_tot: Total fusion power to plasma [W]
     P_ohmic: Ohmic heating power to electrons [W]
     P_brems: Bremsstrahlung electron heat sink [W]
+    P_ecrh: Total electron cyclotron source power [W]
+    I_ecrh: Total electron cyclotron source current [A]
+    I_generic: Total generic source current [A]
     Q_fusion: Fusion power gain
   """
 
@@ -323,6 +326,9 @@ class PostProcessedOutputs:
   P_alpha_tot: array_typing.ScalarFloat
   P_ohmic: array_typing.ScalarFloat
   P_brems: array_typing.ScalarFloat
+  P_ecrh: array_typing.ScalarFloat
+  I_ecrh: array_typing.ScalarFloat
+  I_generic: array_typing.ScalarFloat
   Q_fusion: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
@@ -356,6 +362,9 @@ class PostProcessedOutputs:
         P_alpha_tot=jnp.array(0.0),
         P_ohmic=jnp.array(0.0),
         P_brems=jnp.array(0.0),
+        P_ecrh=jnp.array(0.0),
+        I_ecrh=jnp.array(0.0),
+        I_generic=jnp.array(0.0),
         Q_fusion=jnp.array(0.0),
     )
 

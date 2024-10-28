@@ -39,12 +39,19 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylabel=r'Electron density $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('j', 'johm', 'j_bootstrap', 'generic_current_source'),
+            attrs=(
+                'j',
+                'johm',
+                'j_bootstrap',
+                'generic_current_source',
+                'j_ecrh',
+            ),
             labels=(
                 r'$j_\mathrm{tot}$',
                 r'$j_\mathrm{ohm}$',
                 r'$j_\mathrm{bs}$',
-                r'$j_\mathrm{ext}$',
+                r'$j_\mathrm{generic}$',
+                r'$j_\mathrm{ecrh}$',
             ),
             ylabel=r'Toroidal current $[MA~m^{-2}]$',
             suppress_zero_values=True,  # Do not plot all-zero data
@@ -73,9 +80,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             labels=(
                 r'$Q_\mathrm{ICRH,i}$',
                 r'$Q_\mathrm{ICRH,e}$',
-                r'$Q_\mathrm{NBI,i}$',
-                r'$Q_\mathrm{NBI,e}$',
-                r'$Q_\mathrm{ERCH}$',
+                r'$Q_\mathrm{ECRH,e}$',
                 r'$Q_\mathrm{generic,i}$',
                 r'$Q_\mathrm{generic,e}$',
             ),
