@@ -220,6 +220,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests EQDSK geometry. QLKNN, predictor-corrector, all transport.
+      (
+          'test_eqdsk',
+          'test_eqdsk.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Tests Ohmic electron heat source. CHEASE geometry.
       (
           'test_ohmic_power',

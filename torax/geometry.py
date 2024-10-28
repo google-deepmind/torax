@@ -24,6 +24,7 @@ import functools
 from typing import Type
 
 import chex
+import contourpy
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -932,13 +933,11 @@ class StandardGeometryIntermediates:
       LY_to_torax_times = LY_bundle['t'].item()  # ndarray of times
     else:
       if len(LY_to_torax_times) != len(LY_bundle['t'].item()):
-        raise ValueError(
-            f"""
+        raise ValueError(f"""
             Length of LY_to_torax_times must match length of LY bundle data:
             len(LY_to_torax_times)={len(LY_to_torax_times)},
             len(LY_bundle['t'].item())={len(LY_bundle['t'].item())}
-            """
-        )
+            """)
 
     intermediates = {}
     for idx, t in enumerate(LY_to_torax_times):
@@ -1020,6 +1019,238 @@ class StandardGeometryIntermediates:
         delta_upper_face=LY['deltau'],
         delta_lower_face=LY['deltal'],
         vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
+        n_rho=n_rho,
+        hires_fac=hires_fac,
+    )
+
+  @classmethod
+  def from_eqdsk(
+      cls,
+      geometry_dir: str | None = None,
+      geometry_file: str = 'eqdsk_cocos02.eqdsk',
+      hires_fac: int = 4,
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+  ):
+    """Constructs a StandardGeometryIntermediates from EQDSK, including calculating flux surface averages."""
+
+    def calculate_area(x, z):
+      """Gauss-shoelace formula (https://en.wikipedia.org/wiki/Shoelace_formula)."""
+      n = len(x)
+      area = 0.0
+      for i in range(n):
+        j = (i + 1) % n  # roll over at n
+        area += x[i] * z[j]
+        area -= z[i] * x[j]
+      area = abs(area) / 2.0
+      return area
+
+    eqfile = geometry_loader.load_geo_data(
+        geometry_dir, geometry_file, geometry_loader.GeometrySource.EQDSK
+    )
+
+    Rmaj = eqfile['xmag']
+    # TODO(b/375696414): deal with updown asymmetric cases.
+    Rmin = (eqfile['xbdry'].max() - eqfile['xbdry'].min()) / 2.0
+    B0 = eqfile['bcentre']
+
+    psi_eqdsk_1dgrid = np.linspace(
+        eqfile['psimag'], eqfile['psibdry'], eqfile['nx']
+    )
+
+    X_1D = np.linspace(
+        eqfile['xgrid1'], eqfile['xgrid1'] + eqfile['xdim'], eqfile['nx']
+    )
+    Z_1D = np.linspace(
+        eqfile['zmid'] - eqfile['zdim'] / 2,
+        eqfile['zmid'] + eqfile['zdim'] / 2,
+        eqfile['nz'],
+    )
+    X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
+    Xlcfs, Zlcfs = eqfile['xbdry'], eqfile['zbdry']
+
+    # Psi 2D grid defined on the Meshgrid
+    psi_eqdsk_2dgrid = eqfile['psi']
+    # Create mask for the confined region, i.e.,Xlcfs.min() < X < Xlcfs.max(),
+    # Zlcfs.min() < Z < Zlcfs.max()
+
+    offset = 0.01
+    mask = (
+        (X > Xlcfs.min() - offset)
+        & (X < Xlcfs.max() + offset)
+        & (Z > Zlcfs.min() - offset)
+        & (Z < Zlcfs.max() + offset)
+    )
+    masked_psi_eqdsk_2dgrid = np.ma.masked_where(~mask, psi_eqdsk_2dgrid)
+
+    # q on uniform grid (pressure, etc., also defined here)
+    q_eqdsk_1dgrid = eqfile['qpsi']
+
+    # ---- Interpolations
+    q_interp = scipy.interpolate.interp1d(
+        psi_eqdsk_1dgrid, q_eqdsk_1dgrid, kind='cubic'
+    )
+    psi_spline_fit = scipy.interpolate.RectBivariateSpline(
+        X_1D, Z_1D, psi_eqdsk_2dgrid, kx=3, ky=3, s=0
+    )
+    F_interp = scipy.interpolate.interp1d(
+        psi_eqdsk_1dgrid, eqfile['fpol'], kind='cubic'
+    )  # toroidal field flux function
+
+    # -----------------------------------------------------------
+    # --------- Make flux surface contours ---------
+    # -----------------------------------------------------------
+
+    # set epsilon based on floating point precision of psi grid
+    # TODO(b/375696414) explore replacing with a more robust method
+    epsilon = constants.CONSTANTS.eps  # 1e-7
+
+    psi_interpolant = np.linspace(
+        eqfile['psimag'] + epsilon, eqfile['psibdry'] - epsilon, 100
+    )
+
+    surfaces = []
+    cg_psi = contourpy.contour_generator(X, Z, masked_psi_eqdsk_2dgrid)
+
+    for _, _psi in enumerate(psi_interpolant):
+      vertices = cg_psi.create_contour(_psi)
+      x_surface, z_surface = vertices[0].T[0], vertices[0].T[1]
+      surfaces.append((x_surface, z_surface))
+
+    # -----------------------------------------------------------
+    # --------- Compute Flux surface averages and 1D profiles ---------
+    # --- Area, Volume, R_inboard, R_outboard
+    # --- FSA: <1/R^2>, <Bp^2>, <|grad(psi)|>, <|grad(psi)|^2>
+    # --- Toroidal plasma current
+    # --- Integral dl/Bp
+    # -----------------------------------------------------------
+
+    # Gathering area for profiles
+    areas, volumes = np.empty(len(surfaces)), np.empty(len(surfaces))
+    R_inboard, R_outboard = np.empty(len(surfaces)), np.empty(len(surfaces))
+    flux_surf_avg_1_over_R2_eqdsk = np.empty(len(surfaces))  # <1/R**2>
+    flux_surf_avg_Bp2_eqdsk = np.empty(len(surfaces))  # <Bp**2>
+    flux_surf_avg_RBp_eqdsk = np.empty(len(surfaces))  # <|grad(psi)|>
+    flux_surf_avg_R2Bp2_eqdsk = np.empty(len(surfaces))  # <|grad(psi)|**2>
+    int_dl_over_Bp_eqdsk = np.empty(len(surfaces))  # int(Rdl / | grad(psi) |)
+    Ip_eqdsk = np.empty(len(surfaces))  # Toroidal plasma current
+    delta_upper_face_eqdsk = np.empty(len(surfaces))  # Upper face delta
+    delta_lower_face_eqdsk = np.empty(len(surfaces))  # Lower face delta
+
+    # ---- Compute
+    # TODO(b/375696414) treatment of LCFS region for diverted geometries
+    for n, (x_surface, z_surface) in enumerate(surfaces):
+
+      # dl, line elements on which we will integrate
+      surface_dl = np.sqrt(
+          np.gradient(x_surface) ** 2 + np.gradient(z_surface) ** 2
+      )
+
+      # calculating gradient of psi in 2D
+      surface_dpsi_x = psi_spline_fit.ev(x_surface, z_surface, dx=1)
+      surface_dpsi_z = psi_spline_fit.ev(x_surface, z_surface, dy=1)
+      surface_abs_grad_psi = np.sqrt(surface_dpsi_x**2 + surface_dpsi_z**2)
+
+      # Poloidal field strength Bp = |grad(psi)| / R
+      surface_Bpol = surface_abs_grad_psi / x_surface
+      surface_int_dl_over_bpol = np.sum(
+          surface_dl / surface_Bpol
+      )  # This is denominator of all FSA
+
+      # plasma current
+      surface_int_bpol_dl = np.sum(surface_Bpol * surface_dl)
+
+      # 4 FSA, < 1/ R^2>, < | grad psi | >, < B_pol^2>, < | grad psi |^2 >
+      # where FSA(G) = int (G dl / Bpol) / (int (dl / Bpol))
+      surface_FSA_int_one_over_r2 = (
+          np.sum(1 / x_surface**2 * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+      surface_FSA_abs_grad_psi = (
+          np.sum(surface_abs_grad_psi * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+      surface_FSA_Bpol_squared = (
+          np.sum(surface_Bpol * surface_dl) / surface_int_dl_over_bpol
+      )
+      surface_FSA_abs_grad_psi2 = (
+          np.sum(surface_abs_grad_psi**2 * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+
+      # volumes and areas
+      area = calculate_area(x_surface, z_surface)
+      volume = area * 2 * np.pi * Rmaj
+
+      # Triangularity
+      idx_upperextent = np.argmax(z_surface)
+      idx_lowerextent = np.argmin(z_surface)
+
+      X_upperextent = x_surface[idx_upperextent]
+      X_lowerextent = x_surface[idx_lowerextent]
+
+      # (RMAJ - X_upperextent) / RMIN
+      surface_delta_upper_face = (Rmaj - X_upperextent) / max(x_surface)
+      surface_delta_lower_face = (Rmaj - X_lowerextent) / max(x_surface)
+
+      # Append to lists
+      areas[n] = area
+      volumes[n] = volume
+      R_inboard[n] = x_surface.min()
+      R_outboard[n] = x_surface.max()
+      int_dl_over_Bp_eqdsk[n] = surface_int_dl_over_bpol
+      flux_surf_avg_1_over_R2_eqdsk[n] = surface_FSA_int_one_over_r2
+      flux_surf_avg_RBp_eqdsk[n] = surface_FSA_abs_grad_psi
+      flux_surf_avg_R2Bp2_eqdsk[n] = surface_FSA_abs_grad_psi2
+      flux_surf_avg_Bp2_eqdsk[n] = surface_FSA_Bpol_squared
+      Ip_eqdsk[n] = surface_int_bpol_dl / constants.CONSTANTS.mu0
+      delta_upper_face_eqdsk[n] = surface_delta_upper_face
+      delta_lower_face_eqdsk[n] = surface_delta_lower_face
+
+    # q-profile on interpolation
+    q_profile = q_interp(psi_interpolant)
+
+    # toroidal flux
+    Phi_eqdsk = (
+        scipy.integrate.cumulative_trapezoid(
+            q_profile, psi_interpolant, initial=0.0
+        )
+        * 2
+        * np.pi
+    )  #  / (2*np.pi) # factor of pi?
+
+    # toroidal field flux function, T=RBphi
+    F_eqdsk = F_interp(psi_interpolant)
+
+    rhon = np.sqrt(Phi_eqdsk / Phi_eqdsk[-1])
+    vpr = (
+        4
+        * np.pi
+        * Phi_eqdsk[-1]
+        * rhon
+        / F_eqdsk
+        * flux_surf_avg_1_over_R2_eqdsk
+    )
+
+    return cls(
+        Ip_from_parameters=Ip_from_parameters,
+        Rmaj=Rmaj,
+        Rmin=Rmin,
+        B=B0,
+        psi=psi_interpolant,
+        Ip_profile=Ip_eqdsk,
+        Phi=Phi_eqdsk,
+        Rin=R_inboard,
+        Rout=R_outboard,
+        F=F_eqdsk,
+        int_dl_over_Bp=int_dl_over_Bp_eqdsk,
+        flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2_eqdsk,
+        flux_surf_avg_RBp=flux_surf_avg_RBp_eqdsk,
+        flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2_eqdsk,
+        flux_surf_avg_Bp2=flux_surf_avg_Bp2_eqdsk,
+        delta_upper_face=delta_upper_face_eqdsk,
+        delta_lower_face=delta_lower_face_eqdsk,
+        vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
     )

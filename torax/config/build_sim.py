@@ -76,6 +76,8 @@ def _build_standard_geometry_provider(
       intermediate_builder = (
           geometry.StandardGeometryIntermediates.from_fbt_single_slice
       )
+  elif geometry_type == 'eqdsk':
+    intermediate_builder = geometry.StandardGeometryIntermediates.from_eqdsk
   else:
     raise ValueError(f'Unknown geometry type: {geometry_type}')
   if 'geometry_configs' in kwargs:
@@ -166,10 +168,12 @@ def build_geometry_provider_from_config(
   geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
   if geometry_type == 'circular':
     return _build_circular_geometry_provider(**kwargs)
-  elif geometry_type == 'chease' or geometry_type == 'fbt':
+  # elif geometry_type == 'chease' or geometry_type == 'fbt':
+  elif geometry_type in ['chease', 'fbt', 'eqdsk']:
     return _build_standard_geometry_provider(
         geometry_type=geometry_type, **kwargs
     )
+
   raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 
