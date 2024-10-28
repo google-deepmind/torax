@@ -153,11 +153,6 @@ def prepare_qualikiz_inputs(
   # Calculate q and s.
   # Need to recalculate since in the nonlinear solver psi has intermediate
   # states in the iterative solve.
-  # To avoid unnecessary complexity for the Jacobian, we still use the
-  # old jtot_face in the q calculation. It only modifies the r=0 value
-  # of the q-profile. This does not impact qlknn output, which is
-  # always stable at r=0 due to the zero gradient boundary conditions.
-
   q, _ = physics.calc_q_from_psi(
       geo=geo,
       psi=core_profiles.psi,

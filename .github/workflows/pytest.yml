@@ -1,7 +1,24 @@
 name: Unittests
 
 # Allow to trigger the workflow manually (e.g. when deps changes)
-on: [push, workflow_dispatch]
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    # Do not trigger tests for documentation or markdown docs.
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+    types: [review_requested]
+  push:
+    # Do not trigger tests for documentation or markdown docs.
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  schedule:
+    # Trigger tests every day at 02:00 UTC.
+    - cron: '0 2 * * *'
 
 # Concurrency config borrowed from tensorflow_datasets.
 concurrency:
@@ -71,7 +88,7 @@ jobs:
           torax/fvm/tests/fvm.py \
           torax/sources/tests/bootstrap_current_source.py \
           torax/sources/tests/electron_density_sources.py \
-          torax/sources/tests/external_current_source.py \
+          torax/sources/tests/generic_current_source.py \
           torax/sources/tests/formulas.py \
           torax/sources/tests/fusion_heat_source.py \
           torax/sources/tests/generic_ion_el_heat_source.py \

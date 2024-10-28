@@ -147,10 +147,10 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests implementation of use_absolute_jext
+      # Tests implementation of use_absolute_current
       (
-          'test_absolute_jext',
-          'test_absolute_jext.py',
+          'test_absolute_generic_current_source',
+          'test_absolute_generic_current_source.py',
           _ALL_PROFILES,
           0,
       ),
@@ -178,24 +178,24 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests particle sources with constant transport. No NBI source
+      # Tests particle sources with constant transport. No particle source
       (
           'test_particle_sources_constant',
           'test_particle_sources_constant.py',
           _ALL_PROFILES,
           0,
       ),
-      # Tests all particle sources including NBI, with CGM transport
+      # Tests all particle sources including particle source, with CGM transport
       (
           'test_particle_sources_cgm',
           'test_particle_sources_cgm.py',
           _ALL_PROFILES,
           0,
       ),
-      # Tests specifying a prescribed time-varying arbitrary jext profile
+      # Tests specifying a prescribed time-varying arbitrary current profile
       (
-          'test_prescribed_jext',
-          'test_prescribed_jext.py',
+          'test_prescribed_generic_current_source',
+          'test_prescribed_generic_current_source.py',
           _ALL_PROFILES,
           0,
       ),
@@ -217,6 +217,13 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_chease',
           'test_chease.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Tests EQDSK geometry. QLKNN, predictor-corrector, all transport.
+      (
+          'test_eqdsk',
+          'test_eqdsk.py',
           _ALL_PROFILES,
           0,
       ),
@@ -557,13 +564,11 @@ class SimTest(sim_test_case.SimTestCase):
         output.Q_FACE,
         output.S_FACE,
         output.J_BOOTSTRAP,
+        output.J_BOOTSTRAP_FACE,
         output.JOHM,
-        output.CORE_PROFILES_JEXT,
+        output.CORE_PROFILES_GENERIC_CURRENT,
         output.JTOT,
         output.JTOT_FACE,
-        output.JEXT_FACE,
-        output.JOHM_FACE,
-        output.J_BOOTSTRAP_FACE,
         output.I_BOOTSTRAP,
         output.SIGMA,
     ]
@@ -683,13 +688,11 @@ class SimTest(sim_test_case.SimTestCase):
         output.S_FACE,
         output.J_BOOTSTRAP,
         output.JOHM,
-        output.CORE_PROFILES_JEXT,
+        output.CORE_PROFILES_GENERIC_CURRENT,
         output.JTOT,
         output.JTOT_FACE,
-        output.JEXT_FACE,
-        output.JOHM_FACE,
-        output.J_BOOTSTRAP_FACE,
         output.I_BOOTSTRAP,
+        output.J_BOOTSTRAP_FACE,
         output.SIGMA,
     ]
     ref_profiles, ref_times = self._get_refs(
@@ -754,27 +757,21 @@ def verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.J_BOOTSTRAP][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap_face,
-      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
-  )
-  np.testing.assert_allclose(
       core_profiles.currents.jtot, ref_profiles[output.JTOT][index, :]
   )
   np.testing.assert_allclose(
       core_profiles.currents.jtot_face, ref_profiles[output.JTOT_FACE][index, :]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jext,
-      ref_profiles[output.CORE_PROFILES_JEXT][index, :],
+      core_profiles.currents.j_bootstrap_face,
+      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jext_face, ref_profiles[output.JEXT_FACE][index, :]
+      core_profiles.currents.generic_current_source,
+      ref_profiles[output.CORE_PROFILES_GENERIC_CURRENT][index, :],
   )
   np.testing.assert_allclose(
       core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.johm_face, ref_profiles[output.JOHM_FACE][index, :]
   )
   np.testing.assert_allclose(
       core_profiles.currents.I_bootstrap,

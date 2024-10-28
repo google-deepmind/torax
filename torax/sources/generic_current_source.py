@@ -23,6 +23,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from jax.scipy import integrate
+import jaxtyping as jt
 from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
@@ -32,9 +33,10 @@ from torax.config import base
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from typing_extensions import override
 
 
-SOURCE_NAME = 'jext'
+SOURCE_NAME = 'generic_current_source'
 # pylint: disable=invalid-name
 
 
@@ -42,9 +44,9 @@ SOURCE_NAME = 'jext'
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for the external current source."""
 
-  # total "external" current in MA. Used if use_absolute_jext=True.
+  # total "external" current in MA. Used if use_absolute_current=True.
   Iext: runtime_params_lib.TimeInterpolatedInput = 3.0
-  # total "external" current fraction. Used if use_absolute_jext=False.
+  # total "external" current fraction. Used if use_absolute_current=False.
   fext: runtime_params_lib.TimeInterpolatedInput = 0.2
   # width of "external" Gaussian current profile
   wext: runtime_params_lib.TimeInterpolatedInput = 0.05
@@ -52,7 +54,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   rext: runtime_params_lib.TimeInterpolatedInput = 0.4
 
   # Toggles if external current is provided absolutely or as a fraction of Ip.
-  use_absolute_jext: bool = False
+  use_absolute_current: bool = False
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   @property
@@ -93,7 +95,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   fext: array_typing.ScalarFloat
   wext: array_typing.ScalarFloat
   rext: array_typing.ScalarFloat
-  use_absolute_jext: bool
+  use_absolute_current: bool
 
   def sanity_check(self):
     """Checks that all parameters are valid."""
@@ -108,7 +110,7 @@ _trapz = integrate.trapezoid
 
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
-def _calculate_jext_face(
+def _calculate_generic_current_face(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -135,27 +137,33 @@ def _calculate_jext_face(
       dynamic_source_runtime_params,
   )
   # form of external current on face grid
-  jextform_face = jnp.exp(
+  generic_current_form_face = jnp.exp(
       -((geo.rho_face_norm - dynamic_source_runtime_params.rext) ** 2)
       / (2 * dynamic_source_runtime_params.wext**2)
   )
 
-  Cext = Iext * 1e6 / _trapz(jextform_face * geo.spr_face, geo.rho_face_norm)
+  Cext = (
+      Iext
+      * 1e6
+      / _trapz(generic_current_form_face * geo.spr_face, geo.rho_face_norm)
+  )
 
-  jext_face = Cext * jextform_face  # external current profile
-  return jext_face
+  generic_current_face = (
+      Cext * generic_current_form_face
+  )  # external current profile
+  return generic_current_face
 
 
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
-def _calculate_jext_hires(
+def _calculate_generic_current_hires(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     unused_state: state.CoreProfiles | None = None,
     unused_source_models: Optional['source_models.SourceModels'] = None,
 ) -> jax.Array:
-  """Calculates the external current density profile along the hires grid.
+  """Calculates the generic current density profile along the hires grid.
 
   Args:
     dynamic_runtime_params_slice: Parameter configuration at present timestep.
@@ -166,7 +174,7 @@ def _calculate_jext_hires(
       adhere to the source API.
 
   Returns:
-    External current density profile along the hires cell grid.
+    Generic current density profile along the hires cell grid.
   """
   # pytype: enable=name-error
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
@@ -174,18 +182,20 @@ def _calculate_jext_hires(
       dynamic_runtime_params_slice,
       dynamic_source_runtime_params,
   )
-  # calculate "External" current profile (e.g. ECCD)
+  # calculate a generic "External" current profile (e.g. ECCD)
   # form of external current on cell grid
-  jextform_hires = jnp.exp(
+  generic_current_form_hires = jnp.exp(
       -((geo.rho_hires_norm - dynamic_source_runtime_params.rext) ** 2)
       / (2 * dynamic_source_runtime_params.wext**2)
   )
   Cext_hires = (
-      Iext * 1e6 / _trapz(jextform_hires * geo.spr_hires, geo.rho_hires_norm)
+      Iext
+      * 1e6
+      / _trapz(generic_current_form_hires * geo.spr_hires, geo.rho_hires_norm)
   )
   # External current profile on cell grid
-  jext_hires = Cext_hires * jextform_hires
-  return jext_hires
+  generic_current_hires = Cext_hires * generic_current_form_hires
+  return generic_current_hires
 
 
 def _calculate_Iext(
@@ -194,7 +204,7 @@ def _calculate_Iext(
 ) -> chex.Numeric:
   """Calculates the total value of external current."""
   return jnp.where(
-      dynamic_source_runtime_params.use_absolute_jext,
+      dynamic_source_runtime_params.use_absolute_current,
       dynamic_source_runtime_params.Iext,
       (
           dynamic_runtime_params_slice.profile_conditions.Ip
@@ -204,16 +214,16 @@ def _calculate_Iext(
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ExternalCurrentSource(source.Source):
-  """External current density source profile."""
+class GenericCurrentSource(source.Source):
+  """A generic current density source profile."""
 
   supported_types: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.FORMULA_BASED,
       runtime_params_lib.Mode.PRESCRIBED,
   )
-  formula: source.SourceProfileFunction = _calculate_jext_face
-  hires_formula: source.SourceProfileFunction = _calculate_jext_hires
+  formula: source.SourceProfileFunction = _calculate_generic_current_face
+  hires_formula: source.SourceProfileFunction = _calculate_generic_current_hires
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
@@ -223,13 +233,27 @@ class ExternalCurrentSource(source.Source):
   def output_shape_getter(self) -> source.SourceOutputShapeFunction:
     return source.ProfileType.FACE.get_profile_shape
 
-  def jext_hires(
+  @override
+  def get_source_profile_for_affected_core_profile(
+      self,
+      profile: jt.Float[jt.Array, 'rhon_face'],
+      affected_core_profile: int,
+      geo: geometry.Geometry,
+  ) -> jt.Float[jt.Array, 'rhon']:
+    return jnp.where(
+        affected_core_profile in self.affected_core_profiles_ints,
+        # Source profiles are always on cell grid so cast to cell grid.
+        geometry.face_to_cell(profile),
+        jnp.zeros_like(geo.rho),
+    )
+
+  def generic_current_source_hires(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
   ) -> jax.Array:
-    """Return the external current density profile along the hires cell grid."""
+    """Return the current density profile along the hires cell grid."""
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
     self.check_mode(dynamic_source_runtime_params.mode)
 

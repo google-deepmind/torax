@@ -24,6 +24,7 @@ import functools
 from typing import Type
 
 import chex
+import contourpy
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -829,29 +830,172 @@ class StandardGeometryIntermediates:
     )
 
   @classmethod
-  def from_fbt(
+  def from_fbt_single_slice(
       cls,
       geometry_dir: str | None,
       LY_file: str,
       L_file: str,
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
-      Rmaj: float = 6.2,
-      Rmin: float = 2.0,
-      B0: float = 5.3,
       hires_fac: int = 4,
   ) -> StandardGeometryIntermediates:
-    """Constructs a StandardGeometryIntermediates from an FBT-LY file."""
+    """Returns StandardGeometryIntermediates from a single slice FBT LY file.
+
+    LY and L are FBT data files containing magnetic geometry information.
+    The majority of the needed information is in the LY file. The L file
+    is only needed to get the normalized poloidal flux coordinate, pQ.
+
+    This method is for cases when the LY file on disk corresponds to a single
+    time slice. Either a single time slice or sequence of time slices can be
+    provided in the geometry config.
+
+    Args:
+      geometry_dir: Directory where to find the FBT file describing the magnetic
+        geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
+        available. If that variable is not set and geometry_dir is not provided,
+        then it defaults to another dir. See `load_geo_data` implementation.
+      LY_file: File name for LY data.
+      L_file: File name for L data.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled
+      n_rho: Grid resolution used for all TORAX cell variables.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+
+    Returns:
+      A StandardGeometryIntermediates instance based on the input slice. This
+      can then be used to build a StandardGeometry by passing to
+      `build_standard_geometry`.
+    """
     LY = geometry_loader.load_geo_data(
         geometry_dir, LY_file, geometry_loader.GeometrySource.FBT
     )
     L = geometry_loader.load_geo_data(
         geometry_dir, L_file, geometry_loader.GeometrySource.FBT
     )
-    vacuum_tor_b_field = LY['rBt'] / Rmaj
-    Phi = LY['FtPQ'] / vacuum_tor_b_field * B0
-    rhon = np.sqrt(Phi / Phi[-1])
-    psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']
+    return cls._from_fbt(LY, L, Ip_from_parameters, n_rho, hires_fac)
+
+  @classmethod
+  def from_fbt_bundle(
+      cls,
+      geometry_dir: str | None,
+      LY_bundle_file: str,
+      L_file: str,
+      LY_to_torax_times: np.ndarray | None,
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+      hires_fac: int = 4,
+  ) -> dict[float, StandardGeometryIntermediates]:
+    """Returns StandardGeometryIntermediates from a bundled FBT LY file.
+
+    LY_bundle_file is an FBT data file containing a bundle of LY geometry
+    slices at different times, packaged within a single file (as opposed to
+    a sequence of standalone LY files). LY_to_torax_times is a 1D array of
+    times, defining the times in the TORAX simulation corresponding to each
+    slice in the LY bundle. All times in the LY bundle must be mapped to
+    times in TORAX.
+
+    Args:
+      geometry_dir: Directory where to find the FBT file describing the magnetic
+        geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
+        available. If that variable is not set and geometry_dir is not provided,
+        then it defaults to another dir. See `load_geo_data` implementation.
+      LY_bundle_file: File name for bundled LY data, e.g. as produced by liuqe
+        meqlpack.
+      L_file: File name for L data. Assumed to be the same L data for all LY
+        slices in the bundle.
+      LY_to_torax_times: User-provided times which map the times of the LY
+        geometry slices to TORAX simulation times. A ValueError is raised if the
+        number of array elements doesn't match the length of the LY_bundle array
+        data. If None, then the times are taken from the LY_bundle_file itself.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled.
+      n_rho: Grid resolution used for all TORAX cell variables.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+
+    Returns:
+      A mapping from user-provided (or inferred) times to
+      StandardGeometryIntermediates instances based on the input slices. This
+      can then be used to build a StandardGeometryProvider.
+    """
+
+    LY_bundle = geometry_loader.load_geo_data(
+        geometry_dir, LY_bundle_file, geometry_loader.GeometrySource.FBT
+    )['LY']
+
+    # Load the L file associated with the LY bundle.
+    L = geometry_loader.load_geo_data(
+        geometry_dir, L_file, geometry_loader.GeometrySource.FBT
+    )
+
+    if LY_to_torax_times is None:
+      LY_to_torax_times = LY_bundle['t'].item()  # ndarray of times
+    else:
+      if len(LY_to_torax_times) != len(LY_bundle['t'].item()):
+        raise ValueError(f"""
+            Length of LY_to_torax_times must match length of LY bundle data:
+            len(LY_to_torax_times)={len(LY_to_torax_times)},
+            len(LY_bundle['t'].item())={len(LY_bundle['t'].item())}
+            """)
+
+    intermediates = {}
+    for idx, t in enumerate(LY_to_torax_times):
+      data_slice = cls._get_LY_single_slice_from_bundle(LY_bundle, idx)
+      intermediates[t] = cls._from_fbt(
+          data_slice, L, Ip_from_parameters, n_rho, hires_fac
+      )
+
+    return intermediates
+
+  @classmethod
+  def _get_LY_single_slice_from_bundle(
+      cls,
+      LY_bundle: np.ndarray,
+      idx: int,
+  ) -> dict[str, np.ndarray]:
+    """Returns a single LY slice from a bundled LY file, at index idx."""
+
+    # The keys below are the relevant LY keys for the FBT geometry provider.
+    relevant_keys = [
+        'rBt',
+        'aminor',
+        'rgeom',
+        'TQ',
+        'FB',
+        'FA',
+        'Q1Q',
+        'Q2Q',
+        'Q3Q',
+        'Q4Q',
+        'Q5Q',
+        'ItQ',
+        'deltau',
+        'deltal',
+        'FtPQ',
+    ]
+    # The item() is needed due to the particular structure of the LY bundle.
+    LY_single_slice = {
+        key: LY_bundle[key].item()[..., idx] for key in relevant_keys
+    }
+    return LY_single_slice
+
+  @classmethod
+  def _from_fbt(
+      cls,
+      LY: dict[str, np.ndarray],
+      L: dict[str, np.ndarray],
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+      hires_fac: int = 4,
+  ) -> StandardGeometryIntermediates:
+    """Constructs a StandardGeometryIntermediates from a single FBT LY slice."""
+    Rmaj = LY['rgeom'][-1]  # Major radius
+    B0 = LY['rBt'] / Rmaj  # Vacuum toroidal magnetic field on axis
+    Rmin = LY['aminor'][-1]  # Minor radius
+    Phi = LY['FtPQ']  # Toroidal flux including plasma contribution
+    rhon = np.sqrt(Phi / Phi[-1])  # Normalized toroidal flux coordinate
+    psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']  # Poloidal flux
     # To avoid possible divisions by zero in diverted geometry. Value of what
     # replaces the zero does not matter, since it will be replaced by a spline
     # extrapolation in the post_init.
@@ -875,6 +1019,238 @@ class StandardGeometryIntermediates:
         delta_upper_face=LY['deltau'],
         delta_lower_face=LY['deltal'],
         vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
+        n_rho=n_rho,
+        hires_fac=hires_fac,
+    )
+
+  @classmethod
+  def from_eqdsk(
+      cls,
+      geometry_dir: str | None = None,
+      geometry_file: str = 'eqdsk_cocos02.eqdsk',
+      hires_fac: int = 4,
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+  ):
+    """Constructs a StandardGeometryIntermediates from EQDSK, including calculating flux surface averages."""
+
+    def calculate_area(x, z):
+      """Gauss-shoelace formula (https://en.wikipedia.org/wiki/Shoelace_formula)."""
+      n = len(x)
+      area = 0.0
+      for i in range(n):
+        j = (i + 1) % n  # roll over at n
+        area += x[i] * z[j]
+        area -= z[i] * x[j]
+      area = abs(area) / 2.0
+      return area
+
+    eqfile = geometry_loader.load_geo_data(
+        geometry_dir, geometry_file, geometry_loader.GeometrySource.EQDSK
+    )
+
+    Rmaj = eqfile['xmag']
+    # TODO(b/375696414): deal with updown asymmetric cases.
+    Rmin = (eqfile['xbdry'].max() - eqfile['xbdry'].min()) / 2.0
+    B0 = eqfile['bcentre']
+
+    psi_eqdsk_1dgrid = np.linspace(
+        eqfile['psimag'], eqfile['psibdry'], eqfile['nx']
+    )
+
+    X_1D = np.linspace(
+        eqfile['xgrid1'], eqfile['xgrid1'] + eqfile['xdim'], eqfile['nx']
+    )
+    Z_1D = np.linspace(
+        eqfile['zmid'] - eqfile['zdim'] / 2,
+        eqfile['zmid'] + eqfile['zdim'] / 2,
+        eqfile['nz'],
+    )
+    X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
+    Xlcfs, Zlcfs = eqfile['xbdry'], eqfile['zbdry']
+
+    # Psi 2D grid defined on the Meshgrid
+    psi_eqdsk_2dgrid = eqfile['psi']
+    # Create mask for the confined region, i.e.,Xlcfs.min() < X < Xlcfs.max(),
+    # Zlcfs.min() < Z < Zlcfs.max()
+
+    offset = 0.01
+    mask = (
+        (X > Xlcfs.min() - offset)
+        & (X < Xlcfs.max() + offset)
+        & (Z > Zlcfs.min() - offset)
+        & (Z < Zlcfs.max() + offset)
+    )
+    masked_psi_eqdsk_2dgrid = np.ma.masked_where(~mask, psi_eqdsk_2dgrid)
+
+    # q on uniform grid (pressure, etc., also defined here)
+    q_eqdsk_1dgrid = eqfile['qpsi']
+
+    # ---- Interpolations
+    q_interp = scipy.interpolate.interp1d(
+        psi_eqdsk_1dgrid, q_eqdsk_1dgrid, kind='cubic'
+    )
+    psi_spline_fit = scipy.interpolate.RectBivariateSpline(
+        X_1D, Z_1D, psi_eqdsk_2dgrid, kx=3, ky=3, s=0
+    )
+    F_interp = scipy.interpolate.interp1d(
+        psi_eqdsk_1dgrid, eqfile['fpol'], kind='cubic'
+    )  # toroidal field flux function
+
+    # -----------------------------------------------------------
+    # --------- Make flux surface contours ---------
+    # -----------------------------------------------------------
+
+    # set epsilon based on floating point precision of psi grid
+    # TODO(b/375696414) explore replacing with a more robust method
+    epsilon = constants.CONSTANTS.eps  # 1e-7
+
+    psi_interpolant = np.linspace(
+        eqfile['psimag'] + epsilon, eqfile['psibdry'] - epsilon, 100
+    )
+
+    surfaces = []
+    cg_psi = contourpy.contour_generator(X, Z, masked_psi_eqdsk_2dgrid)
+
+    for _, _psi in enumerate(psi_interpolant):
+      vertices = cg_psi.create_contour(_psi)
+      x_surface, z_surface = vertices[0].T[0], vertices[0].T[1]
+      surfaces.append((x_surface, z_surface))
+
+    # -----------------------------------------------------------
+    # --------- Compute Flux surface averages and 1D profiles ---------
+    # --- Area, Volume, R_inboard, R_outboard
+    # --- FSA: <1/R^2>, <Bp^2>, <|grad(psi)|>, <|grad(psi)|^2>
+    # --- Toroidal plasma current
+    # --- Integral dl/Bp
+    # -----------------------------------------------------------
+
+    # Gathering area for profiles
+    areas, volumes = np.empty(len(surfaces)), np.empty(len(surfaces))
+    R_inboard, R_outboard = np.empty(len(surfaces)), np.empty(len(surfaces))
+    flux_surf_avg_1_over_R2_eqdsk = np.empty(len(surfaces))  # <1/R**2>
+    flux_surf_avg_Bp2_eqdsk = np.empty(len(surfaces))  # <Bp**2>
+    flux_surf_avg_RBp_eqdsk = np.empty(len(surfaces))  # <|grad(psi)|>
+    flux_surf_avg_R2Bp2_eqdsk = np.empty(len(surfaces))  # <|grad(psi)|**2>
+    int_dl_over_Bp_eqdsk = np.empty(len(surfaces))  # int(Rdl / | grad(psi) |)
+    Ip_eqdsk = np.empty(len(surfaces))  # Toroidal plasma current
+    delta_upper_face_eqdsk = np.empty(len(surfaces))  # Upper face delta
+    delta_lower_face_eqdsk = np.empty(len(surfaces))  # Lower face delta
+
+    # ---- Compute
+    # TODO(b/375696414) treatment of LCFS region for diverted geometries
+    for n, (x_surface, z_surface) in enumerate(surfaces):
+
+      # dl, line elements on which we will integrate
+      surface_dl = np.sqrt(
+          np.gradient(x_surface) ** 2 + np.gradient(z_surface) ** 2
+      )
+
+      # calculating gradient of psi in 2D
+      surface_dpsi_x = psi_spline_fit.ev(x_surface, z_surface, dx=1)
+      surface_dpsi_z = psi_spline_fit.ev(x_surface, z_surface, dy=1)
+      surface_abs_grad_psi = np.sqrt(surface_dpsi_x**2 + surface_dpsi_z**2)
+
+      # Poloidal field strength Bp = |grad(psi)| / R
+      surface_Bpol = surface_abs_grad_psi / x_surface
+      surface_int_dl_over_bpol = np.sum(
+          surface_dl / surface_Bpol
+      )  # This is denominator of all FSA
+
+      # plasma current
+      surface_int_bpol_dl = np.sum(surface_Bpol * surface_dl)
+
+      # 4 FSA, < 1/ R^2>, < | grad psi | >, < B_pol^2>, < | grad psi |^2 >
+      # where FSA(G) = int (G dl / Bpol) / (int (dl / Bpol))
+      surface_FSA_int_one_over_r2 = (
+          np.sum(1 / x_surface**2 * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+      surface_FSA_abs_grad_psi = (
+          np.sum(surface_abs_grad_psi * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+      surface_FSA_Bpol_squared = (
+          np.sum(surface_Bpol * surface_dl) / surface_int_dl_over_bpol
+      )
+      surface_FSA_abs_grad_psi2 = (
+          np.sum(surface_abs_grad_psi**2 * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+
+      # volumes and areas
+      area = calculate_area(x_surface, z_surface)
+      volume = area * 2 * np.pi * Rmaj
+
+      # Triangularity
+      idx_upperextent = np.argmax(z_surface)
+      idx_lowerextent = np.argmin(z_surface)
+
+      X_upperextent = x_surface[idx_upperextent]
+      X_lowerextent = x_surface[idx_lowerextent]
+
+      # (RMAJ - X_upperextent) / RMIN
+      surface_delta_upper_face = (Rmaj - X_upperextent) / max(x_surface)
+      surface_delta_lower_face = (Rmaj - X_lowerextent) / max(x_surface)
+
+      # Append to lists
+      areas[n] = area
+      volumes[n] = volume
+      R_inboard[n] = x_surface.min()
+      R_outboard[n] = x_surface.max()
+      int_dl_over_Bp_eqdsk[n] = surface_int_dl_over_bpol
+      flux_surf_avg_1_over_R2_eqdsk[n] = surface_FSA_int_one_over_r2
+      flux_surf_avg_RBp_eqdsk[n] = surface_FSA_abs_grad_psi
+      flux_surf_avg_R2Bp2_eqdsk[n] = surface_FSA_abs_grad_psi2
+      flux_surf_avg_Bp2_eqdsk[n] = surface_FSA_Bpol_squared
+      Ip_eqdsk[n] = surface_int_bpol_dl / constants.CONSTANTS.mu0
+      delta_upper_face_eqdsk[n] = surface_delta_upper_face
+      delta_lower_face_eqdsk[n] = surface_delta_lower_face
+
+    # q-profile on interpolation
+    q_profile = q_interp(psi_interpolant)
+
+    # toroidal flux
+    Phi_eqdsk = (
+        scipy.integrate.cumulative_trapezoid(
+            q_profile, psi_interpolant, initial=0.0
+        )
+        * 2
+        * np.pi
+    )  #  / (2*np.pi) # factor of pi?
+
+    # toroidal field flux function, T=RBphi
+    F_eqdsk = F_interp(psi_interpolant)
+
+    rhon = np.sqrt(Phi_eqdsk / Phi_eqdsk[-1])
+    vpr = (
+        4
+        * np.pi
+        * Phi_eqdsk[-1]
+        * rhon
+        / F_eqdsk
+        * flux_surf_avg_1_over_R2_eqdsk
+    )
+
+    return cls(
+        Ip_from_parameters=Ip_from_parameters,
+        Rmaj=Rmaj,
+        Rmin=Rmin,
+        B=B0,
+        psi=psi_interpolant,
+        Ip_profile=Ip_eqdsk,
+        Phi=Phi_eqdsk,
+        Rin=R_inboard,
+        Rout=R_outboard,
+        F=F_eqdsk,
+        int_dl_over_Bp=int_dl_over_Bp_eqdsk,
+        flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2_eqdsk,
+        flux_surf_avg_RBp=flux_surf_avg_RBp_eqdsk,
+        flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2_eqdsk,
+        flux_surf_avg_Bp2=flux_surf_avg_Bp2_eqdsk,
+        delta_upper_face=delta_upper_face_eqdsk,
+        delta_lower_face=delta_lower_face_eqdsk,
+        vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
     )

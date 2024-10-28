@@ -39,7 +39,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylabel=r'Electron density $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('j', 'johm', 'j_bootstrap', 'jext'),
+            attrs=('j', 'johm', 'j_bootstrap', 'generic_current_source'),
             labels=(
                 r'$j_\mathrm{tot}$',
                 r'$j_\mathrm{ohm}$',
@@ -66,8 +66,6 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             attrs=(
                 'q_icrh_i',
                 'q_icrh_e',
-                'q_nbi_i',
-                'q_nbi_e',
                 'q_ecrh',
                 'q_gen_i',
                 'q_gen_e',

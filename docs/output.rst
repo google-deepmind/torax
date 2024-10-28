@@ -129,17 +129,11 @@ core_profiles
 ``j_bootstrap_face`` (time, rho_face)
   Bootstrap current density on face grid, in :math:`[A/m^2]`
 
-``jext`` (time, rho_cell)
-  External non-inductive current density on cell grid, as defined by the generic ``jext`` source, in :math:`[A/m^2]`.
-
-``jext_face`` (time, rho_face)
-  External non-inductive current density on face grid as defined by the generic ``jext`` source, in :math:`[A/m^2]`.
+``generic_current_source`` (time, rho_cell)
+  External non-inductive current density on cell grid, as defined by the generic ``generic_current_source`` source, in :math:`[A/m^2]`.
 
 ``johm`` (time, rho_cell)
   Ohmic current density on cell grid in :math:`[A/m^2]`.
-
-``johm_face`` (time, rho_face)
-  Ohmic current density on face grid in :math:`[A/m^2]`.
 
 ``jtot`` (time, rho_cell)
   Total current density on cell grid in :math:`[A/m^2]`.
@@ -175,8 +169,8 @@ output in ``state_history.nc``. This needs to be taken into account in analysis 
 ``s_puff`` (time, rho_cell)
   Gas puff particle source density  in :math:`[s^{-1} m^{-3}]`.
 
-``s_nbi`` (time, rho_cell)
-  NBI particle source density  in :math:`[s^{-1} m^{-3}]`.
+``s_generic`` (time, rho_cell)
+  Generic particle source density  in :math:`[s^{-1} m^{-3}]`.
 
 ``s_pellet`` (time, rho_cell)
   Pellet particle source density  in :math:`[s^{-1} m^{-3}]`.

@@ -39,7 +39,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylim_min_zero=False,
         ),
         plotruns_lib.PlotProperties(
-            attrs=('j', 'johm', 'j_bootstrap', 'jext'),
+            attrs=('j', 'johm', 'j_bootstrap', 'generic_current_source'),
             labels=(r'$j_{tot}$', r'$j_{ohm}$', r'$j_{bs}$', r'$j_{ext}$'),
             ylabel=r'Toroidal current $[MA~m^{-2}]$',
             legend_fontsize=8,  # Smaller fontsize for this plot

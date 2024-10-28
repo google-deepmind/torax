@@ -36,11 +36,11 @@ CONFIG = {
     },
     'sources': {
         # Current sources (for psi equation)
-        'jext': {},
+        'generic_current_source': {},
         # Electron density sources/sink (for the ne equation).
-        'nbi_particle_source': {
-            # NBI total particle source
-            'S_nbi_tot': 0.0,
+        'generic_particle_source': {
+            # total particle source
+            'S_tot': 0.0,
         },
         'gas_puff_source': {
             # total pellet particles/s
