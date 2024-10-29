@@ -58,7 +58,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources["foo"]
-    source_builder.runtime_params.mode = source.supported_modes[0]
+    source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
@@ -85,6 +85,9 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     )
     # ElectronCyclotronSource provides TEMP_EL and PSI
     chex.assert_rank(value, 2)
+    # ElectronCyclotronSource default model_func provides sane default values
+    if jnp.any(jnp.isnan(value)):
+      raise AssertionError(f"Source value contains NaNs: {value}")
 
   def test_invalid_source_types_raise_errors(self):
     """Tests that using unsupported types raises an error."""

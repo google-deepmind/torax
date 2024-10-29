@@ -56,9 +56,9 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
       default_factory=lambda: {0.0: {0.0: 0.0, 1.0: 0.0}}
   )
 
-  # Gaussian EC power density profile; units [W/m^3]
+  # Gaussian EC power density profile; dimensionless [rho_norm]
   gaussian_ec_power_density_width: runtime_params_lib.TimeInterpolatedInput = (
-      0.0
+      0.1
   )
   gaussian_ec_power_density_location: (
       runtime_params_lib.TimeInterpolatedInput
