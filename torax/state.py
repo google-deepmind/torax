@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
-from typing import Any, Optional
+from typing import Any
 
 import chex
 import jax
@@ -41,7 +41,6 @@ class Currents:
   """
 
   jtot: array_typing.ArrayFloat
-  jtot_face: array_typing.ArrayFloat
   johm: array_typing.ArrayFloat
   generic_current_source: array_typing.ArrayFloat
   j_bootstrap: array_typing.ArrayFloat
@@ -51,7 +50,8 @@ class Currents:
   I_bootstrap: array_typing.ScalarFloat
   Ip: array_typing.ScalarFloat
   sigma: array_typing.ArrayFloat
-  jtot_hires: Optional[array_typing.ArrayFloat] = None
+  jtot_face: array_typing.ArrayFloat | None = None
+  jtot_hires: array_typing.ArrayFloat | None = None
 
   def has_nans(self) -> bool:
     """Checks for NaNs in all attributes of Currents."""

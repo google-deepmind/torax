@@ -291,8 +291,7 @@ def _prescribe_currents_no_bootstrap(
     Cohm = Iohm * 1e6 / denom
     johm_face = jformula_face * Cohm
     johm = geometry.face_to_cell(johm_face)
-    jtot_face = johm_face + generic_current_face
-    jtot = geometry.face_to_cell(jtot_face)
+    jtot = johm + generic_current
 
   jtot_hires = _get_jtot_hires(
       dynamic_runtime_params_slice,
@@ -305,7 +304,6 @@ def _prescribe_currents_no_bootstrap(
 
   currents = state.Currents(
       jtot=jtot,
-      jtot_face=jtot_face,
       jtot_hires=jtot_hires,
       johm=johm,
       generic_current_source=generic_current,
@@ -393,18 +391,13 @@ def _prescribe_currents_with_bootstrap(
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot_face = jformula_face * Ctot
-    johm_face = (
-        jtot_face - generic_current_face - bootstrap_profile.j_bootstrap_face
-    )
+    jtot = geometry.face_to_cell(jtot_face)
+    johm = jtot - generic_current - bootstrap_profile.j_bootstrap
   else:
     Cohm = Iohm * 1e6 / denom
     johm_face = jformula_face * Cohm
-    jtot_face = (
-        johm_face + generic_current_face + bootstrap_profile.j_bootstrap_face
-    )
-
-  jtot = geometry.face_to_cell(jtot_face)
-  johm = geometry.face_to_cell(johm_face)
+    johm = geometry.face_to_cell(johm_face)
+    jtot = johm + generic_current + bootstrap_profile.j_bootstrap
 
   jtot_hires = _get_jtot_hires(
       dynamic_runtime_params_slice,
@@ -417,7 +410,6 @@ def _prescribe_currents_with_bootstrap(
 
   currents = state.Currents(
       jtot=jtot,
-      jtot_face=jtot_face,
       jtot_hires=jtot_hires,
       johm=johm,
       generic_current_source=generic_current,
