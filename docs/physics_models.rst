@@ -215,6 +215,26 @@ TORAX currently offers three transport models:
     TORAX depends only on the open source weights and biases of the QLKNN model, and includes dedicated
     JAX inference code written in `Flax <https://github.com/google/flax>`_.
 
+  - **QuaLiKiz:** TORAX can be configured to use the `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_
+    quasilinear gyrokinetic transport model itself. Since QuaLiKiz is an external code (written in Fortran),
+    both `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ and its associated
+    `QuaLiKiz Pythontools <https://gitlab.com/qualikiz-group/QuaLiKiz-pythontools>`_ must be installed separately.
+    The path to the QuaLiKiz executable must be set in the ``TORAX_QLK_EXEC_PATH`` environment variable.
+    If this environment variable is not set, then the default is ``~/qualikiz/QuaLiKiz``.
+    See above links for installation instructions. QuaLiKiz and TORAX exchange data via file I/O on
+    a temporary directory. Since transport model calls are ostensibly carried out within JAX-compiled functions,
+    running with QuaLiKiz requires disabling JAX compilation by setting ``TORAX_COMPILATION_ENABLED=False``.
+    While other solutions exist, this is the simplest and most straightforward approach. In any case QuaLiKiz
+    becomes the simulation bottleneck and limits the overall simulation speed regardless of JAX compilation in the
+    rest of the stack. Furthermore, QuaLiKiz must be run with the ``linear`` stepper, ideally with the
+    ``predictor_corrector`` stepper option, since ``newton_raphson`` requires autodiff which is not supported
+    for QuaLiKiz. Running with QuaLiKiz is not a typical workflow due to its computational expense (2-3 orders of
+    magnitude slower than with QLKNN). Its use-cases are:
+
+      1. Evaluating ML-surrogates against their ground truth, i.e. for QLKNN, or as a template for how to carry this out for other ML-surrogates.
+
+      2. Example of using TORAX as the PDE solver for a standard integrated modelling framework with higher fidelity models.
+
 For all transport models, optional spatial smoothing of the transport coefficients using a Gaussian convolution kernel is
 implemented, to improve solver convergence rates, an issue which can arise with stiff transport coefficients such
 as from QLKNN. Furthermore, for all transport models, the user can set inner (towards the center) and/or outer

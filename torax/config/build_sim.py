@@ -39,8 +39,14 @@ from torax.transport_model import bohm_gyrobohm as bohm_gyrobohm_transport
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_wrapper
+# pylint: disable=g-import-not-at-top
+try:
+  from torax.transport_model import qualikiz_wrapper
+  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
+except ImportError:
+  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
 from torax.transport_model import transport_model as transport_model_lib
-
+# pylint: enable=g-import-not-at-top
 # pylint: disable=invalid-name
 
 
@@ -433,6 +439,8 @@ def build_transport_model_builder_from_config(
   The input config has one required key, `transport_model`, which can have the
   following values:
 
+  -  `qualikiz`: QuaLiKiz transport.
+
   -  `qlknn`: QLKNN transport.
 
     -  See `transport_model.qlknn_wrapper.RuntimeParams` for model-specific
@@ -512,6 +520,7 @@ def build_transport_model_builder_from_config(
     qlknn_params.pop('constant_params', None)
     qlknn_params.pop('cgm_params', None)
     qlknn_params.pop('bohm-gyrobohm_params', None)
+    qlknn_params.pop('qualikiz_params', None)
     return qlknn_wrapper.QLKNNTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
             qlknn_wrapper.get_default_runtime_params_from_model_path(
@@ -530,6 +539,7 @@ def build_transport_model_builder_from_config(
     constant_params.pop('qlknn_params', None)
     constant_params.pop('cgm_params', None)
     constant_params.pop('bohm-gyrobohm_params', None)
+    constant_params.pop('qualikiz_params', None)
     return constant_transport.ConstantTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
             constant_transport.RuntimeParams(),
@@ -545,6 +555,7 @@ def build_transport_model_builder_from_config(
     cgm_params.pop('qlknn_params', None)
     cgm_params.pop('constant_params', None)
     cgm_params.pop('bohm-gyrobohm_params', None)
+    cgm_params.pop('qualikiz_params', None)
 
     return critical_gradient_transport.CriticalGradientModelBuilder(
         runtime_params=config_args.recursive_replace(
@@ -567,6 +578,27 @@ def build_transport_model_builder_from_config(
             **bgb_params,
         )
     )
+  elif transport_model == 'qualikiz':
+    if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
+      raise ValueError(
+          'Qualikiz transport model is not available. Possible issue is that'
+          ' the QuaLiKiz Pythontools are not installed.'
+      )
+    qualikiz_params = dict(transport_config.pop('qualikiz_params', {}))
+    qualikiz_params.update(transport_config)
+    # Remove params from the other models, if present.
+    qualikiz_params.pop('qlknn_params', None)
+    qualikiz_params.pop('cgm_params', None)
+    qualikiz_params.pop('constant_params', None)
+    qualikiz_params.pop('bohm-gyrobohm_params', None)
+    # pylint: disable=undefined-variable
+    return qualikiz_wrapper.QualikizTransportModelBuilder(
+        runtime_params=config_args.recursive_replace(
+            qualikiz_wrapper.RuntimeParams(),
+            **qualikiz_params,
+        )
+    )
+  # pylint: enable=undefined-variable
   raise ValueError(f'Unknown transport model: {transport_model}')
 
 

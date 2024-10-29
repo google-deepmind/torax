@@ -490,9 +490,9 @@ on-the-fly onto the TORAX time slices where the PDE calculations are done.
 transport
 ---------
 
-Select and configure various transport models, such as constant diffusivity, critical gradient model (CGM), or the QuaLiKiz neural network (QLKNN10D).
-The dictionary consists of keys common to all transport models, and additional nested dictionaries were parameters pertaining to a specific transport
-model are defined.
+Select and configure various transport models. The dictionary consists of keys
+common to all transport models, and additional nested dictionaries were parameters
+pertaining to a specific transport model are defined.
 
 ``transport_model`` (str = 'constant')
   Select the transport model according to the following options:
@@ -504,7 +504,10 @@ model are defined.
 * ``'bohm-gyrobohm'``
   Bohm-GyroBohm model.
 * ``'qlknn'``
-  The QuaLiKiz Neural Network, 10D hypercube version (QLKNN10D) `[K.L. van de Plassche PoP 2020] <https://doi.org/10.1063/1.5134126>`_
+  The QuaLiKiz Neural Network, 10D hypercube version (QLKNN10D) `[K.L. van de Plassche PoP 2020] <https://doi.org/10.1063/1.5134126>`_.
+* ``'qualikiz'``
+  The `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ quasilinear gyrokinetic transport model.
+
 
 ``chimin`` (float = 0.05)
   Lower allowed bound for heat conductivities :math:`\chi`, in units of :math:`m^2/s`.
@@ -675,6 +678,38 @@ Runtime parameters for the QLKNN10D model, defined within a
 ``q_sawtooth_proxy`` (bool = True)
   To avoid un-physical transport barriers, modify the input q-profile and magnetic shear for zones where
   :math:`q < 1`, as a proxy for sawteeth. Where :math:`q<1`, then the :math:`q` and :math:`\hat{s}` QLKNN10D inputs are clipped to
+  :math:`q=1` and :math:`\hat{s}=0.1`.
+
+qualikiz
+^^^^^^^^
+
+Runtime parameters for the QuaLiKiz model, defined within a
+``qualikiz`` dict nested within the transport dict
+
+``maxruns`` (int = 2)
+  Frequency of full QuaLiKiz contour solutions. For maxruns>1, every maxruns-th
+  call will use the full contour integral solution. Other runs will use the previous
+  solution as the initial guess for the Newton solver, which is significantly faster.
+
+``numprocs`` (int = 8)
+  Number of MPI processes to use for QuaLiKiz.
+
+``coll_mult`` (float = 1.0)
+  Collisionality multiplier for sensitivity analysis.
+
+``DVeff`` (bool = False)
+  If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
+
+``An_min`` (float = 0.05)
+  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DVeff==True``.
+
+``avoid_big_negative_s`` (bool = True)
+  If True, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
+  to compensate for the lack of slab ITG modes in QuaLiKiz.
+
+``q_sawtooth_proxy`` (bool = True)
+  To avoid un-physical transport barriers, modify the input q-profile and magnetic shear for zones where
+  :math:`q < 1`, as a proxy for sawteeth. Where :math:`q<1`, then the :math:`q` and :math:`\hat{s}` QuaLiKiz inputs are clipped to
   :math:`q=1` and :math:`\hat{s}=0.1`.
 
 sources
