@@ -16,10 +16,12 @@
 
 from collections.abc import Sequence
 import dataclasses
+import enum
 from os import path
-from typing import Any
+from typing import Any, List
 
 import matplotlib
+from matplotlib import gridspec
 from matplotlib import widgets
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,6 +31,19 @@ import xarray as xr
 # Constants for figure setup, plot labels, and formatting.
 # The axes are designed to be plotted in the order they appear in the list,
 # first ascending in columns, then rows.
+
+
+class PlotType(enum.Enum):
+  """Enum for plot types.
+
+  SPATIAL: Spatial plots, e.g., 1D profiles as a function of toroidal flux
+  coordinate. Plots change with time, and are modified by the slider.
+  TIME_SERIES: Time series plots. 0D profiles plotting as a function of time.
+  These plots are not modified by the slider.
+  """
+
+  SPATIAL = 1
+  TIME_SERIES = 2
 
 
 @dataclasses.dataclass
@@ -43,6 +58,8 @@ class PlotProperties:
   lower_percentile: float = 0.0
   include_first_timepoint: bool = True
   ylim_min_zero: bool = True
+  plot_type: PlotType = PlotType.SPATIAL
+  suppress_zero_values: bool = False  # If True, all-zero-data is not plotted
 
 
 @dataclasses.dataclass
@@ -52,7 +69,10 @@ class FigureProperties:
   rows: int
   cols: int
   axes: tuple[PlotProperties, ...]
-  figure_size_factor: float = 5
+  figure_size_factor: float = 5.0
+  tick_fontsize: int = 10
+  axes_fontsize: int = 10
+  title_fontsize: int = 16
   default_legend_fontsize: int = 10
   colors: tuple[str, ...] = ('r', 'b', 'g', 'm', 'y', 'c')
 
@@ -65,20 +85,47 @@ class FigureProperties:
 class PlotData:
   """Dataclass for all plot related data."""
 
-  ti: np.ndarray
-  te: np.ndarray
-  ne: np.ndarray
-  j: np.ndarray
-  johm: np.ndarray
-  j_bootstrap: np.ndarray
-  jext: np.ndarray
-  q: np.ndarray
-  s: np.ndarray
-  chi_i: np.ndarray
-  chi_e: np.ndarray
-  t: np.ndarray
-  rho_cell_coord: np.ndarray
-  rho_face_coord: np.ndarray
+  ti: np.ndarray  # [keV]
+  te: np.ndarray  # [keV]
+  ne: np.ndarray  # [10^20 m^-3]
+  psi: np.ndarray  # [Wb]
+  psidot: np.ndarray  # [Wb/s]
+  j: np.ndarray  # [MA/m^2]
+  johm: np.ndarray  # [MA/m^2]
+  j_bootstrap: np.ndarray  # [MA/m^2]
+  j_ecrh: np.ndarray  # [MA/m^2]
+  generic_current_source: np.ndarray  # [MA/m^2]
+  q: np.ndarray  # Dimensionless
+  s: np.ndarray  # Dimensionless
+  chi_i: np.ndarray  # [m^2/s]
+  chi_e: np.ndarray  # [m^2/s]
+  d_e: np.ndarray  # [m^2/s]
+  v_e: np.ndarray  # [m/s]
+  q_icrh_i: np.ndarray  # [MW/m^3]
+  q_icrh_e: np.ndarray  # [MW/m^3]
+  q_gen_i: np.ndarray  # [MW/m^3]
+  q_gen_e: np.ndarray  # [MW/m^3]
+  q_ecrh: np.ndarray  # [MW/m^3]
+  q_alpha_i: np.ndarray  # [MW/m^3]
+  q_alpha_e: np.ndarray  # [MW/m^3]
+  q_ohmic: np.ndarray  # [MW/m^3]
+  q_brems: np.ndarray  # [MW/m^3]
+  q_ei: np.ndarray  # [MW/m^3]
+  Q_fusion: np.ndarray  # pylint: disable=invalid-name  # Dimensionless
+  s_puff: np.ndarray  # [10^20 m^-3 s^-1]
+  s_generic: np.ndarray  # [10^20 m^-3 s^-1]
+  s_pellet: np.ndarray  # [10^20 m^-3 s^-1]
+  i_total: np.ndarray  # [MA]
+  i_bootstrap: np.ndarray  # [MA]
+  i_generic: np.ndarray  # [MA]
+  i_ecrh: np.ndarray  # [MA]
+  p_auxiliary: np.ndarray  # [MW]
+  p_ohmic: np.ndarray  # [MW]
+  p_alpha: np.ndarray  # [MW]
+  p_sink: np.ndarray  # [MW]
+  t: np.ndarray  # [s]
+  rho_cell_coord: np.ndarray  # Normalized toroidal flux coordinate
+  rho_face_coord: np.ndarray  # Normalized toroidal flux coordinate
 
 
 def load_data(filename: str) -> PlotData:
@@ -94,25 +141,104 @@ def load_data(filename: str) -> PlotData:
         'r_cell_norm': 'rho_cell_norm',
         'r_face_norm': 'rho_face_norm',
     })
-  # Handle potential jext coordinate name variations
-  if output.CORE_PROFILES_JEXT in ds:
-    jext = ds[output.CORE_PROFILES_JEXT].to_numpy()
-  else:
-    jext = ds['jext'].to_numpy()
+  # Handle potential generic current coordinate name variations
+  if output.CORE_PROFILES_GENERIC_CURRENT not in ds:
+    ds[output.CORE_PROFILES_GENERIC_CURRENT] = ds['generic_current_source']
+
+  def get_optional_data(ds, key, grid_type):
+    if grid_type.lower() not in ['cell', 'face']:
+      raise ValueError(
+          f'grid_type for {key} must be either "cell" or "face", got'
+          f' {grid_type}'
+      )
+    if key in ds:
+      return ds[key].to_numpy()
+    else:
+      return (
+          np.zeros_like(ds[output.TEMP_ION].to_numpy())
+          if grid_type == 'cell'
+          else np.zeros_like(ds[output.CHI_FACE_ION].to_numpy())
+      )
+
+  def _transform_data(ds: xr.Dataset):
+    """Transforms data in-place to the desired units."""
+    transformations = {
+        output.JTOT: 1e6,  # A/m^2 to MA/m^2
+        output.JOHM: 1e6,  # A/m^2 to MA/m^2
+        output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
+        output.CORE_PROFILES_GENERIC_CURRENT: 1e6,  # A/m^2 to MA/m^2
+        output.I_BOOTSTRAP: 1e6,  # A to MA
+        'electron_cyclotron_source_j': 1e6,  # A/m^2 to MA/m^2
+        'icrh_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
+        'icrh_heat_source_el': 1e6,  # W/m^3 to MW/m^3
+        'nbi_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
+        'nbi_heat_source_el': 1e6,  # W/m^3 to MW/m^3
+        'generic_ion_el_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
+        'generic_ion_el_heat_source_el': 1e6,  # W/m^3 to MW/m^3
+        'electron_cyclotron_source_el': 1e6,  # W/m^3 to MW/m^3
+        'fusion_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
+        'fusion_heat_source_el': 1e6,  # W/m^3 to MW/m^3
+        'ohmic_heat_source': 1e6,  # W/m^3 to MW/m^3
+        'bremsstrahlung_heat_sink': 1e6,  # W/m^3 to MW/m^3
+        'qei_source': 1e6,  # W/m^3 to MW/m^3
+        'P_ohmic': 1e6,  # W to MW
+        'P_external_tot': 1e6,  # W to MW
+        'P_alpha_tot': 1e6,  # W to MW
+        'P_brems': 1e6,  # W to MW
+        'P_ecrh': 1e6,  # W to MW
+        'I_ecrh': 1e6,  # A to MA
+        'I_generic': 1e6,  # A to MA
+    }
+
+    for var_name, scale in transformations.items():
+      if var_name in ds:
+        ds[var_name] /= scale
+
+  _transform_data(ds)
+
   return PlotData(
       ti=ds[output.TEMP_ION].to_numpy(),
       te=ds[output.TEMP_EL].to_numpy(),
       ne=ds[output.NE].to_numpy(),
+      psi=ds[output.PSI].to_numpy(),
+      psidot=ds[output.PSIDOT].to_numpy(),
       j=ds[output.JTOT].to_numpy(),
       johm=ds[output.JOHM].to_numpy(),
       j_bootstrap=ds[output.J_BOOTSTRAP].to_numpy(),
-      jext=jext,
+      generic_current_source=ds[
+          output.CORE_PROFILES_GENERIC_CURRENT
+      ].to_numpy(),
+      j_ecrh=get_optional_data(ds, 'electron_cyclotron_source_j', 'cell'),
       q=ds[output.Q_FACE].to_numpy(),
       s=ds[output.S_FACE].to_numpy(),
       chi_i=ds[output.CHI_FACE_ION].to_numpy(),
       chi_e=ds[output.CHI_FACE_EL].to_numpy(),
+      d_e=ds[output.D_FACE_EL].to_numpy(),
+      v_e=ds[output.V_FACE_EL].to_numpy(),
       rho_cell_coord=ds[output.RHO_CELL_NORM].to_numpy(),
       rho_face_coord=ds[output.RHO_FACE_NORM].to_numpy(),
+      q_icrh_i=get_optional_data(ds, 'icrh_heat_source_ion', 'cell'),
+      q_icrh_e=get_optional_data(ds, 'icrh_heat_source_el', 'cell'),
+      q_gen_i=get_optional_data(ds, 'generic_ion_el_heat_source_ion', 'cell'),
+      q_gen_e=get_optional_data(ds, 'generic_ion_el_heat_source_el', 'cell'),
+      q_ecrh=get_optional_data(ds, 'electron_cyclotron_source_el', 'cell'),
+      q_alpha_i=get_optional_data(ds, 'fusion_heat_source_ion', 'cell'),
+      q_alpha_e=get_optional_data(ds, 'fusion_heat_source_el', 'cell'),
+      q_ohmic=get_optional_data(ds, 'ohmic_heat_source', 'cell'),
+      q_brems=get_optional_data(ds, 'bremsstrahlung_heat_sink', 'cell'),
+      q_ei=ds['qei_source'].to_numpy(),  # ion heating/sink
+      Q_fusion=ds['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
+      s_puff=get_optional_data(ds, 'gas_puff_source', 'cell'),
+      s_generic=get_optional_data(ds, 'generic_particle_source', 'cell'),
+      s_pellet=get_optional_data(ds, 'pellet_source', 'cell'),
+      i_total=ds[output.IP].to_numpy(),
+      i_bootstrap=ds[output.I_BOOTSTRAP].to_numpy(),
+      i_generic=ds['I_generic'].to_numpy(),
+      i_ecrh=ds['I_ecrh'].to_numpy(),
+      p_ohmic=ds['P_ohmic'].to_numpy(),
+      p_auxiliary=(ds['P_external_tot'] - ds['P_ohmic']).to_numpy(),
+      p_alpha=ds['P_alpha_tot'].to_numpy(),
+      p_sink=ds['P_brems'].to_numpy(),
       t=t,
   )
 
@@ -139,7 +265,7 @@ def plot_run(
             f"Attribute '{attr}' in plot_config does not exist in PlotData"
         )
 
-  fig, axes = create_figure(plot_config)
+  fig, axes, slider_ax = create_figure(plot_config)
 
   # Title handling:
   title_lines = [f'(1)={outfile}']
@@ -155,17 +281,19 @@ def plot_run(
   )
 
   format_plots(plot_config, plotdata1, plotdata2, axes)
-  timeslider = create_slider(plotdata1, plotdata2)
+  timeslider = create_slider(slider_ax, plotdata1, plotdata2)
   fig.canvas.draw()
 
-  update = lambda newtime: _update(
-      newtime, plot_config, plotdata1, lines1, plotdata2, lines2
-  )
-  # Call update function when slider value is changed.
+  def update(newtime):
+    """Update plots with new values following slider manipulation."""
+    fig.constrained_layout = False
+    _update(newtime, plot_config, plotdata1, lines1, plotdata2, lines2)
+    fig.constrained_layout = True
+    fig.canvas.draw_idle()
+
   timeslider.on_changed(update)
   fig.canvas.draw()
   plt.show()
-  fig.tight_layout()
 
 
 def _update(
@@ -182,8 +310,13 @@ def _update(
     idx = np.abs(plotdata.t - newtime).argmin()
     line_idx = 0
     for cfg in plot_config.axes:  # Iterate through axes based on plot_config
+      if cfg.plot_type == PlotType.TIME_SERIES:
+        continue  # Time series plots do not need to be updated
       for attr in cfg.attrs:  # Update all lines in current subplot.
-        lines[line_idx].set_ydata(getattr(plotdata, attr)[idx, :])
+        data = getattr(plotdata, attr)
+        if cfg.suppress_zero_values and np.all(data == 0):
+          continue
+        lines[line_idx].set_ydata(data[idx, :])
         line_idx += 1
 
   update_lines(plotdata1, lines1)
@@ -192,13 +325,11 @@ def _update(
 
 
 def create_slider(
+    ax: matplotlib.axes.Axes,
     plotdata1: PlotData,
     plotdata2: PlotData | None = None,
 ) -> widgets.Slider:
   """Create a slider tool for the plot."""
-  plt.subplots_adjust(bottom=0.2)
-  axslide = plt.axes([0.12, 0.05, 0.75, 0.05])
-
   tmin = (
       min(plotdata1.t)
       if plotdata2 is None
@@ -217,7 +348,7 @@ def create_slider(
   )
 
   return widgets.Slider(
-      axslide,
+      ax,
       'Time [s]',
       tmin,
       tmax,
@@ -230,7 +361,7 @@ def format_plots(
     plot_config: FigureProperties,
     plotdata1: PlotData,
     plotdata2: PlotData | None,
-    axes: tuple[Any, ...],
+    axes: List[Any],
 ):
   """Sets up plot formatting."""
 
@@ -248,7 +379,12 @@ def format_plots(
     return np.percentile(values, percentile)
 
   for ax, cfg in zip(axes, plot_config.axes):
-    ax.set_xlabel('Normalized radius')
+    if cfg.plot_type == PlotType.SPATIAL:
+      ax.set_xlabel('Normalized radius')
+    elif cfg.plot_type == PlotType.TIME_SERIES:
+      ax.set_xlabel('Time [s]')
+    else:
+      raise ValueError(f'Unknown plot type: {cfg.plot_type}')
     ax.set_ylabel(cfg.ylabel)
 
     # Get limits for y-axis based on percentile values.
@@ -308,7 +444,7 @@ def get_rho(
 def get_lines(
     plot_config: FigureProperties,
     plotdata: PlotData,
-    axes: tuple[Any, ...],
+    axes: List[Any],
     comp_plot: bool = False,
 ):
   """Gets lines for all plots."""
@@ -319,16 +455,35 @@ def get_lines(
 
   for ax, cfg in zip(axes, plot_config.axes):
     line_idx = 0  # Reset color selection cycling for each plot.
-    for attr, label in zip(cfg.attrs, cfg.labels):
-      rho = get_rho(plotdata, attr)
-      (line,) = ax.plot(
-          rho,
-          getattr(plotdata, attr)[0, :],  # Plot data at time zero
-          plot_config.colors[line_idx % len(plot_config.colors)] + dashed,
-          label=f'{label}{suffix}',
-      )
-      lines.append(line)
-      line_idx += 1
+    if cfg.plot_type == PlotType.SPATIAL:
+      for attr, label in zip(cfg.attrs, cfg.labels):
+        data = getattr(plotdata, attr)
+        if cfg.suppress_zero_values and np.all(data == 0):
+          continue
+        rho = get_rho(plotdata, attr)
+        (line,) = ax.plot(
+            rho,
+            data[0, :],  # Plot data at time zero
+            plot_config.colors[line_idx % len(plot_config.colors)] + dashed,
+            label=f'{label}{suffix}',
+        )
+        lines.append(line)
+        line_idx += 1
+    elif cfg.plot_type == PlotType.TIME_SERIES:
+      for attr, label in zip(cfg.attrs, cfg.labels):
+        data = getattr(plotdata, attr)
+        if cfg.suppress_zero_values and np.all(data == 0):
+          continue
+        # No need to return a line since this will not need to be updated.
+        _ = ax.plot(
+            plotdata.t,
+            data,  # Plot entire time series
+            plot_config.colors[line_idx % len(plot_config.colors)] + dashed,
+            label=f'{label}{suffix}',
+        )
+        line_idx += 1
+    else:
+      raise ValueError(f'Unknown plot type: {cfg.plot_type}')
 
   return lines
 
@@ -337,21 +492,27 @@ def create_figure(plot_config: FigureProperties):
   """Creates the figure and axes."""
   rows = plot_config.rows
   cols = plot_config.cols
-  figsize = (
-      cols * plot_config.figure_size_factor,
-      rows * plot_config.figure_size_factor,
+  matplotlib.rc('xtick', labelsize=plot_config.tick_fontsize)
+  matplotlib.rc('ytick', labelsize=plot_config.tick_fontsize)
+  matplotlib.rc('axes', labelsize=plot_config.axes_fontsize)
+  matplotlib.rc('figure', titlesize=plot_config.title_fontsize)
+  fig = plt.figure(
+      figsize=(
+          cols * plot_config.figure_size_factor,
+          rows * plot_config.figure_size_factor,
+      ),
+      constrained_layout=True,
   )
-  fig, axes = plt.subplots(rows, cols, figsize=figsize)
-  # Flatten axes array if necessary (for consistent indexing)
-  if isinstance(
-      axes, np.ndarray
-  ):  # Check if it's a NumPy array before flattening
-    axes = axes.flatten()
-  elif rows > 1 or cols > 1:  # This shouldn't happen, but added as a safety net
-    raise ValueError(
-        f'Axes is not a numpy array, but should be one since rows={rows},'
-        f' cols={cols}'
-    )
-  else:
-    axes = [axes]  # Make axes iterable if only one subplot
-  return fig, axes
+  # Create the GridSpec - leave space for the slider at the bottom
+  gs = gridspec.GridSpec(
+      rows + 1, cols, figure=fig, height_ratios=[1] * rows + [0.2]
+  )  # Adjust 0.2 for slider height
+
+  axes = []
+  for i in range(rows * cols):
+    row = i // cols
+    col = i % cols
+    axes.append(fig.add_subplot(gs[row, col]))  # Add subplots to the grid
+  # slider spans all columns in the last row
+  slider_ax = fig.add_subplot(gs[rows, :])
+  return fig, axes, slider_ax

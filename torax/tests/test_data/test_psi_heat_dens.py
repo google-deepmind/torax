@@ -41,7 +41,7 @@ CONFIG = {
         'generic_ion_el_heat_source': {},
         'qei_source': {},
         'j_bootstrap': {},
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'constant',

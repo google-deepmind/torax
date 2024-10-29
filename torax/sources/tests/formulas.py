@@ -23,12 +23,16 @@ from torax.config import build_sim
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.sources import default_sources
+from torax.sources import bremsstrahlung_heat_sink
+from torax.sources import electron_density_sources
 from torax.sources import formula_config
 from torax.sources import formulas
+from torax.sources import fusion_heat_source
+from torax.sources import ohmic_heat_source
 from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source
+from torax.sources.tests import test_lib
 from torax.stepper import linear_theta_method
+from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import sim_test_case
 from torax.transport_model import constant as constant_transport_model
 
@@ -68,37 +72,40 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     )
     # Set the sources to match test_particle_sources_constant as well.
     source_models_builder = default_sources.get_default_sources_builder()
-    source_models_builder.runtime_params['pellet_source'].S_pellet_tot = 2.0e22
+    source_models_builder.runtime_params[
+        electron_density_sources.PELLET_SOURCE_NAME
+    ].S_pellet_tot = 2.0e22
     S_puff_tot = 1.0e22  # pylint: disable=invalid-name
     puff_decay_length = 0.05
-    source_models_builder.runtime_params['gas_puff_source'].S_puff_tot = (
-        S_puff_tot
-    )
     source_models_builder.runtime_params[
-        'gas_puff_source'
+        electron_density_sources.GAS_PUFF_SOURCE_NAME
+    ].S_puff_tot = S_puff_tot
+    source_models_builder.runtime_params[
+        electron_density_sources.GAS_PUFF_SOURCE_NAME
     ].puff_decay_length = puff_decay_length
-    source_models_builder.runtime_params['nbi_particle_source'].S_nbi_tot = 0.0
+    source_models_builder.runtime_params[
+        electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME
+    ].S_tot = 0.0
     # We need to turn off some other sources for test_particle_sources_constant
     # that are unrelated to our test for the ne custom source.
-    source_models_builder.runtime_params['fusion_heat_source'].mode = (
+    source_models_builder.runtime_params[
+        fusion_heat_source.SOURCE_NAME
+    ].mode = runtime_params_lib.Mode.ZERO
+    source_models_builder.runtime_params[ohmic_heat_source.SOURCE_NAME].mode = (
         runtime_params_lib.Mode.ZERO
     )
-    source_models_builder.runtime_params['ohmic_heat_source'].mode = (
-        runtime_params_lib.Mode.ZERO
-    )
-    source_models_builder.runtime_params['bremsstrahlung_heat_sink'].mode = (
-        runtime_params_lib.Mode.ZERO
-    )
+    source_models_builder.runtime_params[
+        bremsstrahlung_heat_sink.SOURCE_NAME
+    ].mode = runtime_params_lib.Mode.ZERO
 
     # Add the custom source to the source_models, but keep it turned off for the
     # first run.
     source_models_builder.source_builders[custom_source_name] = (
-        source.SourceBuilder(
+        test_lib.TestSourceBuilder(
             supported_modes=(
                 runtime_params_lib.Mode.ZERO,
                 runtime_params_lib.Mode.FORMULA_BASED,
             ),
-            affected_core_profiles=(source.AffectedCoreProfile.NE,),
             formula=formulas.Exponential(),
             runtime_params=runtime_params_lib.RuntimeParams(
                 mode=runtime_params_lib.Mode.ZERO,
@@ -173,9 +180,9 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
           )
       )
       # And turn off the gas puff source it is replacing.
-      source_models_builder.runtime_params['gas_puff_source'].mode = (
-          runtime_params_lib.Mode.ZERO
-      )
+      source_models_builder.runtime_params[
+          electron_density_sources.GAS_PUFF_SOURCE_NAME
+      ].mode = runtime_params_lib.Mode.ZERO
       sim = simulation_app.update_sim(
           sim,
           test_particle_sources_constant_runtime_params,

@@ -348,14 +348,32 @@ is then included as a source term in the electron heat transport equation.
 
 Auxiliary Heating and Current Drive
 -----------------------------------
-While auxiliary heating such as neutral beam injection (NBI), ion cyclotron resonance heating (ICRH), etc,
-and their associated non-inductive current drives, can all be prescribed with formulas, presently no
-dedicated physics models are available within TORAX. Future work envisages incorporating more
-sophisticated physics-based models or ML-surrogate models, enhancing the fidelity of the simulation.
-For explicit sources, these can also come from external codes (not necessarily JAX compatible) coupled to TORAX in larger workflows.
+For prescribing generic non-physics-based auxiliary heating and current drive sources,
+TORAX provides built-in Gaussian formulations of a generic ion and electron heat source,
+and a generic current drive source, with time-dependent user configurable locations,
+Gaussian width, amplitude, and fractional heating of ions and electrons.
 
-Presently, a built-in non-physics-based Gaussian formulation of a generic ion and electron heat
-source is available in TORAX, with user configurable location, Gaussian width, and fractional heating of ions and electrons.
+More sophisticated physics-based models and/or ML-surrogates of specific auxiliary heating and current drive sources
+can be coupled modularly to TORAX, enhancing the fidelity of the simulation. By setting these as explicit sources,
+these can also come from external codes (not necessarily JAX compatible) coupled to TORAX in larger workflows.
+
+Available physics-based models and/or ML-surrogates are listed below.
+
+Electron-Cyclotron Heating and Current Drive
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The electron-cyclotron current drive can be calculated from the heating power density, :math:`Q_\mathrm{EC}(\rho) [Wm^{-3}]`,
+and a dimensionless EC current drive efficiency profile, :math:`\zeta_\mathrm{EC}(\rho)` .
+The current drive parallel to the magnetic field, in :math:`[Am^{-2}]`, is then given by:
+
+.. math::
+
+    \langle j_\mathrm{EC} \cdot B \rangle = \frac{2\pi\epsilon_0^2 F}{e^3 R_\mathrm{maj}} \frac{T_e}{n_e} \zeta_{EC} Q_\mathrm{EC}
+
+where :math:`\epsilon_0` is the vacuum permittivity, :math:`F = B_\phi R` is the flux function, :math:`e` is the elementary charge,
+:math:`R_\mathrm{maj}` is the device major radius, :math:`T_e` is the electron temperature in joules, and
+:math:`n_e` is the electron density per cubic meter.
+This relationship is based on the `Lin-Liu <https://doi.org/10.1063/1.1610472>`_ model. The derivation can be found :ref:`here <ec-derivation>`.
+
 
 Particle Sources
 ----------------
@@ -371,8 +389,6 @@ Presently, TORAX provides three built-in formula-based particle sources for the 
 
   - **Neutral Beam Injection (NBI):**  A Gaussian function models the ionization of neutral
     particles injected by a neutral beam.
-
-Future work envisages coupling physics-based models and/or ML-surrogates.
 
 Radiation
 ---------

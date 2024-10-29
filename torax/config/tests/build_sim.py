@@ -291,7 +291,7 @@ class BuildSimTest(parameterized.TestCase):
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models_builder.runtime_params['jext'].mode,
+        source_models_builder.runtime_params['generic_current_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
@@ -299,7 +299,7 @@ class BuildSimTest(parameterized.TestCase):
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertLen(source_models.sources, 3)
-    self.assertEmpty(source_models.standard_sources)
+    self.assertLen(source_models.standard_sources, 1)
 
   def test_adding_standard_source_via_config(self):
     """Tests that a source can be added with overriding defaults."""
@@ -319,7 +319,7 @@ class BuildSimTest(parameterized.TestCase):
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models_builder.runtime_params['jext'].mode,
+        source_models_builder.runtime_params['generic_current_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
@@ -328,7 +328,7 @@ class BuildSimTest(parameterized.TestCase):
     )
     # But these new sources have been added.
     self.assertLen(source_models.sources, 5)
-    self.assertLen(source_models.standard_sources, 2)
+    self.assertLen(source_models.standard_sources, 3)
     # With the overriding params.
     # pytype: disable=attribute-error
     self.assertEqual(

@@ -34,6 +34,9 @@ from torax.sources import source
 from torax.sources import source_profiles
 
 
+SOURCE_NAME = 'j_bootstrap'
+
+
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Configuration parameters for the bootstrap current source."""
@@ -88,21 +91,18 @@ class BootstrapCurrentSource(source.Source):
   - bootstrap current (on cell and face grids)
   - total integrated bootstrap current
   """
-
-  output_shape_getter: source.SourceOutputShapeFunction = _default_output_shapes
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
   )
 
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param.
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default_factory=lambda: (source.AffectedCoreProfile.PSI,),
-      )
-  )
+  @property
+  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
+    return _default_output_shapes
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.PSI,)
 
   def get_value(
       self,
@@ -114,7 +114,6 @@ class BootstrapCurrentSource(source.Source):
       temp_el: cell_variable.CellVariable | None = None,
       ne: cell_variable.CellVariable | None = None,
       ni: cell_variable.CellVariable | None = None,
-      jtot_face: jax.Array | None = None,
       psi: cell_variable.CellVariable | None = None,
   ) -> source_profiles.BootstrapCurrentProfile:
     # Make sure the input mode requested is supported.
@@ -131,7 +130,6 @@ class BootstrapCurrentSource(source.Source):
         not temp_el,
         ne is None,
         ni is None,
-        jtot_face is None,
         not psi,
     ]):
       raise ValueError(
@@ -187,7 +185,7 @@ class BootstrapCurrentSource(source.Source):
   ) -> jax.Array:
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
-        profile['j_bootstrap'],
+        profile[SOURCE_NAME],
         jnp.zeros_like(geo.rho),
     )
 
@@ -418,8 +416,3 @@ def calc_neoclassical(
       j_bootstrap_face=j_bootstrap_face,
       I_bootstrap=I_bootstrap,
   )
-
-
-BootstrapCurrentSourceBuilder = source.make_source_builder(
-    BootstrapCurrentSource, runtime_params_type=RuntimeParams
-)

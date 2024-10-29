@@ -29,7 +29,7 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=generic_ion_el_heat_source.GenericIonElectronHeatSource,
-        source_class_builder=generic_ion_el_heat_source.GenericIonElectronHeatSourceBuilder,
+        runtime_params_class=generic_ion_el_heat_source.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],

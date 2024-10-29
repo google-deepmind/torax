@@ -29,7 +29,7 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.GasPuffSource,
-        source_class_builder=eds.GasPuffSourceBuilder,
+        runtime_params_class=eds.GasPuffRuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
@@ -50,7 +50,7 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.PelletSource,
-        source_class_builder=eds.PelletSourceBuilder,
+        runtime_params_class=eds.PelletRuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
@@ -64,14 +64,14 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
     provider.build_dynamic_params(t=0.0)
 
 
-class NBISourceTest(test_lib.SingleProfileSourceTestCase):
-  """Tests for NBISource."""
+class SourceTest(test_lib.SingleProfileSourceTestCase):
+  """Tests for GenericParticleSource."""
 
   @classmethod
   def setUpClass(cls):
     super().setUpClass(
-        source_class=eds.NBIParticleSource,
-        source_class_builder=eds.NBIParticleSourceBuilder,
+        source_class=eds.GenericParticleSource,
+        runtime_params_class=eds.GenericParticleSourceRuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
@@ -79,7 +79,7 @@ class NBISourceTest(test_lib.SingleProfileSourceTestCase):
     )
 
   def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = eds.NBIParticleRuntimeParams()
+    runtime_params = eds.GenericParticleSourceRuntimeParams()
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
@@ -92,7 +92,7 @@ class RecombinationDensitySinkTest(test_lib.SingleProfileSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=eds.RecombinationDensitySink,
-        source_class_builder=eds.RecombinationDensitySinkBuilder,
+        runtime_params_class=runtime_params_lib.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],

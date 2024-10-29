@@ -31,6 +31,9 @@ from torax.sources import source
 from torax.sources import source_models
 
 
+SOURCE_NAME = 'bremsstrahlung_heat_sink'
+
+
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   use_relativistic_correction: bool = False
@@ -140,18 +143,14 @@ def bremsstrahlung_model_func(
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BremsstrahlungHeatSink(source.Source):
-  """Fusion heat source for both ion and electron heat."""
+  """Brehmsstrahlung heat sink for electron heat equation."""
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
       runtime_params_lib.Mode.PRESCRIBED,
   )
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.TEMP_EL,
-  )
 
-
-BremsstrahlungHeatSinkBuilder = source.make_source_builder(
-    BremsstrahlungHeatSink, runtime_params_type=RuntimeParams
-)
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.TEMP_EL,)

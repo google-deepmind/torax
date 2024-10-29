@@ -40,7 +40,7 @@ CONFIG = {
         'generic_ion_el_heat_source': {
             'w': 0.18202270915319393,
         },
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'constant',

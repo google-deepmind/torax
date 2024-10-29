@@ -30,6 +30,7 @@ from torax.sources import source
 from torax.sources import source_profiles
 
 
+SOURCE_NAME = 'qei_source'
 # pylint: disable=invalid-name
 
 
@@ -71,24 +72,17 @@ class QeiSource(source.Source):
   This is a special-case source because it can provide both implicit and
   explicit terms in our solver. See sim.py for how this is used.
   """
-
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.MODEL_BASED,
       runtime_params_lib.Mode.ZERO,
   )
 
-  # Don't include affected_core_profiles in the __init__ arguments.
-  # Freeze this param. Qei is a special-case source and affects these equations
-  # in a slightly different manner than the rest of the sources.
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default_factory=lambda: (
-              source.AffectedCoreProfile.TEMP_ION,
-              source.AffectedCoreProfile.TEMP_EL,
-          ),
-      )
-  )
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (
+        source.AffectedCoreProfile.TEMP_ION,
+        source.AffectedCoreProfile.TEMP_EL,
+    )
 
   def get_qei(
       self,
@@ -129,11 +123,6 @@ class QeiSource(source.Source):
       geo: geometry.Geometry,
   ) -> jax.Array:
     raise NotImplementedError('This method is not valid for QeiSource.')
-
-
-QeiSourceBuilder = source.make_source_builder(
-    QeiSource, runtime_params_type=RuntimeParams
-)
 
 
 def _model_based_qei(

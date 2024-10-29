@@ -14,7 +14,7 @@
 
 """Tests particle transport when using CGM model.
 
-CGM transport model. Pedestal. Particle sources including NBI
+CGM transport model. Pedestal. Particle sources
 """
 
 
@@ -44,8 +44,8 @@ CONFIG = {
     'sources': {
         'generic_ion_el_heat_source': {},
         'qei_source': {},
-        'nbi_particle_source': {
-            'S_nbi_tot': 0.3e22,
+        'generic_particle_source': {
+            'S_tot': 0.3e22,
         },
         'gas_puff_source': {
             'S_puff_tot': 0.5e22,
@@ -54,7 +54,7 @@ CONFIG = {
             'S_pellet_tot': 1.0e22,
         },
         'j_bootstrap': {},
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'CGM',

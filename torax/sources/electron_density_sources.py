@@ -94,62 +94,61 @@ def _calc_puff_source(
   )
 
 
+GAS_PUFF_SOURCE_NAME = 'gas_puff_source'
+
+
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_cell_profile_shape,
-  )
   formula: source.SourceProfileFunction = _calc_puff_source
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.NE,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.NE,)
 
 
 @dataclasses.dataclass(kw_only=True)
-class NBIParticleRuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for NBI particle source."""
+class GenericParticleSourceRuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime parameters for particle source."""
 
-  # NBI particle source Gaussian width in normalized radial coord
-  nbi_particle_width: runtime_params_lib.TimeInterpolatedInput = 0.25
-  # NBI particle source Gaussian central location in normalized radial coord
-  nbi_deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.0
-  # NBI total particle source
-  S_nbi_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
+  # particle source Gaussian width in normalized radial coord
+  particle_width: runtime_params_lib.TimeInterpolatedInput = 0.25
+  # particle source Gaussian central location in normalized radial coord
+  deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.0
+  # total particle source
+  S_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
 
   def make_provider(
       self,
       torax_mesh: geometry.Grid1D | None = None,
-  ) -> NBIParticleRuntimeParamsProvider:
-    return NBIParticleRuntimeParamsProvider(
+  ) -> GenericParticleSourceRuntimeParamsProvider:
+    return GenericParticleSourceRuntimeParamsProvider(
         **self.get_provider_kwargs(torax_mesh)
     )
 
 
 @chex.dataclass
-class NBIParticleRuntimeParamsProvider(
+class GenericParticleSourceRuntimeParamsProvider(
     runtime_params_lib.RuntimeParamsProvider
 ):
   """Provides runtime parameters for a given time and geometry."""
 
-  runtime_params_config: NBIParticleRuntimeParams
-  nbi_particle_width: interpolated_param.InterpolatedVarSingleAxis
-  nbi_deposition_location: interpolated_param.InterpolatedVarSingleAxis
-  S_nbi_tot: interpolated_param.InterpolatedVarSingleAxis
+  runtime_params_config: GenericParticleSourceRuntimeParams
+  particle_width: interpolated_param.InterpolatedVarSingleAxis
+  deposition_location: interpolated_param.InterpolatedVarSingleAxis
+  S_tot: interpolated_param.InterpolatedVarSingleAxis
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicNBIParticleRuntimeParams:
-    return DynamicNBIParticleRuntimeParams(
-        nbi_particle_width=float(self.nbi_particle_width.get_value(t)),
-        nbi_deposition_location=float(
-            self.nbi_deposition_location.get_value(t)
+  ) -> DynamicParticleRuntimeParams:
+    return DynamicParticleRuntimeParams(
+        particle_width=float(self.particle_width.get_value(t)),
+        deposition_location=float(
+            self.deposition_location.get_value(t)
         ),
-        S_nbi_tot=float(self.S_nbi_tot.get_value(t)),
+        S_tot=float(self.S_tot.get_value(t)),
         mode=self.runtime_params_config.mode.value,
         is_explicit=self.runtime_params_config.is_explicit,
         formula=self.formula.build_dynamic_params(t),
@@ -158,13 +157,13 @@ class NBIParticleRuntimeParamsProvider(
 
 
 @chex.dataclass(frozen=True)
-class DynamicNBIParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  nbi_particle_width: array_typing.ScalarFloat
-  nbi_deposition_location: array_typing.ScalarFloat
-  S_nbi_tot: array_typing.ScalarFloat
+class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  particle_width: array_typing.ScalarFloat
+  deposition_location: array_typing.ScalarFloat
+  S_tot: array_typing.ScalarFloat
 
 
-def _calc_nbi_source(
+def _calc_generic_particle_source(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -173,13 +172,13 @@ def _calc_nbi_source(
 ) -> jax.Array:
   """Calculates external source term for n from SBI."""
   assert isinstance(
-      dynamic_source_runtime_params, DynamicNBIParticleRuntimeParams
+      dynamic_source_runtime_params, DynamicParticleRuntimeParams
   )
   return formulas.gaussian_profile(
-      c1=dynamic_source_runtime_params.nbi_deposition_location,
-      c2=dynamic_source_runtime_params.nbi_particle_width,
+      c1=dynamic_source_runtime_params.deposition_location,
+      c2=dynamic_source_runtime_params.particle_width,
       total=(
-          dynamic_source_runtime_params.S_nbi_tot
+          dynamic_source_runtime_params.S_tot
           / dynamic_runtime_params_slice.numerics.nref
       ),
       use_normalized_r=True,
@@ -187,18 +186,17 @@ def _calc_nbi_source(
   )
 
 
+GENERIC_PARTICLE_SOURCE_NAME = 'generic_particle_source'
+
+
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class NBIParticleSource(source.Source):
+class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_cell_profile_shape,
-  )
-  formula: source.SourceProfileFunction = _calc_nbi_source
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.NE,
-  )
+  formula: source.SourceProfileFunction = _calc_generic_particle_source
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.NE,)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -265,51 +263,28 @@ def _calc_pellet_source(
   )
 
 
+PELLET_SOURCE_NAME = 'pellet_source'
+
+
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class PelletSource(source.Source):
   """Pellet source for the ne equation."""
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_cell_profile_shape,
-  )
   formula: source.SourceProfileFunction = _calc_pellet_source
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.NE,
-  )
+
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (source.AffectedCoreProfile.NE,)
 
 
 # pylint: enable=invalid-name
-
 # The sources below don't have any source-specific implementations, so their
 # bodies are empty. You can refer to their base class to see the implementation.
 # We define new classes here to:
 #  a) support any future source-specific implementation.
 #  b) better readability and human-friendly error messages when debugging.
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class RecombinationDensitySink(source.Source):
   """Recombination sink for the electron density equation."""
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_cell_profile_shape,
-  )
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.NE,
   )
-
-
-PelletSourceBuilder = source.make_source_builder(
-    PelletSource, runtime_params_type=PelletRuntimeParams
-)
-GasPuffSourceBuilder = source.make_source_builder(
-    GasPuffSource, runtime_params_type=GasPuffRuntimeParams
-)
-NBIParticleSourceBuilder = source.make_source_builder(
-    NBIParticleSource, runtime_params_type=NBIParticleRuntimeParams
-)
-RecombinationDensitySinkBuilder = source.make_source_builder(
-    RecombinationDensitySink
-)

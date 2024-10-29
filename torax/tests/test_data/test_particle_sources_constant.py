@@ -49,7 +49,7 @@ CONFIG = {
             'S_pellet_tot': 2.0e22,
         },
         'j_bootstrap': {},
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'constant',

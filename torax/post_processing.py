@@ -28,6 +28,7 @@ from torax.sources import source_profiles
 
 _trapz = jax.scipy.integrate.trapezoid
 
+# TODO(b/376010694): use the various SOURCE_NAMES for the keys.
 ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'generic_ion_el_heat_source': 'P_generic',
     'fusion_heat_source': 'P_alpha',
@@ -35,11 +36,17 @@ ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
 EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'ohmic_heat_source': 'P_ohmic',
     'bremsstrahlung_heat_sink': 'P_brems',
+    'electron_cyclotron_source': 'P_ecrh',
 }
 EXTERNAL_HEATING_SOURCES = [
     'generic_ion_el_heat_source',
+    'electron_cyclotron_source',
     'ohmic_heat_source',
 ]
+CURRENT_SOURCE_TRANSFORMATIONS = {
+    'generic_current_source': 'I_generic',
+    'electron_cyclotron_source': 'I_ecrh',
+}
 
 
 @jax_utils.jit
@@ -193,12 +200,12 @@ def _compute_stored_thermal_energy(
 
 
 @jax_utils.jit
-def _calculate_integrated_heat_sources(
+def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
 ) -> dict[str, jax.Array]:
-  """Calculates total integrated internal and external source powers.
+  """Calculates total integrated internal and external source power and current.
 
   Args:
     geo: Magnetic geometry
@@ -253,11 +260,34 @@ def _calculate_integrated_heat_sources(
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
     if key in core_sources.profiles:
-      profile = core_sources.profiles[key]
+      # TODO(b/376010694): better automation of splitting profiles into
+      # separate variables.
+      # index 0 corresponds to the electron heating source profile.
+      if key == 'electron_cyclotron_source':
+        profile = core_sources.profiles[key][0, :]
+      else:
+        profile = core_sources.profiles[key]
       integrated[f'{value}'] = _trapz(profile * geo.vpr, geo.rho_norm)
       integrated['P_heating_tot_el'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_el'] += integrated[f'{value}']
+
+  for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
+    # Only populate integrated dict with sources that exist.
+    if key in core_sources.profiles:
+      # TODO(b/376010694): better automation of splitting profiles into
+      # separate variables.
+      # index 1 corresponds to the current source profile.
+      if key == 'electron_cyclotron_source':
+        profile = core_sources.profiles[key][1, :]
+      elif key == 'generic_current_source':
+        profile = geometry.face_to_cell(core_sources.profiles[key])
+      else:
+        profile = core_sources.profiles[key]
+      integrated[f'{value}'] = _trapz(profile * geo.vpr, geo.rho_norm) / (
+          2 * jnp.pi * geo.Rmaj
+      )
+
   integrated['P_heating_tot'] = (
       integrated['P_heating_tot_ion'] + integrated['P_heating_tot_el']
   )
@@ -299,7 +329,7 @@ def make_outputs(
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
   psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
-  integrated_heat_sources = _calculate_integrated_heat_sources(
+  integrated_sources = _calculate_integrated_sources(
       geo,
       sim_state.core_profiles,
       sim_state.core_sources,
@@ -308,9 +338,9 @@ def make_outputs(
   # Calculate fusion gain with a zero division guard.
   # Total energy released per reaction is 5 times the alpha particle energy.
   Q_fusion = (
-      integrated_heat_sources['P_alpha_tot']
+      integrated_sources['P_alpha_tot']
       * 5.0
-      / (integrated_heat_sources['P_external_tot'] + constants.CONSTANTS.eps)
+      / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
   )
 
   updated_post_processed_outputs = dataclasses.replace(
@@ -325,7 +355,7 @@ def make_outputs(
       FFprime_face=FFprime_face,
       psi_norm_face=psi_norm_face,
       psi_face=sim_state.core_profiles.psi.face_value(),
-      **integrated_heat_sources,
+      **integrated_sources,
       Q_fusion=Q_fusion,
   )
   # pylint: enable=invalid-name

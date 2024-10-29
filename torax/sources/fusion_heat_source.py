@@ -30,6 +30,9 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
 
+SOURCE_NAME = 'fusion_heat_source'
+
+
 def calc_fusion(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -138,23 +141,6 @@ def fusion_heat_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
-  # Fusion heat source affects temp_ion and temp_el.
-  # affected_core_profiles is removed from __init__ effectively freezing it.
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default=(
-              source.AffectedCoreProfile.TEMP_ION,
-              source.AffectedCoreProfile.TEMP_EL,
-          ),
-      )
-  )
-  # This source always outputs 2 cell profiles.
-  # output_shape_getter is removed from __init__ effectively freezing it.
-  output_shape_getter: source.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source.get_ion_el_output_shape,
-  )
   supported_modes: tuple[runtime_params_lib.Mode, ...] = (
       runtime_params_lib.Mode.ZERO,
       runtime_params_lib.Mode.MODEL_BASED,
@@ -163,13 +149,19 @@ class FusionHeatSource(source.Source):
 
   model_func: source.SourceProfileFunction = fusion_heat_model_func
 
+  @property
+  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+    return (
+        source.AffectedCoreProfile.TEMP_ION,
+        source.AffectedCoreProfile.TEMP_EL,
+    )
+
+  @property
+  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
+    return source.get_ion_el_output_shape
+
 
 @dataclasses.dataclass
 class FusionHeatSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime params for FusionHeatSource."""
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-
-FusionHeatSourceBuilder = source.make_source_builder(
-    FusionHeatSource, runtime_params_type=FusionHeatSourceRuntimeParams,
-)

@@ -15,6 +15,7 @@
 """Unit tests for torax.geometry."""
 
 import dataclasses
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -22,6 +23,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import geometry
+from torax.config import build_sim
 
 
 class GeometryTest(parameterized.TestCase):
@@ -157,8 +159,9 @@ class GeometryTest(parameterized.TestCase):
     geo_1 = geometry.build_standard_geometry(intermediate_1)
 
     provider = geometry.StandardGeometryProvider.create_provider(
-        {0.: geo_0, 10.: geo_1})
-    geo = provider(5.)
+        {0.0: geo_0, 10.0: geo_1}
+    )
+    geo = provider(5.0)
     np.testing.assert_allclose(geo.Rmaj, 6.8)
     np.testing.assert_allclose(geo.Rmin, 1.5)
     np.testing.assert_allclose(geo.B0, 5.9)
@@ -182,8 +185,9 @@ class GeometryTest(parameterized.TestCase):
         hires_fac=4,
     )
     provider = geometry.CircularAnalyticalGeometryProvider.create_provider(
-        {0.: geo_0, 10.: geo_1})
-    geo = provider(5.)
+        {0.0: geo_0, 10.0: geo_1}
+    )
+    geo = provider(5.0)
     np.testing.assert_allclose(geo.Rmaj, 6.7)
     np.testing.assert_allclose(geo.Rmin, 1.5)
 

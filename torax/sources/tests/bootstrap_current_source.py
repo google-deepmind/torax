@@ -36,7 +36,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=bootstrap_current_source.BootstrapCurrentSource,
-        source_class_builder=bootstrap_current_source.BootstrapCurrentSourceBuilder,
+        runtime_params_class=bootstrap_current_source.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
@@ -44,14 +44,14 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     )
 
   def test_source_value(self):
-    source_builder = bootstrap_current_source.BootstrapCurrentSourceBuilder()
+    source_builder = self._source_class_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'j_bootstrap': source_builder}
+        {bootstrap_current_source.SOURCE_NAME: source_builder}
     )
     source_models = source_models_builder()
-    source = source_models.sources['j_bootstrap']
+    source = source_models.sources[bootstrap_current_source.SOURCE_NAME]
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -81,7 +81,6 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
             temp_el=core_profiles.temp_el,
             ne=core_profiles.ne,
             ni=core_profiles.ni,
-            jtot_face=core_profiles.currents.jtot_face,
             psi=core_profiles.psi,
         )
     )
