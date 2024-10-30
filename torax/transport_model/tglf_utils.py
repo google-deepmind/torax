@@ -1,6 +1,5 @@
 import chex
 from jax import numpy as jnp
-from tglfnn import TGLFInputs
 
 from torax import geometry
 from torax import physics
@@ -8,12 +7,77 @@ from torax import state
 from torax.constants import CONSTANTS
 
 
-def prepare_tglfnn_inputs(
+@chex.dataclass(frozen=True)
+class TGLFInputs:
+    r"""Dimensionless inputs to the TGLF model.
+
+    Attributes:
+    -----------
+      Te_grad: chex.Array
+        Normalized electron temperature gradient: :math:`-{\frac {a}{T_{e}}}{\frac {dT_{e}}{dr}}`
+
+      Ti_grad: chex.Array
+        Normalized ion temperature gradient: :math:`-{\frac {a}{T_{i}}}{\frac {dT_{i}}{dr}}`
+
+      Ti_over_Te: chex.Array
+        Temperature ratio: :math:`{\frac {T_{i}}{T_{e}}}`
+
+      rmin: chex.Array
+        Flux surface centroid minor radius: :math:`\frac{r}{a}`
+
+      dRmaj: chex.Array
+        :math:`{\frac {\partial R_{maj}}{\partial x}}`
+
+      q: chex.Array
+        Safety factor, :math:`q`
+
+      s_hat: chex.Array
+        s_hat = r/q * dq/dr
+
+      nu_ee: chex.Array
+        Electron-electron collision frequency
+
+      kappa: chex.Array
+        Elongation of flux surface
+
+      kappa_shear: chex.Array
+        Shear in elongation: :math:`{\frac {r}{\kappa }}{\frac {\partial \kappa }{\partial r}}`
+
+      delta: chex.Array
+        Triangularity of flux surface
+
+      delta_shear: chex.Array
+        Shear in triangularity of flux surface: :math:`r{\frac {\partial \delta }{\partial r}}`
+
+      beta_e: chex.Array
+        :math:`\beta_e:math:` defined w.r.t :math:`B_\mathrm{unit}`
+
+      Zeff: chex.Array
+        Effective ion charge
+    """
+    Te_grad_norm: chex.Array
+    Ti_grad_norm: chex.Array
+    Ti_over_Te: chex.Array
+    Rmin: chex.Array
+    dRmaj: chex.Array
+    q: chex.Array
+    s_hat: chex.Array
+    ei_collision_freq: chex.Array
+    kappa: chex.Array
+    kappa_shear: chex.Array
+    delta: chex.Array
+    delta_shear: chex.Array
+    beta_e: chex.Array
+    Zeff: chex.Array
+
+
+def prepare_tglf_inputs(
     Zeff_face: chex.Array,
     transport,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     q_correction_factor: chex.Numeric,
+    # TODO: Add Kappa or Zmax, Zmin to geo, rather than passing it in explicitly
     kappa: chex.Numeric,
     nref: chex.Numeric,
 ) -> TGLFInputs:
@@ -24,12 +88,11 @@ def prepare_tglfnn_inputs(
 
     # Reference velocity and length, used for normalisation
     vref = (Te.face_value() / (core_profiles.Ai * CONSTANTS.mp)) ** 0.5
-    lref = a = geo.Rmin[-1] # Minor radius at LCFS
+    lref = geo.Rmin[-1] # Minor radius at LCFS
 
     # Temperature gradients
-    # TODO: check we're using the right rho coordinate in the grad
-    normalised_dTe_drho = lref / Te.face_value() * Te.face_grad(geo.rho_face_norm)
-    normalised_dTi_drho = lref / Ti.face_value() * Ti.face_grad(geo.rho_face_norm)
+    normalised_dTe_drho = lref / Te.face_value() * Te.face_grad()
+    normalised_dTi_drho = lref / Ti.face_value() * Ti.face_grad()
 
     # Density
     ne = core_profiles.ne.face_value() * nref
@@ -40,7 +103,8 @@ def prepare_tglfnn_inputs(
     # See https://pyrokinetics.readthedocs.io/en/latest/user_guide/collisions.html
     # Coulomb_logarithm_ee given by Wesson 3rd ed p727
     # ne in m^-3, Te in keV
-    coulomb_logarithm_ee = 14.9 - 0.5 * jnp.log(ne / 1e20) + 0.5 * jnp.log(Te)
+    # TODO: These should be in physics.py
+    coulomb_logarithm_ee = 14.9 - 0.5 * jnp.log(ne / 1e20) + jnp.log(Te)
     normalised_nu_ee = (4 * jnp.pi * ne * CONSTANTS.qe**4 * coulomb_logarithm_ee) / (
         CONSTANTS.me**0.5 * (2 * Te) ** 1.5
     )
@@ -66,8 +130,6 @@ def prepare_tglfnn_inputs(
     # Geometry
     dRmaj = jnp.gradient(geo.Rmaj, geo.rho_face_norm)
     # Elongation
-    # TODO
-    kappa = None #(Z_max - Z_min) / (2*a)
     kappa_shear = geo.rho_face_norm / kappa * jnp.gradient(kappa, geo.rho_face_norm)
     # Triangularity
     delta_shear = geo.delta_face * jnp.gradient(geo.delta_face, geo.rho_face_norm)
