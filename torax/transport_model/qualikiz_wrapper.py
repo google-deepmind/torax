@@ -37,6 +37,7 @@ from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.transport_model import qualikiz_utils
+from torax.transport_model import quasilinear_utils
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
@@ -245,11 +246,11 @@ class QualikizTransportModel(transport_model.TransportModel):
     qe = np.loadtxt(self._runpath + '/output/efe_GB.dat')
     pfe = np.loadtxt(self._runpath + '/output/pfe_GB.dat')
 
-    return qualikiz_utils.make_core_transport(
+    return quasilinear_utils.make_core_transport(
         qi=qi,
         qe=qe,
         pfe=pfe,
-        qualikiz_inputs=qualikiz_inputs,
+        quasilinear_inputs=qualikiz_inputs,
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
