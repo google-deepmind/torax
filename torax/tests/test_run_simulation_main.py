@@ -51,6 +51,7 @@ finally:
  del sys.path[-1]
 from torax import simulation_app
 from torax.tests.test_lib import paths
+import xarray as xr
 
 
 class RunSimulationMainTest(parameterized.TestCase):
@@ -90,6 +91,10 @@ class RunSimulationMainTest(parameterized.TestCase):
           run_simulation_main._PYTHON_CONFIG_MODULE,
           ".tests.test_data.test_implicit",
       ),
+      (
+          run_simulation_main._OUTPUT_DIR,
+          "/tmp/torax_test_output",
+      ),
   )
   @mock.patch("builtins.input", side_effect=["q"])
   def test_main_app_runs(self, mock_input):
@@ -99,21 +104,20 @@ class RunSimulationMainTest(parameterized.TestCase):
     # In this test we run the whole app. We send a mocked 'q' input to quit the
     # app after it is done running. The app quits an explicit SystemExit that
     # we need to catch to avoid bringing down the tests. To make sure that the
-    # app really ran as expected, we capture stdout and check that it contains
-    # an expected message from after the successful execution.
+    # app really ran as expected, we check that the output state file exists and
+    # equals the reference output.
+    with self.assertRaises(SystemExit) as cm:
+      app.run(run_simulation_main.main)
+    # Make sure the app ran successfully
+    self.assertIsNone(cm.exception.code)
 
-    captured_stdout = io.StringIO()
-    handler = logging.PythonHandler(captured_stdout)
-
-    try:
-      logging.get_absl_logger().addHandler(handler)
-      with self.assertRaises(SystemExit) as cm:
-        app.run(run_simulation_main.main)
-      # Make sure the app ran successfully
-      self.assertIsNone(cm.exception.code)
-    finally:
-      logging.get_absl_logger().removeHandler(handler)
-    self.assertIn("Wrote simulation output to", captured_stdout.getvalue())
+    output = output_lib.load_state_file(
+        "/tmp/torax_test_output/state_history.nc"
+    )
+    reference = output_lib.load_state_file(
+        os.path.join(paths.test_data_dir(), "test_implicit.nc")
+    )
+    xr.testing.assert_allclose(output, reference)
 
   @flagsaver.flagsaver(
       (run_simulation_main._PYTHON_CONFIG_PACKAGE, "temp_package"),
