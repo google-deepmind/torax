@@ -10,7 +10,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '*.md'
-    types: [review_requested]
+    types: [opened, synchronize, reopened]
   push:
     # Do not trigger tests for documentation or markdown docs.
     paths-ignore:
