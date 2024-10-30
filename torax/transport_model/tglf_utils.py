@@ -5,69 +5,36 @@ from torax import geometry
 from torax import physics
 from torax import state
 from torax.constants import CONSTANTS
+from torax.quasilinear_utils import QuasilinearInputs
 
 
 @chex.dataclass(frozen=True)
-class TGLFInputs:
+class TGLFInputs(QuasilinearInputs):
     r"""Dimensionless inputs to the TGLF model.
 
-    Attributes:
-    -----------
-      Te_grad: chex.Array
-        Normalized electron temperature gradient: :math:`-{\frac {a}{T_{e}}}{\frac {dT_{e}}{dr}}`
-
-      Ti_grad: chex.Array
-        Normalized ion temperature gradient: :math:`-{\frac {a}{T_{i}}}{\frac {dT_{i}}{dr}}`
-
-      Ti_over_Te: chex.Array
-        Temperature ratio: :math:`{\frac {T_{i}}{T_{e}}}`
-
-      rmin: chex.Array
-        Flux surface centroid minor radius: :math:`\frac{r}{a}`
-
-      dRmaj: chex.Array
-        :math:`{\frac {\partial R_{maj}}{\partial x}}`
-
-      q: chex.Array
-        Safety factor, :math:`q`
-
-      s_hat: chex.Array
-        s_hat = r/q * dq/dr
-
-      nu_ee: chex.Array
-        Electron-electron collision frequency
-
-      kappa: chex.Array
-        Elongation of flux surface
-
-      kappa_shear: chex.Array
-        Shear in elongation: :math:`{\frac {r}{\kappa }}{\frac {\partial \kappa }{\partial r}}`
-
-      delta: chex.Array
-        Triangularity of flux surface
-
-      delta_shear: chex.Array
-        Shear in triangularity of flux surface: :math:`r{\frac {\partial \delta }{\partial r}}`
-
-      beta_e: chex.Array
-        :math:`\beta_e:math:` defined w.r.t :math:`B_\mathrm{unit}`
-
-      Zeff: chex.Array
-        Effective ion charge
+    See https://gafusion.github.io/doc/tglf/tglf_table.html for definitions.
     """
-    Te_grad_norm: chex.Array
-    Ti_grad_norm: chex.Array
+    # Ti/Te
     Ti_over_Te: chex.Array
-    Rmin: chex.Array
+    # dRmaj/dr
     dRmaj: chex.Array
+    # q
     q: chex.Array
+    # r/q dq/dr
     s_hat: chex.Array
+    # nu_ei (see note in prepare_tglf_inputs)
     ei_collision_freq: chex.Array
+    # Elongation kappa
     kappa: chex.Array
+    # r/kappa dkappa/dr
     kappa_shear: chex.Array
+    # Triangularity delta
     delta: chex.Array
+    # r ddelta/dr
     delta_shear: chex.Array
+    # Electron pressure defined w.r.t B_unit
     beta_e: chex.Array
+    # Effective charge
     Zeff: chex.Array
 
 
@@ -81,21 +48,23 @@ def prepare_tglf_inputs(
     kappa: chex.Numeric,
     nref: chex.Numeric,
 ) -> TGLFInputs:
-    # Temperatures
+    # Shorthand for the appropriate variables
     Te = core_profiles.temp_el
     Ti = core_profiles.temp_ion
-    Ti_over_Te = Ti.face_value() / Te.face_value()
+    ne = core_profiles.ne
 
     # Reference velocity and length, used for normalisation
     vref = (Te.face_value() / (core_profiles.Ai * CONSTANTS.mp)) ** 0.5
     lref = geo.Rmin[-1] # Minor radius at LCFS
 
     # Temperature gradients
-    normalised_dTe_drho = lref / Te.face_value() * Te.face_grad()
-    normalised_dTi_drho = lref / Ti.face_value() * Ti.face_grad()
+    Ti_over_Te = Ti.face_value() / Te.face_value()
+    Ate = -lref / Te.face_value() * Te.face_grad()
+    Ati = -lref / Ti.face_value() * Ti.face_grad()
 
-    # Density
-    ne = core_profiles.ne.face_value() * nref
+    # Density gradient
+    # Note: nref cancels, as 1/(ne*nref) * (ne_grad * nref) = 1/ne * ne_grad
+    Ane = -lref / ne.face_value() * core_profiles.ne.face_grad()
 
     # Electron-electron collision frequency
     # Note: In the docs, TGLF XNUE is mislabelled.
@@ -103,6 +72,7 @@ def prepare_tglf_inputs(
     # See https://pyrokinetics.readthedocs.io/en/latest/user_guide/collisions.html
     # Coulomb_logarithm_ee given by Wesson 3rd ed p727
     # ne in m^-3, Te in keV
+    # TODO: Check definition of nu_ee
     # TODO: These should be in physics.py
     coulomb_logarithm_ee = 14.9 - 0.5 * jnp.log(ne / 1e20) + jnp.log(Te)
     normalised_nu_ee = (4 * jnp.pi * ne * CONSTANTS.qe**4 * coulomb_logarithm_ee) / (
@@ -128,24 +98,42 @@ def prepare_tglf_inputs(
     beta_e = 8 * jnp.pi * p_e / B_unit**2
 
     # Geometry
+    Rmaj = geo.Rmaj
+    Rmin = geo.Rmin
     dRmaj = jnp.gradient(geo.Rmaj, geo.rho_face_norm)
     # Elongation
     kappa_shear = geo.rho_face_norm / kappa * jnp.gradient(kappa, geo.rho_face_norm)
     # Triangularity
+    delta = geo.delta_face
     delta_shear = geo.delta_face * jnp.gradient(geo.delta_face, geo.rho_face_norm)
 
+    # Gyrobohm diffusivity
+    # Used to unnormalise the outputs
+    # TODO: check this definition with Lorenzo/TGLF and ensure correct normalisation
+    chiGB = (
+      (core_profiles.Ai * CONSTANTS.mp) ** 0.5
+      / (CONSTANTS.qe * geo.B0) ** 2
+      * (Ti.face_value() * CONSTANTS.keV2J) ** 1.5
+      / lref
+    )
+
     return TGLFInputs(
-        Te_grad_norm=normalised_dTe_drho,
-        Ti_grad_norm=normalised_dTi_drho,
+        # From QuasilinearInputs
+        chiGB=chiGB,
+        Rmin=Rmin,
+        Rmaj=Rmaj,
+        Ati=Ati,
+        Ate=Ate,
+        Ane=Ane,
+        # From TGLFInputs
         Ti_over_Te=Ti_over_Te,
-        Rmin=geo.Rmin,
         dRmaj=dRmaj,
         q=q,
         s_hat=s_hat,
         nu_ee=nu_ee,
         kappa=kappa,
         kappa_shear=kappa_shear,
-        delta=geo.delta_face,
+        delta=delta,
         delta_shear=delta_shear,
         beta_e=beta_e,
         Zeff=Zeff_face,
