@@ -16,6 +16,7 @@
 import chex
 import jax
 from jax import numpy as jnp
+
 from torax import constants as constants_module
 from torax import geometry
 from torax import state
@@ -39,6 +40,7 @@ class QuasilinearInputs:
   Ati: chex.Array
   Ate: chex.Array
   Ane: chex.Array
+  # TODO: Maybe Lref, vref should be put here?
 
 
 def make_core_transport(
@@ -54,6 +56,7 @@ def make_core_transport(
   constants = constants_module.CONSTANTS
 
   # conversion to SI units (note that n is normalized here)
+  # TODO: this has Lref hardcoded
   pfe_SI = (
       pfe
       * core_profiles.ne.face_value()
@@ -62,7 +65,8 @@ def make_core_transport(
   )
 
   # chi outputs in SI units.
-  # chi in GB units is Q[GB]/(a/LT) , Lref=Rmin in Q[GB].
+  # chi in GB units is Q[GB]/(a/LT), Lref=Rmin in Q[GB]
+  # TODO: This choice of Lref is QuaLiKiz-specific
   # max/min clipping included
   chi_face_ion = (
       ((quasilinear_inputs.Rmaj / quasilinear_inputs.Rmin) * qi)
