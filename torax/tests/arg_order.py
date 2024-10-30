@@ -34,8 +34,8 @@ from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
 from torax.fvm import residual_and_loss
 from torax.sources import bootstrap_current_source
-from torax.sources import external_current_source
 from torax.sources import formulas
+from torax.sources import generic_current_source
 from torax.sources import qei_source
 from torax.sources import source
 from torax.sources import source_models
@@ -66,7 +66,7 @@ class ArgOrderTest(parameterized.TestCase):
       dict(module=optimizer_solve_block),
       dict(module=residual_and_loss),
       dict(module=bootstrap_current_source),
-      dict(module=external_current_source),
+      dict(module=generic_current_source),
       dict(module=formulas),
       dict(module=qei_source),
       dict(module=source),

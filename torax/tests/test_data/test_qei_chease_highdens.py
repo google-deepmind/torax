@@ -41,7 +41,7 @@ CONFIG = {
             'w': 0.18202270915319393,
         },
         'qei_source': {},
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'constant',

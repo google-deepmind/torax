@@ -305,7 +305,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_models=source_models,
     )
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 1.0
-    source_models_builder.runtime_params['jext'].fext = 0.0
+    source_models_builder.runtime_params['generic_current_source'].fext = 0.0
     source_models = source_models_builder()
     dcs3, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -320,7 +320,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_models=source_models,
     )
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
-    source_models_builder.runtime_params['jext'].fext = 0.0
+    source_models_builder.runtime_params['generic_current_source'].fext = 0.0
     dcs3_helper, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             config3_helper,
@@ -342,7 +342,7 @@ class InitialStatesTest(parameterized.TestCase):
     ctot = config1.profile_conditions.Ip * 1e6 / denom
     jtot_formula_face = jformula_face * ctot
     johm_formula_face = jtot_formula_face * (
-        1 - dcs1.sources[source_models.jext_name].fext  # pytype: disable=attribute-error
+        1 - dcs1.sources[source_models.generic_current_source_name].fext  # pytype: disable=attribute-error
     )
 
     # Calculate bootstrap current for config3 which doesn't zero it out
@@ -357,7 +357,6 @@ class InitialStatesTest(parameterized.TestCase):
         temp_el=core_profiles3.temp_el,
         ne=core_profiles3.ne,
         ni=core_profiles3.ni,
-        jtot_face=core_profiles3_helper.currents.jtot_face,
         psi=core_profiles3_helper.psi,
     )
     f_bootstrap = bootstrap_profile.I_bootstrap / (
@@ -372,20 +371,21 @@ class InitialStatesTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        core_profiles1.currents.jext_face + core_profiles1.currents.johm_face,
-        jtot_formula_face,
+        core_profiles1.currents.generic_current_source
+        + core_profiles1.currents.johm,
+        geometry.face_to_cell(jtot_formula_face),
         rtol=1e-12,
         atol=1e-12,
     )
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
-        core_profiles1.currents.johm_face,
-        johm_formula_face,
+        core_profiles1.currents.johm,
+        geometry.face_to_cell(johm_formula_face),
     )
     np.testing.assert_allclose(
-        core_profiles2.currents.johm_face,
-        johm_formula_face,
+        core_profiles2.currents.johm,
+        geometry.face_to_cell(johm_formula_face),
         rtol=1e-12,
         atol=1e-12,
     )
@@ -396,8 +396,8 @@ class InitialStatesTest(parameterized.TestCase):
         jtot_formula_face,
     )
     np.testing.assert_allclose(
-        core_profiles3.currents.johm_face,
-        jtot_formula_face * (1 - f_bootstrap),
+        core_profiles3.currents.johm,
+        geometry.face_to_cell(jtot_formula_face) * (1 - f_bootstrap),
         rtol=1e-12,
         atol=1e-12,
     )

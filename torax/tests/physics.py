@@ -101,7 +101,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     runtime_params = references.runtime_params
     source_models_builder = source_models_lib.SourceModelsBuilder()
     # Turn on the external current source.
-    source_models_builder.runtime_params['jext'].mode = (
+    source_models_builder.runtime_params['generic_current_source'].mode = (
         source_runtime_params.Mode.FORMULA_BASED
     )
     source_models = source_models_builder()

@@ -89,7 +89,7 @@ CONFIG = {
             # original simu)
             'bootstrap_mult': 1.0,
         },
-        'jext': {
+        'generic_current_source': {
             # total "external" current fraction
             'fext': 0.46,
             # width of "external" Gaussian current profile (normalized radial
@@ -100,14 +100,14 @@ CONFIG = {
             'rext': 0.36,
         },
         # Electron density sources/sink (for the ne equation).
-        'nbi_particle_source': {
-            # NBI total particle source
-            'S_nbi_tot': 2.05e20,
-            # NBI particle source Gaussian central location (normalized radial
+        'generic_particle_source': {
+            # total particle source
+            'S_tot': 2.05e20,
+            # particle source Gaussian central location (normalized radial
             # coordinate)
-            'nbi_deposition_location': 0.3,
-            # NBI particle source Gaussian width (normalized radial coordinate)
-            'nbi_particle_width': 0.25,
+            'deposition_location': 0.3,
+            # particle source Gaussian width (normalized radial coordinate)
+            'particle_width': 0.25,
         },
         'gas_puff_source': {
             # pellets behave like a gas puff for this simulation with

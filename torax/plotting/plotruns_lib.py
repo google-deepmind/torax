@@ -93,7 +93,8 @@ class PlotData:
   j: np.ndarray  # [MA/m^2]
   johm: np.ndarray  # [MA/m^2]
   j_bootstrap: np.ndarray  # [MA/m^2]
-  jext: np.ndarray  # [MA/m^2]
+  j_ecrh: np.ndarray  # [MA/m^2]
+  generic_current_source: np.ndarray  # [MA/m^2]
   q: np.ndarray  # Dimensionless
   s: np.ndarray  # Dimensionless
   chi_i: np.ndarray  # [m^2/s]
@@ -102,9 +103,6 @@ class PlotData:
   v_e: np.ndarray  # [m/s]
   q_icrh_i: np.ndarray  # [MW/m^3]
   q_icrh_e: np.ndarray  # [MW/m^3]
-  q_nbi_i: np.ndarray  # [MW/m^3]
-  q_nbi_e: np.ndarray  # [MW/m^3]
-  q_nbi_e: np.ndarray  # [MW/m^3]
   q_gen_i: np.ndarray  # [MW/m^3]
   q_gen_e: np.ndarray  # [MW/m^3]
   q_ecrh: np.ndarray  # [MW/m^3]
@@ -115,10 +113,12 @@ class PlotData:
   q_ei: np.ndarray  # [MW/m^3]
   Q_fusion: np.ndarray  # pylint: disable=invalid-name  # Dimensionless
   s_puff: np.ndarray  # [10^20 m^-3 s^-1]
-  s_nbi: np.ndarray  # [10^20 m^-3 s^-1]
+  s_generic: np.ndarray  # [10^20 m^-3 s^-1]
   s_pellet: np.ndarray  # [10^20 m^-3 s^-1]
   i_total: np.ndarray  # [MA]
   i_bootstrap: np.ndarray  # [MA]
+  i_generic: np.ndarray  # [MA]
+  i_ecrh: np.ndarray  # [MA]
   p_auxiliary: np.ndarray  # [MW]
   p_ohmic: np.ndarray  # [MW]
   p_alpha: np.ndarray  # [MW]
@@ -141,9 +141,9 @@ def load_data(filename: str) -> PlotData:
         'r_cell_norm': 'rho_cell_norm',
         'r_face_norm': 'rho_face_norm',
     })
-  # Handle potential jext coordinate name variations
-  if output.CORE_PROFILES_JEXT not in ds:
-    ds[output.CORE_PROFILES_JEXT] = ds['jext']
+  # Handle potential generic current coordinate name variations
+  if output.CORE_PROFILES_GENERIC_CURRENT not in ds:
+    ds[output.CORE_PROFILES_GENERIC_CURRENT] = ds['generic_current_source']
 
   def get_optional_data(ds, key, grid_type):
     if grid_type.lower() not in ['cell', 'face']:
@@ -166,15 +166,16 @@ def load_data(filename: str) -> PlotData:
         output.JTOT: 1e6,  # A/m^2 to MA/m^2
         output.JOHM: 1e6,  # A/m^2 to MA/m^2
         output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
-        output.CORE_PROFILES_JEXT: 1e6,  # A/m^2 to MA/m^2
+        output.CORE_PROFILES_GENERIC_CURRENT: 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
+        'electron_cyclotron_source_j': 1e6,  # A/m^2 to MA/m^2
         'icrh_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'icrh_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'nbi_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'nbi_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'generic_ion_el_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'generic_ion_el_heat_source_el': 1e6,  # W/m^3 to MW/m^3
-        'ecrh_heat_source': 1e6,  # W/m^3 to MW/m^3
+        'electron_cyclotron_source_el': 1e6,  # W/m^3 to MW/m^3
         'fusion_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'fusion_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'ohmic_heat_source': 1e6,  # W/m^3 to MW/m^3
@@ -184,6 +185,9 @@ def load_data(filename: str) -> PlotData:
         'P_external_tot': 1e6,  # W to MW
         'P_alpha_tot': 1e6,  # W to MW
         'P_brems': 1e6,  # W to MW
+        'P_ecrh': 1e6,  # W to MW
+        'I_ecrh': 1e6,  # A to MA
+        'I_generic': 1e6,  # A to MA
     }
 
     for var_name, scale in transformations.items():
@@ -201,7 +205,10 @@ def load_data(filename: str) -> PlotData:
       j=ds[output.JTOT].to_numpy(),
       johm=ds[output.JOHM].to_numpy(),
       j_bootstrap=ds[output.J_BOOTSTRAP].to_numpy(),
-      jext=ds[output.CORE_PROFILES_JEXT].to_numpy(),
+      generic_current_source=ds[
+          output.CORE_PROFILES_GENERIC_CURRENT
+      ].to_numpy(),
+      j_ecrh=get_optional_data(ds, 'electron_cyclotron_source_j', 'cell'),
       q=ds[output.Q_FACE].to_numpy(),
       s=ds[output.S_FACE].to_numpy(),
       chi_i=ds[output.CHI_FACE_ION].to_numpy(),
@@ -212,11 +219,9 @@ def load_data(filename: str) -> PlotData:
       rho_face_coord=ds[output.RHO_FACE_NORM].to_numpy(),
       q_icrh_i=get_optional_data(ds, 'icrh_heat_source_ion', 'cell'),
       q_icrh_e=get_optional_data(ds, 'icrh_heat_source_el', 'cell'),
-      q_nbi_i=get_optional_data(ds, 'nbi_heat_source_ion', 'cell'),
-      q_nbi_e=get_optional_data(ds, 'nbi_heat_source_el', 'cell'),
       q_gen_i=get_optional_data(ds, 'generic_ion_el_heat_source_ion', 'cell'),
       q_gen_e=get_optional_data(ds, 'generic_ion_el_heat_source_el', 'cell'),
-      q_ecrh=get_optional_data(ds, 'ecrh_heat_source', 'cell'),
+      q_ecrh=get_optional_data(ds, 'electron_cyclotron_source_el', 'cell'),
       q_alpha_i=get_optional_data(ds, 'fusion_heat_source_ion', 'cell'),
       q_alpha_e=get_optional_data(ds, 'fusion_heat_source_el', 'cell'),
       q_ohmic=get_optional_data(ds, 'ohmic_heat_source', 'cell'),
@@ -224,10 +229,12 @@ def load_data(filename: str) -> PlotData:
       q_ei=ds['qei_source'].to_numpy(),  # ion heating/sink
       Q_fusion=ds['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
       s_puff=get_optional_data(ds, 'gas_puff_source', 'cell'),
-      s_nbi=get_optional_data(ds, 'nbi_particle_source', 'cell'),
+      s_generic=get_optional_data(ds, 'generic_particle_source', 'cell'),
       s_pellet=get_optional_data(ds, 'pellet_source', 'cell'),
       i_total=ds[output.IP].to_numpy(),
       i_bootstrap=ds[output.I_BOOTSTRAP].to_numpy(),
+      i_generic=ds['I_generic'].to_numpy(),
+      i_ecrh=ds['I_ecrh'].to_numpy(),
       p_ohmic=ds['P_ohmic'].to_numpy(),
       p_auxiliary=(ds['P_external_tot'] - ds['P_ohmic']).to_numpy(),
       p_alpha=ds['P_alpha_tot'].to_numpy(),

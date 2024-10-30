@@ -64,14 +64,14 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
     provider.build_dynamic_params(t=0.0)
 
 
-class NBISourceTest(test_lib.SingleProfileSourceTestCase):
-  """Tests for NBISource."""
+class SourceTest(test_lib.SingleProfileSourceTestCase):
+  """Tests for GenericParticleSource."""
 
   @classmethod
   def setUpClass(cls):
     super().setUpClass(
-        source_class=eds.NBIParticleSource,
-        runtime_params_class=eds.NBIParticleRuntimeParams,
+        source_class=eds.GenericParticleSource,
+        runtime_params_class=eds.GenericParticleSourceRuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
@@ -79,7 +79,7 @@ class NBISourceTest(test_lib.SingleProfileSourceTestCase):
     )
 
   def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = eds.NBIParticleRuntimeParams()
+    runtime_params = eds.GenericParticleSourceRuntimeParams()
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)

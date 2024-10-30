@@ -48,7 +48,7 @@ CONFIG = {
         },
         'qei_source': {},
         'ohmic_heat_source': {},
-        'jext': {},
+        'generic_current_source': {},
         'bremsstrahlung_heat_sink': {
             'use_relativistic_correction': True,
         },

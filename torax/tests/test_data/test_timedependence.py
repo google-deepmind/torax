@@ -58,7 +58,7 @@ CONFIG = {
             },  # in W
         },
         'qei_source': {},
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'qlknn',

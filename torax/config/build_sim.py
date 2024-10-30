@@ -39,8 +39,14 @@ from torax.transport_model import bohm_gyrobohm as bohm_gyrobohm_transport
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_wrapper
+# pylint: disable=g-import-not-at-top
+try:
+  from torax.transport_model import qualikiz_wrapper
+  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
+except ImportError:
+  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
 from torax.transport_model import transport_model as transport_model_lib
-
+# pylint: enable=g-import-not-at-top
 # pylint: disable=invalid-name
 
 
@@ -53,10 +59,35 @@ def _build_standard_geometry_provider(
   if geometry_type == 'chease':
     intermediate_builder = geometry.StandardGeometryIntermediates.from_chease
   elif geometry_type == 'fbt':
-    intermediate_builder = geometry.StandardGeometryIntermediates.from_fbt
+    # Check if parameters indicate a bundled FBT file and input validity.
+    if 'LY_bundle_file' in kwargs:
+      if 'geometry_configs' in kwargs:
+        raise ValueError(
+            "Cannot use 'geometry_configs' together with a bundled FBT file"
+        )
+      if 'LY_file' in kwargs:
+        raise ValueError(
+            "Cannot use 'LY_file' together with a bundled FBT file"
+        )
+      # Build and return the GeometryProvider for the bundled case.
+      intermediates = geometry.StandardGeometryIntermediates.from_fbt_bundle(
+          **kwargs,
+      )
+      geometries = {
+          t: geometry.build_standard_geometry(intermediates[t])
+          for t in intermediates
+      }
+      return geometry.StandardGeometryProvider.create_provider(geometries)
+    else:
+      intermediate_builder = (
+          geometry.StandardGeometryIntermediates.from_fbt_single_slice
+      )
+  elif geometry_type == 'eqdsk':
+    intermediate_builder = geometry.StandardGeometryIntermediates.from_eqdsk
   else:
     raise ValueError(f'Unknown geometry type: {geometry_type}')
   if 'geometry_configs' in kwargs:
+    # geometry config has sequence of standalone geometry files.
     if not isinstance(kwargs['geometry_configs'], dict):
       raise ValueError('geometry_configs must be a dict.')
     geometries = {}
@@ -143,10 +174,12 @@ def build_geometry_provider_from_config(
   geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
   if geometry_type == 'circular':
     return _build_circular_geometry_provider(**kwargs)
-  elif geometry_type == 'chease' or geometry_type == 'fbt':
+  # elif geometry_type == 'chease' or geometry_type == 'fbt':
+  elif geometry_type in ['chease', 'fbt', 'eqdsk']:
     return _build_standard_geometry_provider(
         geometry_type=geometry_type, **kwargs
     )
+
   raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 
@@ -277,9 +310,9 @@ def build_sources_builder_from_config(
   definitions (source names to dataclass):
 
   -  `j_bootstrap`: `source.bootstrap_current_source.RuntimeParams`
-  -  `jext`: `source.external_current_source.RuntimeParams`
-  -  `nbi_particle_source`:
-     `source.electron_density_sources.NBIParticleRuntimeParams`
+  -  `generic_current_source`: `source.generic_current_source.RuntimeParams`
+  -  `generic_particle_source`:
+     `source.electron_density_sources.GenericParticleSourceRuntimeParams`
   -  `gas_puff_source`: `source.electron_density_sources.GasPuffRuntimeParams`
   -  `pellet_source`: `source.electron_density_sources.PelletRuntimeParams`
   -  `generic_ion_el_heat_source`:
@@ -406,6 +439,8 @@ def build_transport_model_builder_from_config(
   The input config has one required key, `transport_model`, which can have the
   following values:
 
+  -  `qualikiz`: QuaLiKiz transport.
+
   -  `qlknn`: QLKNN transport.
 
     -  See `transport_model.qlknn_wrapper.RuntimeParams` for model-specific
@@ -485,6 +520,7 @@ def build_transport_model_builder_from_config(
     qlknn_params.pop('constant_params', None)
     qlknn_params.pop('cgm_params', None)
     qlknn_params.pop('bohm-gyrobohm_params', None)
+    qlknn_params.pop('qualikiz_params', None)
     return qlknn_wrapper.QLKNNTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
             qlknn_wrapper.get_default_runtime_params_from_model_path(
@@ -503,6 +539,7 @@ def build_transport_model_builder_from_config(
     constant_params.pop('qlknn_params', None)
     constant_params.pop('cgm_params', None)
     constant_params.pop('bohm-gyrobohm_params', None)
+    constant_params.pop('qualikiz_params', None)
     return constant_transport.ConstantTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
             constant_transport.RuntimeParams(),
@@ -518,6 +555,7 @@ def build_transport_model_builder_from_config(
     cgm_params.pop('qlknn_params', None)
     cgm_params.pop('constant_params', None)
     cgm_params.pop('bohm-gyrobohm_params', None)
+    cgm_params.pop('qualikiz_params', None)
 
     return critical_gradient_transport.CriticalGradientModelBuilder(
         runtime_params=config_args.recursive_replace(
@@ -540,6 +578,27 @@ def build_transport_model_builder_from_config(
             **bgb_params,
         )
     )
+  elif transport_model == 'qualikiz':
+    if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
+      raise ValueError(
+          'Qualikiz transport model is not available. Possible issue is that'
+          ' the QuaLiKiz Pythontools are not installed.'
+      )
+    qualikiz_params = dict(transport_config.pop('qualikiz_params', {}))
+    qualikiz_params.update(transport_config)
+    # Remove params from the other models, if present.
+    qualikiz_params.pop('qlknn_params', None)
+    qualikiz_params.pop('cgm_params', None)
+    qualikiz_params.pop('constant_params', None)
+    qualikiz_params.pop('bohm-gyrobohm_params', None)
+    # pylint: disable=undefined-variable
+    return qualikiz_wrapper.QualikizTransportModelBuilder(
+        runtime_params=config_args.recursive_replace(
+            qualikiz_wrapper.RuntimeParams(),
+            **qualikiz_params,
+        )
+    )
+  # pylint: enable=undefined-variable
   raise ValueError(f'Unknown transport model: {transport_model}')
 
 

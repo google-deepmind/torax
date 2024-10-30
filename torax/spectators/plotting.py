@@ -268,9 +268,9 @@ def get_default_plot_config(
       'Qfus_e': lambda arr: arr / 1e3,
       'Qei': lambda arr: arr / 1e3,
       'jtot_face': lambda arr: arr / 1e6,
-      'jext_face': lambda arr: arr / 1e6,
+      'generic_current_source': lambda arr: arr / 1e6,
       'j_bootstrap_face': lambda arr: arr / 1e6,
-      'johm_face': lambda arr: arr / 1e6,
+      'johm': lambda arr: arr / 1e6,
   }
 
   def get_plot(
@@ -351,15 +351,29 @@ def get_default_plot_config(
           y_label='Magnetic shear',
       ),
       get_plot(
-          keys=('jtot_face', 'jext_face', 'j_bootstrap_face', 'johm_face'),
+          keys=(
+              'generic_current_source',
+              'johm',
+          ),
+          x_axis=geo.rho_norm,
+          x_label='Normalized radius',
+          y_label=r'Current $[MA~m^{-2}]$',
+          labels=(
+              'External current',
+              'Ohmic current',
+          ),
+      ),
+      get_plot(
+          keys=(
+              'jtot_face',
+              'j_bootstrap_face',
+          ),
           x_axis=geo.rho_face_norm,
           x_label='Normalized radius',
           y_label=r'Current $[MA~m^{-2}]$',
           labels=(
               'Total current',
-              'External current',
               'Bootstrap current',
-              'Ohmic current',
           ),
       ),
       get_plot(
