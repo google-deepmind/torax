@@ -14,12 +14,20 @@
 """Tests for qualikiz wrapper transport model."""
 from absl.testing import absltest
 from torax import geometry
-from torax.transport_model import qualikiz_wrapper
+# pylint: disable=g-import-not-at-top
+try:
+  from torax.transport_model import qualikiz_wrapper
+  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
+except ImportError:
+  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
+# pylint: enable=g-import-not-at-top
 
 
 class RuntimeParamsTest(absltest.TestCase):
 
   def test_runtime_params_builds_dynamic_params(self):
+    if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
+      self.skipTest('Qualikiz transport model is not available.')
     runtime_params = qualikiz_wrapper.RuntimeParams()
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
