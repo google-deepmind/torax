@@ -109,4 +109,5 @@ CANONICAL_ORDER = [
     'tol',
     'delta_reduction_factor',
     'file_restart',
+    'ds',
 ]

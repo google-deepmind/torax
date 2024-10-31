@@ -294,6 +294,9 @@ class PostProcessedOutputs:
     I_ecrh: Total electron cyclotron source current [A]
     I_generic: Total generic source current [A]
     Q_fusion: Fusion power gain
+    E_cumulative_fusion: Total cumulative fusion energy [J]
+    E_cumulative_external: Total external injected energy
+      (Ohmic + auxiliary heating) [J]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -330,6 +333,8 @@ class PostProcessedOutputs:
   I_ecrh: array_typing.ScalarFloat
   I_generic: array_typing.ScalarFloat
   Q_fusion: array_typing.ScalarFloat
+  E_cumulative_fusion: array_typing.ScalarFloat
+  E_cumulative_external: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -366,6 +371,8 @@ class PostProcessedOutputs:
         I_ecrh=jnp.array(0.0),
         I_generic=jnp.array(0.0),
         Q_fusion=jnp.array(0.0),
+        E_cumulative_fusion=jnp.array(0.0),
+        E_cumulative_external=jnp.array(0.0),
     )
 
 

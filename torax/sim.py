@@ -56,6 +56,7 @@ from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
+import xarray as xr
 
 
 def _log_timestep(
@@ -373,6 +374,7 @@ class SimulationStepFn:
       )
 
     return self.finalize_output(
+        input_state,
         output_state,
         dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt,
@@ -661,6 +663,7 @@ class SimulationStepFn:
 
   def finalize_output(
       self,
+      input_state: state.ToraxSimState,
       output_state: state.ToraxSimState,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t_plus_dt: geometry.Geometry,
@@ -668,6 +671,7 @@ class SimulationStepFn:
     """Finalizes given output state at the end of the simulation step.
 
     Args:
+      input_state: Previous sim state.
       output_state: State to be finalized.
       dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
       geo_t_plus_dt: The geometry of the torus during the next time step of the
@@ -701,7 +705,11 @@ class SimulationStepFn:
         geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
     )
-    output_state = post_processing.make_outputs(output_state, geo_t_plus_dt)
+    output_state = post_processing.make_outputs(
+        sim_state=output_state,
+        geo=geo_t_plus_dt,
+        previous_sim_state=input_state,
+    )
 
     return output_state
 
@@ -881,59 +889,68 @@ def override_initial_runtime_params_from_file(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     file_restart: general_runtime_params.FileRestart,
-) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
+    ds: xr.Dataset,
+) -> tuple[
+    runtime_params_slice.DynamicRuntimeParamsSlice,
+    geometry.Geometry,
+]:
   """Override parts of runtime params slice from state in a file."""
-  if file_restart.do_restart:
-    # pylint: disable=invalid-name
-    ds = output.load_state_file(file_restart.filename)
-    # Remap coordinates in saved file to be consistent with expectations of
-    # how config_args parses xarrays.
-    ds = ds.rename({output.RHO_CELL_NORM: config_args.RHO_NORM})
-    # Find the closest time in the given dataset and squeeze any size 1 dims.
-    ds = ds.sel(time=file_restart.time, method='nearest').squeeze()
-    dynamic_runtime_params_slice.numerics.t_initial = file_restart.time
-    dynamic_runtime_params_slice.profile_conditions.Ip = ds.data_vars[
-        output.IP
-    ].to_numpy()
-    dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
-        output.TEMP_EL
-    ].to_numpy()
-    dynamic_runtime_params_slice.profile_conditions.Te_bound_right = (
-        ds.data_vars[output.TEMP_EL_RIGHT_BC].to_numpy()
-    )
-    dynamic_runtime_params_slice.profile_conditions.Ti = ds.data_vars[
-        output.TEMP_ION
-    ].to_numpy()
-    dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = (
-        ds.data_vars[output.TEMP_ION_RIGHT_BC].to_numpy()
-    )
-    dynamic_runtime_params_slice.profile_conditions.ne = ds.data_vars[
-        output.NE
-    ].to_numpy()
-    dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
-        ds.data_vars[output.NE_RIGHT_BC].to_numpy()
-    )
-    dynamic_runtime_params_slice.profile_conditions.psi = ds.data_vars[
-        output.PSI
-    ].to_numpy()
-    # When loading from file we want ne not to have transformations.
-    # Both ne and the boundary condition are given in absolute values (not fGW).
-    dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = (
-        False
-    )
-    dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
-    dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
-        True
-    )
-    # Additionally we want to avoid normalizing to nbar.
-    dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar = False
-    # pylint: enable=invalid-name
+  # pylint: disable=invalid-name
+  dynamic_runtime_params_slice.numerics.t_initial = file_restart.time
+  dynamic_runtime_params_slice.profile_conditions.Ip = ds.data_vars[
+      output.IP
+  ].to_numpy()
+  dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
+      output.TEMP_EL
+  ].to_numpy()
+  dynamic_runtime_params_slice.profile_conditions.Te_bound_right = ds.data_vars[
+      output.TEMP_EL_RIGHT_BC
+  ].to_numpy()
+  dynamic_runtime_params_slice.profile_conditions.Ti = ds.data_vars[
+      output.TEMP_ION
+  ].to_numpy()
+  dynamic_runtime_params_slice.profile_conditions.Ti_bound_right = ds.data_vars[
+      output.TEMP_ION_RIGHT_BC
+  ].to_numpy()
+  dynamic_runtime_params_slice.profile_conditions.ne = ds.data_vars[
+      output.NE
+  ].to_numpy()
+  dynamic_runtime_params_slice.profile_conditions.ne_bound_right = ds.data_vars[
+      output.NE_RIGHT_BC
+  ].to_numpy()
+  dynamic_runtime_params_slice.profile_conditions.psi = ds.data_vars[
+      output.PSI
+  ].to_numpy()
+  # When loading from file we want ne not to have transformations.
+  # Both ne and the boundary condition are given in absolute values (not fGW).
+  dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW = False
+  dynamic_runtime_params_slice.profile_conditions.ne_is_fGW = False
+  dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute = (
+      True
+  )
+  # Additionally we want to avoid normalizing to nbar.
+  dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar = False
+  # pylint: enable=invalid-name
 
-    dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
-        dynamic_runtime_params_slice, geo
-    )
+  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
+      dynamic_runtime_params_slice, geo
+  )
 
   return dynamic_runtime_params_slice, geo
+
+
+def override_initial_state_post_processed_outputs_from_file(
+    geo: geometry.Geometry,
+    ds: xr.Dataset,
+) -> state.PostProcessedOutputs:
+  """Override parts of initial state post processed outputs from file."""
+  post_processed_outputs = state.PostProcessedOutputs.zeros(geo)
+  post_processed_outputs = dataclasses.replace(
+      post_processed_outputs,
+      E_cumulative_fusion=ds.data_vars['E_cumulative_fusion'].to_numpy(),
+      E_cumulative_external=ds.data_vars['E_cumulative_external'].to_numpy(),
+  )
+  return post_processed_outputs
 
 
 def build_sim_object(
@@ -1005,12 +1022,19 @@ def build_sim_object(
       )
   )
   if file_restart is not None and file_restart.do_restart:
+    ds = output.load_state_file(file_restart.filename)
+    # Remap coordinates in saved file to be consistent with expectations of
+    # how config_args parses xarrays.
+    ds = ds.rename({output.RHO_CELL_NORM: config_args.RHO_NORM})
+    # Find the closest time in the given dataset and squeeze any size 1 dims.
+    ds = ds.sel(time=file_restart.time, method='nearest').squeeze()
     # Override some of dynamic runtime params slice from t=t_initial.
     dynamic_runtime_params_slice_for_init, geo_for_init = (
         override_initial_runtime_params_from_file(
             dynamic_runtime_params_slice_for_init,
             geo_for_init,
             file_restart,
+            ds,
         )
     )
 
@@ -1028,6 +1052,20 @@ def build_sim_object(
       time_step_calculator=time_step_calculator,
       step_fn=step_fn,
   )
+
+  # If we are restarting from a file, we need to override the initial state
+  # post processed outputs such that cumulative outputs remain correct.
+  if file_restart is not None and file_restart.do_restart:
+    post_processed_outputs = (
+        override_initial_state_post_processed_outputs_from_file(
+            geo_for_init,
+            ds,  # pylint: disable=undefined-variable
+        )
+    )
+    initial_state = dataclasses.replace(
+        initial_state,
+        post_processed_outputs=post_processed_outputs,
+    )
 
   return Sim(
       static_runtime_params_slice=static_runtime_params_slice,
@@ -1175,7 +1213,7 @@ def run_simulation(
 
     if first_step:
       # Initialize the sim_history with the initial state.
-      sim_state = post_processing.make_outputs(sim_state, geo)
+      sim_state = post_processing.make_outputs(sim_state=sim_state, geo=geo)
       sim_history.append(sim_state)
       first_step = False
     sim_state = step_fn(

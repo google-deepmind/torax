@@ -19,16 +19,19 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+import scipy
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider
+from torax import output
 from torax import post_processing
 from torax import state
 from torax.config import runtime_params as runtime_params_lib
 from torax.fvm import cell_variable
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
+from torax.tests.test_lib import sim_test_case
 from torax.tests.test_lib import torax_refs
 
 
@@ -169,12 +172,10 @@ class PostProcessingTest(parameterized.TestCase):
   def test_calculate_integrated_sources(self):
     """Checks integrated quantities match expectations."""
     # pylint: disable=protected-access
-    integrated_sources = (
-        post_processing._calculate_integrated_sources(
-            self.geo,
-            self.core_profiles,
-            self.source_profiles,
-        )
+    integrated_sources = post_processing._calculate_integrated_sources(
+        self.geo,
+        self.core_profiles,
+        self.source_profiles,
     )
     # pylint: enable=protected-access
 
@@ -235,24 +236,17 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_external_tot']
-        + integrated_sources['P_brems'],
-        + integrated_sources['P_alpha_tot'],
+        integrated_sources['P_external_tot'] + integrated_sources['P_brems'],
+        +integrated_sources['P_alpha_tot'],
         integrated_sources['P_heating_tot'],
     )
 
     # Check expected values.
-    np.testing.assert_allclose(
-        integrated_sources['P_generic_ion'], 2 * volume
-    )
+    np.testing.assert_allclose(integrated_sources['P_generic_ion'], 2 * volume)
 
-    np.testing.assert_allclose(
-        integrated_sources['P_generic_el'], 3 * volume
-    )
+    np.testing.assert_allclose(integrated_sources['P_generic_el'], 3 * volume)
 
-    np.testing.assert_allclose(
-        integrated_sources['P_generic_tot'], 5 * volume
-    )
+    np.testing.assert_allclose(integrated_sources['P_generic_tot'], 5 * volume)
 
     np.testing.assert_allclose(
         integrated_sources['P_alpha_ion'],
@@ -260,16 +254,52 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_ohmic'], 5 * volume,
+        integrated_sources['P_ohmic'],
+        5 * volume,
     )
     np.testing.assert_allclose(
-        integrated_sources['P_brems'], -volume,
+        integrated_sources['P_brems'],
+        -volume,
     )
 
     np.testing.assert_allclose(
         integrated_sources['P_ei_exchange_ion'],
         -integrated_sources['P_ei_exchange_el'],
     )
+
+
+class PostProcessingSimTest(sim_test_case.SimTestCase):
+  """Tests for the cumulative outputs."""
+
+  def test_cumulative_energies_match_power_integrals(self):
+    """Tests E_fusion and E_external are calculated correctly."""
+
+    # Use a test config with both external and fusion sources.
+    config_name = 'test_all_transport_fusion_qlknn'
+
+    # Load the config and run the simulation.
+    sim = self._get_sim(config_name + '.py')
+    sim_outputs = sim.run()
+
+    # Get the power and energy histories.
+    state_history = output.StateHistory(sim_outputs, sim.source_models)
+    p_alpha = state_history.post_processed_outputs.P_alpha_tot
+    p_external = state_history.post_processed_outputs.P_external_tot
+    e_fusion = state_history.post_processed_outputs.E_cumulative_fusion
+    e_external = state_history.post_processed_outputs.E_cumulative_external
+    t = state_history.times
+
+    # Calculate the cumulative energies from the powers.
+    e_fusion_expected = scipy.integrate.cumulative_trapezoid(
+        p_alpha * 5, t, initial=0.0
+    )
+
+    e_external_expected = scipy.integrate.cumulative_trapezoid(
+        p_external, t, initial=0.0
+    )
+
+    np.testing.assert_allclose(e_fusion, e_fusion_expected)
+    np.testing.assert_allclose(e_external, e_external_expected)
 
 
 if __name__ == '__main__':
