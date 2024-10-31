@@ -37,6 +37,7 @@ from torax.config import runtime_params_slice
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
 from torax.transport_model import qualikiz_utils
+from torax.transport_model import quasilinear_utils
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
@@ -376,11 +377,11 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
     pfe = model_output['pfe_itg'].squeeze() + model_output['pfe_tem'].squeeze()
 
-    return qualikiz_utils.make_core_transport(
+    return quasilinear_utils.make_core_transport(
         qi=qi,
         qe=qe,
         pfe=pfe,
-        qualikiz_inputs=qualikiz_inputs,
+        quasilinear_inputs=qualikiz_inputs,
         transport=runtime_config_inputs.transport,
         geo=geo,
         core_profiles=core_profiles,

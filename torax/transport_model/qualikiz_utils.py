@@ -14,36 +14,31 @@
 """Utils to handle inputs and outputs of Qualikiz-based models."""
 
 import chex
-import jax
 from jax import numpy as jnp
 from torax import constants as constants_module
 from torax import geometry
 from torax import physics
 from torax import state
-from torax.transport_model import runtime_params as runtime_params_lib
+from torax.transport_model import quasilinear_utils
 
 
-# pylint: disable=invalid-name
 @chex.dataclass(frozen=True)
-class QualikizDynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+class QualikizDynamicRuntimeParams(
+    quasilinear_utils.QuasilinearDynamicRuntimeParams
+):
   """Shared parameters for Qualikiz-based models."""
-
   coll_mult: float
-  DVeff: bool
-  An_min: float
   avoid_big_negative_s: bool
   smag_alpha_correction: bool
   q_sawtooth_proxy: bool
 
 
+# pylint: disable=invalid-name
 @chex.dataclass(frozen=True)
-class QualikizInputs:
+class QualikizInputs(quasilinear_utils.QuasilinearInputs):
   """Inputs to Qualikiz-based models."""
 
   Zeff_face: chex.Array
-  Ati: chex.Array
-  Ate: chex.Array
-  Ane: chex.Array
   Ani0: chex.Array
   Ani1: chex.Array
   q: chex.Array
@@ -52,9 +47,6 @@ class QualikizInputs:
   Ti_Te: chex.Array
   log_nu_star_face: chex.Array
   normni: chex.Array
-  chiGB: chex.Array
-  Rmaj: chex.Array
-  Rmin: chex.Array
   alpha: chex.Array
   epsilon_lcfs: chex.Array
 
@@ -70,7 +62,6 @@ def prepare_qualikiz_inputs(
   """Prepare Qualikiz inputs."""
   constants = constants_module.CONSTANTS
 
-  # pylint: disable=invalid-name
   Rmin = geo.Rmin
   Rmaj = geo.Rmaj
 
@@ -101,7 +92,6 @@ def prepare_qualikiz_inputs(
   true_ni_face = raw_ni_face * nref
   true_nimp_face = raw_nimp_face * nref
 
-  # pylint: disable=invalid-name
   # gyrobohm diffusivity
   # (defined here with Lref=Rmin due to QLKNN training set normalization)
   chiGB = (
@@ -244,87 +234,4 @@ def prepare_qualikiz_inputs(
       Rmin=Rmin,
       alpha=alpha,
       epsilon_lcfs=epsilon_lcfs,
-  )
-
-
-def make_core_transport(
-    qi: jax.Array,
-    qe: jax.Array,
-    pfe: jax.Array,
-    qualikiz_inputs: QualikizInputs,
-    transport: QualikizDynamicRuntimeParams,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-) -> state.CoreTransport:
-  """Converts model output to CoreTransport."""
-  constants = constants_module.CONSTANTS
-
-  # conversion to SI units (note that n is normalized here)
-  pfe_SI = (
-      pfe
-      * core_profiles.ne.face_value()
-      * qualikiz_inputs.chiGB
-      / qualikiz_inputs.Rmin
-  )
-
-  # chi outputs in SI units.
-  # chi in GB units is Q[GB]/(a/LT) , Lref=Rmin in Q[GB].
-  # max/min clipping included
-  chi_face_ion = (
-      ((qualikiz_inputs.Rmaj / qualikiz_inputs.Rmin) * qi) / qualikiz_inputs.Ati
-  ) * qualikiz_inputs.chiGB
-  chi_face_el = (
-      ((qualikiz_inputs.Rmaj / qualikiz_inputs.Rmin) * qe) / qualikiz_inputs.Ate
-  ) * qualikiz_inputs.chiGB
-
-  # Effective D / Effective V approach.
-  # For small density gradients or up-gradient transport, set pure effective
-  # convection. Otherwise pure effective diffusion.
-  def DVeff_approach() -> tuple[jax.Array, jax.Array]:
-    # The geo.rho_b is to unnormalize the face_grad.
-    Deff = -pfe_SI / (
-        core_profiles.ne.face_grad() * geo.g1_over_vpr2_face * geo.rho_b
-        + constants.eps
-    )
-    Veff = pfe_SI / (
-        core_profiles.ne.face_value() * geo.g0_over_vpr_face * geo.rho_b
-    )
-    Deff_mask = (
-        ((pfe >= 0) & (qualikiz_inputs.Ane >= 0))
-        | ((pfe < 0) & (qualikiz_inputs.Ane < 0))
-    ) & (abs(qualikiz_inputs.Ane) >= transport.An_min)
-    Veff_mask = jnp.invert(Deff_mask)
-    # Veff_mask is where to use effective V only, so zero out D there.
-    d_face_el = jnp.where(Veff_mask, 0.0, Deff)
-    # And vice versa
-    v_face_el = jnp.where(Deff_mask, 0.0, Veff)
-    return d_face_el, v_face_el
-
-  # Scaled D approach. Scale electron diffusivity to electron heat
-  # conductivity (this has some physical motivations),
-  # and set convection to then match total particle transport
-  def Dscaled_approach() -> tuple[jax.Array, jax.Array]:
-    chex.assert_rank(pfe, 1)
-    d_face_el = chi_face_el
-    v_face_el = (
-        pfe_SI / core_profiles.ne.face_value()
-        - qualikiz_inputs.Ane
-        * d_face_el
-        / qualikiz_inputs.Rmaj
-        * geo.g1_over_vpr2_face
-        * geo.rho_b**2
-    ) / (geo.g0_over_vpr_face * geo.rho_b)
-    return d_face_el, v_face_el
-
-  d_face_el, v_face_el = jax.lax.cond(
-      transport.DVeff,
-      DVeff_approach,
-      Dscaled_approach,
-  )
-
-  return state.CoreTransport(
-      chi_face_ion=chi_face_ion,
-      chi_face_el=chi_face_el,
-      d_face_el=d_face_el,
-      v_face_el=v_face_el,
   )
