@@ -18,11 +18,11 @@ These are full integration tests that run the simulation and compare to a
 previously executed TORAX reference:
 """
 
+import os
 from typing import Optional, Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 import numpy as np
 import torax
 from torax import output
@@ -37,6 +37,7 @@ from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
+import xarray as xr
 
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
@@ -553,7 +554,7 @@ class SimTest(sim_test_case.SimTestCase):
     Args:
       test_config: the config id under test.
       halfway: Whether to load from halfway (or the end if not) to test in case
-      there is different behaviour for the final step.
+        there is different behaviour for the final step.
     """
     profiles = [
         output.TEMP_ION,
@@ -678,47 +679,28 @@ class SimTest(sim_test_case.SimTestCase):
     test_config_state_file = 'test_iterhybrid_rampup.nc'
     restart_config = 'test_iterhybrid_rampup_restart.py'
     sim = self._get_sim(restart_config)
-    profiles = [
-        output.TEMP_ION,
-        output.TEMP_ION_RIGHT_BC,
-        output.TEMP_EL,
-        output.TEMP_EL_RIGHT_BC,
-        output.NE,
-        output.NI,
-        output.NE_RIGHT_BC,
-        output.NI_RIGHT_BC,
-        output.PSI,
-        output.PSIDOT,
-        output.IP,
-        output.NREF,
-        output.Q_FACE,
-        output.S_FACE,
-        output.J_BOOTSTRAP,
-        output.JOHM,
-        output.CORE_PROFILES_GENERIC_CURRENT,
-        output.JTOT,
-        output.JTOT_FACE,
-        output.I_BOOTSTRAP,
-        output.J_BOOTSTRAP_FACE,
-        output.SIGMA,
-    ]
-    ref_profiles, ref_times = self._get_refs(
-        test_config_state_file, profiles=profiles
-    )
-
     sim_outputs = sim.run()
     history = output.StateHistory(sim_outputs, sim.source_models)
-    ref_idx_offset = np.where(ref_times == history.times[0])
+    geo = sim.geometry_provider(sim.initial_state.t)
+    ds_restart = history.simulation_output_to_xr(geo)
 
-    for i in range(len(history.times)):
-      core_profile_t = jax.tree.map(
-          lambda x, idx=i: x[idx], history.core_profiles
-      )
-      verify_core_profiles(
-          ref_profiles,
-          i + ref_idx_offset[0][0],
-          core_profile_t,
-      )
+    # Load the reference dataset.
+    ds_ref = xr.open_dataset(
+        os.path.join(self.test_data_dir, test_config_state_file)
+    )
+
+    # Stitch the restart state file to the beginning of the reference dataset.
+    ds_new = output.stitch_state_files(sim.file_restart, ds_restart)
+
+    # Check equality for all time-dependent variables.
+    for var_name in ds_new.data_vars:
+      if 'time' in ds_new[var_name].dims:
+        with self.subTest(var_name=var_name):
+          np.testing.assert_allclose(
+              ds_new[var_name].values,
+              ds_ref[var_name].values,
+              err_msg=f'Mismatch for {var_name} in restart test',
+          )
 
 
 def verify_core_profiles(ref_profiles, index, core_profiles):

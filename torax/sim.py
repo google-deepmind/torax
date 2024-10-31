@@ -1466,6 +1466,7 @@ def update_current_distribution(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
+      sigma=bootstrap_profile.sigma,
       johm=johm,
       generic_current_source=generic_current,
       Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
