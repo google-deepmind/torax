@@ -23,11 +23,38 @@ from torax.transport_model import runtime_params as runtime_params_lib
 
 
 # pylint: disable=invalid-name
+@chex.dataclass
+class QuasilinearRuntimeParams(runtime_params_lib.RuntimeParams):
+  """Shared parameters for Quasilinear models."""
+  # effective D / effective V approach for particle transport
+  DVeff: bool = False
+  # minimum |R/Lne| below which effective V is used instead of effective D
+  An_min: float = 0.05
+
+  def make_provider(
+      self, torax_mesh: geometry.Grid1D | None = None
+  ) -> 'RuntimeParamsProvider':
+    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
+
+
 @chex.dataclass(frozen=True)
 class QuasilinearDynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Shared parameters for Quasilinear models."""
   DVeff: bool
   An_min: float
+
+
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides a RuntimeParams to use during time t of the sim."""
+
+  runtime_params_config: QuasilinearRuntimeParams
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> QuasilinearDynamicRuntimeParams:
+    return QuasilinearDynamicRuntimeParams(
+        **self.get_dynamic_params_kwargs(t)
+    )
 
 
 @chex.dataclass(frozen=True)

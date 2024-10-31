@@ -44,25 +44,12 @@ from torax.transport_model import transport_model
 
 # pylint: disable=invalid-name
 @chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(qualikiz_utils.QualikizBasedRuntimeParams):
   """Extends the base runtime params with additional params for this model.
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
-
   # QuaLiKiz model configuration
-  # No collision correction needed for QuaLiKiz
-  coll_mult: float = 1.0
-  # effective D / effective V approach for particle transport
-  DVeff: bool = False
-  # minimum |R/Lne| below which effective V is used instead of effective D
-  An_min: float = 0.05
-  # ensure that smag - alpha > -0.2 always, to compensate for no slab modes
-  avoid_big_negative_s: bool = True
-  # reduce magnetic shear by 0.5*alpha
-  smag_alpha_correction: bool = False
-  # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
-  q_sawtooth_proxy: bool = True
   # set frequency of full QuaLiKiz contour solutions
   maxruns: int = 2
   # set number of cores used QuaLiKiz calculations
@@ -84,7 +71,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 
 @chex.dataclass(frozen=True)
-class DynamicRuntimeParams(qualikiz_utils.QualikizDynamicRuntimeParams):
+class DynamicRuntimeParams(qualikiz_utils.QualikizBasedDynamicRuntimeParams):
   maxruns: int
   numprocs: int
 

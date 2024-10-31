@@ -20,10 +20,42 @@ from torax import geometry
 from torax import physics
 from torax import state
 from torax.transport_model import quasilinear_utils
+from torax.transport_model import runtime_params as runtime_params_lib
+
+
+@chex.dataclass
+class QualikizBasedRuntimeParams(quasilinear_utils.QuasilinearRuntimeParams):
+  """Shared parameters for Qualikiz-based models."""
+  # Collisionality multiplier.
+  coll_mult: float = 1.0
+  # ensure that smag - alpha > -0.2 always, to compensate for no slab modes
+  avoid_big_negative_s: bool = True
+  # reduce magnetic shear by 0.5*alpha to capture main impact of alpha
+  smag_alpha_correction: bool = True
+  # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
+  q_sawtooth_proxy: bool = True
+
+  def make_provider(
+      self, torax_mesh: geometry.Grid1D | None = None
+  ) -> 'RuntimeParamsProvider':
+    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
+
+
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides a RuntimeParams to use during time t of the sim."""
+
+  runtime_params_config: QualikizBasedRuntimeParams
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> 'QualikizBasedDynamicRuntimeParams':
+    return QualikizBasedDynamicRuntimeParams(
+        **self.get_dynamic_params_kwargs(t)
+    )
 
 
 @chex.dataclass(frozen=True)
-class QualikizDynamicRuntimeParams(
+class QualikizBasedDynamicRuntimeParams(
     quasilinear_utils.QuasilinearDynamicRuntimeParams
 ):
   """Shared parameters for Qualikiz-based models."""
@@ -55,7 +87,7 @@ def prepare_qualikiz_inputs(
     Zeff_face: chex.Array,
     nref: chex.Numeric,
     q_correction_factor: chex.Numeric,
-    transport: QualikizDynamicRuntimeParams,
+    transport: QualikizBasedDynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> QualikizInputs:

@@ -60,44 +60,32 @@ def get_default_runtime_params_from_model_path(
   """Returns default runtime params for the model version given the path."""
   version = _get_model(model_path).version
   if version == '10D':
-    return RuntimeParams()
+    return RuntimeParams(
+        # Correction factor to a more recent QLK collision operator.
+        coll_mult=0.25,
+        # The QLK version this specific QLKNN was trained on tends to
+        # underpredict ITG electron heat flux in shaped, high-beta scenarios.
+        ITG_flux_ratio_correction=2.0,
+    )
   else:
     raise ValueError(f'Unknown model version: {version}')
 
 
 # pylint: disable=invalid-name
 @chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(qualikiz_utils.QualikizBasedRuntimeParams):
   """Extends the base runtime params with additional params for this model.
-
-  These are the default values for the QLKNN10D model.
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
-
-  # Collisionality multiplier in QLKNN for sensitivity testing.
-  # Default is 0.25 (correction factor to a more recent QLK collision operator)
-  coll_mult: float = 0.25
   include_ITG: bool = True  # to toggle ITG modes on or off
   include_TEM: bool = True  # to toggle TEM modes on or off
   include_ETG: bool = True  # to toggle ETG modes on or off
-  # The QLK version this specific QLKNN was trained on tends to underpredict
-  # ITG electron heat flux in shaped, high-beta scenarios.
-  # This is a correction factor
-  ITG_flux_ratio_correction: float = 2.0
+  # This is a correction factor for ITG electron heat flux.
+  ITG_flux_ratio_correction: float = 1.0
   # Correction factor to account for multiscale correction in Qualikiz ETG.
   # https://gitlab.com/qualikiz-group/QuaLiKiz/-/commit/5bcd3161c1b08e0272ab3c9412fec7f9345a2eef
   ETG_correction_factor: float = 1.0 / 3.0
-  # effective D / effective V approach for particle transport
-  DVeff: bool = False
-  # minimum |R/Lne| below which effective V is used instead of effective D
-  An_min: float = 0.05
-  # ensure that smag - alpha > -0.2 always, to compensate for no slab modes
-  avoid_big_negative_s: bool = True
-  # reduce magnetic shear by 0.5*alpha to capture main impact of alpha
-  smag_alpha_correction: bool = True
-  # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
-  q_sawtooth_proxy: bool = True
   # clip inputs within desired margin of the QLKNN training set boundaries
   clip_inputs: bool = False
   clip_margin: float = 0.95
@@ -119,7 +107,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 
 @chex.dataclass(frozen=True)
-class DynamicRuntimeParams(qualikiz_utils.QualikizDynamicRuntimeParams):
+class DynamicRuntimeParams(qualikiz_utils.QualikizBasedDynamicRuntimeParams):
   include_ITG: bool
   include_TEM: bool
   include_ETG: bool
