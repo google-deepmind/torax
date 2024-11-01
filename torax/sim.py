@@ -1490,6 +1490,7 @@ def update_current_distribution(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_generic_current_params,
       geo=geo,
+      core_profiles=core_profiles,
   )
   generic_current = geometry.face_to_cell(generic_current_face)
 

@@ -17,14 +17,10 @@
 from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
-from torax import core_profile_setters
 from torax import geometry
-from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 from torax.sources import bootstrap_current_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
-from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.sources.tests import test_lib
 
@@ -41,48 +37,6 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
-    )
-
-  def test_source_value(self):
-    source_builder = self._source_class_builder()
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {bootstrap_current_source.SOURCE_NAME: source_builder}
-    )
-    source_models = source_models_builder()
-    source = source_models.sources[bootstrap_current_source.SOURCE_NAME]
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            sources=source_models_builder.runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=runtime_params.numerics.t_initial,
-        )
-    )
-    core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        source_models=source_models,
-    )
-    # Use this assert to get pytype to see this is always BootstrapCurrentSource
-    assert isinstance(source, bootstrap_current_source.BootstrapCurrentSource)
-    # In the get_value call we use args that are supported by
-    # BootstrapCurrentSource but not other sources
-    self.assertIsNotNone(
-        source.get_value(
-            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-            dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-                source_models.j_bootstrap_name
-            ],
-            geo=geo,
-            temp_ion=core_profiles.temp_ion,
-            temp_el=core_profiles.temp_el,
-            ne=core_profiles.ne,
-            ni=core_profiles.ni,
-            psi=core_profiles.psi,
-        )
     )
 
   def test_extraction_of_relevant_profile_from_output(self):

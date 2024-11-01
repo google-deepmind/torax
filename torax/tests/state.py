@@ -353,11 +353,7 @@ class InitialStatesTest(parameterized.TestCase):
             source_models.j_bootstrap_name
         ],
         geo=geo,
-        temp_ion=core_profiles3.temp_ion,
-        temp_el=core_profiles3.temp_el,
-        ne=core_profiles3.ne,
-        ni=core_profiles3.ni,
-        psi=core_profiles3_helper.psi,
+        core_profiles=core_profiles3_helper,
     )
     f_bootstrap = bootstrap_profile.I_bootstrap / (
         config3.profile_conditions.Ip * 1e6
