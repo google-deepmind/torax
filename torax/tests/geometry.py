@@ -76,6 +76,7 @@ class GeometryTest(parameterized.TestCase):
 
     foo_jitted = jax.jit(foo)
     intermediate = geometry.StandardGeometryIntermediates(
+        geometry_type=geometry.GeometryType.CIRCULAR,
         Ip_from_parameters=True,
         n_rho=25,
         Rmaj=6.2,
@@ -98,6 +99,7 @@ class GeometryTest(parameterized.TestCase):
         elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
+        z_magnetic_axis=np.array(0.0),
     )
     geo = geometry.build_standard_geometry(intermediate)
     foo_jitted(geo)
@@ -110,6 +112,7 @@ class GeometryTest(parameterized.TestCase):
   def test_build_geometry_provider(self):
     """Test that the default geometry provider can be built."""
     intermediate_0 = geometry.StandardGeometryIntermediates(
+        geometry_type=geometry.GeometryType.CIRCULAR,
         Ip_from_parameters=True,
         n_rho=25,
         Rmaj=6.2,
@@ -132,10 +135,12 @@ class GeometryTest(parameterized.TestCase):
         elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
+        z_magnetic_axis=np.array(0.0),
     )
     geo_0 = geometry.build_standard_geometry(intermediate_0)
 
     intermediate_1 = geometry.StandardGeometryIntermediates(
+        geometry_type=geometry.GeometryType.CIRCULAR,
         Ip_from_parameters=True,
         n_rho=25,
         Rmaj=7.4,
@@ -158,6 +163,7 @@ class GeometryTest(parameterized.TestCase):
         elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 2.0, 0.02),
         hires_fac=4,
+        z_magnetic_axis=np.array(0.0),
     )
     geo_1 = geometry.build_standard_geometry(intermediate_1)
 
@@ -193,6 +199,11 @@ class GeometryTest(parameterized.TestCase):
     geo = provider(5.0)
     np.testing.assert_allclose(geo.Rmaj, 6.7)
     np.testing.assert_allclose(geo.Rmin, 1.5)
+
+  def test_build_geometry_from_eqdsk(self):
+    """Test that the default EQDSK geometry can be built."""
+    intermediate = geometry.StandardGeometryIntermediates.from_eqdsk()
+    geometry.build_standard_geometry(intermediate)
 
 
 def face_to_cell(n_rho, face):

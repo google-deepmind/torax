@@ -21,6 +21,7 @@ from collections.abc import Mapping
 import dataclasses
 import enum
 import functools
+import logging
 from typing import Type
 
 import chex
@@ -117,7 +118,9 @@ class GeometryType(enum.Enum):
   """
 
   CIRCULAR = 0
-  NUMERICAL = 1
+  CHEASE = 1
+  FBT = 2
+  EQDSK = 3
 
 
 # pylint: disable=invalid-name
@@ -175,6 +178,7 @@ class Geometry:
   rho_hires: chex.Array
   vpr_hires: chex.Array
   Phibdot: chex.Array
+  _z_magnetic_axis: chex.Array
 
   @property
   def rho_norm(self) -> chex.Array:
@@ -243,6 +247,18 @@ class Geometry:
         self.g1_face[1:] / self.vpr_face[1:] ** 2,  # avoid div by zero on-axis
     ))
 
+  @property
+  def z_magnetic_axis(self) -> chex.Numeric:
+    if self.geometry_type in [
+        GeometryType.CHEASE.value,
+        GeometryType.CIRCULAR.value,
+    ]:
+      logging.warning(
+          'z_magnetic_axis is not defined for CHEASE or CIRCULAR geometry type.'
+          ' Returning 0.',
+      )
+    return self._z_magnetic_axis
+
 
 @chex.dataclass(frozen=True)
 class GeometryProvider:
@@ -290,6 +306,7 @@ class GeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   vpr_hires: interpolated_param.InterpolatedVarSingleAxis
+  _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis
 
   @classmethod
   def create_provider(
@@ -628,6 +645,7 @@ def build_circular_geometry(
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
       Phibdot=np.asarray(0.0),
+      _z_magnetic_axis=np.asarray(0.0),
   )
 
 
@@ -672,8 +690,10 @@ class StandardGeometryIntermediates:
   n_rho: Radial grid points (num cells)
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
+  z_magnetic_axis: z position of magnetic axis [m]
   """
 
+  geometry_type: GeometryType
   Ip_from_parameters: bool
   Rmaj: chex.Numeric
   Rmin: chex.Numeric
@@ -695,6 +715,7 @@ class StandardGeometryIntermediates:
   vpr: chex.Array
   n_rho: int
   hires_fac: int
+  z_magnetic_axis: chex.Numeric
 
   def __post_init__(self):
     """Extrapolates edge values based on a Cubic spline fit."""
@@ -810,6 +831,7 @@ class StandardGeometryIntermediates:
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
 
     return cls(
+        geometry_type=GeometryType.CHEASE,
         Ip_from_parameters=Ip_from_parameters,
         Rmaj=Rmaj,
         Rmin=Rmin,
@@ -831,6 +853,8 @@ class StandardGeometryIntermediates:
         vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
+        # field doesn't exist in CHEASE, populate with 0.
+        z_magnetic_axis=np.array(0.0),
     )
 
   @classmethod
@@ -978,6 +1002,7 @@ class StandardGeometryIntermediates:
         'deltal',
         'kappa',
         'FtPQ',
+        'zA',
     ]
     # The item() is needed due to the particular structure of the LY bundle.
     LY_single_slice = {
@@ -1006,6 +1031,7 @@ class StandardGeometryIntermediates:
     # extrapolation in the post_init.
     LY_Q1Q = np.where(LY['Q1Q'] != 0, LY['Q1Q'], constants.CONSTANTS.eps)
     return cls(
+        geometry_type=GeometryType.FBT,
         Ip_from_parameters=Ip_from_parameters,
         Rmaj=Rmaj,
         Rmin=Rmin,
@@ -1027,6 +1053,7 @@ class StandardGeometryIntermediates:
         vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
         n_rho=n_rho,
         hires_fac=hires_fac,
+        z_magnetic_axis=LY['zA'],
     )
 
   @classmethod
@@ -1246,6 +1273,7 @@ class StandardGeometryIntermediates:
     )
 
     return cls(
+        geometry_type=GeometryType.EQDSK,
         Ip_from_parameters=Ip_from_parameters,
         Rmaj=Rmaj,
         Rmin=Rmin,
@@ -1267,6 +1295,7 @@ class StandardGeometryIntermediates:
         vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
+        z_magnetic_axis=eqfile['zmag']
     )
 
 
@@ -1438,7 +1467,7 @@ def build_standard_geometry(
   area = rhon_interpolation_func(rho_norm, area_intermediate)
 
   return StandardGeometry(
-      geometry_type=GeometryType.NUMERICAL.value,
+      geometry_type=intermediate.geometry_type.value,
       drho_norm=np.asarray(drho_norm),
       torax_mesh=mesh,
       Phi=Phi,
@@ -1492,6 +1521,7 @@ def build_standard_geometry(
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
       Phibdot=np.asarray(0.0),
+      _z_magnetic_axis=intermediate.z_magnetic_axis,
   )
 
 
