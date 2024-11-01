@@ -79,38 +79,8 @@ jobs:
     - run: pip freeze
 
     # Run tests (in parallel)
-    # TODO(b/326579500): tests should be discovered automatically
     - name: Run core tests
       run: |
         pytest \
-          torax/config/tests/runtime_params_slice.py \
-          torax/config/tests/runtime_params.py \
-          torax/fvm/tests/fvm.py \
-          torax/sources/tests/bootstrap_current_source.py \
-          torax/sources/tests/electron_density_sources.py \
-          torax/sources/tests/generic_current_source.py \
-          torax/sources/tests/formulas.py \
-          torax/sources/tests/fusion_heat_source.py \
-          torax/sources/tests/generic_ion_el_heat_source.py \
-          torax/sources/tests/qei_source.py \
-          torax/sources/tests/source_models.py \
-          torax/sources/tests/source.py \
-          torax/spectators/tests/plotting.py \
-          torax/spectators/tests/spectator.py \
-          torax/tests/boundary_conditions.py \
-          torax/tests/geometry.py \
-          torax/tests/interpolated_param.py \
-          torax/tests/jax_utils.py \
-          torax/tests/math_utils.py \
-          torax/tests/persistent_cache.py \
-          torax/tests/physics.py \
-          torax/tests/test_run_simulation_main.py \
-          torax/tests/sim_custom_sources.py \
-          torax/tests/sim_time_dependence.py \
-          torax/tests/sim.py \
-          torax/tests/sim_no_compile.py \
-          torax/tests/state.py \
-          torax/transport_model/tests/qlknn_wrapper.py \
-          torax/transport_model/tests/transport_model.py \
           -vv -n auto \
           --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}
