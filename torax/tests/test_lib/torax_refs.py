@@ -88,7 +88,7 @@ def circular_references() -> References:
   )
   geo = geometry.build_circular_geometry(
       n_rho=25,
-      kappa=1.72,
+      elongation_LCFS=1.72,
       hires_fac=4,
       Rmaj=6.2,
       Rmin=2.0,

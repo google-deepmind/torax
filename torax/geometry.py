@@ -149,6 +149,7 @@ class Geometry:
   spr_cell: chex.Array
   spr_face: chex.Array
   delta_face: chex.Array
+  elongation_face: chex.Array
   g0: chex.Array
   g0_face: chex.Array
   g1: chex.Array
@@ -264,6 +265,7 @@ class GeometryProvider:
   spr_cell: interpolated_param.InterpolatedVarSingleAxis
   spr_face: interpolated_param.InterpolatedVarSingleAxis
   delta_face: interpolated_param.InterpolatedVarSingleAxis
+  elongation_face: interpolated_param.InterpolatedVarSingleAxis
   g0: interpolated_param.InterpolatedVarSingleAxis
   g0_face: interpolated_param.InterpolatedVarSingleAxis
   g1: interpolated_param.InterpolatedVarSingleAxis
@@ -359,9 +361,7 @@ class CircularAnalyticalGeometry(Geometry):
   Most users should default to using the Geometry class.
   """
 
-  kappa: chex.Array
-  kappa_face: chex.Array
-  kappa_hires: chex.Array
+  elongation_hires: chex.Array
 
 
 @chex.dataclass(frozen=True)
@@ -371,9 +371,7 @@ class CircularAnalyticalGeometryProvider(GeometryProvider):
   Most users should default to using the GeometryProvider class.
   """
 
-  kappa: interpolated_param.InterpolatedVarSingleAxis
-  kappa_face: interpolated_param.InterpolatedVarSingleAxis
-  kappa_hires: interpolated_param.InterpolatedVarSingleAxis
+  elongation_hires: interpolated_param.InterpolatedVarSingleAxis
 
   def __call__(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""
@@ -409,6 +407,7 @@ class StandardGeometryProvider(GeometryProvider):
   jtot_face: interpolated_param.InterpolatedVarSingleAxis
   delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
   delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
+  elongation_face: interpolated_param.InterpolatedVarSingleAxis
 
   @functools.partial(jax_utils.jit, static_argnums=0)
   def __call__(self, t: chex.Numeric) -> Geometry:
@@ -418,7 +417,7 @@ class StandardGeometryProvider(GeometryProvider):
 
 def build_circular_geometry(
     n_rho: int = 25,
-    kappa: float = 1.72,
+    elongation_LCFS: float = 1.72,
     Rmaj: float = 6.2,
     Rmin: float = 2.0,
     B0: float = 5.3,
@@ -433,8 +432,9 @@ def build_circular_geometry(
 
   Args:
     n_rho: Radial grid points (num cells)
-    kappa: Elogination. Defaults to 1.72 for the ITER elongation, to
-      approximately correct volume and area integral Jacobians.
+    elongation_LCFS: Elongation at last closed flux surface. Defaults to 1.72
+      for the ITER elongation, to approximately correct volume and area integral
+      Jacobians.
     Rmaj: major radius (R) in meters
     Rmin: minor radius (a) in meters
     B0: Toroidal magnetic field on axis [T]
@@ -444,7 +444,7 @@ def build_circular_geometry(
   Returns:
     A CircularAnalyticalGeometry instance.
   """
-  # circular geometry assmption of r/Rmin = rho_norm, the normalized
+  # circular geometry assumption of r/Rmin = rho_norm, the normalized
   # toroidal flux coordinate.
   drho_norm = 1.0 / n_rho
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
@@ -468,37 +468,39 @@ def build_circular_geometry(
   Phi_face = np.pi * B0 * rho_face**2
 
   # Elongation profile.
-  # Set to be a linearly increasing function from 1 to kappa_param, which is the
-  # kappa value at the last closed flux surface, set in config.
-  kappa_param = kappa
-  kappa = 1 + rho_norm * (kappa_param - 1)
-  kappa_face = 1 + rho_face_norm * (kappa_param - 1)
+  # Set to be a linearly increasing function from 1 to elongation_LCFS, which
+  # is the elongation value at the last closed flux surface, set in config.
+  elongation = 1 + rho_norm * (elongation_LCFS - 1)
+  elongation_face = 1 + rho_face_norm * (elongation_LCFS - 1)
 
   # Volume in elongated circular geometry is given by:
-  # V = 2*pi^2*R*rho^2*kappa
-  # S = pi*rho^2*kappa
+  # V = 2*pi^2*R*rho^2*elongation
+  # S = pi*rho^2*elongation
 
-  volume = 2 * np.pi**2 * Rmaj * rho**2 * kappa
-  volume_face = 2 * np.pi**2 * Rmaj * rho_face**2 * kappa_face
-  area = np.pi * rho**2 * kappa
-  area_face = np.pi * rho_face**2 * kappa_face
+  volume = 2 * np.pi**2 * Rmaj * rho**2 * elongation
+  volume_face = 2 * np.pi**2 * Rmaj * rho_face**2 * elongation_face
+  area = np.pi * rho**2 * elongation
+  area_face = np.pi * rho_face**2 * elongation_face
 
   # V' = dV/drnorm for volume integrations
-  # \nabla V = 4*pi^2*R*rho*kappa + V * (kappa_param - 1) / kappa / rho_b
+  # \nabla V = 4*pi^2*R*rho*elongation
+  #   + V * (elongation_param - 1) / elongation / rho_b
   # vpr = \nabla V * rho_b
-  vpr = 4 * np.pi**2 * Rmaj * rho * kappa * rho_b + volume / kappa * (
-      kappa_param - 1
+  vpr = 4 * np.pi**2 * Rmaj * rho * elongation * rho_b + volume / elongation * (
+      elongation_LCFS - 1
   )
   vpr_face = (
-      4 * np.pi**2 * Rmaj * rho_face * kappa_face * rho_b
-      + volume_face / kappa_face * (kappa_param - 1)
+      4 * np.pi**2 * Rmaj * rho_face * elongation_face * rho_b
+      + volume_face / elongation_face * (elongation_LCFS - 1)
   )
   # pylint: disable=invalid-name
   # S' = dS/drnorm for area integrals on cell grid
-  spr_cell = 2 * np.pi * rho * kappa * rho_b + area / kappa * (kappa_param - 1)
+  spr_cell = 2 * np.pi * rho * elongation * rho_b + area / elongation * (
+      elongation_LCFS - 1
+  )
   spr_face = (
-      2 * np.pi * rho_face * kappa_face * rho_b
-      + area_face / kappa_face * (kappa_param - 1)
+      2 * np.pi * rho_face * elongation_face * rho_b
+      + area_face / elongation_face * (elongation_LCFS - 1)
   )
 
   delta_face = np.zeros(len(rho_face))
@@ -518,7 +520,7 @@ def build_circular_geometry(
   g2 = g1 / Rmaj**2
   g2_face = g1_face / Rmaj**2
 
-  # g3: <1/R^2> (done without a kappa correction)
+  # g3: <1/R^2> (done without a elongation correction)
   # <1/R^2> =
   # 1/2pi*int_0^2pi (1/(Rmaj+r*cosx)^2)dx =
   # 1/( Rmaj^2 * (1 - (r/Rmaj)^2)^3/2 )
@@ -535,7 +537,7 @@ def build_circular_geometry(
   # Using an approximation where:
   # g2g3_over_rhon = 16 * pi**4 * G2 / (J * R) where:
   # G2 = vpr / (4 * pi**2) * <1/R^2>
-  # This is done due to our ad-hoc kappa assumption, which leads to more
+  # This is done due to our ad-hoc elongation assumption, which leads to more
   # reasonable values for g2g3_over_rhon through the G2 definition.
   # In the future, a more rigorous analytical geometry will be developed and
   # the direct definition of g2g3_over_rhon will be used.
@@ -556,20 +558,20 @@ def build_circular_geometry(
   Rin_face = Rmaj - rho_face
 
   # assumed elongation profile on hires grid
-  kappa_hires = 1 + rho_hires_norm * (kappa_param - 1)
+  elongation_hires = 1 + rho_hires_norm * (elongation_LCFS - 1)
 
-  volume_hires = 2 * np.pi**2 * Rmaj * rho_hires**2 * kappa_hires
-  area_hires = np.pi * rho_hires**2 * kappa_hires
+  volume_hires = 2 * np.pi**2 * Rmaj * rho_hires**2 * elongation_hires
+  area_hires = np.pi * rho_hires**2 * elongation_hires
 
   # V' = dV/drnorm for volume integrations on hires grid
   vpr_hires = (
-      4 * np.pi**2 * Rmaj * rho_hires * kappa_hires * rho_b
-      + volume_hires / kappa_hires * (kappa_param - 1)
+      4 * np.pi**2 * Rmaj * rho_hires * elongation_hires * rho_b
+      + volume_hires / elongation_hires * (elongation_LCFS - 1)
   )
   # S' = dS/drnorm for area integrals on hires grid
   spr_hires = (
-      2 * np.pi * rho_hires * kappa_hires * rho_b
-      + area_hires / kappa_hires * (kappa_param - 1)
+      2 * np.pi * rho_hires * elongation_hires * rho_b
+      + area_hires / elongation_hires * (elongation_LCFS - 1)
   )
 
   g3_hires = 1 / (Rmaj**2 * (1 - (rho_hires / Rmaj) ** 2) ** (3.0 / 2.0))
@@ -614,14 +616,13 @@ def build_circular_geometry(
       Rout=Rout,
       Rout_face=Rout_face,
       # Set the circular geometry-specific params.
-      kappa=kappa,
-      kappa_face=kappa_face,
+      elongation_face=elongation_face,
       volume_hires=volume_hires,
       area_hires=area_hires,
       spr_hires=spr_hires,
       rho_hires_norm=rho_hires_norm,
       rho_hires=rho_hires,
-      kappa_hires=kappa_hires,
+      elongation_hires=elongation_hires,
       vpr_hires=vpr_hires,
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
@@ -666,6 +667,7 @@ class StandardGeometryIntermediates:
   flux_surf_avg_R2Bp2: <R**2 Bp**2>
   delta_upper_face: Triangularity on upper face
   delta_lower_face: Triangularity on lower face
+  elongation: Plasma elongation profile
   vpr: dVolume/drhonorm profile
   n_rho: Radial grid points (num cells)
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
@@ -689,6 +691,7 @@ class StandardGeometryIntermediates:
   flux_surf_avg_R2Bp2: chex.Array
   delta_upper_face: chex.Array
   delta_lower_face: chex.Array
+  elongation: chex.Array
   vpr: chex.Array
   n_rho: int
   hires_fac: int
@@ -824,6 +827,7 @@ class StandardGeometryIntermediates:
         flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2,
         delta_upper_face=chease_data['delta_upper'],
         delta_lower_face=chease_data['delta_bottom'],
+        elongation=chease_data['elongation'],
         vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
@@ -972,6 +976,7 @@ class StandardGeometryIntermediates:
         'ItQ',
         'deltau',
         'deltal',
+        'kappa',
         'FtPQ',
     ]
     # The item() is needed due to the particular structure of the LY bundle.
@@ -1018,6 +1023,7 @@ class StandardGeometryIntermediates:
         flux_surf_avg_R2Bp2=np.abs(LY['Q4Q']) / (2 * np.pi) ** 2,
         delta_upper_face=LY['deltau'],
         delta_lower_face=LY['deltal'],
+        elongation=LY['kappa'],
         vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
         n_rho=n_rho,
         hires_fac=hires_fac,
@@ -1136,6 +1142,7 @@ class StandardGeometryIntermediates:
     Ip_eqdsk = np.empty(len(surfaces))  # Toroidal plasma current
     delta_upper_face_eqdsk = np.empty(len(surfaces))  # Upper face delta
     delta_lower_face_eqdsk = np.empty(len(surfaces))  # Lower face delta
+    elongation = np.empty(len(surfaces))  # Elongation
 
     # ---- Compute
     # TODO(b/375696414) treatment of LCFS region for diverted geometries
@@ -1186,8 +1193,13 @@ class StandardGeometryIntermediates:
       idx_upperextent = np.argmax(z_surface)
       idx_lowerextent = np.argmin(z_surface)
 
+      aminor = (x_surface.max() - x_surface.min()) / 2.0
+
       X_upperextent = x_surface[idx_upperextent]
       X_lowerextent = x_surface[idx_lowerextent]
+
+      Z_upperextent = z_surface[idx_upperextent]
+      Z_lowerextent = z_surface[idx_lowerextent]
 
       # (RMAJ - X_upperextent) / RMIN
       surface_delta_upper_face = (Rmaj - X_upperextent) / max(x_surface)
@@ -1206,6 +1218,7 @@ class StandardGeometryIntermediates:
       Ip_eqdsk[n] = surface_int_bpol_dl / constants.CONSTANTS.mu0
       delta_upper_face_eqdsk[n] = surface_delta_upper_face
       delta_lower_face_eqdsk[n] = surface_delta_lower_face
+      elongation[n] = (Z_upperextent - Z_lowerextent) / (2.0 * aminor)
 
     # q-profile on interpolation
     q_profile = q_interp(psi_interpolant)
@@ -1250,6 +1263,7 @@ class StandardGeometryIntermediates:
         flux_surf_avg_Bp2=flux_surf_avg_Bp2_eqdsk,
         delta_upper_face=delta_upper_face_eqdsk,
         delta_lower_face=delta_lower_face_eqdsk,
+        elongation=elongation,
         vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
@@ -1375,6 +1389,11 @@ def build_standard_geometry(
   # average triangularity
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
+  # elongation
+  elongation_face = rhon_interpolation_func(
+      rho_face_norm, intermediate.elongation
+  )
+
   Phi_face = rhon_interpolation_func(rho_face_norm, intermediate.Phi)
   Phi = rhon_interpolation_func(rho_norm, intermediate.Phi)
 
@@ -1462,6 +1481,7 @@ def build_standard_geometry(
       jtot_face=jtot_face,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
+      elongation_face=elongation_face,
       volume_hires=volume_hires,
       area_hires=area_hires,
       spr_hires=spr_hires,

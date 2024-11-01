@@ -26,10 +26,10 @@ CONFIG = {
         'n_rho': 25,
         'geometry_configs': {
             0: {
-                'kappa': 1.,
+                'elongation_LCFS': 1.,
             },
             5: {
-                'kappa': 1.7,
+                'elongation_LCFS': 1.7,
             }
         },
     },

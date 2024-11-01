@@ -95,6 +95,7 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
+        elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
     )
@@ -128,6 +129,7 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
+        elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
     )
@@ -153,6 +155,7 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
+        elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 2.0, 0.02),
         hires_fac=4,
     )
@@ -170,7 +173,7 @@ class GeometryTest(parameterized.TestCase):
     """Test that the circular geometry provider can be built."""
     geo_0 = geometry.build_circular_geometry(
         n_rho=25,
-        kappa=1.72,
+        elongation_LCFS=1.72,
         Rmaj=6.2,
         Rmin=2.0,
         B0=5.3,
@@ -178,7 +181,7 @@ class GeometryTest(parameterized.TestCase):
     )
     geo_1 = geometry.build_circular_geometry(
         n_rho=25,
-        kappa=1.72,
+        elongation_LCFS=1.72,
         Rmaj=7.2,
         Rmin=1.0,
         B0=5.3,
