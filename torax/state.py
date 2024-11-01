@@ -67,6 +67,22 @@ class Currents:
         for field in self.__dataclass_fields__
     )
 
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> "Currents":
+    """Returns a Currents with all zeros."""
+    return cls(
+        jtot=jnp.zeros(geo.rho_face.shape),
+        jtot_face=jnp.zeros(geo.rho_face.shape),
+        johm=jnp.zeros(geo.rho_face.shape),
+        generic_current_source=jnp.zeros(geo.rho_face.shape),
+        j_bootstrap=jnp.zeros(geo.rho_face.shape),
+        j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
+        I_bootstrap=jnp.array(0.0),
+        Ip=jnp.array(0.0),
+        sigma=jnp.zeros(geo.rho_face.shape),
+        jtot_hires=jnp.zeros(geo.rho_face.shape),
+    )
+
 
 @chex.dataclass(frozen=True, eq=False)
 class CoreProfiles:

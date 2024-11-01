@@ -232,6 +232,7 @@ def updated_density(
 def _prescribe_currents_no_bootstrap(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
+    core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
   """Creates the initial Currents without the bootstrap current.
@@ -239,6 +240,7 @@ def _prescribe_currents_no_bootstrap(
   Args:
     dynamic_runtime_params_slice: General runtime parameters at t_initial.
     geo: Geometry of the tokamak.
+    core_profiles: Core profiles.
     source_models: All TORAX source/sink functions.
 
   Returns:
@@ -273,6 +275,7 @@ def _prescribe_currents_no_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_generic_current_params,
       geo=geo,
+      core_profiles=core_profiles,
   )
   generic_current = geometry.face_to_cell(generic_current_face)
 
@@ -322,11 +325,7 @@ def _prescribe_currents_no_bootstrap(
 def _prescribe_currents_with_bootstrap(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-    temp_ion: cell_variable.CellVariable,
-    temp_el: cell_variable.CellVariable,
-    ne: cell_variable.CellVariable,
-    ni: cell_variable.CellVariable,
-    psi: cell_variable.CellVariable,
+    core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
   """Creates the initial Currents.
@@ -334,11 +333,7 @@ def _prescribe_currents_with_bootstrap(
   Args:
     dynamic_runtime_params_slice: General runtime parameters at t_initial.
     geo: Geometry of the tokamak.
-    temp_ion: Ion temperature.
-    temp_el: Electron temperature.
-    ne: Electron density.
-    ni: Main ion density.
-    psi: Poloidal flux.
+    core_profiles: Core profiles.
     source_models: All TORAX source/sink functions. If not provided, uses the
       default sources.
 
@@ -357,11 +352,7 @@ def _prescribe_currents_with_bootstrap(
           source_models.j_bootstrap_name
       ],
       geo=geo,
-      temp_ion=temp_ion,
-      temp_el=temp_el,
-      ne=ne,
-      ni=ni,
-      psi=psi,
+      core_profiles=core_profiles,
   )
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
@@ -381,6 +372,7 @@ def _prescribe_currents_with_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_generic_current_params,
       geo=geo,
+      core_profiles=core_profiles,
   )
   generic_current = geometry.face_to_cell(generic_current_face)
 
@@ -434,11 +426,7 @@ def _prescribe_currents_with_bootstrap(
 def _calculate_currents_from_psi(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-    temp_ion: cell_variable.CellVariable,
-    temp_el: cell_variable.CellVariable,
-    ne: cell_variable.CellVariable,
-    ni: cell_variable.CellVariable,
-    psi: cell_variable.CellVariable,
+    core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
   """Creates the initial Currents using psi to calculate jtot.
@@ -446,11 +434,7 @@ def _calculate_currents_from_psi(
   Args:
     dynamic_runtime_params_slice: General runtime parameters at t_initial.
     geo: Geometry of the tokamak.
-    temp_ion: Ion temperature.
-    temp_el: Electron temperature.
-    ne: Electron density.
-    ni: Main ion density.
-    psi: Poloidal flux.
+    core_profiles: Core profiles.
     source_models: All TORAX source/sink functions. If not provided, uses the
       default sources.
 
@@ -461,10 +445,9 @@ def _calculate_currents_from_psi(
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
-
   jtot, jtot_face = physics.calc_jtot_from_psi(
       geo,
-      psi,
+      core_profiles.psi,
   )
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
@@ -473,11 +456,7 @@ def _calculate_currents_from_psi(
           source_models.j_bootstrap_name
       ],
       geo=geo,
-      temp_ion=temp_ion,
-      temp_el=temp_el,
-      ne=ne,
-      ni=ni,
-      psi=psi,
+      core_profiles=core_profiles,
   )
 
   # Calculate splitting of currents depending on input runtime params.
@@ -491,6 +470,7 @@ def _calculate_currents_from_psi(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_generic_current_params,
       geo=geo,
+      core_profiles=core_profiles,
   )
   generic_current = geometry.face_to_cell(generic_current_face)
 
@@ -519,7 +499,7 @@ def _calculate_currents_from_psi(
 def _update_psi_from_j(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-    currents: state.Currents,
+    jtot_hires: jax.Array,
 ) -> cell_variable.CellVariable:
   """Calculates poloidal flux (psi) consistent with plasma current.
 
@@ -529,7 +509,7 @@ def _update_psi_from_j(
   Args:
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Torus geometry.
-    currents: Currents structure including high resolution version of jtot.
+    jtot_hires: High resolution version of jtot.
 
   Returns:
     psi: Poloidal flux cell variable.
@@ -539,7 +519,7 @@ def _update_psi_from_j(
       geo,
   )
 
-  y = currents.jtot_hires * geo.spr_hires
+  y = jtot_hires * geo.spr_hires
   assert y.ndim == 1
   assert geo.rho_hires.ndim == 1
   Ip_profile = math_utils.cumulative_trapezoid(
@@ -570,8 +550,6 @@ def _update_psi_from_j(
 
 
 # pylint: enable=invalid-name
-
-
 def _calculate_psi_grad_constraint(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
@@ -585,35 +563,32 @@ def _calculate_psi_grad_constraint(
   )
 
 
-def _initial_psi(
+def _init_psi_and_current(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
-    temp_ion: cell_variable.CellVariable,
-    temp_el: cell_variable.CellVariable,
-    ne: cell_variable.CellVariable,
-    ni: cell_variable.CellVariable,
+    core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
-) -> tuple[cell_variable.CellVariable, state.Currents]:
-  """Calculates poloidal flux (psi) consistent with plasma current.
+) -> state.CoreProfiles:
+  """Initialises psi and currents in core profiles.
 
-  There are three modes of initialising psi that are supported:
-  1. Providing psi from the profile conditions.
-  2. Calculating j according to the "nu formula".
-  3. Retrieving psi from the standard geometry input.
+  There are three modes of doing this that are supported:
+    1. Retrieving psi from the profile conditions.
+    2. Retrieving psi from the standard geometry input.
+    3. Calculating j according to the nu formula and then calculating psi from
+    that. As we are calculating j using a guess for psi, this method is iterated
+    to converge to the true psi.
 
   Args:
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Torus geometry.
-    temp_ion: Ion temperature.
-    temp_el: Electron temperature.
-    ne: Electron density.
-    ni: Ion density.
-    source_models: All TORAX source/sink functions.
+    core_profiles: Core profiles.
+    source_models: All TORAX source/sink functions. If not provided, uses the
+      default sources.
 
   Returns:
-    psi: Poloidal flux cell variable.
-    currents: Plasma currents.
+    Refined core profiles.
   """
+  # Retrieving psi from the profile conditions.
   if dynamic_runtime_params_slice.profile_conditions.psi is not None:
     psi = cell_variable.CellVariable(
         value=dynamic_runtime_params_slice.profile_conditions.psi,
@@ -623,55 +598,14 @@ def _initial_psi(
         ),
         dr=geo.drho_norm,
     )
+    core_profiles = dataclasses.replace(core_profiles, psi=psi)
     currents = _calculate_currents_from_psi(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
-        temp_ion=temp_ion,
-        temp_el=temp_el,
-        ne=ne,
-        ni=ni,
-        psi=psi,
+        core_profiles=core_profiles,
         source_models=source_models,
     )
-    return psi, currents
-
-  # set up initial psi profile based on current profile
-  if (
-      isinstance(geo, geometry.CircularAnalyticalGeometry)
-      or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
-  ):
-    # set up initial current profile without bootstrap current, to get
-    # q-profile approximation (needed for bootstrap)
-    currents_no_bootstrap = _prescribe_currents_no_bootstrap(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        source_models=source_models,
-    )
-
-    psi_no_bootstrap = _update_psi_from_j(
-        dynamic_runtime_params_slice,
-        geo,
-        currents_no_bootstrap,
-    )
-
-    # second iteration, with bootstrap current
-    currents = _prescribe_currents_with_bootstrap(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        temp_ion=temp_ion,
-        temp_el=temp_el,
-        ne=ne,
-        ni=ni,
-        psi=psi_no_bootstrap,
-        source_models=source_models,
-    )
-
-    psi = _update_psi_from_j(
-        dynamic_runtime_params_slice,
-        geo,
-        currents,
-    )
-
+  # Retrieving psi from the standard geometry input.
   elif (
       isinstance(geo, geometry.StandardGeometry)
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
@@ -679,31 +613,57 @@ def _initial_psi(
     # psi is already provided from a numerical equilibrium, so no need to
     # first calculate currents. However, non-inductive currents are still
     # calculated and used in current diffusion equation.
-    psi_grad_constraint = _calculate_psi_grad_constraint(
-        dynamic_runtime_params_slice,
-        geo,
-    )
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
-        right_face_grad_constraint=psi_grad_constraint,
+        right_face_grad_constraint=_calculate_psi_grad_constraint(
+            dynamic_runtime_params_slice,
+            geo,
+        ),
         dr=geo.drho_norm,
     )
-
-    # Calculate external currents
+    core_profiles = dataclasses.replace(core_profiles, psi=psi)
     currents = _calculate_currents_from_psi(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
+        core_profiles=core_profiles,
         source_models=source_models,
-        temp_ion=temp_ion,
-        temp_el=temp_el,
-        ne=ne,
-        ni=ni,
-        psi=psi,
+    )
+  # Calculating j according to nu formula and psi from j.
+  elif (
+      isinstance(geo, geometry.CircularAnalyticalGeometry)
+      or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
+  ):
+    currents = _prescribe_currents_no_bootstrap(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=source_models,
+    )
+    psi = _update_psi_from_j(
+        dynamic_runtime_params_slice,
+        geo,
+        currents.jtot_hires,
+    )
+    core_profiles = dataclasses.replace(
+        core_profiles, currents=currents, psi=psi
+    )
+    currents = _prescribe_currents_with_bootstrap(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        core_profiles=core_profiles,
+        source_models=source_models,
+    )
+    psi = _update_psi_from_j(
+        dynamic_runtime_params_slice,
+        geo,
+        currents.jtot_hires,
     )
   else:
-    raise ValueError(f'Unknown geometry type provided: {geo}')
+    raise ValueError('Cannot compute psi for given config.')
 
-  return psi, currents
+  core_profiles = dataclasses.replace(core_profiles, psi=psi, currents=currents)
+
+  return core_profiles
 
 
 def initial_core_profiles(
@@ -729,28 +689,19 @@ def initial_core_profiles(
   temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo)
   temp_el = updated_electron_temperature(dynamic_runtime_params_slice, geo)
   ne, ni, nimp = updated_density(dynamic_runtime_params_slice, geo)
-  psi, currents = _initial_psi(
-      dynamic_runtime_params_slice,
-      geo,
-      temp_ion=temp_ion,
-      temp_el=temp_el,
-      ne=ne,
-      ni=ni,
-      source_models=source_models,
-  )
-  s_face = physics.calc_s_from_psi(geo, psi)
-  q_face, _ = physics.calc_q_from_psi(
-      geo=geo,
-      psi=psi,
-      q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
-  )
 
-  # the psidot calculation needs core profiles. So psidot first initialized
-  # with zeros.
+  # The later calculation needs core profiles.
+  # So initialize these quantities with zeros.
   psidot = cell_variable.CellVariable(
-      value=jnp.zeros_like(psi.value),
+      value=jnp.zeros_like(geo.rho),
       dr=geo.drho_norm,
   )
+  psi = cell_variable.CellVariable(
+      value=jnp.zeros_like(geo.rho), dr=geo.drho_norm
+  )
+  q_face = jnp.zeros_like(geo.rho_face)
+  s_face = jnp.zeros_like(geo.rho_face)
+  currents = state.Currents.zeros(geo)
 
   core_profiles = state.CoreProfiles(
       temp_ion=temp_ion,
@@ -769,11 +720,18 @@ def initial_core_profiles(
       nref=jnp.asarray(dynamic_runtime_params_slice.numerics.nref),
   )
 
+  core_profiles = _init_psi_and_current(
+      dynamic_runtime_params_slice,
+      geo,
+      core_profiles,
+      source_models,
+  )
+
   # psidot calculated here with phibdot=0 in geo, since this is initial
   # conditions and we don't yet have information on geo_t_plus_dt for the
   # phibdot calculation.
   psidot = dataclasses.replace(
-      psidot,
+      core_profiles.psidot,
       value=ohmic_heat_source.calc_psidot(
           dynamic_runtime_params_slice,
           geo,
@@ -781,7 +739,6 @@ def initial_core_profiles(
           source_models,
       ),
   )
-
   core_profiles = dataclasses.replace(core_profiles, psidot=psidot)
 
   # Set psi as source of truth and recalculate jtot, q, s

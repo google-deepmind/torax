@@ -17,6 +17,7 @@
 from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
@@ -25,6 +26,9 @@ from torax import physics
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
+
+
+_trapz = jax.scipy.integrate.trapezoid
 
 
 class PhysicsTest(torax_refs.ReferenceValueTest):
@@ -112,6 +116,11 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
             sources=source_models_builder.runtime_params,
         )
     )
+    initial_core_profiles = core_profile_setters.initial_core_profiles(
+        dynamic_runtime_params_slice,
+        geo,
+        source_models=source_models,
+    )
 
     # pylint: disable=protected-access
     if isinstance(geo, geometry.CircularAnalyticalGeometry):
@@ -119,9 +128,10 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
           dynamic_runtime_params_slice,
           geo,
           source_models=source_models,
+          core_profiles=initial_core_profiles,
       )
       psi = core_profile_setters._update_psi_from_j(
-          dynamic_runtime_params_slice, geo, currents
+          dynamic_runtime_params_slice, geo, currents.jtot_hires
       ).value
     elif isinstance(geo, geometry.StandardGeometry):
       psi = geo.psi_from_Ip
