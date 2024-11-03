@@ -1287,6 +1287,10 @@ previous simulation and then run the simulation from that point in time. For
 all subsequent steps the dynamic runtime parameters will be constructed using
 the given runtime parameter configuration (from ``t=10`` onwards).
 
+If the requested restart time is not exactly available in the state file, the
+simulation will restart from the closest available time. A warning will be
+logged in this case.
+
 We envisage this feature being useful for example to:
 
 * restart a(n expensive) simulation that was healthy up till a certain time and

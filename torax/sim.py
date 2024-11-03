@@ -888,7 +888,7 @@ class Sim:
 def override_initial_runtime_params_from_file(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    file_restart: general_runtime_params.FileRestart,
+    t_restart: float,
     ds: xr.Dataset,
 ) -> tuple[
     runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -896,7 +896,7 @@ def override_initial_runtime_params_from_file(
 ]:
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
-  dynamic_runtime_params_slice.numerics.t_initial = file_restart.time
+  dynamic_runtime_params_slice.numerics.t_initial = t_restart
   dynamic_runtime_params_slice.profile_conditions.Ip = ds.data_vars[
       output.IP
   ].to_numpy()
@@ -1028,12 +1028,21 @@ def build_sim_object(
     ds = ds.rename({output.RHO_CELL_NORM: config_args.RHO_NORM})
     # Find the closest time in the given dataset and squeeze any size 1 dims.
     ds = ds.sel(time=file_restart.time, method='nearest').squeeze()
+    t_restart = ds.time.item()
+    if t_restart != runtime_params.numerics.t_initial:
+      logging.warning(
+          'Requested restart time %f not exactly available in state file %s.'
+          ' Restarting from closest available time %f instead.',
+          file_restart.time,
+          file_restart.filename,
+          t_restart,
+      )
     # Override some of dynamic runtime params slice from t=t_initial.
     dynamic_runtime_params_slice_for_init, geo_for_init = (
         override_initial_runtime_params_from_file(
             dynamic_runtime_params_slice_for_init,
             geo_for_init,
-            file_restart,
+            t_restart,
             ds,
         )
     )

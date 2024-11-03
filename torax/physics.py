@@ -316,10 +316,9 @@ def calc_nu_star(
   raw_ne_face = raw_ne_var.face_value()
 
   # Coulomb constant and collisionality. Wesson 2nd edition p661-663:
-  # Lambde(:) = 15.2_DBL - 0.5_DBL*LOG(0.1_DBL*Nex(:)) + LOG(Tex(:))
   lambde = (
       15.2
-      - 0.5 * jnp.log(0.1 * raw_ne_face / 1e20 * nref)
+      - 0.5 * jnp.log(raw_ne_face / 1e20 * nref)
       + jnp.log(temp_electron_face)
   )
   # ion_electron collision formula
@@ -386,8 +385,9 @@ def fast_ion_fractional_heating_formula(
   frac_i = (
       2
       * (
-          (1/6) * jnp.log((1.0 - x + x_squared) / (1.0 + 2.0 * x + x_squared))
-          + (jnp.arctan((2.0 * x - 1.0) / jnp.sqrt(3)) + jnp.pi/6) / jnp.sqrt(3)
+          (1 / 6) * jnp.log((1.0 - x + x_squared) / (1.0 + 2.0 * x + x_squared))
+          + (jnp.arctan((2.0 * x - 1.0) / jnp.sqrt(3)) + jnp.pi / 6)
+          / jnp.sqrt(3)
       )
       / x_squared
   )
