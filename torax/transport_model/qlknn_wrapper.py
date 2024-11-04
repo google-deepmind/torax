@@ -36,8 +36,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
-from torax.transport_model import qualikiz_utils
-from torax.transport_model import quasilinear_utils
+from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
@@ -73,7 +72,7 @@ def get_default_runtime_params_from_model_path(
 
 # pylint: disable=invalid-name
 @chex.dataclass
-class RuntimeParams(qualikiz_utils.QualikizBasedRuntimeParams):
+class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   """Extends the base runtime params with additional params for this model.
 
   See base class runtime_params.RuntimeParams docstring for more info.
@@ -107,7 +106,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 
 @chex.dataclass(frozen=True)
-class DynamicRuntimeParams(qualikiz_utils.QualikizBasedDynamicRuntimeParams):
+class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
   include_ITG: bool
   include_TEM: bool
   include_ETG: bool
@@ -228,7 +227,9 @@ def clip_inputs(
   return feature_scan
 
 
-class QLKNNTransportModel(transport_model.TransportModel):
+class QLKNNTransportModel(
+    qualikiz_based_transport_model.QualikizBasedTransportModel
+):
   """Calculates turbulent transport coefficients."""
 
   def __init__(
@@ -294,7 +295,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
       d_face_ne: Diffusivity for electron density, along faces.
       v_face_ne: Convectivity for electron density, along faces.
     """
-    qualikiz_inputs = qualikiz_utils.prepare_qualikiz_inputs(
+    qualikiz_inputs = self._prepare_qualikiz_inputs(
         Zeff_face=runtime_config_inputs.Zeff_face,
         nref=runtime_config_inputs.nref,
         q_correction_factor=runtime_config_inputs.q_correction_factor,
@@ -365,7 +366,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
     pfe = model_output['pfe_itg'].squeeze() + model_output['pfe_tem'].squeeze()
 
-    return quasilinear_utils.make_core_transport(
+    return self._make_core_transport(
         qi=qi,
         qe=qe,
         pfe=pfe,
