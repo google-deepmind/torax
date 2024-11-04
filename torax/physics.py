@@ -94,19 +94,15 @@ def coll_exchange(
   Returns:
     Qei_coeff: ion-electron collisional heat exchange coefficient.
   """
-  n_scale = nref / 1e20
-  lam_ei = (
-      15.2
-      - 0.5 * jnp.log(core_profiles.ne.value * n_scale)
-      + jnp.log(core_profiles.temp_el.value)
+  # Calculate Coulomb logarithm
+  lambda_ei = _calculate_lambda_ei(
+      core_profiles.temp_el.value, core_profiles.ne.value * nref
   )
   # ion-electron collisionality
-  log_tau_e = (
-      jnp.log(12 * jnp.pi**1.5 / (core_profiles.ne.value * nref * lam_ei))
-      - 4 * jnp.log(constants.CONSTANTS.qe)
-      + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
-      + 2 * jnp.log(constants.CONSTANTS.epsilon0)
-      + 1.5 * jnp.log(core_profiles.temp_el.value * constants.CONSTANTS.keV2J)
+  log_tau_e = _calculate_log_tau_e_Z1(
+      core_profiles.temp_el.value,
+      core_profiles.ne.value * nref,
+      lambda_ei,
   )
   # pylint: disable=invalid-name
   log_Qei_coef = (
@@ -120,6 +116,33 @@ def coll_exchange(
   )
   Qei_coef = jnp.exp(log_Qei_coef)
   return Qei_coef
+
+
+def _calculate_log_tau_e_Z1(
+    temp_el: jax.Array,
+    ne: jax.Array,
+    lambda_ei: jax.Array,
+) -> jax.Array:
+  """Calculates log of electron-ion collision time for Z=1 plasma.
+
+  See Wesson 3rd edition p729. Extension to multiple ions is context dependent
+  and implemented in calling functions.
+
+  Args:
+    temp_el: Electron temperature in keV.
+    ne: Electron density in m^-3.
+    lambda_ei: Coulomb logarithm.
+
+  Returns:
+    Log of electron-ion collision time.
+  """
+  return (
+      jnp.log(12 * jnp.pi**1.5 / (ne * lambda_ei))
+      - 4 * jnp.log(constants.CONSTANTS.qe)
+      + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
+      + 2 * jnp.log(constants.CONSTANTS.epsilon0)
+      + 1.5 * jnp.log(temp_el * constants.CONSTANTS.keV2J)
+  )
 
 
 def internal_boundary(
@@ -310,27 +333,19 @@ def calc_nu_star(
     nu_star: on face grid.
   """
 
-  temp_electron_var = core_profiles.temp_el
-  temp_electron_face = temp_electron_var.face_value()
-  raw_ne_var = core_profiles.ne
-  raw_ne_face = raw_ne_var.face_value()
+  # Calculate Coulomb logarithm
+  lambda_ei_face = _calculate_lambda_ei(
+      core_profiles.temp_el.face_value(), core_profiles.ne.face_value() * nref
+  )
 
-  # Coulomb constant and collisionality. Wesson 2nd edition p661-663:
-  lambde = (
-      15.2
-      - 0.5 * jnp.log(raw_ne_face / 1e20 * nref)
-      + jnp.log(temp_electron_face)
+  # ion_electron collisionality
+  log_tau_e_Z1 = _calculate_log_tau_e_Z1(
+      core_profiles.temp_el.face_value(),
+      core_profiles.ne.face_value() * nref,
+      lambda_ei_face,
   )
-  # ion_electron collision formula
-  nu_e = (
-      1
-      / 1.09e-3
-      * Zeff_face
-      * (raw_ne_face / 1e19 * nref)
-      * lambde
-      / (temp_electron_face) ** 1.5
-      * coll_mult
-  )
+
+  nu_e = 1 / jnp.exp(log_tau_e_Z1) * Zeff_face * coll_mult
 
   # calculate bounce time
   epsilon = geo.rho_face / geo.Rmaj
@@ -342,7 +357,7 @@ def calc_nu_star(
       / (
           epsilon**1.5
           * jnp.sqrt(
-              temp_electron_face
+              core_profiles.temp_el.face_value()
               * constants.CONSTANTS.keV2J
               / constants.CONSTANTS.me
           )
@@ -355,6 +370,24 @@ def calc_nu_star(
   nustar = nu_e * tau_bounce
 
   return nustar
+
+
+def _calculate_lambda_ei(
+    temp_el: jax.Array,
+    ne: jax.Array,
+) -> jax.Array:
+  """Calculates Coulomb logarithm for electron-ion collisions.
+
+  See Wesson 3rd edition p727.
+
+  Args:
+    temp_el: Electron temperature in keV.
+    ne: Electron density in m^-3.
+
+  Returns:
+    Coulomb logarithm.
+  """
+  return 15.2 - 0.5 * jnp.log(ne / 1e20) + jnp.log(temp_el)
 
 
 def fast_ion_fractional_heating_formula(
