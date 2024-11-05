@@ -23,7 +23,10 @@ class RuntimeParamsTest(absltest.TestCase):
     runtime_params = runtime_params_lib.RuntimeParams()
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
+    dynamic_params = provider.build_dynamic_params(t=0.0)
+    self.assertIsInstance(
+        dynamic_params, runtime_params_lib.DynamicRuntimeParams
+    )
 
 
 if __name__ == '__main__':

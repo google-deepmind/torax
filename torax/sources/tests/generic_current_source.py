@@ -99,12 +99,6 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
         source_lib.ProfileType.FACE.get_profile_shape(geo),
     )
 
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = generic_current_source.RuntimeParams()
-    geo = geometry.build_circular_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
-
   @parameterized.named_parameters(
       dict(
           testcase_name='psi_profile_yields_profile',

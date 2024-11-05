@@ -75,6 +75,7 @@ class SourceTestCase(parameterized.TestCase):
         source_type=source_class,
         runtime_params_type=runtime_params_class,
     )
+    cls._runtime_params_class = runtime_params_class
     cls._unsupported_modes = unsupported_modes
     cls._expected_affected_core_profiles = expected_affected_core_profiles
 
@@ -87,6 +88,16 @@ class SourceTestCase(parameterized.TestCase):
     self.assertSameElements(
         source.affected_core_profiles,
         self._expected_affected_core_profiles,
+    )
+
+  def test_runtime_params_builds_dynamic_params(self):
+    runtime_params = self._runtime_params_class()
+    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
+    geo = geometry.build_circular_geometry()
+    provider = runtime_params.make_provider(geo.torax_mesh)
+    dynamic_params = provider.build_dynamic_params(t=0.0)
+    self.assertIsInstance(
+        dynamic_params, runtime_params_lib.DynamicRuntimeParams
     )
 
 
