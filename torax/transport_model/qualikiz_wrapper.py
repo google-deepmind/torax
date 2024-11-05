@@ -56,8 +56,14 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
+  ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
+  maxruns: int
+  numprocs: int
 
 
 class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
@@ -67,12 +73,6 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
-@chex.dataclass(frozen=True)
-class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
-  maxruns: int
-  numprocs: int
 
 
 _DEFAULT_QLKRUN_NAME_PREFIX = 'torax_qualikiz_runs'

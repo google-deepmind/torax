@@ -91,18 +91,8 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
+  ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)
@@ -114,6 +104,16 @@ class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
   ETG_correction_factor: float
   clip_inputs: bool
   clip_margin: float
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides a RuntimeParams to use during time t of the sim."""
+
+  runtime_params_config: RuntimeParams
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 _EPSILON_NN: Final[float] = (
