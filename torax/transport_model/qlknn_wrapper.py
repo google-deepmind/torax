@@ -202,7 +202,7 @@ def filter_model_output(
 def clip_inputs(
     feature_scan: jax.Array,
     clip_margin: float,
-    inputs_and_ranges: dict[str, dict[str, float]],
+    inputs_and_ranges: base_qlknn_model.InputsAndRanges,
 ) -> jax.Array:
   """Clip input values according to the training set limits + optional user-defined margin for qlknn."""
   for i, key in enumerate(inputs_and_ranges.keys()):
@@ -304,7 +304,6 @@ class QLKNNTransportModel(
         core_profiles=core_profiles,
     )
     model = _get_model(self._model_path)
-    version = model.version
 
     # To take into account a different aspect ratio compared to the qlknn
     # training set, the qlknn input normalized radius needs to be rescaled by
@@ -314,33 +313,16 @@ class QLKNNTransportModel(
         qualikiz_inputs,
         x=qualikiz_inputs.x * qualikiz_inputs.epsilon_lcfs / _EPSILON_NN,
     )
-    if version == '10D':
-      # Ranges are from the training set boundaries and can be optionally used
-      # to clip the input values within a desired margin.
-      inputs_and_ranges = {
-          'Zeff_face': {'min': 1.0, 'max': 3.0},
-          'Ati': {'min': 0.0, 'max': 14.0},
-          'Ate': {'min': 0.0, 'max': 14.0},
-          'Ane': {'min': -5.0, 'max': 6.0},
-          'q': {'min': 0.66, 'max': 15},
-          'smag': {'min': -1.0, 'max': 5.0},
-          'x': {'min': 0.09, 'max': 0.99},
-          'Ti_Te': {'min': 0.25, 'max': 2.5},
-          'log_nu_star_face': {'min': -5.0, 'max': 0.0},
-      }
-    else:
-      raise ValueError(f'Unknown model version: {version}')
 
-    feature_scan = jnp.array(
-        [getattr(qualikiz_inputs, key) for key in inputs_and_ranges.keys()]
-    ).T
+    feature_scan = model.get_model_inputs_from_qualikiz_inputs(qualikiz_inputs)
     # Clip inputs if requested.
+    # TODO(b/364218524): Consider better clipping of out-of-distribution inputs.
     feature_scan = jax.lax.cond(
         runtime_config_inputs.transport.clip_inputs,
         lambda: clip_inputs(
             feature_scan,
             runtime_config_inputs.transport.clip_margin,
-            inputs_and_ranges,
+            model.inputs_and_ranges,
         ),  # Called when True
         lambda: feature_scan,  # Called when False
     )
