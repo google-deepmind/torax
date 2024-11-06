@@ -23,10 +23,11 @@ import numpy as np
 from torax import core_profile_setters
 from torax import geometry
 from torax import physics
+from torax import state
+from torax.fvm import cell_variable
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
-
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -204,6 +205,68 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         birth_energy, temp_el, fast_ion_mass
     )
     np.testing.assert_allclose(frac_i, 0.0, atol=1e-9)
+
+  # TODO(b/377225415): generalize to arbitrary number of ions.
+  @parameterized.parameters([
+      dict(Aimp=20.0, Zimp=10.0, Zi=1.0, Ai=1.0, ni=1.0, expected=1.0),
+      dict(Aimp=20.0, Zimp=10.0, Zi=1.0, Ai=2.0, ni=1.0, expected=0.5),
+      dict(Aimp=20.0, Zimp=10.0, Zi=2.0, Ai=4.0, ni=0.5, expected=0.5),
+      dict(Aimp=20.0, Zimp=10.0, Zi=1.0, Ai=2.0, ni=0.9, expected=0.5),
+      dict(Aimp=40.0, Zimp=20.0, Zi=1.0, Ai=2.0, ni=0.92, expected=0.5),
+  ])
+  # pylint: disable=invalid-name
+  def test_calculate_weighted_Zeff(self, Aimp, Zimp, Zi, Ai, ni, expected):
+    """Compare `_calculate_weighted_Zeff` to a reference value."""
+    references = torax_refs.circular_references()
+    geo = references.geometry_provider(
+        references.runtime_params.numerics.t_initial
+    )
+    ne = 1.0
+    nimp = (ne - ni * Zi) / Zimp
+    core_profiles = state.CoreProfiles(
+        ne=cell_variable.CellVariable(
+            value=jnp.array(ne),
+            dr=jnp.array(1.0),
+        ),
+        ni=cell_variable.CellVariable(
+            value=jnp.array(ni),
+            dr=jnp.array(1.0),
+        ),
+        nimp=cell_variable.CellVariable(
+            value=jnp.array(nimp),
+            dr=jnp.array(1.0),
+        ),
+        temp_ion=cell_variable.CellVariable(
+            value=jnp.array(0.0),
+            dr=jnp.array(1.0),
+        ),
+        temp_el=cell_variable.CellVariable(
+            value=jnp.array(0.0),
+            dr=jnp.array(1.0),
+        ),
+        psi=cell_variable.CellVariable(
+            value=jnp.array(0.0),
+            dr=jnp.array(1.0),
+        ),
+        psidot=cell_variable.CellVariable(
+            value=jnp.array(0.0),
+            dr=jnp.array(1.0),
+        ),
+        currents=state.Currents.zeros(geo),
+        q_face=jnp.array(0.0),
+        s_face=jnp.array(0.0),
+        Zi=Zi,
+        Ai=Ai,
+        Zimp=Zimp,
+        Aimp=Aimp,
+        nref=1e20,
+    )
+    # pylint: enable=invalid-name
+    # pylint: disable=protected-access
+    np.testing.assert_allclose(
+        physics._calculate_weighted_Zeff(core_profiles), expected
+    )
+    # pylint: enable=protected-access
 
 
 if __name__ == '__main__':

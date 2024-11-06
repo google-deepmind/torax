@@ -113,6 +113,7 @@ class CoreProfiles:
   Zi: array_typing.ScalarFloat  # Main ion charge
   Ai: array_typing.ScalarFloat  # Main ion mass [amu]
   Zimp: array_typing.ScalarFloat  # Impurity charge
+  Aimp: array_typing.ScalarFloat  # Impurity mass [amu]
   # pylint: enable=invalid-name
 
   def history_elem(self) -> CoreProfiles:

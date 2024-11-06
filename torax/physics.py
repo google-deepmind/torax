@@ -98,24 +98,37 @@ def coll_exchange(
   lambda_ei = _calculate_lambda_ei(
       core_profiles.temp_el.value, core_profiles.ne.value * nref
   )
-  # ion-electron collisionality
-  log_tau_e = _calculate_log_tau_e_Z1(
+  # ion-electron collisionality for Zeff=1. Ion charge and multiple ion effects
+  # are included in the Qei_coef calculation below.
+  log_tau_e_Z1 = _calculate_log_tau_e_Z1(
       core_profiles.temp_el.value,
       core_profiles.ne.value * nref,
       lambda_ei,
   )
   # pylint: disable=invalid-name
+
+  weighted_Zeff = _calculate_weighted_Zeff(core_profiles)
+
   log_Qei_coef = (
       jnp.log(Qei_mult * 1.5 * core_profiles.ne.value * nref)
-      + jnp.log(
-          constants.CONSTANTS.keV2J
-          / (core_profiles.Ai * constants.CONSTANTS.mp)
-      )
+      + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.mp)
       + jnp.log(2 * constants.CONSTANTS.me)
-      - log_tau_e
+      + jnp.log(weighted_Zeff)
+      - log_tau_e_Z1
   )
   Qei_coef = jnp.exp(log_Qei_coef)
   return Qei_coef
+
+
+# TODO(b/377225415): generalize to arbitrary number of ions.
+def _calculate_weighted_Zeff(
+    core_profiles: state.CoreProfiles,
+) -> jax.Array:
+  """Calculates ion mass weighted Zeff. Used for collisional heat exchange."""
+  return (
+      core_profiles.ni.value * core_profiles.Zi**2 / core_profiles.Ai
+      + core_profiles.nimp.value * core_profiles.Zimp**2 / core_profiles.Aimp
+  ) / core_profiles.ne.value
 
 
 def _calculate_log_tau_e_Z1(

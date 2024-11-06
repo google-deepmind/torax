@@ -200,6 +200,9 @@ Defines the distribution of ion species. Currently restricted to a single main i
 ``Zimp`` (float = 10.0), **time-varying-scalar**
   Impurity charge state.
 
+``Aimp`` (float = 20.18), **time-varying-scalar**
+  Impurity mass in amu units.
+
 ``Zeff`` (float = 1.0), **time-varying-scalar**
   Plasma effective charge, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is
   the normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and :math:`Z_{imp}`, a consistent :math:`\hat{n}_i` is calculated,
