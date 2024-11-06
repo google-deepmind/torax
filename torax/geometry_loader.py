@@ -13,8 +13,10 @@
 # limitations under the License.
 
 """File I/O for loading geometry files."""
+
 import enum
 import os
+from typing import IO
 
 import eqdsk
 import numpy as np
@@ -56,9 +58,9 @@ def _load_CHEASE_data(  # pylint: disable=invalid-name
   }
 
 
-def _load_fbt_data(file_path: str) -> dict[str, np.ndarray]:
+def _load_fbt_data(from_file: str | IO[bytes]) -> dict[str, np.ndarray]:
   """Loads the data from a FBT-LY file into a dictionary."""
-  return scipy.io.loadmat(file_path, squeeze_me=True)
+  return scipy.io.loadmat(from_file, squeeze_me=True)
 
 
 def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
@@ -85,10 +87,10 @@ def load_geo_data(
   # initialize geometry from file
   match geometry_source:
     case GeometrySource.CHEASE:
-      return _load_CHEASE_data(file_path=filepath)
+      return _load_CHEASE_data(filepath)
     case GeometrySource.FBT:
-      return _load_fbt_data(file_path=filepath)
+      return _load_fbt_data(filepath)
     case GeometrySource.EQDSK:
-      return _load_eqdsk_data(file_path=filepath)
+      return _load_eqdsk_data(filepath)
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')
