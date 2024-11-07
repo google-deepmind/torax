@@ -157,13 +157,25 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     geo = references.geometry_provider(
         references.runtime_params.numerics.t_initial
     )
-
-    j, _ = physics.calc_jtot_from_psi(
+    # pylint: disable=invalid-name
+    j, _, Ip_profile_face = physics.calc_jtot_from_psi(
         geo,
         references.psi,
     )
-
+    # pylint: enable=invalid-name
     np.testing.assert_allclose(j, references.jtot)
+
+    if references.Ip_from_parameters:
+      np.testing.assert_allclose(
+          Ip_profile_face[-1],
+          references.runtime_params.profile_conditions.Ip_tot * 1e6,
+      )
+    else:
+      assert(isinstance(geo, geometry.StandardGeometry))
+      np.testing.assert_allclose(
+          Ip_profile_face[-1],
+          geo.Ip_profile_face[-1],
+      )
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),

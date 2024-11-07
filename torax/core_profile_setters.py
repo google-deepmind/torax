@@ -96,7 +96,7 @@ def _get_ne(
   """Helper to get the electron density profile at the current timestep."""
   # pylint: disable=invalid-name
   nGW = (
-      dynamic_runtime_params_slice.profile_conditions.Ip
+      dynamic_runtime_params_slice.profile_conditions.Ip_tot
       / (jnp.pi * geo.Rmin**2)
       * 1e20
       / dynamic_runtime_params_slice.numerics.nref
@@ -252,7 +252,7 @@ def _prescribe_currents_no_bootstrap(
   # pylint: disable=invalid-name
 
   # Calculate splitting of currents depending on input runtime params.
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
+  Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
 
   dynamic_generic_current_params = get_generic_current_params(
       dynamic_runtime_params_slice, source_models
@@ -315,7 +315,7 @@ def _prescribe_currents_no_bootstrap(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
-      Ip=Ip,
+      Ip_profile_face=jnp.zeros(geo.rho_face.shape),  # psi not yet calculated
       sigma=bootstrap_profile.sigma,
   )
 
@@ -344,7 +344,7 @@ def _prescribe_currents_with_bootstrap(
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip
+  Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -416,7 +416,7 @@ def _prescribe_currents_with_bootstrap(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
-      Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
+      Ip_profile_face=jnp.zeros(geo.rho_face.shape),  # psi not yet calculated
       sigma=bootstrap_profile.sigma,
   )
 
@@ -445,7 +445,7 @@ def _calculate_currents_from_psi(
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
-  jtot, jtot_face = physics.calc_jtot_from_psi(
+  jtot, jtot_face, Ip_profile_face = physics.calc_jtot_from_psi(
       geo,
       core_profiles.psi,
   )
@@ -489,7 +489,7 @@ def _calculate_currents_from_psi(
       j_bootstrap=bootstrap_profile.j_bootstrap,
       j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
       I_bootstrap=bootstrap_profile.I_bootstrap,
-      Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
+      Ip_profile_face=Ip_profile_face,
       sigma=bootstrap_profile.sigma,
   )
 
@@ -556,7 +556,7 @@ def _calculate_psi_grad_constraint(
 ) -> jax.Array:
   """Calculates the constraint on the poloidal flux (psi)."""
   return (
-      dynamic_runtime_params_slice.profile_conditions.Ip
+      dynamic_runtime_params_slice.profile_conditions.Ip_tot
       * 1e6
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
@@ -657,6 +657,15 @@ def _init_psi_and_current(
         dynamic_runtime_params_slice,
         geo,
         currents.jtot_hires,
+    )
+    # pylint: disable=invalid-name
+    _, _, Ip_profile_face = physics.calc_jtot_from_psi(
+        geo,
+        psi,
+    )
+    # pylint: enable=invalid-name
+    currents = dataclasses.replace(
+        currents, Ip_profile_face=Ip_profile_face
     )
   else:
     raise ValueError('Cannot compute psi for given config.')
@@ -965,7 +974,7 @@ def _get_jtot_hires(
   denom = _trapz(jformula_hires * geo.spr_hires, geo.rho_hires_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot_hires = (
-        dynamic_runtime_params_slice.profile_conditions.Ip * 1e6 / denom
+        dynamic_runtime_params_slice.profile_conditions.Ip_tot * 1e6 / denom
     )
     jtot_hires = jformula_hires * Ctot_hires
   else:

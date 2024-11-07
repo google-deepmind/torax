@@ -567,7 +567,7 @@ class SimTest(sim_test_case.SimTestCase):
         output.NI_RIGHT_BC,
         output.PSI,
         output.PSIDOT,
-        output.IP,
+        output.IP_PROFILE_FACE,
         output.NREF,
         output.Q_FACE,
         output.S_FACE,
@@ -596,7 +596,7 @@ class SimTest(sim_test_case.SimTestCase):
     source_models = sim.source_models_builder()
 
     # Load in the reference core profiles.
-    Ip = ref_profiles[output.IP][index]
+    Ip_total = ref_profiles[output.IP_PROFILE_FACE][index, -1] / 1e6
     temp_el = ref_profiles[output.TEMP_EL][index, :]
     temp_el_bc = ref_profiles[output.TEMP_EL_RIGHT_BC][index]
     temp_ion = ref_profiles[output.TEMP_ION][index, :]
@@ -606,7 +606,7 @@ class SimTest(sim_test_case.SimTestCase):
     psi = ref_profiles[output.PSI][index, :]
 
     # Override the dynamic runtime params with the loaded values.
-    dynamic_runtime_params_slice.profile_conditions.Ip = Ip
+    dynamic_runtime_params_slice.profile_conditions.Ip_tot = Ip_total
     dynamic_runtime_params_slice.profile_conditions.Te = temp_el
     dynamic_runtime_params_slice.profile_conditions.Te_bound_right = temp_el_bc
     dynamic_runtime_params_slice.profile_conditions.Ti = temp_ion
@@ -767,7 +767,8 @@ def verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.I_BOOTSTRAP][index],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.Ip, ref_profiles[output.IP][index]
+      core_profiles.currents.Ip_profile_face,
+      ref_profiles[output.IP_PROFILE_FACE][index, :],
   )
 
 

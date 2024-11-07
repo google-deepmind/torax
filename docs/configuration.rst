@@ -213,8 +213,8 @@ Profile conditions
 
 Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
 
-``Ip`` (float = 15.0), **time-varying-scalar**
-  Plasma current in MA. Boundary condition for the :math:`\psi` equation.
+``Ip_tot`` (float = 15.0), **time-varying-scalar**
+  Total plasma current in MA. Boundary condition for the :math:`\psi` equation.
 
 ``Ti_bound_right`` (float | None [default]), **time-varying-scalar**
   Ion temperature boundary condition at :math:`\hat{\rho}=1` in units of keV.
@@ -1159,7 +1159,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'Zimp': 10,
           },
           'profile_conditions': {
-              'Ip': {0: 3, 80: 10.5},
+              'Ip_tot': {0: 3, 80: 10.5},
               # initial condition ion temperature for r=0 and r=Rmin
               'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
               'Ti_bound_right': 0.1,  # boundary condition ion temp for r=Rmin

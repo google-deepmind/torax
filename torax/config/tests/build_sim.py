@@ -151,7 +151,7 @@ class BuildSimTest(parameterized.TestCase):
         },
         'profile_conditions': {
             'ne_is_fGW': False,  # scalar fields.
-            'Ip': {0: 0.2, 1: 0.4, 2: 0.6},  # time-dependent.
+            'Ip_tot': {0: 0.2, 1: 0.4, 2: 0.6},  # time-dependent.
         },
         'numerics': {
             'q_correction_factor': 0.2,  # scalar fields.
@@ -177,7 +177,7 @@ class BuildSimTest(parameterized.TestCase):
         dynamic_runtime_params_slice.plasma_composition.Zeff, 0.25
     )
     np.testing.assert_allclose(
-        dynamic_runtime_params_slice.profile_conditions.Ip, 0.5
+        dynamic_runtime_params_slice.profile_conditions.Ip_tot, 0.5
     )
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.numerics.resistivity_mult, 0.6
@@ -256,10 +256,12 @@ class BuildSimTest(parameterized.TestCase):
   def test_chease_geometry_updates_Ip(self):
     """Tests that the Ip is updated when using chease geometry."""
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    original_Ip = runtime_params.profile_conditions.Ip
+    original_Ip_tot = runtime_params.profile_conditions.Ip_tot
     geo_provider = build_sim.build_geometry_provider_from_config({
         'geometry_type': 'chease',
-        'Ip_from_parameters': False,  # this will force update runtime_params.Ip
+        'Ip_from_parameters': (
+            False
+        ),  # this will force update runtime_params.Ip_tot
     })
     runtime_params_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -279,7 +281,9 @@ class BuildSimTest(parameterized.TestCase):
     )
     self.assertIsInstance(geo, geometry.StandardGeometry)
     self.assertIsNotNone(dynamic_slice)
-    self.assertNotEqual(dynamic_slice.profile_conditions.Ip, original_Ip)
+    self.assertNotEqual(
+        dynamic_slice.profile_conditions.Ip_tot, original_Ip_tot
+    )
     # pylint: enable=invalid-name
 
   def test_empty_source_config_only_has_defaults_turned_off(self):

@@ -403,7 +403,7 @@ class StandardGeometry(Geometry):
   """
 
   Ip_from_parameters: bool
-  Ip: chex.Scalar
+  Ip_profile_face: chex.Array
   psi: chex.Array
   psi_from_Ip: chex.Array
   jtot: chex.Array
@@ -417,7 +417,7 @@ class StandardGeometryProvider(GeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
 
   Ip_from_parameters: bool
-  Ip: interpolated_param.InterpolatedVarSingleAxis
+  Ip_profile_face: interpolated_param.InterpolatedVarSingleAxis
   psi: interpolated_param.InterpolatedVarSingleAxis
   psi_from_Ip: interpolated_param.InterpolatedVarSingleAxis
   jtot: interpolated_param.InterpolatedVarSingleAxis
@@ -1295,7 +1295,7 @@ class StandardGeometryIntermediates:
         vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
-        z_magnetic_axis=eqfile['zmag']
+        z_magnetic_axis=eqfile['zmag'],
     )
 
 
@@ -1436,6 +1436,10 @@ def build_standard_geometry(
   jtot_face = rhon_interpolation_func(rho_face_norm, jtot)
   jtot = rhon_interpolation_func(rho_norm, jtot)
 
+  Ip_profile_face = rhon_interpolation_func(
+      rho_face_norm, intermediate.Ip_profile
+  )
+
   Rin_face = rhon_interpolation_func(rho_face_norm, intermediate.Rin)
   Rin = rhon_interpolation_func(rho_norm, intermediate.Rin)
 
@@ -1503,7 +1507,7 @@ def build_standard_geometry(
       Rout=Rout,
       Rout_face=Rout_face,
       Ip_from_parameters=intermediate.Ip_from_parameters,
-      Ip=intermediate.Ip_profile[-1],
+      Ip_profile_face=Ip_profile_face,
       psi=psi,
       psi_from_Ip=psi_from_Ip,
       jtot=jtot,

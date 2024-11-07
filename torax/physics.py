@@ -54,7 +54,7 @@ def update_jtot_q_face_s_face(
 ) -> state.CoreProfiles:
   """Updates jtot, jtot_face, q_face, and s_face."""
 
-  jtot, jtot_face = calc_jtot_from_psi(
+  jtot, jtot_face, Ip_profile_face = calc_jtot_from_psi(
       geo,
       core_profiles.psi,
   )
@@ -68,7 +68,10 @@ def update_jtot_q_face_s_face(
       core_profiles.psi,
   )
   currents = dataclasses.replace(
-      core_profiles.currents, jtot=jtot, jtot_face=jtot_face
+      core_profiles.currents,
+      jtot=jtot,
+      jtot_face=jtot_face,
+      Ip_profile_face=Ip_profile_face,
   )
   new_core_profiles = dataclasses.replace(
       core_profiles,
@@ -220,7 +223,7 @@ def calc_q_from_psi(
 def calc_jtot_from_psi(
     geo: Geometry,
     psi: cell_variable.CellVariable,
-) -> tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array, chex.Array]:
   """Calculates FSA toroidal current density (jtot) from poloidal flux (psi).
 
   Calculation based on jtot = dI/dS
@@ -230,13 +233,14 @@ def calc_jtot_from_psi(
     psi: Poloidal flux.
 
   Returns:
-    jtot: total current density (Amps / m^2) on cell grid
-    jtot_face: total current density (Amps / m^2) on face grid
+    jtot: total current density [A/m2] on cell grid
+    jtot_face: total current density [A/m2] on face grid
+    Ip_profile_face: cumulative total plasma current profile [A] on face grid
   """
 
   # inside flux surface on face grid
   # pylint: disable=invalid-name
-  I_tot = (
+  Ip_profile_face = (
       psi.face_grad()
       * geo.g2g3_over_rhon_face
       * geo.F_face
@@ -244,17 +248,17 @@ def calc_jtot_from_psi(
       / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
   )
 
-  dI_tot_drhon = jnp.gradient(I_tot, geo.rho_face_norm)
+  dI_tot_drhon = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
 
   jtot_face_bulk = dI_tot_drhon[1:] / geo.spr_face[1:]
 
   # Set on-axis jtot according to L'Hôpital's rule, noting that I[0]=S[0]=0.
-  jtot_face_axis = I_tot[1] / geo.area_face[1]
+  jtot_face_axis = Ip_profile_face[1] / geo.area_face[1]
 
   jtot_face = jnp.concatenate([jnp.array([jtot_face_axis]), jtot_face_bulk])
   jtot = geometry.face_to_cell(jtot_face)
 
-  return jtot, jtot_face
+  return jtot, jtot_face, Ip_profile_face
 
 
 def calc_s_from_psi(

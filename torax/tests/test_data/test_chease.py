@@ -22,7 +22,7 @@ CONFIG = {
     'runtime_params': {
         'profile_conditions': {
             'ne_bound_right': 0.5,
-            'Ip': 15,
+            'Ip_tot': 15,
             'set_pedestal': False,
         },
         'numerics': {

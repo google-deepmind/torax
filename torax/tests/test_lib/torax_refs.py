@@ -46,6 +46,7 @@ class References:
   psi_face_grad: np.ndarray
   jtot: np.ndarray
   s: np.ndarray
+  Ip_from_parameters: bool  # pylint: disable=invalid-name
 
 
 def build_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -78,7 +79,7 @@ def circular_references() -> References:
       runtime_params,
       **{
           'profile_conditions': {
-              'Ip': 15,
+              'Ip_tot': 15,
               'nu': 3,
           },
           'numerics': {
@@ -219,6 +220,7 @@ def circular_references() -> References:
       psi_face_grad=psi_face_grad,
       jtot=jtot,
       s=s,
+      Ip_from_parameters=True,
   )
 
 
@@ -229,7 +231,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       runtime_params,
       **{
           'profile_conditions': {
-              'Ip': 15,
+              'Ip_tot': 15,
               'nu': 3,
           },
           'numerics': {
@@ -373,6 +375,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       psi_face_grad=psi_face_grad,
       jtot=jtot,
       s=s,
+      Ip_from_parameters=False,
   )
 
 
@@ -383,7 +386,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       runtime_params,
       **{
           'profile_conditions': {
-              'Ip': 15,
+              'Ip_tot': 15,
               'nu': 3,
           },
           'numerics': {
@@ -527,6 +530,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       psi_face_grad=psi_face_grad,
       jtot=jtot,
       s=s,
+      Ip_from_parameters=True,
   )
 
 

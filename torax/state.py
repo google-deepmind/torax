@@ -49,7 +49,7 @@ class Currents:
   # pylint: disable=invalid-name
   # Using physics notation naming convention
   I_bootstrap: array_typing.ScalarFloat
-  Ip: array_typing.ScalarFloat
+  Ip_profile_face: array_typing.ArrayFloat
   sigma: array_typing.ArrayFloat
   jtot_hires: Optional[array_typing.ArrayFloat] = None
 
@@ -78,7 +78,7 @@ class Currents:
         j_bootstrap=jnp.zeros(geo.rho_face.shape),
         j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
         I_bootstrap=jnp.array(0.0),
-        Ip=jnp.array(0.0),
+        Ip_profile_face=jnp.zeros(geo.rho_face.shape),
         sigma=jnp.zeros(geo.rho_face.shape),
         jtot_hires=jnp.zeros(geo.rho_face.shape),
     )

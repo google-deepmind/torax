@@ -897,9 +897,9 @@ def override_initial_runtime_params_from_file(
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
-  dynamic_runtime_params_slice.profile_conditions.Ip = ds.data_vars[
-      output.IP
-  ].to_numpy()
+  dynamic_runtime_params_slice.profile_conditions.Ip_tot = ds.data_vars[
+      output.IP_PROFILE_FACE
+  ].to_numpy()[-1]
   dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
       output.TEMP_EL
   ].to_numpy()
@@ -1517,7 +1517,6 @@ def update_current_distribution(
       sigma=bootstrap_profile.sigma,
       johm=johm,
       generic_current_source=generic_current,
-      Ip=dynamic_runtime_params_slice.profile_conditions.Ip,
   )
   new_core_profiles = dataclasses.replace(
       core_profiles,

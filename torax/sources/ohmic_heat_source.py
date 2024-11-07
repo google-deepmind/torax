@@ -151,7 +151,7 @@ def ohmic_model_func(
   if source_models is None:
     raise TypeError('source_models is a required argument for ohmic_model_func')
 
-  jtot, _ = physics.calc_jtot_from_psi(
+  jtot, _, _ = physics.calc_jtot_from_psi(
       geo,
       core_profiles.psi,
   )
