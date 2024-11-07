@@ -229,6 +229,12 @@ class DynamicRuntimeParamsSliceProvider:
     self._stepper = stepper
     self._construct_providers()
 
+  @property
+  def runtime_params_provider(
+      self,
+  ) -> general_runtime_params_lib.RuntimeParamsProvider:
+    return self._runtime_params_provider
+
   def _construct_providers(self):
     self._runtime_params_provider = (
         self._runtime_params.make_provider(
