@@ -178,7 +178,7 @@ class Geometry:
   rho_hires: chex.Array
   vpr_hires: chex.Array
   Phibdot: chex.Array
-  _z_magnetic_axis: chex.Array
+  z_magnetic_axis: chex.Array
 
   @property
   def rho_norm(self) -> chex.Array:
@@ -247,18 +247,6 @@ class Geometry:
         self.g1_face[1:] / self.vpr_face[1:] ** 2,  # avoid div by zero on-axis
     ))
 
-  @property
-  def z_magnetic_axis(self) -> chex.Numeric:
-    if self.geometry_type in [
-        GeometryType.CHEASE.value,
-        GeometryType.CIRCULAR.value,
-    ]:
-      logging.warning(
-          'z_magnetic_axis is not defined for CHEASE or CIRCULAR geometry type.'
-          ' Returning 0.',
-      )
-    return self._z_magnetic_axis
-
 
 @chex.dataclass(frozen=True)
 class GeometryProvider:
@@ -306,7 +294,7 @@ class GeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   vpr_hires: interpolated_param.InterpolatedVarSingleAxis
-  _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis
+  z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis
 
   @classmethod
   def create_provider(
@@ -645,7 +633,7 @@ def build_circular_geometry(
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
       Phibdot=np.asarray(0.0),
-      _z_magnetic_axis=np.asarray(0.0),
+      z_magnetic_axis=np.asarray(0.0),
   )
 
 
@@ -829,6 +817,10 @@ class StandardGeometryIntermediates:
 
     rhon = np.sqrt(Phi / Phi[-1])
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
+
+    logging.warning(
+        'z_magnetic_axis field is not present in CHEASE data, setting to 0.0'
+    )
 
     return cls(
         geometry_type=GeometryType.CHEASE,
@@ -1525,7 +1517,7 @@ def build_standard_geometry(
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
       Phibdot=np.asarray(0.0),
-      _z_magnetic_axis=intermediate.z_magnetic_axis,
+      z_magnetic_axis=intermediate.z_magnetic_axis,
   )
 
 

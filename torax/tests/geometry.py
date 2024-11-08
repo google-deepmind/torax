@@ -205,6 +205,18 @@ class GeometryTest(parameterized.TestCase):
     intermediate = geometry.StandardGeometryIntermediates.from_eqdsk()
     geometry.build_standard_geometry(intermediate)
 
+  def test_geometry_objects_can_be_used_in_jax_jitted_functions(self):
+    """Test public API of geometry objects can be used in jitted functions."""
+    geo = geometry.build_circular_geometry()
+
+    @jax.jit
+    def f(geo: geometry.Geometry):
+      for field in dir(geo):
+        if not field.startswith('_'):
+          getattr(geo, field)
+
+    f(geo)
+
 
 def face_to_cell(n_rho, face):
   cell = np.zeros(n_rho)
