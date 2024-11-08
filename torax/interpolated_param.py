@@ -311,6 +311,7 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
     """
     xs, ys = value
     self._is_bool_param = is_bool_param
+    self._interpolation_mode = interpolation_mode
     match interpolation_mode:
       case InterpolationMode.PIECEWISE_LINEAR:
         self._param = PiecewiseLinearInterpolatedParam(xs=xs, ys=ys)
@@ -318,6 +319,16 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
         self._param = StepInterpolatedParam(xs=xs, ys=ys)
       case _:
         raise ValueError('Unknown interpolation mode.')
+
+  @property
+  def is_bool_param(self) -> bool:
+    """Returns whether this param represents a bool."""
+    return self._is_bool_param
+
+  @property
+  def interpolation_mode(self) -> InterpolationMode:
+    """Returns the interpolation mode used by this param."""
+    return self._interpolation_mode
 
   def get_value(
       self,
@@ -333,11 +344,6 @@ class InterpolatedVarSingleAxis(InterpolatedParamBase):
   def param(self) -> InterpolatedParamBase:
     """Returns the JAX-friendly interpolated param used under the hood."""
     return self._param
-
-  @property
-  def is_bool_param(self) -> bool:
-    """Returns whether this param represents a bool."""
-    return self._is_bool_param
 
 
 class InterpolatedVarTimeRho(InterpolatedParamBase):
