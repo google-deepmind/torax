@@ -21,11 +21,11 @@ from collections.abc import Mapping
 import dataclasses
 import enum
 import functools
-import logging
 from typing import Type
 
 import chex
 import contourpy
+import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -249,14 +249,11 @@ class Geometry:
 
   @property
   def z_magnetic_axis(self) -> chex.Numeric:
-    if self.geometry_type in [
-        GeometryType.CHEASE.value,
-        GeometryType.CIRCULAR.value,
-    ]:
-      logging.warning(
-          'z_magnetic_axis is not defined for CHEASE or CIRCULAR geometry type.'
-          ' Returning 0.',
-      )
+    eqx.error_if(
+        self._z_magnetic_axis,
+        self.geometry_type == GeometryType.CHEASE.value,
+        'z_magnetic_axis is not supported for CHEASE geometry.',
+    )
     return self._z_magnetic_axis
 
 
