@@ -205,6 +205,36 @@ class GeometryTest(parameterized.TestCase):
     intermediate = geometry.StandardGeometryIntermediates.from_eqdsk()
     geometry.build_standard_geometry(intermediate)
 
+  def test_geometry_objects_can_be_used_in_jax_jitted_functions(self):
+    """Test public API of geometry objects can be used in jitted functions."""
+    geo = geometry.build_circular_geometry()
+
+    @jax.jit
+    def f(geo: geometry.Geometry):
+      for field in dir(geo):
+        if not field.startswith('_'):
+          getattr(geo, field)
+
+    f(geo)
+
+  def test_build_standard_geometry_builds_correct_type_for_chease(self):
+    """Test that the default CHEASE geometry can be built and is of the correct type."""
+    intermediate = geometry.StandardGeometryIntermediates.from_chease()
+    geo = geometry.build_standard_geometry(intermediate)
+    self.assertIsInstance(geo, geometry.CheaseGeometry)
+
+  def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
+    """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""
+    intermediate = geometry.StandardGeometryIntermediates.from_chease()
+    geo = geometry.build_standard_geometry(intermediate)
+    # Check that a runtime error is raised under both JIT and non-JIT.
+    with self.assertRaises(RuntimeError):
+      _ = geo.z_magnetic_axis
+    with self.assertRaises(RuntimeError):
+      def f():
+        return geo.z_magnetic_axis
+      _ = jax.jit(f)()
+
 
 def face_to_cell(n_rho, face):
   cell = np.zeros(n_rho)

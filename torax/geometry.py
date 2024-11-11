@@ -21,7 +21,6 @@ from collections.abc import Mapping
 import dataclasses
 import enum
 import functools
-import logging
 from typing import Type
 
 import chex
@@ -249,14 +248,6 @@ class Geometry:
 
   @property
   def z_magnetic_axis(self) -> chex.Numeric:
-    if self.geometry_type in [
-        GeometryType.CHEASE.value,
-        GeometryType.CIRCULAR.value,
-    ]:
-      logging.warning(
-          'z_magnetic_axis is not defined for CHEASE or CIRCULAR geometry type.'
-          ' Returning 0.',
-      )
     return self._z_magnetic_axis
 
 
@@ -430,6 +421,17 @@ class StandardGeometryProvider(GeometryProvider):
   def __call__(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""
     return self._get_geometry_base(t, StandardGeometry)
+
+
+@chex.dataclass(frozen=True)
+class CheaseGeometry(StandardGeometry):
+  """CHEASE geometry type."""
+
+  @property
+  def z_magnetic_axis(self) -> chex.Numeric:
+    raise NotImplementedError(
+        'CHEASE geometry does not have a z magnetic axis.'
+    )
 
 
 def build_circular_geometry(
@@ -1470,7 +1472,12 @@ def build_standard_geometry(
   area_hires = rhon_interpolation_func(rho_hires_norm, area_intermediate)
   area = rhon_interpolation_func(rho_norm, area_intermediate)
 
-  return StandardGeometry(
+  if intermediate.geometry_type == GeometryType.CHEASE:
+    geometry_type = CheaseGeometry
+  else:
+    geometry_type = StandardGeometry
+
+  return geometry_type(
       geometry_type=intermediate.geometry_type.value,
       drho_norm=np.asarray(drho_norm),
       torax_mesh=mesh,
