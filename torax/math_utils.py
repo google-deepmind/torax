@@ -17,9 +17,34 @@
 Math operations that are needed for Torax, but are not specific to plasma
 physics or differential equation solvers.
 """
+from __future__ import annotations
 import functools
 import jax
 from jax import numpy as jnp
+from torax import array_typing
+from torax import geometry
+from torax import jax_utils
+
+
+@array_typing.typed
+@jax_utils.jit
+def cell_integration(
+    x: array_typing.ArrayFloat, geo: geometry.Geometry
+) -> array_typing.ScalarFloat:
+  r"""Integrate a value `x` over the rhon grid.
+
+  Cell variables in TORAX are defined as the average of the face values. This
+  method integrates that face value over the rhon grid implicitly using the
+  trapezium rule to sum the averaged face values by the face grid spacing.
+
+  Args:
+    x: The cell averaged value to integrate.
+    geo: The geometry instance.
+
+  Returns:
+    Face value integrated over the rhon grid: $\int_0^1 x_{face} d\hat{rho}$
+  """
+  return jnp.sum(x * geo.drho_norm)
 
 
 def tridiag(

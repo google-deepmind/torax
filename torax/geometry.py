@@ -29,6 +29,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy
+from torax import array_typing
 from torax import constants
 from torax import geometry_loader
 from torax import interpolated_param
@@ -136,7 +137,7 @@ class Geometry:
   # TODO(b/356356966): extend documentation to define what each attribute is.
   geometry_type: int
   torax_mesh: Grid1D
-  drho_norm: chex.Array
+  drho_norm: array_typing.ArrayFloat
   Phi: chex.Array
   Phi_face: chex.Array
   Rmaj: chex.Array

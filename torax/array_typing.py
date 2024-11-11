@@ -23,7 +23,7 @@ import typeguard
 F = TypeVar("F", bound=Callable)
 ScalarFloat = jt.Float[jt.Array, ""]
 ScalarBool = jt.Bool[jt.Array, ""]
-ArrayFloat = jt.Bool[jt.Array, "rhon"]
+ArrayFloat = jt.Float[jt.Array, "rhon"]
 
 
 def typed(function: F) -> F:
