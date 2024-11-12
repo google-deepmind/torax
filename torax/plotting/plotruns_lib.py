@@ -170,8 +170,8 @@ def load_data(filename: str) -> PlotData:
         output.I_BOOTSTRAP: 1e6,  # A to MA
         output.IP_PROFILE_FACE: 1e6,  # A to MA
         'electron_cyclotron_source_j': 1e6,  # A/m^2 to MA/m^2
-        'icrh_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
-        'icrh_heat_source_el': 1e6,  # W/m^3 to MW/m^3
+        'ion_cyclotron_source_ion': 1e6,  # W/m^3 to MW/m^3
+        'ion_cyclotron_source_el': 1e6,  # W/m^3 to MW/m^3
         'nbi_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
         'nbi_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'generic_ion_el_heat_source_ion': 1e6,  # W/m^3 to MW/m^3
@@ -218,8 +218,8 @@ def load_data(filename: str) -> PlotData:
       v_e=ds[output.V_FACE_EL].to_numpy(),
       rho_cell_coord=ds[output.RHO_CELL_NORM].to_numpy(),
       rho_face_coord=ds[output.RHO_FACE_NORM].to_numpy(),
-      q_icrh_i=get_optional_data(ds, 'icrh_heat_source_ion', 'cell'),
-      q_icrh_e=get_optional_data(ds, 'icrh_heat_source_el', 'cell'),
+      q_icrh_i=get_optional_data(ds, 'ion_cyclotron_source_ion', 'cell'),
+      q_icrh_e=get_optional_data(ds, 'ion_cyclotron_source_el', 'cell'),
       q_gen_i=get_optional_data(ds, 'generic_ion_el_heat_source_ion', 'cell'),
       q_gen_e=get_optional_data(ds, 'generic_ion_el_heat_source_el', 'cell'),
       q_ecrh=get_optional_data(ds, 'electron_cyclotron_source_el', 'cell'),

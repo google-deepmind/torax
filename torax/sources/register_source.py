@@ -46,6 +46,7 @@ from torax.sources import electron_density_sources
 from torax.sources import fusion_heat_source
 from torax.sources import generic_current_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
+from torax.sources import ion_cyclotron_source
 from torax.sources import ohmic_heat_source
 from torax.sources import qei_source
 from torax.sources import runtime_params
@@ -164,6 +165,11 @@ def register_torax_sources():
       bremsstrahlung_heat_sink.SOURCE_NAME,
       bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
       default_runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
+  )
+  register_new_source(
+      ion_cyclotron_source.SOURCE_NAME,
+      ion_cyclotron_source.IonCyclotronSource,
+      ion_cyclotron_source.RuntimeParams,
   )
 
 

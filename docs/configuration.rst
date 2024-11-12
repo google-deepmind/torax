@@ -822,7 +822,7 @@ A utility source module that allows for a time dependent Gaussian ion and electr
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
 ``Ptot`` (float = 120e6), **time-varying-scalar**
-  Total source power in MW.
+  Total injected source power in W.
 
 ``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
@@ -978,6 +978,35 @@ By default, both the manual and Gaussian profiles are zero. The manual and Gauss
 
     ``cd_efficiency`` **time-varying-scalar**
         Dimensionless local efficiency profile for conversion of EC power to current.
+
+ion_cyclotron_source
+^^^^^^^^^^^^^^^^^^^^
+Ion cyclotron heating using a surrogate model of the TORIC ICRH spectrum
+solver simulation https://meetings.aps.org/Meeting/DPP24/Session/NP12.106.
+This source is currently SPARC specific.
+
+Weights and configuration for the surrogate model are needed to use this source.
+By default these are expected to be found under
+``'~/toric_surrogate/TORIC_MLP_v1/toricnn.json'``. To use a different file path
+an alternative path can be provided using the ``TORIC_NN_MODEL_PATH``
+environment variable which should point to a compatible JSON file.
+
+``mode`` (str = 'model')
+
+``wall_inner`` (float = 1.24)
+  Inner radial location of first wall at plasma midplane level [m].
+
+``wall_outer`` (float = 2.43)
+  Outer radial location of first wall at plasma midplane level [m].
+
+``frequency`` (float = 120e6) **time-varying-scalar**
+  ICRF wave frequency in Hz.
+
+``minority_concentration`` (float = 3.0) **time-varying-scalar**
+  Helium-3 minority concentration relative to the electron density in %.
+
+``Ptot`` (float = 120e6), **time-varying-scalar**
+  Total injected source power in W.
 
 See :ref:`physics_models` for more detail.
 

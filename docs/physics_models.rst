@@ -420,3 +420,23 @@ Bremsstrahlung
 
 Uses the model from Wesson, John, and David J. Campbell. Tokamaks. Vol. 149.
 An optional correction for relativistic effects from Stott PPCF 2005 can be enabled with the flag "use_relativistic_correction".
+
+Ion Cyclotron Resonance
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Presently this source is implemented for a SPARC specific ICRH scenario.
+
+A core Ion Cyclotron Range of Frequencies (ICRF) heating surrogate model trained
+on TORIC ICRH spectrum solver simulation
+https://meetings.aps.org/Meeting/DPP24/Session/NP12.106 is used to provide power
+profiles for Helium-3, Tritium (via its second harmonic) and electrons.
+
+A "Stix distribution" [Stix, Nuc. Fus. 1975] is used to model the non-thermal
+Helium-3 distribution based on an analytic solution to the Fokker-Planck
+equation to estimate the birth energy of Helium-3.
+
+TORAX partitions the Helium-3 power between ions and electrons using the
+parameterized model of Mikkelsen, as for Fusion Power.
+
+It is assumed that all tritium heating goes to ions and all electron heating
+goes to electrons.

@@ -32,6 +32,7 @@ _trapz = jax.scipy.integrate.trapezoid
 ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'generic_ion_el_heat_source': 'P_generic',
     'fusion_heat_source': 'P_alpha',
+    'ion_cyclotron_source': 'P_icrh',
 }
 EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'ohmic_heat_source': 'P_ohmic',
@@ -42,6 +43,7 @@ EXTERNAL_HEATING_SOURCES = [
     'generic_ion_el_heat_source',
     'electron_cyclotron_source',
     'ohmic_heat_source',
+    'ion_cyclotron_source',
 ]
 CURRENT_SOURCE_TRANSFORMATIONS = {
     'generic_current_source': 'I_generic',
