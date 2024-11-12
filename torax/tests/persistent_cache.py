@@ -79,6 +79,7 @@ class PersistentCacheTest(parameterized.TestCase):
 
     # Run the job once to populate the cache
     out0 = run()
+    contents0 = os.listdir(cache)
 
     # Possibly fail fast
     if (
@@ -92,6 +93,9 @@ class PersistentCacheTest(parameterized.TestCase):
 
     # Run the job a second time to hit the cache
     out1 = run()
+    contents1 = os.listdir(cache)
+    # check the cache contents are the same
+    self.assertListEqual(contents0, contents1)
 
     def get_simulation_time(text):
       match = re.search(
