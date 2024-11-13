@@ -13,8 +13,10 @@
 # limitations under the License.
 
 """File I/O for loading geometry files."""
+
 import enum
 import os
+from typing import IO
 
 import eqdsk
 import numpy as np
@@ -56,8 +58,8 @@ def _load_CHEASE_data(  # pylint: disable=invalid-name
   }
 
 
-def _load_fbt_data(file_path: str) -> dict[str, np.ndarray]:
-  """Loads the data from a FBT-LY file into a dictionary."""
+def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
+  """Loads data into a dictionary from an FBT-LY file or file path."""
   return scipy.io.loadmat(file_path, squeeze_me=True)
 
 
