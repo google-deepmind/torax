@@ -17,13 +17,95 @@
 Math operations that are needed for Torax, but are not specific to plasma
 physics or differential equation solvers.
 """
-from __future__ import annotations
+import enum
 import functools
 import jax
 from jax import numpy as jnp
+import jaxtyping as jt
 from torax import array_typing
 from torax import geometry
 from torax import jax_utils
+
+
+@enum.unique
+class IntegralPreservationQuantity(enum.Enum):
+  """The quantity to preserve the integral of when converting to face values."""
+  # Indicate that the volume integral should be preserved.
+  VOLUME = 'volume'
+  # Indicate that the surface integral should be preserved.
+  SURFACE = 'surface'
+  # Indicate that the value integral should be preserved.
+  VALUE = 'value'
+
+
+@array_typing.typed
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=['preserved_quantity',],
+)
+def cell_to_face(
+    cell_values: jt.Float[jt.Array, 'rhon'],
+    geo: geometry.Geometry,
+    preserved_quantity: IntegralPreservationQuantity = IntegralPreservationQuantity.VALUE,
+) -> jt.Float[jt.Array, 'rhon+1']:
+  """Convert cell values to face values.
+
+  We make four assumptions:
+  1) Inner face values are the average of neighbouring cells.
+  2) The left most face value is linearly extrapolated from the left most cell
+  values.
+  3) The transformation from cell to face is integration preserving.
+  4) The cell spacing is constant.
+
+  Args:
+    cell_values: Values defined on the TORAX cell grid.
+    geo: A geometry object.
+    preserved_quantity: The quantity to preserve the integral of when converting
+      to face values.
+
+  Returns:
+    Values defined on the TORAX face grid.
+  """
+  if len(cell_values) < 2:
+    raise ValueError(
+        'Cell values must have at least two values to convert to face values.'
+    )
+  inner_face_values = (cell_values[:-1] + cell_values[1:]) / 2.0
+  # Linearly extrapolate to get left value.
+  left = cell_values[0] - (inner_face_values[0] - cell_values[0])
+  face_values_without_right = jnp.concatenate([left[None], inner_face_values])
+  # Preserve integral.
+  match preserved_quantity:
+    case IntegralPreservationQuantity.VOLUME:
+      diff = jnp.sum(
+          cell_values * geo.vpr
+      ) * geo.drho_norm - jax.scipy.integrate.trapezoid(
+          face_values_without_right * geo.vpr_face[:-1], geo.rho_face_norm[:-1]
+      )
+      right = (
+          2 * diff / geo.drho_norm
+          - face_values_without_right[-1] * geo.vpr_face[-2]
+      ) / geo.vpr_face[-1]
+    case IntegralPreservationQuantity.SURFACE:
+      diff = jnp.sum(
+          cell_values * geo.spr_cell
+      ) * geo.drho_norm - jax.scipy.integrate.trapezoid(
+          face_values_without_right * geo.spr_face[:-1], geo.rho_face_norm[:-1]
+      )
+      right = (
+          2 * diff / geo.drho_norm
+          - face_values_without_right[-1] * geo.spr_face[-2]
+      ) / geo.spr_face[-1]
+    case IntegralPreservationQuantity.VALUE:
+      diff = jnp.sum(
+          cell_values
+      ) * geo.drho_norm - jax.scipy.integrate.trapezoid(
+          face_values_without_right, geo.rho_face_norm[:-1]
+      )
+      right = 2 * diff / geo.drho_norm - face_values_without_right[-1]
+
+  face_values = jnp.concatenate([face_values_without_right, right[None]])
+  return face_values
 
 
 @array_typing.typed
