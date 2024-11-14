@@ -232,6 +232,8 @@ class FakeQuasilinearTransportModel(
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
+        gradient_reference_length=3.0,
+        gyrobohm_flux_reference_length=1.0,
     )
 
 

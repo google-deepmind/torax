@@ -228,27 +228,37 @@ class QuasilinearTransportModel(transport_model.TransportModel):
       transport: DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      gradient_reference_length: chex.Numeric,
+      gyrobohm_flux_reference_length: chex.Numeric,
   ) -> state.CoreTransport:
     """Converts model output to CoreTransport."""
     constants = constants_module.CONSTANTS
 
     # conversion to SI units (note that n is normalized here)
+
+    # Convert the electron particle flux from GB (pfe) to SI units.
     pfe_SI = (
         pfe
         * core_profiles.ne.face_value()
         * quasilinear_inputs.chiGB
-        / quasilinear_inputs.Rmin
+        / gyrobohm_flux_reference_length
     )
 
     # chi outputs in SI units.
-    # chi in GB units is Q[GB]/(a/LT) , Lref=Rmin in Q[GB].
-    # max/min clipping included
+    # chi[GB] = -Q[GB]/(Lref/LT), chi is heat diffusivity, Q is heat flux,
+    # where Lref is the gyrobohm normalization length, LT the logarithmic
+    # gradient length (unnormalized). For normalized_logarithmic_gradients, the
+    # normalization length can in principle be different from the gyrobohm flux
+    # reference length. e.g. in QuaLiKiz Ati = -Rmaj/LTi, but the
+    # gyrobohm flux reference length in QuaLiKiz is Rmin.
+    # In case they are indeed different we rescale the normalized logarithmic
+    # gradient by the ratio of the two reference lengths.
     chi_face_ion = (
-        ((quasilinear_inputs.Rmaj / quasilinear_inputs.Rmin) * qi)
+        ((gradient_reference_length / gyrobohm_flux_reference_length) * qi)
         / quasilinear_inputs.lref_over_lti
     ) * quasilinear_inputs.chiGB
     chi_face_el = (
-        ((quasilinear_inputs.Rmaj / quasilinear_inputs.Rmin) * qe)
+        ((gradient_reference_length / gyrobohm_flux_reference_length) * qe)
         / quasilinear_inputs.lref_over_lte
     ) * quasilinear_inputs.chiGB
 
@@ -285,7 +295,7 @@ class QuasilinearTransportModel(transport_model.TransportModel):
           pfe_SI / core_profiles.ne.face_value()
           - quasilinear_inputs.lref_over_lne
           * d_face_el
-          / quasilinear_inputs.Rmaj
+          / gradient_reference_length
           * geo.g1_over_vpr2_face
           * geo.rho_b**2
       ) / (geo.g0_over_vpr_face * geo.rho_b)

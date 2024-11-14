@@ -186,6 +186,8 @@ class FakeQualikizBasedTransportModel(
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
+        gradient_reference_length=geo.Rmaj,
+        gyrobohm_flux_reference_length=geo.Rmin,
     )
 
 
