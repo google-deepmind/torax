@@ -787,7 +787,6 @@ and can be set to anything convenient.
   * c1 (float): Offset location
   * c2 (float): Exponential decay parameter
   * total (float): integral
-  * use_normalized_r (bool = False)
 
   The profile is parameterized as follows :math:`Q = C e^{-(r - c1) / c2}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
   then c1 and c2 are interpreted as being in normalized toroidal flux units.
@@ -796,7 +795,6 @@ and can be set to anything convenient.
   * c1 (float): Gaussian peak Location
   * c2 (float): Gaussian width
   * total (float): integral
-  * use_normalized_r (bool = False)
 
   The profile is parameterized as follows :math:`Q = C e^{-((r - c1)^2) / (2 c2^2)}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
   then c1 and c2 are interpreted as being in normalized toroidal flux units.
@@ -813,7 +811,7 @@ A utility source module that allows for a time dependent Gaussian ion and electr
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the Gaussian formula with ``use_normalized_r=True``.
+  Uses the Gaussian formula.
 
 ``rsource`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -859,7 +857,7 @@ Formula based exponential gas puff source. No first-principle-based model is yet
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the exponential formula with ``use_normalized_r=True``, and ``c1=1``.
+  Uses the exponential formula with ``c1=1``.
 
 ``puff_decay_length`` (float = 0.05), **time-varying-scalar**
   Gas puff decay length from edge in units of :math:`\hat{\rho}`.
@@ -875,7 +873,7 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the Gaussian formula with ``use_normalized_r=True``.
+  Uses the Gaussian formula.
 
 ``pellet_deposition_location`` (float = 0.85), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -894,7 +892,7 @@ Time dependent Gaussian particle source. No first-principle-based model is yet i
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the Gaussian formula with ``use_normalized_r=True``.
+  Uses the Gaussian formula with.
 
 ``deposition_location`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -923,7 +921,7 @@ Generic external current profile, parameterized as a Gaussian.
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the Gaussian formula with ``use_normalized_r=True``.
+  Uses the Gaussian formula.
 
 ``rext`` (float = 0.4), **time-varying-scalar**
   Gaussian center of current profile in units of :math:`\hat{\rho}`.

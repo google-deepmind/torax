@@ -47,9 +47,6 @@ class Exponential(base.RuntimeParametersConfig['ExponentialProvider']):
   c1: TimeInterpolatedInput = 1.0
   c2: TimeInterpolatedInput = 1.0
 
-  # If True, uses r_norm when calculating the source profiles.
-  use_normalized_r: bool = False
-
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
   ) -> ExponentialProvider:
@@ -84,7 +81,6 @@ class DynamicExponential(DynamicFormula):
   total: array_typing.ScalarFloat
   c1: array_typing.ScalarFloat
   c2: array_typing.ScalarFloat
-  use_normalized_r: bool
 
 
 @dataclasses.dataclass
@@ -98,9 +94,6 @@ class Gaussian(base.RuntimeParametersConfig['GaussianProvider']):
   total: TimeInterpolatedInput = 1.0
   c1: TimeInterpolatedInput = 1.0
   c2: TimeInterpolatedInput = 1.0
-
-  # If True, uses r_norm when calculating the source profiles.
-  use_normalized_r: bool = False
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
@@ -134,5 +127,3 @@ class DynamicGaussian(DynamicFormula):
   total: array_typing.ScalarFloat
   c1: array_typing.ScalarFloat
   c2: array_typing.ScalarFloat
-  # If True, uses r_norm when calculating the source profiles.
-  use_normalized_r: bool

@@ -89,7 +89,6 @@ def _calc_puff_source(
           dynamic_source_runtime_params.S_puff_tot
           / dynamic_runtime_params_slice.numerics.nref
       ),
-      use_normalized_r=True,
       geo=geo,
   )
 
@@ -181,7 +180,6 @@ def _calc_generic_particle_source(
           dynamic_source_runtime_params.S_tot
           / dynamic_runtime_params_slice.numerics.nref
       ),
-      use_normalized_r=True,
       geo=geo,
   )
 
@@ -258,7 +256,6 @@ def _calc_pellet_source(
           dynamic_source_runtime_params.S_pellet_tot
           / dynamic_runtime_params_slice.numerics.nref
       ),
-      use_normalized_r=True,
       geo=geo,
   )
 

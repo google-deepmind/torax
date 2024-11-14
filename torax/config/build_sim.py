@@ -361,7 +361,6 @@ def build_sources_builder_from_config(
         total: 120e6,  # total heating
         c1: 0.0,  # Source Gaussian central location (in normalized r)
         c2: 0.25,  # Gaussian width in normalized radial coordinates
-        use_normalized_r: True,
     }
 
   If you have custom source implementations, you may update this funtion to

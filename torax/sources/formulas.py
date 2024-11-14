@@ -19,7 +19,6 @@ from typing import Optional
 import jax
 from jax import numpy as jnp
 from torax import geometry
-from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.sources import formula_config
@@ -36,7 +35,6 @@ def exponential_profile(
     c1: float,
     c2: float,
     total: float,
-    use_normalized_r: bool = False,
 ) -> jax.Array:
   """Returns an exponential profile on the cell grid.
 
@@ -54,14 +52,12 @@ def exponential_profile(
     c1: Constant. See description above.
     c2: Constant. See description above.
     total: Constant. See description above.
-    use_normalized_r: If True, uses r_norm and r_face_norm to calculate the
-      profile.
 
   Returns:
     Exponential profile on the cell grid.
   """
-  r = jax_utils.select(use_normalized_r, geo.rho_norm, geo.rho)
-  r_face = jax_utils.select(use_normalized_r, geo.rho_face_norm, geo.rho_face)
+  r = geo.rho_norm
+  r_face = geo.rho_face_norm
   S = jnp.exp(-(c1 - r) / c2)
   S_face = jnp.exp(-(c1 - r_face) / c2)
   # calculate constant prefactor
@@ -76,7 +72,6 @@ def gaussian_profile(
     c1: float,
     c2: float,
     total: float,
-    use_normalized_r: bool = False,
 ) -> jax.Array:
   """Returns a gaussian profile on the cell grid.
 
@@ -94,14 +89,12 @@ def gaussian_profile(
     c1: Constant. See description above.
     c2: Constant. See description above.
     total: Constant. See description above.
-    use_normalized_r: If True, uses r_norm and r_face_norm to calculate the
-      profile.
 
   Returns:
     Gaussian profile on the cell grid.
   """
-  r = jax_utils.select(use_normalized_r, geo.rho_norm, geo.rho)
-  r_face = jax_utils.select(use_normalized_r, geo.rho_face_norm, geo.rho_face)
+  r = geo.rho_norm
+  r_face = geo.rho_face_norm
   S = jnp.exp(-((r - c1) ** 2) / (2 * c2**2))
   S_face = jnp.exp(-((r_face - c1) ** 2) / (2 * c2**2))
   # calculate constant prefactor
@@ -136,7 +129,6 @@ class Exponential:
         c2=exp_config.c2,
         total=exp_config.total,
         geo=geo,
-        use_normalized_r=exp_config.use_normalized_r,
     )
 
 
@@ -159,5 +151,4 @@ class Gaussian:
         c2=gaussian_config.c2,
         total=gaussian_config.total,
         geo=geo,
-        use_normalized_r=gaussian_config.use_normalized_r,
     )

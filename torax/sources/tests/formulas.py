@@ -176,7 +176,6 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
               ),
               c1=1.0,
               c2=puff_decay_length,
-              use_normalized_r=True,
           )
       )
       # And turn off the gas puff source it is replacing.
