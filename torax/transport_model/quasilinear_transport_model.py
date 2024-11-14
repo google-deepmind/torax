@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for quasilinear models."""
+from __future__ import annotations
 
 import chex
 import jax
@@ -19,14 +20,93 @@ from jax import numpy as jnp
 from torax import constants as constants_module
 from torax import geometry
 from torax import state
+from torax.fvm import cell_variable
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
+
+
+def calculate_chiGB(  # pylint: disable=invalid-name
+    core_profiles: state.CoreProfiles,
+    b_unit: chex.Numeric,
+    reference_length: chex.Numeric,
+) -> chex.Array:
+  """Calculates the gyrobohm diffusivity.
+
+  Args:
+    core_profiles: CoreProfiles object containing plasma profiles.
+    b_unit: Magnetic field strength [T]. Different transport models have
+      different definitions of the specific magnetic field input.
+    reference_length: Reference length for normalization [m].
+
+  Returns:
+    Gyrobohm diffusivity as a chex.Array [dimensionless].
+  """
+  constants = constants_module.CONSTANTS
+  return (
+      (core_profiles.Ai * constants.mp) ** 0.5
+      / (constants.qe * b_unit) ** 2
+      * (core_profiles.temp_ion.face_value() * constants.keV2J) ** 1.5
+      / reference_length
+  )
+
+
+def calculate_alpha(
+    core_profiles: state.CoreProfiles,
+    nref: chex.Numeric,
+    q: chex.Array,
+    b_unit: chex.Numeric,
+    normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
+) -> chex.Array:
+  """Calculates the alpha_MHD parameter.
+
+  alpha_MHD = Lref q^2 beta' , where beta' is the radial gradient of beta, the
+  ratio of plasma pressure to magnetic pressure, Lref a reference length,
+  and q is the safety factor. Lref is included within the
+  NormalizedLogarithmicGradients.
+
+  Args:
+    core_profiles: CoreProfiles object containing plasma profiles.
+    nref: Reference density.
+    q: Safety factor.
+    b_unit: Magnetic field strength. Different transport models have different
+      definitions of the specific magnetic field input.
+    normalized_logarithmic_gradients: Normalized logarithmic gradients of plasma
+      profiles.
+
+  Returns:
+    Alpha value as a chex.Array.
+  """
+  constants = constants_module.CONSTANTS
+
+  factor_0 = 2 * constants.keV2J * nref / b_unit**2 * constants.mu0 * q**2
+  alpha = factor_0 * (
+      core_profiles.temp_el.face_value()
+      * core_profiles.ne.face_value()
+      * (
+          normalized_logarithmic_gradients.lref_over_lte
+          + normalized_logarithmic_gradients.lref_over_lne
+      )
+      + core_profiles.ni.face_value()
+      * core_profiles.temp_ion.face_value()
+      * (
+          normalized_logarithmic_gradients.lref_over_lti
+          + normalized_logarithmic_gradients.lref_over_lni0
+      )
+      + core_profiles.nimp.face_value()
+      * core_profiles.temp_ion.face_value()
+      * (
+          normalized_logarithmic_gradients.lref_over_lti
+          + normalized_logarithmic_gradients.lref_over_lni1
+      )
+  )
+  return alpha
 
 
 # pylint: disable=invalid-name
 @chex.dataclass
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Shared parameters for Quasilinear models."""
+
   # effective D / effective V approach for particle transport
   DVeff: bool = False
   # minimum |R/Lne| below which effective V is used instead of effective D
@@ -34,13 +114,14 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
-  ) -> 'RuntimeParamsProvider':
+  ) -> RuntimeParamsProvider:
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Shared parameters for Quasilinear models."""
+
   DVeff: bool
   An_min: float
 
@@ -56,14 +137,83 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 
 @chex.dataclass(frozen=True)
+class NormalizedLogarithmicGradients:
+  """Normalized logarithmic gradients of plasma profiles.
+
+  Defined as Lref/Lprofile. Lref is an arbitrary reference length [m].
+  lprofile is each profile gradient length [m] defined as -1/grad(log(profile)),
+  e.g. lti = -1/grad(log(ti)), i.e. lti = - ti / (dti/dr).
+  The specific radial coordinate r used for the gradient is a user input.
+  """
+
+  lref_over_lti: chex.Array
+  lref_over_lte: chex.Array
+  lref_over_lne: chex.Array
+  lref_over_lni0: chex.Array
+  lref_over_lni1: chex.Array
+
+  @classmethod
+  def from_profiles(
+      cls,
+      core_profiles: state.CoreProfiles,
+      radial_coordinate: jnp.ndarray,
+      reference_length: jnp.ndarray,
+  ) -> NormalizedLogarithmicGradients:
+    """Calculates the normalized logarithmic gradients."""
+    gradients = {}
+    for name, profile in {
+        "lref_over_lti": core_profiles.temp_ion,
+        "lref_over_lte": core_profiles.temp_el,
+        "lref_over_lne": core_profiles.ne,
+        "lref_over_lni0": core_profiles.ni,
+        "lref_over_lni1": core_profiles.nimp,
+    }.items():
+      gradients[name] = calculate_normalized_logarithmic_gradient(
+          var=profile,
+          radial_coordinate=radial_coordinate,
+          reference_length=reference_length,
+      )
+    return cls(**gradients)
+
+
+def calculate_normalized_logarithmic_gradient(
+    var: cell_variable.CellVariable,
+    radial_coordinate: jax.Array,
+    reference_length: jax.Array,
+) -> jax.Array:
+  """Calculates the normalized logarithmic gradient of a CellVariable on the face grid."""
+
+  # var ~ 0 is only possible for ions (e.g. zero impurity density), and we
+  # guard against possible division by zero.
+  result = jnp.where(
+      jnp.abs(var.face_value()) < constants_module.CONSTANTS.eps,
+      constants_module.CONSTANTS.eps,
+      -reference_length * var.face_grad(radial_coordinate) / var.face_value(),
+  )
+
+  # to avoid divisions by zero elsewhere in TORAX, if the gradient is zero
+  result = jnp.where(
+      jnp.abs(result) < constants_module.CONSTANTS.eps,
+      constants_module.CONSTANTS.eps,
+      result,
+  )
+  return result
+
+
+@chex.dataclass(frozen=True)
 class QuasilinearInputs:
   """Variables required to convert outputs to TORAX CoreTransport outputs."""
-  chiGB: chex.Array
-  Rmin: chex.Array
-  Rmaj: chex.Array
-  Ati: chex.Array
-  Ate: chex.Array
-  Ane: chex.Array
+
+  chiGB: chex.Array  # gyrobohm diffusivity used for normalizations [m^2/s].
+  Rmin: chex.Array  # minor radius [m].
+  Rmaj: chex.Array  #  major radius [m].
+  # Normalized logarithmic gradients of the plasma profiles.
+  # See NormalizedLogarithmicGradients for details.
+  lref_over_lti: chex.Array
+  lref_over_lte: chex.Array
+  lref_over_lne: chex.Array
+  lref_over_lni0: chex.Array
+  lref_over_lni1: chex.Array
 
 
 class QuasilinearTransportModel(transport_model.TransportModel):
@@ -95,11 +245,11 @@ class QuasilinearTransportModel(transport_model.TransportModel):
     # max/min clipping included
     chi_face_ion = (
         ((quasilinear_inputs.Rmaj / quasilinear_inputs.Rmin) * qi)
-        / quasilinear_inputs.Ati
+        / quasilinear_inputs.lref_over_lti
     ) * quasilinear_inputs.chiGB
     chi_face_el = (
         ((quasilinear_inputs.Rmaj / quasilinear_inputs.Rmin) * qe)
-        / quasilinear_inputs.Ate
+        / quasilinear_inputs.lref_over_lte
     ) * quasilinear_inputs.chiGB
 
     # Effective D / Effective V approach.
@@ -115,9 +265,9 @@ class QuasilinearTransportModel(transport_model.TransportModel):
           core_profiles.ne.face_value() * geo.g0_over_vpr_face * geo.rho_b
       )
       Deff_mask = (
-          ((pfe >= 0) & (quasilinear_inputs.Ane >= 0))
-          | ((pfe < 0) & (quasilinear_inputs.Ane < 0))
-      ) & (abs(quasilinear_inputs.Ane) >= transport.An_min)
+          ((pfe >= 0) & (quasilinear_inputs.lref_over_lne >= 0))
+          | ((pfe < 0) & (quasilinear_inputs.lref_over_lne < 0))
+      ) & (abs(quasilinear_inputs.lref_over_lne) >= transport.An_min)
       Veff_mask = jnp.invert(Deff_mask)
       # Veff_mask is where to use effective V only, so zero out D there.
       d_face_el = jnp.where(Veff_mask, 0.0, Deff)
@@ -133,7 +283,7 @@ class QuasilinearTransportModel(transport_model.TransportModel):
       d_face_el = chi_face_el
       v_face_el = (
           pfe_SI / core_profiles.ne.face_value()
-          - quasilinear_inputs.Ane
+          - quasilinear_inputs.lref_over_lne
           * d_face_el
           / quasilinear_inputs.Rmaj
           * geo.g1_over_vpr2_face

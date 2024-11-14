@@ -16,15 +16,22 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax.numpy as jnp
+import jax
+from jax import numpy as jnp
+import numpy as np
+from torax import constants as constants_module
 from torax import core_profile_setters
 from torax import geometry
 from torax import state
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import quasilinear_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
+
+constants = constants_module.CONSTANTS
+jax.config.update('jax_enable_x64', True)
 
 
 def _get_model_inputs(transport: quasilinear_transport_model.RuntimeParams):
@@ -109,12 +116,80 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     transport_model = FakeQuasilinearTransportModel()
     core_transport = transport_model(*_get_model_inputs(transport))
     self.assertEqual(
-        (jnp.sum(jnp.abs(core_transport.v_face_el)) == 0.0),
+        (np.sum(np.abs(core_transport.v_face_el)) == 0.0),
         expected_zero_v_face_el,
     )
     self.assertEqual(
-        (jnp.sum(jnp.abs(core_transport.d_face_el)) == 0.0),
+        (np.sum(np.abs(core_transport.d_face_el)) == 0.0),
         expected_zero_d_face_el,
+    )
+
+  def test_calculate_chiGB(self):
+    """Tests that chiGB is calculated correctly."""
+    core_profiles = _get_dummy_core_profiles(
+        value=jnp.array([1.0]), right_face_constraint=jnp.array(1.0)
+    )
+    chiGB = quasilinear_transport_model.calculate_chiGB(
+        core_profiles=core_profiles,
+        b_unit=1.0,
+        reference_length=1.0,
+    )
+    chi_GB_expected = (
+        (1.0 * constants.mp) ** 0.5
+        / (constants.qe) ** 2
+        * (1.0 * constants.keV2J) ** 1.5
+    )
+    np.testing.assert_allclose(chiGB, chi_GB_expected)
+
+  def test_calculate_alpha(self):
+    """Tests that alpha is calculated correctly."""
+    core_profiles = _get_dummy_core_profiles(
+        value=jnp.array([1.0]), right_face_constraint=jnp.array(1.0)
+    )
+    normalized_logarithmic_gradients = (
+        quasilinear_transport_model.NormalizedLogarithmicGradients(
+            lref_over_lti=np.array([0.0, 1.0]),
+            lref_over_lte=np.array([0.0, 2.0]),
+            lref_over_lne=np.array([0.0, 3.0]),
+            lref_over_lni0=np.array([0.0, 4.0]),
+            lref_over_lni1=np.array([0.0, 5.0]),
+        )
+    )
+    alpha = quasilinear_transport_model.calculate_alpha(
+        core_profiles=core_profiles,
+        nref=1e20,
+        q=np.array(1.0),
+        b_unit=1.0,
+        normalized_logarithmic_gradients=normalized_logarithmic_gradients,
+    )
+
+    alpha_expected = np.array([0, 32 * constants.keV2J * 1e20 * constants.mu0])
+    np.testing.assert_allclose(alpha, alpha_expected)
+
+  def test_calculate_normalized_logarithmic_gradient(self):
+    """Tests that calculate_normalized_logarithmic_gradient is calculated correctly."""
+    dummy_cell_variable = cell_variable.CellVariable(
+        value=jnp.array([2.0, 1.0]),
+        right_face_constraint=jnp.array(0.5),
+        right_face_grad_constraint=None,
+        dr=jnp.array(1.0),
+    )
+    radial_coordinate = jnp.array([0.0, 1.0])
+    # pylint: disable=protected-access
+    normalized_logarithmic_gradient = (
+        quasilinear_transport_model.calculate_normalized_logarithmic_gradient(
+            var=dummy_cell_variable,
+            radial_coordinate=radial_coordinate,
+            reference_length=jnp.array(1.0),
+        )
+    )
+    # pylint: enable=protected-access
+    normalized_logarithmic_gradient_expected = np.array(
+        [constants.eps, 2.0 / 3.0, 2.0]
+    )
+    np.testing.assert_allclose(
+        normalized_logarithmic_gradient,
+        normalized_logarithmic_gradient_expected,
     )
 
 
@@ -134,12 +209,14 @@ class FakeQuasilinearTransportModel(
       core_profiles: state.CoreProfiles,
   ) -> state.CoreTransport:
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
-        chiGB=jnp.array(4.0),
-        Rmin=jnp.array(0.5),
-        Rmaj=jnp.array(1.0),
-        Ati=jnp.array(1.1),
-        Ate=jnp.array(1.2),
-        Ane=jnp.array(1.3),
+        chiGB=np.array(4.0),
+        Rmin=np.array(0.5),
+        Rmaj=np.array(1.0),
+        lref_over_lti=np.array(1.1),
+        lref_over_lte=np.array(1.2),
+        lref_over_lne=np.array(1.3),
+        lref_over_lni0=np.array(1.4),
+        lref_over_lni1=np.array(1.5),
     )
     transport = dynamic_runtime_params_slice.transport
     # Assert required for pytype.
@@ -148,14 +225,43 @@ class FakeQuasilinearTransportModel(
         quasilinear_transport_model.DynamicRuntimeParams,
     )
     return self._make_core_transport(
-        qi=jnp.ones(geo.rho_face_norm.shape) * 0.4,
-        qe=jnp.ones(geo.rho_face_norm.shape) * 0.5,
-        pfe=jnp.ones(geo.rho_face_norm.shape) * 1.6,
+        qi=np.ones(geo.rho_face_norm.shape) * 0.4,
+        qe=np.ones(geo.rho_face_norm.shape) * 0.5,
+        pfe=np.ones(geo.rho_face_norm.shape) * 1.6,
         quasilinear_inputs=quasilinear_inputs,
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
     )
+
+
+def _get_dummy_core_profiles(value, right_face_constraint):
+  """Returns dummy core profiles for testing."""
+  geo = geometry.build_circular_geometry()
+  currents = state.Currents.zeros(geo)
+  dummy_cell_variable = cell_variable.CellVariable(
+      value=value,
+      right_face_constraint=right_face_constraint,
+      right_face_grad_constraint=None,
+      dr=jnp.array(1.0),
+  )
+  return state.CoreProfiles(
+      temp_ion=dummy_cell_variable,
+      temp_el=dummy_cell_variable,
+      ne=dummy_cell_variable,
+      ni=dummy_cell_variable,
+      nimp=dummy_cell_variable,
+      currents=currents,
+      Zi=1.0,
+      Zimp=1.0,
+      Ai=1.0,
+      Aimp=1.0,
+      nref=1.0,
+      q_face=1.0,
+      s_face=1.0,
+      psi=dummy_cell_variable,
+      psidot=dummy_cell_variable,
+  )
 
 
 if __name__ == '__main__':
