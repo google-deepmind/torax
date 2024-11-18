@@ -343,6 +343,15 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # ITERhybrid_predictor_corrector with EQDSK geometry.
+      # See https://github.com/google-deepmind/torax/pull/482 for a plot
+      # of the CHEASE vs EQDSK sim test comparison.
+      (
+          'test_iterhybrid_predictor_corrector_eqdsk',
+          'test_iterhybrid_predictor_corrector_eqdsk.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Predictor-corrector solver with clipped QLKNN inputs.
       (
           'test_iterhybrid_predictor_corrector_clip_inputs',
