@@ -72,10 +72,13 @@ class QeiSource(source.Source):
   This is a special-case source because it can provide both implicit and
   explicit terms in our solver. See sim.py for how this is used.
   """
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.MODEL_BASED,
-      runtime_params_lib.Mode.ZERO,
-  )
+
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.MODEL_BASED,
+    )
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:

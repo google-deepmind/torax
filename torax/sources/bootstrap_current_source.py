@@ -91,10 +91,13 @@ class BootstrapCurrentSource(source.Source):
   - bootstrap current (on cell and face grids)
   - total integrated bootstrap current
   """
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.MODEL_BASED,
-  )
+
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.MODEL_BASED,
+    )
 
   @property
   def output_shape_getter(self) -> source.SourceOutputShapeFunction:

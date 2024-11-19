@@ -144,12 +144,16 @@ def bremsstrahlung_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.MODEL_BASED,
-      runtime_params_lib.Mode.PRESCRIBED,
-  )
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func
+
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    """Returns the modes supported by this source."""
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
+    )
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:

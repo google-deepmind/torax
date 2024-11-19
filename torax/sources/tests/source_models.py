@@ -49,8 +49,14 @@ class FooSource(source_lib.Source):
   def output_shape_getter(self) -> source_lib.SourceOutputShapeFunction:
     return source_lib.get_ion_el_output_shape
 
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.FORMULA_BASED,
+    )
 
-FooSourceBuilder = source_lib.make_source_builder(
+
+_FooSourceBuilder = source_lib.make_source_builder(
     FooSource,
 )
 
@@ -165,8 +171,7 @@ class SourceProfilesTest(parameterized.TestCase):
           jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo)),
       ])
 
-    foo_source_builder = FooSourceBuilder(
-        supported_modes=(runtime_params_lib.Mode.FORMULA_BASED,),
+    foo_source_builder = _FooSourceBuilder(
         formula=foo_formula,
     )
     foo_source_builder.affected_core_profiles = (

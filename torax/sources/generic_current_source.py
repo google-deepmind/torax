@@ -216,12 +216,6 @@ def _calculate_Iext(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
-
-  supported_types: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.FORMULA_BASED,
-      runtime_params_lib.Mode.PRESCRIBED,
-  )
   formula: source.SourceProfileFunction = _calculate_generic_current_face
   hires_formula: source.SourceProfileFunction = _calculate_generic_current_hires
 

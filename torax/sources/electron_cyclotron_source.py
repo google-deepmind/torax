@@ -179,12 +179,14 @@ def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
 
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.MODEL_BASED,
-  )
-
   model_func: source.SourceProfileFunction = _calc_heating_and_current
+
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.MODEL_BASED,
+    )
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
