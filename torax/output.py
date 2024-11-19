@@ -107,9 +107,9 @@ SIM_ERROR = "sim_error"
 
 def safe_load_dataset(filepath: str) -> xr.Dataset:
   with open(filepath, "rb") as f:
-    with xr.open_dataset(f) as ds_open:
-      ds = ds_open.compute()
-  return ds
+    with xr.open_datatree(f) as dt_open:
+      data_tree = dt_open.compute()
+  return data_tree.dataset
 
 
 def load_state_file(
@@ -343,8 +343,8 @@ class StateHistory:
       self,
       geo: geometry.Geometry,
       file_restart: runtime_params.FileRestart | None = None,
-  ) -> xr.Dataset:
-    """Build an xr.Dataset of the simulation output.
+  ) -> xr.DataTree:
+    """Build an xr.DataTree of the simulation output.
 
     Args:
       geo: The geometry of the simulation. This is used to retrieve the TORAX
@@ -354,8 +354,8 @@ class StateHistory:
         beggining of this sim output.
 
     Returns:
-      An xr.Dataset of the simulation output. The dataset contains the following
-      coordinates:
+      A xr.DataTree containing a single xr.Dataset of the simulation output.
+      The dataset contains the following coordinates:
         - time: The time of the simulation.
         - rho_face_norm: The normalized toroidal coordinate on the face grid.
         - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
@@ -412,4 +412,6 @@ class StateHistory:
     # Add sim_error as a new variable
     ds[SIM_ERROR] = self.sim_error.value
 
-    return ds
+    data_tree = xr.DataTree(dataset=ds)
+
+    return data_tree

@@ -80,7 +80,7 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
         ' or a CONFIG dictionary.'
     )
   try:
-    _, output_file = simulation_app.main(
+    output_file = simulation_app.main(
         lambda: sim,
         output_dir=os.path.join(output_dir, config_name),
     )
