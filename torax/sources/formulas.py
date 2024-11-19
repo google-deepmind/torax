@@ -69,6 +69,7 @@ def exponential_profile(
 
 def gaussian_profile(
     geo: geometry.Geometry,
+    *,
     c1: float,
     c2: float,
     total: float,

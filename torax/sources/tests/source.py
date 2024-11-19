@@ -58,6 +58,14 @@ class IonElTestSource(source_lib.Source):
         source_lib.AffectedCoreProfile.TEMP_EL,
     )
 
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.FORMULA_BASED,
+        runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
+    )
+
 
 IonElTestSourceBuilder = source_lib.make_source_builder(IonElTestSource)
 
@@ -193,12 +201,22 @@ class SourceTest(parameterized.TestCase):
 
   def test_unsupported_modes_raise_errors(self):
     """Calling with an unsupported type should raise an error."""
-    source_builder = test_lib.TestSourceBuilder(
-        supported_modes=(
-            # Only support formula-based profiles.
+
+    class TestSource(source_lib.Source):
+      """A test source."""
+
+      @property
+      def affected_core_profiles(
+          self,
+      ) -> tuple[source_lib.AffectedCoreProfile, ...]:
+        return (source_lib.AffectedCoreProfile.NE,)
+
+      @property
+      def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+        return (
             runtime_params_lib.Mode.FORMULA_BASED,
-        ),
-    )
+        )
+    source_builder = source_lib.make_source_builder(TestSource)()
     # But set the runtime params of the source to use ZERO as the mode.
     source_builder.runtime_params.mode = runtime_params_lib.Mode.ZERO
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -235,13 +253,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_defaults_output_zeros(self):
     """The default model and formula implementations should output zeros."""
-    source_builder = test_lib.TestSourceBuilder(
-        supported_modes=(
-            runtime_params_lib.Mode.MODEL_BASED,
-            runtime_params_lib.Mode.FORMULA_BASED,
-            runtime_params_lib.Mode.PRESCRIBED,
-        ),
-    )
+    source_builder = test_lib.TestSourceBuilder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'foo': source_builder},
     )
@@ -384,7 +396,6 @@ class SourceTest(parameterized.TestCase):
     output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
     source_builder = IonElTestSourceBuilder(
-        supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
         model_func=lambda _0, _1, _2, _3, _4: expected_output,
     )
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
@@ -425,9 +436,7 @@ class SourceTest(parameterized.TestCase):
     # Define the expected output
     expected_output = jnp.ones(output_shape)
     # Create the source
-    source_builder = IonElTestSourceBuilder(
-        supported_modes=(runtime_params_lib.Mode.PRESCRIBED,),
-    )
+    source_builder = IonElTestSourceBuilder()
     # Prescribe the source output to something that should be equal to the
     # expected output after interpolation
     source_builder.runtime_params.mode = runtime_params_lib.Mode.PRESCRIBED
@@ -480,7 +489,6 @@ class SourceTest(parameterized.TestCase):
 
     profile = jnp.asarray([[1, 2, 3, 4], [5, 6, 7, 8]])  # from get_value()
     source = TestSource(
-        supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
         model_func=lambda _0, _1, _2, _3, _4: profile,
     )
     geo = geometry.build_circular_geometry(n_rho=4)
@@ -548,7 +556,6 @@ class SingleProfileSourceTest(parameterized.TestCase):
     profile = jnp.asarray([1, 2, 3, 4])  # from get_value()
 
     source = test_lib.TestSource(
-        supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
         model_func=lambda _0, _1, _2, _3, _4: profile,
     )
     geo = geometry.build_circular_geometry(n_rho=4)

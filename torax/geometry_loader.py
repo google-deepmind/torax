@@ -15,6 +15,7 @@
 """File I/O for loading geometry files."""
 
 import enum
+import logging
 import os
 from typing import IO
 
@@ -66,6 +67,13 @@ def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
 def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
   eqdsk_data = eqdsk.EQDSKInterface.from_file(file_path, no_cocos=True)
   # TODO(b/335204606): handle COCOS shenanigans
+  logging.warning(
+      """
+               WARNING: Using EQDSK geometry.
+               The TORAX EQDSK converter has only been tested against CHEASE-generated EQDSK which is COCOS=2.
+               The converter is not guaranteed to work as expected with arbitrary EQDSK input. Please verify carefully.
+               Future work will be done to correctly handle EQDSK inputs provided with a specific COCOS value."""
+  )
   return eqdsk_data.__dict__  # dict(eqdsk_data)
 
 

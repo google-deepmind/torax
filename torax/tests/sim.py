@@ -37,7 +37,6 @@ from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
-import xarray as xr
 
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
@@ -340,6 +339,15 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector',
           'test_iterhybrid_predictor_corrector.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # ITERhybrid_predictor_corrector with EQDSK geometry.
+      # See https://github.com/google-deepmind/torax/pull/482 for a plot
+      # of the CHEASE vs EQDSK sim test comparison.
+      (
+          'test_iterhybrid_predictor_corrector_eqdsk',
+          'test_iterhybrid_predictor_corrector_eqdsk.py',
           _ALL_PROFILES,
           0,
       ),
@@ -682,15 +690,17 @@ class SimTest(sim_test_case.SimTestCase):
     sim_outputs = sim.run()
     history = output.StateHistory(sim_outputs, sim.source_models)
     geo = sim.geometry_provider(sim.initial_state.t)
-    ds_restart = history.simulation_output_to_xr(geo)
+    data_tree_restart = history.simulation_output_to_xr(geo)
 
     # Load the reference dataset.
-    ds_ref = xr.open_dataset(
+    ds_ref = output.load_state_file(
         os.path.join(self.test_data_dir, test_config_state_file)
     )
 
     # Stitch the restart state file to the beginning of the reference dataset.
-    ds_new = output.stitch_state_files(sim.file_restart, ds_restart)
+    ds_new = output.stitch_state_files(
+        sim.file_restart, data_tree_restart.dataset
+    )
 
     # Check equality for all time-dependent variables.
     for var_name in ds_new.data_vars:

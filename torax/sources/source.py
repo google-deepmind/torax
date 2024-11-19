@@ -126,11 +126,6 @@ class Source(abc.ABC):
     affected_core_profiles_ints: Derived property from the
       affected_core_profiles. Integer values of those enums.
   """
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.FORMULA_BASED,
-      runtime_params_lib.Mode.PRESCRIBED,
-  )
   model_func: SourceProfileFunction | None = None
   formula: SourceProfileFunction | None = None
 
@@ -143,6 +138,15 @@ class Source(abc.ABC):
   def output_shape_getter(self) -> SourceOutputShapeFunction:
     """Returns a function which returns the shape of the source's output."""
     return get_cell_profile_shape
+
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    """Returns the modes supported by this source."""
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.FORMULA_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
+    )
 
   @property
   def affected_core_profiles_ints(self) -> tuple[int, ...]:

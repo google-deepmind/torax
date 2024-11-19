@@ -102,10 +102,6 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # first run.
     source_models_builder.source_builders[custom_source_name] = (
         test_lib.TestSourceBuilder(
-            supported_modes=(
-                runtime_params_lib.Mode.ZERO,
-                runtime_params_lib.Mode.FORMULA_BASED,
-            ),
             formula=formulas.Exponential(),
             runtime_params=runtime_params_lib.RuntimeParams(
                 mode=runtime_params_lib.Mode.ZERO,

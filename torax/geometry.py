@@ -1023,7 +1023,22 @@ class StandardGeometryIntermediates:
       n_rho: int = 25,
       hires_fac: int = 4,
   ) -> StandardGeometryIntermediates:
-    """Constructs a StandardGeometryIntermediates from a single FBT LY slice."""
+    """Constructs a StandardGeometryIntermediates from a single FBT LY slice.
+
+    Args:
+      LY: A dictionary of relevant FBT LY geometry data.
+      L: A dictionary of relevant FBT L geometry data.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled.
+      n_rho: Grid resolution used for all TORAX cell variables.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations on initialization.
+
+    Returns:
+      A StandardGeometryIntermediates instance based on the input slice. This
+      can then be used to build a StandardGeometry by passing to
+      `build_standard_geometry`.
+    """
     Rmaj = LY['rgeom'][-1]  # Major radius
     B0 = LY['rBt'] / Rmaj  # Vacuum toroidal magnetic field on axis
     Rmin = LY['aminor'][-1]  # Minor radius
@@ -1064,12 +1079,42 @@ class StandardGeometryIntermediates:
   def from_eqdsk(
       cls,
       geometry_dir: str | None = None,
-      geometry_file: str = 'eqdsk_cocos02.eqdsk',
+      geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk',
       hires_fac: int = 4,
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
-  ):
-    """Constructs a StandardGeometryIntermediates from EQDSK, including calculating flux surface averages."""
+      n_surfaces: int = 100,
+      last_surface_factor: float = 0.99,
+  ) -> StandardGeometryIntermediates:
+    """Constructs a StandardGeometryIntermediates from EQDSK.
+
+    This method constructs a StandardGeometryIntermediates object from an EQDSK
+    file. It calculates flux surface averages based on the EQDSK geometry 2D psi
+    mesh.
+
+    Args:
+      geometry_dir: Directory where to find the EQDSK file describing the
+        magnetic geometry. If None, uses the environment variable
+        TORAX_GEOMETRY_DIR if available. If that variable is not set and
+        geometry_dir is not provided, then it defaults to another dir. See
+        implementation.
+      geometry_file: EQDSK file name.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled.
+      n_rho: Grid resolution used for all TORAX cell variables.
+      n_surfaces: Number of surfaces for which flux surface averages are
+        calculated.
+      last_surface_factor: Multiplication factor of the boundary poloidal flux,
+        used for the contour defining geometry terms at the LCFS on the TORAX
+        grid. Needed to avoid divergent integrations in diverted geometries.
+
+    Returns:
+      A StandardGeometryIntermediates instance based on the input file. This
+      can then be used to build a StandardGeometry by passing to
+      `build_standard_geometry`.
+    """
 
     def calculate_area(x, z):
       """Gauss-shoelace formula (https://en.wikipedia.org/wiki/Shoelace_formula)."""
@@ -1085,14 +1130,17 @@ class StandardGeometryIntermediates:
     eqfile = geometry_loader.load_geo_data(
         geometry_dir, geometry_file, geometry_loader.GeometrySource.EQDSK
     )
-
-    Rmaj = eqfile['xmag']
     # TODO(b/375696414): deal with updown asymmetric cases.
+    # Rmaj taken as Rgeo (LCFS Rmaj)
+    Rmaj = (eqfile['xbdry'].max() + eqfile['xbdry'].min()) / 2.0
     Rmin = (eqfile['xbdry'].max() - eqfile['xbdry'].min()) / 2.0
     B0 = eqfile['bcentre']
+    Raxis = eqfile['xmag']
+    Zaxis = eqfile['zmag']
 
+    # Set psi(axis) = 0
     psi_eqdsk_1dgrid = np.linspace(
-        eqfile['psimag'], eqfile['psibdry'], eqfile['nx']
+        0.0, eqfile['psibdry'] - eqfile['psimag'], eqfile['nx']
     )
 
     X_1D = np.linspace(
@@ -1106,8 +1154,8 @@ class StandardGeometryIntermediates:
     X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
     Xlcfs, Zlcfs = eqfile['xbdry'], eqfile['zbdry']
 
-    # Psi 2D grid defined on the Meshgrid
-    psi_eqdsk_2dgrid = eqfile['psi']
+    # Psi 2D grid defined on the Meshgrid. Set psi(axis) = 0
+    psi_eqdsk_2dgrid = eqfile['psi'] - eqfile['psimag']
     # Create mask for the confined region, i.e.,Xlcfs.min() < X < Xlcfs.max(),
     # Zlcfs.min() < Z < Zlcfs.max()
 
@@ -1138,19 +1186,24 @@ class StandardGeometryIntermediates:
     # --------- Make flux surface contours ---------
     # -----------------------------------------------------------
 
-    # set epsilon based on floating point precision of psi grid
-    # TODO(b/375696414) explore replacing with a more robust method
-    epsilon = constants.CONSTANTS.eps  # 1e-7
-
     psi_interpolant = np.linspace(
-        eqfile['psimag'] + epsilon, eqfile['psibdry'] - epsilon, 100
+        0,
+        (eqfile['psibdry'] - eqfile['psimag']) * last_surface_factor,
+        n_surfaces,
     )
 
     surfaces = []
     cg_psi = contourpy.contour_generator(X, Z, masked_psi_eqdsk_2dgrid)
 
-    for _, _psi in enumerate(psi_interpolant):
+    # Skip magnetic axis since no contour is defined there.
+    for _, _psi in enumerate(psi_interpolant[1:]):
       vertices = cg_psi.create_contour(_psi)
+      if not vertices:
+        raise ValueError(f"""
+            Valid contour not found for EQDSK geometry for psi value {_psi}.
+            Possible reason is too many surfaces requested.
+            Try reducing n_surfaces from the current value of {n_surfaces}.
+            """)
       x_surface, z_surface = vertices[0].T[0], vertices[0].T[1]
       surfaces.append((x_surface, z_surface))
 
@@ -1163,20 +1216,23 @@ class StandardGeometryIntermediates:
     # -----------------------------------------------------------
 
     # Gathering area for profiles
-    areas, volumes = np.empty(len(surfaces)), np.empty(len(surfaces))
-    R_inboard, R_outboard = np.empty(len(surfaces)), np.empty(len(surfaces))
-    flux_surf_avg_1_over_R2_eqdsk = np.empty(len(surfaces))  # <1/R**2>
-    flux_surf_avg_Bp2_eqdsk = np.empty(len(surfaces))  # <Bp**2>
-    flux_surf_avg_RBp_eqdsk = np.empty(len(surfaces))  # <|grad(psi)|>
-    flux_surf_avg_R2Bp2_eqdsk = np.empty(len(surfaces))  # <|grad(psi)|**2>
-    int_dl_over_Bp_eqdsk = np.empty(len(surfaces))  # int(Rdl / | grad(psi) |)
-    Ip_eqdsk = np.empty(len(surfaces))  # Toroidal plasma current
-    delta_upper_face_eqdsk = np.empty(len(surfaces))  # Upper face delta
-    delta_lower_face_eqdsk = np.empty(len(surfaces))  # Lower face delta
-    elongation = np.empty(len(surfaces))  # Elongation
+    areas, volumes = np.empty(len(surfaces) + 1), np.empty(len(surfaces) + 1)
+    R_inboard, R_outboard = np.empty(len(surfaces) + 1), np.empty(
+        len(surfaces) + 1
+    )
+    flux_surf_avg_1_over_R2_eqdsk = np.empty(len(surfaces) + 1)  # <1/R**2>
+    flux_surf_avg_Bp2_eqdsk = np.empty(len(surfaces) + 1)  # <Bp**2>
+    flux_surf_avg_RBp_eqdsk = np.empty(len(surfaces) + 1)  # <|grad(psi)|>
+    flux_surf_avg_R2Bp2_eqdsk = np.empty(len(surfaces) + 1)  # <|grad(psi)|**2>
+    int_dl_over_Bp_eqdsk = np.empty(
+        len(surfaces) + 1
+    )  # int(Rdl / | grad(psi) |)
+    Ip_eqdsk = np.empty(len(surfaces) + 1)  # Toroidal plasma current
+    delta_upper_face_eqdsk = np.empty(len(surfaces) + 1)  # Upper face delta
+    delta_lower_face_eqdsk = np.empty(len(surfaces) + 1)  # Lower face delta
+    elongation = np.empty(len(surfaces) + 1)  # Elongation
 
     # ---- Compute
-    # TODO(b/375696414) treatment of LCFS region for diverted geometries
     for n, (x_surface, z_surface) in enumerate(surfaces):
 
       # dl, line elements on which we will integrate
@@ -1224,7 +1280,8 @@ class StandardGeometryIntermediates:
       idx_upperextent = np.argmax(z_surface)
       idx_lowerextent = np.argmin(z_surface)
 
-      aminor = (x_surface.max() - x_surface.min()) / 2.0
+      Rmaj_local = (x_surface.max() + x_surface.min()) / 2.0
+      Rmin_local = (x_surface.max() - x_surface.min()) / 2.0
 
       X_upperextent = x_surface[idx_upperextent]
       X_lowerextent = x_surface[idx_lowerextent]
@@ -1233,23 +1290,40 @@ class StandardGeometryIntermediates:
       Z_lowerextent = z_surface[idx_lowerextent]
 
       # (RMAJ - X_upperextent) / RMIN
-      surface_delta_upper_face = (Rmaj - X_upperextent) / max(x_surface)
-      surface_delta_lower_face = (Rmaj - X_lowerextent) / max(x_surface)
+      surface_delta_upper_face = (Rmaj_local - X_upperextent) / Rmin_local
+      surface_delta_lower_face = (Rmaj_local - X_lowerextent) / Rmin_local
 
-      # Append to lists
-      areas[n] = area
-      volumes[n] = volume
-      R_inboard[n] = x_surface.min()
-      R_outboard[n] = x_surface.max()
-      int_dl_over_Bp_eqdsk[n] = surface_int_dl_over_bpol
-      flux_surf_avg_1_over_R2_eqdsk[n] = surface_FSA_int_one_over_r2
-      flux_surf_avg_RBp_eqdsk[n] = surface_FSA_abs_grad_psi
-      flux_surf_avg_R2Bp2_eqdsk[n] = surface_FSA_abs_grad_psi2
-      flux_surf_avg_Bp2_eqdsk[n] = surface_FSA_Bpol_squared
-      Ip_eqdsk[n] = surface_int_bpol_dl / constants.CONSTANTS.mu0
-      delta_upper_face_eqdsk[n] = surface_delta_upper_face
-      delta_lower_face_eqdsk[n] = surface_delta_lower_face
-      elongation[n] = (Z_upperextent - Z_lowerextent) / (2.0 * aminor)
+      # Append to lists.
+      # Start with n=1 since n=0 is the magnetic axis with no contour defined.
+      areas[n + 1] = area
+      volumes[n + 1] = volume
+      R_inboard[n + 1] = x_surface.min()
+      R_outboard[n + 1] = x_surface.max()
+      int_dl_over_Bp_eqdsk[n + 1] = surface_int_dl_over_bpol
+      flux_surf_avg_1_over_R2_eqdsk[n + 1] = surface_FSA_int_one_over_r2
+      flux_surf_avg_RBp_eqdsk[n + 1] = surface_FSA_abs_grad_psi
+      flux_surf_avg_R2Bp2_eqdsk[n + 1] = surface_FSA_abs_grad_psi2
+      flux_surf_avg_Bp2_eqdsk[n + 1] = surface_FSA_Bpol_squared
+      Ip_eqdsk[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu0
+      delta_upper_face_eqdsk[n + 1] = surface_delta_upper_face
+      delta_lower_face_eqdsk[n + 1] = surface_delta_lower_face
+      elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (2.0 * Rmin_local)
+
+    # Now set n=0 quantities. StandardGeometryIntermediate values at the
+    # magnetic axis are prescribed, since a contour cannot be defined there.
+    areas[0] = 0
+    volumes[0] = 0
+    R_inboard[0] = Raxis
+    R_outboard[0] = Raxis
+    int_dl_over_Bp_eqdsk[0] = 0
+    flux_surf_avg_1_over_R2_eqdsk[0] = 1 / Raxis**2
+    flux_surf_avg_RBp_eqdsk[0] = 0
+    flux_surf_avg_R2Bp2_eqdsk[0] = 0
+    flux_surf_avg_Bp2_eqdsk[0] = 0
+    Ip_eqdsk[0] = 0
+    delta_upper_face_eqdsk[0] = delta_upper_face_eqdsk[1]
+    delta_lower_face_eqdsk[0] = delta_lower_face_eqdsk[1]
+    elongation[0] = elongation[1]
 
     # q-profile on interpolation
     q_profile = q_interp(psi_interpolant)
@@ -1261,7 +1335,7 @@ class StandardGeometryIntermediates:
         )
         * 2
         * np.pi
-    )  #  / (2*np.pi) # factor of pi?
+    )
 
     # toroidal field flux function, T=RBphi
     F_eqdsk = F_interp(psi_interpolant)
@@ -1272,8 +1346,7 @@ class StandardGeometryIntermediates:
         * np.pi
         * Phi_eqdsk[-1]
         * rhon
-        / F_eqdsk
-        * flux_surf_avg_1_over_R2_eqdsk
+        / (F_eqdsk * flux_surf_avg_1_over_R2_eqdsk)
     )
 
     return cls(
@@ -1282,7 +1355,8 @@ class StandardGeometryIntermediates:
         Rmaj=Rmaj,
         Rmin=Rmin,
         B=B0,
-        psi=psi_interpolant,
+        # TODO(b/335204606): handle COCOS shenanigans
+        psi=psi_interpolant * 2 * np.pi,
         Ip_profile=Ip_eqdsk,
         Phi=Phi_eqdsk,
         Rin=R_inboard,
@@ -1299,7 +1373,7 @@ class StandardGeometryIntermediates:
         vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
-        z_magnetic_axis=eqfile['zmag'],
+        z_magnetic_axis=Zaxis,
     )
   
   @classmethod

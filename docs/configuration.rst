@@ -392,7 +392,7 @@ geometry
 --------
 
 ``geometry_type`` (str = 'chease')
-  Geometry model used. There are currently three options:
+  Geometry model used, from the following options.
 
 * ``'circular'``
     An ad-hoc circular geometry model. Includes elongation corrections.
@@ -404,49 +404,86 @@ geometry
 * ``'fbt'``
     Loads FBT geometry files.
 
+* ``'eqdsk'``
+    Loads a EQDSK geometry file, and carries out the appropriate flux-surface-averages of the 2D poloidal flux.
+    Use of EQDSK geometry comes with the following caveat:
+    The TORAX EQDSK converter has only been tested against CHEASE-generated EQDSK which is COCOS=2.
+    The converter is not guaranteed to work as expected with arbitrary EQDSK input, so please verify carefully.
+    Future work will be done to correctly handle EQDSK inputs provided with a specific COCOS value.
+
+Geometry dicts for all geometry types can contain the following additional keys.
+
 ``nrho`` (int = 25)
   Number of radial grid points
 
+``hi_res_fac`` (int = 4)
+  Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
+  with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
+
+Geometry dicts for all non-circular geometry types can contain the following additional keys.
+
 ``geometry_file`` (str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols')
-  Only used for ``geometry_type='chease'``. Sets the geometry file loaded.
+  Required for all geometry types except ``'circular'``. Sets the geometry file loaded.
   The geometry directory is set with the ``TORAX_GEOMETRY_DIR`` environment variable. If none is set, then the default is ``torax/data/third_party/geo``.
-
-``LY_file`` (str = None)
-  Only used for ``geometry_type='fbt'``. Sets a single-slice FBT LY geometry file to be loaded.
-
-``LY_bundle_file`` (str = None)
-  Only used for ``geometry_type='fbt'``. Sets the FBT LY bundle file to be loaded, corresponding to multiple time-slices.
-
-``LY_to_torax_times`` (ndarray = None)
-  Only used for ``geometry_type='fbt'``. Sets the TORAX simulation times corresponding to the individual slices in the
-  FBT LY bundle file. If not provided, then the times are taken from the LY_bundle_file itself. The length of the array
-  must match the number of slices in the bundle.
-
-``L_file`` (str = None)
-  Only used for ``geometry_type='fbt'``. Sets the FBT L geometry file loaded.
 
 ``geometry_dir`` (str = None)
   Optionally overrides the``TORAX_GEOMETRY_DIR`` environment variable.
 
 ``Ip_from_parameters`` (bool = True)
-  Only used for ``geometry_type='chease'``.Toggles whether total plasma current is read from the configuration file,
-  or from the geometry file. If True, then the :math:`\psi` calculated from the geometry file is scaled to match the desired :math:`I_p`.
+  Toggles whether total plasma current is read from the configuration file, or from the geometry file.
+  If True, then the :math:`\psi` calculated from the geometry file is scaled to match the desired :math:`I_p`.
+
+Geometry dicts for analytical circular geometry require the following additional keys.
 
 ``Rmaj`` (float = 6.2)
-  Major radius (R) in meters. Not used for ``geometry_type='fbt'``, where Rmaj is taken from the FBT geometry file.
+  Major radius (R) in meters.
 
 ``Rmin`` (float = 2.0)
-  Minor radius (a) in meters. Not used for ``geometry_type='fbt'``, where Rmin is taken from the FBT geometry file.
+  Minor radius (a) in meters.
 
 ``B0`` (float = 5.3)
-  Vacuum toroidal magnetic field on axis [T].  Not used for ``geometry_type='fbt'``, where B0 is taken from the FBT geometry file.
+  Vacuum toroidal magnetic field on axis [T].
 
 ``kappa`` (float = 1.72)
-  Only used for ``geometry_type='circular'``. Sets the plasma elongation used for volume, area and q-profile corrections.
+  Sets the plasma elongation used for volume, area and q-profile corrections.
 
-``hi_res_fac`` (int = 4)
-  Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
-  with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
+Geometry dicts for CHEASE geometry require the following additional keys for denormalization.
+
+``Rmaj`` (float = 6.2)
+  Major radius (R) in meters.
+
+``Rmin`` (float = 2.0)
+  Minor radius (a) in meters.
+
+``B0`` (float = 5.3)
+  Vacuum toroidal magnetic field on axis [T].
+
+Geometry dicts for FBT geometry require the following additional keys.
+
+``LY_file`` (str = None)
+  Sets a single-slice FBT LY geometry file to be loaded.
+
+``LY_bundle_file`` (str = None)
+  Sets the FBT LY bundle file to be loaded, corresponding to multiple time-slices.
+
+``LY_to_torax_times`` (ndarray = None)
+  Sets the TORAX simulation times corresponding to the individual slices in the
+  FBT LY bundle file. If not provided, then the times are taken from the LY_bundle_file
+  itself. The length of the array must match the number of slices in the bundle.
+
+``L_file`` (str = None)
+  Sets the FBT L geometry file loaded.
+
+Geometry dicts for EQDSK geometry can contain the following additional keys.
+It is only recommended to change the default values if issues arise.
+
+``n_surfaces`` (int = 100)
+  Number of surfaces for which flux surface averages are calculated.
+
+``last_surface_factor`` (float = 0.99)
+  Multiplication factor of the boundary poloidal flux, used for the contour
+  defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
+  divergent integrations in diverted geometries.
 
 For setting up time-dependent geometry, a subset of varying geometry parameters
 and input files can be defined in a ``geometry_configs`` dict, which is a

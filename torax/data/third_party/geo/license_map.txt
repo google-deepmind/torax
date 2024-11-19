@@ -1,3 +1,0 @@
-Maps data files to their licenses.
-
-ITER_hybrid_citrin_equil_cheasedata.mat2cols: LICENSE_PINT

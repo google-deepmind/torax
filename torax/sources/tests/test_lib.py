@@ -43,6 +43,15 @@ class TestSource(source_lib.Source):
   ) -> tuple[source_lib.AffectedCoreProfile, ...]:
     return (source_lib.AffectedCoreProfile.NE,)
 
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.FORMULA_BASED,
+        runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
+    )
+
 
 TestSourceBuilder = source_lib.make_source_builder(TestSource)
 

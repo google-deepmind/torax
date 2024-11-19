@@ -184,11 +184,6 @@ class OhmicHeatSource(source_lib.Source):
   """
   # Users must pass in a pointer to the complete set of sources to this object.
   source_models: source_models_lib.SourceModels
-
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.MODEL_BASED,
-  )
   # The model function is fixed to ohmic_model_func because that is the only
   # supported implementation of this source.
   # However, since this is a param in the parent dataclass, we need to (a)
@@ -198,6 +193,13 @@ class OhmicHeatSource(source_lib.Source):
       init=False,
       default_factory=lambda: ohmic_model_func,
   )
+
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.MODEL_BASED,
+    )
 
   @property
   def affected_core_profiles(

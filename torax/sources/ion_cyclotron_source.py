@@ -475,12 +475,6 @@ def _icrh_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
-
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.MODEL_BASED,
-      runtime_params_lib.Mode.PRESCRIBED,
-  )
   # The model function is fixed to _icrh_model_func because that is the only
   # supported implementation of this source.
   # However, since this is a param in the parent dataclass, we need to (a)
@@ -493,6 +487,14 @@ class IonCyclotronSource(source.Source):
           toric_nn=ToricNNWrapper(),
       ),
   )
+
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
+    )
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:

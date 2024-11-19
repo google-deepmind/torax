@@ -200,9 +200,15 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(geo.Rmaj, 6.7)
     np.testing.assert_allclose(geo.Rmin, 1.5)
 
-  def test_build_geometry_from_eqdsk(self):
-    """Test that the default EQDSK geometry can be built."""
-    intermediate = geometry.StandardGeometryIntermediates.from_eqdsk()
+  @parameterized.parameters([
+      dict(geometry_file='eqdsk_cocos02.eqdsk'),
+      dict(geometry_file='EQDSK_ITERhybrid_COCOS02.eqdsk'),
+  ])
+  def test_build_geometry_from_eqdsk(self, geometry_file):
+    """Test that EQDSK geometries can be built."""
+    intermediate = geometry.StandardGeometryIntermediates.from_eqdsk(
+        geometry_file=geometry_file
+    )
     geometry.build_standard_geometry(intermediate)
 
   def test_geometry_objects_can_be_used_in_jax_jitted_functions(self):
@@ -231,8 +237,10 @@ class GeometryTest(parameterized.TestCase):
     with self.assertRaises(RuntimeError):
       _ = geo.z_magnetic_axis
     with self.assertRaises(RuntimeError):
+
       def f():
         return geo.z_magnetic_axis
+
       _ = jax.jit(f)()
 
 

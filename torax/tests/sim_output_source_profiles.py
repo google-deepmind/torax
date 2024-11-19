@@ -109,10 +109,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # Include 2 versions of this source, one implicit and one explicit.
     source_models_builder = source_models_lib.SourceModelsBuilder({
         'implicit_ne_source': test_lib.TestSourceBuilder(
-            supported_modes=(
-                runtime_params_lib.Mode.ZERO,
-                runtime_params_lib.Mode.FORMULA_BASED,
-            ),
+
             formula=custom_source_formula,
             runtime_params=_FakeSourceRuntimeParams(
                 mode=runtime_params_lib.Mode.FORMULA_BASED,
@@ -120,10 +117,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             ),
         ),
         'explicit_ne_source': test_lib.TestSourceBuilder(
-            supported_modes=(
-                runtime_params_lib.Mode.ZERO,
-                runtime_params_lib.Mode.FORMULA_BASED,
-            ),
             formula=custom_source_formula,
             runtime_params=_FakeSourceRuntimeParams(
                 mode=runtime_params_lib.Mode.FORMULA_BASED,

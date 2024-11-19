@@ -109,7 +109,7 @@ class StateHistoryTest(parameterized.TestCase):
         output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
         self.source_models,
     )
-    output_xr = history.simulation_output_to_xr(self.geo)
+    output_xr = history.simulation_output_to_xr(self.geo).dataset
     self.assertIn('fusion_heat_source_ion', output_xr.data_vars)
     self.assertIn('fusion_heat_source_el', output_xr.data_vars)
     np.testing.assert_allclose(
@@ -171,7 +171,6 @@ class StateHistoryTest(parameterized.TestCase):
     )
 
     history.simulation_output_to_xr(self.geo)
-    history.simulation_output_to_xr(self.geo)
 
   def test_load_core_profiles_from_xr(self):
     """Test serialising and deserialising core profiles consistency."""
@@ -197,13 +196,14 @@ class StateHistoryTest(parameterized.TestCase):
         output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
         self.source_models,
     )
-    # Output to an xr.Dataset and save to disk.
-    ds = history.simulation_output_to_xr(self.geo)
+    # Output to an xr.DataTree and save to disk.
+    dt = history.simulation_output_to_xr(self.geo)
     path = os.path.join(self.create_tempdir().full_path, 'state.nc')
-    ds.to_netcdf(path)
+    dt.to_netcdf(path)
 
     with open(path, 'rb') as f:
-      ds = xr.load_dataset(f)
+      data_tree = xr.open_datatree(f)
+      ds = data_tree.dataset
       np.testing.assert_allclose(
           ds.data_vars[output.TEMP_EL].values[0, :],
           self.core_profiles.temp_el.value,

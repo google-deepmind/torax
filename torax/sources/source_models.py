@@ -76,33 +76,12 @@ def build_source_profiles(
       j_bootstrap_source=source_models.j_bootstrap,
       explicit=explicit,
   )
-  other_profiles = {}
-  other_profiles.update(
-      _build_psi_profiles(
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles,
-          source_models,
-          explicit,
-      )
-  )
-  other_profiles.update(
-      _build_ne_profiles(
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles,
-          source_models,
-          explicit,
-      )
-  )
-  other_profiles.update(
-      _build_temp_ion_el_profiles(
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles,
-          source_models,
-          explicit,
-      )
+  other_profiles = _build_standard_source_profiles(
+      dynamic_runtime_params_slice,
+      geo,
+      core_profiles,
+      source_models,
+      explicit,
   )
   return source_profiles.SourceProfiles(
       profiles=other_profiles,
@@ -199,15 +178,23 @@ def _build_bootstrap_profiles(
   )
 
 
-def _build_psi_profiles(
+def _build_standard_source_profiles(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
     explicit: bool = True,
     calculate_anyway: bool = False,
+    affected_core_profiles: (
+        tuple[source_lib.AffectedCoreProfile, ...]
+    ) = (
+        source_lib.AffectedCoreProfile.PSI,
+        source_lib.AffectedCoreProfile.NE,
+        source_lib.AffectedCoreProfile.TEMP_ION,
+        source_lib.AffectedCoreProfile.TEMP_EL,
+    ),
 ) -> dict[str, jax.Array]:
-  """Computes psi sources and builds a kwargs dict for SourceProfiles.
+  """Computes sources and builds a kwargs dict for SourceProfiles.
 
   Args:
     dynamic_runtime_params_slice: Input config for this time step. Can change
@@ -223,124 +210,34 @@ def _build_psi_profiles(
       explicit=False and the source is set to be explicit, then this will return
       all zeros).
     calculate_anyway: If True, returns values regardless of explicit
+    affected_core_profiles: Populate the output for sources that affect these
+      core profiles.
 
   Returns:
-    dict of psi source profiles.
+    dict of source profiles excluding the two special-case sources (bootstrap
+    and qei).
   """
-  psi_profiles = {}
-  for source_name, source in source_models.psi_sources.items():
-    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-        source_name
-    ]
-    psi_profiles[source_name] = jax_utils.select(
-        jnp.logical_or(
-            explicit == dynamic_source_runtime_params.is_explicit,
-            calculate_anyway,
-        ),
-        source.get_value(
-            dynamic_runtime_params_slice,
-            dynamic_source_runtime_params,
-            geo,
-            core_profiles,
-        ),
-        jnp.zeros(source.output_shape_getter(geo)),
-    )
-  return psi_profiles
-
-
-def _build_ne_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: SourceModels,
-    explicit: bool,
-) -> dict[str, jax.Array]:
-  """Computes ne sources and builds a kwargs dict for SourceProfiles.
-
-  Args:
-    dynamic_runtime_params_slice: Input config for this time step. Can change
-      from time step to time step.
-    geo: Geometry of the torus.
-    core_profiles: Core plasma profiles, either at the start of the time step
-      (if explicit) or the live profiles being evolved during the time step (if
-      implicit).
-    source_models: Collection of all TORAX sources.
-    explicit: If True, this function should return the profile for an explicit
-      source. If explicit is True and a given source is not explicit, then this
-      function will return zeros for that source. And same with implicit (if
-      explicit=False and the source is set to be explicit, then this will return
-      all zeros).
-
-  Returns:
-    dict of ne source profiles.
-  """
-  ne_profiles = {}
-  # Iterate through the sources and compute profiles for the ones which relate
-  # to ne.
-  for source_name, source in source_models.ne_sources.items():
-    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-        source_name
-    ]
-    ne_profiles[source_name] = jax_utils.select(
-        explicit == dynamic_source_runtime_params.is_explicit,
-        source.get_value(
-            dynamic_runtime_params_slice,
-            dynamic_source_runtime_params,
-            geo,
-            core_profiles,
-        ),
-        jnp.zeros_like(geo.rho),
-    )
-  return ne_profiles
-
-
-def _build_temp_ion_el_profiles(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: SourceModels,
-    explicit: bool,
-) -> dict[str, jax.Array]:
-  """Computes ion and el sources and builds a kwargs dict for SourceProfiles.
-
-  Args:
-    dynamic_runtime_params_slice: Input config for this time step. Can change
-      from time step to time step.
-    geo: Geometry of the torus.
-    core_profiles: Core plasma profiles, either at the start of the time step
-      (if explicit) or the live profiles being evolved during the time step (if
-      implicit).
-    source_models: Collection of all TORAX sources.
-    explicit: If True, this function should return the profile for an explicit
-      source. If explicit is True and a given source is not explicit, then this
-      function will return zeros for that source. And same with implicit (if
-      explicit=False and the source is set to be explicit, then this will return
-      all zeros).
-
-  Returns:
-    dict of temp ion and temp el source profiles.
-  """
-  ion_el_profiles = {}
-  # Calculate other ion and el heat sources/sinks.
-  temp_ion_el_sources = (
-      source_models.temp_ion_sources | source_models.temp_el_sources
-  )
-  for source_name, source in temp_ion_el_sources.items():
-    zeros = jnp.zeros(source.output_shape_getter(geo))
-    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-        source_name
-    ]
-    ion_el_profiles[source_name] = jax_utils.select(
-        explicit == dynamic_source_runtime_params.is_explicit,
-        source.get_value(
-            dynamic_runtime_params_slice,
-            dynamic_source_runtime_params,
-            geo,
-            core_profiles,
-        ),
-        zeros,
-    )
-  return ion_el_profiles
+  computed_source_profiles = {}
+  affected_core_profiles_set = set(affected_core_profiles)
+  for source_name, source in source_models.standard_sources.items():
+    if affected_core_profiles_set.intersection(source.affected_core_profiles):
+      dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+          source_name
+      ]
+      computed_source_profiles[source_name] = jax_utils.select(
+          jnp.logical_or(
+              explicit == dynamic_source_runtime_params.is_explicit,
+              calculate_anyway,
+          ),
+          source.get_value(
+              dynamic_runtime_params_slice,
+              dynamic_source_runtime_params,
+              geo,
+              core_profiles,
+          ),
+          jnp.zeros(source.output_shape_getter(geo)),
+      )
+  return computed_source_profiles
 
 
 def sum_sources_psi(
@@ -421,12 +318,13 @@ def calc_and_sum_sources_psi(
   # TODO(b/335597108): Revisit how to calculate this once we enable more
   # expensive source functions that might not jittable (like file-based or
   # RPC-based sources).
-  psi_profiles = _build_psi_profiles(
+  psi_profiles = _build_standard_source_profiles(
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
       source_models,
       calculate_anyway=True,
+      affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
   )
   total = 0
   for source_name, source in source_models.psi_sources.items():

@@ -27,6 +27,7 @@ from torax import geometry
 from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
+from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
@@ -106,17 +107,10 @@ def calc_generic_heat_source(
     source_ion: source term for ions.
     source_el: source term for electrons.
   """
-
-  # calculate heat profile (face grid)
-  Q = jnp.exp(-((geo.rho_norm - rsource) ** 2) / (2 * w**2))
-  Q_face = jnp.exp(-((geo.rho_face_norm - rsource) ** 2) / (2 * w**2))
-  # calculate constant prefactor
-  C = Ptot / jax.scipy.integrate.trapezoid(
-      geo.vpr_face * Q_face, geo.rho_face_norm
-  )
-
-  source_ion = C * Q * (1 - el_heat_fraction)
-  source_el = C * Q * el_heat_fraction
+  # Calculate heat profile.
+  profile = formulas.gaussian_profile(geo, c1=rsource, c2=w, total=Ptot)
+  source_ion = profile * (1 - el_heat_fraction)
+  source_el = profile * el_heat_fraction
 
   return source_ion, source_el
 
