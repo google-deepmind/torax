@@ -30,7 +30,8 @@ dependencies = [
     "chex>=0.1.85",
     "equinox>=0.11.3",
     "PyYAML>=6.0.1",
-    "xarray>=2023.12.0",
+    # DataTree is only working with development version of xarray for now.
+    "xarray @ git+https://github.com/pydata/xarray",
     "netcdf4>=1.6.5,<1.7.1",
     "h5netcdf>=1.3.0",
     "scipy>=1.12.0",

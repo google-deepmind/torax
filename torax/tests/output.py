@@ -84,158 +84,128 @@ class StateHistoryTest(parameterized.TestCase):
     )
     self.core_transport = state.CoreTransport.zeros(geo)
     self.source_models = source_models
+    # Setup a state history object.
+    t = jnp.array(0.0)
+    dt = jnp.array(0.1)
+    sim_state = state.ToraxSimState(
+        core_profiles=self.core_profiles,
+        core_transport=self.core_transport,
+        core_sources=self.source_profiles,
+        t=t,
+        dt=dt,
+        time_step_calculator_state=None,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
+        stepper_numeric_outputs=state.StepperNumericOutputs(
+            outer_stepper_iterations=1,
+            stepper_error_state=1,
+            inner_solver_iterations=1,
+        ),
+    )
+    sim_error = state.SimError.NO_ERROR
+
+    self.history = output.StateHistory(
+        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
+        self.source_models,
+    )
 
   def test_state_history_saves_ion_el_source(self):
     """Tests that an ion electron source is saved correctly."""
-    t = jnp.array(0.0)
-    dt = jnp.array(0.1)
-    sim_state = state.ToraxSimState(
-        core_profiles=self.core_profiles,
-        core_transport=self.core_transport,
-        core_sources=self.source_profiles,
-        t=t,
-        dt=dt,
-        time_step_calculator_state=None,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
-        stepper_numeric_outputs=state.StepperNumericOutputs(
-            outer_stepper_iterations=1,
-            stepper_error_state=1,
-            inner_solver_iterations=1,
-        ),
-    )
-    sim_error = state.SimError.NO_ERROR
-
-    history = output.StateHistory(
-        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
-        self.source_models,
-    )
-    output_xr = history.simulation_output_to_xr(self.geo).dataset
-    self.assertIn('fusion_heat_source_ion', output_xr.data_vars)
-    self.assertIn('fusion_heat_source_el', output_xr.data_vars)
+    output_xr = self.history.simulation_output_to_xr(self.geo)
+    sources_dataset = output_xr.children[output.CORE_SOURCES].dataset
+    self.assertIn('fusion_heat_source_ion', sources_dataset.data_vars)
+    self.assertIn('fusion_heat_source_el', sources_dataset.data_vars)
     np.testing.assert_allclose(
-        output_xr.data_vars['fusion_heat_source_ion'].values[0, ...],
+        sources_dataset.data_vars['fusion_heat_source_ion'].values[0, ...],
         self.source_profiles.profiles['fusion_heat_source'][0],
     )
     np.testing.assert_allclose(
-        output_xr.data_vars['fusion_heat_source_el'].values[0, ...],
+        sources_dataset.data_vars['fusion_heat_source_el'].values[0, ...],
         self.source_profiles.profiles['fusion_heat_source'][1],
-    )
-
-  def test_state_history_init(self):
-    """Smoke test the `StateHistory` constructor."""
-    t = jnp.array(0.0)
-    dt = jnp.array(0.1)
-    sim_state = state.ToraxSimState(
-        core_profiles=self.core_profiles,
-        core_transport=self.core_transport,
-        core_sources=self.source_profiles,
-        t=t,
-        dt=dt,
-        time_step_calculator_state=None,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
-        stepper_numeric_outputs=state.StepperNumericOutputs(
-            outer_stepper_iterations=1,
-            stepper_error_state=1,
-            inner_solver_iterations=1,
-        ),
-    )
-    sim_error = state.SimError.NO_ERROR
-
-    output.StateHistory(
-        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
-        self.source_models,
     )
 
   def test_state_history_to_xr(self):
     """Smoke test the `StateHistory.simulation_output_to_xr` method."""
-    t = jnp.array(0.0)
-    dt = jnp.array(0.1)
-    sim_state = state.ToraxSimState(
-        core_profiles=self.core_profiles,
-        core_transport=self.core_transport,
-        core_sources=self.source_profiles,
-        t=t,
-        dt=dt,
-        time_step_calculator_state=None,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
-        stepper_numeric_outputs=state.StepperNumericOutputs(
-            outer_stepper_iterations=1,
-            stepper_error_state=1,
-            inner_solver_iterations=1,
-        ),
-    )
-    sim_error = state.SimError.NO_ERROR
-    history = output.StateHistory(
-        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
-        self.source_models,
-    )
-
-    history.simulation_output_to_xr(self.geo)
+    self.history.simulation_output_to_xr(self.geo)
 
   def test_load_core_profiles_from_xr(self):
     """Test serialising and deserialising core profiles consistency."""
-    # Construct state to be persisted.
-    t = jnp.array(0.0)
-    dt = jnp.array(0.1)
-    sim_state = state.ToraxSimState(
-        core_profiles=self.core_profiles,
-        core_transport=self.core_transport,
-        core_sources=self.source_profiles,
-        t=t,
-        dt=dt,
-        time_step_calculator_state=None,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
-        stepper_numeric_outputs=state.StepperNumericOutputs(
-            outer_stepper_iterations=1,
-            stepper_error_state=1,
-            inner_solver_iterations=1,
-        ),
-    )
-    sim_error = state.SimError.NO_ERROR
-    history = output.StateHistory(
-        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
-        self.source_models,
-    )
     # Output to an xr.DataTree and save to disk.
-    dt = history.simulation_output_to_xr(self.geo)
+    data_tree_to_save = self.history.simulation_output_to_xr(self.geo)
     path = os.path.join(self.create_tempdir().full_path, 'state.nc')
-    dt.to_netcdf(path)
+    data_tree_to_save.to_netcdf(path)
 
-    with open(path, 'rb') as f:
-      data_tree = xr.open_datatree(f)
-      ds = data_tree.dataset
-      np.testing.assert_allclose(
-          ds.data_vars[output.TEMP_EL].values[0, :],
-          self.core_profiles.temp_el.value,
-      )
-      np.testing.assert_allclose(
-          ds.data_vars[output.TEMP_EL_RIGHT_BC].values[0],
-          self.core_profiles.temp_el.right_face_constraint,
-      )
-      np.testing.assert_allclose(
-          ds.data_vars[output.TEMP_ION].values[0, :],
-          self.core_profiles.temp_ion.value,
-      )
-      np.testing.assert_allclose(
-          ds.data_vars[output.TEMP_ION_RIGHT_BC].values[0],
-          self.core_profiles.temp_ion.right_face_constraint,
-      )
-      np.testing.assert_allclose(
-          ds.data_vars[output.PSI].values[0, :],
-          self.core_profiles.psi.value,
-      )
-      np.testing.assert_allclose(
-          ds.data_vars[output.PSI_RIGHT_GRAD_BC].values[0],
-          self.core_profiles.psi.right_face_grad_constraint,
-      )
-      np.testing.assert_allclose(
-          ds.data_vars[output.NE].values[0, :],
-          self.core_profiles.ne.value,
-      )
-      np.testing.assert_allclose(
-          ds.data_vars[output.NE_RIGHT_BC].values[0],
-          self.core_profiles.ne.right_face_constraint,
-      )
+    loaded_data_tree = output.safe_load_dataset(path)
+    xr.testing.assert_equal(loaded_data_tree, data_tree_to_save)
+
+  def test_expected_keys_in_child_nodes(self):
+    data_tree = self.history.simulation_output_to_xr(self.geo)
+    expected_child_keys = [
+        output.CORE_PROFILES,
+        output.CORE_TRANSPORT,
+        output.CORE_SOURCES,
+        output.POST_PROCESSED_OUTPUTS,
+    ]
+    for key in expected_child_keys:
+      self.assertIn(key, data_tree.children)
+
+  def test_concat_datatrees(self):
+    """Test helper for concatenating two xr.DataTrees.
+
+    The two datasets have the same structure, one top level dataset and
+    two child nodes. Expect the concat to have the same structure and be concat
+    of all three datasets.
+    Where the two datasets have the same time index, the concat should drop the
+    duplicate time step from the second dataset.
+    """
+    ds_tree1 = xr.Dataset(
+        {
+            'key': xr.DataArray(
+                np.array([1, 2, 3]),
+                coords={output.TIME: [1, 2, 3]},
+            ),
+        },
+    )
+    ds_tree2 = xr.Dataset(
+        {
+            'key': xr.DataArray(
+                np.array([4, 5, 6, 7]),
+                coords={output.TIME: [3, 4, 5, 6]},
+            ),
+        },
+    )
+    ds_expected = xr.Dataset(
+        {
+            'key': xr.DataArray(
+                np.array([1, 2, 3, 5, 6, 7]),
+                coords={output.TIME: [1, 2, 3, 4, 5, 6]},
+            ),
+        },
+    )
+    tree_expected = xr.DataTree(
+        dataset=ds_expected.copy(),
+        children={
+            'a': xr.DataTree(dataset=ds_expected.copy()),
+            'b': xr.DataTree(dataset=ds_expected.copy()),
+        },
+    )
+    tree1 = xr.DataTree(
+        dataset=ds_tree1.copy(),
+        children={
+            'a': xr.DataTree(dataset=ds_tree1.copy()),
+            'b': xr.DataTree(dataset=ds_tree1.copy()),
+        },
+    )
+    tree2 = xr.DataTree(
+        dataset=ds_tree2.copy(),
+        children={
+            'a': xr.DataTree(dataset=ds_tree2.copy()),
+            'b': xr.DataTree(dataset=ds_tree2.copy()),
+        },
+    )
+    xr.testing.assert_equal(
+        output.concat_datatrees(tree1, tree2),
+        tree_expected,
+    )
 
 
 if __name__ == '__main__':

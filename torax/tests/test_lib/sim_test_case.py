@@ -103,13 +103,14 @@ class SimTestCase(parameterized.TestCase):
     """Gets reference values for the requested state profiles."""
     expected_results_path = self._expected_results_path(ref_name)
     self.assertTrue(os.path.exists(expected_results_path))
-    ds = output.safe_load_dataset(expected_results_path)
+    data_tree = output.safe_load_dataset(expected_results_path)
+    core_profiles_dataset = data_tree.children[output.CORE_PROFILES].dataset
     self.assertNotEmpty(profiles)
-    ref_profiles = {profile: ds[profile].to_numpy() for profile in profiles}
-    if 'time' in ds:
-      ref_time = ds['time'].to_numpy()
-    else:
-      ref_time = ds['t'].to_numpy()
+    ref_profiles = {
+        profile: core_profiles_dataset[profile].to_numpy()
+        for profile in profiles
+    }
+    ref_time = core_profiles_dataset[output.TIME].to_numpy()
     self.assertEqual(ref_time.shape[0], ref_profiles[profiles[0]].shape[0])
     return ref_profiles, ref_time
 
