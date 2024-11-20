@@ -1022,13 +1022,17 @@ def build_sim_object(
       )
   )
   if file_restart is not None and file_restart.do_restart:
-    ds = output.load_state_file(file_restart.filename)
+    data_tree = output.load_state_file(file_restart.filename)
+    # Find the closest time in the given dataset.
+    data_tree = data_tree.sel(time=file_restart.time, method='nearest')
+    t_restart = data_tree.time.item()
+    core_profiles_dataset = data_tree.children[output.CORE_PROFILES].dataset
     # Remap coordinates in saved file to be consistent with expectations of
     # how config_args parses xarrays.
-    ds = ds.rename({output.RHO_CELL_NORM: config_args.RHO_NORM})
-    # Find the closest time in the given dataset and squeeze any size 1 dims.
-    ds = ds.sel(time=file_restart.time, method='nearest').squeeze()
-    t_restart = ds.time.item()
+    core_profiles_dataset = core_profiles_dataset.rename(
+        {output.RHO_CELL_NORM: config_args.RHO_NORM}
+    )
+    core_profiles_dataset = core_profiles_dataset.squeeze()
     if t_restart != runtime_params.numerics.t_initial:
       logging.warning(
           'Requested restart time %f not exactly available in state file %s.'
@@ -1043,7 +1047,20 @@ def build_sim_object(
             dynamic_runtime_params_slice_for_init,
             geo_for_init,
             t_restart,
-            ds,
+            core_profiles_dataset,
+        )
+    )
+    post_processed_dataset = data_tree.children[
+        output.POST_PROCESSED_OUTPUTS
+    ].dataset
+    post_processed_dataset = post_processed_dataset.rename(
+        {output.RHO_CELL_NORM: config_args.RHO_NORM}
+    )
+    post_processed_dataset = post_processed_dataset.squeeze()
+    post_processed_outputs = (
+        override_initial_state_post_processed_outputs_from_file(
+            geo_for_init,
+            post_processed_dataset,
         )
     )
 
@@ -1065,15 +1082,9 @@ def build_sim_object(
   # If we are restarting from a file, we need to override the initial state
   # post processed outputs such that cumulative outputs remain correct.
   if file_restart is not None and file_restart.do_restart:
-    post_processed_outputs = (
-        override_initial_state_post_processed_outputs_from_file(
-            geo_for_init,
-            ds,  # pylint: disable=undefined-variable
-        )
-    )
     initial_state = dataclasses.replace(
         initial_state,
-        post_processed_outputs=post_processed_outputs,
+        post_processed_outputs=post_processed_outputs,  # pylint: disable=undefined-variable
     )
 
   return Sim(

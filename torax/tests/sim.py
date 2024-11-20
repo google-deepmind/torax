@@ -37,6 +37,7 @@ from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
+import xarray as xr
 
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
@@ -693,24 +694,26 @@ class SimTest(sim_test_case.SimTestCase):
     data_tree_restart = history.simulation_output_to_xr(geo)
 
     # Load the reference dataset.
-    ds_ref = output.load_state_file(
+    datatree_ref = output.load_state_file(
         os.path.join(self.test_data_dir, test_config_state_file)
     )
 
     # Stitch the restart state file to the beginning of the reference dataset.
-    ds_new = output.stitch_state_files(
-        sim.file_restart, data_tree_restart.dataset
+    datatree_new = output.stitch_state_files(
+        sim.file_restart, data_tree_restart
     )
 
     # Check equality for all time-dependent variables.
-    for var_name in ds_new.data_vars:
-      if 'time' in ds_new[var_name].dims:
-        with self.subTest(var_name=var_name):
-          np.testing.assert_allclose(
-              ds_new[var_name].values,
-              ds_ref[var_name].values,
-              err_msg=f'Mismatch for {var_name} in restart test',
-          )
+    def check_equality(ds1: xr.Dataset, ds2: xr.Dataset):
+      for var_name in ds1.data_vars:
+        if 'time' in ds1[var_name].dims:
+          with self.subTest(var_name=var_name):
+            np.testing.assert_allclose(
+                ds1[var_name].values,
+                ds2[var_name].values,
+                err_msg=f'Mismatch for {var_name} in restart test',
+            )
+    xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
 
 
 def verify_core_profiles(ref_profiles, index, core_profiles):

@@ -117,7 +117,7 @@ class RunSimulationMainTest(parameterized.TestCase):
     reference = output_lib.load_state_file(
         os.path.join(paths.test_data_dir(), "test_implicit.nc")
     )
-    xr.testing.assert_allclose(output, reference)
+    xr.map_over_datasets(xr.testing.assert_allclose, output, reference)
 
   @flagsaver.flagsaver(
       (run_simulation_main._PYTHON_CONFIG_PACKAGE, "temp_package"),
@@ -216,36 +216,38 @@ class RunSimulationMainTest(parameterized.TestCase):
     ground_truth_after = after[: -len(".py")] + ".nc"
 
     def check(output_path, ground_truth_path):
-      output = output_lib.safe_load_dataset(output_path)
-      ground_truth = output_lib.safe_load_dataset(ground_truth_path)
+      output = output_lib.load_state_file(output_path)
+      ground_truth = output_lib.load_state_file(ground_truth_path)
 
-      for key in output:
-        self.assertIn(key, ground_truth)
+      def check_equality(ds1: xr.Dataset, ds2: xr.Dataset):
+        for key in ds2:
+          self.assertIn(key, ds1)
 
-      for key in ground_truth:
-        self.assertIn(key, output)
+        for key in ds1:
+          self.assertIn(key, ds2)
 
-        ov = output[key].to_numpy()
-        gv = ground_truth[key].to_numpy()
+          ov = ds2[key].to_numpy()
+          gv = ds1[key].to_numpy()
 
-        if not np.allclose(
-            ov,
-            gv,
-            # GitHub CI behaves very differently from Google internal for
-            # the mode=zero case, needing looser tolerance for this than
-            # for other tests.
-            # rtol=0.0,
-            atol=5.0e-5,
-        ):
-          diff = ov - gv
-          max_diff = np.abs(diff).max()
-          raise AssertionError(
-              f"{key} does not match. "
-              f"Output: {ov}. "
-              f"Ground truth: {gv}."
-              f"Diff: {diff}"
-              f"Max diff: {max_diff}"
-          )
+          if not np.allclose(
+              ov,
+              gv,
+              # GitHub CI behaves very differently from Google internal for
+              # the mode=zero case, needing looser tolerance for this than
+              # for other tests.
+              # rtol=0.0,
+              atol=5.0e-5,
+          ):
+            diff = ov - gv
+            max_diff = np.abs(diff).max()
+            raise AssertionError(
+                f"{key} does not match. "
+                f"Output: {ov}. "
+                f"Ground truth: {gv}."
+                f"Diff: {diff}"
+                f"Max diff: {max_diff}"
+            )
+      xr.map_over_datasets(check_equality, output, ground_truth)
 
     check(filepaths[0], ground_truth_before)
     check(filepaths[1], ground_truth_after)
