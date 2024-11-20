@@ -36,6 +36,16 @@ program, and Jax can't serialize arbitrary callable Python objects into its
 cache. Most Torax tests have runtime error handling enabled to catch correctness
 bugs, so many tests do not benefit from the speedup of caching.
 
+Another interesting feature of the Jax persistent cache is that the
+persistent cache key is a function of the built graph, not the args to
+function where the jit decorator is applied. This means that our hash
+functions for custom classes that are arguments to the outermost function
+don't need to be designed to hash the same across runs of the Python
+interpreter. An example of this is hashing by `id` which works with the
+persistent cache even though the `id` of an object will change if the object is
+recreated. See https://github.com/google-deepmind/torax/pull/276 for more
+detail.
+
 The `tests/persistent_cache.py` test gives some good examples of usage and
 includes comments with advice about debugging cases of the cache unexpectedly
 not being used.
