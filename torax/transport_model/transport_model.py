@@ -35,11 +35,6 @@ class TransportModel(abc.ABC):
   - Must implement __hash__, __eq__, and be immutable, so that the class can
     be used as a static argument (or a subcomponent of a larger static
     argument) to jax.jit
-  - __hash__ and __eq__ must be invariant to copy-construction (e.g., no
-    hashing by `id`) so that the jax persistent cache will work between
-    runs of the python interpreter
-  - __hash__ must be a function of `torax.versioning.torax_hash` so that the
-    jax persistent cache will work correctly.
   - Must set _frozen = True at the end of the subclass __init__ method to
     activate immutability.
   """
