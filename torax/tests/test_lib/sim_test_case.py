@@ -13,8 +13,6 @@
 # limitations under the License.
 
 """TestCase base class for running tests with sim.py."""
-
-import functools
 import importlib
 import os
 from typing import Optional, Sequence
@@ -24,21 +22,14 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 import torax
-from torax import geometry
 from torax import output
 from torax import sim as sim_lib
 from torax import simulation_app
 from torax.config import build_sim
-from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.sources import source_models as source_models_lib
-from torax.stepper import nonlinear_theta_method
-from torax.stepper import stepper as stepper_lib
 from torax.tests import test_lib
 from torax.tests.test_lib import paths
 from torax.time_step_calculator import array_time_step_calculator
-from torax.transport_model import runtime_params as transport_params_lib
-from torax.transport_model import transport_model as transport_model_lib
 
 PYTHON_MODULE_PREFIX = '.tests.test_data.'
 PYTHON_CONFIG_PACKAGE = 'torax'
@@ -298,93 +289,3 @@ class SimTestCase(parameterized.TestCase):
         ds=ds,
         write_output=write_output,
     )
-
-
-def make_frozen_optimizer_stepper(
-    transport_model: transport_model_lib.TransportModel,
-    source_models_builder: source_models_lib.SourceModelsBuilder,
-    source_models: source_models_lib.SourceModels,
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-    transport_params: transport_params_lib.RuntimeParams,
-    geo: geometry.Geometry,
-) -> stepper_lib.Stepper:
-  """Makes an optimizer stepper with frozen coefficients.
-
-  Under these conditions, we can test that the optimizer behaves the same as
-  the linear solver.
-
-  Args:
-    transport_model: Transport model.
-    source_models_builder: Holds the runtime_params for source_models
-    source_models: TORAX sources/sinks used to compute profile terms in the
-      state evolution equations.
-    runtime_params: General TORAX runtime input parameters.
-    transport_params: Runtime params for the transport model.
-    geo: The geometry of the simulation.
-
-  Returns:
-    Stepper: the stepper.
-  """
-  # Get the dynamic runtime params for the start of the simulation.
-  dynamic_runtime_params_slice = (
-      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-          runtime_params=runtime_params,
-          transport=transport_params,
-          sources=source_models_builder.runtime_params,
-          torax_mesh=geo.torax_mesh,
-      )(
-          t=runtime_params.numerics.t_initial,
-      )
-  )
-  callback_builder = functools.partial(
-      sim_lib.FrozenCoeffsCallback,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-  )
-  return nonlinear_theta_method.OptimizerThetaMethod(
-      transport_model,
-      source_models=source_models,
-      callback_class=callback_builder,  # pytype: disable=wrong-arg-types
-  )
-
-
-def make_frozen_newton_raphson_stepper(
-    transport_model: transport_model_lib.TransportModel,
-    source_models: source_models_lib.SourceModels,
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-    geo: geometry.Geometry,
-) -> stepper_lib.Stepper:
-  """Makes a Newton Raphson stepper with frozen coefficients.
-
-  Under these conditions, we can test that the nonlinear stepper behaves the
-  same as
-  the linear solver.
-
-  Args:
-    transport_model: Transport model.
-    source_models: TORAX sources/sinks used to compute profile terms in the
-      state evolution equations.
-    runtime_params: General TORAX runtime input parameters.
-    geo: The geometry of the simulation.
-
-  Returns:
-    Stepper: the stepper.
-  """
-  # Get the dynamic runtime params for the start of the simulation.
-  dynamic_runtime_params_slice = (
-      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-          runtime_params,
-          torax_mesh=geo.torax_mesh,
-      )(
-          t=runtime_params.numerics.t_initial,
-      )
-  )
-  callback_builder = functools.partial(
-      sim_lib.FrozenCoeffsCallback,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-  )
-  functools.partial(sim_lib.FrozenCoeffsCallback, runtime_params=runtime_params)
-  return nonlinear_theta_method.NewtonRaphsonThetaMethod(
-      transport_model,
-      source_models=source_models,
-      callback_class=callback_builder,  # pytype: disable=wrong-arg-types
-  )
