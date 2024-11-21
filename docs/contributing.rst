@@ -16,6 +16,8 @@ as a natural framework for coupling of various ML-surrogates of physics models. 
 transport, neoclassical transport, heat and particle sources, line radiation, pedestal physics, and core-edge integration,
 MHD, among others.
 
+See :ref:`contribution_tips` for more guidance on code review, documentation, and testing.
+
 Before you begin
 ----------------
 
@@ -39,14 +41,3 @@ Review our community guidelines
 
 This project follows
 `[Google's Open Source Community Guidelines] <https://opensource.google/conduct/>`_.
-
-Contribution process
---------------------
-
-Code reviews
-^^^^^^^^^^^^
-
-All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. Consult
-`[GitHub Help] <https://help.github.com/articles/about-pull-requests/>`_ for more
-information on using pull requests.
