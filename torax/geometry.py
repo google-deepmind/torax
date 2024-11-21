@@ -1375,12 +1375,52 @@ class StandardGeometryIntermediates:
         hires_fac=hires_fac,
         z_magnetic_axis=Zaxis,
     )
-  
+
+  @classmethod
+  def from_IMAS_Data_entry(
+      cls,
+      geometry_dir: str | None = None,
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+      hires_fac: int = 4,
+      Scenario: str = "scenario.yaml",
+  ) -> StandardGeometryIntermediates:
+    """Returns StandardGeometryIntermediates from a single slice FBT LY file.
+
+    LY and L are FBT data files containing magnetic geometry information.
+    The majority of the needed information is in the LY file. The L file
+    is only needed to get the normalized poloidal flux coordinate, pQ.
+
+    This method is for cases when the LY file on disk corresponds to a single
+    time slice. Either a single time slice or sequence of time slices can be
+    provided in the geometry config.
+
+    Args:
+      geometry_dir: Directory where to find the scenario file ontaining the parameters of the Data entry to read.
+        If None, uses the environment variable TORAX_GEOMETRY_DIR if
+        available. If that variable is not set and geometry_dir is not provided,
+        then it defaults to another dir. See `load_geo_data` implementation.
+      Scenario: File name for the scenario parameters.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled
+      n_rho: Grid resolution used for all TORAX cell variables.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+
+    Returns:
+      A StandardGeometryIntermediates instance based on the input slice. This
+      can then be used to build a StandardGeometry by passing to
+      `build_standard_geometry`.
+    """
+    equilibrium = geometry_loader.load_geo_data(
+        geometry_dir, Scenario, geometry_loader.GeometrySource.IMAS
+    )
+    return cls.from_IMAS(equilibrium, Ip_from_parameters, n_rho, hires_fac)
+
   @classmethod
   def from_IMAS(
       cls,
-      geometry_dir: str | None = None,
-      geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      equilibrium,
       Ip_from_parameters: bool = False,
       n_rho: int = 25,
       hires_fac: int = 4,
@@ -1388,12 +1428,7 @@ class StandardGeometryIntermediates:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
 
     Args:
-      geometry_dir: Directory where to find the CHEASE file describing the
-        magnetic geometry. If None, uses the environment variable
-        TORAX_GEOMETRY_DIR if available. If that variable is not set and
-        geometry_dir is not provided, then it defaults to another dir. See
-        implementation.
-      geometry_file: CHEASE file name.
+      equilibrium: Equilbrium IDS containing the relevant data.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
         values in the Geometry are resacled to match the new Ip.
       n_rho: Radial grid points (num cells)
@@ -1404,28 +1439,22 @@ class StandardGeometryIntermediates:
       A StandardGeometry instance based on the input file. This can then be
       used to build a StandardGeometry by passing to `build_standard_geometry`.
     """
-    #TODO : Write loader function, in geometry_loader ? 
-    IMAS_data = geometry_loader.load_geo_data(
-        geometry_dir, geometry_file, geometry_loader.GeometrySource.IMAS
-    ).time_slice[0]
+    IMAS_data = equilibrium.time_slice[0]
 
     B0 = np.abs(IMAS_data.global_quantities.magnetic_axis.b_field_tor)
     Rmaj = IMAS_data.boundary.geometric_axis.r
 
-    # set psi in TORAX units with 2*pi factor
+    # Poloidal flux
     psi = -1 * IMAS_data.profiles_1d.psi
-
     # toroidal flux
-    Phi = IMAS_data.profiles_1d.phi
-
+    Phi = -1 * IMAS_data.profiles_1d.phi
     # midplane radii
     Rin = IMAS_data.profiles_1d.r_inboard
     Rout = IMAS_data.profiles_1d.r_outboard
     # toroidal field flux function
     F = np.abs(IMAS_data.profiles_1d.f)
 
-
-    #Flux surface integrals of various geometry quantities 
+    #Flux surface integrals of various geometry quantities
     #IDS Contour integrals
     if len(IMAS_data.profiles_1d.dvolume_dpsi) > 0:
         dvoldpsi = -1 * IMAS_data.profiles_1d.dvolume_dpsi
@@ -1440,17 +1469,17 @@ class StandardGeometryIntermediates:
     flux_surf_avg_RBp = IMAS_data.profiles_1d.gm7 * dpsidrhotor / (2 * np.pi) # dpsi, C0/C1
     flux_surf_avg_R2Bp2 = IMAS_data.profiles_1d.gm3 * (dpsidrhotor **2) / (4 * np.pi**2) # C4/C1
     flux_surf_avg_Bp2 = IMAS_data.profiles_1d.gm2 * (dpsidrhotor **2) / (4 * np.pi**2) # C3/C1
-    int_dl_over_Bp = dvoldpsi #C1 
-    flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1 # C2/C1 
-  
+    int_dl_over_Bp = dvoldpsi #C1
+    flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1 # C2/C1
+
     #TODO : Read Ip_profile from IMAS_data equilibrium IDS. With IMAS_data.profiles_1d.j_phi we might be able to compute Ip_profile.
-    Ip_profile=np.ones(len(psi))
+    #Important : j_tor works for IDSs with version < 3.42.0, to replace by j_phi for newer versions.
+    Ip_profile= -1 * IMAS_data.profiles_1d.j_tor
 
     rhon = np.sqrt(Phi / Phi[-1])
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
-    # To check 
+    # To check
     z_magnetic_axis = IMAS_data.global_quantities.magnetic_axis.z
-
 
     return cls(
         geometry_type=GeometryType.IMAS,
@@ -1478,7 +1507,7 @@ class StandardGeometryIntermediates:
         z_magnetic_axis=z_magnetic_axis,
     )
 
- 
+
 
 
 def build_standard_geometry(
