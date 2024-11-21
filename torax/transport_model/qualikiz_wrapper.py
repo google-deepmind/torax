@@ -21,18 +21,17 @@ evaluation. Kept as an internal model.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import dataclasses
 import datetime
 import os
 import subprocess
 import tempfile
-from collections.abc import Callable
 
 import chex
 import numpy as np
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
-
 from torax import geometry
 from torax import jax_utils
 from torax import state

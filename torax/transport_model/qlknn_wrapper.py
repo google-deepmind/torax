@@ -26,13 +26,11 @@ import dataclasses
 import functools
 import logging
 import os
-from typing import Callable
-from typing import Final
+from typing import Callable, Final
 
 import chex
 import jax
 from jax import numpy as jnp
-
 from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
@@ -41,6 +39,7 @@ from torax.transport_model import qlknn_10d
 from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
+
 
 # Environment variable for the QLKNN model. Used if the model path
 # is not set in the config.
