@@ -1,0 +1,13 @@
+
+# ---------------------------------
+# PARAMETERS OF THE INPUT SCENARIO
+# ---------------------------------
+shot:                130012
+run_in:              4
+input_user_or_path:  public
+input_database:      ITER
+
+time_begin: 200.
+
+# Backend of input scenario (hdf5 or mdsplus)
+scenario_backend: mdsplus

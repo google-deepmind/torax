@@ -23,6 +23,8 @@ import eqdsk
 import numpy as np
 import scipy
 
+import yaml
+
 # Internal import.
 
 
@@ -33,6 +35,7 @@ class GeometrySource(enum.Enum):
   CHEASE = 0
   FBT = 1
   EQDSK = 2
+  IMAS = 3
 
 
 def _load_CHEASE_data(  # pylint: disable=invalid-name
@@ -77,6 +80,24 @@ def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
   return eqdsk_data.__dict__  # dict(eqdsk_data)
 
 
+def _load_IMAS_data_from_Data_entry(file_path: str) -> dict[str, np.ndarray]:
+  """Loads the equilibrium IDS from a specific data entry / scenario using the IMAS Access Layer"""
+  import imas
+  file = open(file_path, 'r')
+  scenario = yaml.load(file,Loader=yaml.CLoader)
+  file.close()
+  if scenario['scenario_backend'] == 'hdf5':
+        sc_backend = imas.imasdef.HDF5_BACKEND
+  else:
+      sc_backend = imas.imasdef.MDSPLUS_BACKEND
+  input = imas.DBEntry(sc_backend,scenario['input_database'],scenario['shot'],scenario['run_in'],scenario['input_user_or_path'])
+  input.open()
+  timenow = scenario['time_begin']
+  IMAS_data = input.get_slice('equilibrium',timenow,1)
+
+  return IMAS_data
+
+
 def load_geo_data(
     geometry_dir: str | None,
     geometry_file: str,
@@ -100,5 +121,7 @@ def load_geo_data(
       return _load_fbt_data(file_path=filepath)
     case GeometrySource.EQDSK:
       return _load_eqdsk_data(file_path=filepath)
+    case GeometrySource.IMAS:
+      return _load_IMAS_data_from_Data_entry(file_path=filepath)
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')
