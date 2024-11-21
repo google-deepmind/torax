@@ -96,7 +96,9 @@ def main(argv: Sequence[str]) -> None:
   configs = []
   test_data_dir = paths.test_data_dir()
   for path in os.listdir(test_data_dir):
-    if path.endswith('.nc'):
+    # avoid rerunning qualikiz tests, which are more expensive and are not
+    # part of the standard sim tests.
+    if path.endswith('.nc') and 'qualikiz' not in path:
       basename = os.path.basename(path)
       config_name, _ = basename.split('.')
       configs.append(config_name)
