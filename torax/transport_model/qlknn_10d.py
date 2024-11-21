@@ -23,8 +23,10 @@ from typing import Any, Callable, Final
 import flax.linen as nn
 import immutabledict
 import jax
+import jax.numpy as jnp
 import numpy as np
 from torax.transport_model import base_qlknn_model
+from torax.transport_model import qualikiz_based_transport_model
 
 # Internal import.
 
@@ -174,3 +176,25 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
     )
     model_output['qe_etg'] = self.net_etgleading(inputs).clip(0)
     return model_output
+
+  def get_model_inputs_from_qualikiz_inputs(
+      self, qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs
+  ) -> jax.Array:
+    """Converts QualikizInputs to model inputs."""
+    return jnp.array(
+        [getattr(qualikiz_inputs, key) for key in self.inputs_and_ranges.keys()]
+    ).T
+
+  @property
+  def inputs_and_ranges(self) -> base_qlknn_model.InputsAndRanges:
+    return {
+        'Zeff_face': {'min': 1.0, 'max': 3.0},
+        'Ati': {'min': 0.0, 'max': 14.0},
+        'Ate': {'min': 0.0, 'max': 14.0},
+        'Ane': {'min': -5.0, 'max': 6.0},
+        'q': {'min': 0.66, 'max': 15.0},
+        'smag': {'min': -1.0, 'max': 5.0},
+        'x': {'min': 0.09, 'max': 0.99},
+        'Ti_Te': {'min': 0.25, 'max': 2.5},
+        'log_nu_star_face': {'min': -5.0, 'max': 0.0},
+    }

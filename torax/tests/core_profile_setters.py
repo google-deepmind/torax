@@ -504,7 +504,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
       # Then we expect the boundary condition to be in fGW.
       # pylint: disable=invalid-name
       nGW = (
-          dynamic_runtime_params_slice.profile_conditions.Ip
+          dynamic_runtime_params_slice.profile_conditions.Ip_tot
           / (np.pi * self.geo.Rmin**2)
           * 1e20
           / dynamic_runtime_params_slice.numerics.nref

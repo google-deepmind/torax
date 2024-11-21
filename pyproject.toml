@@ -71,3 +71,14 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["torax*"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--ignore=torax/tests/test_data",
+    "--ignore=torax/tests/scripts",
+    "--ignore-glob=*lib*",
+    # Leads to an ImportError in collection for `pytest` without qualikiz_tools.
+    "--ignore=torax/transport_model/qualikiz_wrapper.py",
+]
+testpaths = "**/tests"
+python_files = "*.py"

@@ -109,12 +109,7 @@ class BootstrapCurrentSource(source.Source):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
-      temp_ion: cell_variable.CellVariable | None = None,
-      temp_el: cell_variable.CellVariable | None = None,
-      ne: cell_variable.CellVariable | None = None,
-      ni: cell_variable.CellVariable | None = None,
-      psi: cell_variable.CellVariable | None = None,
+      core_profiles: state.CoreProfiles,
   ) -> source_profiles.BootstrapCurrentProfile:
     # Make sure the input mode requested is supported.
     self.check_mode(dynamic_source_runtime_params.mode)
@@ -124,34 +119,15 @@ class BootstrapCurrentSource(source.Source):
           'Expected DynamicRuntimeParams, got '
           f'{type(dynamic_source_runtime_params)}.'
       )
-    # Make sure the appropriate input args have been populated.
-    if not core_profiles and any([
-        not temp_ion,
-        not temp_el,
-        ne is None,
-        ni is None,
-        not psi,
-    ]):
-      raise ValueError(
-          'If you cannot provide "core_profiles", then provide all of '
-          'temp_ion, temp_el, ne, ni, jtot_face, and psi.'
-      )
-    # pytype: disable=attribute-error
-    temp_ion = temp_ion or core_profiles.temp_ion
-    temp_el = temp_el or core_profiles.temp_el
-    ne = ne if ne is not None else core_profiles.ne
-    ni = ni if ni is not None else core_profiles.ni
-    psi = psi or core_profiles.psi
-    # pytype: enable=attribute-error
     bootstrap_current = calc_neoclassical(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
-        temp_ion=temp_ion,
-        temp_el=temp_el,
-        ne=ne,
-        ni=ni,
-        psi=psi,
+        temp_ion=core_profiles.temp_ion,
+        temp_el=core_profiles.temp_el,
+        ne=core_profiles.ne,
+        ni=core_profiles.ni,
+        psi=core_profiles.psi,
     )
     zero_profile = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
     is_zero_mode = (

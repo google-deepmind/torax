@@ -105,10 +105,10 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('s_puff', 's_nbi', 's_pellet'),
+            attrs=('s_puff', 's_generic', 's_pellet'),
             labels=(
                 r'$S_\mathrm{puff}$',
-                r'$S_\mathrm{nbi}$',
+                r'$S_\mathrm{generic}$',
                 r'$S_\mathrm{pellet}$',
             ),
             ylabel=r'Particle sources $[10^{20}~m^{-3}~s^{-1}]$',

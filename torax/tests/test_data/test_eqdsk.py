@@ -27,7 +27,7 @@ CONFIG = {
             'Zimp': 10,
         },
         'profile_conditions': {
-            'Ip': 0.25,
+            'Ip_tot': 0.25,
             'Ti': {0.0: {0.0: 3.0, 1.0: 0.2}},
             'Ti_bound_right': 0.2,
             'Te': {0.0: {0.0: 3.0, 1.0: 0.2}},

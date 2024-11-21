@@ -26,7 +26,7 @@ CONFIG = {
             'Zimp': 6.3623,
         },
         'profile_conditions': {
-            'Ip': 15,  # total plasma current in MA
+            'Ip_tot': 15,  # total plasma current in MA
             # boundary + initial conditions for T and n
             # initial condition ion temperature for r=0 and r=Rmin
             'Ti': {0.0: {0.0: 15.0, 1.0: 0.238}},

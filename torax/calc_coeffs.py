@@ -565,7 +565,7 @@ def _calc_coeffs_full(
   # calculate neped
   # pylint: disable=invalid-name
   nGW = (
-      dynamic_runtime_params_slice.profile_conditions.Ip
+      dynamic_runtime_params_slice.profile_conditions.Ip_tot
       / (jnp.pi * geo.Rmin**2)
       * 1e20
       / dynamic_runtime_params_slice.numerics.nref

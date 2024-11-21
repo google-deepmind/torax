@@ -15,7 +15,6 @@
 """Tests for electron_density_sources."""
 
 from absl.testing import absltest
-from torax import geometry
 from torax.sources import electron_density_sources as eds
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -36,12 +35,6 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = eds.GasPuffRuntimeParams()
-    geo = geometry.build_circular_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
-
 
 class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for PelletSource."""
@@ -57,12 +50,6 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = eds.PelletRuntimeParams()
-    geo = geometry.build_circular_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
-
 
 class SourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GenericParticleSource."""
@@ -77,12 +64,6 @@ class SourceTest(test_lib.SingleProfileSourceTestCase):
         ],
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
-
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = eds.GenericParticleSourceRuntimeParams()
-    geo = geometry.build_circular_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
 
 
 class RecombinationDensitySinkTest(test_lib.SingleProfileSourceTestCase):

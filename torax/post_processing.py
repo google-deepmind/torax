@@ -32,6 +32,7 @@ _trapz = jax.scipy.integrate.trapezoid
 ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'generic_ion_el_heat_source': 'P_generic',
     'fusion_heat_source': 'P_alpha',
+    'ion_cyclotron_source': 'P_icrh',
 }
 EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'ohmic_heat_source': 'P_ohmic',
@@ -42,6 +43,7 @@ EXTERNAL_HEATING_SOURCES = [
     'generic_ion_el_heat_source',
     'electron_cyclotron_source',
     'ohmic_heat_source',
+    'ion_cyclotron_source',
 ]
 CURRENT_SOURCE_TRANSFORMATIONS = {
     'generic_current_source': 'I_generic',
@@ -299,7 +301,9 @@ def _calculate_integrated_sources(
 
 
 def make_outputs(
-    sim_state: state.ToraxSimState, geo: geometry.Geometry
+    sim_state: state.ToraxSimState,
+    geo: geometry.Geometry,
+    previous_sim_state: state.ToraxSimState | None = None,
 ) -> state.ToraxSimState:
   """Calculates post-processed outputs based on the latest state.
 
@@ -307,6 +311,12 @@ def make_outputs(
   Args:
     sim_state: The state to add outputs to.
     geo: Geometry object
+    previous_sim_state: The previous state, used to calculate cumulative
+      quantities. Optional input. If None, then cumulative quantities are set
+      at the initialized values in sim_state itself. This is used for the first
+      time step of a the simulation. The initialized values are zero for a clean
+      simulation, or the last value of the previous simulation for a restarted
+      simulation.
 
   Returns:
     sim_state: A ToraxSimState object, with any updated attributes.
@@ -325,7 +335,6 @@ def make_outputs(
       geo,
   )
   FFprime_face = _compute_FFprime(sim_state.core_profiles, geo)
-  # pylint: enable=invalid-name
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
   psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
@@ -334,7 +343,6 @@ def make_outputs(
       sim_state.core_profiles,
       sim_state.core_sources,
   )
-  # pylint: disable=invalid-name
   # Calculate fusion gain with a zero division guard.
   # Total energy released per reaction is 5 times the alpha particle energy.
   Q_fusion = (
@@ -343,6 +351,39 @@ def make_outputs(
       / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
   )
 
+  # Calculate total external (injected) and fusion (generated) energies based on
+  # interval average.
+  if previous_sim_state is not None:
+    # Factor 5 due to including neutron energy: E_fusion = 5.0 * E_alpha
+    E_cumulative_fusion = (
+        previous_sim_state.post_processed_outputs.E_cumulative_fusion
+        + 5.0
+        * sim_state.dt
+        * (
+            integrated_sources['P_alpha_tot']
+            + previous_sim_state.post_processed_outputs.P_alpha_tot
+        )
+        / 2.0
+    )
+    E_cumulative_external = (
+        previous_sim_state.post_processed_outputs.E_cumulative_external
+        + sim_state.dt
+        * (
+            integrated_sources['P_external_tot']
+            + previous_sim_state.post_processed_outputs.P_external_tot
+        )
+        / 2.0
+    )
+  else:
+    # First step of simulation, so no previous state. We set cumulative
+    # quantities to whatever the initial_state was initialized to, which is
+    # typically zero for a clean simulation, or the last value of the previous
+    # simulation for a restarted simulation.
+    E_cumulative_fusion = sim_state.post_processed_outputs.E_cumulative_fusion
+    E_cumulative_external = (
+        sim_state.post_processed_outputs.E_cumulative_external
+    )
+  # pylint: enable=invalid-name
   updated_post_processed_outputs = dataclasses.replace(
       sim_state.post_processed_outputs,
       pressure_thermal_ion_face=pressure_thermal_ion_face,
@@ -357,6 +398,8 @@ def make_outputs(
       psi_face=sim_state.core_profiles.psi.face_value(),
       **integrated_sources,
       Q_fusion=Q_fusion,
+      E_cumulative_fusion=E_cumulative_fusion,
+      E_cumulative_external=E_cumulative_external,
   )
   # pylint: enable=invalid-name
   return dataclasses.replace(

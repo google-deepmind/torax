@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Functions to build sim.Sim objects, which are used to run TORAX."""
-
+from collections.abc import MutableMapping
 import copy
 from typing import Any
 
@@ -184,7 +184,7 @@ def build_geometry_provider_from_config(
 
 
 def build_sim_from_config(
-    config: dict[str, Any],
+    config: MutableMapping[str, Any],
 ) -> sim_lib.Sim:
   """Builds a sim.Sim object from the given TORAX config.
 

@@ -89,7 +89,7 @@ VPR = "vpr"
 SPR = "spr"
 VPR_FACE = "vpr_face"
 SPR_FACE = "spr_face"
-IP = "Ip"
+IP_PROFILE_FACE = "Ip_profile_face"
 
 # Coordinates.
 RHO_FACE_NORM = "rho_face_norm"
@@ -122,6 +122,28 @@ def load_state_file(
     return ds
   else:
     raise ValueError(f"File {filepath} does not exist.")
+
+
+def stitch_state_files(
+    file_restart: runtime_params.FileRestart,
+    ds: xr.Dataset,
+) -> xr.Dataset:
+  """Stitches a restarted state file to the beginning of its source sim."""
+  previous_ds = load_state_file(
+      file_restart.filename,
+  )
+  # Reduce previous_ds to all times before the first time step in this
+  # sim output. We use ds.time[0] instead of file_restart.time because
+  # we are uncertain if file_restart.time is the exact time of the
+  # first time step in this sim output (it takes the nearest time).
+  previous_ds = previous_ds.sel(time=slice(None, ds.time[0]))
+  # Do a minimal concat to avoid concatting any non time indexed vars.
+  ds = xr.concat([previous_ds, ds], dim=TIME, data_vars="minimal")
+  # Drop the duplicate restart time step. Using "first" imposes
+  # keeping the restart state from the previous simulation, which contains
+  # more complete information e.g. transport and post processed outputs.
+  ds = ds.drop_duplicates(dim=TIME, keep="first")
+  return ds
 
 
 class StateHistory:
@@ -224,7 +246,7 @@ class StateHistory:
 
     xr_dict[J_BOOTSTRAP] = self.core_profiles.currents.j_bootstrap
     xr_dict[J_BOOTSTRAP_FACE] = self.core_profiles.currents.j_bootstrap_face
-    xr_dict[IP] = self.core_profiles.currents.Ip
+    xr_dict[IP_PROFILE_FACE] = self.core_profiles.currents.Ip_profile_face
     xr_dict[I_BOOTSTRAP] = self.core_profiles.currents.I_bootstrap
     xr_dict[SIGMA] = self.core_profiles.currents.sigma
 
@@ -385,12 +407,7 @@ class StateHistory:
     )
 
     if file_restart is not None and file_restart.stitch:
-      previous_ds = load_state_file(
-          file_restart.filename,
-      )
-      # Do a minimal concat to avoid concatting any non time indexed vars.
-      ds = xr.concat([previous_ds, ds], dim=TIME, data_vars="minimal")
-      ds = ds.drop_duplicates(dim=TIME)
+      ds = stitch_state_files(file_restart, ds)
 
     # Add sim_error as a new variable
     ds[SIM_ERROR] = self.sim_error.value

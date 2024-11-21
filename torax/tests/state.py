@@ -339,7 +339,7 @@ class InitialStatesTest(parameterized.TestCase):
     denom = jax.scipy.integrate.trapezoid(
         jformula_face * geo.spr_face, geo.rho_face_norm
     )
-    ctot = config1.profile_conditions.Ip * 1e6 / denom
+    ctot = config1.profile_conditions.Ip_tot * 1e6 / denom
     jtot_formula_face = jformula_face * ctot
     johm_formula_face = jtot_formula_face * (
         1 - dcs1.sources[source_models.generic_current_source_name].fext  # pytype: disable=attribute-error
@@ -353,14 +353,10 @@ class InitialStatesTest(parameterized.TestCase):
             source_models.j_bootstrap_name
         ],
         geo=geo,
-        temp_ion=core_profiles3.temp_ion,
-        temp_el=core_profiles3.temp_el,
-        ne=core_profiles3.ne,
-        ni=core_profiles3.ni,
-        psi=core_profiles3_helper.psi,
+        core_profiles=core_profiles3_helper,
     )
     f_bootstrap = bootstrap_profile.I_bootstrap / (
-        config3.profile_conditions.Ip * 1e6
+        config3.profile_conditions.Ip_tot * 1e6
     )
 
     np.testing.assert_raises(

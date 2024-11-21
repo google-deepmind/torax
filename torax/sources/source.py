@@ -51,7 +51,7 @@ SourceProfileFunction: TypeAlias = Callable[  # pytype: disable=name-error
         runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
         runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
         geometry.Geometry,
-        state.CoreProfiles | None,
+        state.CoreProfiles,
         Optional['source_models.SourceModels'],
     ],
     # Returns a JAX array, tuple of arrays, or mapping of arrays.
@@ -190,7 +190,7 @@ class Source(abc.ABC):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
+      core_profiles: state.CoreProfiles,
   ) -> chex.ArrayTree:
     """Returns the profile for this source during one time step.
 
@@ -316,7 +316,7 @@ def get_source_profiles(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles | None,
+    core_profiles: state.CoreProfiles,
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
     prescribed_values: chex.Array,

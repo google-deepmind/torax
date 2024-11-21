@@ -21,48 +21,35 @@ evaluation. Kept as an internal model.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import dataclasses
 import datetime
 import os
 import subprocess
 import tempfile
+from collections.abc import Callable
 
 import chex
 import numpy as np
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
+
 from torax import geometry
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
-from torax.transport_model import qualikiz_utils
-from torax.transport_model import quasilinear_utils
+from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
 
 # pylint: disable=invalid-name
 @chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   """Extends the base runtime params with additional params for this model.
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
-
   # QuaLiKiz model configuration
-  # No collision correction needed for QuaLiKiz
-  coll_mult: float = 1.0
-  # effective D / effective V approach for particle transport
-  DVeff: bool = False
-  # minimum |R/Lne| below which effective V is used instead of effective D
-  An_min: float = 0.05
-  # ensure that smag - alpha > -0.2 always, to compensate for no slab modes
-  avoid_big_negative_s: bool = True
-  # reduce magnetic shear by 0.5*alpha
-  smag_alpha_correction: bool = False
-  # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
-  q_sawtooth_proxy: bool = True
   # set frequency of full QuaLiKiz contour solutions
   maxruns: int = 2
   # set number of cores used QuaLiKiz calculations
@@ -70,8 +57,14 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
+  ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
+  maxruns: int
+  numprocs: int
 
 
 class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
@@ -83,12 +76,6 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
-@chex.dataclass(frozen=True)
-class DynamicRuntimeParams(qualikiz_utils.QualikizDynamicRuntimeParams):
-  maxruns: int
-  numprocs: int
-
-
 _DEFAULT_QLKRUN_NAME_PREFIX = 'torax_qualikiz_runs'
 _DEFAULT_QLK_EXEC_PATH = '~/qualikiz/QuaLiKiz'
 _QLK_EXEC_PATH = os.environ.get(
@@ -96,7 +83,9 @@ _QLK_EXEC_PATH = os.environ.get(
 )
 
 
-class QualikizTransportModel(transport_model.TransportModel):
+class QualikizTransportModel(
+    qualikiz_based_transport_model.QualikizBasedTransportModel
+):
   """Calculates turbulent transport coefficients with QuaLiKiz."""
 
   def __init__(
@@ -150,7 +139,7 @@ class QualikizTransportModel(transport_model.TransportModel):
     )
     transport = dynamic_runtime_params_slice.transport
 
-    qualikiz_inputs = qualikiz_utils.prepare_qualikiz_inputs(
+    qualikiz_inputs = self._prepare_qualikiz_inputs(
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         nref=dynamic_runtime_params_slice.numerics.nref,
         q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
@@ -234,7 +223,7 @@ class QualikizTransportModel(transport_model.TransportModel):
 
   def _extract_run_data(
       self,
-      qualikiz_inputs: qualikiz_utils.QualikizInputs,
+      qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
       transport: DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -246,7 +235,7 @@ class QualikizTransportModel(transport_model.TransportModel):
     qe = np.loadtxt(self._runpath + '/output/efe_GB.dat')
     pfe = np.loadtxt(self._runpath + '/output/pfe_GB.dat')
 
-    return quasilinear_utils.make_core_transport(
+    return self._make_core_transport(
         qi=qi,
         qe=qe,
         pfe=pfe,
@@ -258,7 +247,7 @@ class QualikizTransportModel(transport_model.TransportModel):
 
 
 def _extract_qualikiz_plan(
-    qualikiz_inputs: qualikiz_utils.QualikizInputs,
+    qualikiz_inputs: qualikiz_based_transport_model.QualikizInputs,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,

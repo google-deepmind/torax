@@ -112,7 +112,7 @@ class QeiSource(source.Source):
       source_type: int,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
+      core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
     raise NotImplementedError('Call get_qei() instead.')
 

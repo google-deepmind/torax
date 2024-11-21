@@ -19,6 +19,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy.integrate
+from torax import geometry
 from torax import math_utils
 
 jax.config.update('jax_enable_x64', True)
@@ -63,6 +64,20 @@ class MathUtilsTest(parameterized.TestCase):
 
     atol = 3e-7 if dtype == jnp.float32 else 1e-12
     np.testing.assert_allclose(cumulative, ref, atol=atol)
+
+  @parameterized.parameters(5, 50, 500)
+  def test_cell_integration(self, num_cell_grid_points: int):
+    """Test that the cell_integration method works as expected."""
+    x = jax.random.uniform(
+        jax.random.PRNGKey(0), shape=(num_cell_grid_points + 1,)
+    )
+    geo = geometry.build_circular_geometry(n_rho=num_cell_grid_points)
+
+    np.testing.assert_allclose(
+        math_utils.cell_integration(geometry.face_to_cell(x), geo),
+        jax.scipy.integrate.trapezoid(x, geo.rho_face_norm),
+        rtol=1e-6,  # 1e-7 rtol is too tight for this test to pass.
+    )
 
 
 if __name__ == '__main__':

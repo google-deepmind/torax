@@ -200,6 +200,9 @@ Defines the distribution of ion species. Currently restricted to a single main i
 ``Zimp`` (float = 10.0), **time-varying-scalar**
   Impurity charge state.
 
+``Aimp`` (float = 20.18), **time-varying-scalar**
+  Impurity mass in amu units.
+
 ``Zeff`` (float = 1.0), **time-varying-scalar**
   Plasma effective charge, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is
   the normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and :math:`Z_{imp}`, a consistent :math:`\hat{n}_i` is calculated,
@@ -210,8 +213,8 @@ Profile conditions
 
 Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
 
-``Ip`` (float = 15.0), **time-varying-scalar**
-  Plasma current in MA. Boundary condition for the :math:`\psi` equation.
+``Ip_tot`` (float = 15.0), **time-varying-scalar**
+  Total plasma current in MA. Boundary condition for the :math:`\psi` equation.
 
 ``Ti_bound_right`` (float | None [default]), **time-varying-scalar**
   Ion temperature boundary condition at :math:`\hat{\rho}=1` in units of keV.
@@ -819,7 +822,7 @@ A utility source module that allows for a time dependent Gaussian ion and electr
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
 ``Ptot`` (float = 120e6), **time-varying-scalar**
-  Total source power in MW.
+  Total injected source power in W.
 
 ``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
@@ -975,6 +978,35 @@ By default, both the manual and Gaussian profiles are zero. The manual and Gauss
 
     ``cd_efficiency`` **time-varying-scalar**
         Dimensionless local efficiency profile for conversion of EC power to current.
+
+ion_cyclotron_source
+^^^^^^^^^^^^^^^^^^^^
+Ion cyclotron heating using a surrogate model of the TORIC ICRH spectrum
+solver simulation https://meetings.aps.org/Meeting/DPP24/Session/NP12.106.
+This source is currently SPARC specific.
+
+Weights and configuration for the surrogate model are needed to use this source.
+By default these are expected to be found under
+``'~/toric_surrogate/TORIC_MLP_v1/toricnn.json'``. To use a different file path
+an alternative path can be provided using the ``TORIC_NN_MODEL_PATH``
+environment variable which should point to a compatible JSON file.
+
+``mode`` (str = 'model')
+
+``wall_inner`` (float = 1.24)
+  Inner radial location of first wall at plasma midplane level [m].
+
+``wall_outer`` (float = 2.43)
+  Outer radial location of first wall at plasma midplane level [m].
+
+``frequency`` (float = 120e6) **time-varying-scalar**
+  ICRF wave frequency in Hz.
+
+``minority_concentration`` (float = 3.0) **time-varying-scalar**
+  Helium-3 minority concentration relative to the electron density in %.
+
+``Ptot`` (float = 120e6), **time-varying-scalar**
+  Total injected source power in W.
 
 See :ref:`physics_models` for more detail.
 
@@ -1156,7 +1188,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'Zimp': 10,
           },
           'profile_conditions': {
-              'Ip': {0: 3, 80: 10.5},
+              'Ip_tot': {0: 3, 80: 10.5},
               # initial condition ion temperature for r=0 and r=Rmin
               'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
               'Ti_bound_right': 0.1,  # boundary condition ion temp for r=Rmin
@@ -1286,6 +1318,10 @@ The subsequence simulation will then recreate the state from ``t=10`` in the
 previous simulation and then run the simulation from that point in time. For
 all subsequent steps the dynamic runtime parameters will be constructed using
 the given runtime parameter configuration (from ``t=10`` onwards).
+
+If the requested restart time is not exactly available in the state file, the
+simulation will restart from the closest available time. A warning will be
+logged in this case.
 
 We envisage this feature being useful for example to:
 

@@ -38,7 +38,7 @@ class ProfileConditions(
   # total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data
-  Ip: interpolated_param.TimeInterpolatedInput = 15.0
+  Ip_tot: interpolated_param.TimeInterpolatedInput = 15.0
 
   # Temperature boundary conditions at r=Rmin. If this is `None` the boundary
   # condition will instead be taken from `Ti` and `Te` at rhon=1.
@@ -187,7 +187,7 @@ class ProfileConditionsProvider(
   """Provider to retrieve initial and prescribed values and boundary conditions."""
 
   runtime_params_config: ProfileConditions
-  Ip: interpolated_param.InterpolatedVarSingleAxis
+  Ip_tot: interpolated_param.InterpolatedVarSingleAxis
   Ti_bound_right: (
       interpolated_param.InterpolatedVarSingleAxis
       | interpolated_param.InterpolatedVarTimeRho
@@ -224,7 +224,7 @@ class ProfileConditionsProvider(
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
-  Ip: array_typing.ScalarFloat
+  Ip_tot: array_typing.ScalarFloat
   Ti_bound_right: array_typing.ScalarFloat
   Te_bound_right: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.
