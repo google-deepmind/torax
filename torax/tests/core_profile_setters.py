@@ -14,9 +14,10 @@
 
 """Tests for module torax.boundary_conditions."""
 
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
-import numpy as np
+
 from torax import core_profile_setters
 from torax import geometry
 from torax import physics
@@ -26,7 +27,6 @@ from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.transport_model import runtime_params as transport_params_lib
-
 
 SMALL_VALUE = 1e-6
 
@@ -494,8 +494,10 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        dynamic_runtime_params_slice,
-        self.geo,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+        core_profiles_t_minus_dt=None, # This test does not hit the conditional that requires this
+        geo=self.geo,
+        dt=runtime_params.numerics.fixed_dt,
     )
 
     if (ne_is_fGW and ne_bound_right is None) or (
@@ -585,8 +587,10 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        dynamic_runtime_params_slice,
-        self.geo,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+        core_profiles_t_minus_dt=None, # This test does not hit the conditional that requires this
+        geo=self.geo,
+        dt=runtime_params.numerics.fixed_dt,
     )
 
     self.assertEqual(
@@ -616,13 +620,13 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(
-        t=1.0,
-    )
+    dynamic_runtime_params_slice = provider(t=1.0)
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        dynamic_runtime_params_slice,
-        self.geo,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+        core_profiles_t_minus_dt=None, # This test does not hit the conditional that requires this
+        geo=self.geo,
+        dt=runtime_params.numerics.fixed_dt,
     )
 
     self.assertEqual(

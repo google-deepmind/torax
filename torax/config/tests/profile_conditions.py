@@ -14,14 +14,15 @@
 
 """Unit tests for the `torax.config.profile_conditions` module."""
 
+import numpy as np
+import xarray as xr
 from absl.testing import absltest
 from absl.testing import parameterized
-import numpy as np
+
 from torax import geometry
 from torax import interpolated_param
 from torax.config import config_args
 from torax.config import profile_conditions
-import xarray as xr
 
 
 # pylint: disable=invalid-name
@@ -248,30 +249,6 @@ class ProfileConditionsTest(parameterized.TestCase):
       profile_conditions.ProfileConditions(
           Ti=values,
           Ti_bound_right=None,
-      )
-
-  def test_raises_error_if_Ip_and_Vloop_clash(self, values, raises):
-    """Tests that an error is raised if a) Vloop and Ip are both None or
-    b) Vloop and Ip are both not None."""
-    if raises:
-      with self.assertRaises(ValueError):
-        profile_conditions.ProfileConditions(
-            Ip=values,
-            Vloop_bound_right=values,
-        )
-      with self.assertRaises(ValueError):
-        profile_conditions.ProfileConditions(
-            Ip=None,
-            Vloop_bound_right=None,
-        )
-    else:
-      profile_conditions.ProfileConditions(
-          Ip=values,
-          Vloop_bound_right=values,
-      )
-      profile_conditions.ProfileConditions(
-          Ip=None,
-          Vloop_bound_right=None,
       )
 
 if __name__ == '__main__':

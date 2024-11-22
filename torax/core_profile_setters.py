@@ -516,7 +516,7 @@ def _update_psi_from_j(
   Returns:
     psi: Poloidal flux cell variable.
   """
-  psi_grad_constraint = _calculate_psi_grad_constraint_from_Ip(
+  psi_grad_constraint = _calculate_psi_grad_constraint_from_Ip_tot(
       dynamic_runtime_params_slice,
       geo,
   )
@@ -552,7 +552,7 @@ def _update_psi_from_j(
 
 
 # pylint: enable=invalid-name
-def _calculate_psi_grad_constraint_from_Ip(
+def _calculate_psi_grad_constraint_from_Ip_tot(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
 ) -> jax.Array:
@@ -572,7 +572,7 @@ def _psi_value_constraint_from_Vloop(
 ) -> jax.Array:
   """Calculates the value constraint on the poloidal flux (psi) from Vloop."""
   return (
-    core_profiles_t_minus_dt.psi.face_value(geo.rho_b)
+    core_profiles_t_minus_dt.psi.face_value()[-1]
     + dynamic_runtime_params_slice_t.profile_conditions.Vloop_bound_right * dt
   )
 
@@ -605,7 +605,7 @@ def _init_psi_and_current(
   if dynamic_runtime_params_slice.profile_conditions.psi is not None:
     psi = cell_variable.CellVariable(
         value=dynamic_runtime_params_slice.profile_conditions.psi,
-        right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip(
+        right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip_tot(
             dynamic_runtime_params_slice,
             geo,
         ),
@@ -628,7 +628,7 @@ def _init_psi_and_current(
     # calculated and used in current diffusion equation.
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
-        right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip(
+        right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip_tot(
             dynamic_runtime_params_slice,
             geo,
         ),
@@ -954,23 +954,19 @@ def compute_boundary_conditions(
           right_face_constraint=jnp.array(nimp_bound_right),
       ),
       'psi': dict(
-          right_face_grad_constraint=jnp.where(
-            dynamic_runtime_params_slice_t.profile_conditions.Ip is not None,
-            _calculate_psi_grad_constraint_from_Ip(
+          right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip_tot(
               dynamic_runtime_params_slice_t,
               geo,
             ),
-            None
-          ),
-          right_face_constraint=jnp.where(
-            dynamic_runtime_params_slice_t.profile_conditions.Vloop_bound_right is not None,
+          right_face_constraint=(
             _psi_value_constraint_from_Vloop(
               dynamic_runtime_params_slice_t,
               core_profiles_t_minus_dt,
               geo,
               dt,
-            ),
-            None,
+            )
+            if dynamic_runtime_params_slice_t.profile_conditions.Vloop_bound_right is not None
+            else None
           ),
         ),
   }

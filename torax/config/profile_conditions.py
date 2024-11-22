@@ -36,18 +36,13 @@ class ProfileConditions(
 ):
   """Prescribed values and boundary conditions for the core profiles."""
 
-  # total plasma current in MA
+  # Total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data
-<<<<<<< HEAD
-  Ip: interpolated_param.TimeInterpolatedInput | None = 15.0
-
-  # Boundary condition at LCFS for Vloop ( = dpsi/dt )
-  # Used if total plasma current is a state and edge flux is an input
-  Vloop_bound_right: interpolated_param.TimeInterpolatedInput | None = None
-=======
   Ip_tot: interpolated_param.TimeInterpolatedInput = 15.0
->>>>>>> main
+
+  # Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt )
+  Vloop_bound_right: interpolated_param.TimeInterpolatedInput | None = None
 
   # Temperature boundary conditions at r=Rmin. If this is `None` the boundary
   # condition will instead be taken from `Ti` and `Te` at rhon=1.
@@ -151,12 +146,6 @@ class ProfileConditions(
           'ne',
       )
 
-    # Check that only one of Vloop_bound_right and Ip are provided
-    # ^ is XOR
-    if not ((self.Ip is None) ^ (self.Vloop_bound_right is None)):
-      raise ValueError("Only one of Ip and Vloop_bound_right can be defined")
-
-
   @override
   def make_provider(
       self,
@@ -202,12 +191,8 @@ class ProfileConditionsProvider(
   """Provider to retrieve initial and prescribed values and boundary conditions."""
 
   runtime_params_config: ProfileConditions
-<<<<<<< HEAD
-  Ip: interpolated_param.InterpolatedVarSingleAxis | None
-  Vloop_bound_right: interpolated_param.InterpolatedVarSingleAxis | None
-=======
   Ip_tot: interpolated_param.InterpolatedVarSingleAxis
->>>>>>> main
+  Vloop_bound_right: interpolated_param.InterpolatedVarSingleAxis | None
   Ti_bound_right: (
       interpolated_param.InterpolatedVarSingleAxis
       | interpolated_param.InterpolatedVarTimeRho
@@ -244,12 +229,8 @@ class ProfileConditionsProvider(
 class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
-<<<<<<< HEAD
-  Ip: array_typing.ScalarFloat | None
-  Vloop_bound_right: array_typing.ScalarFloat | None
-=======
   Ip_tot: array_typing.ScalarFloat
->>>>>>> main
+  Vloop_bound_right: array_typing.ScalarFloat | None
   Ti_bound_right: array_typing.ScalarFloat
   Te_bound_right: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.
