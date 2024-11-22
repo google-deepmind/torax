@@ -565,10 +565,10 @@ def _calculate_psi_grad_constraint_from_Ip_tot(
   )
 
 def _psi_value_constraint_from_Vloop(
+  dt: jax.Array,
   dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
   core_profiles_t_minus_dt: state.CoreProfiles,
   geo: Geometry,
-  dt: jax.Array,
 ) -> jax.Array:
   """Calculates the value constraint on the poloidal flux (psi) from Vloop."""
   return (
@@ -879,10 +879,10 @@ def update_evolving_core_profiles(
 
 
 def compute_boundary_conditions(
+    dt: jax.Array,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     core_profiles_t_minus_dt: state.CoreProfiles,
     geo: geometry.Geometry,
-    dt: jax.Array,
 ) -> dict[str, dict[str, jax.Array | None]]:
   """Computes boundary conditions for time t and returns updates to State.
 

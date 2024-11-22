@@ -35,6 +35,7 @@ import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
+import xarray as xr
 from absl import logging
 
 from torax import calc_coeffs
@@ -58,7 +59,6 @@ from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
-import xarray as xr
 
 
 def _log_timestep(
@@ -485,11 +485,11 @@ class SimulationStepFn:
     # conditions and time-dependent prescribed profiles not directly solved by
     # PDE system.
     core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
+        dt=dt,
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
-        dt=dt,
     )
 
     # Initial trial for stepper. If did not converge (can happen for nonlinear
@@ -607,11 +607,11 @@ class SimulationStepFn:
       )
 
       core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
+          dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
           core_profiles_t=core_profiles_t,
-          dt=dt,
       )
       core_profiles, core_sources, core_transport, stepper_numeric_outputs = (
           self._stepper_fn(
@@ -1566,19 +1566,19 @@ def update_psidot(
 
 
 def provide_core_profiles_t_plus_dt(
+    dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
-    dt: jax.Array,
 ) -> state.CoreProfiles:
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
   updated_boundary_conditions = (
       core_profile_setters.compute_boundary_conditions(
+          dt,
           dynamic_runtime_params_slice_t_plus_dt,
           core_profiles_t,
           geo_t_plus_dt,
-          dt,
       )
   )
   updated_values = core_profile_setters.updated_prescribed_core_profiles(

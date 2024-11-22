@@ -23,6 +23,7 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
+
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry
@@ -119,8 +120,10 @@ class ExplicitStepper(stepper_lib.Stepper):
     # Update the potentially time-dependent boundary conditions as well.
     updated_boundary_conditions = (
         core_profile_setters.compute_boundary_conditions(
-            dynamic_runtime_params_slice_t_plus_dt,
-            geo_t,
+          dt=dynamic_runtime_params_slice_t_plus_dt.numerics.fixed_dt,
+          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t_plus_dt,
+          core_profiles_t_minus_dt=core_profiles_t,
+          geo=geo_t_plus_dt,
         )
     )
     temp_ion_new = dataclasses.replace(

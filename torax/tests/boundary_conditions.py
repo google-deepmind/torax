@@ -15,9 +15,10 @@
 """Tests for module torax.boundary_conditions."""
 
 
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
-import numpy as np
+
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry
@@ -97,8 +98,10 @@ class BoundaryConditionsTest(parameterized.TestCase):
     )
 
     bc = core_profile_setters.compute_boundary_conditions(
-        dynamic_runtime_params_slice,
-        geo,
+      dt=runtime_params.numerics.fixed_dt,
+      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+      core_profiles_t_minus_dt=core_profiles,
+      geo=geo,
     )
 
     updated = config_args.recursive_replace(core_profiles, **bc)
