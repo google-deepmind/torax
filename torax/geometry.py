@@ -1385,15 +1385,9 @@ class StandardGeometryIntermediates:
       hires_fac: int = 4,
       Scenario: str = "scenario.yaml",
   ) -> StandardGeometryIntermediates:
-    """Returns StandardGeometryIntermediates from a single slice FBT LY file.
+    """Returns StandardGeometryIntermediates from a equilibrium IDS loaded from a Data Entry specified in a scenario.yaml file.
 
-    LY and L are FBT data files containing magnetic geometry information.
-    The majority of the needed information is in the LY file. The L file
-    is only needed to get the normalized poloidal flux coordinate, pQ.
-
-    This method is for cases when the LY file on disk corresponds to a single
-    time slice. Either a single time slice or sequence of time slices can be
-    provided in the geometry config.
+    This method is for cases when the equilibrium is taken from an existing scenario. A single time slice is taken.
 
     Args:
       geometry_dir: Directory where to find the scenario file ontaining the parameters of the Data entry to read.

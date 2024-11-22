@@ -81,7 +81,7 @@ def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
 
 
 def _load_IMAS_data_from_Data_entry(file_path: str) -> dict[str, np.ndarray]:
-  """Loads the equilibrium IDS from a specific data entry / scenario using the IMAS Access Layer"""
+  """Loads the equilibrium IDS for a single time slice from a specific data entry / scenario using the IMAS Access Layer"""
   import imas
   file = open(file_path, 'r')
   scenario = yaml.load(file,Loader=yaml.CLoader)
