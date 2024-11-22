@@ -26,17 +26,29 @@ from torax.transport_model import runtime_params as runtime_params_lib
 
 @chex.dataclass
 class RuntimeParams(quasilinear_transport_model.RuntimeParams):
-    pass
+    """Shared parameters for TGLF-based models."""
+
+    def make_provider(
+        self, torax_mesh: geometry.Grid1D | None = None
+    ) -> "RuntimeParamsProvider":
+        return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(quasilinear_transport_model.DynamicRuntimeParams):
+    """Shared parameters for TGLF-based models."""
+
     pass
 
 
 @chex.dataclass
 class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-    pass
+    """Provides a RuntimeParams to use during time t of the sim."""
+
+    runtime_params_config: RuntimeParams
+
+    def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+        return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)
