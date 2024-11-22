@@ -36,7 +36,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
-from torax.transport_model import qualikiz_utils
+from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
@@ -59,52 +59,51 @@ def get_default_runtime_params_from_model_path(
   """Returns default runtime params for the model version given the path."""
   version = _get_model(model_path).version
   if version == '10D':
-    return RuntimeParams()
+    return RuntimeParams(
+        # Correction factor to a more recent QLK collision operator.
+        coll_mult=0.25,
+        # The QLK version this specific QLKNN was trained on tends to
+        # underpredict ITG electron heat flux in shaped, high-beta scenarios.
+        ITG_flux_ratio_correction=2.0,
+    )
   else:
     raise ValueError(f'Unknown model version: {version}')
 
 
 # pylint: disable=invalid-name
 @chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   """Extends the base runtime params with additional params for this model.
-
-  These are the default values for the QLKNN10D model.
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
-
-  # Collisionality multiplier in QLKNN for sensitivity testing.
-  # Default is 0.25 (correction factor to a more recent QLK collision operator)
-  coll_mult: float = 0.25
   include_ITG: bool = True  # to toggle ITG modes on or off
   include_TEM: bool = True  # to toggle TEM modes on or off
   include_ETG: bool = True  # to toggle ETG modes on or off
-  # The QLK version this specific QLKNN was trained on tends to underpredict
-  # ITG electron heat flux in shaped, high-beta scenarios.
-  # This is a correction factor
-  ITG_flux_ratio_correction: float = 2.0
+  # This is a correction factor for ITG electron heat flux.
+  ITG_flux_ratio_correction: float = 1.0
   # Correction factor to account for multiscale correction in Qualikiz ETG.
   # https://gitlab.com/qualikiz-group/QuaLiKiz/-/commit/5bcd3161c1b08e0272ab3c9412fec7f9345a2eef
   ETG_correction_factor: float = 1.0 / 3.0
-  # effective D / effective V approach for particle transport
-  DVeff: bool = False
-  # minimum |R/Lne| below which effective V is used instead of effective D
-  An_min: float = 0.05
-  # ensure that smag - alpha > -0.2 always, to compensate for no slab modes
-  avoid_big_negative_s: bool = True
-  # reduce magnetic shear by 0.5*alpha to capture main impact of alpha
-  smag_alpha_correction: bool = True
-  # if q < 1, modify input q and smag as if q~1 as if there are sawteeth
-  q_sawtooth_proxy: bool = True
   # clip inputs within desired margin of the QLKNN training set boundaries
   clip_inputs: bool = False
   clip_margin: float = 0.95
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
+  ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
+
+
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
+  include_ITG: bool
+  include_TEM: bool
+  include_ETG: bool
+  ITG_flux_ratio_correction: float
+  ETG_correction_factor: float
+  clip_inputs: bool
+  clip_margin: float
 
 
 @chex.dataclass
@@ -115,17 +114,6 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
-@chex.dataclass(frozen=True)
-class DynamicRuntimeParams(qualikiz_utils.QualikizDynamicRuntimeParams):
-  include_ITG: bool
-  include_TEM: bool
-  include_ETG: bool
-  ITG_flux_ratio_correction: float
-  ETG_correction_factor: float
-  clip_inputs: bool
-  clip_margin: float
 
 
 _EPSILON_NN: Final[float] = (
@@ -214,7 +202,7 @@ def filter_model_output(
 def clip_inputs(
     feature_scan: jax.Array,
     clip_margin: float,
-    inputs_and_ranges: dict[str, dict[str, float]],
+    inputs_and_ranges: base_qlknn_model.InputsAndRanges,
 ) -> jax.Array:
   """Clip input values according to the training set limits + optional user-defined margin for qlknn."""
   for i, key in enumerate(inputs_and_ranges.keys()):
@@ -239,7 +227,9 @@ def clip_inputs(
   return feature_scan
 
 
-class QLKNNTransportModel(transport_model.TransportModel):
+class QLKNNTransportModel(
+    qualikiz_based_transport_model.QualikizBasedTransportModel
+):
   """Calculates turbulent transport coefficients."""
 
   def __init__(
@@ -305,7 +295,7 @@ class QLKNNTransportModel(transport_model.TransportModel):
       d_face_ne: Diffusivity for electron density, along faces.
       v_face_ne: Convectivity for electron density, along faces.
     """
-    qualikiz_inputs = qualikiz_utils.prepare_qualikiz_inputs(
+    qualikiz_inputs = self._prepare_qualikiz_inputs(
         Zeff_face=runtime_config_inputs.Zeff_face,
         nref=runtime_config_inputs.nref,
         q_correction_factor=runtime_config_inputs.q_correction_factor,
@@ -314,7 +304,6 @@ class QLKNNTransportModel(transport_model.TransportModel):
         core_profiles=core_profiles,
     )
     model = _get_model(self._model_path)
-    version = model.version
 
     # To take into account a different aspect ratio compared to the qlknn
     # training set, the qlknn input normalized radius needs to be rescaled by
@@ -324,33 +313,16 @@ class QLKNNTransportModel(transport_model.TransportModel):
         qualikiz_inputs,
         x=qualikiz_inputs.x * qualikiz_inputs.epsilon_lcfs / _EPSILON_NN,
     )
-    if version == '10D':
-      # Ranges are from the training set boundaries and can be optionally used
-      # to clip the input values within a desired margin.
-      inputs_and_ranges = {
-          'Zeff_face': {'min': 1.0, 'max': 3.0},
-          'Ati': {'min': 0.0, 'max': 14.0},
-          'Ate': {'min': 0.0, 'max': 14.0},
-          'Ane': {'min': -5.0, 'max': 6.0},
-          'q': {'min': 0.66, 'max': 15},
-          'smag': {'min': -1.0, 'max': 5.0},
-          'x': {'min': 0.09, 'max': 0.99},
-          'Ti_Te': {'min': 0.25, 'max': 2.5},
-          'log_nu_star_face': {'min': -5.0, 'max': 0.0},
-      }
-    else:
-      raise ValueError(f'Unknown model version: {version}')
 
-    feature_scan = jnp.array(
-        [getattr(qualikiz_inputs, key) for key in inputs_and_ranges.keys()]
-    ).T
+    feature_scan = model.get_model_inputs_from_qualikiz_inputs(qualikiz_inputs)
     # Clip inputs if requested.
+    # TODO(b/364218524): Consider better clipping of out-of-distribution inputs.
     feature_scan = jax.lax.cond(
         runtime_config_inputs.transport.clip_inputs,
         lambda: clip_inputs(
             feature_scan,
             runtime_config_inputs.transport.clip_margin,
-            inputs_and_ranges,
+            model.inputs_and_ranges,
         ),  # Called when True
         lambda: feature_scan,  # Called when False
     )
@@ -376,14 +348,16 @@ class QLKNNTransportModel(transport_model.TransportModel):
 
     pfe = model_output['pfe_itg'].squeeze() + model_output['pfe_tem'].squeeze()
 
-    return qualikiz_utils.make_core_transport(
+    return self._make_core_transport(
         qi=qi,
         qe=qe,
         pfe=pfe,
-        qualikiz_inputs=qualikiz_inputs,
+        quasilinear_inputs=qualikiz_inputs,
         transport=runtime_config_inputs.transport,
         geo=geo,
         core_profiles=core_profiles,
+        gradient_reference_length=geo.Rmaj,
+        gyrobohm_flux_reference_length=geo.Rmin,
     )
 
   def __hash__(self) -> int:

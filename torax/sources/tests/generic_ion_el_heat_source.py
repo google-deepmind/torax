@@ -15,7 +15,6 @@
 """Tests for generic_ion_el_heat_source."""
 
 from absl.testing import absltest
-from torax import geometry
 from torax.sources import generic_ion_el_heat_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -29,7 +28,7 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
   def setUpClass(cls):
     super().setUpClass(
         source_class=generic_ion_el_heat_source.GenericIonElectronHeatSource,
-        source_class_builder=generic_ion_el_heat_source.GenericIonElectronHeatSourceBuilder,
+        runtime_params_class=generic_ion_el_heat_source.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
@@ -38,12 +37,6 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
             source.AffectedCoreProfile.TEMP_EL,
         ),
     )
-
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = generic_ion_el_heat_source.RuntimeParams()
-    geo = geometry.build_circular_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
 
 
 if __name__ == '__main__':

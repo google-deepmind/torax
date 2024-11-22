@@ -32,10 +32,10 @@ from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
-from torax.sources import default_sources
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_runtime_params
+from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import torax_refs
 from torax.transport_model import constant as constant_transport_model
 

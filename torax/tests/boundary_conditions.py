@@ -64,7 +64,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
             ne_bound_right=ne_bound_right,
             ne=ne,
             ne_is_fGW=False,
-            Ip={0.0: 5, 1.0: 7},
+            Ip_tot={0.0: 5, 1.0: 7},
             normalize_to_nbar=False,
         ),
     )

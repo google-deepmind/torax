@@ -24,10 +24,12 @@ import functools
 from typing import Type
 
 import chex
+import contourpy
 import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy
+from torax import array_typing
 from torax import constants
 from torax import geometry_loader
 from torax import interpolated_param
@@ -116,7 +118,9 @@ class GeometryType(enum.Enum):
   """
 
   CIRCULAR = 0
-  NUMERICAL = 1
+  CHEASE = 1
+  FBT = 2
+  EQDSK = 3
 
 
 # pylint: disable=invalid-name
@@ -133,7 +137,7 @@ class Geometry:
   # TODO(b/356356966): extend documentation to define what each attribute is.
   geometry_type: int
   torax_mesh: Grid1D
-  drho_norm: chex.Array
+  drho_norm: array_typing.ArrayFloat
   Phi: chex.Array
   Phi_face: chex.Array
   Rmaj: chex.Array
@@ -148,6 +152,7 @@ class Geometry:
   spr_cell: chex.Array
   spr_face: chex.Array
   delta_face: chex.Array
+  elongation_face: chex.Array
   g0: chex.Array
   g0_face: chex.Array
   g1: chex.Array
@@ -173,6 +178,7 @@ class Geometry:
   rho_hires: chex.Array
   vpr_hires: chex.Array
   Phibdot: chex.Array
+  _z_magnetic_axis: chex.Array
 
   @property
   def rho_norm(self) -> chex.Array:
@@ -241,6 +247,10 @@ class Geometry:
         self.g1_face[1:] / self.vpr_face[1:] ** 2,  # avoid div by zero on-axis
     ))
 
+  @property
+  def z_magnetic_axis(self) -> chex.Numeric:
+    return self._z_magnetic_axis
+
 
 @chex.dataclass(frozen=True)
 class GeometryProvider:
@@ -263,6 +273,7 @@ class GeometryProvider:
   spr_cell: interpolated_param.InterpolatedVarSingleAxis
   spr_face: interpolated_param.InterpolatedVarSingleAxis
   delta_face: interpolated_param.InterpolatedVarSingleAxis
+  elongation_face: interpolated_param.InterpolatedVarSingleAxis
   g0: interpolated_param.InterpolatedVarSingleAxis
   g0_face: interpolated_param.InterpolatedVarSingleAxis
   g1: interpolated_param.InterpolatedVarSingleAxis
@@ -287,6 +298,7 @@ class GeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   vpr_hires: interpolated_param.InterpolatedVarSingleAxis
+  _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis
 
   @classmethod
   def create_provider(
@@ -358,9 +370,7 @@ class CircularAnalyticalGeometry(Geometry):
   Most users should default to using the Geometry class.
   """
 
-  kappa: chex.Array
-  kappa_face: chex.Array
-  kappa_hires: chex.Array
+  elongation_hires: chex.Array
 
 
 @chex.dataclass(frozen=True)
@@ -370,9 +380,7 @@ class CircularAnalyticalGeometryProvider(GeometryProvider):
   Most users should default to using the GeometryProvider class.
   """
 
-  kappa: interpolated_param.InterpolatedVarSingleAxis
-  kappa_face: interpolated_param.InterpolatedVarSingleAxis
-  kappa_hires: interpolated_param.InterpolatedVarSingleAxis
+  elongation_hires: interpolated_param.InterpolatedVarSingleAxis
 
   def __call__(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""
@@ -387,7 +395,7 @@ class StandardGeometry(Geometry):
   """
 
   Ip_from_parameters: bool
-  Ip: chex.Scalar
+  Ip_profile_face: chex.Array
   psi: chex.Array
   psi_from_Ip: chex.Array
   jtot: chex.Array
@@ -401,13 +409,14 @@ class StandardGeometryProvider(GeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
 
   Ip_from_parameters: bool
-  Ip: interpolated_param.InterpolatedVarSingleAxis
+  Ip_profile_face: interpolated_param.InterpolatedVarSingleAxis
   psi: interpolated_param.InterpolatedVarSingleAxis
   psi_from_Ip: interpolated_param.InterpolatedVarSingleAxis
   jtot: interpolated_param.InterpolatedVarSingleAxis
   jtot_face: interpolated_param.InterpolatedVarSingleAxis
   delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
   delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
+  elongation_face: interpolated_param.InterpolatedVarSingleAxis
 
   @functools.partial(jax_utils.jit, static_argnums=0)
   def __call__(self, t: chex.Numeric) -> Geometry:
@@ -415,9 +424,20 @@ class StandardGeometryProvider(GeometryProvider):
     return self._get_geometry_base(t, StandardGeometry)
 
 
+@chex.dataclass(frozen=True)
+class CheaseGeometry(StandardGeometry):
+  """CHEASE geometry type."""
+
+  @property
+  def z_magnetic_axis(self) -> chex.Numeric:
+    raise NotImplementedError(
+        'CHEASE geometry does not have a z magnetic axis.'
+    )
+
+
 def build_circular_geometry(
     n_rho: int = 25,
-    kappa: float = 1.72,
+    elongation_LCFS: float = 1.72,
     Rmaj: float = 6.2,
     Rmin: float = 2.0,
     B0: float = 5.3,
@@ -432,8 +452,9 @@ def build_circular_geometry(
 
   Args:
     n_rho: Radial grid points (num cells)
-    kappa: Elogination. Defaults to 1.72 for the ITER elongation, to
-      approximately correct volume and area integral Jacobians.
+    elongation_LCFS: Elongation at last closed flux surface. Defaults to 1.72
+      for the ITER elongation, to approximately correct volume and area integral
+      Jacobians.
     Rmaj: major radius (R) in meters
     Rmin: minor radius (a) in meters
     B0: Toroidal magnetic field on axis [T]
@@ -443,7 +464,7 @@ def build_circular_geometry(
   Returns:
     A CircularAnalyticalGeometry instance.
   """
-  # circular geometry assmption of r/Rmin = rho_norm, the normalized
+  # circular geometry assumption of r/Rmin = rho_norm, the normalized
   # toroidal flux coordinate.
   drho_norm = 1.0 / n_rho
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
@@ -467,37 +488,39 @@ def build_circular_geometry(
   Phi_face = np.pi * B0 * rho_face**2
 
   # Elongation profile.
-  # Set to be a linearly increasing function from 1 to kappa_param, which is the
-  # kappa value at the last closed flux surface, set in config.
-  kappa_param = kappa
-  kappa = 1 + rho_norm * (kappa_param - 1)
-  kappa_face = 1 + rho_face_norm * (kappa_param - 1)
+  # Set to be a linearly increasing function from 1 to elongation_LCFS, which
+  # is the elongation value at the last closed flux surface, set in config.
+  elongation = 1 + rho_norm * (elongation_LCFS - 1)
+  elongation_face = 1 + rho_face_norm * (elongation_LCFS - 1)
 
   # Volume in elongated circular geometry is given by:
-  # V = 2*pi^2*R*rho^2*kappa
-  # S = pi*rho^2*kappa
+  # V = 2*pi^2*R*rho^2*elongation
+  # S = pi*rho^2*elongation
 
-  volume = 2 * np.pi**2 * Rmaj * rho**2 * kappa
-  volume_face = 2 * np.pi**2 * Rmaj * rho_face**2 * kappa_face
-  area = np.pi * rho**2 * kappa
-  area_face = np.pi * rho_face**2 * kappa_face
+  volume = 2 * np.pi**2 * Rmaj * rho**2 * elongation
+  volume_face = 2 * np.pi**2 * Rmaj * rho_face**2 * elongation_face
+  area = np.pi * rho**2 * elongation
+  area_face = np.pi * rho_face**2 * elongation_face
 
   # V' = dV/drnorm for volume integrations
-  # \nabla V = 4*pi^2*R*rho*kappa + V * (kappa_param - 1) / kappa / rho_b
+  # \nabla V = 4*pi^2*R*rho*elongation
+  #   + V * (elongation_param - 1) / elongation / rho_b
   # vpr = \nabla V * rho_b
-  vpr = 4 * np.pi**2 * Rmaj * rho * kappa * rho_b + volume / kappa * (
-      kappa_param - 1
+  vpr = 4 * np.pi**2 * Rmaj * rho * elongation * rho_b + volume / elongation * (
+      elongation_LCFS - 1
   )
   vpr_face = (
-      4 * np.pi**2 * Rmaj * rho_face * kappa_face * rho_b
-      + volume_face / kappa_face * (kappa_param - 1)
+      4 * np.pi**2 * Rmaj * rho_face * elongation_face * rho_b
+      + volume_face / elongation_face * (elongation_LCFS - 1)
   )
   # pylint: disable=invalid-name
   # S' = dS/drnorm for area integrals on cell grid
-  spr_cell = 2 * np.pi * rho * kappa * rho_b + area / kappa * (kappa_param - 1)
+  spr_cell = 2 * np.pi * rho * elongation * rho_b + area / elongation * (
+      elongation_LCFS - 1
+  )
   spr_face = (
-      2 * np.pi * rho_face * kappa_face * rho_b
-      + area_face / kappa_face * (kappa_param - 1)
+      2 * np.pi * rho_face * elongation_face * rho_b
+      + area_face / elongation_face * (elongation_LCFS - 1)
   )
 
   delta_face = np.zeros(len(rho_face))
@@ -517,7 +540,7 @@ def build_circular_geometry(
   g2 = g1 / Rmaj**2
   g2_face = g1_face / Rmaj**2
 
-  # g3: <1/R^2> (done without a kappa correction)
+  # g3: <1/R^2> (done without a elongation correction)
   # <1/R^2> =
   # 1/2pi*int_0^2pi (1/(Rmaj+r*cosx)^2)dx =
   # 1/( Rmaj^2 * (1 - (r/Rmaj)^2)^3/2 )
@@ -534,7 +557,7 @@ def build_circular_geometry(
   # Using an approximation where:
   # g2g3_over_rhon = 16 * pi**4 * G2 / (J * R) where:
   # G2 = vpr / (4 * pi**2) * <1/R^2>
-  # This is done due to our ad-hoc kappa assumption, which leads to more
+  # This is done due to our ad-hoc elongation assumption, which leads to more
   # reasonable values for g2g3_over_rhon through the G2 definition.
   # In the future, a more rigorous analytical geometry will be developed and
   # the direct definition of g2g3_over_rhon will be used.
@@ -555,20 +578,20 @@ def build_circular_geometry(
   Rin_face = Rmaj - rho_face
 
   # assumed elongation profile on hires grid
-  kappa_hires = 1 + rho_hires_norm * (kappa_param - 1)
+  elongation_hires = 1 + rho_hires_norm * (elongation_LCFS - 1)
 
-  volume_hires = 2 * np.pi**2 * Rmaj * rho_hires**2 * kappa_hires
-  area_hires = np.pi * rho_hires**2 * kappa_hires
+  volume_hires = 2 * np.pi**2 * Rmaj * rho_hires**2 * elongation_hires
+  area_hires = np.pi * rho_hires**2 * elongation_hires
 
   # V' = dV/drnorm for volume integrations on hires grid
   vpr_hires = (
-      4 * np.pi**2 * Rmaj * rho_hires * kappa_hires * rho_b
-      + volume_hires / kappa_hires * (kappa_param - 1)
+      4 * np.pi**2 * Rmaj * rho_hires * elongation_hires * rho_b
+      + volume_hires / elongation_hires * (elongation_LCFS - 1)
   )
   # S' = dS/drnorm for area integrals on hires grid
   spr_hires = (
-      2 * np.pi * rho_hires * kappa_hires * rho_b
-      + area_hires / kappa_hires * (kappa_param - 1)
+      2 * np.pi * rho_hires * elongation_hires * rho_b
+      + area_hires / elongation_hires * (elongation_LCFS - 1)
   )
 
   g3_hires = 1 / (Rmaj**2 * (1 - (rho_hires / Rmaj) ** 2) ** (3.0 / 2.0))
@@ -613,19 +636,19 @@ def build_circular_geometry(
       Rout=Rout,
       Rout_face=Rout_face,
       # Set the circular geometry-specific params.
-      kappa=kappa,
-      kappa_face=kappa_face,
+      elongation_face=elongation_face,
       volume_hires=volume_hires,
       area_hires=area_hires,
       spr_hires=spr_hires,
       rho_hires_norm=rho_hires_norm,
       rho_hires=rho_hires,
-      kappa_hires=kappa_hires,
+      elongation_hires=elongation_hires,
       vpr_hires=vpr_hires,
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
       Phibdot=np.asarray(0.0),
+      _z_magnetic_axis=np.asarray(0.0),
   )
 
 
@@ -665,12 +688,15 @@ class StandardGeometryIntermediates:
   flux_surf_avg_R2Bp2: <R**2 Bp**2>
   delta_upper_face: Triangularity on upper face
   delta_lower_face: Triangularity on lower face
+  elongation: Plasma elongation profile
   vpr: dVolume/drhonorm profile
   n_rho: Radial grid points (num cells)
   hires_fac: Grid refinement factor for poloidal flux <--> plasma current
     calculations.
+  z_magnetic_axis: z position of magnetic axis [m]
   """
 
+  geometry_type: GeometryType
   Ip_from_parameters: bool
   Rmaj: chex.Numeric
   Rmin: chex.Numeric
@@ -688,9 +714,11 @@ class StandardGeometryIntermediates:
   flux_surf_avg_R2Bp2: chex.Array
   delta_upper_face: chex.Array
   delta_lower_face: chex.Array
+  elongation: chex.Array
   vpr: chex.Array
   n_rho: int
   hires_fac: int
+  z_magnetic_axis: chex.Numeric
 
   def __post_init__(self):
     """Extrapolates edge values based on a Cubic spline fit."""
@@ -806,6 +834,7 @@ class StandardGeometryIntermediates:
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
 
     return cls(
+        geometry_type=GeometryType.CHEASE,
         Ip_from_parameters=Ip_from_parameters,
         Rmaj=Rmaj,
         Rmin=Rmin,
@@ -823,40 +852,204 @@ class StandardGeometryIntermediates:
         flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2,
         delta_upper_face=chease_data['delta_upper'],
         delta_lower_face=chease_data['delta_bottom'],
+        elongation=chease_data['elongation'],
         vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
+        # field doesn't exist in CHEASE, populate with 0.
+        z_magnetic_axis=np.array(0.0),
     )
 
   @classmethod
-  def from_fbt(
+  def from_fbt_single_slice(
       cls,
       geometry_dir: str | None,
       LY_file: str,
       L_file: str,
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
-      Rmaj: float = 6.2,
-      Rmin: float = 2.0,
-      B0: float = 5.3,
       hires_fac: int = 4,
   ) -> StandardGeometryIntermediates:
-    """Constructs a StandardGeometryIntermediates from an FBT-LY file."""
+    """Returns StandardGeometryIntermediates from a single slice FBT LY file.
+
+    LY and L are FBT data files containing magnetic geometry information.
+    The majority of the needed information is in the LY file. The L file
+    is only needed to get the normalized poloidal flux coordinate, pQ.
+
+    This method is for cases when the LY file on disk corresponds to a single
+    time slice. Either a single time slice or sequence of time slices can be
+    provided in the geometry config.
+
+    Args:
+      geometry_dir: Directory where to find the FBT file describing the magnetic
+        geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
+        available. If that variable is not set and geometry_dir is not provided,
+        then it defaults to another dir. See `load_geo_data` implementation.
+      LY_file: File name for LY data.
+      L_file: File name for L data.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled
+      n_rho: Grid resolution used for all TORAX cell variables.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+
+    Returns:
+      A StandardGeometryIntermediates instance based on the input slice. This
+      can then be used to build a StandardGeometry by passing to
+      `build_standard_geometry`.
+    """
     LY = geometry_loader.load_geo_data(
         geometry_dir, LY_file, geometry_loader.GeometrySource.FBT
     )
     L = geometry_loader.load_geo_data(
         geometry_dir, L_file, geometry_loader.GeometrySource.FBT
     )
-    vacuum_tor_b_field = LY['rBt'] / Rmaj
-    Phi = LY['FtPQ'] / vacuum_tor_b_field * B0
-    rhon = np.sqrt(Phi / Phi[-1])
-    psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']
+    return cls._from_fbt(LY, L, Ip_from_parameters, n_rho, hires_fac)
+
+  @classmethod
+  def from_fbt_bundle(
+      cls,
+      geometry_dir: str | None,
+      LY_bundle_file: str,
+      L_file: str,
+      LY_to_torax_times: np.ndarray | None,
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+      hires_fac: int = 4,
+  ) -> dict[float, StandardGeometryIntermediates]:
+    """Returns StandardGeometryIntermediates from a bundled FBT LY file.
+
+    LY_bundle_file is an FBT data file containing a bundle of LY geometry
+    slices at different times, packaged within a single file (as opposed to
+    a sequence of standalone LY files). LY_to_torax_times is a 1D array of
+    times, defining the times in the TORAX simulation corresponding to each
+    slice in the LY bundle. All times in the LY bundle must be mapped to
+    times in TORAX.
+
+    Args:
+      geometry_dir: Directory where to find the FBT file describing the magnetic
+        geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
+        available. If that variable is not set and geometry_dir is not provided,
+        then it defaults to another dir. See `load_geo_data` implementation.
+      LY_bundle_file: File name for bundled LY data, e.g. as produced by liuqe
+        meqlpack.
+      L_file: File name for L data. Assumed to be the same L data for all LY
+        slices in the bundle.
+      LY_to_torax_times: User-provided times which map the times of the LY
+        geometry slices to TORAX simulation times. A ValueError is raised if the
+        number of array elements doesn't match the length of the LY_bundle array
+        data. If None, then the times are taken from the LY_bundle_file itself.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled.
+      n_rho: Grid resolution used for all TORAX cell variables.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+
+    Returns:
+      A mapping from user-provided (or inferred) times to
+      StandardGeometryIntermediates instances based on the input slices. This
+      can then be used to build a StandardGeometryProvider.
+    """
+
+    LY_bundle = geometry_loader.load_geo_data(
+        geometry_dir, LY_bundle_file, geometry_loader.GeometrySource.FBT
+    )['LY']
+
+    # Load the L file associated with the LY bundle.
+    L = geometry_loader.load_geo_data(
+        geometry_dir, L_file, geometry_loader.GeometrySource.FBT
+    )
+
+    if LY_to_torax_times is None:
+      LY_to_torax_times = LY_bundle['t'].item()  # ndarray of times
+    else:
+      if len(LY_to_torax_times) != len(LY_bundle['t'].item()):
+        raise ValueError(f"""
+            Length of LY_to_torax_times must match length of LY bundle data:
+            len(LY_to_torax_times)={len(LY_to_torax_times)},
+            len(LY_bundle['t'].item())={len(LY_bundle['t'].item())}
+            """)
+
+    intermediates = {}
+    for idx, t in enumerate(LY_to_torax_times):
+      data_slice = cls._get_LY_single_slice_from_bundle(LY_bundle, idx)
+      intermediates[t] = cls._from_fbt(
+          data_slice, L, Ip_from_parameters, n_rho, hires_fac
+      )
+
+    return intermediates
+
+  @classmethod
+  def _get_LY_single_slice_from_bundle(
+      cls,
+      LY_bundle: np.ndarray,
+      idx: int,
+  ) -> dict[str, np.ndarray]:
+    """Returns a single LY slice from a bundled LY file, at index idx."""
+
+    # The keys below are the relevant LY keys for the FBT geometry provider.
+    relevant_keys = [
+        'rBt',
+        'aminor',
+        'rgeom',
+        'TQ',
+        'FB',
+        'FA',
+        'Q1Q',
+        'Q2Q',
+        'Q3Q',
+        'Q4Q',
+        'Q5Q',
+        'ItQ',
+        'deltau',
+        'deltal',
+        'kappa',
+        'FtPQ',
+        'zA',
+    ]
+    # The item() is needed due to the particular structure of the LY bundle.
+    LY_single_slice = {
+        key: LY_bundle[key].item()[..., idx] for key in relevant_keys
+    }
+    return LY_single_slice
+
+  @classmethod
+  def _from_fbt(
+      cls,
+      LY: dict[str, np.ndarray],
+      L: dict[str, np.ndarray],
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+      hires_fac: int = 4,
+  ) -> StandardGeometryIntermediates:
+    """Constructs a StandardGeometryIntermediates from a single FBT LY slice.
+
+    Args:
+      LY: A dictionary of relevant FBT LY geometry data.
+      L: A dictionary of relevant FBT L geometry data.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled.
+      n_rho: Grid resolution used for all TORAX cell variables.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations on initialization.
+
+    Returns:
+      A StandardGeometryIntermediates instance based on the input slice. This
+      can then be used to build a StandardGeometry by passing to
+      `build_standard_geometry`.
+    """
+    Rmaj = LY['rgeom'][-1]  # Major radius
+    B0 = LY['rBt'] / Rmaj  # Vacuum toroidal magnetic field on axis
+    Rmin = LY['aminor'][-1]  # Minor radius
+    Phi = LY['FtPQ']  # Toroidal flux including plasma contribution
+    rhon = np.sqrt(Phi / Phi[-1])  # Normalized toroidal flux coordinate
+    psi = L['pQ'] ** 2 * (LY['FB'] - LY['FA']) + LY['FA']  # Poloidal flux
     # To avoid possible divisions by zero in diverted geometry. Value of what
     # replaces the zero does not matter, since it will be replaced by a spline
     # extrapolation in the post_init.
     LY_Q1Q = np.where(LY['Q1Q'] != 0, LY['Q1Q'], constants.CONSTANTS.eps)
     return cls(
+        geometry_type=GeometryType.FBT,
         Ip_from_parameters=Ip_from_parameters,
         Rmaj=Rmaj,
         Rmin=Rmin,
@@ -874,9 +1067,312 @@ class StandardGeometryIntermediates:
         flux_surf_avg_R2Bp2=np.abs(LY['Q4Q']) / (2 * np.pi) ** 2,
         delta_upper_face=LY['deltau'],
         delta_lower_face=LY['deltal'],
+        elongation=LY['kappa'],
         vpr=4 * np.pi * Phi[-1] * rhon / (np.abs(LY['TQ']) * LY['Q2Q']),
         n_rho=n_rho,
         hires_fac=hires_fac,
+        z_magnetic_axis=LY['zA'],
+    )
+
+  @classmethod
+  def from_eqdsk(
+      cls,
+      geometry_dir: str | None = None,
+      geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk',
+      hires_fac: int = 4,
+      Ip_from_parameters: bool = True,
+      n_rho: int = 25,
+      n_surfaces: int = 100,
+      last_surface_factor: float = 0.99,
+  ) -> StandardGeometryIntermediates:
+    """Constructs a StandardGeometryIntermediates from EQDSK.
+
+    This method constructs a StandardGeometryIntermediates object from an EQDSK
+    file. It calculates flux surface averages based on the EQDSK geometry 2D psi
+    mesh.
+
+    Args:
+      geometry_dir: Directory where to find the EQDSK file describing the
+        magnetic geometry. If None, uses the environment variable
+        TORAX_GEOMETRY_DIR if available. If that variable is not set and
+        geometry_dir is not provided, then it defaults to another dir. See
+        implementation.
+      geometry_file: EQDSK file name.
+      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+        calculations.
+      Ip_from_parameters: If True, then Ip is taken from the config and the
+        values in the Geometry are rescaled.
+      n_rho: Grid resolution used for all TORAX cell variables.
+      n_surfaces: Number of surfaces for which flux surface averages are
+        calculated.
+      last_surface_factor: Multiplication factor of the boundary poloidal flux,
+        used for the contour defining geometry terms at the LCFS on the TORAX
+        grid. Needed to avoid divergent integrations in diverted geometries.
+
+    Returns:
+      A StandardGeometryIntermediates instance based on the input file. This
+      can then be used to build a StandardGeometry by passing to
+      `build_standard_geometry`.
+    """
+
+    def calculate_area(x, z):
+      """Gauss-shoelace formula (https://en.wikipedia.org/wiki/Shoelace_formula)."""
+      n = len(x)
+      area = 0.0
+      for i in range(n):
+        j = (i + 1) % n  # roll over at n
+        area += x[i] * z[j]
+        area -= z[i] * x[j]
+      area = abs(area) / 2.0
+      return area
+
+    eqfile = geometry_loader.load_geo_data(
+        geometry_dir, geometry_file, geometry_loader.GeometrySource.EQDSK
+    )
+    # TODO(b/375696414): deal with updown asymmetric cases.
+    # Rmaj taken as Rgeo (LCFS Rmaj)
+    Rmaj = (eqfile['xbdry'].max() + eqfile['xbdry'].min()) / 2.0
+    Rmin = (eqfile['xbdry'].max() - eqfile['xbdry'].min()) / 2.0
+    B0 = eqfile['bcentre']
+    Raxis = eqfile['xmag']
+    Zaxis = eqfile['zmag']
+
+    # Set psi(axis) = 0
+    psi_eqdsk_1dgrid = np.linspace(
+        0.0, eqfile['psibdry'] - eqfile['psimag'], eqfile['nx']
+    )
+
+    X_1D = np.linspace(
+        eqfile['xgrid1'], eqfile['xgrid1'] + eqfile['xdim'], eqfile['nx']
+    )
+    Z_1D = np.linspace(
+        eqfile['zmid'] - eqfile['zdim'] / 2,
+        eqfile['zmid'] + eqfile['zdim'] / 2,
+        eqfile['nz'],
+    )
+    X, Z = np.meshgrid(X_1D, Z_1D, indexing='ij')
+    Xlcfs, Zlcfs = eqfile['xbdry'], eqfile['zbdry']
+
+    # Psi 2D grid defined on the Meshgrid. Set psi(axis) = 0
+    psi_eqdsk_2dgrid = eqfile['psi'] - eqfile['psimag']
+    # Create mask for the confined region, i.e.,Xlcfs.min() < X < Xlcfs.max(),
+    # Zlcfs.min() < Z < Zlcfs.max()
+
+    offset = 0.01
+    mask = (
+        (X > Xlcfs.min() - offset)
+        & (X < Xlcfs.max() + offset)
+        & (Z > Zlcfs.min() - offset)
+        & (Z < Zlcfs.max() + offset)
+    )
+    masked_psi_eqdsk_2dgrid = np.ma.masked_where(~mask, psi_eqdsk_2dgrid)
+
+    # q on uniform grid (pressure, etc., also defined here)
+    q_eqdsk_1dgrid = eqfile['qpsi']
+
+    # ---- Interpolations
+    q_interp = scipy.interpolate.interp1d(
+        psi_eqdsk_1dgrid, q_eqdsk_1dgrid, kind='cubic'
+    )
+    psi_spline_fit = scipy.interpolate.RectBivariateSpline(
+        X_1D, Z_1D, psi_eqdsk_2dgrid, kx=3, ky=3, s=0
+    )
+    F_interp = scipy.interpolate.interp1d(
+        psi_eqdsk_1dgrid, eqfile['fpol'], kind='cubic'
+    )  # toroidal field flux function
+
+    # -----------------------------------------------------------
+    # --------- Make flux surface contours ---------
+    # -----------------------------------------------------------
+
+    psi_interpolant = np.linspace(
+        0,
+        (eqfile['psibdry'] - eqfile['psimag']) * last_surface_factor,
+        n_surfaces,
+    )
+
+    surfaces = []
+    cg_psi = contourpy.contour_generator(X, Z, masked_psi_eqdsk_2dgrid)
+
+    # Skip magnetic axis since no contour is defined there.
+    for _, _psi in enumerate(psi_interpolant[1:]):
+      vertices = cg_psi.create_contour(_psi)
+      if not vertices:
+        raise ValueError(f"""
+            Valid contour not found for EQDSK geometry for psi value {_psi}.
+            Possible reason is too many surfaces requested.
+            Try reducing n_surfaces from the current value of {n_surfaces}.
+            """)
+      x_surface, z_surface = vertices[0].T[0], vertices[0].T[1]
+      surfaces.append((x_surface, z_surface))
+
+    # -----------------------------------------------------------
+    # --------- Compute Flux surface averages and 1D profiles ---------
+    # --- Area, Volume, R_inboard, R_outboard
+    # --- FSA: <1/R^2>, <Bp^2>, <|grad(psi)|>, <|grad(psi)|^2>
+    # --- Toroidal plasma current
+    # --- Integral dl/Bp
+    # -----------------------------------------------------------
+
+    # Gathering area for profiles
+    areas, volumes = np.empty(len(surfaces) + 1), np.empty(len(surfaces) + 1)
+    R_inboard, R_outboard = np.empty(len(surfaces) + 1), np.empty(
+        len(surfaces) + 1
+    )
+    flux_surf_avg_1_over_R2_eqdsk = np.empty(len(surfaces) + 1)  # <1/R**2>
+    flux_surf_avg_Bp2_eqdsk = np.empty(len(surfaces) + 1)  # <Bp**2>
+    flux_surf_avg_RBp_eqdsk = np.empty(len(surfaces) + 1)  # <|grad(psi)|>
+    flux_surf_avg_R2Bp2_eqdsk = np.empty(len(surfaces) + 1)  # <|grad(psi)|**2>
+    int_dl_over_Bp_eqdsk = np.empty(
+        len(surfaces) + 1
+    )  # int(Rdl / | grad(psi) |)
+    Ip_eqdsk = np.empty(len(surfaces) + 1)  # Toroidal plasma current
+    delta_upper_face_eqdsk = np.empty(len(surfaces) + 1)  # Upper face delta
+    delta_lower_face_eqdsk = np.empty(len(surfaces) + 1)  # Lower face delta
+    elongation = np.empty(len(surfaces) + 1)  # Elongation
+
+    # ---- Compute
+    for n, (x_surface, z_surface) in enumerate(surfaces):
+
+      # dl, line elements on which we will integrate
+      surface_dl = np.sqrt(
+          np.gradient(x_surface) ** 2 + np.gradient(z_surface) ** 2
+      )
+
+      # calculating gradient of psi in 2D
+      surface_dpsi_x = psi_spline_fit.ev(x_surface, z_surface, dx=1)
+      surface_dpsi_z = psi_spline_fit.ev(x_surface, z_surface, dy=1)
+      surface_abs_grad_psi = np.sqrt(surface_dpsi_x**2 + surface_dpsi_z**2)
+
+      # Poloidal field strength Bp = |grad(psi)| / R
+      surface_Bpol = surface_abs_grad_psi / x_surface
+      surface_int_dl_over_bpol = np.sum(
+          surface_dl / surface_Bpol
+      )  # This is denominator of all FSA
+
+      # plasma current
+      surface_int_bpol_dl = np.sum(surface_Bpol * surface_dl)
+
+      # 4 FSA, < 1/ R^2>, < | grad psi | >, < B_pol^2>, < | grad psi |^2 >
+      # where FSA(G) = int (G dl / Bpol) / (int (dl / Bpol))
+      surface_FSA_int_one_over_r2 = (
+          np.sum(1 / x_surface**2 * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+      surface_FSA_abs_grad_psi = (
+          np.sum(surface_abs_grad_psi * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+      surface_FSA_Bpol_squared = (
+          np.sum(surface_Bpol * surface_dl) / surface_int_dl_over_bpol
+      )
+      surface_FSA_abs_grad_psi2 = (
+          np.sum(surface_abs_grad_psi**2 * surface_dl / surface_Bpol)
+          / surface_int_dl_over_bpol
+      )
+
+      # volumes and areas
+      area = calculate_area(x_surface, z_surface)
+      volume = area * 2 * np.pi * Rmaj
+
+      # Triangularity
+      idx_upperextent = np.argmax(z_surface)
+      idx_lowerextent = np.argmin(z_surface)
+
+      Rmaj_local = (x_surface.max() + x_surface.min()) / 2.0
+      Rmin_local = (x_surface.max() - x_surface.min()) / 2.0
+
+      X_upperextent = x_surface[idx_upperextent]
+      X_lowerextent = x_surface[idx_lowerextent]
+
+      Z_upperextent = z_surface[idx_upperextent]
+      Z_lowerextent = z_surface[idx_lowerextent]
+
+      # (RMAJ - X_upperextent) / RMIN
+      surface_delta_upper_face = (Rmaj_local - X_upperextent) / Rmin_local
+      surface_delta_lower_face = (Rmaj_local - X_lowerextent) / Rmin_local
+
+      # Append to lists.
+      # Start with n=1 since n=0 is the magnetic axis with no contour defined.
+      areas[n + 1] = area
+      volumes[n + 1] = volume
+      R_inboard[n + 1] = x_surface.min()
+      R_outboard[n + 1] = x_surface.max()
+      int_dl_over_Bp_eqdsk[n + 1] = surface_int_dl_over_bpol
+      flux_surf_avg_1_over_R2_eqdsk[n + 1] = surface_FSA_int_one_over_r2
+      flux_surf_avg_RBp_eqdsk[n + 1] = surface_FSA_abs_grad_psi
+      flux_surf_avg_R2Bp2_eqdsk[n + 1] = surface_FSA_abs_grad_psi2
+      flux_surf_avg_Bp2_eqdsk[n + 1] = surface_FSA_Bpol_squared
+      Ip_eqdsk[n + 1] = surface_int_bpol_dl / constants.CONSTANTS.mu0
+      delta_upper_face_eqdsk[n + 1] = surface_delta_upper_face
+      delta_lower_face_eqdsk[n + 1] = surface_delta_lower_face
+      elongation[n + 1] = (Z_upperextent - Z_lowerextent) / (2.0 * Rmin_local)
+
+    # Now set n=0 quantities. StandardGeometryIntermediate values at the
+    # magnetic axis are prescribed, since a contour cannot be defined there.
+    areas[0] = 0
+    volumes[0] = 0
+    R_inboard[0] = Raxis
+    R_outboard[0] = Raxis
+    int_dl_over_Bp_eqdsk[0] = 0
+    flux_surf_avg_1_over_R2_eqdsk[0] = 1 / Raxis**2
+    flux_surf_avg_RBp_eqdsk[0] = 0
+    flux_surf_avg_R2Bp2_eqdsk[0] = 0
+    flux_surf_avg_Bp2_eqdsk[0] = 0
+    Ip_eqdsk[0] = 0
+    delta_upper_face_eqdsk[0] = delta_upper_face_eqdsk[1]
+    delta_lower_face_eqdsk[0] = delta_lower_face_eqdsk[1]
+    elongation[0] = elongation[1]
+
+    # q-profile on interpolation
+    q_profile = q_interp(psi_interpolant)
+
+    # toroidal flux
+    Phi_eqdsk = (
+        scipy.integrate.cumulative_trapezoid(
+            q_profile, psi_interpolant, initial=0.0
+        )
+        * 2
+        * np.pi
+    )
+
+    # toroidal field flux function, T=RBphi
+    F_eqdsk = F_interp(psi_interpolant)
+
+    rhon = np.sqrt(Phi_eqdsk / Phi_eqdsk[-1])
+    vpr = (
+        4
+        * np.pi
+        * Phi_eqdsk[-1]
+        * rhon
+        / (F_eqdsk * flux_surf_avg_1_over_R2_eqdsk)
+    )
+
+    return cls(
+        geometry_type=GeometryType.EQDSK,
+        Ip_from_parameters=Ip_from_parameters,
+        Rmaj=Rmaj,
+        Rmin=Rmin,
+        B=B0,
+        # TODO(b/335204606): handle COCOS shenanigans
+        psi=psi_interpolant * 2 * np.pi,
+        Ip_profile=Ip_eqdsk,
+        Phi=Phi_eqdsk,
+        Rin=R_inboard,
+        Rout=R_outboard,
+        F=F_eqdsk,
+        int_dl_over_Bp=int_dl_over_Bp_eqdsk,
+        flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2_eqdsk,
+        flux_surf_avg_RBp=flux_surf_avg_RBp_eqdsk,
+        flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2_eqdsk,
+        flux_surf_avg_Bp2=flux_surf_avg_Bp2_eqdsk,
+        delta_upper_face=delta_upper_face_eqdsk,
+        delta_lower_face=delta_lower_face_eqdsk,
+        elongation=elongation,
+        vpr=vpr,
+        n_rho=n_rho,
+        hires_fac=hires_fac,
+        z_magnetic_axis=Zaxis,
     )
 
 
@@ -999,6 +1495,11 @@ def build_standard_geometry(
   # average triangularity
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
+  # elongation
+  elongation_face = rhon_interpolation_func(
+      rho_face_norm, intermediate.elongation
+  )
+
   Phi_face = rhon_interpolation_func(rho_face_norm, intermediate.Phi)
   Phi = rhon_interpolation_func(rho_norm, intermediate.Phi)
 
@@ -1011,6 +1512,10 @@ def build_standard_geometry(
 
   jtot_face = rhon_interpolation_func(rho_face_norm, jtot)
   jtot = rhon_interpolation_func(rho_norm, jtot)
+
+  Ip_profile_face = rhon_interpolation_func(
+      rho_face_norm, intermediate.Ip_profile
+  )
 
   Rin_face = rhon_interpolation_func(rho_face_norm, intermediate.Rin)
   Rin = rhon_interpolation_func(rho_norm, intermediate.Rin)
@@ -1042,8 +1547,13 @@ def build_standard_geometry(
   area_hires = rhon_interpolation_func(rho_hires_norm, area_intermediate)
   area = rhon_interpolation_func(rho_norm, area_intermediate)
 
-  return StandardGeometry(
-      geometry_type=GeometryType.NUMERICAL.value,
+  if intermediate.geometry_type == GeometryType.CHEASE:
+    geometry_type = CheaseGeometry
+  else:
+    geometry_type = StandardGeometry
+
+  return geometry_type(
+      geometry_type=intermediate.geometry_type.value,
       drho_norm=np.asarray(drho_norm),
       torax_mesh=mesh,
       Phi=Phi,
@@ -1079,13 +1589,14 @@ def build_standard_geometry(
       Rout=Rout,
       Rout_face=Rout_face,
       Ip_from_parameters=intermediate.Ip_from_parameters,
-      Ip=intermediate.Ip_profile[-1],
+      Ip_profile_face=Ip_profile_face,
       psi=psi,
       psi_from_Ip=psi_from_Ip,
       jtot=jtot,
       jtot_face=jtot_face,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
+      elongation_face=elongation_face,
       volume_hires=volume_hires,
       area_hires=area_hires,
       spr_hires=spr_hires,
@@ -1096,6 +1607,7 @@ def build_standard_geometry(
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.
       Phibdot=np.asarray(0.0),
+      _z_magnetic_axis=intermediate.z_magnetic_axis,
   )
 
 

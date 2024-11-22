@@ -13,9 +13,13 @@
 # limitations under the License.
 
 """File I/O for loading geometry files."""
-import enum
-import os
 
+import enum
+import logging
+import os
+from typing import IO
+
+import eqdsk
 import numpy as np
 import scipy
 
@@ -28,6 +32,7 @@ class GeometrySource(enum.Enum):
 
   CHEASE = 0
   FBT = 1
+  EQDSK = 2
 
 
 def _load_CHEASE_data(  # pylint: disable=invalid-name
@@ -54,9 +59,22 @@ def _load_CHEASE_data(  # pylint: disable=invalid-name
   }
 
 
-def _load_fbt_data(file_path: str) -> dict[str, np.ndarray]:
-  """Loads the data from a FBT-LY file into a dictionary."""
+def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
+  """Loads data into a dictionary from an FBT-LY file or file path."""
   return scipy.io.loadmat(file_path, squeeze_me=True)
+
+
+def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
+  eqdsk_data = eqdsk.EQDSKInterface.from_file(file_path, no_cocos=True)
+  # TODO(b/335204606): handle COCOS shenanigans
+  logging.warning(
+      """
+               WARNING: Using EQDSK geometry.
+               The TORAX EQDSK converter has only been tested against CHEASE-generated EQDSK which is COCOS=2.
+               The converter is not guaranteed to work as expected with arbitrary EQDSK input. Please verify carefully.
+               Future work will be done to correctly handle EQDSK inputs provided with a specific COCOS value."""
+  )
+  return eqdsk_data.__dict__  # dict(eqdsk_data)
 
 
 def load_geo_data(
@@ -77,12 +95,10 @@ def load_geo_data(
   # initialize geometry from file
   match geometry_source:
     case GeometrySource.CHEASE:
-      return _load_CHEASE_data(
-          file_path=filepath
-      )
+      return _load_CHEASE_data(file_path=filepath)
     case GeometrySource.FBT:
-      return _load_fbt_data(
-          file_path=filepath
-      )
+      return _load_fbt_data(file_path=filepath)
+    case GeometrySource.EQDSK:
+      return _load_eqdsk_data(file_path=filepath)
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')

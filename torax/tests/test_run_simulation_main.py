@@ -51,6 +51,7 @@ finally:
  del sys.path[-1]
 from torax import simulation_app
 from torax.tests.test_lib import paths
+import xarray as xr
 
 
 class RunSimulationMainTest(parameterized.TestCase):
@@ -90,6 +91,10 @@ class RunSimulationMainTest(parameterized.TestCase):
           run_simulation_main._PYTHON_CONFIG_MODULE,
           ".tests.test_data.test_implicit",
       ),
+      (
+          run_simulation_main._OUTPUT_DIR,
+          "/tmp/torax_test_output",
+      ),
   )
   @mock.patch("builtins.input", side_effect=["q"])
   def test_main_app_runs(self, mock_input):
@@ -99,21 +104,20 @@ class RunSimulationMainTest(parameterized.TestCase):
     # In this test we run the whole app. We send a mocked 'q' input to quit the
     # app after it is done running. The app quits an explicit SystemExit that
     # we need to catch to avoid bringing down the tests. To make sure that the
-    # app really ran as expected, we capture stdout and check that it contains
-    # an expected message from after the successful execution.
+    # app really ran as expected, we check that the output state file exists and
+    # equals the reference output.
+    with self.assertRaises(SystemExit) as cm:
+      app.run(run_simulation_main.main)
+    # Make sure the app ran successfully
+    self.assertIsNone(cm.exception.code)
 
-    captured_stdout = io.StringIO()
-    handler = logging.PythonHandler(captured_stdout)
-
-    try:
-      logging.get_absl_logger().addHandler(handler)
-      with self.assertRaises(SystemExit) as cm:
-        app.run(run_simulation_main.main)
-      # Make sure the app ran successfully
-      self.assertIsNone(cm.exception.code)
-    finally:
-      logging.get_absl_logger().removeHandler(handler)
-    self.assertIn("Wrote simulation output to", captured_stdout.getvalue())
+    output = output_lib.load_state_file(
+        "/tmp/torax_test_output/state_history.nc"
+    )
+    reference = output_lib.load_state_file(
+        os.path.join(paths.test_data_dir(), "test_implicit.nc")
+    )
+    xr.map_over_datasets(xr.testing.assert_allclose, output, reference)
 
   @flagsaver.flagsaver(
       (run_simulation_main._PYTHON_CONFIG_PACKAGE, "temp_package"),
@@ -212,36 +216,38 @@ class RunSimulationMainTest(parameterized.TestCase):
     ground_truth_after = after[: -len(".py")] + ".nc"
 
     def check(output_path, ground_truth_path):
-      output = output_lib.safe_load_dataset(output_path)
-      ground_truth = output_lib.safe_load_dataset(ground_truth_path)
+      output = output_lib.load_state_file(output_path)
+      ground_truth = output_lib.load_state_file(ground_truth_path)
 
-      for key in output:
-        self.assertIn(key, ground_truth)
+      def check_equality(ds1: xr.Dataset, ds2: xr.Dataset):
+        for key in ds2:
+          self.assertIn(key, ds1)
 
-      for key in ground_truth:
-        self.assertIn(key, output)
+        for key in ds1:
+          self.assertIn(key, ds2)
 
-        ov = output[key].to_numpy()
-        gv = ground_truth[key].to_numpy()
+          ov = ds2[key].to_numpy()
+          gv = ds1[key].to_numpy()
 
-        if not np.allclose(
-            ov,
-            gv,
-            # GitHub CI behaves very differently from Google internal for
-            # the mode=zero case, needing looser tolerance for this than
-            # for other tests.
-            # rtol=0.0,
-            atol=5.0e-5,
-        ):
-          diff = ov - gv
-          max_diff = np.abs(diff).max()
-          raise AssertionError(
-              f"{key} does not match. "
-              f"Output: {ov}. "
-              f"Ground truth: {gv}."
-              f"Diff: {diff}"
-              f"Max diff: {max_diff}"
-          )
+          if not np.allclose(
+              ov,
+              gv,
+              # GitHub CI behaves very differently from Google internal for
+              # the mode=zero case, needing looser tolerance for this than
+              # for other tests.
+              # rtol=0.0,
+              atol=5.0e-5,
+          ):
+            diff = ov - gv
+            max_diff = np.abs(diff).max()
+            raise AssertionError(
+                f"{key} does not match. "
+                f"Output: {ov}. "
+                f"Ground truth: {gv}."
+                f"Diff: {diff}"
+                f"Max diff: {max_diff}"
+            )
+      xr.map_over_datasets(check_equality, output, ground_truth)
 
     check(filepaths[0], ground_truth_before)
     check(filepaths[1], ground_truth_after)

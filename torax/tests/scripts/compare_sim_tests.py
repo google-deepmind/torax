@@ -89,8 +89,8 @@ def _compare_sim_test_outputs(failed_test_dir: str) -> None:
       's_face',
   ]
   # Load the Datasets
-  ds_old = output.safe_load_dataset(old_file)
-  ds_new = output.safe_load_dataset(new_file)
+  ds_old = output.safe_load_dataset(old_file).children['core_profiles']
+  ds_new = output.safe_load_dataset(new_file).children['core_profiles']
   print(f'Comparing {old_file} and {new_file}:')
   for profile_name in profile_names:
     _print_diff(profile_name, ds_old, ds_new)

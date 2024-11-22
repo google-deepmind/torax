@@ -15,7 +15,7 @@
 """Tests Pereverzev-Corrigan method for ne equation.
 
 Ip from parameters. current, heat, and particle transport. qlknn transport
-model. Pedestal. Particle sources including NBI. PC method for density. D_e
+model. Pedestal. Particle sources. PC method for density. D_e
 scaled from chi_e
 """
 
@@ -51,8 +51,8 @@ CONFIG = {
         },
         'fusion_heat_source': {},
         'qei_source': {},
-        'nbi_particle_source': {
-            'S_nbi_tot': 0.3e22,
+        'generic_particle_source': {
+            'S_tot': 0.3e22,
         },
         'gas_puff_source': {
             'S_puff_tot': 0.5e22,
@@ -61,7 +61,7 @@ CONFIG = {
             'S_pellet_tot': 1.0e22,
         },
         'j_bootstrap': {},
-        'jext': {},
+        'generic_current_source': {},
     },
     'transport': {
         'transport_model': 'qlknn',

@@ -26,19 +26,19 @@ CONFIG = {
         'n_rho': 25,
         'geometry_configs': {
             0: {
-                'kappa': 1.,
+                'elongation_LCFS': 1.,
             },
             5: {
-                'kappa': 1.7,
+                'elongation_LCFS': 1.7,
             }
         },
     },
     'sources': {
         # Current sources (for psi equation)
         'j_bootstrap': {},
-        'jext': {},
+        'generic_current_source': {},
         # Electron density sources/sink (for the ne equation).
-        'nbi_particle_source': {},
+        'generic_particle_source': {},
         'gas_puff_source': {},
         'pellet_source': {},
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).

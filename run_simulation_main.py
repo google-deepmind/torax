@@ -489,7 +489,7 @@ def main(_):
     )
     build_time = time.time() - start_time
     start_time = time.time()
-    _, output_file = _call_sim_app_main(
+    output_file = _call_sim_app_main(
         sim=sim,
         output_dir=output_dir,
         log_sim_progress=log_sim_progress,
@@ -534,7 +534,7 @@ def main(_):
           )
         else:
           start_time = time.time()
-          _, output_file = _call_sim_app_main(
+          output_file = _call_sim_app_main(
               sim=sim,
               output_dir=new_runtime_params.output_dir,
               log_sim_progress=log_sim_progress,

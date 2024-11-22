@@ -23,6 +23,7 @@ use it.
 
 from __future__ import annotations
 
+import abc
 import dataclasses
 import enum
 import types
@@ -50,7 +51,7 @@ SourceProfileFunction: TypeAlias = Callable[  # pytype: disable=name-error
         runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
         runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
         geometry.Geometry,
-        state.CoreProfiles | None,
+        state.CoreProfiles,
         Optional['source_models.SourceModels'],
     ],
     # Returns a JAX array, tuple of arrays, or mapping of arrays.
@@ -95,13 +96,11 @@ class AffectedCoreProfile(enum.IntEnum):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class Source:
+class Source(abc.ABC):
   """Base class for a single source/sink term.
 
   Sources are used to compute source profiles (see source_profiles.py), which
   are in turn used to compute coeffs in sim.py.
-
-  NOTE: For most use cases, you should extend or use SingleProfileSource.
 
   Attributes:
     runtime_params: Input dataclass containing all the source-specific runtime
@@ -127,25 +126,27 @@ class Source:
     affected_core_profiles_ints: Derived property from the
       affected_core_profiles. Integer values of those enums.
   """
-
-  affected_core_profiles: tuple[AffectedCoreProfile, ...]
-
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.FORMULA_BASED,
-      runtime_params_lib.Mode.PRESCRIBED,
-  )
-
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  # For different output shapes, override this attribute.
-  output_shape_getter: SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: get_cell_profile_shape,
-  )
-
   model_func: SourceProfileFunction | None = None
-
   formula: SourceProfileFunction | None = None
+
+  @property
+  @abc.abstractmethod
+  def affected_core_profiles(self) -> tuple[AffectedCoreProfile, ...]:
+    """Returns the core profiles affected by this source."""
+
+  @property
+  def output_shape_getter(self) -> SourceOutputShapeFunction:
+    """Returns a function which returns the shape of the source's output."""
+    return get_cell_profile_shape
+
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    """Returns the modes supported by this source."""
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.FORMULA_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
+    )
 
   @property
   def affected_core_profiles_ints(self) -> tuple[int, ...]:
@@ -193,7 +194,7 @@ class Source:
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles | None = None,
+      core_profiles: state.CoreProfiles,
   ) -> chex.ArrayTree:
     """Returns the profile for this source during one time step.
 
@@ -319,7 +320,7 @@ def get_source_profiles(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles | None,
+    core_profiles: state.CoreProfiles,
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
     prescribed_values: chex.Array,
@@ -393,6 +394,7 @@ def get_ion_el_output_shape(geo):
   return (2,) + ProfileType.CELL.get_profile_shape(geo)
 
 
+@dataclasses.dataclass(frozen=False, kw_only=True)
 class SourceBuilderProtocol(Protocol):
   """Make a best effort to define what SourceBuilders are with type hints.
 
@@ -646,6 +648,3 @@ def make_source_builder(
       # the mutable runtime params
       kw_only=True,
   )
-
-
-SourceBuilder = make_source_builder(Source)

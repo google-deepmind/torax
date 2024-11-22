@@ -47,6 +47,9 @@ class PlasmaComposition(
   Zimp: interpolated_param.TimeInterpolatedInput = (
       10.0  # impurity charge state assumed for dilution
   )
+  Aimp: interpolated_param.TimeInterpolatedInput = (
+      20.18  # impurity mass in amu
+  )
 
   def make_provider(
       self,
@@ -67,6 +70,7 @@ class PlasmaComposition(
             torax_mesh.face_centers,
         ),
         Zimp=config_args.get_interpolated_var_single_axis(self.Zimp),
+        Aimp=config_args.get_interpolated_var_single_axis(self.Aimp),
     )
 
   def __post_init__(self):
@@ -87,6 +91,7 @@ class PlasmaCompositionProvider(
   Zeff: interpolated_param.InterpolatedVarTimeRho
   Zeff_face: interpolated_param.InterpolatedVarTimeRho
   Zimp: interpolated_param.InterpolatedVarSingleAxis
+  Aimp: interpolated_param.InterpolatedVarSingleAxis
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicPlasmaComposition:
     return DynamicPlasmaComposition(**self.get_dynamic_params_kwargs(t))
@@ -99,3 +104,4 @@ class DynamicPlasmaComposition:
   Zeff: array_typing.ArrayFloat
   Zeff_face: array_typing.ArrayFloat
   Zimp: array_typing.ScalarFloat
+  Aimp: array_typing.ScalarFloat

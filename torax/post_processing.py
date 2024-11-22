@@ -28,18 +28,27 @@ from torax.sources import source_profiles
 
 _trapz = jax.scipy.integrate.trapezoid
 
+# TODO(b/376010694): use the various SOURCE_NAMES for the keys.
 ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'generic_ion_el_heat_source': 'P_generic',
     'fusion_heat_source': 'P_alpha',
+    'ion_cyclotron_source': 'P_icrh',
 }
 EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'ohmic_heat_source': 'P_ohmic',
     'bremsstrahlung_heat_sink': 'P_brems',
+    'electron_cyclotron_source': 'P_ecrh',
 }
 EXTERNAL_HEATING_SOURCES = [
     'generic_ion_el_heat_source',
+    'electron_cyclotron_source',
     'ohmic_heat_source',
+    'ion_cyclotron_source',
 ]
+CURRENT_SOURCE_TRANSFORMATIONS = {
+    'generic_current_source': 'I_generic',
+    'electron_cyclotron_source': 'I_ecrh',
+}
 
 
 @jax_utils.jit
@@ -193,12 +202,12 @@ def _compute_stored_thermal_energy(
 
 
 @jax_utils.jit
-def _calculate_integrated_heat_sources(
+def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
 ) -> dict[str, jax.Array]:
-  """Calculates total integrated internal and external source powers.
+  """Calculates total integrated internal and external source power and current.
 
   Args:
     geo: Magnetic geometry
@@ -253,11 +262,34 @@ def _calculate_integrated_heat_sources(
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
     if key in core_sources.profiles:
-      profile = core_sources.profiles[key]
+      # TODO(b/376010694): better automation of splitting profiles into
+      # separate variables.
+      # index 0 corresponds to the electron heating source profile.
+      if key == 'electron_cyclotron_source':
+        profile = core_sources.profiles[key][0, :]
+      else:
+        profile = core_sources.profiles[key]
       integrated[f'{value}'] = _trapz(profile * geo.vpr, geo.rho_norm)
       integrated['P_heating_tot_el'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_el'] += integrated[f'{value}']
+
+  for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
+    # Only populate integrated dict with sources that exist.
+    if key in core_sources.profiles:
+      # TODO(b/376010694): better automation of splitting profiles into
+      # separate variables.
+      # index 1 corresponds to the current source profile.
+      if key == 'electron_cyclotron_source':
+        profile = core_sources.profiles[key][1, :]
+      elif key == 'generic_current_source':
+        profile = geometry.face_to_cell(core_sources.profiles[key])
+      else:
+        profile = core_sources.profiles[key]
+      integrated[f'{value}'] = _trapz(profile * geo.vpr, geo.rho_norm) / (
+          2 * jnp.pi * geo.Rmaj
+      )
+
   integrated['P_heating_tot'] = (
       integrated['P_heating_tot_ion'] + integrated['P_heating_tot_el']
   )
@@ -269,7 +301,9 @@ def _calculate_integrated_heat_sources(
 
 
 def make_outputs(
-    sim_state: state.ToraxSimState, geo: geometry.Geometry
+    sim_state: state.ToraxSimState,
+    geo: geometry.Geometry,
+    previous_sim_state: state.ToraxSimState | None = None,
 ) -> state.ToraxSimState:
   """Calculates post-processed outputs based on the latest state.
 
@@ -277,6 +311,12 @@ def make_outputs(
   Args:
     sim_state: The state to add outputs to.
     geo: Geometry object
+    previous_sim_state: The previous state, used to calculate cumulative
+      quantities. Optional input. If None, then cumulative quantities are set
+      at the initialized values in sim_state itself. This is used for the first
+      time step of a the simulation. The initialized values are zero for a clean
+      simulation, or the last value of the previous simulation for a restarted
+      simulation.
 
   Returns:
     sim_state: A ToraxSimState object, with any updated attributes.
@@ -295,24 +335,55 @@ def make_outputs(
       geo,
   )
   FFprime_face = _compute_FFprime(sim_state.core_profiles, geo)
-  # pylint: enable=invalid-name
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
   psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
-  integrated_heat_sources = _calculate_integrated_heat_sources(
+  integrated_sources = _calculate_integrated_sources(
       geo,
       sim_state.core_profiles,
       sim_state.core_sources,
   )
-  # pylint: disable=invalid-name
   # Calculate fusion gain with a zero division guard.
   # Total energy released per reaction is 5 times the alpha particle energy.
   Q_fusion = (
-      integrated_heat_sources['P_alpha_tot']
+      integrated_sources['P_alpha_tot']
       * 5.0
-      / (integrated_heat_sources['P_external_tot'] + constants.CONSTANTS.eps)
+      / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
   )
 
+  # Calculate total external (injected) and fusion (generated) energies based on
+  # interval average.
+  if previous_sim_state is not None:
+    # Factor 5 due to including neutron energy: E_fusion = 5.0 * E_alpha
+    E_cumulative_fusion = (
+        previous_sim_state.post_processed_outputs.E_cumulative_fusion
+        + 5.0
+        * sim_state.dt
+        * (
+            integrated_sources['P_alpha_tot']
+            + previous_sim_state.post_processed_outputs.P_alpha_tot
+        )
+        / 2.0
+    )
+    E_cumulative_external = (
+        previous_sim_state.post_processed_outputs.E_cumulative_external
+        + sim_state.dt
+        * (
+            integrated_sources['P_external_tot']
+            + previous_sim_state.post_processed_outputs.P_external_tot
+        )
+        / 2.0
+    )
+  else:
+    # First step of simulation, so no previous state. We set cumulative
+    # quantities to whatever the initial_state was initialized to, which is
+    # typically zero for a clean simulation, or the last value of the previous
+    # simulation for a restarted simulation.
+    E_cumulative_fusion = sim_state.post_processed_outputs.E_cumulative_fusion
+    E_cumulative_external = (
+        sim_state.post_processed_outputs.E_cumulative_external
+    )
+  # pylint: enable=invalid-name
   updated_post_processed_outputs = dataclasses.replace(
       sim_state.post_processed_outputs,
       pressure_thermal_ion_face=pressure_thermal_ion_face,
@@ -325,8 +396,10 @@ def make_outputs(
       FFprime_face=FFprime_face,
       psi_norm_face=psi_norm_face,
       psi_face=sim_state.core_profiles.psi.face_value(),
-      **integrated_heat_sources,
+      **integrated_sources,
       Q_fusion=Q_fusion,
+      E_cumulative_fusion=E_cumulative_fusion,
+      E_cumulative_external=E_cumulative_external,
   )
   # pylint: enable=invalid-name
   return dataclasses.replace(

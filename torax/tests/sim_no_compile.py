@@ -13,12 +13,11 @@
 # limitations under the License.
 
 """Tests that TORAX can be run with compilation disabled."""
-
 from typing import Optional, Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax import jax_utils
+from test.support import os_helper
 from torax.tests.test_lib import sim_test_case
 
 
@@ -57,15 +56,15 @@ class SimTest(sim_test_case.SimTestCase):
       use_ref_time: bool = False,
   ):
     """No-compilation version of integration tests."""
-    assert not jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True)
-
-    self._test_torax_sim(
-        config_name,
-        profiles,
-        rtol=rtol,
-        atol=atol,
-        use_ref_time=use_ref_time,
-    )
+    with os_helper.EnvironmentVarGuard() as env:
+      env.set('TORAX_COMPILATION_ENABLED', 'False')
+      self._test_torax_sim(
+          config_name,
+          profiles,
+          rtol=rtol,
+          atol=atol,
+          use_ref_time=use_ref_time,
+      )
 
 
 if __name__ == '__main__':

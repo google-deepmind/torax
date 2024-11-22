@@ -20,8 +20,8 @@
 - Circular geometry
 - Sources:
   - No bootstrap
-  - jext
-  - NBI
+  - generic_current_source
+  - generic particle source
   - gas puff
   - pellet
   - generic ion-el heat source
@@ -52,10 +52,10 @@ CONFIG = {
     },
     'sources': {
         # Current sources (for psi equation)
-        'jext': {},
+        'generic_current_source': {},
         'j_bootstrap': {},
         # Electron density sources/sink (for the ne equation).
-        'nbi_particle_source': {},
+        'generic_particle_source': {},
         'gas_puff_source': {},
         'pellet_source': {},
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).

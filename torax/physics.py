@@ -54,7 +54,7 @@ def update_jtot_q_face_s_face(
 ) -> state.CoreProfiles:
   """Updates jtot, jtot_face, q_face, and s_face."""
 
-  jtot, jtot_face = calc_jtot_from_psi(
+  jtot, jtot_face, Ip_profile_face = calc_jtot_from_psi(
       geo,
       core_profiles.psi,
   )
@@ -68,7 +68,10 @@ def update_jtot_q_face_s_face(
       core_profiles.psi,
   )
   currents = dataclasses.replace(
-      core_profiles.currents, jtot=jtot, jtot_face=jtot_face
+      core_profiles.currents,
+      jtot=jtot,
+      jtot_face=jtot_face,
+      Ip_profile_face=Ip_profile_face,
   )
   new_core_profiles = dataclasses.replace(
       core_profiles,
@@ -94,32 +97,68 @@ def coll_exchange(
   Returns:
     Qei_coeff: ion-electron collisional heat exchange coefficient.
   """
-  n_scale = nref / 1e20
-  lam_ei = (
-      15.2
-      - 0.5 * jnp.log(core_profiles.ne.value * n_scale)
-      + jnp.log(core_profiles.temp_el.value)
+  # Calculate Coulomb logarithm
+  lambda_ei = _calculate_lambda_ei(
+      core_profiles.temp_el.value, core_profiles.ne.value * nref
   )
-  # ion-electron collisionality
-  log_tau_e = (
-      jnp.log(12 * jnp.pi**1.5 / (core_profiles.ne.value * nref * lam_ei))
-      - 4 * jnp.log(constants.CONSTANTS.qe)
-      + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
-      + 2 * jnp.log(constants.CONSTANTS.epsilon0)
-      + 1.5 * jnp.log(core_profiles.temp_el.value * constants.CONSTANTS.keV2J)
+  # ion-electron collisionality for Zeff=1. Ion charge and multiple ion effects
+  # are included in the Qei_coef calculation below.
+  log_tau_e_Z1 = _calculate_log_tau_e_Z1(
+      core_profiles.temp_el.value,
+      core_profiles.ne.value * nref,
+      lambda_ei,
   )
   # pylint: disable=invalid-name
+
+  weighted_Zeff = _calculate_weighted_Zeff(core_profiles)
+
   log_Qei_coef = (
       jnp.log(Qei_mult * 1.5 * core_profiles.ne.value * nref)
-      + jnp.log(
-          constants.CONSTANTS.keV2J
-          / (core_profiles.Ai * constants.CONSTANTS.mp)
-      )
+      + jnp.log(constants.CONSTANTS.keV2J / constants.CONSTANTS.mp)
       + jnp.log(2 * constants.CONSTANTS.me)
-      - log_tau_e
+      + jnp.log(weighted_Zeff)
+      - log_tau_e_Z1
   )
   Qei_coef = jnp.exp(log_Qei_coef)
   return Qei_coef
+
+
+# TODO(b/377225415): generalize to arbitrary number of ions.
+def _calculate_weighted_Zeff(
+    core_profiles: state.CoreProfiles,
+) -> jax.Array:
+  """Calculates ion mass weighted Zeff. Used for collisional heat exchange."""
+  return (
+      core_profiles.ni.value * core_profiles.Zi**2 / core_profiles.Ai
+      + core_profiles.nimp.value * core_profiles.Zimp**2 / core_profiles.Aimp
+  ) / core_profiles.ne.value
+
+
+def _calculate_log_tau_e_Z1(
+    temp_el: jax.Array,
+    ne: jax.Array,
+    lambda_ei: jax.Array,
+) -> jax.Array:
+  """Calculates log of electron-ion collision time for Z=1 plasma.
+
+  See Wesson 3rd edition p729. Extension to multiple ions is context dependent
+  and implemented in calling functions.
+
+  Args:
+    temp_el: Electron temperature in keV.
+    ne: Electron density in m^-3.
+    lambda_ei: Coulomb logarithm.
+
+  Returns:
+    Log of electron-ion collision time.
+  """
+  return (
+      jnp.log(12 * jnp.pi**1.5 / (ne * lambda_ei))
+      - 4 * jnp.log(constants.CONSTANTS.qe)
+      + 0.5 * jnp.log(constants.CONSTANTS.me / 2.0)
+      + 2 * jnp.log(constants.CONSTANTS.epsilon0)
+      + 1.5 * jnp.log(temp_el * constants.CONSTANTS.keV2J)
+  )
 
 
 def internal_boundary(
@@ -184,7 +223,7 @@ def calc_q_from_psi(
 def calc_jtot_from_psi(
     geo: Geometry,
     psi: cell_variable.CellVariable,
-) -> tuple[chex.Array, chex.Array]:
+) -> tuple[chex.Array, chex.Array, chex.Array]:
   """Calculates FSA toroidal current density (jtot) from poloidal flux (psi).
 
   Calculation based on jtot = dI/dS
@@ -194,13 +233,14 @@ def calc_jtot_from_psi(
     psi: Poloidal flux.
 
   Returns:
-    jtot: total current density (Amps / m^2) on cell grid
-    jtot_face: total current density (Amps / m^2) on face grid
+    jtot: total current density [A/m2] on cell grid
+    jtot_face: total current density [A/m2] on face grid
+    Ip_profile_face: cumulative total plasma current profile [A] on face grid
   """
 
   # inside flux surface on face grid
   # pylint: disable=invalid-name
-  I_tot = (
+  Ip_profile_face = (
       psi.face_grad()
       * geo.g2g3_over_rhon_face
       * geo.F_face
@@ -208,17 +248,17 @@ def calc_jtot_from_psi(
       / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
   )
 
-  dI_tot_drhon = jnp.gradient(I_tot, geo.rho_face_norm)
+  dI_tot_drhon = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
 
   jtot_face_bulk = dI_tot_drhon[1:] / geo.spr_face[1:]
 
   # Set on-axis jtot according to L'Hôpital's rule, noting that I[0]=S[0]=0.
-  jtot_face_axis = I_tot[1] / geo.area_face[1]
+  jtot_face_axis = Ip_profile_face[1] / geo.area_face[1]
 
   jtot_face = jnp.concatenate([jnp.array([jtot_face_axis]), jtot_face_bulk])
   jtot = geometry.face_to_cell(jtot_face)
 
-  return jtot, jtot_face
+  return jtot, jtot_face, Ip_profile_face
 
 
 def calc_s_from_psi(
@@ -310,28 +350,19 @@ def calc_nu_star(
     nu_star: on face grid.
   """
 
-  temp_electron_var = core_profiles.temp_el
-  temp_electron_face = temp_electron_var.face_value()
-  raw_ne_var = core_profiles.ne
-  raw_ne_face = raw_ne_var.face_value()
+  # Calculate Coulomb logarithm
+  lambda_ei_face = _calculate_lambda_ei(
+      core_profiles.temp_el.face_value(), core_profiles.ne.face_value() * nref
+  )
 
-  # Coulomb constant and collisionality. Wesson 2nd edition p661-663:
-  # Lambde(:) = 15.2_DBL - 0.5_DBL*LOG(0.1_DBL*Nex(:)) + LOG(Tex(:))
-  lambde = (
-      15.2
-      - 0.5 * jnp.log(0.1 * raw_ne_face / 1e20 * nref)
-      + jnp.log(temp_electron_face)
+  # ion_electron collisionality
+  log_tau_e_Z1 = _calculate_log_tau_e_Z1(
+      core_profiles.temp_el.face_value(),
+      core_profiles.ne.face_value() * nref,
+      lambda_ei_face,
   )
-  # ion_electron collision formula
-  nu_e = (
-      1
-      / 1.09e-3
-      * Zeff_face
-      * (raw_ne_face / 1e19 * nref)
-      * lambde
-      / (temp_electron_face) ** 1.5
-      * coll_mult
-  )
+
+  nu_e = 1 / jnp.exp(log_tau_e_Z1) * Zeff_face * coll_mult
 
   # calculate bounce time
   epsilon = geo.rho_face / geo.Rmaj
@@ -343,7 +374,7 @@ def calc_nu_star(
       / (
           epsilon**1.5
           * jnp.sqrt(
-              temp_electron_face
+              core_profiles.temp_el.face_value()
               * constants.CONSTANTS.keV2J
               / constants.CONSTANTS.me
           )
@@ -356,6 +387,24 @@ def calc_nu_star(
   nustar = nu_e * tau_bounce
 
   return nustar
+
+
+def _calculate_lambda_ei(
+    temp_el: jax.Array,
+    ne: jax.Array,
+) -> jax.Array:
+  """Calculates Coulomb logarithm for electron-ion collisions.
+
+  See Wesson 3rd edition p727.
+
+  Args:
+    temp_el: Electron temperature in keV.
+    ne: Electron density in m^-3.
+
+  Returns:
+    Coulomb logarithm.
+  """
+  return 15.2 - 0.5 * jnp.log(ne / 1e20) + jnp.log(temp_el)
 
 
 def fast_ion_fractional_heating_formula(
@@ -386,8 +435,9 @@ def fast_ion_fractional_heating_formula(
   frac_i = (
       2
       * (
-          (1/6) * jnp.log((1.0 - x + x_squared) / (1.0 + 2.0 * x + x_squared))
-          + (jnp.arctan((2.0 * x - 1.0) / jnp.sqrt(3)) + jnp.pi/6) / jnp.sqrt(3)
+          (1 / 6) * jnp.log((1.0 - x + x_squared) / (1.0 + 2.0 * x + x_squared))
+          + (jnp.arctan((2.0 * x - 1.0) / jnp.sqrt(3)) + jnp.pi / 6)
+          / jnp.sqrt(3)
       )
       / x_squared
   )

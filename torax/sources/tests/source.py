@@ -27,6 +27,7 @@ from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources.tests import test_lib
 
 
 def get_zero_profile(
@@ -34,6 +35,39 @@ def get_zero_profile(
 ) -> jax.Array:
   """Returns a source profile with all zeros."""
   return  jnp.zeros(profile_type.get_profile_shape(geo))
+
+
+@dataclasses.dataclass(frozen=True, eq=True)
+class PsiTestSource(source_lib.Source):
+
+  @property
+  def affected_core_profiles(self):
+    return (source_lib.AffectedCoreProfile.PSI,)
+
+
+PsiTestSourceBuilder = source_lib.make_source_builder(PsiTestSource)
+
+
+@dataclasses.dataclass(frozen=True, eq=True)
+class IonElTestSource(source_lib.Source):
+
+  @property
+  def affected_core_profiles(self):
+    return (
+        source_lib.AffectedCoreProfile.TEMP_ION,
+        source_lib.AffectedCoreProfile.TEMP_EL,
+    )
+
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.FORMULA_BASED,
+        runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
+    )
+
+
+IonElTestSourceBuilder = source_lib.make_source_builder(IonElTestSource)
 
 
 class SourceTest(parameterized.TestCase):
@@ -130,9 +164,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_zero_profile_works_by_default(self):
     """The default source impl should support profiles with all zeros."""
-    source_builder = source_lib.SourceBuilder(
-        affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
-    )
+    source_builder = PsiTestSourceBuilder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'foo': source_builder},
     )
@@ -169,13 +201,22 @@ class SourceTest(parameterized.TestCase):
 
   def test_unsupported_modes_raise_errors(self):
     """Calling with an unsupported type should raise an error."""
-    source_builder = source_lib.SourceBuilder(
-        supported_modes=(
-            # Only support formula-based profiles.
+
+    class TestSource(source_lib.Source):
+      """A test source."""
+
+      @property
+      def affected_core_profiles(
+          self,
+      ) -> tuple[source_lib.AffectedCoreProfile, ...]:
+        return (source_lib.AffectedCoreProfile.NE,)
+
+      @property
+      def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+        return (
             runtime_params_lib.Mode.FORMULA_BASED,
-        ),
-        affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
-    )
+        )
+    source_builder = source_lib.make_source_builder(TestSource)()
     # But set the runtime params of the source to use ZERO as the mode.
     source_builder.runtime_params.mode = runtime_params_lib.Mode.ZERO
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -212,14 +253,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_defaults_output_zeros(self):
     """The default model and formula implementations should output zeros."""
-    source_builder = source_lib.SourceBuilder(
-        supported_modes=(
-            runtime_params_lib.Mode.MODEL_BASED,
-            runtime_params_lib.Mode.FORMULA_BASED,
-            runtime_params_lib.Mode.PRESCRIBED,
-        ),
-        affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
-    )
+    source_builder = test_lib.TestSourceBuilder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'foo': source_builder},
     )
@@ -322,12 +356,8 @@ class SourceTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry()
     output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
-    source_builder = source_lib.SourceBuilder(
+    source_builder = IonElTestSourceBuilder(
         formula=lambda _0, _1, _2, _3, _4: expected_output,
-        affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_ION,
-            source_lib.AffectedCoreProfile.TEMP_EL,
-        ),
     )
     source_builder.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -365,13 +395,8 @@ class SourceTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry()
     output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
-    source_builder = source_lib.SourceBuilder(
-        supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
+    source_builder = IonElTestSourceBuilder(
         model_func=lambda _0, _1, _2, _3, _4: expected_output,
-        affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_ION,
-            source_lib.AffectedCoreProfile.TEMP_EL,
-        ),
     )
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -411,13 +436,7 @@ class SourceTest(parameterized.TestCase):
     # Define the expected output
     expected_output = jnp.ones(output_shape)
     # Create the source
-    source_builder = source_lib.SourceBuilder(
-        supported_modes=(runtime_params_lib.Mode.PRESCRIBED,),
-        affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_ION,
-            source_lib.AffectedCoreProfile.TEMP_EL,
-        ),
-    )
+    source_builder = IonElTestSourceBuilder()
     # Prescribe the source output to something that should be equal to the
     # expected output after interpolation
     source_builder.runtime_params.mode = runtime_params_lib.Mode.PRESCRIBED
@@ -461,14 +480,16 @@ class SourceTest(parameterized.TestCase):
     class TestSource(source_lib.Source):
       output_shape_getter = lambda _0: output_shape
 
-    profile = jnp.asarray([[1, 2, 3, 4], [5, 6, 7, 8]])  # from get_value()
-    source = TestSource(
-        supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
-        model_func=lambda _0, _1, _2, _3, _4: profile,
-        affected_core_profiles=(
+      @property
+      def affected_core_profiles(self):
+        return (
             source_lib.AffectedCoreProfile.PSI,
             source_lib.AffectedCoreProfile.NE,
-        ),
+        )
+
+    profile = jnp.asarray([[1, 2, 3, 4], [5, 6, 7, 8]])  # from get_value()
+    source = TestSource(
+        model_func=lambda _0, _1, _2, _3, _4: profile,
     )
     geo = geometry.build_circular_geometry(n_rho=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
@@ -497,9 +518,8 @@ class SingleProfileSourceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry(n_rho=5)
     expected_output = jnp.ones((5))  # 5 matches the geo.
-    source_builder = source_lib.SourceBuilder(
+    source_builder = PsiTestSourceBuilder(
         formula=lambda _0, _1, _2, _3, _4: expected_output,
-        affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
     source_builder.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -534,10 +554,9 @@ class SingleProfileSourceTest(parameterized.TestCase):
   def test_retrieving_profile_for_affected_state(self):
     """Grabbing the correct profile works for all mesh state attributes."""
     profile = jnp.asarray([1, 2, 3, 4])  # from get_value()
-    source = source_lib.Source(
-        supported_modes=(runtime_params_lib.Mode.MODEL_BASED,),
+
+    source = test_lib.TestSource(
         model_func=lambda _0, _1, _2, _3, _4: profile,
-        affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
     geo = geometry.build_circular_geometry(n_rho=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(

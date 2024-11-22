@@ -19,16 +19,19 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+import scipy
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider
+from torax import output
 from torax import post_processing
 from torax import state
 from torax.config import runtime_params as runtime_params_lib
 from torax.fvm import cell_variable
-from torax.sources import default_sources
 from torax.sources import source_profiles as source_profiles_lib
+from torax.tests.test_lib import default_sources
+from torax.tests.test_lib import sim_test_case
 from torax.tests.test_lib import torax_refs
 
 
@@ -51,6 +54,7 @@ class PostProcessingTest(parameterized.TestCase):
     )
     # Make some dummy source profiles.
     ones = np.ones_like(geo.rho)
+    ones_face = np.ones_like(geo.rho_face)
     self.source_profiles = source_profiles_lib.SourceProfiles(
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
             geo
@@ -59,8 +63,10 @@ class PostProcessingTest(parameterized.TestCase):
         profiles={
             'bremsstrahlung_heat_sink': -ones,
             'ohmic_heat_source': ones * 5,
+            'generic_current_source': ones_face * 2,
             'fusion_heat_source': np.stack([ones, ones]),
             'generic_ion_el_heat_source': np.stack([2 * ones, 3 * ones]),
+            'electron_cyclotron_source': np.stack([7 * ones, 2 * ones]),
         },
     )
     self.core_profiles = core_profile_setters.initial_core_profiles(
@@ -163,15 +169,13 @@ class PostProcessingTest(parameterized.TestCase):
     np.testing.assert_allclose(wth_ion, 1.5 * p_ion[0] * volume)
     np.testing.assert_allclose(wth_tot, 1.5 * p_tot[0] * volume)
 
-  def test_calculate_integrated_heat_sources(self):
+  def test_calculate_integrated_sources(self):
     """Checks integrated quantities match expectations."""
     # pylint: disable=protected-access
-    integrated_heat_sources = (
-        post_processing._calculate_integrated_heat_sources(
-            self.geo,
-            self.core_profiles,
-            self.source_profiles,
-        )
+    integrated_sources = post_processing._calculate_integrated_sources(
+        self.geo,
+        self.core_profiles,
+        self.source_profiles,
     )
     # pylint: enable=protected-access
 
@@ -186,83 +190,116 @@ class PostProcessingTest(parameterized.TestCase):
         'P_alpha_tot',
         'P_ohmic',
         'P_brems',
+        'P_ecrh',
         'P_heating_tot_ion',
         'P_heating_tot_el',
         'P_heating_tot',
         'P_external_ion',
         'P_external_el',
         'P_external_tot',
+        'I_ecrh',
+        'I_generic',
     }
 
-    self.assertSameElements(integrated_heat_sources.keys(), expected_keys)
+    self.assertSameElements(integrated_sources.keys(), expected_keys)
 
     volume = np.trapz(self.geo.vpr, self.geo.rho_norm)
 
     # Check sums of electron and ion heating.
     np.testing.assert_allclose(
-        integrated_heat_sources['P_generic_ion']
-        + integrated_heat_sources['P_alpha_ion']
-        + integrated_heat_sources['P_ei_exchange_ion'],
-        integrated_heat_sources['P_heating_tot_ion'],
+        integrated_sources['P_generic_ion']
+        + integrated_sources['P_alpha_ion']
+        + integrated_sources['P_ei_exchange_ion'],
+        integrated_sources['P_heating_tot_ion'],
     )
 
     np.testing.assert_allclose(
-        integrated_heat_sources['P_generic_el']
-        + integrated_heat_sources['P_ohmic']
-        + integrated_heat_sources['P_brems']
-        + integrated_heat_sources['P_alpha_el']
-        + integrated_heat_sources['P_ei_exchange_el'],
-        integrated_heat_sources['P_heating_tot_el'],
+        integrated_sources['P_generic_el']
+        + integrated_sources['P_ohmic']
+        + integrated_sources['P_brems']
+        + integrated_sources['P_ecrh']
+        + integrated_sources['P_alpha_el']
+        + integrated_sources['P_ei_exchange_el'],
+        integrated_sources['P_heating_tot_el'],
     )
 
     np.testing.assert_allclose(
-        integrated_heat_sources['P_heating_tot_el']
-        + integrated_heat_sources['P_heating_tot_ion'],
-        integrated_heat_sources['P_heating_tot'],
+        integrated_sources['P_heating_tot_el']
+        + integrated_sources['P_heating_tot_ion'],
+        integrated_sources['P_heating_tot'],
     )
 
     np.testing.assert_allclose(
-        integrated_heat_sources['P_external_el']
-        + integrated_heat_sources['P_external_ion'],
-        integrated_heat_sources['P_external_tot'],
+        integrated_sources['P_external_el']
+        + integrated_sources['P_external_ion'],
+        integrated_sources['P_external_tot'],
     )
 
     np.testing.assert_allclose(
-        integrated_heat_sources['P_external_tot']
-        + integrated_heat_sources['P_brems'],
-        + integrated_heat_sources['P_alpha_tot'],
-        integrated_heat_sources['P_heating_tot'],
+        integrated_sources['P_external_tot'] + integrated_sources['P_brems'],
+        +integrated_sources['P_alpha_tot'],
+        integrated_sources['P_heating_tot'],
     )
 
     # Check expected values.
+    np.testing.assert_allclose(integrated_sources['P_generic_ion'], 2 * volume)
+
+    np.testing.assert_allclose(integrated_sources['P_generic_el'], 3 * volume)
+
+    np.testing.assert_allclose(integrated_sources['P_generic_tot'], 5 * volume)
+
     np.testing.assert_allclose(
-        integrated_heat_sources['P_generic_ion'], 2 * volume
+        integrated_sources['P_alpha_ion'],
+        integrated_sources['P_alpha_el'],
     )
 
     np.testing.assert_allclose(
-        integrated_heat_sources['P_generic_el'], 3 * volume
+        integrated_sources['P_ohmic'],
+        5 * volume,
+    )
+    np.testing.assert_allclose(
+        integrated_sources['P_brems'],
+        -volume,
     )
 
     np.testing.assert_allclose(
-        integrated_heat_sources['P_generic_tot'], 5 * volume
+        integrated_sources['P_ei_exchange_ion'],
+        -integrated_sources['P_ei_exchange_el'],
     )
 
-    np.testing.assert_allclose(
-        integrated_heat_sources['P_alpha_ion'],
-        integrated_heat_sources['P_alpha_el'],
+
+class PostProcessingSimTest(sim_test_case.SimTestCase):
+  """Tests for the cumulative outputs."""
+
+  def test_cumulative_energies_match_power_integrals(self):
+    """Tests E_fusion and E_external are calculated correctly."""
+
+    # Use a test config with both external and fusion sources.
+    config_name = 'test_all_transport_fusion_qlknn'
+
+    # Load the config and run the simulation.
+    sim = self._get_sim(config_name + '.py')
+    sim_outputs = sim.run()
+
+    # Get the power and energy histories.
+    state_history = output.StateHistory(sim_outputs, sim.source_models)
+    p_alpha = state_history.post_processed_outputs.P_alpha_tot
+    p_external = state_history.post_processed_outputs.P_external_tot
+    e_fusion = state_history.post_processed_outputs.E_cumulative_fusion
+    e_external = state_history.post_processed_outputs.E_cumulative_external
+    t = state_history.times
+
+    # Calculate the cumulative energies from the powers.
+    e_fusion_expected = scipy.integrate.cumulative_trapezoid(
+        p_alpha * 5, t, initial=0.0
     )
 
-    np.testing.assert_allclose(
-        integrated_heat_sources['P_ohmic'], 5 * volume,
-    )
-    np.testing.assert_allclose(
-        integrated_heat_sources['P_brems'], -volume,
+    e_external_expected = scipy.integrate.cumulative_trapezoid(
+        p_external, t, initial=0.0
     )
 
-    np.testing.assert_allclose(
-        integrated_heat_sources['P_ei_exchange_ion'],
-        -integrated_heat_sources['P_ei_exchange_el'],
-    )
+    np.testing.assert_allclose(e_fusion, e_fusion_expected)
+    np.testing.assert_allclose(e_external, e_external_expected)
 
 
 if __name__ == '__main__':

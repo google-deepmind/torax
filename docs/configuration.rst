@@ -200,6 +200,9 @@ Defines the distribution of ion species. Currently restricted to a single main i
 ``Zimp`` (float = 10.0), **time-varying-scalar**
   Impurity charge state.
 
+``Aimp`` (float = 20.18), **time-varying-scalar**
+  Impurity mass in amu units.
+
 ``Zeff`` (float = 1.0), **time-varying-scalar**
   Plasma effective charge, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is
   the normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and :math:`Z_{imp}`, a consistent :math:`\hat{n}_i` is calculated,
@@ -210,8 +213,8 @@ Profile conditions
 
 Configures boundary conditions, initial conditions, and prescribed time-dependence of temperature, density, and current.
 
-``Ip`` (float = 15.0), **time-varying-scalar**
-  Plasma current in MA. Boundary condition for the :math:`\psi` equation.
+``Ip_tot`` (float = 15.0), **time-varying-scalar**
+  Total plasma current in MA. Boundary condition for the :math:`\psi` equation.
 
 ``Ti_bound_right`` (float | None [default]), **time-varying-scalar**
   Ion temperature boundary condition at :math:`\hat{\rho}=1` in units of keV.
@@ -389,7 +392,7 @@ geometry
 --------
 
 ``geometry_type`` (str = 'chease')
-  Geometry model used. There are currently three options:
+  Geometry model used, from the following options.
 
 * ``'circular'``
     An ad-hoc circular geometry model. Includes elongation corrections.
@@ -401,25 +404,36 @@ geometry
 * ``'fbt'``
     Loads FBT geometry files.
 
+* ``'eqdsk'``
+    Loads a EQDSK geometry file, and carries out the appropriate flux-surface-averages of the 2D poloidal flux.
+    Use of EQDSK geometry comes with the following caveat:
+    The TORAX EQDSK converter has only been tested against CHEASE-generated EQDSK which is COCOS=2.
+    The converter is not guaranteed to work as expected with arbitrary EQDSK input, so please verify carefully.
+    Future work will be done to correctly handle EQDSK inputs provided with a specific COCOS value.
+
+Geometry dicts for all geometry types can contain the following additional keys.
+
 ``nrho`` (int = 25)
   Number of radial grid points
 
+``hi_res_fac`` (int = 4)
+  Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
+  with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
+
+Geometry dicts for all non-circular geometry types can contain the following additional keys.
+
 ``geometry_file`` (str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols')
-  Only used for ``geometry_type='chease'``. Sets the geometry file loaded.
+  Required for all geometry types except ``'circular'``. Sets the geometry file loaded.
   The geometry directory is set with the ``TORAX_GEOMETRY_DIR`` environment variable. If none is set, then the default is ``torax/data/third_party/geo``.
-
-``LY_file`` (str = None)
-  Only used for ``geometry_type='fbt'``. Sets the FBT LY geometry file loaded.
-
-``L_file`` (str = None)
-  Only used for ``geometry_type='fbt'``. Sets the FBT L geometry file loaded.
 
 ``geometry_dir`` (str = None)
   Optionally overrides the``TORAX_GEOMETRY_DIR`` environment variable.
 
 ``Ip_from_parameters`` (bool = True)
-  Only used for ``geometry_type='chease'``.Toggles whether total plasma current is read from the configuration file,
-  or from the geometry file. If True, then the :math:`\psi` calculated from the geometry file is scaled to match the desired :math:`I_p`.
+  Toggles whether total plasma current is read from the configuration file, or from the geometry file.
+  If True, then the :math:`\psi` calculated from the geometry file is scaled to match the desired :math:`I_p`.
+
+Geometry dicts for analytical circular geometry require the following additional keys.
 
 ``Rmaj`` (float = 6.2)
   Major radius (R) in meters.
@@ -428,19 +442,53 @@ geometry
   Minor radius (a) in meters.
 
 ``B0`` (float = 5.3)
-  Toroidal magnetic field on axis [T].
+  Vacuum toroidal magnetic field on axis [T].
 
 ``kappa`` (float = 1.72)
-  Only used for ``geometry_type='circular'``. Sets the plasma elongation used for volume, area and q-profile corrections.
+  Sets the plasma elongation used for volume, area and q-profile corrections.
 
-``hi_res_fac`` (int = 4)
-  Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
-  with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
+Geometry dicts for CHEASE geometry require the following additional keys for denormalization.
+
+``Rmaj`` (float = 6.2)
+  Major radius (R) in meters.
+
+``Rmin`` (float = 2.0)
+  Minor radius (a) in meters.
+
+``B0`` (float = 5.3)
+  Vacuum toroidal magnetic field on axis [T].
+
+Geometry dicts for FBT geometry require the following additional keys.
+
+``LY_file`` (str = None)
+  Sets a single-slice FBT LY geometry file to be loaded.
+
+``LY_bundle_file`` (str = None)
+  Sets the FBT LY bundle file to be loaded, corresponding to multiple time-slices.
+
+``LY_to_torax_times`` (ndarray = None)
+  Sets the TORAX simulation times corresponding to the individual slices in the
+  FBT LY bundle file. If not provided, then the times are taken from the LY_bundle_file
+  itself. The length of the array must match the number of slices in the bundle.
+
+``L_file`` (str = None)
+  Sets the FBT L geometry file loaded.
+
+Geometry dicts for EQDSK geometry can contain the following additional keys.
+It is only recommended to change the default values if issues arise.
+
+``n_surfaces`` (int = 100)
+  Number of surfaces for which flux surface averages are calculated.
+
+``last_surface_factor`` (float = 0.99)
+  Multiplication factor of the boundary poloidal flux, used for the contour
+  defining geometry terms at the LCFS on the TORAX grid. Needed to avoid
+  divergent integrations in diverted geometries.
 
 For setting up time-dependent geometry, a subset of varying geometry parameters
-and input files are defined in a ``geometry_configs`` dict, which is a
+and input files can be defined in a ``geometry_configs`` dict, which is a
 time-series of {time: {configs}} pairs. For example, a time-dependent geometry
-input with 3 time-slices of FBT geometries can be set up as:
+input with 3 time-slices of single-time-slice FBT geometries can be set up as:
 
 .. code-block:: python
 
@@ -451,26 +499,29 @@ input with 3 time-slices of FBT geometries can be set up as:
           20.0: {
               'LY_file': 'LY_early_rampup.mat',
               'L_file': 'L_early_rampup.mat',
-              'Rmaj': 6.2,
-              'Rmin': 2.0,
-              'B0': 5,3,
           },
           50.0: {
               'LY_file': 'LY_mid_rampup.mat',
               'L_file': 'L_mid_rampup.mat',
-              'Rmaj': 6.2,
-              'Rmin': 2.0,
-              'B0': 5,3,
           },
           100.0: {
               'LY_file': 'LY_endof_rampup.mat',
               'L_file': 'L_endof_rampup.mat',
-              'Rmaj': 6.2,
-              'Rmin': 2.0,
-              'B0': 5,3,
           },
       },
   },
+
+Alternatively, for FBT data specifically, TORAX supports loading a bundle of LY
+files packaged within a single ``.mat`` file using LIUQE meqlpack. This eliminates
+the need to specify multiple individual LY files in the ``geometry_configs`` parameter.
+
+To use this feature, set ``LY_bundle_file`` to the corresponding ``.mat`` file containing
+the LY bundle. Optionally set ``LY_to_torax_times`` as a NumPy array corresponding to times
+of the individual LY slices within the bundle. If not provided, then the times are taken
+from the bundle file itself.
+
+Note that ``LY_bundle_file`` cannot coexist with ``LY_file`` or ``geometry_configs`` in the
+same configuration, and will raise an error if so.
 
 All file loading and geometry processing is done upon simulation initialization.
 The geometry inputs into the TORAX PDE coefficients are then time-interpolated
@@ -479,9 +530,9 @@ on-the-fly onto the TORAX time slices where the PDE calculations are done.
 transport
 ---------
 
-Select and configure various transport models, such as constant diffusivity, critical gradient model (CGM), or the QuaLiKiz neural network (QLKNN10D).
-The dictionary consists of keys common to all transport models, and additional nested dictionaries were parameters pertaining to a specific transport
-model are defined.
+Select and configure various transport models. The dictionary consists of keys
+common to all transport models, and additional nested dictionaries were parameters
+pertaining to a specific transport model are defined.
 
 ``transport_model`` (str = 'constant')
   Select the transport model according to the following options:
@@ -493,7 +544,10 @@ model are defined.
 * ``'bohm-gyrobohm'``
   Bohm-GyroBohm model.
 * ``'qlknn'``
-  The QuaLiKiz Neural Network, 10D hypercube version (QLKNN10D) `[K.L. van de Plassche PoP 2020] <https://doi.org/10.1063/1.5134126>`_
+  The QuaLiKiz Neural Network, 10D hypercube version (QLKNN10D) `[K.L. van de Plassche PoP 2020] <https://doi.org/10.1063/1.5134126>`_.
+* ``'qualikiz'``
+  The `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ quasilinear gyrokinetic transport model.
+
 
 ``chimin`` (float = 0.05)
   Lower allowed bound for heat conductivities :math:`\chi`, in units of :math:`m^2/s`.
@@ -666,6 +720,38 @@ Runtime parameters for the QLKNN10D model, defined within a
   :math:`q < 1`, as a proxy for sawteeth. Where :math:`q<1`, then the :math:`q` and :math:`\hat{s}` QLKNN10D inputs are clipped to
   :math:`q=1` and :math:`\hat{s}=0.1`.
 
+qualikiz
+^^^^^^^^
+
+Runtime parameters for the QuaLiKiz model, defined within a
+``qualikiz`` dict nested within the transport dict
+
+``maxruns`` (int = 2)
+  Frequency of full QuaLiKiz contour solutions. For maxruns>1, every maxruns-th
+  call will use the full contour integral solution. Other runs will use the previous
+  solution as the initial guess for the Newton solver, which is significantly faster.
+
+``numprocs`` (int = 8)
+  Number of MPI processes to use for QuaLiKiz.
+
+``coll_mult`` (float = 1.0)
+  Collisionality multiplier for sensitivity analysis.
+
+``DVeff`` (bool = False)
+  If True, use either :math:`D_{eff}` or :math:`V_{eff}` for particle transport. See :ref:`physics_models` for more details.
+
+``An_min`` (float = 0.05)
+  :math:`|R/L_{ne}|` value below which :math:`V_{eff}` is used instead of :math:`D_{eff}`, if ``DVeff==True``.
+
+``avoid_big_negative_s`` (bool = True)
+  If True, modify input magnetic shear such that :math:`\hat{s} - \alpha_{MHD} > -0.2` always,
+  to compensate for the lack of slab ITG modes in QuaLiKiz.
+
+``q_sawtooth_proxy`` (bool = True)
+  To avoid un-physical transport barriers, modify the input q-profile and magnetic shear for zones where
+  :math:`q < 1`, as a proxy for sawteeth. Where :math:`q<1`, then the :math:`q` and :math:`\hat{s}` QuaLiKiz inputs are clipped to
+  :math:`q=1` and :math:`\hat{s}=0.1`.
+
 sources
 -------
 
@@ -716,13 +802,13 @@ preamble to the CONFIG dict within config module, set:
 .. code-block:: python
 
     'sources': {
-        'jext': {
+        'generic_current_source': {
             'mode': 'PRESCRIBED',
-            'prescribed_values': (times, rhon, jext_profiles),
+            'prescribed_values': (times, rhon, current_profiles),
         },
 
 where the example ``times`` is a 1D numpy array of times, ``rhon`` is a 1D numpy array of normalized toroidal flux
-coordinates, and ``jext_profiles`` is a 2D numpy array of the jext profile at each time. These names are arbitrary,
+coordinates, and ``current_profiles`` is a 2D numpy array of the current profile at each time. These names are arbitrary,
 and can be set to anything convenient.
 
 
@@ -738,7 +824,6 @@ and can be set to anything convenient.
   * c1 (float): Offset location
   * c2 (float): Exponential decay parameter
   * total (float): integral
-  * use_normalized_r (bool = False)
 
   The profile is parameterized as follows :math:`Q = C e^{-(r - c1) / c2}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
   then c1 and c2 are interpreted as being in normalized toroidal flux units.
@@ -747,7 +832,6 @@ and can be set to anything convenient.
   * c1 (float): Gaussian peak Location
   * c2 (float): Gaussian width
   * total (float): integral
-  * use_normalized_r (bool = False)
 
   The profile is parameterized as follows :math:`Q = C e^{-((r - c1)^2) / (2 c2^2)}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
   then c1 and c2 are interpreted as being in normalized toroidal flux units.
@@ -764,7 +848,7 @@ A utility source module that allows for a time dependent Gaussian ion and electr
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the Gaussian formula with ``use_normalized_r=True``.
+  Uses the Gaussian formula.
 
 ``rsource`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -773,7 +857,7 @@ A utility source module that allows for a time dependent Gaussian ion and electr
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
 ``Ptot`` (float = 120e6), **time-varying-scalar**
-  Total source power in MW.
+  Total injected source power in W.
 
 ``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
@@ -810,7 +894,7 @@ Formula based exponential gas puff source. No first-principle-based model is yet
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the exponential formula with ``use_normalized_r=True``, and ``c1=1``.
+  Uses the exponential formula with ``c1=1``.
 
 ``puff_decay_length`` (float = 0.05), **time-varying-scalar**
   Gas puff decay length from edge in units of :math:`\hat{\rho}`.
@@ -826,7 +910,7 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the Gaussian formula with ``use_normalized_r=True``.
+  Uses the Gaussian formula.
 
 ``pellet_deposition_location`` (float = 0.85), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -837,23 +921,23 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
 ``S_pellet_tot`` (float = 2e22), **time-varying-scalar**
   Total particle source in units of particles/s
 
-nbi_particle_source
+generic_particle_source
 ^^^^^^^^^^^^^^^^^^^
 
-Time dependent NBI Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
+Time dependent Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
 
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the Gaussian formula with ``use_normalized_r=True``.
+  Uses the Gaussian formula with.
 
-``nbi_deposition_location`` (float = 0.0), **time-varying-scalar**
+``deposition_location`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
 
-``nbi_particle_width`` (float = 0.25), **time-varying-scalar**
+``particle_width`` (float = 0.25), **time-varying-scalar**
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
-``S_nbi_tot`` (float = 1e22), **time-varying-scalar**
+``S_tot`` (float = 1e22), **time-varying-scalar**
   Total particle source.
 
 j_bootstrap
@@ -866,15 +950,15 @@ Bootstrap current calculated with the Sauter model.
 ``bootstrap_mult`` (float = 1.0)
   Multiplication factor for bootstrap current for testing purposes.
 
-j_ext
-^^^^^
+generic_current_source
+^^^^^^^^^^^^^^^^^^^^^^
 
-Generic external current profile, parameterized as a Gaussian (e.g. ECCD).
+Generic external current profile, parameterized as a Gaussian.
 
 ``mode`` (str = 'formula')
 
 ``formula_type`` (str = 'default')
-  Uses the Gaussian formula with ``use_normalized_r=True``.
+  Uses the Gaussian formula.
 
 ``rext`` (float = 0.4), **time-varying-scalar**
   Gaussian center of current profile in units of :math:`\hat{\rho}`.
@@ -883,13 +967,13 @@ Generic external current profile, parameterized as a Gaussian (e.g. ECCD).
   Gaussian width of current profile in units of :math:`\hat{\rho}`.
 
 ``Iext`` (float = 3.0), **time-varying-scalar**
-  Total current in MA. Only used if ``use_absolute_jext==True``.
+  Total current in MA. Only used if ``use_absolute_current==True``.
 
 ``fext`` (float = 0.2), **time-varying-scalar**
   Sets total ``j_ext`` to be a fraction ``fext`` of the total plasma current.
-  Only used if ``use_absolute_jext==False``.
+  Only used if ``use_absolute_current==False``.
 
-``use_absolute_jext`` (bool = False)
+``use_absolute_current`` (bool = False)
   Toggles relative vs absolute external current setting.
 
 bremsstrahlung_heat_sink
@@ -901,49 +985,65 @@ Bremsstrahlung model from Wesson, with an optional correction for relativistic e
 
 ``use_relativistic_correction`` (bool = False)
 
-The following sources defined in TORAX but not yet implemented. They are listed here for completeness.
+electron_cyclotron_source
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Electron-cyclotron heating and current drive, based on the local efficiency model in `Lin-Liu et al., 2003 <https://doi.org/10.1063/1.1610472>`_.
+Given an EC power density profile and efficiency profile, the model produces the corresponding EC-driven current density profile.
+The user has three options:
 
-ECRHHeatSource
-^^^^^^^^^^^^^^
+1. Provide an entire EC power density profile manually (via ``manual_ec_power_density``).
+2. Provide the parameters of a Gaussian EC deposition (via ``gaussian_ec_power_density_width``, ``gaussian_ec_power_density_location``, and ``gaussian_ec_total_power``).
+3. Any combination of the above.
 
-ICRHHeatSource
-^^^^^^^^^^^^^^
+By default, both the manual and Gaussian profiles are zero. The manual and Gaussian profiles are summed together to produce the final EC deposition profile.
 
-LHHeatSource
-^^^^^^^^^^^^
+    ``mode`` (str = 'model')
 
-NBIElectronHeatSource
-^^^^^^^^^^^^^^^^^^^^^
+    ``manual_ec_power_density`` **time-varying-array**
+        EC power density deposition profile, in units of :math:`W/m^3`.
 
-NBIIonHeatSource
-^^^^^^^^^^^^^^^^
+    ``gaussian_ec_power_density_width`` **time-varying-scalar**
+        Width of Gaussian EC power density deposition profile.
 
-LineRadiationHeatSink
-^^^^^^^^^^^^^^^^^^^^^
+    ``gaussian_ec_power_density_location`` **time-varying-scalar**
+        Location of Gaussian EC power density deposition profile on the normalized rho grid.
 
-CyclotronRadiationHeatSink
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ``gaussian_ec_total_power`` **time-varying-scalar**
+        Integral of the Gaussian EC power density profile, setting the total power.
 
-ChargeExchangeHeatSink
-^^^^^^^^^^^^^^^^^^^^^^
+    ``cd_efficiency`` **time-varying-scalar**
+        Dimensionless local efficiency profile for conversion of EC power to current.
 
-RecombinationHeatSink
-^^^^^^^^^^^^^^^^^^^^^
+ion_cyclotron_source
+^^^^^^^^^^^^^^^^^^^^
+Ion cyclotron heating using a surrogate model of the TORIC ICRH spectrum
+solver simulation https://meetings.aps.org/Meeting/DPP24/Session/NP12.106.
+This source is currently SPARC specific.
 
-RecombinationDensitySink
-^^^^^^^^^^^^^^^^^^^^^^^^
+Weights and configuration for the surrogate model are needed to use this source.
+By default these are expected to be found under
+``'~/toric_surrogate/TORIC_MLP_v1/toricnn.json'``. To use a different file path
+an alternative path can be provided using the ``TORIC_NN_MODEL_PATH``
+environment variable which should point to a compatible JSON file.
 
-ECRHCurrentSource
-^^^^^^^^^^^^^^^^^
+``mode`` (str = 'model')
 
-ICRHCurrentSource
-^^^^^^^^^^^^^^^^^
+``wall_inner`` (float = 1.24)
+  Inner radial location of first wall at plasma midplane level [m].
 
-LHCurrentSource
-^^^^^^^^^^^^^^^
+``wall_outer`` (float = 2.43)
+  Outer radial location of first wall at plasma midplane level [m].
 
-NBICurrentSource
-^^^^^^^^^^^^^^^^
+``frequency`` (float = 120e6) **time-varying-scalar**
+  ICRF wave frequency in Hz.
+
+``minority_concentration`` (float = 3.0) **time-varying-scalar**
+  Helium-3 minority concentration relative to the electron density in %.
+
+``Ptot`` (float = 120e6), **time-varying-scalar**
+  Total injected source power in W.
+
+See :ref:`physics_models` for more detail.
 
 stepper
 -------
@@ -1123,7 +1223,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
               'Zimp': 10,
           },
           'profile_conditions': {
-              'Ip': {0: 3, 80: 10.5},
+              'Ip_tot': {0: 3, 80: 10.5},
               # initial condition ion temperature for r=0 and r=Rmin
               'Ti': {0.0: {0.0: 6.0, 1.0: 0.1}},
               'Ti_bound_right': 0.1,  # boundary condition ion temp for r=Rmin
@@ -1164,7 +1264,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
       },
       'sources': {
           'j_bootstrap': {},
-          'jext': {
+          'generic_current_source': {
               'fext': 0.15,
               'wext': 0.075,
               'rext': 0.36,
@@ -1254,6 +1354,10 @@ previous simulation and then run the simulation from that point in time. For
 all subsequent steps the dynamic runtime parameters will be constructed using
 the given runtime parameter configuration (from ``t=10`` onwards).
 
+If the requested restart time is not exactly available in the state file, the
+simulation will restart from the closest available time. A warning will be
+logged in this case.
+
 We envisage this feature being useful for example to:
 
 * restart a(n expensive) simulation that was healthy up till a certain time and
@@ -1264,4 +1368,3 @@ We envisage this feature being useful for example to:
   a simulation up to a certain point in time. After running the initial
   simulation you could then modify and sweep the runtime parameter config in
   order to do some uncertainty quantification.
-

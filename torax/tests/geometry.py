@@ -15,6 +15,7 @@
 """Unit tests for torax.geometry."""
 
 import dataclasses
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -22,6 +23,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import geometry
+from torax.config import build_sim
 
 
 class GeometryTest(parameterized.TestCase):
@@ -74,6 +76,7 @@ class GeometryTest(parameterized.TestCase):
 
     foo_jitted = jax.jit(foo)
     intermediate = geometry.StandardGeometryIntermediates(
+        geometry_type=geometry.GeometryType.CIRCULAR,
         Ip_from_parameters=True,
         n_rho=25,
         Rmaj=6.2,
@@ -93,8 +96,10 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
+        elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
+        z_magnetic_axis=np.array(0.0),
     )
     geo = geometry.build_standard_geometry(intermediate)
     foo_jitted(geo)
@@ -107,6 +112,7 @@ class GeometryTest(parameterized.TestCase):
   def test_build_geometry_provider(self):
     """Test that the default geometry provider can be built."""
     intermediate_0 = geometry.StandardGeometryIntermediates(
+        geometry_type=geometry.GeometryType.CIRCULAR,
         Ip_from_parameters=True,
         n_rho=25,
         Rmaj=6.2,
@@ -126,12 +132,15 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
+        elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 1.0, 0.01),
         hires_fac=4,
+        z_magnetic_axis=np.array(0.0),
     )
     geo_0 = geometry.build_standard_geometry(intermediate_0)
 
     intermediate_1 = geometry.StandardGeometryIntermediates(
+        geometry_type=geometry.GeometryType.CIRCULAR,
         Ip_from_parameters=True,
         n_rho=25,
         Rmaj=7.4,
@@ -151,14 +160,17 @@ class GeometryTest(parameterized.TestCase):
         flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
         delta_upper_face=np.arange(0, 1.0, 0.01),
         delta_lower_face=np.arange(0, 1.0, 0.01),
+        elongation=np.arange(0, 1.0, 0.01),
         vpr=np.arange(0, 2.0, 0.02),
         hires_fac=4,
+        z_magnetic_axis=np.array(0.0),
     )
     geo_1 = geometry.build_standard_geometry(intermediate_1)
 
     provider = geometry.StandardGeometryProvider.create_provider(
-        {0.: geo_0, 10.: geo_1})
-    geo = provider(5.)
+        {0.0: geo_0, 10.0: geo_1}
+    )
+    geo = provider(5.0)
     np.testing.assert_allclose(geo.Rmaj, 6.8)
     np.testing.assert_allclose(geo.Rmin, 1.5)
     np.testing.assert_allclose(geo.B0, 5.9)
@@ -167,7 +179,7 @@ class GeometryTest(parameterized.TestCase):
     """Test that the circular geometry provider can be built."""
     geo_0 = geometry.build_circular_geometry(
         n_rho=25,
-        kappa=1.72,
+        elongation_LCFS=1.72,
         Rmaj=6.2,
         Rmin=2.0,
         B0=5.3,
@@ -175,17 +187,61 @@ class GeometryTest(parameterized.TestCase):
     )
     geo_1 = geometry.build_circular_geometry(
         n_rho=25,
-        kappa=1.72,
+        elongation_LCFS=1.72,
         Rmaj=7.2,
         Rmin=1.0,
         B0=5.3,
         hires_fac=4,
     )
     provider = geometry.CircularAnalyticalGeometryProvider.create_provider(
-        {0.: geo_0, 10.: geo_1})
-    geo = provider(5.)
+        {0.0: geo_0, 10.0: geo_1}
+    )
+    geo = provider(5.0)
     np.testing.assert_allclose(geo.Rmaj, 6.7)
     np.testing.assert_allclose(geo.Rmin, 1.5)
+
+  @parameterized.parameters([
+      dict(geometry_file='eqdsk_cocos02.eqdsk'),
+      dict(geometry_file='EQDSK_ITERhybrid_COCOS02.eqdsk'),
+  ])
+  def test_build_geometry_from_eqdsk(self, geometry_file):
+    """Test that EQDSK geometries can be built."""
+    intermediate = geometry.StandardGeometryIntermediates.from_eqdsk(
+        geometry_file=geometry_file
+    )
+    geometry.build_standard_geometry(intermediate)
+
+  def test_geometry_objects_can_be_used_in_jax_jitted_functions(self):
+    """Test public API of geometry objects can be used in jitted functions."""
+    geo = geometry.build_circular_geometry()
+
+    @jax.jit
+    def f(geo: geometry.Geometry):
+      for field in dir(geo):
+        if not field.startswith('_'):
+          getattr(geo, field)
+
+    f(geo)
+
+  def test_build_standard_geometry_builds_correct_type_for_chease(self):
+    """Test that the default CHEASE geometry can be built and is of the correct type."""
+    intermediate = geometry.StandardGeometryIntermediates.from_chease()
+    geo = geometry.build_standard_geometry(intermediate)
+    self.assertIsInstance(geo, geometry.CheaseGeometry)
+
+  def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
+    """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""
+    intermediate = geometry.StandardGeometryIntermediates.from_chease()
+    geo = geometry.build_standard_geometry(intermediate)
+    # Check that a runtime error is raised under both JIT and non-JIT.
+    with self.assertRaises(RuntimeError):
+      _ = geo.z_magnetic_axis
+    with self.assertRaises(RuntimeError):
+
+      def f():
+        return geo.z_magnetic_axis
+
+      _ = jax.jit(f)()
 
 
 def face_to_cell(n_rho, face):

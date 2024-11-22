@@ -18,23 +18,26 @@ classifiers = [
 dependencies = [
     "absl-py>=2.0.0",
     "typing_extensions>=4.2.0",
+    "typeguard>=2.13.3",
     "immutabledict>=1.0.0",
     "jax>=0.4.31",
     "jaxlib>=0.4.31",
     "jaxopt>=0.8.2",
     "flax>=0.7.5",
     "matplotlib>=3.3.0",
-    "numpy>=1.24.1",
+    "numpy>=1.24.1,<2.0.0",
     "setuptools;python_version>='3.10'",
     "chex>=0.1.85",
     "equinox>=0.11.3",
     "PyYAML>=6.0.1",
-    "xarray>=2023.12.0",
+    # DataTree is only working with development version of xarray for now.
+    "xarray @ git+https://github.com/pydata/xarray",
     "netcdf4>=1.6.5,<1.7.1",
     "h5netcdf>=1.3.0",
     "scipy>=1.12.0",
     "jaxtyping>=0.2.28",
-    "numpy<2.0.0",
+    "contourpy>=1.2.1",
+    "eqdsk>=0.4.0"
 ]
 
 [project.urls]
@@ -70,3 +73,14 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["torax*"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--ignore=torax/tests/test_data",
+    "--ignore=torax/tests/scripts",
+    "--ignore-glob=*lib*",
+    # Leads to an ImportError in collection for `pytest` without qualikiz_tools.
+    "--ignore=torax/transport_model/qualikiz_wrapper.py",
+]
+testpaths = "**/tests"
+python_files = "*.py"

@@ -43,15 +43,13 @@ class Currents:
   jtot: array_typing.ArrayFloat
   jtot_face: array_typing.ArrayFloat
   johm: array_typing.ArrayFloat
-  johm_face: array_typing.ArrayFloat
-  jext: array_typing.ArrayFloat
-  jext_face: array_typing.ArrayFloat
+  generic_current_source: array_typing.ArrayFloat
   j_bootstrap: array_typing.ArrayFloat
   j_bootstrap_face: array_typing.ArrayFloat
   # pylint: disable=invalid-name
   # Using physics notation naming convention
   I_bootstrap: array_typing.ScalarFloat
-  Ip: array_typing.ScalarFloat
+  Ip_profile_face: array_typing.ArrayFloat
   sigma: array_typing.ArrayFloat
   jtot_hires: Optional[array_typing.ArrayFloat] = None
 
@@ -67,6 +65,22 @@ class Currents:
     return any(
         _check_for_nans(getattr(self, field))
         for field in self.__dataclass_fields__
+    )
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> "Currents":
+    """Returns a Currents with all zeros."""
+    return cls(
+        jtot=jnp.zeros(geo.rho_face.shape),
+        jtot_face=jnp.zeros(geo.rho_face.shape),
+        johm=jnp.zeros(geo.rho_face.shape),
+        generic_current_source=jnp.zeros(geo.rho_face.shape),
+        j_bootstrap=jnp.zeros(geo.rho_face.shape),
+        j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
+        I_bootstrap=jnp.array(0.0),
+        Ip_profile_face=jnp.zeros(geo.rho_face.shape),
+        sigma=jnp.zeros(geo.rho_face.shape),
+        jtot_hires=jnp.zeros(geo.rho_face.shape),
     )
 
 
@@ -99,6 +113,7 @@ class CoreProfiles:
   Zi: array_typing.ScalarFloat  # Main ion charge
   Ai: array_typing.ScalarFloat  # Main ion mass [amu]
   Zimp: array_typing.ScalarFloat  # Impurity charge
+  Aimp: array_typing.ScalarFloat  # Impurity mass [amu]
   # pylint: enable=invalid-name
 
   def history_elem(self) -> CoreProfiles:
@@ -275,8 +290,8 @@ class PostProcessedOutputs:
       heating + ion-electron exchange + Ohmic + fusion [W]
     P_heating_tot_el: Total electron heating power, with all sources: auxiliary
       heating + ion-electron exchange + Ohmic + fusion [W]
-    P_heating_tot: Total heating power, with all sources: auxiliary heating
-      + ion-electron exchange + Ohmic + fusion [W]
+    P_heating_tot: Total heating power, with all sources: auxiliary heating +
+      ion-electron exchange + Ohmic + fusion [W]
     P_external_ion: Total external ion heating power: auxiliary heating + Ohmic
       [W]
     P_external_el: Total external electron heating power: auxiliary heating +
@@ -292,7 +307,16 @@ class PostProcessedOutputs:
     P_alpha_tot: Total fusion power to plasma [W]
     P_ohmic: Ohmic heating power to electrons [W]
     P_brems: Bremsstrahlung electron heat sink [W]
+    P_ecrh: Total electron cyclotron source power [W]
+    I_ecrh: Total electron cyclotron source current [A]
+    I_generic: Total generic source current [A]
     Q_fusion: Fusion power gain
+    P_icrh_el: Ion cyclotron resonance heating to electrons [W]
+    P_icrh_ion: Ion cyclotron resonance heating to ions [W]
+    P_icrh_tot: Total ion cyclotron resonance heating power [W]
+    E_cumulative_fusion: Total cumulative fusion energy [J]
+    E_cumulative_external: Total external injected energy (Ohmic + auxiliary
+      heating) [J]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -325,7 +349,15 @@ class PostProcessedOutputs:
   P_alpha_tot: array_typing.ScalarFloat
   P_ohmic: array_typing.ScalarFloat
   P_brems: array_typing.ScalarFloat
+  P_ecrh: array_typing.ScalarFloat
+  I_ecrh: array_typing.ScalarFloat
+  I_generic: array_typing.ScalarFloat
   Q_fusion: array_typing.ScalarFloat
+  P_icrh_el: array_typing.ScalarFloat
+  P_icrh_ion: array_typing.ScalarFloat
+  P_icrh_tot: array_typing.ScalarFloat
+  E_cumulative_fusion: array_typing.ScalarFloat
+  E_cumulative_external: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -358,7 +390,15 @@ class PostProcessedOutputs:
         P_alpha_tot=jnp.array(0.0),
         P_ohmic=jnp.array(0.0),
         P_brems=jnp.array(0.0),
+        P_ecrh=jnp.array(0.0),
+        I_ecrh=jnp.array(0.0),
+        I_generic=jnp.array(0.0),
         Q_fusion=jnp.array(0.0),
+        P_icrh_ion=jnp.array(0.0),
+        P_icrh_el=jnp.array(0.0),
+        P_icrh_tot=jnp.array(0.0),
+        E_cumulative_fusion=jnp.array(0.0),
+        E_cumulative_external=jnp.array(0.0),
     )
 
 

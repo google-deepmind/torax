@@ -18,11 +18,11 @@ These are full integration tests that run the simulation and compare to a
 previously executed TORAX reference:
 """
 
+import os
 from typing import Optional, Sequence
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 import numpy as np
 import torax
 from torax import output
@@ -37,6 +37,7 @@ from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
+import xarray as xr
 
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
@@ -147,10 +148,10 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests implementation of use_absolute_jext
+      # Tests implementation of use_absolute_current
       (
-          'test_absolute_jext',
-          'test_absolute_jext.py',
+          'test_absolute_generic_current_source',
+          'test_absolute_generic_current_source.py',
           _ALL_PROFILES,
           0,
       ),
@@ -178,24 +179,24 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests particle sources with constant transport. No NBI source
+      # Tests particle sources with constant transport. No particle source
       (
           'test_particle_sources_constant',
           'test_particle_sources_constant.py',
           _ALL_PROFILES,
           0,
       ),
-      # Tests all particle sources including NBI, with CGM transport
+      # Tests all particle sources including particle source, with CGM transport
       (
           'test_particle_sources_cgm',
           'test_particle_sources_cgm.py',
           _ALL_PROFILES,
           0,
       ),
-      # Tests specifying a prescribed time-varying arbitrary jext profile
+      # Tests specifying a prescribed time-varying arbitrary current profile
       (
-          'test_prescribed_jext',
-          'test_prescribed_jext.py',
+          'test_prescribed_generic_current_source',
+          'test_prescribed_generic_current_source.py',
           _ALL_PROFILES,
           0,
       ),
@@ -217,6 +218,13 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_chease',
           'test_chease.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Tests EQDSK geometry. QLKNN, predictor-corrector, all transport.
+      (
+          'test_eqdsk',
+          'test_eqdsk.py',
           _ALL_PROFILES,
           0,
       ),
@@ -335,6 +343,15 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # ITERhybrid_predictor_corrector with EQDSK geometry.
+      # See https://github.com/google-deepmind/torax/pull/482 for a plot
+      # of the CHEASE vs EQDSK sim test comparison.
+      (
+          'test_iterhybrid_predictor_corrector_eqdsk',
+          'test_iterhybrid_predictor_corrector_eqdsk.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Predictor-corrector solver with clipped QLKNN inputs.
       (
           'test_iterhybrid_predictor_corrector_clip_inputs',
@@ -346,6 +363,13 @@ class SimTest(sim_test_case.SimTestCase):
       (
           'test_iterhybrid_predictor_corrector_zeffprofile',
           'test_iterhybrid_predictor_corrector_zeffprofile.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Predictor-corrector solver with ECCD Lin Liu model.
+      (
+          'test_iterhybrid_predictor_corrector_ec_linliu',
+          'test_iterhybrid_predictor_corrector_ec_linliu.py',
           _ALL_PROFILES,
           0,
       ),
@@ -539,7 +563,7 @@ class SimTest(sim_test_case.SimTestCase):
     Args:
       test_config: the config id under test.
       halfway: Whether to load from halfway (or the end if not) to test in case
-      there is different behaviour for the final step.
+        there is different behaviour for the final step.
     """
     profiles = [
         output.TEMP_ION,
@@ -552,18 +576,16 @@ class SimTest(sim_test_case.SimTestCase):
         output.NI_RIGHT_BC,
         output.PSI,
         output.PSIDOT,
-        output.IP,
+        output.IP_PROFILE_FACE,
         output.NREF,
         output.Q_FACE,
         output.S_FACE,
         output.J_BOOTSTRAP,
+        output.J_BOOTSTRAP_FACE,
         output.JOHM,
-        output.CORE_PROFILES_JEXT,
+        output.CORE_PROFILES_GENERIC_CURRENT,
         output.JTOT,
         output.JTOT_FACE,
-        output.JEXT_FACE,
-        output.JOHM_FACE,
-        output.J_BOOTSTRAP_FACE,
         output.I_BOOTSTRAP,
         output.SIGMA,
     ]
@@ -583,7 +605,7 @@ class SimTest(sim_test_case.SimTestCase):
     source_models = sim.source_models_builder()
 
     # Load in the reference core profiles.
-    Ip = ref_profiles[output.IP][index]
+    Ip_total = ref_profiles[output.IP_PROFILE_FACE][index, -1] / 1e6
     temp_el = ref_profiles[output.TEMP_EL][index, :]
     temp_el_bc = ref_profiles[output.TEMP_EL_RIGHT_BC][index]
     temp_ion = ref_profiles[output.TEMP_ION][index, :]
@@ -593,7 +615,7 @@ class SimTest(sim_test_case.SimTestCase):
     psi = ref_profiles[output.PSI][index, :]
 
     # Override the dynamic runtime params with the loaded values.
-    dynamic_runtime_params_slice.profile_conditions.Ip = Ip
+    dynamic_runtime_params_slice.profile_conditions.Ip_tot = Ip_total
     dynamic_runtime_params_slice.profile_conditions.Te = temp_el
     dynamic_runtime_params_slice.profile_conditions.Te_bound_right = temp_el_bc
     dynamic_runtime_params_slice.profile_conditions.Ti = temp_ion
@@ -666,49 +688,32 @@ class SimTest(sim_test_case.SimTestCase):
     test_config_state_file = 'test_iterhybrid_rampup.nc'
     restart_config = 'test_iterhybrid_rampup_restart.py'
     sim = self._get_sim(restart_config)
-    profiles = [
-        output.TEMP_ION,
-        output.TEMP_ION_RIGHT_BC,
-        output.TEMP_EL,
-        output.TEMP_EL_RIGHT_BC,
-        output.NE,
-        output.NI,
-        output.NE_RIGHT_BC,
-        output.NI_RIGHT_BC,
-        output.PSI,
-        output.PSIDOT,
-        output.IP,
-        output.NREF,
-        output.Q_FACE,
-        output.S_FACE,
-        output.J_BOOTSTRAP,
-        output.JOHM,
-        output.CORE_PROFILES_JEXT,
-        output.JTOT,
-        output.JTOT_FACE,
-        output.JEXT_FACE,
-        output.JOHM_FACE,
-        output.J_BOOTSTRAP_FACE,
-        output.I_BOOTSTRAP,
-        output.SIGMA,
-    ]
-    ref_profiles, ref_times = self._get_refs(
-        test_config_state_file, profiles=profiles
-    )
-
     sim_outputs = sim.run()
     history = output.StateHistory(sim_outputs, sim.source_models)
-    ref_idx_offset = np.where(ref_times == history.times[0])
+    geo = sim.geometry_provider(sim.initial_state.t)
+    data_tree_restart = history.simulation_output_to_xr(geo)
 
-    for i in range(len(history.times)):
-      core_profile_t = jax.tree.map(
-          lambda x, idx=i: x[idx], history.core_profiles
-      )
-      verify_core_profiles(
-          ref_profiles,
-          i + ref_idx_offset[0][0],
-          core_profile_t,
-      )
+    # Load the reference dataset.
+    datatree_ref = output.load_state_file(
+        os.path.join(self.test_data_dir, test_config_state_file)
+    )
+
+    # Stitch the restart state file to the beginning of the reference dataset.
+    datatree_new = output.stitch_state_files(
+        sim.file_restart, data_tree_restart
+    )
+
+    # Check equality for all time-dependent variables.
+    def check_equality(ds1: xr.Dataset, ds2: xr.Dataset):
+      for var_name in ds1.data_vars:
+        if 'time' in ds1[var_name].dims:
+          with self.subTest(var_name=var_name):
+            np.testing.assert_allclose(
+                ds1[var_name].values,
+                ds2[var_name].values,
+                err_msg=f'Mismatch for {var_name} in restart test',
+            )
+    xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
 
 
 def verify_core_profiles(ref_profiles, index, core_profiles):
@@ -754,34 +759,29 @@ def verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.J_BOOTSTRAP][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.j_bootstrap_face,
-      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
-  )
-  np.testing.assert_allclose(
       core_profiles.currents.jtot, ref_profiles[output.JTOT][index, :]
   )
   np.testing.assert_allclose(
       core_profiles.currents.jtot_face, ref_profiles[output.JTOT_FACE][index, :]
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jext,
-      ref_profiles[output.CORE_PROFILES_JEXT][index, :],
+      core_profiles.currents.j_bootstrap_face,
+      ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.jext_face, ref_profiles[output.JEXT_FACE][index, :]
+      core_profiles.currents.generic_current_source,
+      ref_profiles[output.CORE_PROFILES_GENERIC_CURRENT][index, :],
   )
   np.testing.assert_allclose(
       core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]
-  )
-  np.testing.assert_allclose(
-      core_profiles.currents.johm_face, ref_profiles[output.JOHM_FACE][index, :]
   )
   np.testing.assert_allclose(
       core_profiles.currents.I_bootstrap,
       ref_profiles[output.I_BOOTSTRAP][index],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.Ip, ref_profiles[output.IP][index]
+      core_profiles.currents.Ip_profile_face,
+      ref_profiles[output.IP_PROFILE_FACE][index, :],
   )
 
 

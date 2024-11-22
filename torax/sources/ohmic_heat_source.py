@@ -31,6 +31,9 @@ from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 
 
+SOURCE_NAME = 'ohmic_heat_source'
+
+
 @functools.partial(
     jax_utils.jit,
     static_argnames=[
@@ -148,7 +151,7 @@ def ohmic_model_func(
   if source_models is None:
     raise TypeError('source_models is a required argument for ohmic_model_func')
 
-  jtot, _ = physics.calc_jtot_from_psi(
+  jtot, _, _ = physics.calc_jtot_from_psi(
       geo,
       core_profiles.psi,
   )
@@ -179,28 +182,8 @@ class OhmicHeatSource(source_lib.Source):
 
   Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
   """
-
-  # output_shape_getter is removed from __init__ as it is fixed to this value.
-  output_shape_getter: source_lib.SourceOutputShapeFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: source_lib.get_cell_profile_shape,
-  )
   # Users must pass in a pointer to the complete set of sources to this object.
   source_models: source_models_lib.SourceModels
-
-  supported_modes: tuple[runtime_params_lib.Mode, ...] = (
-      runtime_params_lib.Mode.ZERO,
-      runtime_params_lib.Mode.MODEL_BASED,
-  )
-
-  # Freeze these params and do not include them in the __init__.
-  affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...] = (
-      dataclasses.field(
-          init=False,
-          default=(source_lib.AffectedCoreProfile.TEMP_EL,),
-      )
-  )
-
   # The model function is fixed to ohmic_model_func because that is the only
   # supported implementation of this source.
   # However, since this is a param in the parent dataclass, we need to (a)
@@ -211,9 +194,15 @@ class OhmicHeatSource(source_lib.Source):
       default_factory=lambda: ohmic_model_func,
   )
 
+  @property
+  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+    return (
+        runtime_params_lib.Mode.ZERO,
+        runtime_params_lib.Mode.MODEL_BASED,
+    )
 
-OhmicHeatSourceBuilder = source_lib.make_source_builder(
-    OhmicHeatSource,
-    links_back=True,
-    runtime_params_type=OhmicRuntimeParams,
-)
+  @property
+  def affected_core_profiles(
+      self,
+  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
+    return (source_lib.AffectedCoreProfile.TEMP_EL,)

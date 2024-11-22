@@ -470,6 +470,27 @@ class InterpolatedParamTest(parameterized.TestCase):
 
     jax.jit(interpolated_var.get_value)(x=0.5)
 
+  @parameterized.product(
+      is_bool=[True, False],
+      interpolation_mode=[
+          interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
+          interpolated_param.InterpolationMode.STEP,
+      ],
+  )
+  def test_interpolated_var_properties(
+      self,
+      is_bool: bool,
+      interpolation_mode: interpolated_param.InterpolationMode,
+  ):
+    """Check the properties of the interpolated var are set correctly."""
+    var = interpolated_param.InterpolatedVarSingleAxis(
+        value=(np.array([0.0, 1.0]), np.array([0.0, 1.0])),
+        is_bool_param=is_bool,
+        interpolation_mode=interpolation_mode,
+    )
+    self.assertEqual(var.is_bool_param, is_bool)
+    self.assertEqual(var.interpolation_mode, interpolation_mode)
+
 
 if __name__ == '__main__':
   absltest.main()

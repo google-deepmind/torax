@@ -13,18 +13,18 @@
 # limitations under the License.
 
 """Config for test_explicit. Basic test of explicit linear solver."""
-
 import dataclasses
+
 from torax import geometry
 from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.sources import default_sources
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_runtime_params
+from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
 from torax.transport_model import constant as constant_transport_model
 
@@ -47,13 +47,13 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
 
 
 def get_geometry_provider(
-) -> geometry.Geometry:
+) -> geometry_provider.ConstantGeometryProvider:
   return geometry_provider.ConstantGeometryProvider(
       geometry.build_circular_geometry())
 
 
 def get_transport_model_builder() -> (
-    constant_transport_model.ConstantTransportModel
+    constant_transport_model.ConstantTransportModelBuilder
 ):
   return constant_transport_model.ConstantTransportModelBuilder()
 
@@ -65,14 +65,16 @@ def get_sources_builder() -> source_models_lib.SourceModelsBuilder:
   source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
   # remove bootstrap current
   source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
+  # pylint: disable=unexpected-keyword-arg
   source_models_builder.source_builders[
       'generic_ion_el_heat_source'
   ].runtime_params = dataclasses.replace(
       source_models_builder.runtime_params['generic_ion_el_heat_source'],
       # total heating (including accounting for radiation) r
-      Ptot=200.0e6,  # pylint: disable=unexpected-keyword-arg
+      Ptot=200.0e6,  # pytype: disable=wrong-keyword-args
       is_explicit=True,
   )
+  # pylint: enable=unexpected-keyword-arg
   source_models_builder.runtime_params['fusion_heat_source'].mode = (
       source_runtime_params.Mode.ZERO
   )
