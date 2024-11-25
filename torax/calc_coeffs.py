@@ -267,11 +267,18 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
-  # Currently we (potentially wastefully) always compute the pedestal model
-  # output, even if the pedestal is not active. We should consider changing the
-  # PedestalModel API to allow for lazy evaluation.
-  pedestal_model_output = pedestal_model(
-      dynamic_runtime_params_slice, geo, core_profiles
+  pedestal_model_output: pedestal_model_lib.PedestalModelOutput = jax.lax.cond(
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+      lambda: pedestal_model(
+          dynamic_runtime_params_slice, geo, core_profiles
+      ),
+      # TODO(b/380271610): Refactor to avoid needing dummy output.
+      lambda: pedestal_model_lib.PedestalModelOutput(
+          neped=0.0,
+          Tiped=0.0,
+          Teped=0.0,
+          rho_norm_ped_top=0.0,
+      ),
   )
 
   # Boolean mask for enforcing internal temperature boundary conditions to
