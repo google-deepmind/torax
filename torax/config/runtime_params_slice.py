@@ -46,6 +46,7 @@ from torax.config import numerics
 from torax.config import plasma_composition
 from torax.config import profile_conditions
 from torax.config import runtime_params as general_runtime_params_lib
+from torax.pedestal_model import runtime_params as pedestal_model_params
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
 from torax.transport_model import runtime_params as transport_model_params
@@ -92,6 +93,7 @@ class DynamicRuntimeParamsSlice:
   profile_conditions: profile_conditions.DynamicProfileConditions
   numerics: numerics.DynamicNumerics
   sources: Mapping[str, sources_params.DynamicRuntimeParams]
+  pedestal: pedestal_model_params.DynamicRuntimeParams
 
 
 @chex.dataclass(frozen=True)
@@ -200,6 +202,7 @@ class DynamicRuntimeParamsSliceProvider:
   def __init__(
       self,
       runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
+      pedestal: pedestal_model_params.RuntimeParams | None = None,
       transport: transport_model_params.RuntimeParams | None = None,
       sources: dict[str, sources_params.RuntimeParams] | None = None,
       stepper: stepper_params.RuntimeParams | None = None,
@@ -209,6 +212,8 @@ class DynamicRuntimeParamsSliceProvider:
 
     Args:
       runtime_params: The general runtime params to use.
+      pedestal: The pedestal model runtime params to use. If None, defaults to
+        the default pedestal model runtime params.
       transport: The transport model runtime params to use. If None, defaults to
         the default transport model runtime params.
       sources: A dict of source name to source runtime params to use. If None,
@@ -222,11 +227,13 @@ class DynamicRuntimeParamsSliceProvider:
     transport = transport or transport_model_params.RuntimeParams()
     sources = sources or {}
     stepper = stepper or stepper_params.RuntimeParams()
+    pedestal = pedestal or pedestal_model_params.RuntimeParams()
     self._torax_mesh = torax_mesh
     self._sources = sources
     self._runtime_params = runtime_params
     self._transport_runtime_params = transport
     self._stepper = stepper
+    self._pedestal_runtime_params = pedestal
     self._construct_providers()
 
   @property
@@ -236,6 +243,7 @@ class DynamicRuntimeParamsSliceProvider:
     return self._runtime_params_provider
 
   def _construct_providers(self):
+    """Construct the providers that will give us the dynamic params."""
     self._runtime_params_provider = (
         self._runtime_params.make_provider(
             self._torax_mesh
@@ -250,6 +258,9 @@ class DynamicRuntimeParamsSliceProvider:
         key: source.make_provider(self._torax_mesh)
         for key, source in self._sources.items()
     }
+    self._pedestal_runtime_params_provider = (
+        self._pedestal_runtime_params.make_provider(self._torax_mesh)
+    )
 
   def __call__(
       self,
@@ -264,10 +275,14 @@ class DynamicRuntimeParamsSliceProvider:
             t
         ),
         stepper=self._stepper.build_dynamic_params(t),
-        sources=_build_dynamic_sources(self._sources_providers, t,),
+        sources=_build_dynamic_sources(
+            self._sources_providers,
+            t,
+        ),
         plasma_composition=dynamic_general_runtime_params.plasma_composition,
         profile_conditions=dynamic_general_runtime_params.profile_conditions,
         numerics=dynamic_general_runtime_params.numerics,
+        pedestal=self._pedestal_runtime_params_provider.build_dynamic_params(t),
     )
 
 
