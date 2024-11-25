@@ -23,7 +23,7 @@ from torax.config import build_sim
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import set_tped_nped
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import electron_density_sources
 from torax.sources import formula_config
@@ -72,7 +72,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         ),
     )
     basic_pedestal_model_builder = (
-        basic_pedestal_model.BasicPedestalModelBuilder()
+        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
     )
     # Set the sources to match test_particle_sources_constant as well.
     source_models_builder = default_sources.get_default_sources_builder()

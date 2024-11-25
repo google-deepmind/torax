@@ -32,7 +32,7 @@ from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources.tests import test_lib
@@ -177,9 +177,9 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
             t_final=2,
         ),
     )
-    pedestal_runtime_params = basic_pedestal_model.RuntimeParams()
+    pedestal_runtime_params = set_tped_nped.RuntimeParams()
     basic_pedestal_model_builder = (
-        basic_pedestal_model.BasicPedestalModelBuilder(
+        set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
             runtime_params=pedestal_runtime_params
         )
     )

@@ -21,8 +21,8 @@ from torax import sim as sim_lib
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.pedestal_model import basic as basic_pedestal_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_runtime_params
@@ -97,7 +97,7 @@ def get_stepper_builder() -> explicit_stepper.ExplicitStepperBuilder:
 
 
 def get_pedestal_model_builder() -> pedestal_model_lib.PedestalModelBuilder:
-  return basic_pedestal_model.BasicPedestalModelBuilder()
+  return set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
 
 
 def get_sim() -> sim_lib.Sim:

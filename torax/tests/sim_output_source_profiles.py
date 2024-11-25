@@ -36,7 +36,7 @@ from torax import state as state_module
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -285,7 +285,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
     self._stepper = explicit_stepper.ExplicitStepper(
         transport_model=constant_transport_model.ConstantTransportModel(),
         source_models=source_models,
-        pedestal_model=basic_pedestal_model.BasicPedestalModel(),
+        pedestal_model=set_tped_nped.SetTemperatureDensityPedestalModel(),
     )
 
   @property

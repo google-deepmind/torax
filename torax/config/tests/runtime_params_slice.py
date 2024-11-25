@@ -24,7 +24,7 @@ from torax import geometry
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
-from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import formula_config
 from torax.sources import generic_current_source
@@ -129,7 +129,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             set_pedestal={0.0: True, 1.0: False},
         )
     )
-    pedestal_runtime_params = basic_pedestal_model.RuntimeParams(
+    pedestal_runtime_params = set_tped_nped.RuntimeParams(
         Tiped={0.0: 0.0, 1.0: 1.0},
         Teped={0.0: 1.0, 1.0: 2.0},
         neped={0.0: 2.0, 1.0: 3.0},
@@ -149,7 +149,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     dynamic_pedestal_runtime_params = dcs.pedestal
     assert isinstance(
         dynamic_pedestal_runtime_params,
-        basic_pedestal_model.DynamicRuntimeParams,
+        set_tped_nped.DynamicRuntimeParams,
     )
     np.testing.assert_allclose(profile_conditions.set_pedestal, True)
     np.testing.assert_allclose(dynamic_pedestal_runtime_params.Tiped, 0.0)
@@ -166,7 +166,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     dynamic_pedestal_runtime_params = dcs.pedestal
     assert isinstance(
         dynamic_pedestal_runtime_params,
-        basic_pedestal_model.DynamicRuntimeParams,
+        set_tped_nped.DynamicRuntimeParams,
     )
     np.testing.assert_allclose(profile_conditions.set_pedestal, False)
     np.testing.assert_allclose(dynamic_pedestal_runtime_params.Tiped, 1.0)

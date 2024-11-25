@@ -22,7 +22,7 @@ from torax import geometry_provider
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
-from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import set_tped_nped
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
@@ -132,7 +132,7 @@ class BuildSimTest(parameterized.TestCase):
     with self.subTest('pedestal'):
       self.assertIsInstance(
           dynamic_runtime_params_slice.pedestal,
-          basic_pedestal_model.DynamicRuntimeParams,
+          set_tped_nped.DynamicRuntimeParams,
       )
       # pytype: disable=attribute-error
       self.assertEqual(
