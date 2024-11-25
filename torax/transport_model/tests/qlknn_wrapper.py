@@ -22,6 +22,7 @@ from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.pedestal_model import basic as basic_pedestal_model
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import qlknn_wrapper
 
@@ -40,12 +41,14 @@ class QlknnWrapperTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
+    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             transport=qlknn_wrapper.RuntimeParams(),
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
+            pedestal=pedestal_model_builder.runtime_params,
         )(
             t=runtime_params.numerics.t_initial,
         )
@@ -55,14 +58,22 @@ class QlknnWrapperTest(parameterized.TestCase):
         geo=geo,
         source_models=source_models,
     )
+    pedestal_model = pedestal_model_builder()
+    pedestal_model_outputs = pedestal_model(
+        dynamic_runtime_params_slice, geo, core_profiles
+    )
 
     # Executing once should lead to a cache entry being created.
-    qlknn(dynamic_runtime_params_slice, geo, core_profiles)
+    qlknn(
+        dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
+    )
     cache_size = qlknn._combined._cache_size()  # pylint: disable=protected-access
     self.assertGreaterEqual(cache_size, 1)
 
     # Executing again should lead to the same cache entry being used.
-    qlknn(dynamic_runtime_params_slice, geo, core_profiles)
+    qlknn(
+        dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
+    )
     self.assertEqual(
         qlknn._combined._cache_size(),  # pylint: disable=protected-access
         cache_size,

@@ -16,6 +16,7 @@
 
 import dataclasses
 from typing import Callable
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -25,6 +26,8 @@ from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -55,12 +58,15 @@ class TransportSmoothingTest(parameterized.TestCase):
         )
     )
     transport_model = transport_model_builder()
+    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
+    pedestal_model = pedestal_model_builder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
+            pedestal=pedestal_model_builder.runtime_params,
         )(
             t=runtime_params.numerics.t_initial,
         )
@@ -70,8 +76,14 @@ class TransportSmoothingTest(parameterized.TestCase):
         geo,
         source_models,
     )
-    transport_coeffs = transport_model(
+    pedestal_model_outputs = pedestal_model(
         dynamic_runtime_params_slice, geo, core_profiles
+    )
+    transport_coeffs = transport_model(
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        pedestal_model_outputs,
     )
     chi_face_ion_orig = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el_orig = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
@@ -174,7 +186,6 @@ class TransportSmoothingTest(parameterized.TestCase):
     # Set up default config and geo
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
-            set_pedestal=False,
             ne_bound_right=0.5,
         ),
     )
@@ -192,21 +203,32 @@ class TransportSmoothingTest(parameterized.TestCase):
         )
     )
     transport_model = transport_model_builder()
+    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
-        )(t=runtime_params.numerics.t_initial,)
+            pedestal=pedestal_model_builder.runtime_params,
+        )(
+            t=runtime_params.numerics.t_initial,
+        )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice,
         geo,
         source_models,
     )
-    transport_coeffs = transport_model(
+    pedestal_model = basic_pedestal_model.BasicPedestalModel()
+    pedestal_model_outputs = pedestal_model(
         dynamic_runtime_params_slice, geo, core_profiles
+    )
+    transport_coeffs = transport_model(
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        pedestal_model_outputs,
     )
     chi_face_ion_orig = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
     chi_face_el_orig = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
@@ -333,6 +355,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     del dynamic_runtime_params_slice, core_profiles  # these are unused
     chi_face_ion = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])

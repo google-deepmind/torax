@@ -31,6 +31,7 @@ from torax.fvm import cell_variable
 from torax.fvm import enums
 from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import runtime_params as runtime_params_lib
@@ -57,9 +58,10 @@ class NonlinearThetaMethod(stepper.Stepper):
       self,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
       callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
   ):
-    super().__init__(transport_model, source_models)
+    super().__init__(transport_model, source_models, pedestal_model)
     self.callback_class = callback_class
 
   def _x_new(
@@ -87,6 +89,7 @@ class NonlinearThetaMethod(stepper.Stepper):
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        pedestal_model=self.pedestal_model,
         evolving_names=evolving_names,
     )
     x_new, core_sources, core_transport, stepper_numeric_outputs = self._x_new_helper(
@@ -206,6 +209,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
             transport_model=self.transport_model,
             explicit_source_profiles=explicit_source_profiles,
             source_models=self.source_models,
+            pedestal_model=self.pedestal_model,
             coeffs_callback=coeffs_callback,
             evolving_names=evolving_names,
             initial_guess_mode=enums.InitialGuessMode(
@@ -221,8 +225,9 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
 def _default_optimizer_builder(
     transport_model: transport_model_lib.TransportModel,
     source_models: source_models_lib.SourceModels,
+    pedestal_model: pedestal_model_lib.PedestalModel,
 ) -> OptimizerThetaMethod:
-  return OptimizerThetaMethod(transport_model, source_models)
+  return OptimizerThetaMethod(transport_model, source_models, pedestal_model)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -237,6 +242,7 @@ class OptimizerThetaMethodBuilder(stepper.StepperBuilder):
       [
           transport_model_lib.TransportModel,
           source_models_lib.SourceModels,
+          pedestal_model_lib.PedestalModel,
       ],
       OptimizerThetaMethod,
   ] = _default_optimizer_builder
@@ -245,8 +251,9 @@ class OptimizerThetaMethodBuilder(stepper.StepperBuilder):
       self,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
   ) -> OptimizerThetaMethod:
-    return self.builder(transport_model, source_models)
+    return self.builder(transport_model, source_models, pedestal_model)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -338,6 +345,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
             core_profiles_t=core_profiles_t,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
             transport_model=self.transport_model,
+            pedestal_model=self.pedestal_model,
             explicit_source_profiles=explicit_source_profiles,
             source_models=self.source_models,
             coeffs_callback=coeffs_callback,
@@ -359,8 +367,11 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
 def _default_newton_raphson_builder(
     transport_model: transport_model_lib.TransportModel,
     source_models: source_models_lib.SourceModels,
+    pedestal_model: pedestal_model_lib.PedestalModel,
 ) -> NewtonRaphsonThetaMethod:
-  return NewtonRaphsonThetaMethod(transport_model, source_models)
+  return NewtonRaphsonThetaMethod(
+      transport_model, source_models, pedestal_model
+  )
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -375,6 +386,7 @@ class NewtonRaphsonThetaMethodBuilder(stepper.StepperBuilder):
       [
           transport_model_lib.TransportModel,
           source_models_lib.SourceModels,
+          pedestal_model_lib.PedestalModel,
       ],
       NewtonRaphsonThetaMethod,
   ] = _default_newton_raphson_builder
@@ -383,5 +395,6 @@ class NewtonRaphsonThetaMethodBuilder(stepper.StepperBuilder):
       self,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
   ) -> NewtonRaphsonThetaMethod:
-    return self.builder(transport_model, source_models)
+    return self.builder(transport_model, source_models, pedestal_model)

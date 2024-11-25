@@ -17,14 +17,17 @@
 The transport model calculates heat and particle turbulent transport
 coefficients.
 """
+
 import abc
 import dataclasses
+
 import jax
 from jax import numpy as jnp
 from torax import constants
 from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import runtime_params as runtime_params_lib
 
 
@@ -56,6 +59,7 @@ class TransportModel(abc.ABC):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     if not getattr(self, "_frozen", False):
       raise RuntimeError(
@@ -65,21 +69,26 @@ class TransportModel(abc.ABC):
 
     # Calculate the transport coefficients
     transport_coeffs = self._call_implementation(
-        dynamic_runtime_params_slice, geo, core_profiles
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        pedestal_model_outputs,
     )
 
     # Apply min/max clipping and pedestal region clipping
-    transport_coeffs = self.apply_clipping(
+    transport_coeffs = self._apply_clipping(
         dynamic_runtime_params_slice,
         geo,
         transport_coeffs,
+        pedestal_model_outputs,
     )
 
     # Return smoothed coefficients if smoothing is enabled
-    return self.smooth_coeffs(
+    return self._smooth_coeffs(
         geo,
         dynamic_runtime_params_slice,
         transport_coeffs,
+        pedestal_model_outputs,
     )
 
   @abc.abstractmethod
@@ -88,14 +97,16 @@ class TransportModel(abc.ABC):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     pass
 
-  def apply_clipping(
+  def _apply_clipping(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       transport_coeffs: state.CoreTransport,
+      pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     """Applies min/max and pedestal region clipping to transport coefficients."""
 
@@ -129,7 +140,7 @@ class TransportModel(abc.ABC):
     # if runtime_params.profile_conditions.set_pedestal:
     mask = (
         geo.rho_face_norm
-        >= dynamic_runtime_params_slice.profile_conditions.Ped_top
+        >= pedestal_model_outputs.rho_norm_ped_top
     )
     chi_face_ion = jnp.where(
         jnp.logical_and(
@@ -168,14 +179,17 @@ class TransportModel(abc.ABC):
         v_face_el=v_face_el,
     )
 
-  def smooth_coeffs(
+  def _smooth_coeffs(
       self,
       geo: geometry.Geometry,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       transport_coeffs: state.CoreTransport,
+      pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     """Gaussian smoothing of turbulent transport coefficients."""
-    smoothing_matrix = build_smoothing_matrix(geo, dynamic_runtime_params_slice)
+    smoothing_matrix = build_smoothing_matrix(
+        geo, dynamic_runtime_params_slice, pedestal_model_outputs
+    )
     smoothed_coeffs = {}
     for coeff in transport_coeffs:
       smoothed_coeff = jnp.dot(smoothing_matrix, transport_coeffs[coeff])
@@ -186,6 +200,7 @@ class TransportModel(abc.ABC):
 def build_smoothing_matrix(
     geo: geometry.Geometry,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
 ) -> jax.Array:
   """Builds a smoothing matrix for the turbulent transport model.
 
@@ -195,6 +210,7 @@ def build_smoothing_matrix(
     geo: Geometry of the torus.
     dynamic_runtime_params_slice: Input runtime parameters that can change
       without triggering a JAX recompilation.
+    pedestal_model_outputs: Output of the pedestal model.
 
   Returns:
     kernel: A smoothing matrix for convolution with the transport outputs.
@@ -219,8 +235,7 @@ def build_smoothing_matrix(
   # transport_model calculated coefficients
   mask_outer_edge_ped = jax.lax.cond(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-      lambda: dynamic_runtime_params_slice.profile_conditions.Ped_top
-      - consts.eps,
+      lambda: pedestal_model_outputs.rho_norm_ped_top - consts.eps,
       lambda: 1.0,
   )
 

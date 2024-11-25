@@ -16,6 +16,7 @@
 
 
 CONFIG = {
+    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': False,

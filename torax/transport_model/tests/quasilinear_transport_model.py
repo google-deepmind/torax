@@ -26,6 +26,8 @@ from torax import state
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import quasilinear_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
@@ -40,12 +42,14 @@ def _get_model_inputs(transport: quasilinear_transport_model.RuntimeParams):
   geo = geometry.build_circular_geometry()
   source_models_builder = source_models_lib.SourceModelsBuilder()
   source_models = source_models_builder()
+  pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
   dynamic_runtime_params_slice = (
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           transport=transport,
           sources=source_models_builder.runtime_params,
           torax_mesh=geo.torax_mesh,
+          pedestal=pedestal_model_builder.runtime_params,
       )(
           t=runtime_params.numerics.t_initial,
       )
@@ -55,7 +59,16 @@ def _get_model_inputs(transport: quasilinear_transport_model.RuntimeParams):
       geo=geo,
       source_models=source_models,
   )
-  return dynamic_runtime_params_slice, geo, core_profiles
+  pedestal_model = basic_pedestal_model.BasicPedestalModel()
+  pedestal_model_outputs = pedestal_model(
+      dynamic_runtime_params_slice, geo, core_profiles
+  )
+  return (
+      dynamic_runtime_params_slice,
+      geo,
+      core_profiles,
+      pedestal_model_outputs,
+  )
 
 
 class QuasilinearTransportModelTest(parameterized.TestCase):
@@ -68,11 +81,14 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
     transport = quasilinear_transport_model.RuntimeParams()
 
     transport_model = FakeQuasilinearTransportModel()
-    dynamic_runtime_params_slice, geo, core_profiles = _get_model_inputs(
-        transport
-    )
+    (
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        pedestal_model_outputs,
+    ) = _get_model_inputs(transport)
     core_transport = transport_model(
-        dynamic_runtime_params_slice, geo, core_profiles
+        dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
     )
     expected_shape = geo.rho_face_norm.shape
 
@@ -207,6 +223,7 @@ class FakeQuasilinearTransportModel(
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     quasilinear_inputs = quasilinear_transport_model.QuasilinearInputs(
         chiGB=np.array(4.0),

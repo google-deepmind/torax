@@ -165,5 +165,7 @@ class ExplicitStepper(stepper_lib.Stepper):
 class ExplicitStepperBuilder(stepper_lib.StepperBuilder):
   """Builds an ExplicitStepper."""
 
-  def __call__(self, transport_model, sources) -> ExplicitStepper:
-    return ExplicitStepper(transport_model, sources)
+  def __call__(
+      self, transport_model, sources, pedestal_model
+  ) -> ExplicitStepper:
+    return ExplicitStepper(transport_model, sources, pedestal_model)

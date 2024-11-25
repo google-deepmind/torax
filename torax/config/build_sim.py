@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Functions to build sim.Sim objects, which are used to run TORAX."""
+
 from collections.abc import MutableMapping
 import copy
 from typing import Any
@@ -22,6 +23,8 @@ from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
+from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import register_source
@@ -250,6 +253,17 @@ def build_sim_from_config(
     raise ValueError(
         f'The following required keys are not in the input dict: {missing_keys}'
     )
+  if (
+      'set_pedestal' in config['runtime_params']['profile_conditions']
+      and config['runtime_params']['profile_conditions']['set_pedestal']
+      and 'pedestal' not in config
+  ):
+    raise ValueError(
+        'The pedestal config is required if set_pedestal is True in the runtime'
+        ' params. See'
+        ' https://torax.readthedocs.io/en/latest/configuration.html#detailed-configuration-structure'
+        ' for more info.'
+    )
   runtime_params = build_runtime_params_from_config(config['runtime_params'])
   geo_provider = build_geometry_provider_from_config(config['geometry'])
 
@@ -268,6 +282,9 @@ def build_sim_from_config(
           config['transport']
       ),
       stepper_builder=build_stepper_builder_from_config(config['stepper']),
+      pedestal_model_builder=build_pedestal_model_builder_from_config(
+          config['pedestal'] if 'pedestal' in config else {}
+      ),
       time_step_calculator=build_time_step_calculator_from_config(
           config['time_step_calculator']
       ),
@@ -599,6 +616,19 @@ def build_transport_model_builder_from_config(
     )
   # pylint: enable=undefined-variable
   raise ValueError(f'Unknown transport model: {transport_model}')
+
+
+def build_pedestal_model_builder_from_config(
+    pedestal_config: dict[str, Any],
+) -> pedestal_model_lib.PedestalModelBuilder:
+  """Builds a `PedestalModelBuilder` from the input config."""
+  runtime_params = basic_pedestal_model.RuntimeParams()
+  runtime_params = config_args.recursive_replace(
+      runtime_params, **pedestal_config
+  )
+  return basic_pedestal_model.BasicPedestalModelBuilder(
+      runtime_params=runtime_params
+  )
 
 
 def build_stepper_builder_from_config(

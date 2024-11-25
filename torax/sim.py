@@ -48,6 +48,7 @@ from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -116,6 +117,7 @@ class CoeffsCallback:
     explicit_source_profiles: See the docstring for `stepper.Stepper`.
     source_models: See the docstring for `stepper.Stepper`.
     evolving_names: The names of the evolving variables.
+    pedestal_model: See the docstring for `stepper.Stepper`.
   """
 
   def __init__(
@@ -125,12 +127,14 @@ class CoeffsCallback:
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
       source_models: source_models_lib.SourceModels,
       evolving_names: tuple[str, ...],
+      pedestal_model: pedestal_model_lib.PedestalModel,
   ):
     self.static_runtime_params_slice = static_runtime_params_slice
     self.transport_model = transport_model
     self.explicit_source_profiles = explicit_source_profiles
     self.source_models = source_models
     self.evolving_names = evolving_names
+    self.pedestal_model = pedestal_model
 
   def __call__(
       self,
@@ -171,6 +175,7 @@ class CoeffsCallback:
         evolving_names=self.evolving_names,
         use_pereverzev=use_pereverzev,
         explicit_call=explicit_call,
+        pedestal_model=self.pedestal_model,
     )
 
 
@@ -228,6 +233,7 @@ class SimulationStepFn:
       stepper: stepper_lib.Stepper,
       time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel,
+      pedestal_model: pedestal_model_lib.PedestalModel,
   ):
     """Initializes the SimulationStepFn.
 
@@ -240,13 +246,19 @@ class SimulationStepFn:
       stepper: Evolves the core profiles.
       time_step_calculator: Calculates the dt for each time step.
       transport_model: Calculates diffusion and convection coefficients.
+      pedestal_model: Calculates pedestal coefficients.
     """
     self._stepper_fn = stepper
     self._time_step_calculator = time_step_calculator
     self._transport_model = transport_model
+    self._pedestal_model = pedestal_model
     self._jitted_transport_model = jax_utils.jit(
         transport_model.__call__,
     )
+
+  @property
+  def pedestal_model(self) -> pedestal_model_lib.PedestalModel:
+    return self._pedestal_model
 
   @property
   def stepper(self) -> stepper_lib.Stepper:
@@ -409,8 +421,14 @@ class SimulationStepFn:
     # transport coeffs. We should still refactor the design to more explicitly
     # calculate transport coeffs at delta_t = 0 in only one place, so that we
     # have some flexibility in where to place the jit boundaries.
-    transport_coeffs = self._jitted_transport_model(
+    pedestal_model_output = self._pedestal_model(
         dynamic_runtime_params_slice_t, geo_t, input_state.core_profiles
+    )
+    transport_coeffs = self._jitted_transport_model(
+        dynamic_runtime_params_slice_t,
+        geo_t,
+        input_state.core_profiles,
+        pedestal_model_output,
     )
 
     # initialize new dt and reset stepper iterations.
@@ -791,6 +809,7 @@ class Sim:
     self.source_models_builder = source_models_builder
     self._stepper = step_fn.stepper
     self._transport_model = step_fn.transport_model
+    self._pedestal_model = step_fn.pedestal_model
     self._step_fn = step_fn
     self._file_restart = file_restart
 
@@ -835,6 +854,10 @@ class Sim:
     return self._transport_model
 
   @property
+  def pedestal_model(self) -> pedestal_model_lib.PedestalModel:
+    return self._pedestal_model
+
+  @property
   def source_models(self) -> source_models_lib.SourceModels:
     if self._step_fn is None:
       assert self._stepper is not None
@@ -869,6 +892,7 @@ class Sim:
           stepper=self._stepper,
           time_step_calculator=self.time_step_calculator,
           transport_model=self._transport_model,
+          pedestal_model=self._pedestal_model,
       )
     assert self.step_fn
     if spectator is not None:
@@ -959,6 +983,7 @@ def build_sim_object(
     stepper_builder: stepper_lib.StepperBuilder,
     transport_model_builder: transport_model_lib.TransportModelBuilder,
     source_models_builder: source_models_lib.SourceModelsBuilder,
+    pedestal_model_builder: pedestal_model_lib.PedestalModelBuilder,
     time_step_calculator: Optional[ts.TimeStepCalculator] = None,
     file_restart: Optional[general_runtime_params.FileRestart] = None,
 ) -> Sim:
@@ -978,6 +1003,7 @@ def build_sim_object(
       been factored out of the config.
     transport_model_builder: A callable to build the transport model.
     source_models_builder: Builds the SourceModels and holds its runtime_params.
+    pedestal_model_builder: A callable to build the pedestal model.
     time_step_calculator: The time_step_calculator, if built, otherwise a
       ChiTimeStepCalculator will be built by default.
     file_restart: If provided we will reconstruct the initial state from the
@@ -991,6 +1017,7 @@ def build_sim_object(
   """
 
   transport_model = transport_model_builder()
+  pedestal_model = pedestal_model_builder()
 
   static_runtime_params_slice = (
       runtime_params_slice.build_static_runtime_params_slice(
@@ -1005,10 +1032,11 @@ def build_sim_object(
           sources=source_models_builder.runtime_params,
           stepper=stepper_builder.runtime_params,
           torax_mesh=geometry_provider.torax_mesh,
+          pedestal=pedestal_model_builder.runtime_params,
       )
   )
   source_models = source_models_builder()
-  stepper = stepper_builder(transport_model, source_models)
+  stepper = stepper_builder(transport_model, source_models, pedestal_model)
 
   if time_step_calculator is None:
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
@@ -1068,6 +1096,7 @@ def build_sim_object(
       stepper=stepper,
       time_step_calculator=time_step_calculator,
       transport_model=transport_model,
+      pedestal_model=pedestal_model,
   )
 
   initial_state = get_initial_state(

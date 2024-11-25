@@ -36,6 +36,7 @@ from torax import geometry
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
@@ -113,6 +114,7 @@ class QualikizTransportModel(
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     """Calculates several transport coefficients simultaneously.
 
@@ -120,6 +122,7 @@ class QualikizTransportModel(
       dynamic_runtime_params_slice: Input runtime parameters
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
+      pedestal_model_output: Output of the pedestal model.
 
     Returns:
       coeffs: transport coefficients
@@ -127,6 +130,7 @@ class QualikizTransportModel(
     Raises:
       EnvironmentError: if TORAX_COMPILATION_ENABLED is set to True.
     """
+    del pedestal_model_output  # Unused.
 
     if jax_utils.env_bool('TORAX_COMPILATION_ENABLED', True):
       raise EnvironmentError(

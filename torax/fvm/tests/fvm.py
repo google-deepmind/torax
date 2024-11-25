@@ -13,9 +13,11 @@
 # limitations under the License.
 
 """Unit tests for torax.fvm."""
+
 import copy
 import dataclasses
 from typing import Callable
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -32,6 +34,7 @@ from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
+from torax.pedestal_model import basic as basic_pedestal_model
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_runtime_params
@@ -396,6 +399,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
             ),
         )
     )
+    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
+    pedestal_model = pedestal_model_builder()
     transport_model = transport_model_builder()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
@@ -415,6 +420,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
+            pedestal=pedestal_model_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,
@@ -446,6 +452,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        pedestal_model=pedestal_model,
         evolving_names=evolving_names,
         use_pereverzev=False,
     )
@@ -482,6 +489,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           source_models=source_models,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
+          pedestal_model=pedestal_model,
       )
 
       residual, _ = residual_and_loss.theta_method_block_residual(
@@ -497,6 +505,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           source_models=source_models,
           coeffs_old=coeffs,
           evolving_names=evolving_names,
+          pedestal_model=pedestal_model,
       )
 
       np.testing.assert_allclose(loss, 0.0, atol=1e-7)
@@ -539,6 +548,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
+    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
     geo = geometry.build_circular_geometry(n_rho=num_cells)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -546,6 +556,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
+            pedestal=pedestal_model_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,
@@ -573,6 +584,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
 
     dt = jnp.array(1.0)
     evolving_names = tuple(['temp_ion'])
+    pedestal_model = pedestal_model_builder()
 
     coeffs = calc_coeffs.calc_coeffs(
         static_runtime_params_slice=static_runtime_params_slice,
@@ -582,6 +594,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        pedestal_model=pedestal_model,
         evolving_names=evolving_names,
         use_pereverzev=False,
     )
@@ -664,6 +677,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     transport_model = transport_model_builder()
+    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
     source_models_builder.runtime_params['generic_ion_el_heat_source'].Ptot = (
@@ -681,6 +695,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
+            pedestal=pedestal_model_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,
@@ -699,6 +714,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
 
     source_models = source_models_lib.SourceModels()
+    pedestal_model = basic_pedestal_model.BasicPedestalModel()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice,
         geo,
@@ -723,6 +739,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         transport_model=transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=source_models,
+        pedestal_model=pedestal_model,
         evolving_names=evolving_names,
         use_pereverzev=False,
     )
@@ -761,6 +778,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           source_models=source_models,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
+          pedestal_model=pedestal_model,
       )
       np.testing.assert_allclose(residual, 0.0)
     with self.subTest('updated_boundary_conditions'):
@@ -786,6 +804,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           explicit_source_profiles=explicit_source_profiles,
           source_models=source_models,
           coeffs_old=coeffs_old,
+          pedestal_model=pedestal_model,
       )
       np.testing.assert_allclose(residual, 0.0)
       # But when theta_imp > 0, the residual should be non-zero.
@@ -807,6 +826,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           source_models=source_models,
           coeffs_old=coeffs_old,
           evolving_names=evolving_names,
+          pedestal_model=pedestal_model,
       )
       self.assertGreater(jnp.abs(jnp.sum(residual)), 0.0)
 

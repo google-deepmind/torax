@@ -23,6 +23,7 @@ from torax.config import build_sim
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
+from torax.pedestal_model import basic as basic_pedestal_model
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import electron_density_sources
 from torax.sources import formula_config
@@ -69,6 +70,9 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
             resistivity_mult=100,
             t_final=2,
         ),
+    )
+    basic_pedestal_model_builder = (
+        basic_pedestal_model.BasicPedestalModelBuilder()
     )
     # Set the sources to match test_particle_sources_constant as well.
     source_models_builder = default_sources.get_default_sources_builder()
@@ -143,6 +147,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
         ),
         transport_model_builder=transport_model_builder,
         source_models_builder=source_models_builder,
+        pedestal_model_builder=basic_pedestal_model_builder,
     )
 
     # Make sure the config copied here works with these references.
@@ -185,6 +190,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
           transport_model_builder.runtime_params,
           source_models_builder.runtime_params,
           linear_theta_method.LinearRuntimeParams(predictor_corrector=False),
+          pedestal_runtime_params=basic_pedestal_model_builder.runtime_params,
       )
       self._run_sim_and_check(sim, ref_profiles, ref_time)
 
@@ -201,6 +207,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
           transport_model_builder.runtime_params,
           source_models_builder.runtime_params,
           linear_theta_method.LinearRuntimeParams(predictor_corrector=False),
+          pedestal_runtime_params=basic_pedestal_model_builder.runtime_params,
       )
       with self.assertRaises(AssertionError):
         self._run_sim_and_check(sim, ref_profiles, ref_time)
