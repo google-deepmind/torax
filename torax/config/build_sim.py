@@ -622,13 +622,16 @@ def build_pedestal_model_builder_from_config(
     pedestal_config: dict[str, Any],
 ) -> pedestal_model_lib.PedestalModelBuilder:
   """Builds a `PedestalModelBuilder` from the input config."""
-  runtime_params = set_tped_nped.RuntimeParams()
-  runtime_params = config_args.recursive_replace(
-      runtime_params, **pedestal_config
-  )
-  return set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
-      runtime_params=runtime_params
-  )
+  pedestal_model = pedestal_config.pop('pedestal_model', 'set_tped_nped')
+  match pedestal_model:
+    case 'set_tped_nped':
+      return set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
+          runtime_params=config_args.recursive_replace(
+              set_tped_nped.RuntimeParams(), **pedestal_config
+          )
+      )
+    case _:
+      raise ValueError(f'Unknown pedestal model: {pedestal_model}')
 
 
 def build_stepper_builder_from_config(
