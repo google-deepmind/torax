@@ -21,6 +21,7 @@ from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
 from torax.config import numerics as numerics_lib
 from torax.config import runtime_params as general_runtime_params
+from torax.pedestal_model import basic as basic_pedestal_model
 from torax.sources import source_models as source_models_lib
 from torax.spectators import plotting
 from torax.spectators import spectator
@@ -80,6 +81,7 @@ def _run_sim_with_sources(
       stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
       transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
       source_models_builder=default_sources.get_default_sources_builder(),
+      pedestal_model_builder=basic_pedestal_model.BasicPedestalModelBuilder(),
       time_step_calculator=chi_time_step_calculator.ChiTimeStepCalculator(),
   ).run(
       spectator=observer,
@@ -97,6 +99,7 @@ def _run_sim_without_sources(
       stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
       transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
       source_models_builder=source_models_lib.SourceModelsBuilder(),
+      pedestal_model_builder=basic_pedestal_model.BasicPedestalModelBuilder(),
       time_step_calculator=chi_time_step_calculator.ChiTimeStepCalculator(),
   ).run(
       spectator=observer,

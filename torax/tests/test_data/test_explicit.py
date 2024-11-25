@@ -21,6 +21,8 @@ from torax import sim as sim_lib
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
+from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_runtime_params
@@ -34,7 +36,6 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
   # Over time more will be built with pure Python constructors in `get_sim`.
   return general_runtime_params.GeneralRuntimeParams(
       profile_conditions=profile_conditions_lib.ProfileConditions(
-          set_pedestal=False,
           ne_bound_right=0.5,
       ),
       numerics=numerics_lib.Numerics(
@@ -95,6 +96,10 @@ def get_stepper_builder() -> explicit_stepper.ExplicitStepperBuilder:
   return builder
 
 
+def get_pedestal_model_builder() -> pedestal_model_lib.PedestalModelBuilder:
+  return basic_pedestal_model.BasicPedestalModelBuilder()
+
+
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -107,4 +112,5 @@ def get_sim() -> sim_lib.Sim:
       source_models_builder=get_sources_builder(),
       transport_model_builder=get_transport_model_builder(),
       stepper_builder=get_stepper_builder(),
+      pedestal_model_builder=get_pedestal_model_builder(),
   )

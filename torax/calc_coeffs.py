@@ -28,15 +28,17 @@ from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
 
 
-def calculate_pereverzev_flux(
+def _calculate_pereverzev_flux(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
+    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
 ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array, jax.Array, jax.Array]:
   """Adds Pereverzev-Corrigan flux to diffusion terms."""
 
@@ -80,7 +82,7 @@ def calculate_pereverzev_flux(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
           geo.rho_face_norm
-          > dynamic_runtime_params_slice.profile_conditions.Ped_top,
+          > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       chi_face_per_ion,
@@ -89,7 +91,7 @@ def calculate_pereverzev_flux(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
           geo.rho_face_norm
-          > dynamic_runtime_params_slice.profile_conditions.Ped_top,
+          > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       chi_face_per_el,
@@ -110,7 +112,7 @@ def calculate_pereverzev_flux(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
           geo.rho_face_norm
-          > dynamic_runtime_params_slice.profile_conditions.Ped_top,
+          > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       d_face_per_el * geo.g1_over_vpr_face,
@@ -120,7 +122,7 @@ def calculate_pereverzev_flux(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
           geo.rho_face_norm
-          > dynamic_runtime_params_slice.profile_conditions.Ped_top,
+          > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       v_face_per_el * geo.g0_face,
@@ -147,6 +149,7 @@ def calc_coeffs(
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    pedestal_model: pedestal_model_lib.PedestalModel,
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
     explicit_call: bool = False,
@@ -173,6 +176,7 @@ def calc_coeffs(
     source_models: All TORAX source/sink functions that generate the explicit
       and implicit source profiles used as terms for the core profiles
       equations.
+    pedestal_model: A PedestalModel subclass, calculates pedestal values.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
@@ -202,6 +206,7 @@ def calc_coeffs(
         transport_model,
         explicit_source_profiles,
         source_models,
+        pedestal_model,
         evolving_names,
         use_pereverzev,
     )
@@ -212,6 +217,7 @@ def calc_coeffs(
     static_argnames=[
         'static_runtime_params_slice',
         'transport_model',
+        'pedestal_model',
         'source_models',
         'evolving_names',
     ],
@@ -224,6 +230,7 @@ def _calc_coeffs_full(
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles_lib.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    pedestal_model: pedestal_model_lib.PedestalModel,
     evolving_names: tuple[str, ...],
     use_pereverzev: bool = False,
 ) -> block_1d_coeffs.Block1DCoeffs:
@@ -249,6 +256,7 @@ def _calc_coeffs_full(
     source_models: All TORAX source/sink functions that generate the explicit
       and implicit source profiles used as terms for the core profiles
       equations.
+    pedestal_model: A PedestalModel subclass, calculates pedestal values.
     evolving_names: The names of the evolving variables in the order that their
       coefficients should be written to `coeffs`.
     use_pereverzev: Toggle whether to calculate Pereverzev terms
@@ -259,11 +267,18 @@ def _calc_coeffs_full(
 
   consts = constants.CONSTANTS
 
+  # Currently we (potentially wastefully) always compute the pedestal model
+  # output, even if the pedestal is not active. We should consider changing the
+  # PedestalModel API to allow for lazy evaluation.
+  pedestal_model_output = pedestal_model(
+      dynamic_runtime_params_slice, geo, core_profiles
+  )
+
   # Boolean mask for enforcing internal temperature boundary conditions to
   # model the pedestal.
   mask = physics.internal_boundary(
       geo,
-      dynamic_runtime_params_slice.profile_conditions.Ped_top,
+      pedestal_model_output.rho_norm_ped_top,
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
   )
 
@@ -403,7 +418,7 @@ def _calc_coeffs_full(
 
   # Diffusion term coefficients
   transport_coeffs = transport_model(
-      dynamic_runtime_params_slice, geo, core_profiles
+      dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_output
   )
   chi_face_ion = transport_coeffs.chi_face_ion
   chi_face_el = transport_coeffs.chi_face_el
@@ -562,24 +577,11 @@ def _calc_coeffs_full(
       source_models,
   )
 
-  # calculate neped
-  # pylint: disable=invalid-name
-  nGW = (
-      dynamic_runtime_params_slice.profile_conditions.Ip_tot
-      / (jnp.pi * geo.Rmin**2)
-      * 1e20
-      / dynamic_runtime_params_slice.numerics.nref
-  )
-  # pylint: enable=invalid-name
-  neped_unnorm = jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.neped_is_fGW,
-      dynamic_runtime_params_slice.profile_conditions.neped * nGW,
-      dynamic_runtime_params_slice.profile_conditions.neped,
-  )
-
   source_ne += jnp.where(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-      mask * dynamic_runtime_params_slice.numerics.largeValue_n * neped_unnorm,
+      mask
+      * dynamic_runtime_params_slice.numerics.largeValue_n
+      * pedestal_model_output.neped,
       0.0,
   )
   source_mat_nn += jnp.where(
@@ -602,10 +604,11 @@ def _calc_coeffs_full(
       v_face_per_el,
   ) = jax.lax.cond(
       use_pereverzev,
-      lambda: calculate_pereverzev_flux(
+      lambda: _calculate_pereverzev_flux(
           dynamic_runtime_params_slice,
           geo,
           core_profiles,
+          pedestal_model_output,
       ),
       lambda: tuple([jnp.zeros_like(geo.rho_face)] * 6),
   )
@@ -720,14 +723,14 @@ def _calc_coeffs_full(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
       mask
       * dynamic_runtime_params_slice.numerics.largeValue_T
-      * dynamic_runtime_params_slice.profile_conditions.Tiped,
+      * pedestal_model_output.Tiped,
       0.0,
   )
   source_e += jnp.where(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
       mask
       * dynamic_runtime_params_slice.numerics.largeValue_T
-      * dynamic_runtime_params_slice.profile_conditions.Teped,
+      * pedestal_model_output.Teped,
       0.0,
   )
 
