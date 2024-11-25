@@ -54,4 +54,3 @@ class RuntimeParamsProvider(
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Input params for the pedestal model which can be used as compiled args."""
-

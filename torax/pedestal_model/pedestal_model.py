@@ -31,7 +31,7 @@ class PedestalModelOutput:
   """Output of the PedestalModel."""
 
   # The location of the pedestal.
-  rho_norm_ped: array_typing.ScalarFloat
+  rho_norm_ped_top: array_typing.ScalarFloat
   # pylint: disable=invalid-name
   # Using physics notation naming convention
   # The ion temperature at the pedestal.
