@@ -23,6 +23,7 @@ from torax import array_typing
 from torax import constants
 from torax import geometry
 from torax import jax_utils
+from torax import math_utils
 from torax import state
 from torax.sources import source_profiles
 
@@ -233,12 +234,17 @@ def _calculate_integrated_sources(
   qei = core_sources.qei.qei_coef * (
       core_profiles.temp_el.value - core_profiles.temp_ion.value
   )
-  integrated['P_ei_exchange_ion'] = _trapz(qei * geo.vpr, geo.rho_norm)
+  integrated['P_ei_exchange_ion'] = math_utils.cell_integration(
+      qei * geo.vpr, geo
+  )
   integrated['P_ei_exchange_el'] = -integrated['P_ei_exchange_ion']
 
   # Initialize total electron and ion powers
-  integrated['P_heating_tot_ion'] = integrated['P_ei_exchange_ion']
-  integrated['P_heating_tot_el'] = integrated['P_ei_exchange_el']
+  # TODO(b/380848256): P_sol is now correct for stationary state. However,
+  # for generality need to add dWth/dt to the equation (time dependence of
+  # stored energy).
+  integrated['P_sol_ion'] = integrated['P_ei_exchange_ion']
+  integrated['P_sol_el'] = integrated['P_ei_exchange_el']
   integrated['P_external_ion'] = jnp.array(0.0)
   integrated['P_external_el'] = jnp.array(0.0)
 
@@ -248,13 +254,17 @@ def _calculate_integrated_sources(
     # Only populate integrated dict with sources that exist.
     if key in core_sources.profiles:
       profile_ion, profile_el = core_sources.profiles[key]
-      integrated[f'{value}_ion'] = _trapz(profile_ion * geo.vpr, geo.rho_norm)
-      integrated[f'{value}_el'] = _trapz(profile_el * geo.vpr, geo.rho_norm)
+      integrated[f'{value}_ion'] = math_utils.cell_integration(
+          profile_ion * geo.vpr, geo
+      )
+      integrated[f'{value}_el'] = math_utils.cell_integration(
+          profile_el * geo.vpr, geo
+      )
       integrated[f'{value}_tot'] = (
           integrated[f'{value}_ion'] + integrated[f'{value}_el']
       )
-      integrated['P_heating_tot_ion'] += integrated[f'{value}_ion']
-      integrated['P_heating_tot_el'] += integrated[f'{value}_el']
+      integrated['P_sol_ion'] += integrated[f'{value}_ion']
+      integrated['P_sol_el'] += integrated[f'{value}_el']
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_ion'] += integrated[f'{value}_ion']
         integrated['P_external_el'] += integrated[f'{value}_el']
@@ -269,8 +279,10 @@ def _calculate_integrated_sources(
         profile = core_sources.profiles[key][0, :]
       else:
         profile = core_sources.profiles[key]
-      integrated[f'{value}'] = _trapz(profile * geo.vpr, geo.rho_norm)
-      integrated['P_heating_tot_el'] += integrated[f'{value}']
+      integrated[f'{value}'] = math_utils.cell_integration(
+          profile * geo.vpr, geo
+      )
+      integrated['P_sol_el'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_el'] += integrated[f'{value}']
 
@@ -286,12 +298,12 @@ def _calculate_integrated_sources(
         profile = geometry.face_to_cell(core_sources.profiles[key])
       else:
         profile = core_sources.profiles[key]
-      integrated[f'{value}'] = _trapz(profile * geo.vpr, geo.rho_norm) / (
-          2 * jnp.pi * geo.Rmaj
+      integrated[f'{value}'] = math_utils.cell_integration(
+          profile * geo.spr_cell, geo
       )
 
-  integrated['P_heating_tot'] = (
-      integrated['P_heating_tot_ion'] + integrated['P_heating_tot_el']
+  integrated['P_sol_tot'] = (
+      integrated['P_sol_ion'] + integrated['P_sol_el']
   )
   integrated['P_external_tot'] = (
       integrated['P_external_ion'] + integrated['P_external_el']
@@ -312,8 +324,8 @@ def make_outputs(
     sim_state: The state to add outputs to.
     geo: Geometry object
     previous_sim_state: The previous state, used to calculate cumulative
-      quantities. Optional input. If None, then cumulative quantities are set
-      at the initialized values in sim_state itself. This is used for the first
+      quantities. Optional input. If None, then cumulative quantities are set at
+      the initialized values in sim_state itself. This is used for the first
       time step of a the simulation. The initialized values are zero for a clean
       simulation, or the last value of the previous simulation for a restarted
       simulation.
