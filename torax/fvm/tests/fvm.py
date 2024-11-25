@@ -34,7 +34,7 @@ from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
-from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_runtime_params
@@ -399,7 +399,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
             ),
         )
     )
-    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
+    pedestal_model_builder = (
+        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
+    )
     pedestal_model = pedestal_model_builder()
     transport_model = transport_model_builder()
     source_models_builder = default_sources.get_default_sources_builder()
@@ -548,7 +550,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
-    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
+    pedestal_model_builder = (
+        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
+    )
     geo = geometry.build_circular_geometry(n_rho=num_cells)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -677,7 +681,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     transport_model = transport_model_builder()
-    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
+    pedestal_model_builder = (
+        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
+    )
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
     source_models_builder.runtime_params['generic_ion_el_heat_source'].Ptot = (
@@ -714,7 +720,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
 
     source_models = source_models_lib.SourceModels()
-    pedestal_model = basic_pedestal_model.BasicPedestalModel()
+    pedestal_model = set_tped_nped.SetTemperatureDensityPedestalModel()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice,
         geo,

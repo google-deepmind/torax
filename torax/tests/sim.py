@@ -30,7 +30,7 @@ from torax import sim as sim_lib
 from torax import state
 from torax.config import build_sim as build_sim_lib
 from torax.config import numerics as numerics_lib
-from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.spectators import spectator as spectator_lib
 from torax.stepper import linear_theta_method
@@ -471,7 +471,7 @@ class SimTest(sim_test_case.SimTestCase):
         transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
         source_models_builder=source_models_lib.SourceModelsBuilder(),
         time_step_calculator=time_step_calculator,
-        pedestal_model_builder=basic_pedestal_model.BasicPedestalModelBuilder(),
+        pedestal_model_builder=set_tped_nped.SetTemperatureDensityPedestalModelBuilder(),
     )
 
     sim_outputs = sim.run()

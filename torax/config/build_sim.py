@@ -23,8 +23,8 @@ from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
-from torax.pedestal_model import basic as basic_pedestal_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import set_tped_nped
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import register_source
@@ -628,11 +628,11 @@ def build_pedestal_model_builder_from_config(
     pedestal_config: dict[str, Any],
 ) -> pedestal_model_lib.PedestalModelBuilder:
   """Builds a `PedestalModelBuilder` from the input config."""
-  runtime_params = basic_pedestal_model.RuntimeParams()
+  runtime_params = set_tped_nped.RuntimeParams()
   runtime_params = config_args.recursive_replace(
       runtime_params, **pedestal_config
   )
-  return basic_pedestal_model.BasicPedestalModelBuilder(
+  return set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
       runtime_params=runtime_params
   )
 

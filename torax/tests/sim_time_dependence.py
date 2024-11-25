@@ -31,8 +31,8 @@ from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.pedestal_model import basic as basic_pedestal_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import runtime_params as stepper_runtime_params
@@ -74,7 +74,9 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     transport = FakeTransportModel()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
-    pedestal_model_builder = basic_pedestal_model.BasicPedestalModelBuilder()
+    pedestal_model_builder = (
+        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
+    )
     pedestal_model = pedestal_model_builder()
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
