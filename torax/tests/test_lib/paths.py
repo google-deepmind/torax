@@ -25,3 +25,10 @@ def test_data_dir():
   src_dir = absltest.TEST_SRCDIR.value
   torax_dir = 'torax/'
   return os.path.join(src_dir, torax_dir, 'tests/test_data')
+
+
+def examples_dir():
+  """Absolute path of "test_data" directory."""
+  src_dir = absltest.TEST_SRCDIR.value
+  torax_dir = 'torax/'
+  return os.path.join(src_dir, torax_dir, 'examples')
