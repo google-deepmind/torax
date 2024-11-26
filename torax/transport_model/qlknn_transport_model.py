@@ -12,13 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A wrapper around qlknn_10d.
-
-The wrapper calls the pretrained models trained on QuaLiKiz heat and
-particle transport. The wrapper calculates qlknn_10d inputs, infers the
-model, carries out post-processing, and returns a CoreTransport object
-with turbulent transport coefficients.
-"""
+"""A transport model that uses a QLKNN model."""
 
 from __future__ import annotations
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.transport_model.qlknn_wrapper."""
+"""Unit tests for torax.transport_model.qlknn_transport_model."""
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -24,18 +24,18 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
-from torax.transport_model import qlknn_wrapper
+from torax.transport_model import qlknn_transport_model
 
 
-class QlknnWrapperTest(parameterized.TestCase):
-  """Unit tests for the `torax.transport_model.qlknn_wrapper` module."""
+class QlknnTransportModelTest(parameterized.TestCase):
+  """Unit tests for the `torax.transport_model.qlknn_transport_model` module."""
 
-  def test_qlknn_wrapper_cache_works(self):
+  def test_qlknn_transport_model_cache_works(self):
     """Tests that QLKNN calls are properly cached."""
     # This test can uncover and changes to the data structures which break the
     # caching.
-    qlknn = qlknn_wrapper.QLKNNTransportModel(
-        qlknn_wrapper.get_default_model_path()
+    qlknn = qlknn_transport_model.QLKNNTransportModel(
+        qlknn_transport_model.get_default_model_path()
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
@@ -47,7 +47,7 @@ class QlknnWrapperTest(parameterized.TestCase):
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport=qlknn_wrapper.RuntimeParams(),
+            transport=qlknn_transport_model.RuntimeParams(),
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
             pedestal=pedestal_model_builder.runtime_params,
@@ -84,16 +84,16 @@ class QlknnWrapperTest(parameterized.TestCase):
   def test_hash_and_eq(self):
     # Test that hash and eq are invariant to copying, so that they will work
     # correctly with jax's persistent cache
-    qlknn_1 = qlknn_wrapper.QLKNNTransportModel('foo')
-    qlknn_2 = qlknn_wrapper.QLKNNTransportModel('foo')
+    qlknn_1 = qlknn_transport_model.QLKNNTransportModel('foo')
+    qlknn_2 = qlknn_transport_model.QLKNNTransportModel('foo')
     self.assertEqual(qlknn_1, qlknn_2)
     self.assertEqual(hash(qlknn_1), hash(qlknn_2))
     mock_persistent_jax_cache = set([qlknn_1])
     self.assertIn(qlknn_2, mock_persistent_jax_cache)
 
   def test_hash_and_eq_different(self):
-    qlknn_1 = qlknn_wrapper.QLKNNTransportModel('foo')
-    qlknn_2 = qlknn_wrapper.QLKNNTransportModel('bar')
+    qlknn_1 = qlknn_transport_model.QLKNNTransportModel('foo')
+    qlknn_2 = qlknn_transport_model.QLKNNTransportModel('bar')
     self.assertNotEqual(qlknn_1, qlknn_2)
     self.assertNotEqual(hash(qlknn_1), hash(qlknn_2))
     mock_persistent_jax_cache = set([qlknn_1])
@@ -115,7 +115,7 @@ class QlknnWrapperTest(parameterized.TestCase):
     model_output = dict(
         [(k, jnp.ones(shape)) for k in itg_keys + tem_keys + etg_keys]
     )
-    filtered_model_output = qlknn_wrapper.filter_model_output(
+    filtered_model_output = qlknn_transport_model.filter_model_output(
         model_output=model_output,
         include_ITG=include_dict.get('itg', True),
         include_TEM=include_dict.get('tem', True),
@@ -156,7 +156,7 @@ class QlknnWrapperTest(parameterized.TestCase):
         [1.0, 2.625, 2.375, 12.6, 2.85, 6.0, 7.0, 8.0, 9.0],
         [1.0, 2.8, 2.0, 12.6, 2.85, 6.0, 7.0, 8.0, 9.0],
     ])
-    clipped_feature_scan = qlknn_wrapper.clip_inputs(
+    clipped_feature_scan = qlknn_transport_model.clip_inputs(
         feature_scan=feature_scan,
         inputs_and_ranges=inputs_and_ranges,
         clip_margin=clip_margin,
@@ -164,7 +164,7 @@ class QlknnWrapperTest(parameterized.TestCase):
     npt.assert_allclose(clipped_feature_scan, expected)
 
   def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = qlknn_wrapper.RuntimeParams()
+    runtime_params = qlknn_transport_model.RuntimeParams()
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)

@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A wrapper around QuaLiKiz.
+"""A transport model that calls QuaLiKiz.
 
-The wrapper calls QuaLiKiz itself. Must be run with
-TORAX_COMPILATION_ENABLED=False. Used for generating ground truth for QLKNN11D
-evaluation. Kept as an internal model.
+Must be run with TORAX_COMPILATION_ENABLED=False. Used for generating ground
+truth for surrogate model evaluations.
 """
 
 from __future__ import annotations
