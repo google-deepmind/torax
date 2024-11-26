@@ -564,6 +564,7 @@ def _calculate_psi_grad_constraint_from_Ip_tot(
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )
 
+
 def _psi_value_constraint_from_Vloop(
   dt: jax.Array,
   dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -575,6 +576,7 @@ def _psi_value_constraint_from_Vloop(
     core_profiles_t_minus_dt.psi.face_value()[-1]
     + dynamic_runtime_params_slice_t.profile_conditions.Vloop_bound_right * dt
   )
+
 
 def _init_psi_and_current(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -601,8 +603,14 @@ def _init_psi_and_current(
   Returns:
     Refined core profiles.
   """
+  use_Vloop_bound_right = (
+      dynamic_runtime_params_slice.profile_conditions.Vloop_bound_right is not None
+  )
+
   # Retrieving psi from the profile conditions.
   if dynamic_runtime_params_slice.profile_conditions.psi is not None:
+    # TODO: do we need to support the case where psi is given, but Vloop_bound_right
+    # is used to set the BC rather than Ip_tot?
     psi = cell_variable.CellVariable(
         value=dynamic_runtime_params_slice.profile_conditions.psi,
         right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip_tot(
@@ -631,7 +639,12 @@ def _init_psi_and_current(
         right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip_tot(
             dynamic_runtime_params_slice,
             geo,
-        ),
+        )
+        if not use_Vloop_bound_right
+        else None,
+        right_face_constraint=geo.psi_from_Ip[-1]
+        if use_Vloop_bound_right
+        else None,
         dr=geo.drho_norm,
     )
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
@@ -954,10 +967,15 @@ def compute_boundary_conditions(
           right_face_constraint=jnp.array(nimp_bound_right),
       ),
       'psi': dict(
-          right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip_tot(
+          right_face_grad_constraint=(
+            _calculate_psi_grad_constraint_from_Ip_tot(
               dynamic_runtime_params_slice_t,
               geo,
-            ),
+            )
+            if dynamic_runtime_params_slice_t.profile_conditions.Vloop_bound_right
+            is None
+            else None
+          ),
           right_face_constraint=(
             _psi_value_constraint_from_Vloop(
               dynamic_runtime_params_slice_t,
@@ -969,7 +987,7 @@ def compute_boundary_conditions(
             else None
           ),
         ),
-  }
+    }
 
 
 # pylint: disable=invalid-name
