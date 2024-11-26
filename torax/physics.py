@@ -33,6 +33,7 @@ from torax.geometry import Geometry  # pylint: disable=g-importing-member
 
 _trapz = jax.scipy.integrate.trapezoid
 
+_DEUTERIUM_MASS_AMU = 2.014
 
 # Many variable names in this file use scientific or mathematical notation, so
 # disable pylint complaints.
@@ -442,6 +443,79 @@ def fast_ion_fractional_heating_formula(
       / x_squared
   )
   return frac_i
+
+
+def calculate_plh_scaling_factor(
+    geo: Geometry,
+    core_profiles: state.CoreProfiles,
+) -> tuple[jax.Array, jax.Array, jax.Array]:
+  """Calculates the H-mode transition power scaling in low and high density branches.
+
+  See Y.R. Martin and Tomonori Takizuka.
+  "Power requirement for accessing the H-mode in ITER."
+  Journal of Physics: Conference Series. Vol. 123. No. 1. IOP Publishing, 2008.
+
+  Only valid for hydrogenic isotopes and mixtures (H, D, T).
+  Includes a simple inverse scaling of the factor to average isotope mass.
+
+  For an overview see U Plank, U., et al. "Overview of L-to H-mode transition
+  experiments at ASDEX Upgrade."
+  Plasma Physics and Controlled Fusion 65.1 (2022): 014001.
+
+  Args:
+    geo: Torus geometry.
+    core_profiles: Core plasma profiles.
+
+  Returns:
+    Tuple of: P_LH scaling factor for high and low density branches, and the
+      density corresponding to the P_LH minimum.
+  """
+
+  # Line-averaged electron density is poorly defined. In general, the definition
+  # is machine-dependent and even shot-dependent since it depends on the usage
+  # of a specific interferometry chord. Furthermore, even if we knew the
+  # specific chord used, its calculation would depend on magnetic geometry
+  # information beyond what is available in StandardGeometry.
+  # In lieu of a better solution, we use line-averaged electron density defined
+  # on the outer midplane.
+  Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
+  line_avg_ne = (
+      core_profiles.nref
+      * _trapz(core_profiles.ne.face_value(), geo.Rout_face)
+      / Rmin_out
+  )
+  # LH transition power for deuterium, in W. Eq 3 from Martin 2008.
+  P_LH_hi_dens_D = (
+      2.15
+      * (line_avg_ne / 1e20) ** 0.782
+      * geo.B0**0.772
+      * geo.Rmin**0.975
+      * geo.Rmaj**0.999
+      * 1e6
+  )
+
+  # Scale to average isotope mass.
+  P_LH_hi_dens = P_LH_hi_dens_D * _DEUTERIUM_MASS_AMU / core_profiles.Ai
+
+  # Calculate low density branch of P_LH (in units of nref) from Eq 3 Ryter 2014
+  ne_min_P_LH = (
+      0.7
+      * (core_profiles.currents.Ip_profile_face[-1] / 1e6) ** 0.34
+      * geo.Rmin**-0.95
+      * geo.B0**0.62
+      * (geo.Rmaj / geo.Rmin) ** 0.4
+      * 1e19
+      / core_profiles.nref
+  )
+  P_LH_low_dens = (
+      0.36
+      * (core_profiles.currents.Ip_profile_face[-1] / 1e6) ** 0.27
+      * geo.B0**1.25
+      * geo.Rmaj**1.23
+      * (geo.Rmaj / geo.Rmin) ** 0.08
+      * 1e6
+  )
+  return P_LH_hi_dens, P_LH_low_dens, ne_min_P_LH
 
 
 # pylint: enable=invalid-name

@@ -320,6 +320,15 @@ analysis and inspection.
 ``P_icrh_tot`` (time) [W]:
   Total ion cyclotron resonance heating power.
 
+``P_LH_hi_dens`` (time) [W]: H-mode transition power for high density branch,
+  according to Eq 3 from Martin 2008.
+
+``P_LH_low_dens`` (time) [W]: H-mode transition power for low density branch,
+  according to Eq 4 from Ryter 2014.
+
+``ne_min_P_LH`` (time) [nref]:  Density corresponding to the minimum P_LH,
+  according to Eq 3 from Ryter 2014.
+
 ``E_cumulative_fusion`` (time) [J]:
   Total cumulative fusion energy.
 
