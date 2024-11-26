@@ -106,16 +106,18 @@ class TGLFBasedTransportModel(quasilinear_transport_model.QuasilinearTransportMo
         vref = (Te.face_value() / (core_profiles.Ai * CONSTANTS.mp)) ** 0.5
         lref = geo.Rmin[-1]  # Minor radius at LCFS
 
-        ## Temperature gradients, At = -lref/T * dT/dr
+        ## Temperature gradients, At = -1/T * dT/drho
+        # Note: RLTS = a_minor / T * dT/dr = 1 / T * dT/drho
         # https://gafusion.github.io/doc/tglf/tglf_table.html#id2
         Ti_over_Te = Ti.face_value() / Te.face_value()
-        Ate = -lref / Te.face_value() * Te.face_grad(geo.rmid)
-        Ati = -lref / Ti.face_value() * Ti.face_grad(geo.rmid)
+        Ate = -1 / Te.face_value() * Te.face_grad(geo.rmid)
+        Ati = -1 / Ti.face_value() * Ti.face_grad(geo.rmid)
 
-        # Density gradient, Ane = -lref/ne * dne/dr
+        # Density gradient, Ane = -1/ne * dne/drho
+        # Note: RLNS = a_minor / ne * dne/dr = 1 / ne * dne/drho
         # https://gafusion.github.io/doc/tglf/tglf_table.html#id2
         # Note: nref cancels, as 1/(ne*nref) * (ne_grad * nref) = 1/ne * ne_grad
-        Ane = -lref / ne.face_value() * core_profiles.ne.face_grad(geo.rmid)
+        Ane = -1 / ne.face_value() * core_profiles.ne.face_grad(geo.rmid)
 
         ## Electron-electron collision frequency = nu_ee / (vref/lref)
         # https://gafusion.github.io/doc/tglf/tglf_list.html#xnue
