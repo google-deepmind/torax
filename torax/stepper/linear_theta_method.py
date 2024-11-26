@@ -17,12 +17,14 @@
 from collections.abc import Callable
 import dataclasses
 from typing import Type, TypeAlias
+
 import jax
 from torax import geometry
 from torax import sim
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
@@ -38,9 +40,10 @@ class LinearThetaMethod(stepper_lib.Stepper):
       self,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
       callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
   ):
-    super().__init__(transport_model, source_models)
+    super().__init__(transport_model, source_models, pedestal_model)
     self.callback_class = callback_class
 
   def _x_new(
@@ -74,6 +77,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
         source_models=self.source_models,
+        pedestal_model=self.pedestal_model,
         evolving_names=evolving_names,
     )
 
@@ -132,8 +136,9 @@ class LinearThetaMethod(stepper_lib.Stepper):
 def _default_linear_builder(
     transport_model: transport_model_lib.TransportModel,
     source_models: source_models_lib.SourceModels,
+    pedestal_model: pedestal_model_lib.PedestalModel,
 ) -> LinearThetaMethod:
-  return LinearThetaMethod(transport_model, source_models)
+  return LinearThetaMethod(transport_model, source_models, pedestal_model)
 
 
 # Type-alias so that users only need to import this file.
@@ -148,6 +153,7 @@ class LinearThetaMethodBuilder(stepper_lib.StepperBuilder):
       [
           transport_model_lib.TransportModel,
           source_models_lib.SourceModels,
+          pedestal_model_lib.PedestalModel,
       ],
       LinearThetaMethod,
   ] = _default_linear_builder
@@ -156,5 +162,6 @@ class LinearThetaMethodBuilder(stepper_lib.StepperBuilder):
       self,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
   ) -> LinearThetaMethod:
-    return self.builder(transport_model, source_models)
+    return self.builder(transport_model, source_models, pedestal_model)

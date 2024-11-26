@@ -191,9 +191,9 @@ class PostProcessingTest(parameterized.TestCase):
         'P_ohmic',
         'P_brems',
         'P_ecrh',
-        'P_heating_tot_ion',
-        'P_heating_tot_el',
-        'P_heating_tot',
+        'P_sol_ion',
+        'P_sol_el',
+        'P_sol_tot',
         'P_external_ion',
         'P_external_el',
         'P_external_tot',
@@ -203,14 +203,15 @@ class PostProcessingTest(parameterized.TestCase):
 
     self.assertSameElements(integrated_sources.keys(), expected_keys)
 
-    volume = np.trapz(self.geo.vpr, self.geo.rho_norm)
+    # Volume is calculated in terms of a cell integration (see math_utils.py)
+    volume = np.sum(self.geo.vpr * self.geo.drho_norm)
 
     # Check sums of electron and ion heating.
     np.testing.assert_allclose(
         integrated_sources['P_generic_ion']
         + integrated_sources['P_alpha_ion']
         + integrated_sources['P_ei_exchange_ion'],
-        integrated_sources['P_heating_tot_ion'],
+        integrated_sources['P_sol_ion'],
     )
 
     np.testing.assert_allclose(
@@ -220,13 +221,12 @@ class PostProcessingTest(parameterized.TestCase):
         + integrated_sources['P_ecrh']
         + integrated_sources['P_alpha_el']
         + integrated_sources['P_ei_exchange_el'],
-        integrated_sources['P_heating_tot_el'],
+        integrated_sources['P_sol_el'],
     )
 
     np.testing.assert_allclose(
-        integrated_sources['P_heating_tot_el']
-        + integrated_sources['P_heating_tot_ion'],
-        integrated_sources['P_heating_tot'],
+        integrated_sources['P_sol_el'] + integrated_sources['P_sol_ion'],
+        integrated_sources['P_sol_tot'],
     )
 
     np.testing.assert_allclose(
@@ -238,7 +238,7 @@ class PostProcessingTest(parameterized.TestCase):
     np.testing.assert_allclose(
         integrated_sources['P_external_tot'] + integrated_sources['P_brems'],
         +integrated_sources['P_alpha_tot'],
-        integrated_sources['P_heating_tot'],
+        integrated_sources['P_sol_tot'],
     )
 
     # Check expected values.

@@ -30,11 +30,13 @@
 
 
 CONFIG = {
+    'pedestal': {
+        'neped': 0.8,
+        'neped_is_fGW': True,
+    },
     'runtime_params': {
         'profile_conditions': {
             'nbar': 0.8,
-            'neped': 0.8,
-            'neped_is_fGW': True,
             'ne_bound_right': 0.5,
             'ne_bound_right_is_fGW': True,
         },

@@ -20,6 +20,14 @@ tests/persistent_cache
 
 
 CONFIG = {
+    'pedestal': {
+        'Tiped': 1.0,  # ion pedestal top temperature in keV for Ti and Te
+        'Teped': 1.0,  # electron pedestal top temperature in keV for Ti and Te
+        'neped_is_fGW': True,
+        # pedestal top electron density in units of nref
+        'neped': {0: 0.3, 80: 0.7},
+        'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
+    },
     'runtime_params': {
         'plasma_composition': {
             # physical inputs
@@ -52,14 +60,6 @@ CONFIG = {
             # internal boundary condition (pedestal)
             # do not set internal boundary condition if this is False
             'set_pedestal': True,
-            'Tiped': 1.0,  # ion pedestal top temperature in keV for Ti and Te
-            'Teped': (
-                1.0
-            ),  # electron pedestal top temperature in keV for Ti and Te
-            'neped_is_fGW': True,
-            # pedestal top electron density in units of nref
-            'neped': {0: 0.3, 80: 0.7},
-            'Ped_top': 0.9,  # set ped top location in normalized radius
         },
         'numerics': {
             # simulation control

@@ -20,14 +20,16 @@ pedestal, mocking up current-overshoot and an LH transition
 """
 
 CONFIG = {
+    'pedestal': {
+        'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
+        'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
+    },
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
             'Ti': {0.0: {0.0: 10.0, 1.0: 1.0}},
             'Te': {0.0: {0.0: 10.0, 1.0: 1.0}},
             'Ip_tot': {0: 5, 4: 15, 6: 12, 8: 12},
-            'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
-            'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
             'ne_bound_right': 0.5,
         },
         'numerics': {

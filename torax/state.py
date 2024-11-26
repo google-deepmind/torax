@@ -286,12 +286,12 @@ class PostProcessedOutputs:
     FFprime_face: FF' on the face grid, where F is the toroidal flux function
     psi_norm_face: Normalized poloidal flux on the face grid [Wb]
     psi_face: Poloidal flux on the face grid [Wb]
-    P_heating_tot_ion: Total ion heating power with all sources: auxiliary
-      heating + ion-electron exchange + Ohmic + fusion [W]
-    P_heating_tot_el: Total electron heating power, with all sources: auxiliary
-      heating + ion-electron exchange + Ohmic + fusion [W]
-    P_heating_tot: Total heating power, with all sources: auxiliary heating +
-      ion-electron exchange + Ohmic + fusion [W]
+    P_sol_ion: Total ion heating power exiting the plasma with all sources:
+      auxiliary heating + ion-electron exchange + fusion [W]
+    P_sol_el: Total electron heating power exiting the plasma with all sources
+      and sinks: auxiliary heating + ion-electron exchange + Ohmic + fusion +
+      radiation sinks [W]
+    P_sol_tot: Total heating power exiting the plasma with all sources and sinks
     P_external_ion: Total external ion heating power: auxiliary heating + Ohmic
       [W]
     P_external_el: Total external electron heating power: auxiliary heating +
@@ -333,9 +333,9 @@ class PostProcessedOutputs:
   # CellVariable history method destroys class methods like `face_value`.
   psi_face: array_typing.ArrayFloat
   # Integrated heat sources
-  P_heating_tot_ion: array_typing.ScalarFloat
-  P_heating_tot_el: array_typing.ScalarFloat
-  P_heating_tot: array_typing.ScalarFloat
+  P_sol_ion: array_typing.ScalarFloat  # SOL stands for "Scrape Off Layer"
+  P_sol_el: array_typing.ScalarFloat
+  P_sol_tot: array_typing.ScalarFloat
   P_external_ion: array_typing.ScalarFloat
   P_external_el: array_typing.ScalarFloat
   P_external_tot: array_typing.ScalarFloat
@@ -374,9 +374,9 @@ class PostProcessedOutputs:
         FFprime_face=jnp.zeros(geo.rho_face.shape),
         psi_norm_face=jnp.zeros(geo.rho_face.shape),
         psi_face=jnp.zeros(geo.rho_face.shape),
-        P_heating_tot_ion=jnp.array(0.0),
-        P_heating_tot_el=jnp.array(0.0),
-        P_heating_tot=jnp.array(0.0),
+        P_sol_ion=jnp.array(0.0),
+        P_sol_el=jnp.array(0.0),
+        P_sol_tot=jnp.array(0.0),
         P_external_ion=jnp.array(0.0),
         P_external_el=jnp.array(0.0),
         P_external_tot=jnp.array(0.0),

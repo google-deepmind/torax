@@ -20,17 +20,22 @@
 
 
 CONFIG = {
-    'runtime_params': {'profile_conditions': {'ne_bound_right': 0.5,}},
+    'pedestal': {},
+    'runtime_params': {
+        'profile_conditions': {
+            'ne_bound_right': 0.5,
+        }
+    },
     'geometry': {
         'geometry_type': 'circular',
         'n_rho': 25,
         'geometry_configs': {
             0: {
-                'elongation_LCFS': 1.,
+                'elongation_LCFS': 1.0,
             },
             5: {
                 'elongation_LCFS': 1.7,
-            }
+            },
         },
     },
     'sources': {

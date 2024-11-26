@@ -281,26 +281,9 @@ Configures boundary conditions, initial conditions, and prescribed time-dependen
   Toggles units of ``ne_bound_right``.
 
 ``set_pedestal`` (bool = True), **time-varying-scalar**
-  Set internal boundary conditions if True. Do not set internal boundary conditions if False.
+  If True use the configured pedestal model to set internal boundary conditions. Do not set internal boundary conditions if False.
   Internal boundary conditions are set using an adaptive localized source term. While a common use-case is to mock up a pedestal, this feature
   can also be used for L-mode modeling with a desired internal boundary condition below :math:`\hat{\rho}=1`.
-
-``Tiped`` (float = 5.0), **time-varying-scalar**
-  Internal boundary condition for ion temperature at :math:`\hat{\rho}` = ``Ped_top``, in units of keV.
-
-``Teped`` (float = 5.0), **time-varying-scalar**
-  Internal boundary condition for electron temperature at :math:`\hat{\rho}` = ``Ped_top``, in units of keV.
-
-``neped`` (float = 0.7), **time-varying-scalar**
-  Internal boundary condition for electron density at  :math:`\hat{\rho}` = ``Ped_top``, in units of keV.
-  In units of reference density if ``neped_is_fGW==False``. In units of Greenwald fraction if ``neped_is_fGW==True``.
-
-``neped_is_fGW`` (bool = False)
-  Toggles units of ``neped``.
-
-``Ped_top`` (float = 0.91), **time-varying-scalar**
-  Location of internal boundary condition, in units of :math:`\hat{\rho}`. In practice, the closest cell
-  gridpoint to ``Ped_top`` will be used.
 
 ``nu`` (float = 3.0)
   Peaking coefficient of initial current profile: :math:`j = j_0(1 - \hat{\rho}^2)^\nu`. :math:`j_0` is calculated
@@ -387,6 +370,43 @@ output_dir
   this will default to ``'/tmp/torax_results_<YYYYMMDD_HHMMSS>/'``
 
 .. _time_step_calculator:
+
+pedestal
+--------
+If ``set_pedestal`` is set to True in the ``profile_conditions`` section, then
+a pedestal model config is required.
+
+In TORAX we aim to support different models for computing the pedestal width,
+and electron density, ion temperature and electron temperature at the pedestal
+top. These models will only be used if the ``set_pedestal`` option in the
+``profile_conditions`` section is set to True.
+
+The model can be configured by setting the ``pedestal_model`` key in the
+``pedestal`` section of the configuration. If this field is not set, then
+the default model is ``'set_tped_nped'``.
+
+The following models are currently supported:
+
+set_tped_nped
+^^^^^^^^^^^^^
+Directly specify the pedestal width, electron density, ion temperature and
+electron temperature.
+
+``neped`` (float = 0.7) **time-varying-scalar**
+  Electron density at the pedestal top.
+  In units of reference density if ``neped_is_fGW==False``. In units of Greenwald fraction if ``neped_is_fGW==True``.
+
+``neped_is_fGW`` (bool = False) **time-varying-scalar**
+  Toggles units of ``neped``.
+
+``Tiped`` (float = 5.0) **time-varying-scalar**
+  Ion temperature at the pedestal top in units of keV.
+
+``Teped`` (float = 5.0) **time-varying-scalar**
+  Electron temperature at the pedestal top in units of keV.
+
+``rho_norm_ped`` (float = 0.91) **time-varying-scalar**
+  Location of pedestal top, in units of :math:`\hat{\rho}`.
 
 geometry
 --------

@@ -18,6 +18,7 @@ Constant transport coefficient model. Pedestal
 """
 
 CONFIG = {
+    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,

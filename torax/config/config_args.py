@@ -70,7 +70,7 @@ def input_is_an_interpolated_var_single_axis(
       if _check(arg):
         return True
   else:
-    return _check(field_type)
+    return _check(field_type)  # pytype: disable=bad-return-type
 
 
 def _is_bool(
@@ -166,7 +166,7 @@ def input_is_an_interpolated_var_time_rho(
       if _check(arg):
         return True
   else:
-    return _check(field_type)
+    return _check(field_type)  # pytype: disable=bad-return-type
 
 
 def _load_from_primitives(

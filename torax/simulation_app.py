@@ -65,6 +65,7 @@ from torax import geometry_provider
 from torax import output
 from torax import sim as sim_lib
 from torax.config import runtime_params_slice
+from torax.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.spectators import plotting
 from torax.stepper import runtime_params as stepper_runtime_params_lib
@@ -165,6 +166,7 @@ def update_sim(
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
     stepper_runtime_params: stepper_runtime_params_lib.RuntimeParams,
+    pedestal_runtime_params: pedestal_runtime_params_lib.RuntimeParams,
 ) -> sim_lib.Sim:
   """Updates the sim with a new set of runtime params and geometry."""
   # NOTE: This function will NOT update any of the following:
@@ -189,6 +191,7 @@ def update_sim(
           transport=transport_runtime_params,
           sources=sim.source_models_builder.runtime_params,
           stepper=stepper_runtime_params,
+          pedestal=pedestal_runtime_params,
           torax_mesh=geo_provider.torax_mesh,
       )
   )

@@ -19,6 +19,7 @@ pedestal, chi from qlknn.
 """
 
 CONFIG = {
+    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             # initial condition ion temperature for r=0 and r=Rmin

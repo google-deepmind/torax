@@ -21,12 +21,12 @@ Veff model.
 
 
 CONFIG = {
+    'pedestal': {'neped': 1.0},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
             'nbar': 0.85,  # initial density (using Greenwald fraction default)
             'ne_bound_right': 0.2,
-            'neped': 1.0,
             # set flat Ohmic current to provide larger range of current
             # evolution for test
             'nu': 0,

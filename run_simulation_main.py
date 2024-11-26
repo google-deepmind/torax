@@ -274,6 +274,11 @@ def change_config(
     new_stepper_builder = build_sim.build_stepper_builder_from_config(
         sim_config['stepper']
     )
+    new_pedestal_model_builder = (
+        build_sim.build_pedestal_model_builder_from_config(
+            sim_config['pedestal'] if 'pedestal' in sim_config else {}
+        )
+    )
   else:
     # Assume the config module has several methods to define the individual Sim
     # attributes (the "advanced", more Python-forward configuration method).
@@ -282,6 +287,7 @@ def change_config(
     new_transport_model_builder = config_module.get_transport_model_builder()
     source_models_builder = config_module.get_sources_builder()
     new_stepper_builder = config_module.get_stepper_builder()
+    new_pedestal_model_builder = config_module.get_pedestal_model_builder()
   new_source_params = {
       name: runtime_params
       for name, runtime_params in source_models_builder.runtime_params.items()
@@ -301,6 +307,7 @@ def change_config(
       transport_runtime_params=new_transport_model_builder.runtime_params,
       source_runtime_params=new_source_params,
       stepper_runtime_params=new_stepper_builder.runtime_params,
+      pedestal_runtime_params=new_pedestal_model_builder.runtime_params,
   )
   return sim, new_runtime_params
 

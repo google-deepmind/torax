@@ -30,6 +30,7 @@ from torax import interpolated_param
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
@@ -103,8 +104,12 @@ class ConstantTransportModel(transport_model.TransportModel):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
-    del core_profiles  # Not needed for this transport model
+    del (
+        core_profiles,
+        pedestal_model_outputs,
+    )  # Not needed for this transport model
 
     assert isinstance(
         dynamic_runtime_params_slice.transport, DynamicRuntimeParams

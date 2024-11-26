@@ -18,6 +18,7 @@ Ip from parameters. implicit, psi (current diffusion) only
 """
 
 CONFIG = {
+    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': False,

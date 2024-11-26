@@ -248,17 +248,17 @@ analysis and inspection.
 ``psi_norm_face`` (time, rho_face) [dimensionless]:
   Normalized poloidal flux on the face grid.
 
-``P_heating_tot_ion`` (time) [W]:
-  Total ion heating power with all sources: auxiliary heating +
-  ion-electron exchange + Ohmic + fusion.
+``P_sol_ion`` (time) [W]:
+  Total ion heating power exiting the plasma with all sources:
+  auxiliary heating + ion-electron exchange + fusion.
 
-``P_heating_tot_el`` (time) [W]:
-  Total electron heating power, with all sources: auxiliary heating +
-  ion-electron exchange + Ohmic + fusion.
+``P_sol_el`` (time) [W]:
+  P_sol_el: Total electron heating power exiting the plasma with all sources
+  and sinks: auxiliary heating + ion-electron exchange + Ohmic + fusion +
+  radiation sinks.
 
-``P_heating_tot`` (time) [W]:
-  Total heating power, with all sources: auxiliary heating + ion-electron
-  exchange + Ohmic + fusion.
+``P_sol_tot`` (time) [W]:
+  Total heating power exiting the plasma with all sources and sinks.
 
 ``P_external_ion`` (time) [W]:
   Total external ion heating power: auxiliary heating + Ohmic.
