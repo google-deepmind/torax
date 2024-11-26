@@ -41,10 +41,10 @@ from torax.time_step_calculator import time_step_calculator as time_step_calcula
 from torax.transport_model import bohm_gyrobohm as bohm_gyrobohm_transport
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
-from torax.transport_model import qlknn_wrapper
+from torax.transport_model import qlknn_transport_model
 # pylint: disable=g-import-not-at-top
 try:
-  from torax.transport_model import qualikiz_wrapper
+  from torax.transport_model import qualikiz_transport_model
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
 except ImportError:
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
@@ -459,8 +459,8 @@ def build_transport_model_builder_from_config(
 
   -  `qlknn`: QLKNN transport.
 
-    -  See `transport_model.qlknn_wrapper.RuntimeParams` for model-specific
-       params.
+    -  See `transport_model.qlknn_transport_model.RuntimeParams` for
+       model-specific params.
 
   -  `constant`: Constant transport
 
@@ -530,16 +530,16 @@ def build_transport_model_builder_from_config(
     if 'model_path' in qlknn_params:
       model_path = qlknn_params.pop('model_path')
     else:
-      model_path = qlknn_wrapper.get_default_model_path()
+      model_path = qlknn_transport_model.get_default_model_path()
     qlknn_params.update(transport_config)
     # Remove params from the other models, if present.
     qlknn_params.pop('constant_params', None)
     qlknn_params.pop('cgm_params', None)
     qlknn_params.pop('bohm-gyrobohm_params', None)
     qlknn_params.pop('qualikiz_params', None)
-    return qlknn_wrapper.QLKNNTransportModelBuilder(
+    return qlknn_transport_model.QLKNNTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
-            qlknn_wrapper.get_default_runtime_params_from_model_path(
+            qlknn_transport_model.get_default_runtime_params_from_model_path(
                 model_path
             ),
             **qlknn_params,
@@ -608,9 +608,9 @@ def build_transport_model_builder_from_config(
     qualikiz_params.pop('constant_params', None)
     qualikiz_params.pop('bohm-gyrobohm_params', None)
     # pylint: disable=undefined-variable
-    return qualikiz_wrapper.QualikizTransportModelBuilder(
+    return qualikiz_transport_model.QualikizTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
-            qualikiz_wrapper.RuntimeParams(),
+            qualikiz_transport_model.RuntimeParams(),
             **qualikiz_params,
         )
     )

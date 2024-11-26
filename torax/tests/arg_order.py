@@ -43,7 +43,7 @@ from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import predictor_corrector_method
 from torax.stepper import stepper
-from torax.transport_model import qlknn_wrapper
+from torax.transport_model import qlknn_transport_model
 
 
 class ArgOrderTest(parameterized.TestCase):
@@ -75,7 +75,7 @@ class ArgOrderTest(parameterized.TestCase):
       dict(module=nonlinear_theta_method),
       dict(module=predictor_corrector_method),
       dict(module=stepper),
-      dict(module=qlknn_wrapper),
+      dict(module=qlknn_transport_model),
   ])
   def test_arg_order(self, module):
     """Test that the functions in a module respect the canonical order."""
