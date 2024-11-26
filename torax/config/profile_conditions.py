@@ -38,10 +38,14 @@ class ProfileConditions(
 
   # Total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
-  # overwritten by values from the geometry data
+  # overwritten by values from the geometry data.
+  # If Vloop_bound_right is not None, then this Ip is used as an
+  # initial condition ONLY.
   Ip_tot: interpolated_param.TimeInterpolatedInput = 15.0
 
   # Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt )
+  # If this is `None` the boundary condition for the psi equation at each timestep
+  # will instead be taken from `Ip_tot`.
   Vloop_bound_right: interpolated_param.TimeInterpolatedInput | None = None
 
   # Temperature boundary conditions at r=Rmin. If this is `None` the boundary
