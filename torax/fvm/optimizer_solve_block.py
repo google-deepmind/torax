@@ -27,6 +27,7 @@ from torax.fvm import cell_variable
 from torax.fvm import enums
 from torax.fvm import fvm_conversions
 from torax.fvm import residual_and_loss
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
@@ -50,6 +51,7 @@ def optimizer_solve_block(
     transport_model: transport_model_lib.TransportModel,
     explicit_source_profiles: source_profiles.SourceProfiles,
     source_models: source_models_lib.SourceModels,
+    pedestal_model: pedestal_model_lib.PedestalModel,
     coeffs_callback: Block1DCoeffsCallback,
     evolving_names: tuple[str, ...],
     initial_guess_mode: enums.InitialGuessMode,
@@ -102,6 +104,7 @@ def optimizer_solve_block(
       sources in the PDE.
     source_models: Collection of source callables to generate source PDE
       coefficients.
+    pedestal_model: Model of the pedestal's behavior.
     coeffs_callback: Calculates diffusion, convection etc. coefficients given a
       core_profiles. Repeatedly called by the iterative optimizer.
     evolving_names: The names of variables within the core profiles that should
@@ -196,6 +199,7 @@ def optimizer_solve_block(
       transport_model=transport_model,
       explicit_source_profiles=explicit_source_profiles,
       source_models=source_models,
+      pedestal_model=pedestal_model,
       coeffs_old=coeffs_old,
       evolving_names=evolving_names,
       maxiter=maxiter,

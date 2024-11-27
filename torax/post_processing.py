@@ -24,6 +24,7 @@ from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import math_utils
+from torax import physics
 from torax import state
 from torax.sources import source_profiles
 
@@ -303,9 +304,7 @@ def _calculate_integrated_sources(
           profile * geo.spr_cell, geo
       )
 
-  integrated['P_sol_tot'] = (
-      integrated['P_sol_ion'] + integrated['P_sol_el']
-  )
+  integrated['P_sol_tot'] = integrated['P_sol_ion'] + integrated['P_sol_el']
   integrated['P_external_tot'] = (
       integrated['P_external_ion'] + integrated['P_external_el']
   )
@@ -364,6 +363,10 @@ def make_outputs(
       / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
   )
 
+  P_LH_hi_dens, P_LH_low_dens, ne_min_P_LH = (
+      physics.calculate_plh_scaling_factor(geo, sim_state.core_profiles)
+  )
+
   # Calculate total external (injected) and fusion (generated) energies based on
   # interval average.
   if previous_sim_state is not None:
@@ -411,6 +414,9 @@ def make_outputs(
       psi_face=sim_state.core_profiles.psi.face_value(),
       **integrated_sources,
       Q_fusion=Q_fusion,
+      P_LH_low_dens=P_LH_low_dens,
+      P_LH_hi_dens=P_LH_hi_dens,
+      ne_min_P_LH=ne_min_P_LH,
       E_cumulative_fusion=E_cumulative_fusion,
       E_cumulative_external=E_cumulative_external,
   )

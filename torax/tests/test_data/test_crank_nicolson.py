@@ -20,6 +20,7 @@ just check that Crank-Nicolson doesn't deviate too far from that.
 
 
 CONFIG = {
+    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'ne_bound_right': 0.5,

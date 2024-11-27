@@ -12,13 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A wrapper around qlknn_10d.
-
-The wrapper calls the pretrained models trained on QuaLiKiz heat and
-particle transport. The wrapper calculates qlknn_10d inputs, infers the
-model, carries out post-processing, and returns a CoreTransport object
-with turbulent transport coefficients.
-"""
+"""A transport model that uses a QLKNN model."""
 
 from __future__ import annotations
 
@@ -34,6 +28,7 @@ from jax import numpy as jnp
 from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
 from torax.transport_model import qualikiz_based_transport_model
@@ -156,6 +151,7 @@ class QLKNNRuntimeConfigInputs:
   @staticmethod
   def from_runtime_params_slice(
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> 'QLKNNRuntimeConfigInputs':
     assert isinstance(
         dynamic_runtime_params_slice.transport, DynamicRuntimeParams
@@ -164,7 +160,7 @@ class QLKNNRuntimeConfigInputs:
         nref=dynamic_runtime_params_slice.numerics.nref,
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         transport=dynamic_runtime_params_slice.transport,
-        Ped_top=dynamic_runtime_params_slice.profile_conditions.Ped_top,
+        Ped_top=pedestal_model_output.rho_norm_ped_top,
         set_pedestal=dynamic_runtime_params_slice.profile_conditions.set_pedestal,
         q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
     )
@@ -249,6 +245,7 @@ class QLKNNTransportModel(
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     """Calculates several transport coefficients simultaneously.
 
@@ -257,13 +254,15 @@ class QLKNNTransportModel(
         without triggering a JAX recompilation.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles.
+      pedestal_model_output: Output of the pedestal model.
 
     Returns:
       coeffs: transport coefficients
     """
 
     runtime_config_inputs = QLKNNRuntimeConfigInputs.from_runtime_params_slice(
-        dynamic_runtime_params_slice
+        dynamic_runtime_params_slice,
+        pedestal_model_output,
     )
     return self._combined(runtime_config_inputs, geo, core_profiles)
 

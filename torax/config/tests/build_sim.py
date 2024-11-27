@@ -22,6 +22,7 @@ from torax import geometry_provider
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
+from torax.pedestal_model import set_tped_nped
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
@@ -33,7 +34,7 @@ from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
-from torax.transport_model import qlknn_wrapper
+from torax.transport_model import qlknn_transport_model
 from torax.transport_model import runtime_params as transport_model_params
 
 
@@ -78,6 +79,13 @@ class BuildSimTest(parameterized.TestCase):
                 stepper_type='linear',
                 theta_imp=0.5,
             ),
+            pedestal=dict(
+                rho_norm_ped_top=0.6,
+                Teped=5.9,
+                Tiped=4.8,
+                neped=0.8,
+                neped_is_fGW=True,
+            ),
             time_step_calculator=dict(
                 calculator_type='fixed',
             ),
@@ -107,11 +115,11 @@ class BuildSimTest(parameterized.TestCase):
       )
     with self.subTest('transport'):
       self.assertIsInstance(
-          sim.transport_model, qlknn_wrapper.QLKNNTransportModel
+          sim.transport_model, qlknn_transport_model.QLKNNTransportModel
       )
       self.assertIsInstance(
           dynamic_runtime_params_slice.transport,
-          qlknn_wrapper.DynamicRuntimeParams,
+          qlknn_transport_model.DynamicRuntimeParams,
       )
       # pytype: disable=attribute-error
       self.assertEqual(
@@ -121,6 +129,20 @@ class BuildSimTest(parameterized.TestCase):
     with self.subTest('stepper'):
       self.assertIsInstance(sim.stepper, linear_theta_method.LinearThetaMethod)
       self.assertEqual(sim.static_runtime_params_slice.stepper.theta_imp, 0.5)
+    with self.subTest('pedestal'):
+      self.assertIsInstance(
+          dynamic_runtime_params_slice.pedestal,
+          set_tped_nped.DynamicRuntimeParams,
+      )
+      # pytype: disable=attribute-error
+      self.assertEqual(
+          dynamic_runtime_params_slice.pedestal.rho_norm_ped_top, 0.6
+      )
+      self.assertEqual(dynamic_runtime_params_slice.pedestal.Teped, 5.9)
+      self.assertEqual(dynamic_runtime_params_slice.pedestal.Tiped, 4.8)
+      self.assertEqual(dynamic_runtime_params_slice.pedestal.neped, 0.8)
+      self.assertEqual(dynamic_runtime_params_slice.pedestal.neped_is_fGW, True)
+      # pytype: enable=attribute-error
     with self.subTest('time_step_calculator'):
       self.assertIsInstance(
           sim.time_step_calculator,
@@ -395,7 +417,7 @@ class BuildSimTest(parameterized.TestCase):
       dict(
           testcase_name='qlknn',
           name='qlknn',
-          expected_type=qlknn_wrapper.QLKNNTransportModel,
+          expected_type=qlknn_transport_model.QLKNNTransportModel,
       ),
   )
   def test_build_transport_models(self, name, expected_type):
@@ -432,7 +454,8 @@ class BuildSimTest(parameterized.TestCase):
       self.assertEqual(transport_model_builder.runtime_params.alpha, 7.89)
     elif name == 'qlknn':
       assert isinstance(
-          transport_model_builder.runtime_params, qlknn_wrapper.RuntimeParams
+          transport_model_builder.runtime_params,
+          qlknn_transport_model.RuntimeParams,
       )
       self.assertEqual(transport_model_builder.runtime_params.coll_mult, 10.11)
     else:
@@ -473,11 +496,16 @@ class BuildSimTest(parameterized.TestCase):
         build_sim.build_transport_model_builder_from_config('constant')
     )
     transport_model = transport_model_builder()
+    pedestal_model_builder = build_sim.build_pedestal_model_builder_from_config(
+        {}
+    )
+    pedestal_model = pedestal_model_builder()
     source_models_builder = build_sim.build_sources_builder_from_config({})
     source_models = source_models_builder()
     stepper = stepper_builder(
         transport_model=transport_model,
         source_models=source_models,
+        pedestal_model=pedestal_model,
     )
     self.assertIsInstance(stepper, expected_type)
     self.assertEqual(stepper_builder.runtime_params.theta_imp, 0.5)

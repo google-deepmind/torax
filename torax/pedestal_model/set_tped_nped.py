@@ -75,7 +75,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   neped_is_fGW: array_typing.ScalarBool
 
 
-class BasicPedestalModel(pedestal_model.PedestalModel):
+class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
   """A basic version of the pedestal model that uses direct specification."""
 
   def __init__(
@@ -114,13 +114,15 @@ class BasicPedestalModel(pedestal_model.PedestalModel):
     )
 
 
-def _default_basic_pedestal_builder() -> BasicPedestalModel:
-  return BasicPedestalModel()
+def _default_basic_pedestal_builder() -> SetTemperatureDensityPedestalModel:
+  return SetTemperatureDensityPedestalModel()
 
 
 @dataclasses.dataclass(kw_only=True)
-class BasicPedestalModelBuilder(pedestal_model.PedestalModelBuilder):
-  """Builds a class BasicPedestalModel."""
+class SetTemperatureDensityPedestalModelBuilder(
+    pedestal_model.PedestalModelBuilder
+):
+  """Builds a class SetTemperatureDensityPedestalModel."""
 
   runtime_params: RuntimeParams = dataclasses.field(
       default_factory=RuntimeParams
@@ -128,10 +130,10 @@ class BasicPedestalModelBuilder(pedestal_model.PedestalModelBuilder):
 
   builder: Callable[
       [],
-      BasicPedestalModel,
+      SetTemperatureDensityPedestalModel,
   ] = _default_basic_pedestal_builder
 
   def __call__(
       self,
-  ) -> BasicPedestalModel:
+  ) -> SetTemperatureDensityPedestalModel:
     return self.builder()

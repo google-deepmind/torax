@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Functions to build sim.Sim objects, which are used to run TORAX."""
+
 from collections.abc import MutableMapping
 import copy
 from typing import Any
@@ -22,6 +23,8 @@ from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import set_tped_nped
 from torax.sources import formula_config
 from torax.sources import formulas
 from torax.sources import register_source
@@ -38,10 +41,10 @@ from torax.time_step_calculator import time_step_calculator as time_step_calcula
 from torax.transport_model import bohm_gyrobohm as bohm_gyrobohm_transport
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
-from torax.transport_model import qlknn_wrapper
+from torax.transport_model import qlknn_transport_model
 # pylint: disable=g-import-not-at-top
 try:
-  from torax.transport_model import qualikiz_wrapper
+  from torax.transport_model import qualikiz_transport_model
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
 except ImportError:
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
@@ -250,6 +253,17 @@ def build_sim_from_config(
     raise ValueError(
         f'The following required keys are not in the input dict: {missing_keys}'
     )
+  if (
+      'set_pedestal' in config['runtime_params']['profile_conditions']
+      and config['runtime_params']['profile_conditions']['set_pedestal']
+      and 'pedestal' not in config
+  ):
+    raise ValueError(
+        'The pedestal config is required if set_pedestal is True in the runtime'
+        ' params. See'
+        ' https://torax.readthedocs.io/en/latest/configuration.html#detailed-configuration-structure'
+        ' for more info.'
+    )
   runtime_params = build_runtime_params_from_config(config['runtime_params'])
   geo_provider = build_geometry_provider_from_config(config['geometry'])
 
@@ -268,6 +282,9 @@ def build_sim_from_config(
           config['transport']
       ),
       stepper_builder=build_stepper_builder_from_config(config['stepper']),
+      pedestal_model_builder=build_pedestal_model_builder_from_config(
+          config['pedestal'] if 'pedestal' in config else {}
+      ),
       time_step_calculator=build_time_step_calculator_from_config(
           config['time_step_calculator']
       ),
@@ -442,8 +459,8 @@ def build_transport_model_builder_from_config(
 
   -  `qlknn`: QLKNN transport.
 
-    -  See `transport_model.qlknn_wrapper.RuntimeParams` for model-specific
-       params.
+    -  See `transport_model.qlknn_transport_model.RuntimeParams` for
+       model-specific params.
 
   -  `constant`: Constant transport
 
@@ -513,16 +530,16 @@ def build_transport_model_builder_from_config(
     if 'model_path' in qlknn_params:
       model_path = qlknn_params.pop('model_path')
     else:
-      model_path = qlknn_wrapper.get_default_model_path()
+      model_path = qlknn_transport_model.get_default_model_path()
     qlknn_params.update(transport_config)
     # Remove params from the other models, if present.
     qlknn_params.pop('constant_params', None)
     qlknn_params.pop('cgm_params', None)
     qlknn_params.pop('bohm-gyrobohm_params', None)
     qlknn_params.pop('qualikiz_params', None)
-    return qlknn_wrapper.QLKNNTransportModelBuilder(
+    return qlknn_transport_model.QLKNNTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
-            qlknn_wrapper.get_default_runtime_params_from_model_path(
+            qlknn_transport_model.get_default_runtime_params_from_model_path(
                 model_path
             ),
             **qlknn_params,
@@ -591,14 +608,30 @@ def build_transport_model_builder_from_config(
     qualikiz_params.pop('constant_params', None)
     qualikiz_params.pop('bohm-gyrobohm_params', None)
     # pylint: disable=undefined-variable
-    return qualikiz_wrapper.QualikizTransportModelBuilder(
+    return qualikiz_transport_model.QualikizTransportModelBuilder(
         runtime_params=config_args.recursive_replace(
-            qualikiz_wrapper.RuntimeParams(),
+            qualikiz_transport_model.RuntimeParams(),
             **qualikiz_params,
         )
     )
   # pylint: enable=undefined-variable
   raise ValueError(f'Unknown transport model: {transport_model}')
+
+
+def build_pedestal_model_builder_from_config(
+    pedestal_config: dict[str, Any],
+) -> pedestal_model_lib.PedestalModelBuilder:
+  """Builds a `PedestalModelBuilder` from the input config."""
+  pedestal_model = pedestal_config.pop('pedestal_model', 'set_tped_nped')
+  match pedestal_model:
+    case 'set_tped_nped':
+      return set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
+          runtime_params=config_args.recursive_replace(
+              set_tped_nped.RuntimeParams(), **pedestal_config
+          )
+      )
+    case _:
+      raise ValueError(f'Unknown pedestal model: {pedestal_model}')
 
 
 def build_stepper_builder_from_config(

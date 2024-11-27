@@ -20,6 +20,7 @@ Rmaj~0.9m , Rmin~0.2m, B0~1.4T, Ip~170kA.
 
 
 CONFIG = {
+    'pedestal': {},
     'runtime_params': {
         'plasma_composition': {
             'Ai': 2.0,

@@ -84,22 +84,9 @@ class ProfileConditions(
   ne_bound_right: interpolated_param.TimeInterpolatedInput | None = None
   ne_bound_right_is_fGW: bool = False
   ne_bound_right_is_absolute: bool = False
-
-  # Internal boundary condition (pedestal)
+# Internal boundary condition (pedestal)
   # Do not set internal boundary condition if this is False
   set_pedestal: interpolated_param.TimeInterpolatedInput = True
-  # ion pedestal top temperature in keV
-  Tiped: interpolated_param.TimeInterpolatedInput = 5.0
-  # electron pedestal top temperature in keV
-  Teped: interpolated_param.TimeInterpolatedInput = 5.0
-  # pedestal top electron density
-  # In units of reference density if neped_is_fGW = False.
-  # In Greenwald fraction if neped_is_fGW = True.
-  neped: interpolated_param.TimeInterpolatedInput = 0.7
-  neped_is_fGW: bool = False
-  # Set ped top location.
-  Ped_top: interpolated_param.TimeInterpolatedInput = 0.91
-
   # current profiles (broad "Ohmic" + localized "external" currents)
   # peaking factor of "Ohmic" current: johm = j0*(1 - r^2/a^2)^nu
   nu: float = 3.0
@@ -206,10 +193,6 @@ class ProfileConditionsProvider(
       | interpolated_param.InterpolatedVarTimeRho
   )
   set_pedestal: interpolated_param.InterpolatedVarSingleAxis
-  Tiped: interpolated_param.InterpolatedVarSingleAxis
-  Teped: interpolated_param.InterpolatedVarSingleAxis
-  neped: interpolated_param.InterpolatedVarSingleAxis
-  Ped_top: interpolated_param.InterpolatedVarSingleAxis
 
   @override
   def build_dynamic_params(
@@ -241,11 +224,6 @@ class DynamicProfileConditions:
   ne_bound_right_is_fGW: bool
   ne_bound_right_is_absolute: bool
   set_pedestal: array_typing.ScalarBool
-  Tiped: array_typing.ScalarFloat
-  Teped: array_typing.ScalarFloat
-  neped: array_typing.ScalarFloat
-  neped_is_fGW: bool
-  Ped_top: array_typing.ScalarFloat
   nu: float
   initial_j_is_total_current: bool
   initial_psi_from_j: bool

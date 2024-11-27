@@ -14,6 +14,7 @@
 
 """Unit tests for torax.physics."""
 
+import dataclasses
 from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -171,7 +172,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
           references.runtime_params.profile_conditions.Ip_tot * 1e6,
       )
     else:
-      assert(isinstance(geo, geometry.StandardGeometry))
+      assert isinstance(geo, geometry.StandardGeometry)
       np.testing.assert_allclose(
           Ip_profile_face[-1],
           geo.Ip_profile_face[-1],
@@ -279,6 +280,97 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         physics._calculate_weighted_Zeff(core_profiles), expected
     )
     # pylint: enable=protected-access
+
+  def test_calculate_plh_scaling_factor(self):
+    """Compare `calculate_plh_scaling_factor` to a reference value."""
+    geo = geometry.build_circular_geometry(
+        n_rho=25,
+        elongation_LCFS=1.0,
+        hires_fac=4,
+        Rmaj=6.0,
+        Rmin=2.0,
+        B0=5.0,
+    )
+    core_profiles = state.CoreProfiles(
+        ne=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 2,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(2.0),
+            dr=geo.drho_norm,
+        ),
+        ni=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 1,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(1.0),
+            dr=geo.drho_norm,
+        ),
+        nimp=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        temp_ion=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        temp_el=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        psi=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        psidot=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        currents=state.Currents.zeros(geo),
+        q_face=jnp.array(0.0),
+        s_face=jnp.array(0.0),
+        Zi=1.0,
+        Ai=3.0,
+        Zimp=20,
+        Aimp=40,
+        nref=1e20,
+    )
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        currents=dataclasses.replace(
+            core_profiles.currents,
+            Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+        ),
+    )
+    # pylint: disable=invalid-name
+    P_LH_hi_dens, P_LH_low_dens, ne_min_P_LH = (
+        physics.calculate_plh_scaling_factor(geo, core_profiles)
+    )
+    expected_PLH_hi_dens = (
+        2.15 * 2**0.782 * 5**0.772 * 2**0.975 * 6**0.999 * (2.014 / 3)
+    )
+    expected_PLH_low_dens = 0.36 * 10**0.27 * 5**1.25 * 6**1.23 * 3**0.08
+    expected_ne_min_P_LH = 0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 / 10
+
+    # pylint: enable=invalid-name
+    np.testing.assert_allclose(P_LH_hi_dens / 1e6, expected_PLH_hi_dens)
+    np.testing.assert_allclose(P_LH_low_dens / 1e6, expected_PLH_low_dens)
+    np.testing.assert_allclose(ne_min_P_LH, expected_ne_min_P_LH)
 
 
 if __name__ == '__main__':

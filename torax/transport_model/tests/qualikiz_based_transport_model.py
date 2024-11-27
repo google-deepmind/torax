@@ -22,6 +22,8 @@ from torax import geometry
 from torax import state
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import quasilinear_transport_model
@@ -34,11 +36,15 @@ def _get_model_inputs(transport: qualikiz_based_transport_model.RuntimeParams):
   geo = geometry.build_circular_geometry()
   source_models_builder = source_models_lib.SourceModelsBuilder()
   source_models = source_models_builder()
+  pedestal_model_builder = (
+      set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
+  )
   dynamic_runtime_params_slice = (
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           transport=transport,
           sources=source_models_builder.runtime_params,
+          pedestal=pedestal_model_builder.runtime_params,
           torax_mesh=geo.torax_mesh,
       )(
           t=runtime_params.numerics.t_initial,
@@ -67,9 +73,13 @@ class QualikizTransportModelTest(parameterized.TestCase):
     dynamic_runtime_params_slice, geo, core_profiles = _get_model_inputs(
         transport
     )
+    pedestal_model = set_tped_nped.SetTemperatureDensityPedestalModel()
+    pedestal_model_outputs = pedestal_model(
+        dynamic_runtime_params_slice, geo, core_profiles
+    )
 
     core_transport = transport_model(
-        dynamic_runtime_params_slice, geo, core_profiles
+        dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
     )
     expected_shape = geo.rho_face_norm.shape
     self.assertEqual(core_transport.chi_face_ion.shape, expected_shape)
@@ -158,6 +168,7 @@ class FakeQualikizBasedTransportModel(
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     transport = dynamic_runtime_params_slice.transport
     # Assert required for pytype.

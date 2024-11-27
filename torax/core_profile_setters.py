@@ -120,8 +120,14 @@ def _get_ne(
     ne_face = jnp.concatenate(
         [face_left[None], face_inner, face_right[None]],
     )
-    # find normalization factor such that desired line-averaged n is set
-    # Assumes line-averaged central chord on outer midplane
+    # Find normalization factor such that desired line-averaged ne is set.
+    # Line-averaged electron density (nbar) is poorly defined. In general, the
+    # definition is machine-dependent and even shot-dependent since it depends
+    # on the usage of a specific interferometry chord. Furthermore, even if we
+    # knew the specific chord used, its calculation would depend on magnetic
+    # geometry information beyond what is available in StandardGeometry.
+    # In lieu of a better solution, we use line-averaged electron density
+    # defined on the outer midplane.
     Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
     # find target nbar in absolute units
     target_nbar = jnp.where(

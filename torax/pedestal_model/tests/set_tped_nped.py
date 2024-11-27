@@ -19,15 +19,15 @@ from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.pedestal_model import basic as basic_pedestal_model
+from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 
 
-class BasicPedestalModelTest(parameterized.TestCase):
+class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
   """Tests for the `torax.pedestal_model.basic` module."""
 
   def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = basic_pedestal_model.RuntimeParams()
+    runtime_params = set_tped_nped.RuntimeParams()
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
@@ -52,7 +52,7 @@ class BasicPedestalModelTest(parameterized.TestCase):
       # pylint: enable=invalid-name
   ):
     """Test we can build and call the pedestal model with expected outputs."""
-    pedestal_runtime_params = basic_pedestal_model.RuntimeParams(
+    pedestal_runtime_params = set_tped_nped.RuntimeParams(
         Tiped=Tiped,
         Teped=Teped,
         rho_norm_ped_top=rho_norm_ped_top,
@@ -70,7 +70,7 @@ class BasicPedestalModelTest(parameterized.TestCase):
         pedestal=pedestal_runtime_params,
     )
     geo = geometry.build_circular_geometry()
-    builder = basic_pedestal_model.BasicPedestalModelBuilder(
+    builder = set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
         runtime_params=pedestal_runtime_params
     )
     dynamic_runtime_params_slice = provider(t=time)

@@ -33,6 +33,7 @@ generic_current_source_profiles = np.array([
 
 # Create the config
 CONFIG = {
+    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': False,

@@ -31,6 +31,8 @@ from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import runtime_params as stepper_runtime_params
@@ -72,6 +74,10 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     transport = FakeTransportModel()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
+    pedestal_model_builder = (
+        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
+    )
+    pedestal_model = pedestal_model_builder()
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
     stepper = FakeStepper(
@@ -79,6 +85,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         max_value=2.5,
         transport_model=transport,
         source_models=source_models,
+        pedestal_model=pedestal_model,
         inner_solver_iterations=inner_solver_iterations,
     )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
@@ -86,6 +93,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         stepper,
         time_calculator,
         transport_model=transport,
+        pedestal_model=pedestal_model,
     )
     dynamic_runtime_params_slice_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -94,6 +102,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
             stepper=stepper_runtime_params.RuntimeParams(),
             torax_mesh=geo.torax_mesh,
+            pedestal=pedestal_model_builder.runtime_params,
         )
     )
     initial_dynamic_runtime_params_slice = (
@@ -161,10 +170,12 @@ class FakeStepper(stepper_lib.Stepper):
       max_value: float,
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
       inner_solver_iterations: list[int] | None = None,
   ):
     self.transport_model = transport_model
     self.source_models = source_models
+    self.pedestal_model = pedestal_model
     self._param = param
     self._max_value = max_value
     self._inner_solver_iterations = (
@@ -195,8 +206,16 @@ class FakeStepper(stepper_lib.Stepper):
     ) + getattr(
         dynamic_runtime_params_slice_t_plus_dt.profile_conditions, self._param
     )
+    pedestal_model_output = self.pedestal_model(
+        dynamic_runtime_params_slice_t,
+        geo_t,
+        core_profiles_t,
+    )
     transport = self.transport_model(
-        dynamic_runtime_params_slice_t, geo_t, core_profiles_t
+        dynamic_runtime_params_slice_t,
+        geo_t,
+        core_profiles_t,
+        pedestal_model_output,
     )
     # Use Qei as a hacky way to extract what the combined value was.
     core_sources = source_models_lib.build_all_zero_profiles(
@@ -247,6 +266,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     return state.CoreTransport.zeros(geo)
 
