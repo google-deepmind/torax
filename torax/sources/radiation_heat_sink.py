@@ -31,6 +31,7 @@ def _Qrad_as_fraction_of_Qtot_in(
     In this model, a fixed % of the total power input to the temp_el equation is lost."""
     # Based on source_models.sum_sources_temp_el and source_models.calc_and_sum_sources_psi,
     # but only summing over heating *input* sources (Pohm + Paux + Palpha)
+    # and summing over *both* ion and electron heating
 
     def get_temp_el_profile(source_name: str, source: source_lib.Source) -> jax.Array:
         # TODO: Currently this recomputes the profile for each source, which is inefficient
@@ -44,10 +45,12 @@ def _Qrad_as_fraction_of_Qtot_in(
         )
         return source.get_source_profile_for_affected_core_profile(
             profile, source_lib.AffectedCoreProfile.TEMP_EL.value, geo
+        ) + source.get_source_profile_for_affected_core_profile(
+            profile, source_lib.AffectedCoreProfile.TEMP_ION.value, geo
         )
 
     # Manually remove sources that will not be summed
-    sources_to_sum = source_models.temp_el_sources.copy()
+    sources_to_sum = source_models.temp_el_sources | source_models.temp_ion_sources
     sources_to_sum.pop(SOURCE_NAME, None)
     sources_to_sum.pop(bremsstrahlung_heat_sink.SOURCE_NAME, None)
     sources_to_sum.pop(qei_source.SOURCE_NAME, None)

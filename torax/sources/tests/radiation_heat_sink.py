@@ -45,8 +45,8 @@ class RadiationHeatSinkTest(test_lib.SourceTestCase):
         # Source builder for generic_ion_el_heat_source
         # We don't test this class, as that should be done in its own test
         heat_source_builder_builder = source_lib.make_source_builder(
-                    source_type=generic_ion_el_heat_source.GenericIonElectronHeatSource,
-                    runtime_params_type=generic_ion_el_heat_source.RuntimeParams,
+            source_type=generic_ion_el_heat_source.GenericIonElectronHeatSource,
+            runtime_params_type=generic_ion_el_heat_source.RuntimeParams,
         )
         heat_source_builder = heat_source_builder_builder()
 
@@ -82,9 +82,9 @@ class RadiationHeatSinkTest(test_lib.SourceTestCase):
             geo=geo,
             source_models=source_models,
         )
-        radiation_sink_dynamic_runtime_params_slice = dynamic_runtime_params_slice.sources[
-            radiation_heat_sink.SOURCE_NAME
-        ]
+        radiation_sink_dynamic_runtime_params_slice = (
+            dynamic_runtime_params_slice.sources[radiation_heat_sink.SOURCE_NAME]
+        )
         heat_source_dynamic_runtime_params_slice = dynamic_runtime_params_slice.sources[
             generic_ion_el_heat_source.SOURCE_NAME
         ]
@@ -98,20 +98,17 @@ class RadiationHeatSinkTest(test_lib.SourceTestCase):
         # RadiationHeatSink provides TEMP_EL only
         chex.assert_rank(radiation_heat_sink_power_density, 1)
 
-        # The value should be equal to fraction * sum of the TEMP_EL sources
-        # In this case, that is the generic_ion_el_heat_source
-        generic_ion_el_power_el = (
-            heat_source_dynamic_runtime_params_slice.Ptot
-            * heat_source_dynamic_runtime_params_slice.el_heat_fraction
-        )
+        # The value should be equal to fraction * sum of the (TEMP_EL+TEMP_ION)
+        # sources, minus P_ei and P_brems.
+        # In this case, that is only the generic_ion_el_heat_source.
         radiation_heat_sink_power = math_utils.cell_integration(
             radiation_heat_sink_power_density * geo.vpr, geo
         )
         chex.assert_trees_all_close(
             radiation_heat_sink_power,
-            generic_ion_el_power_el
+            heat_source_dynamic_runtime_params_slice.Ptot
             * -radiation_sink_dynamic_runtime_params_slice.fraction_of_total_power_density,
-            rtol=1e-2, # TODO: this rtol seems v. high
+            rtol=1e-2,  # TODO: this rtol seems v. high
         )
 
     def test_invalid_source_types_raise_errors(self):
@@ -170,10 +167,10 @@ class RadiationHeatSinkTest(test_lib.SourceTestCase):
         geo = geometry.build_circular_geometry()
         source_builder = self._source_class_builder()
         source_models_builder = source_models_lib.SourceModelsBuilder(
-            {'foo': source_builder},
+            {"foo": source_builder},
         )
         source_models = source_models_builder()
-        source = source_models.sources['foo']
+        source = source_models.sources["foo"]
         self.assertIsInstance(source, source_lib.Source)
         cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
         fake_profile = jnp.ones(cell)
