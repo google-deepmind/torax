@@ -283,6 +283,13 @@ class PostProcessedOutputs:
     W_thermal_ion: Ion thermal stored energy [J]
     W_thermal_el: Electron thermal stored energy [J]
     W_thermal_tot: Total thermal stored energy [J]
+    tauE: Thermal energy confinement time [s]
+    H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
+      law derived from the ITER H-mode confinement database
+    H97L: L-mode confinement quality factor with respect to the ITER97L scaling
+      law derived from the ITER H-mode confinement database
+    H20: H-mode confinement quality factor with respect to the ITER20 scaling
+      law derived from the updated (2020) ITER H-mode confinement database
     FFprime_face: FF' on the face grid, where F is the toroidal flux function
     psi_norm_face: Normalized poloidal flux on the face grid [Wb]
     psi_face: Poloidal flux on the face grid [Wb]
@@ -330,6 +337,10 @@ class PostProcessedOutputs:
   W_thermal_ion: array_typing.ScalarFloat
   W_thermal_el: array_typing.ScalarFloat
   W_thermal_tot: array_typing.ScalarFloat
+  tauE: array_typing.ScalarFloat
+  H98: array_typing.ScalarFloat
+  H97L: array_typing.ScalarFloat
+  H20: array_typing.ScalarFloat
   FFprime_face: array_typing.ArrayFloat
   psi_norm_face: array_typing.ArrayFloat
   # psi_face included in post_processed output for convenience, since the
@@ -377,6 +388,10 @@ class PostProcessedOutputs:
         W_thermal_ion=jnp.array(0.0),
         W_thermal_el=jnp.array(0.0),
         W_thermal_tot=jnp.array(0.0),
+        tauE=jnp.array(0.0),
+        H98=jnp.array(0.0),
+        H97L=jnp.array(0.0),
+        H20=jnp.array(0.0),
         FFprime_face=jnp.zeros(geo.rho_face.shape),
         psi_norm_face=jnp.zeros(geo.rho_face.shape),
         psi_face=jnp.zeros(geo.rho_face.shape),
