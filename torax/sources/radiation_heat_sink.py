@@ -70,7 +70,7 @@ def _Qrad_as_fraction_of_Qtot_in(
 
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
-    fraction_of_total_power_density: runtime_params_lib.TimeInterpolatedInput = 0.
+    fraction_of_total_power_density: runtime_params_lib.TimeInterpolatedInput = 0.1
     mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
     def make_provider(

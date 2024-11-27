@@ -350,6 +350,7 @@ class PostProcessedOutputs:
   P_ohmic: array_typing.ScalarFloat
   P_brems: array_typing.ScalarFloat
   P_ecrh: array_typing.ScalarFloat
+  P_rad: array_typing.ScalarFloat
   I_ecrh: array_typing.ScalarFloat
   I_generic: array_typing.ScalarFloat
   Q_fusion: array_typing.ScalarFloat
@@ -391,6 +392,7 @@ class PostProcessedOutputs:
         P_ohmic=jnp.array(0.0),
         P_brems=jnp.array(0.0),
         P_ecrh=jnp.array(0.0),
+        P_rad=jnp.array(0.0),
         I_ecrh=jnp.array(0.0),
         I_generic=jnp.array(0.0),
         Q_fusion=jnp.array(0.0),
