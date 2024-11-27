@@ -44,6 +44,15 @@ class QeiSourceTest(test_lib.SourceTestCase):
         ),
     )
 
+  def test_expected_mesh_states(self):
+    # This function is reimplemented here as QeiSource does not appear in
+    # source_models, which the parent class uses to build the source
+    source = qei_source.QeiSource()
+    self.assertSameElements(
+        source.affected_core_profiles,
+        self._expected_affected_core_profiles,
+    )
+
   def test_source_value(self):
     """Checks that the default implementation from Sources gives values."""
     source_builder = self._source_class_builder()

@@ -241,12 +241,16 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
       return_value=_DUMMY_MODEL_PATH,
   )
   def test_expected_mesh_states(self, mock_path):
+    # This function is reimplemented from the parent class to properly handle
+    # the mock_path, without which an error is raised.
     del mock_path
-    # Most Source subclasses should have default names and be instantiable
-    # without any __init__ arguments.
-    # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
-    # pylint: enable=missing-kwoa
+    source_builder = self._source_class_builder()
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
+    )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
+    self.assertIsInstance(source, source_lib.Source)
     self.assertSameElements(
         source.affected_core_profiles,
         self._expected_affected_core_profiles,

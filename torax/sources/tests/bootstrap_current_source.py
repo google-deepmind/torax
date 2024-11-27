@@ -39,6 +39,15 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
         expected_affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
 
+  def test_expected_mesh_states(self):
+    # This function is reimplemented here as BootstrapCurrentSource does not
+    # appear in source_models, which the parent class uses to build the source
+    source = bootstrap_current_source.BootstrapCurrentSource()
+    self.assertSameElements(
+        source.affected_core_profiles,
+        self._expected_affected_core_profiles,
+    )
+
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
     source = bootstrap_current_source.BootstrapCurrentSource()

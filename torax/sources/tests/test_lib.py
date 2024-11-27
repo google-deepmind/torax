@@ -77,23 +77,28 @@ class SourceTestCase(parameterized.TestCase):
       expected_affected_core_profiles: tuple[
           source_lib.AffectedCoreProfile, ...
       ],
+      links_back: bool = False,
   ):
     super().setUpClass()
-    cls._source_class = source_class
     cls._source_class_builder = source_lib.make_source_builder(
         source_type=source_class,
         runtime_params_type=runtime_params_class,
+        links_back=links_back,
     )
     cls._runtime_params_class = runtime_params_class
     cls._unsupported_modes = unsupported_modes
     cls._expected_affected_core_profiles = expected_affected_core_profiles
 
   def test_expected_mesh_states(self):
-    # Most Source subclasses should have default names and be instantiable
-    # without any __init__ arguments.
     # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
+    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
+    )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
+    self.assertIsInstance(source, source_lib.Source)
     self.assertSameElements(
         source.affected_core_profiles,
         self._expected_affected_core_profiles,
@@ -298,8 +303,15 @@ class IonElSourceTestCase(SourceTestCase):
     """Tests that the relevant profile is extracted from the output."""
     geo = geometry.build_circular_geometry()
     # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
+    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
+    source_models_builder = source_models_lib.SourceModelsBuilder(
+        {'foo': source_builder},
+    )
+    source_models = source_models_builder()
+    source = source_models.sources['foo']
+    self.assertIsInstance(source, source_lib.Source)
+
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
     np.testing.assert_allclose(
