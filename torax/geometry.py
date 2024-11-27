@@ -1375,7 +1375,7 @@ class StandardGeometryIntermediates:
         hires_fac=hires_fac,
         z_magnetic_axis=Zaxis,
     )
-  
+
   @classmethod
   def from_IMAS(
       cls,
@@ -1404,7 +1404,7 @@ class StandardGeometryIntermediates:
       A StandardGeometry instance based on the input file. This can then be
       used to build a StandardGeometry by passing to `build_standard_geometry`.
     """
-    #TODO : Write loader function, in geometry_loader ? 
+    #TODO : Write loader function, in geometry_loader ?
     IMAS_data = geometry_loader.load_geo_data(
         geometry_dir, geometry_file, geometry_loader.GeometrySource.IMAS
     ).time_slice[0]
@@ -1425,7 +1425,7 @@ class StandardGeometryIntermediates:
     F = np.abs(IMAS_data.profiles_1d.f)
 
 
-    #Flux surface integrals of various geometry quantities 
+    #Flux surface integrals of various geometry quantities
     #IDS Contour integrals
     if len(IMAS_data.profiles_1d.dvolume_dpsi) > 0:
         dvoldpsi = -1 * IMAS_data.profiles_1d.dvolume_dpsi
@@ -1440,15 +1440,15 @@ class StandardGeometryIntermediates:
     flux_surf_avg_RBp = IMAS_data.profiles_1d.gm7 * dpsidrhotor / (2 * np.pi) # dpsi, C0/C1
     flux_surf_avg_R2Bp2 = IMAS_data.profiles_1d.gm3 * (dpsidrhotor **2) / (4 * np.pi**2) # C4/C1
     flux_surf_avg_Bp2 = IMAS_data.profiles_1d.gm2 * (dpsidrhotor **2) / (4 * np.pi**2) # C3/C1
-    int_dl_over_Bp = dvoldpsi #C1 
-    flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1 # C2/C1 
-  
-    #TODO : Read Ip_profile from IMAS_data equilibrium IDS. With IMAS_data.profiles_1d.j_phi we might be able to compute Ip_profile.
-    Ip_profile=np.ones(len(psi))
+    int_dl_over_Bp = dvoldpsi #C1
+    flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1 # C2/C1
 
+    #TODO : Read Ip_profile from IMAS_data equilibrium IDS. With IMAS_data.profiles_1d.j_phi we might be able to compute Ip_profile.
+    #Important : j_tor works for IDSs with version < 3.42.0, to replace by j_phi for newer versions.
+    Ip_profile= -1 * IMAS_data.profiles_1d.j_tor
     rhon = np.sqrt(Phi / Phi[-1])
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
-    # To check 
+    # To check
     z_magnetic_axis = IMAS_data.global_quantities.magnetic_axis.z
 
 
@@ -1478,7 +1478,7 @@ class StandardGeometryIntermediates:
         z_magnetic_axis=z_magnetic_axis,
     )
 
- 
+
 
   @classmethod
   def from_IMAS_Data_entry(
