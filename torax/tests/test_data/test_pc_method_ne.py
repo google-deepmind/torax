@@ -20,9 +20,6 @@ scaled from chi_e
 """
 
 CONFIG = {
-    'pedestal': {
-        'neped': 1.0,
-    },
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
@@ -64,6 +61,9 @@ CONFIG = {
         },
         'j_bootstrap': {},
         'generic_current_source': {},
+    },
+    'pedestal': {
+        'neped': 1.0,
     },
     'transport': {
         'transport_model': 'qlknn',
