@@ -8,6 +8,7 @@ import jax.numpy as jnp
 
 from torax import array_typing
 from torax import geometry
+from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.sources import bremsstrahlung_heat_sink
@@ -19,7 +20,7 @@ from torax.sources import source_models as source_models_lib
 SOURCE_NAME = "radiation_heat_sink"
 
 
-def _Qrad_as_fraction_of_Qtot_in(
+def _radially_constant_fraction_of_Pin(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -62,11 +63,12 @@ def _Qrad_as_fraction_of_Qtot_in(
     )
 
     Qtot_in = jnp.sum(jnp.stack(source_profiles), axis=0)
-
+    Ptot_in = math_utils.cell_integration(Qtot_in * geo.vpr, geo)
+    Vtot = math_utils.cell_integration(geo.vpr, geo)
     # Calculate the radiation heat sink
     return (
         -dynamic_source_runtime_params.fraction_of_total_power_density
-        * Qtot_in
+        * Ptot_in / Vtot
         * jnp.ones_like(geo.rho)
     )
 
@@ -106,7 +108,7 @@ class RadiationHeatSink(source_lib.Source):
     """Radiation heat sink for electron heat equation."""
 
     source_models: source_models_lib.SourceModels
-    model_func: source_lib.SourceProfileFunction = _Qrad_as_fraction_of_Qtot_in
+    model_func: source_lib.SourceProfileFunction = _radially_constant_fraction_of_Pin
 
     @property
     def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
