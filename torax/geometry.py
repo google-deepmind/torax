@@ -953,7 +953,7 @@ class StandardGeometryIntermediates:
 
     LY_bundle = geometry_loader.load_geo_data(
         geometry_dir, LY_bundle_file, geometry_loader.GeometrySource.FBT
-    )['LY']
+    )
 
     # Load the L file associated with the LY bundle.
     L = geometry_loader.load_geo_data(
@@ -961,13 +961,13 @@ class StandardGeometryIntermediates:
     )
 
     if LY_to_torax_times is None:
-      LY_to_torax_times = LY_bundle['t'].item()  # ndarray of times
+      LY_to_torax_times = LY_bundle['t']  # ndarray of times
     else:
-      if len(LY_to_torax_times) != len(LY_bundle['t'].item()):
+      if len(LY_to_torax_times) != len(LY_bundle['t']):
         raise ValueError(f"""
             Length of LY_to_torax_times must match length of LY bundle data:
             len(LY_to_torax_times)={len(LY_to_torax_times)},
-            len(LY_bundle['t'].item())={len(LY_bundle['t'].item())}
+            len(LY_bundle['t'])={len(LY_bundle['t'])}
             """)
 
     intermediates = {}
@@ -982,7 +982,7 @@ class StandardGeometryIntermediates:
   @classmethod
   def _get_LY_single_slice_from_bundle(
       cls,
-      LY_bundle: np.ndarray,
+      LY_bundle: dict[str, np.ndarray],
       idx: int,
   ) -> dict[str, np.ndarray]:
     """Returns a single LY slice from a bundled LY file, at index idx."""
@@ -1007,9 +1007,8 @@ class StandardGeometryIntermediates:
         'FtPQ',
         'zA',
     ]
-    # The item() is needed due to the particular structure of the LY bundle.
     LY_single_slice = {
-        key: LY_bundle[key].item()[..., idx] for key in relevant_keys
+        key: LY_bundle[key][..., idx] for key in relevant_keys
     }
     return LY_single_slice
 
