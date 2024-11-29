@@ -15,15 +15,14 @@
 """Common types and helpers for using jaxtyping in TORAX."""
 
 from typing import Callable, TypeVar
-
+import chex
 import jaxtyping as jt
 import typeguard
 
-
 F = TypeVar("F", bound=Callable)
-ScalarFloat = jt.Float[jt.Array, ""]
-ScalarBool = jt.Bool[jt.Array, ""]
-ArrayFloat = jt.Float[jt.Array, "rhon"]
+ScalarFloat = jt.Float[chex.Array | float, ""]
+ScalarBool = jt.Bool[chex.Array | bool, ""]
+ArrayFloat = jt.Float[chex.Array, "rhon"]
 
 
 def typed(function: F) -> F:
@@ -39,6 +38,7 @@ def typed(function: F) -> F:
 
   Args:
     function: The function to shape check.
+
   Returns:
     The decorated function.
   """
