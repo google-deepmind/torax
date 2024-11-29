@@ -480,19 +480,22 @@ Geometry dicts for CHEASE geometry require the following additional keys for den
 
 Geometry dicts for FBT geometry require the following additional keys.
 
-``LY_file`` (str = None)
-  Sets a single-slice FBT LY geometry file to be loaded.
+``LY_object`` (dict[str, np.ndarray] | str)
+  Sets a single-slice FBT LY geometry file to be loaded, or alternatively a dict
+  directly containing a single time slice of LY data.
 
-``LY_bundle_file`` (str = None)
-  Sets the FBT LY bundle file to be loaded, corresponding to multiple time-slices.
+``LY_bundle_object`` (dict[str, np.ndarray] | str)
+  Sets the FBT LY bundle file to be loaded, corresponding to multiple time-slices,
+  or alternatively a dict directly containing all time-slices of LY data.
 
 ``LY_to_torax_times`` (ndarray = None)
   Sets the TORAX simulation times corresponding to the individual slices in the
   FBT LY bundle file. If not provided, then the times are taken from the LY_bundle_file
   itself. The length of the array must match the number of slices in the bundle.
 
-``L_file`` (str = None)
-  Sets the FBT L geometry file loaded.
+``L_object`` (dict[str, np.ndarray] | str)
+  Sets the FBT L geometry file loaded, or alternatively a dict directly containing
+  the L data.
 
 Geometry dicts for EQDSK geometry can contain the following additional keys.
 It is only recommended to change the default values if issues arise.
