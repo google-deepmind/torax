@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -20,7 +21,8 @@ import dataclasses
 from absl import logging
 import chex
 import jax
-from jax import numpy as jnp
+import numpy as np
+
 from torax import state
 from torax.config import runtime_params
 from torax.geometry import geometry
@@ -200,7 +202,11 @@ class StateHistory:
     post_processed_output = [
         state.post_processed_outputs for state in sim_outputs.sim_history
     ]
-    stack = lambda *ys: jnp.stack(ys)
+
+    def stack(*x):
+      out = np.stack([np.asarray(i) for i in x])
+      return out
+
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
     )
@@ -213,7 +219,7 @@ class StateHistory:
     self.post_processed_outputs: state.PostProcessedOutputs = (
         jax.tree_util.tree_map(stack, *post_processed_output)
     )
-    self.times = jnp.array([state.t for state in sim_outputs.sim_history])
+    self.times = np.array([state.t for state in sim_outputs.sim_history])
     chex.assert_rank(self.times, 1)
     self.sim_error = sim_outputs.sim_error
     self.source_models = source_models

@@ -58,6 +58,7 @@ import sys
 from typing import Callable, Final
 
 from absl import logging
+import chex
 import jax
 from torax import output
 from torax import sim as sim_lib
@@ -141,7 +142,7 @@ def _log_single_state(
 def log_simulation_output_to_stdout(
     core_profile_history: state.CoreProfiles,
     geo: geometry.Geometry,
-    t: jax.Array,
+    t: chex.Array,
 ) -> None:
   del geo
   _log_single_state(core_profile_history.index(0), t[0])
