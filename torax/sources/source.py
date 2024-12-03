@@ -306,7 +306,7 @@ def get_source_profiles(
     prescribed_values: chex.Array,
     output_shape: tuple[int, ...],
     source_models: Optional['source_models.SourceModels'],
-) -> jax.Array:
+) -> chex.ArrayTree:
   """Returns source profiles requested by the runtime_params_lib.
 
   This function handles MODEL_BASED, FORMULA_BASED, PRESCRIBED and ZERO sources.
@@ -336,13 +336,9 @@ def get_source_profiles(
   """
   # pytype: enable=name-error
   mode = static_source_runtime_params.mode
-  zeros = jnp.zeros(output_shape)
-  output = jnp.zeros(output_shape)
-
-  # MODEL_BASED
-  output += jnp.where(
-      mode == runtime_params_lib.Mode.MODEL_BASED.value,
-      model_func(
+  match mode:
+    case runtime_params_lib.Mode.MODEL_BASED.value:
+      return model_func(
           static_runtime_params_slice,
           static_source_runtime_params,
           dynamic_runtime_params_slice,
@@ -350,13 +346,9 @@ def get_source_profiles(
           geo,
           core_profiles,
           source_models,
-      ),
-      zeros,
-  )
-  # FORMULA_BASED
-  output += jnp.where(
-      mode == runtime_params_lib.Mode.FORMULA_BASED.value,
-      formula(
+      )
+    case runtime_params_lib.Mode.FORMULA_BASED.value:
+      return formula(
           static_runtime_params_slice,
           static_source_runtime_params,
           dynamic_runtime_params_slice,
@@ -364,16 +356,11 @@ def get_source_profiles(
           geo,
           core_profiles,
           source_models,
-      ),
-      zeros,
-  )
-  # PRESCRIBED
-  output += jnp.where(
-      mode == runtime_params_lib.Mode.PRESCRIBED.value,
-      prescribed_values,
-      zeros,
-  )
-  return output
+      )
+    case runtime_params_lib.Mode.PRESCRIBED.value:
+      return prescribed_values
+    case _:
+      return jnp.zeros(output_shape)
 
 
 def get_ion_el_output_shape(geo):
