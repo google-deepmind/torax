@@ -73,7 +73,12 @@ class TransportSmoothingTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
+        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
@@ -219,7 +224,12 @@ class TransportSmoothingTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
+        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,

@@ -111,11 +111,13 @@ class BootstrapCurrentSource(source.Source):
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.BootstrapCurrentProfile:
     # Make sure the input mode requested is supported.
-    self.check_mode(dynamic_source_runtime_params.mode)
+    self.check_mode(static_source_runtime_params.mode)
     # Make sure the input params are the correct type.
     if not isinstance(dynamic_source_runtime_params, DynamicRuntimeParams):
       raise TypeError(
@@ -134,7 +136,7 @@ class BootstrapCurrentSource(source.Source):
     )
     zero_profile = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
     is_zero_mode = (
-        dynamic_source_runtime_params.mode == runtime_params_lib.Mode.ZERO.value
+        static_source_runtime_params.mode == runtime_params_lib.Mode.ZERO.value
     )
     return source_profiles.BootstrapCurrentProfile(
         sigma=bootstrap_current.sigma,

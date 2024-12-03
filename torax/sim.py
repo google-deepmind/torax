@@ -320,6 +320,7 @@ class SimulationStepFn:
     # set to 0.
     explicit_source_profiles = source_models_lib.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
         source_models=self.stepper.source_models,
@@ -389,6 +390,7 @@ class SimulationStepFn:
         input_state,
         output_state,
         dynamic_runtime_params_slice_t_plus_dt,
+        static_runtime_params_slice,
         geo_t_plus_dt,
     )
 
@@ -684,6 +686,7 @@ class SimulationStepFn:
       input_state: state.ToraxSimState,
       output_state: state.ToraxSimState,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       geo_t_plus_dt: geometry.Geometry,
   ) -> state.ToraxSimState:
     """Finalizes given output state at the end of the simulation step.
@@ -692,6 +695,7 @@ class SimulationStepFn:
       input_state: Previous sim state.
       output_state: State to be finalized.
       dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
+      static_runtime_params_slice: Static runtime parameters.
       geo_t_plus_dt: The geometry of the torus during the next time step of the
         simulation.
 
@@ -711,15 +715,17 @@ class SimulationStepFn:
     output_state.core_profiles = update_current_distribution(
         source_models=self._stepper_fn.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
     )
 
     # Update psidot based on the new core profiles.
     # Will include the phibdot calculation since geo=geo_t_plus_dt.
-    output_state.core_profiles = update_psidot(
+    output_state.core_profiles = _update_psidot(
         source_models=self._stepper_fn.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
     )
@@ -742,6 +748,7 @@ def get_initial_state(
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
   initial_core_profiles = core_profile_setters.initial_core_profiles(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       source_models,
@@ -1023,6 +1030,7 @@ def build_sim_object(
       runtime_params_slice.build_static_runtime_params_slice(
           runtime_params=runtime_params,
           stepper=stepper_builder.runtime_params,
+          source_runtime_params=source_models_builder.runtime_params,
       )
   )
   dynamic_runtime_params_slice_provider = (
@@ -1297,6 +1305,7 @@ def run_simulation(
   logging.info("Updating last step's source profiles.")
   explicit_source_profiles = source_models_lib.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=sim_state.core_profiles,
       source_models=step_fn.stepper.source_models,
@@ -1510,6 +1519,7 @@ def _add_Phibdot(
 
 
 def update_current_distribution(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -1520,6 +1530,10 @@ def update_current_distribution(
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ],
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ],
       geo=geo,
@@ -1538,6 +1552,10 @@ def update_current_distribution(
   generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_generic_current_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_runtime_params_slice.sources[
+          source_models.generic_current_source_name
+      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -1565,7 +1583,8 @@ def update_current_distribution(
   return new_core_profiles
 
 
-def update_psidot(
+def _update_psidot(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -1576,6 +1595,7 @@ def update_psidot(
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=ohmic_heat_source.calc_psidot(
+          static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
           core_profiles,
@@ -1676,6 +1696,7 @@ def get_initial_source_profiles(
   """
   implicit_profiles = source_models_lib.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,
@@ -1694,6 +1715,7 @@ def get_initial_source_profiles(
   # Also add in the explicit sources to the initial sources.
   explicit_source_profiles = source_models_lib.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       source_models=source_models,

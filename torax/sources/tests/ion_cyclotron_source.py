@@ -147,12 +147,19 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
             t=0.0,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
     icrh_output = icrh_source.get_value(
+                static_slice,
+        static_slice.sources[ion_cyclotron_source.SOURCE_NAME],
         dynamic_runtime_params_slice,
         dynamic_runtime_params_slice.sources[ion_cyclotron_source.SOURCE_NAME],
         geo,
@@ -215,8 +222,13 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -225,6 +237,8 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
             "foo"
         ],
+        static_runtime_params_slice=static_slice,
+        static_source_runtime_params=static_slice.sources["foo"],
         geo=geo,
         core_profiles=core_profiles,
     )

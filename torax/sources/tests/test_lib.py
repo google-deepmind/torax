@@ -96,6 +96,28 @@ class SourceTestCase(parameterized.TestCase):
         dynamic_params, runtime_params_lib.DynamicRuntimeParams
     )
 
+  @parameterized.product(
+      mode=(
+          runtime_params_lib.Mode.ZERO,
+          runtime_params_lib.Mode.MODEL_BASED,
+          runtime_params_lib.Mode.FORMULA_BASED,
+          runtime_params_lib.Mode.PRESCRIBED,
+      ),
+      is_explicit=(True, False),
+  )
+  def test_runtime_params_builds_static_params(
+      self, mode: runtime_params_lib.Mode, is_explicit: bool
+  ):
+    """Tests that the static params are built correctly."""
+    runtime_params = self._runtime_params_class()
+    runtime_params.mode = mode
+    runtime_params.is_explicit = is_explicit
+    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
+    static_params = runtime_params.build_static_params()
+    self.assertIsInstance(static_params, runtime_params_lib.StaticRuntimeParams)
+    self.assertEqual(static_params.mode, mode.value)
+    self.assertEqual(static_params.is_explicit, is_explicit)
+
 
 class SingleProfileSourceTestCase(SourceTestCase):
   """Base test class for SingleProfileSource subclasses."""
@@ -127,8 +149,13 @@ class SingleProfileSourceTestCase(SourceTestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -137,6 +164,8 @@ class SingleProfileSourceTestCase(SourceTestCase):
         dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
             'foo'
         ],
+        static_runtime_params_slice=static_slice,
+        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -164,29 +193,31 @@ class SingleProfileSourceTestCase(SourceTestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
     for unsupported_mode in self._unsupported_modes:
       source_builder.runtime_params.mode = unsupported_mode
-      dynamic_runtime_params_slice = (
-          runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-              runtime_params=runtime_params,
-              sources=source_models_builder.runtime_params,
-              torax_mesh=geo.torax_mesh,
-          )(
-              t=runtime_params.numerics.t_initial,
-          )
+      static_slice = runtime_params_slice.build_static_runtime_params_slice(
+          runtime_params,
+          source_runtime_params=source_models_builder.runtime_params,
       )
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
                   'foo'
               ],
+              static_runtime_params_slice=static_slice,
+              static_source_runtime_params=static_slice.sources['foo'],
               geo=geo,
               core_profiles=core_profiles,
           )
@@ -217,8 +248,13 @@ class IonElSourceTestCase(SourceTestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -227,6 +263,8 @@ class IonElSourceTestCase(SourceTestCase):
         dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
             'foo'
         ],
+        static_runtime_params_slice=static_slice,
+        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -254,29 +292,31 @@ class IonElSourceTestCase(SourceTestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
     for unsupported_mode in self._unsupported_modes:
       source_builder.runtime_params.mode = unsupported_mode
-      dynamic_runtime_params_slice = (
-          runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-              runtime_params=runtime_params,
-              sources=source_models_builder.runtime_params,
-              torax_mesh=geo.torax_mesh,
-          )(
-              t=runtime_params.numerics.t_initial,
-          )
+      static_slice = runtime_params_slice.build_static_runtime_params_slice(
+          runtime_params,
+          source_runtime_params=source_models_builder.runtime_params,
       )
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
                   'foo'
               ],
+              static_runtime_params_slice=static_slice,
+              static_source_runtime_params=static_slice.sources['foo'],
               geo=geo,
               core_profiles=core_profiles,
           )

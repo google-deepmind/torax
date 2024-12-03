@@ -117,12 +117,21 @@ class Exponential:
 
   def __call__(  # pytype: disable=name-error
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      static_source_runtime_params: runtime_params.StaticRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
       unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
+    del (
+        dynamic_runtime_params_slice,
+        static_runtime_params_slice,
+        static_source_runtime_params,
+        unused_state,
+        unused_source_models,
+    )  # Unused.
     exp_config = dynamic_source_runtime_params.formula
     assert isinstance(exp_config, formula_config.DynamicExponential)
     return exponential_profile(
@@ -139,12 +148,21 @@ class Gaussian:
 
   def __call__(  # pytype: disable=name-error
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      static_source_runtime_params: runtime_params.StaticRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
       unused_state: state.CoreProfiles | None,
       unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
+    del (
+        dynamic_runtime_params_slice,
+        static_runtime_params_slice,
+        static_source_runtime_params,
+        unused_state,
+        unused_source_models,
+    )  # Unused.
     gaussian_config = dynamic_source_runtime_params.formula
     assert isinstance(gaussian_config, formula_config.DynamicGaussian)
     return gaussian_profile(

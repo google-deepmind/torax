@@ -25,6 +25,7 @@ from torax import core_profile_setters
 from torax import geometry
 from torax import physics
 from torax import state
+from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
@@ -118,7 +119,12 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
             sources=source_models_builder.runtime_params,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     initial_core_profiles = core_profile_setters.initial_core_profiles(
+        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models=source_models,
@@ -127,6 +133,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     # pylint: disable=protected-access
     if isinstance(geo, geometry.CircularAnalyticalGeometry):
       currents = core_profile_setters._prescribe_currents_no_bootstrap(
+          static_slice,
           dynamic_runtime_params_slice,
           geo,
           source_models=source_models,

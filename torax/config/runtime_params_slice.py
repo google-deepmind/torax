@@ -113,6 +113,8 @@ class StaticRuntimeParamsSlice:
   """
 
   stepper: stepper_params.StaticRuntimeParams
+  # Mapping of source name to source-specific static runtime params.
+  sources: Mapping[str, sources_params.StaticRuntimeParams]
   # Solve the ion heat equation (ion temperature evolves over time)
   ion_heat_eq: bool
   # Solve the electron heat equation (electron temperature evolves over time)
@@ -128,6 +130,17 @@ class StaticRuntimeParamsSlice:
   # iteratively at successively lower dt until convergence is reached
   adaptive_dt: bool
 
+  def __hash__(self):
+    return hash((
+        self.stepper,
+        tuple(sorted(self.sources.items())),  # Hashable version of sources.
+        self.ion_heat_eq,
+        self.el_heat_eq,
+        self.current_eq,
+        self.dens_eq,
+        self.adaptive_dt,
+    ))
+
 
 def _build_dynamic_sources(
     sources: dict[str, sources_params.RuntimeParamsProvider],
@@ -142,6 +155,7 @@ def _build_dynamic_sources(
 
 def build_static_runtime_params_slice(
     runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
+    source_runtime_params: dict[str, sources_params.RuntimeParams],
     stepper: stepper_params.RuntimeParams | None = None,
 ) -> StaticRuntimeParamsSlice:
   """Builds a StaticRuntimeParamsSlice."""
@@ -149,6 +163,10 @@ def build_static_runtime_params_slice(
   # config.
   stepper = stepper or stepper_params.RuntimeParams()
   return StaticRuntimeParamsSlice(
+      sources={
+          source_name: specific_source_runtime_params.build_static_params()
+          for source_name, specific_source_runtime_params in source_runtime_params.items()
+      },
       stepper=stepper.build_static_params(),
       ion_heat_eq=runtime_params.numerics.ion_heat_eq,
       el_heat_eq=runtime_params.numerics.el_heat_eq,

@@ -38,7 +38,6 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import geometry
-from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
@@ -48,6 +47,8 @@ from torax.sources import runtime_params as runtime_params_lib
 # pytype bug: 'source_models.SourceModels' not treated as forward reference
 SourceProfileFunction: TypeAlias = Callable[  # pytype: disable=name-error
     [  # Arguments
+        runtime_params_slice.StaticRuntimeParamsSlice,  # Static runtime params.
+        runtime_params_lib.StaticRuntimeParams,  # Source-specific params.
         runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
         runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
         geometry.Geometry,
@@ -152,45 +153,18 @@ class Source(abc.ABC):
   def affected_core_profiles_ints(self) -> tuple[int, ...]:
     return tuple([int(cp) for cp in self.affected_core_profiles])
 
-  def check_mode(
-      self,
-      mode: int | jax.Array,
-  ) -> jax.Array:
+  def check_mode(self, mode: int,):
     """Raises an error if the source type is not supported."""
-    # This function is really just a wrapper around jax_utils.error_if with the
-    # custom error message coming from this class.
-    mode = jnp.array(mode)
-    mode = jax_utils.error_if(
-        mode,
-        jnp.logical_not(self._is_type_supported(mode)),
-        self._unsupported_mode_error_msg(mode),
-    )
-    return mode  # pytype: disable=bad-return-type
-
-  def _is_type_supported(
-      self,
-      mode: int | jax.Array,
-  ) -> jax.Array:
-    """Returns whether the source type is supported."""
-    mode = jnp.array(mode)
-    return jnp.any(
-        jnp.bool_([
-            supported_mode.value == mode
-            for supported_mode in self.supported_modes
-        ])
-    )
-
-  def _unsupported_mode_error_msg(
-      self,
-      mode: runtime_params_lib.Mode | int | jax.Array,
-  ) -> str:
-    return (
-        f'This source supports the following modes: {self.supported_modes}.'
-        f' Unsupported mode provided: {mode}.'
-    )
+    if runtime_params_lib.Mode(mode) not in self.supported_modes:
+      raise ValueError(
+          f'This source supports the following modes: {self.supported_modes}.'
+          f' Unsupported mode provided: {mode}.'
+      )
 
   def get_value(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
@@ -199,6 +173,8 @@ class Source(abc.ABC):
     """Returns the profile for this source during one time step.
 
     Args:
+      static_runtime_params_slice: Static runtime parameters.
+      static_source_runtime_params: Static runtime parameters for this source.
       dynamic_runtime_params_slice: Slice of the general TORAX config that can
         be used as input for this time step.
       dynamic_source_runtime_params: Slice of this source's runtime parameters
@@ -214,15 +190,15 @@ class Source(abc.ABC):
     Returns:
       Array, arrays, or nested dataclass/dict of arrays for the source profile.
     """
-    self.check_mode(dynamic_source_runtime_params.mode)
+    self.check_mode(static_source_runtime_params.mode)
     output_shape = self.output_shape_getter(geo)
     model_func = (
-        (lambda _0, _1, _2, _3, _4: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3, _4, _5, _6: jnp.zeros(output_shape))
         if self.model_func is None
         else self.model_func
     )
     formula = (
-        (lambda _0, _1, _2, _3, _4: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3, _4, _5, _6: jnp.zeros(output_shape))
         if self.formula is None
         else self.formula
     )
@@ -230,6 +206,8 @@ class Source(abc.ABC):
     return get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
+        static_runtime_params_slice=static_runtime_params_slice,
+        static_source_runtime_params=static_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         model_func=model_func,
@@ -317,6 +295,8 @@ class ProfileType(enum.Enum):
 # pytype bug: 'source_models.SourceModels' not treated as a forward ref
 # pytype: disable=name-error
 def get_source_profiles(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -335,6 +315,8 @@ def get_source_profiles(
   jnp.where calls.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
+    static_source_runtime_params: Static runtime parameters for this source.
     dynamic_runtime_params_slice: Slice of the general TORAX config that can be
       used as input for this time step.
     dynamic_source_runtime_params: Slice of this source's runtime parameters at
@@ -353,7 +335,7 @@ def get_source_profiles(
     Output array of a profile or concatenated/stacked profiles.
   """
   # pytype: enable=name-error
-  mode = dynamic_source_runtime_params.mode
+  mode = static_source_runtime_params.mode
   zeros = jnp.zeros(output_shape)
   output = jnp.zeros(output_shape)
 
@@ -361,6 +343,8 @@ def get_source_profiles(
   output += jnp.where(
       mode == runtime_params_lib.Mode.MODEL_BASED.value,
       model_func(
+          static_runtime_params_slice,
+          static_source_runtime_params,
           dynamic_runtime_params_slice,
           dynamic_source_runtime_params,
           geo,
@@ -373,6 +357,8 @@ def get_source_profiles(
   output += jnp.where(
       mode == runtime_params_lib.Mode.FORMULA_BASED.value,
       formula(
+          static_runtime_params_slice,
+          static_source_runtime_params,
           dynamic_runtime_params_slice,
           dynamic_source_runtime_params,
           geo,

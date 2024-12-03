@@ -236,6 +236,7 @@ def updated_density(
 
 
 def _prescribe_currents_no_bootstrap(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     core_profiles: state.CoreProfiles,
@@ -244,6 +245,7 @@ def _prescribe_currents_no_bootstrap(
   """Creates the initial Currents without the bootstrap current.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: General runtime parameters at t_initial.
     geo: Geometry of the tokamak.
     core_profiles: Core profiles.
@@ -280,6 +282,10 @@ def _prescribe_currents_no_bootstrap(
   generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_generic_current_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_runtime_params_slice.sources[
+          generic_current_source.SOURCE_NAME
+      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -304,6 +310,7 @@ def _prescribe_currents_no_bootstrap(
     jtot = geometry.face_to_cell(jtot_face)
 
   jtot_hires = _get_jtot_hires(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       dynamic_generic_current_params,
       geo,
@@ -329,6 +336,7 @@ def _prescribe_currents_no_bootstrap(
 
 
 def _prescribe_currents_with_bootstrap(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     core_profiles: state.CoreProfiles,
@@ -337,6 +345,7 @@ def _prescribe_currents_with_bootstrap(
   """Creates the initial Currents.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: General runtime parameters at t_initial.
     geo: Geometry of the tokamak.
     core_profiles: Core profiles.
@@ -355,6 +364,10 @@ def _prescribe_currents_with_bootstrap(
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ],
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ],
       geo=geo,
@@ -377,6 +390,10 @@ def _prescribe_currents_with_bootstrap(
   generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_generic_current_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_runtime_params_slice.sources[
+          source_models.generic_current_source_name
+      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -405,6 +422,7 @@ def _prescribe_currents_with_bootstrap(
   johm = geometry.face_to_cell(johm_face)
 
   jtot_hires = _get_jtot_hires(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       dynamic_generic_current_params,
       geo,
@@ -430,6 +448,7 @@ def _prescribe_currents_with_bootstrap(
 
 
 def _calculate_currents_from_psi(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     core_profiles: state.CoreProfiles,
@@ -438,6 +457,7 @@ def _calculate_currents_from_psi(
   """Creates the initial Currents using psi to calculate jtot.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: General runtime parameters at t_initial.
     geo: Geometry of the tokamak.
     core_profiles: Core profiles.
@@ -461,6 +481,10 @@ def _calculate_currents_from_psi(
       dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ],
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_runtime_params_slice.sources[
+          source_models.j_bootstrap_name
+      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -475,6 +499,10 @@ def _calculate_currents_from_psi(
   generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_generic_current_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_runtime_params_slice.sources[
+          source_models.generic_current_source_name
+      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -570,6 +598,7 @@ def _calculate_psi_grad_constraint(
 
 
 def _init_psi_and_current(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     core_profiles: state.CoreProfiles,
@@ -585,6 +614,7 @@ def _init_psi_and_current(
     to converge to the true psi.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Torus geometry.
     core_profiles: Core profiles.
@@ -607,6 +637,7 @@ def _init_psi_and_current(
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
     currents = _calculate_currents_from_psi(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
@@ -630,6 +661,7 @@ def _init_psi_and_current(
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
     currents = _calculate_currents_from_psi(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
@@ -641,6 +673,7 @@ def _init_psi_and_current(
   ):
     currents = _prescribe_currents_no_bootstrap(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
@@ -655,6 +688,7 @@ def _init_psi_and_current(
     )
     currents = _prescribe_currents_with_bootstrap(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
@@ -682,6 +716,7 @@ def _init_psi_and_current(
 
 
 def initial_core_profiles(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: Geometry,
     source_models: source_models_lib.SourceModels,
@@ -689,6 +724,7 @@ def initial_core_profiles(
   """Calculates the initial core profiles.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters at t=t_initial.
     geo: Torus geometry.
     source_models: All models for TORAX sources/sinks.
@@ -737,6 +773,7 @@ def initial_core_profiles(
   )
 
   core_profiles = _init_psi_and_current(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
@@ -749,6 +786,7 @@ def initial_core_profiles(
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=ohmic_heat_source.calc_psidot(
+          static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
           core_profiles,
@@ -954,6 +992,7 @@ def compute_boundary_conditions(
 
 # pylint: disable=invalid-name
 def _get_jtot_hires(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_generic_current_params: generic_current_source.DynamicRuntimeParams,
     geo: Geometry,
@@ -970,6 +1009,10 @@ def _get_jtot_hires(
   generic_current_hires = generic_current.generic_current_source_hires(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_generic_current_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_runtime_params_slice.sources[
+          generic_current_source.SOURCE_NAME
+      ],
       geo=geo,
   )
 

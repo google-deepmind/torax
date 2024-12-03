@@ -295,6 +295,7 @@ def _calc_coeffs_full(
   implicit_source_profiles = source_models_lib.build_source_profiles(
       source_models=source_models,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       explicit=False,
@@ -305,35 +306,35 @@ def _calc_coeffs_full(
   # Decide which values to use depending on whether the source is explicit or
   # implicit.
   sigma = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.sigma,
       implicit_source_profiles.j_bootstrap.sigma,
   )
   sigma_face = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.sigma_face,
       implicit_source_profiles.j_bootstrap.sigma_face,
   )
   j_bootstrap = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap,
       implicit_source_profiles.j_bootstrap.j_bootstrap,
   )
   j_bootstrap_face = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap_face,
       implicit_source_profiles.j_bootstrap.j_bootstrap_face,
   )
   I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.I_bootstrap,
@@ -342,7 +343,7 @@ def _calc_coeffs_full(
   # The formula for generic_current in external_current_source.py is for the
   # external current on the face grid, not the cell grid.
   generic_current_face = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.generic_current_source_name
       ].is_explicit,
       explicit_source_profiles.profiles[

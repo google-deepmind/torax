@@ -1225,9 +1225,8 @@ Examples include the number of grid points or the choice of transport model. A p
 * ``transport['transport_model']``
 * ``stepper['stepper_type']``
 * ``time_step_calculator['time_step_calculator_type']``
-
-In addition, changing any source from ``formula`` to ``model`` mode, or changing any source ``model``, will trigger recompilation. Toggling sources to ``zero``
-mode and back, will not trigger recompilation.
+* ``sources['source_name']['is_explicit']``
+* ``sources['source_name']['mode']``
 
 Examples
 ========

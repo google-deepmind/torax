@@ -74,6 +74,8 @@ class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 # Default formula: exponential with nref normalization.
 def _calc_puff_source(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -81,6 +83,11 @@ def _calc_puff_source(
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from puffs."""
+  del (
+      static_source_runtime_params,
+      unused_source_models,
+      static_runtime_params_slice,
+  )  # Unused.
   assert isinstance(dynamic_source_runtime_params, DynamicGasPuffRuntimeParams)
   return formulas.exponential_profile(
       c1=1.0,
@@ -148,8 +155,6 @@ class GenericParticleSourceRuntimeParamsProvider(
             self.deposition_location.get_value(t)
         ),
         S_tot=float(self.S_tot.get_value(t)),
-        mode=self.runtime_params_config.mode.value,
-        is_explicit=self.runtime_params_config.is_explicit,
         formula=self.formula.build_dynamic_params(t),
         prescribed_values=self.prescribed_values.get_value(t),
     )
@@ -163,6 +168,8 @@ class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def _calc_generic_particle_source(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -170,9 +177,12 @@ def _calc_generic_particle_source(
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from SBI."""
-  assert isinstance(
-      dynamic_source_runtime_params, DynamicParticleRuntimeParams
-  )
+  del (
+      static_source_runtime_params,
+      unused_source_models,
+      static_runtime_params_slice,
+  )  # Unused.
+  assert isinstance(dynamic_source_runtime_params, DynamicParticleRuntimeParams)
   return formulas.gaussian_profile(
       c1=dynamic_source_runtime_params.deposition_location,
       c2=dynamic_source_runtime_params.particle_width,
@@ -241,6 +251,8 @@ class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def _calc_pellet_source(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -248,6 +260,11 @@ def _calc_pellet_source(
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from pellets."""
+  del (
+      static_source_runtime_params,
+      unused_source_models,
+      static_runtime_params_slice,
+  )  # Unused.
   assert isinstance(dynamic_source_runtime_params, DynamicPelletRuntimeParams)
   return formulas.gaussian_profile(
       c1=dynamic_source_runtime_params.pellet_deposition_location,
