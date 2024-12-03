@@ -99,6 +99,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         source_class=ion_cyclotron_source.IonCyclotronSource,
         runtime_params_class=ion_cyclotron_source.RuntimeParams,
         unsupported_modes=[runtime_params_lib.Mode.FORMULA_BASED],
+        source_name=ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
     )
 
   @parameterized.product(
@@ -122,21 +123,25 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     """Test source outputs match the total heating power using dummy model."""
     del mock_path
     source_class_builder = self._source_class_builder()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {ion_cyclotron_source.SOURCE_NAME: source_class_builder}
-    )
+    source_models_builder = source_models_lib.SourceModelsBuilder({
+        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME: (
+            source_class_builder
+        )
+    })
     source_models = source_models_builder()
-    icrh_source = source_models.sources[ion_cyclotron_source.SOURCE_NAME]
+    icrh_source = source_models.sources[
+        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
+    ]
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     source_models_builder.runtime_params[
-        ion_cyclotron_source.SOURCE_NAME
+        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
     ].Ptot = total_power
     source_models_builder.runtime_params[
-        ion_cyclotron_source.SOURCE_NAME
+        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
     ].frequency = frequency
     source_models_builder.runtime_params[
-        ion_cyclotron_source.SOURCE_NAME
+        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
     ].minority_concentration = minority_concentration
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -158,10 +163,8 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         source_models=source_models,
     )
     icrh_output = icrh_source.get_value(
-                static_slice,
-        static_slice.sources[ion_cyclotron_source.SOURCE_NAME],
+        static_slice,
         dynamic_runtime_params_slice,
-        dynamic_runtime_params_slice.sources[ion_cyclotron_source.SOURCE_NAME],
         geo,
         core_profiles,
     )
@@ -208,10 +211,12 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {"foo": source_builder},
+        {ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME: source_builder},
     )
     source_models = source_models_builder()
-    source = source_models.sources["foo"]
+    source = source_models.sources[
+        ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME
+    ]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -234,11 +239,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     )
     ion_and_el = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            "foo"
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources["foo"],
         geo=geo,
         core_profiles=core_profiles,
     )

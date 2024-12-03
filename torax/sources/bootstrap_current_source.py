@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
@@ -32,9 +33,6 @@ from torax.fvm import cell_variable
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
-
-
-SOURCE_NAME = 'j_bootstrap'
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -91,6 +89,11 @@ class BootstrapCurrentSource(source.Source):
   - bootstrap current (on cell and face grids)
   - total integrated bootstrap current
   """
+  SOURCE_NAME: ClassVar[str] = 'j_bootstrap'
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
@@ -111,12 +114,16 @@ class BootstrapCurrentSource(source.Source):
   def get_value(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.BootstrapCurrentProfile:
+    static_source_runtime_params = static_runtime_params_slice.sources[
+        self.source_name
+    ]
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        self.source_name
+    ]
     # Make sure the input mode requested is supported.
     self.check_mode(static_source_runtime_params.mode)
     # Make sure the input params are the correct type.
@@ -127,7 +134,6 @@ class BootstrapCurrentSource(source.Source):
       )
     bootstrap_current = calc_neoclassical(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_source_runtime_params,
         geo=geo,
         temp_ion=core_profiles.temp_ion,
         temp_el=core_profiles.temp_el,
@@ -167,7 +173,7 @@ class BootstrapCurrentSource(source.Source):
   ) -> jax.Array:
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
-        profile[SOURCE_NAME],
+        profile[self.SOURCE_NAME],
         jnp.zeros_like(geo.rho),
     )
 
@@ -175,7 +181,6 @@ class BootstrapCurrentSource(source.Source):
 @jax_utils.jit
 def calc_neoclassical(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: DynamicRuntimeParams,
     geo: geometry.Geometry,
     temp_ion: cell_variable.CellVariable,
     temp_el: cell_variable.CellVariable,
@@ -187,7 +192,6 @@ def calc_neoclassical(
 
   Args:
     dynamic_runtime_params_slice: General configuration parameters.
-    dynamic_source_runtime_params: Source-specific runtime parameters.
     geo: Torus geometry.
     temp_ion: Ion temperature. We don't pass in a full `core_profiles` here
       because this function is used to create the `Currents` in the initial
@@ -200,6 +204,10 @@ def calc_neoclassical(
   Returns:
     A BootstrapCurrentProfile. See that class's docstring for more info.
   """
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      BootstrapCurrentSource.SOURCE_NAME
+  ]
+  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name

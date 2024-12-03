@@ -14,8 +14,11 @@
 """Ohmic heat source."""
 
 from __future__ import annotations
+
 import dataclasses
 import functools
+from typing import ClassVar
+
 import jax
 import jax.numpy as jnp
 from torax import constants
@@ -29,9 +32,6 @@ from torax.fvm import diffusion_terms
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
-
-
-SOURCE_NAME = 'ohmic_heat_source'
 
 
 @functools.partial(
@@ -145,16 +145,14 @@ def calc_psidot(
 
 def ohmic_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels | None = None,
 ) -> jax.Array:
   """Returns the Ohmic source for electron heat equation."""
-  del dynamic_source_runtime_params, static_source_runtime_params
-
+  del source_name  # Unused.
   if source_models is None:
     raise TypeError('source_models is a required argument for ohmic_model_func')
 
@@ -190,6 +188,7 @@ class OhmicHeatSource(source_lib.Source):
 
   Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
   """
+  SOURCE_NAME: ClassVar[str] = 'ohmic_heat_source'
   # Users must pass in a pointer to the complete set of sources to this object.
   source_models: source_models_lib.SourceModels
   # The model function is fixed to ohmic_model_func because that is the only
@@ -201,6 +200,10 @@ class OhmicHeatSource(source_lib.Source):
       init=False,
       default_factory=lambda: ohmic_model_func,
   )
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:

@@ -48,10 +48,9 @@ from torax.sources import runtime_params as runtime_params_lib
 SourceProfileFunction: TypeAlias = Callable[  # pytype: disable=name-error
     [  # Arguments
         runtime_params_slice.StaticRuntimeParamsSlice,  # Static runtime params.
-        runtime_params_lib.StaticRuntimeParams,  # Source-specific params.
         runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
-        runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
         geometry.Geometry,
+        str,  # Source name
         state.CoreProfiles,
         Optional['source_models.SourceModels'],
     ],
@@ -132,6 +131,11 @@ class Source(abc.ABC):
 
   @property
   @abc.abstractmethod
+  def source_name(self) -> str:
+    """Returns the name of the source."""
+
+  @property
+  @abc.abstractmethod
   def affected_core_profiles(self) -> tuple[AffectedCoreProfile, ...]:
     """Returns the core profiles affected by this source."""
 
@@ -164,9 +168,7 @@ class Source(abc.ABC):
   def get_value(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> chex.ArrayTree:
@@ -174,11 +176,8 @@ class Source(abc.ABC):
 
     Args:
       static_runtime_params_slice: Static runtime parameters.
-      static_source_runtime_params: Static runtime parameters for this source.
       dynamic_runtime_params_slice: Slice of the general TORAX config that can
         be used as input for this time step.
-      dynamic_source_runtime_params: Slice of this source's runtime parameters
-        at a specific time t.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles. May be the profiles at the start of
         the time step or a "live" set of core profiles being actively updated
@@ -190,24 +189,28 @@ class Source(abc.ABC):
     Returns:
       Array, arrays, or nested dataclass/dict of arrays for the source profile.
     """
+    static_source_runtime_params = static_runtime_params_slice.sources[
+        self.source_name
+    ]
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        self.source_name
+    ]
     self.check_mode(static_source_runtime_params.mode)
     output_shape = self.output_shape_getter(geo)
     model_func = (
-        (lambda _0, _1, _2, _3, _4, _5, _6: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3, _4, _5: jnp.zeros(output_shape))
         if self.model_func is None
         else self.model_func
     )
     formula = (
-        (lambda _0, _1, _2, _3, _4, _5, _6: jnp.zeros(output_shape))
+        (lambda _0, _1, _2, _3, _4, _5: jnp.zeros(output_shape))
         if self.formula is None
         else self.formula
     )
 
     return get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_source_runtime_params,
         static_runtime_params_slice=static_runtime_params_slice,
-        static_source_runtime_params=static_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
         model_func=model_func,
@@ -215,6 +218,7 @@ class Source(abc.ABC):
         prescribed_values=dynamic_source_runtime_params.prescribed_values,
         output_shape=output_shape,
         source_models=getattr(self, 'source_models', None),
+        source_name=self.source_name,
     )
 
   def get_source_profile_for_affected_core_profile(
@@ -296,15 +300,14 @@ class ProfileType(enum.Enum):
 # pytype: disable=name-error
 def get_source_profiles(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     model_func: SourceProfileFunction,
     formula: SourceProfileFunction,
     prescribed_values: chex.Array,
     output_shape: tuple[int, ...],
+    source_name: str,
     source_models: Optional['source_models.SourceModels'],
 ) -> chex.ArrayTree:
   """Returns source profiles requested by the runtime_params_lib.
@@ -316,11 +319,8 @@ def get_source_profiles(
 
   Args:
     static_runtime_params_slice: Static runtime parameters.
-    static_source_runtime_params: Static runtime parameters for this source.
     dynamic_runtime_params_slice: Slice of the general TORAX config that can be
       used as input for this time step.
-    dynamic_source_runtime_params: Slice of this source's runtime parameters at
-      a specific time t.
     geo: Geometry information. Used as input to the source profile functions.
     core_profiles: Core plasma profiles. Used as input to the source profile
       functions.
@@ -329,31 +329,30 @@ def get_source_profiles(
     prescribed_values: Array of values for this timeslice, interpolated onto the
       grid (ie with shape output_shape)
     output_shape: Expected shape of the output array.
+    source_name: The name of the source.
     source_models: The SourceModels if the Source `links_back`.
 
   Returns:
     Output array of a profile or concatenated/stacked profiles.
   """
   # pytype: enable=name-error
-  mode = static_source_runtime_params.mode
+  mode = static_runtime_params_slice.sources[source_name].mode
   match mode:
     case runtime_params_lib.Mode.MODEL_BASED.value:
       return model_func(
           static_runtime_params_slice,
-          static_source_runtime_params,
           dynamic_runtime_params_slice,
-          dynamic_source_runtime_params,
           geo,
+          source_name,
           core_profiles,
           source_models,
       )
     case runtime_params_lib.Mode.FORMULA_BASED.value:
       return formula(
           static_runtime_params_slice,
-          static_source_runtime_params,
           dynamic_runtime_params_slice,
-          dynamic_source_runtime_params,
           geo,
+          source_name,
           core_profiles,
           source_models,
       )

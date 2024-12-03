@@ -69,15 +69,11 @@ def build_source_profiles(
   """
   # Bootstrap current is a special-case source with multiple outputs, so handle
   # it here.
-  dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
-      source_models.j_bootstrap_name
-  ]
   static_bootstrap_runtime_params = static_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
   bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
       static_runtime_params_slice=static_runtime_params_slice,
       static_source_runtime_params=static_bootstrap_runtime_params,
       geo=geo,
@@ -106,7 +102,6 @@ def _build_bootstrap_profiles(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     j_bootstrap_source: bootstrap_current_source.BootstrapCurrentSource,
@@ -122,8 +117,6 @@ def _build_bootstrap_profiles(
       bootstrap current source that do not change from time step to time step.
     dynamic_runtime_params_slice: Input config for this time step. Can change
       from time step to time step.
-    dynamic_source_runtime_params: Input runtime parameters for this time step,
-      specific to the bootstrap current source.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
@@ -141,9 +134,7 @@ def _build_bootstrap_profiles(
   """
   bootstrap_profile = j_bootstrap_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_source_runtime_params,
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_source_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -240,9 +231,6 @@ def _build_standard_source_profiles(
   affected_core_profiles_set = set(affected_core_profiles)
   for source_name, source in source_models.standard_sources.items():
     if affected_core_profiles_set.intersection(source.affected_core_profiles):
-      dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-          source_name
-      ]
       static_source_runtime_params = static_runtime_params_slice.sources[
           source_name
       ]
@@ -253,9 +241,7 @@ def _build_standard_source_profiles(
           ),
           source.get_value(
               static_runtime_params_slice,
-              static_source_runtime_params,
               dynamic_runtime_params_slice,
-              dynamic_source_runtime_params,
               geo,
               core_profiles,
           ),
@@ -359,15 +345,11 @@ def calc_and_sum_sources_psi(
         affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
         geo=geo,
     )
-  dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
-      source_models.j_bootstrap_name
-  ]
   static_bootstrap_runtime_params = static_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
   j_bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
       static_runtime_params_slice=static_runtime_params_slice,
       static_source_runtime_params=static_bootstrap_runtime_params,
       geo=geo,
@@ -503,7 +485,8 @@ class SourceModels:
     if self._generic_current is None:
       self._generic_current = generic_current_source.GenericCurrentSource()
       self._add_standard_source(
-          generic_current_source.SOURCE_NAME, self._generic_current
+          generic_current_source.GenericCurrentSource.SOURCE_NAME,
+          self._generic_current,
       )
 
     # Then add all the "standard" sources.
@@ -590,7 +573,7 @@ class SourceModels:
 
   @property
   def j_bootstrap_name(self) -> str:
-    return bootstrap_current_source.SOURCE_NAME
+    return bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
 
   @property
   def generic_current_source(
@@ -603,7 +586,7 @@ class SourceModels:
 
   @property
   def generic_current_source_name(self) -> str:
-    return generic_current_source.SOURCE_NAME
+    return generic_current_source.GenericCurrentSource.SOURCE_NAME
 
   @property
   def qei_source(self) -> qei_source_lib.QeiSource:
@@ -613,7 +596,7 @@ class SourceModels:
 
   @property
   def qei_source_name(self) -> str:
-    return qei_source_lib.SOURCE_NAME
+    return qei_source_lib.QeiSource.SOURCE_NAME
 
   @property
   def psi_sources(self) -> dict[str, source_lib.Source]:
@@ -693,54 +676,53 @@ class SourceModelsBuilder:
     source_builders = source_builders or {}
 
     # Validate that these sources are found
-    bootstrap_found = (
-        False
-        if bootstrap_current_source.SOURCE_NAME not in source_builders
-        else True
-    )
-    qei_found = (
-        False if qei_source_lib.SOURCE_NAME not in source_builders else True
-    )
-    generic_current_found = (
-        False
-        if generic_current_source.SOURCE_NAME not in source_builders
-        else True
-    )
-
+    bootstrap_found = qei_found = generic_current_found = False
+    if (
+        bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
+        in source_builders
+    ):
+      bootstrap_found = True
+    if qei_source_lib.QeiSource.SOURCE_NAME in source_builders:
+      qei_found = True
+    if (
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+        in source_builders
+    ):
+      generic_current_found = True
     # These are special sources that must be present for every TORAX run.
     # If these sources are missing, we need to include builders for them.
     # We also ZERO out these sources if they are not explicitly provided.
     # The SourceModels would also build them, but then there'd be no
     # user-editable runtime params for them.
     if not bootstrap_found:
-      source_builders[bootstrap_current_source.SOURCE_NAME] = (
-          source_lib.make_source_builder(
-              bootstrap_current_source.BootstrapCurrentSource,
-              runtime_params_type=bootstrap_current_source.RuntimeParams,
-          )()
-      )
       source_builders[
-          bootstrap_current_source.SOURCE_NAME
+          bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
+      ] = source_lib.make_source_builder(
+          bootstrap_current_source.BootstrapCurrentSource,
+          runtime_params_type=bootstrap_current_source.RuntimeParams,
+      )()
+      source_builders[
+          bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
       ].runtime_params.mode = runtime_params_lib.Mode.ZERO
     if not qei_found:
-      source_builders[qei_source_lib.SOURCE_NAME] = (
+      source_builders[qei_source_lib.QeiSource.SOURCE_NAME] = (
           source_lib.make_source_builder(
               qei_source_lib.QeiSource,
               runtime_params_type=qei_source_lib.RuntimeParams,
           )()
       )
-      source_builders[qei_source_lib.SOURCE_NAME].runtime_params.mode = (
-          runtime_params_lib.Mode.ZERO
-      )
-    if not generic_current_found:
-      source_builders[generic_current_source.SOURCE_NAME] = (
-          source_lib.make_source_builder(
-              generic_current_source.GenericCurrentSource,
-              runtime_params_type=generic_current_source.RuntimeParams,
-          )()
-      )
       source_builders[
-          generic_current_source.SOURCE_NAME
+          qei_source_lib.QeiSource.SOURCE_NAME
+      ].runtime_params.mode = runtime_params_lib.Mode.ZERO
+    if not generic_current_found:
+      source_builders[
+          generic_current_source.GenericCurrentSource.SOURCE_NAME
+      ] = source_lib.make_source_builder(
+          generic_current_source.GenericCurrentSource,
+          runtime_params_type=generic_current_source.RuntimeParams,
+      )()
+      source_builders[
+          generic_current_source.GenericCurrentSource.SOURCE_NAME
       ].runtime_params.mode = runtime_params_lib.Mode.ZERO
 
     self.source_builders = source_builders

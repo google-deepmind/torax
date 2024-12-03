@@ -31,6 +31,7 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
+        source_name=generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME,
     )
 
 
