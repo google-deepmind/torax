@@ -45,10 +45,10 @@ from torax.sources import electron_density_sources
 from torax.sources import fusion_heat_source
 from torax.sources import generic_current_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
+from torax.sources import impurity_radiation_heat_sink
 from torax.sources import ion_cyclotron_source
 from torax.sources import ohmic_heat_source
 from torax.sources import qei_source
-from torax.sources import radiation_heat_sink
 from torax.sources import runtime_params
 from torax.sources import source
 
@@ -147,9 +147,9 @@ _REGISTERED_SOURCES = {
         source_class=ion_cyclotron_source.IonCyclotronSource,
         default_runtime_params_class=ion_cyclotron_source.RuntimeParams,
     ),
-    radiation_heat_sink.SOURCE_NAME: _register_new_source(
-      source_class=radiation_heat_sink.RadiationHeatSink,
-      default_runtime_params_class=radiation_heat_sink.RuntimeParams,
+    impurity_radiation_heat_sink.SOURCE_NAME: _register_new_source(
+      source_class=impurity_radiation_heat_sink.ImpurityRadiationHeatSink,
+      default_runtime_params_class=impurity_radiation_heat_sink.RuntimeParams,
       links_back=True,
     )
 }

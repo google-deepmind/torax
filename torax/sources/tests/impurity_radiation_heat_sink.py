@@ -1,4 +1,4 @@
-"""Tests for radiation_heat_sink."""
+"""Tests for impurity_radiation_heat_sink."""
 
 import chex
 import jax.numpy as jnp
@@ -11,21 +11,23 @@ from torax import math_utils
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import generic_ion_el_heat_source
-from torax.sources import radiation_heat_sink
+from torax.sources import (
+    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,
+)
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 
 
-class RadiationHeatSinkTest(test_lib.SourceTestCase):
-    """Tests for RadiationHeatSink."""
+class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
+    """Tests for ImpurityRadiationHeatSink."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass(
-            source_class=radiation_heat_sink.RadiationHeatSink,
-            runtime_params_class=radiation_heat_sink.RuntimeParams,
+            source_class=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink,
+            runtime_params_class=impurity_radiation_heat_sink_lib.RuntimeParams,
             unsupported_modes=[
                 runtime_params_lib.Mode.MODEL_BASED,
                 runtime_params_lib.Mode.PRESCRIBED,
@@ -37,9 +39,9 @@ class RadiationHeatSinkTest(test_lib.SourceTestCase):
     def test_source_value(self):
         """Tests that the source value is correct."""
         # Source builder for this class
-        radiation_sink_builder = self._source_class_builder()
-        radiation_sink_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
-        if not source_lib.is_source_builder(radiation_sink_builder):
+        impurity_radiation_sink_builder = self._source_class_builder()
+        impurity_radiation_sink_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
+        if not source_lib.is_source_builder(impurity_radiation_sink_builder):
             raise TypeError(f"{type(self)} has a bad _source_class_builder")
 
         # Source builder for generic_ion_el_heat_source
@@ -56,15 +58,15 @@ class RadiationHeatSinkTest(test_lib.SourceTestCase):
         # Source models
         source_models_builder = source_models_lib.SourceModelsBuilder(
             {
-                radiation_heat_sink.SOURCE_NAME: radiation_sink_builder,
+                impurity_radiation_heat_sink_lib.SOURCE_NAME: impurity_radiation_sink_builder,
                 generic_ion_el_heat_source.SOURCE_NAME: heat_source_builder,
             },
         )
         source_models = source_models_builder()
 
         # Extract the source we're testing and check that it's been built correctly
-        radiation_sink = source_models.sources[radiation_heat_sink.SOURCE_NAME]
-        self.assertIsInstance(radiation_sink, source_lib.Source)
+        impurity_radiation_sink = source_models.sources[impurity_radiation_heat_sink_lib.SOURCE_NAME]
+        self.assertIsInstance(impurity_radiation_sink, source_lib.Source)
 
         # Geometry, profiles, and dynamic runtime params
         geo = geometry.build_circular_geometry()
@@ -82,32 +84,32 @@ class RadiationHeatSinkTest(test_lib.SourceTestCase):
             geo=geo,
             source_models=source_models,
         )
-        radiation_sink_dynamic_runtime_params_slice = (
-            dynamic_runtime_params_slice.sources[radiation_heat_sink.SOURCE_NAME]
+        impurity_radiation_sink_dynamic_runtime_params_slice = (
+            dynamic_runtime_params_slice.sources[impurity_radiation_heat_sink_lib.SOURCE_NAME]
         )
         heat_source_dynamic_runtime_params_slice = dynamic_runtime_params_slice.sources[
             generic_ion_el_heat_source.SOURCE_NAME
         ]
-        radiation_heat_sink_power_density = radiation_sink.get_value(
+        impurity_radiation_heat_sink_power_density = impurity_radiation_sink.get_value(
             dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-            dynamic_source_runtime_params=radiation_sink_dynamic_runtime_params_slice,
+            dynamic_source_runtime_params=impurity_radiation_sink_dynamic_runtime_params_slice,
             geo=geo,
             core_profiles=core_profiles,
         )
 
-        # RadiationHeatSink provides TEMP_EL only
-        chex.assert_rank(radiation_heat_sink_power_density, 1)
+        # ImpurityRadiationHeatSink provides TEMP_EL only
+        chex.assert_rank(impurity_radiation_heat_sink_power_density, 1)
 
         # The value should be equal to fraction * sum of the (TEMP_EL+TEMP_ION)
         # sources, minus P_ei and P_brems.
         # In this case, that is only the generic_ion_el_heat_source.
-        radiation_heat_sink_power = math_utils.cell_integration(
-            radiation_heat_sink_power_density * geo.vpr, geo
+        impurity_radiation_heat_sink_power = math_utils.cell_integration(
+            impurity_radiation_heat_sink_power_density * geo.vpr, geo
         )
         chex.assert_trees_all_close(
-            radiation_heat_sink_power,
+            impurity_radiation_heat_sink_power,
             heat_source_dynamic_runtime_params_slice.Ptot
-            * -radiation_sink_dynamic_runtime_params_slice.fraction_of_total_power_density,
+            * -impurity_radiation_sink_dynamic_runtime_params_slice.fraction_of_total_power_density,
             rtol=1e-2,  # TODO: this rtol seems v. high
         )
 

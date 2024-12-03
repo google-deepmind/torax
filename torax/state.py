@@ -18,11 +18,13 @@ from __future__ import annotations
 
 import dataclasses
 import enum
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 import chex
 import jax
 from jax import numpy as jnp
+
 from torax import array_typing
 from torax import geometry
 from torax.config import config_args
@@ -353,7 +355,7 @@ class PostProcessedOutputs:
   P_ohmic: array_typing.ScalarFloat
   P_brems: array_typing.ScalarFloat
   P_ecrh: array_typing.ScalarFloat
-  P_rad: array_typing.ScalarFloat
+  P_imp: array_typing.ScalarFloat
   I_ecrh: array_typing.ScalarFloat
   I_generic: array_typing.ScalarFloat
   Q_fusion: array_typing.ScalarFloat
@@ -398,7 +400,7 @@ class PostProcessedOutputs:
         P_ohmic=jnp.array(0.0),
         P_brems=jnp.array(0.0),
         P_ecrh=jnp.array(0.0),
-        P_rad=jnp.array(0.0),
+        P_imp=jnp.array(0.0),
         I_ecrh=jnp.array(0.0),
         I_generic=jnp.array(0.0),
         Q_fusion=jnp.array(0.0),

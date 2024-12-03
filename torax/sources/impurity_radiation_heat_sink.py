@@ -1,4 +1,4 @@
-"""Basic radiation heat sink for electron heat equation.."""
+"""Basic impurity radiation heat sink for electron heat equation.."""
 
 import dataclasses
 
@@ -11,13 +11,11 @@ from torax import geometry
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
-from torax.sources import bremsstrahlung_heat_sink
-from torax.sources import qei_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 
-SOURCE_NAME = "radiation_heat_sink"
+SOURCE_NAME = "impurity_radiation_heat_sink"
 
 
 def _radially_constant_fraction_of_Pin(
@@ -27,14 +25,15 @@ def _radially_constant_fraction_of_Pin(
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> jax.Array:
-    """Model function for radiation heat sink.
+    """Model function for radiation heat sink from impurities.
 
-    In this model, a fixed % of the total power input to the temp_el equation is lost."""
+    This model represents a sink in the temp_el equation, whose value is a fixed
+    % of the total heating power input."""
     # Based on source_models.sum_sources_temp_el and source_models.calc_and_sum_sources_psi,
-    # but only summing over heating *input* sources (Pohm + Paux + Palpha)
+    # but only summing over heating *input* sources (Pohm + Paux + Palpha + ...)
     # and summing over *both* ion and electron heating
 
-    def get_temp_el_profile(source_name: str, source: source_lib.Source) -> jax.Array:
+    def get_heat_source_profile(source_name: str, source: source_lib.Source) -> jax.Array:
         # TODO: Currently this recomputes the profile for each source, which is inefficient
         # (and will be a problem if sources are slow/non-jittable)
         # A similar TODO is noted in source_models.calc_and_sum_sources_psi
@@ -50,22 +49,19 @@ def _radially_constant_fraction_of_Pin(
             profile, source_lib.AffectedCoreProfile.TEMP_ION.value, geo
         )
 
-    # Manually remove sources that will not be summed
-    sources_to_sum = source_models.temp_el_sources | source_models.temp_ion_sources
-    sources_to_sum.pop(SOURCE_NAME, None)
-    sources_to_sum.pop(bremsstrahlung_heat_sink.SOURCE_NAME, None)
-    sources_to_sum.pop(qei_source.SOURCE_NAME, None)
-
+    # Calculate the total power input to the heat equations
+    heat_sources_and_sinks = source_models.temp_el_sources | source_models.temp_ion_sources
+    heat_sources = {k: v for k, v in heat_sources_and_sinks.items() if not "sink" in k}
     source_profiles = jax.tree.map(
-        get_temp_el_profile,
-        list(sources_to_sum.keys()),
-        list(sources_to_sum.values())
+        get_heat_source_profile,
+        list(heat_sources.keys()),
+        list(heat_sources.values()),
     )
-
     Qtot_in = jnp.sum(jnp.stack(source_profiles), axis=0)
     Ptot_in = math_utils.cell_integration(Qtot_in * geo.vpr, geo)
-    Vtot = math_utils.cell_integration(geo.vpr, geo)
-    # Calculate the radiation heat sink
+    Vtot = geo.volume_face[-1]
+
+    # Calculate the heat sink as a fraction of the total power input
     return (
         -dynamic_source_runtime_params.fraction_of_total_power_density
         * Ptot_in / Vtot
@@ -104,8 +100,8 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class RadiationHeatSink(source_lib.Source):
-    """Radiation heat sink for electron heat equation."""
+class ImpurityRadiationHeatSink(source_lib.Source):
+    """Impurity radiation heat sink for electron heat equation."""
 
     source_models: source_models_lib.SourceModels
     model_func: source_lib.SourceProfileFunction = _radially_constant_fraction_of_Pin

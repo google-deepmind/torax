@@ -17,8 +17,10 @@
 # In torax/post_processing.py
 
 import dataclasses
+
 import jax
 from jax import numpy as jnp
+
 from torax import array_typing
 from torax import constants
 from torax import geometry
@@ -40,7 +42,7 @@ EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'ohmic_heat_source': 'P_ohmic',
     'bremsstrahlung_heat_sink': 'P_brems',
     'electron_cyclotron_source': 'P_ecrh',
-    'radiation_heat_sink': 'P_rad',
+    'impurity_radiation_heat_sink': 'P_imp',
 }
 EXTERNAL_HEATING_SOURCES = [
     'generic_ion_el_heat_source',
