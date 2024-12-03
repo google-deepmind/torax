@@ -195,6 +195,7 @@ class ElectronCyclotronSource(source.Source):
     return (
         runtime_params_lib.Mode.ZERO,
         runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
     )
 
   @property

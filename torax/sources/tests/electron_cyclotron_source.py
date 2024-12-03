@@ -40,7 +40,6 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         runtime_params_class=electron_cyclotron_source.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
-            runtime_params_lib.Mode.PRESCRIBED,
         ],
     )
 
