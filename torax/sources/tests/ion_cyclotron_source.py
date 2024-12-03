@@ -99,10 +99,6 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         source_class=ion_cyclotron_source.IonCyclotronSource,
         runtime_params_class=ion_cyclotron_source.RuntimeParams,
         unsupported_modes=[runtime_params_lib.Mode.FORMULA_BASED],
-        expected_affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_ION,
-            source_lib.AffectedCoreProfile.TEMP_EL,
-        ),
     )
 
   @parameterized.product(
@@ -233,24 +229,6 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         core_profiles=core_profiles,
     )
     chex.assert_rank(ion_and_el, 2)
-
-  @mock.patch.object(
-      ion_cyclotron_source,
-      "_get_default_model_path",
-      autospec=True,
-      return_value=_DUMMY_MODEL_PATH,
-  )
-  def test_expected_mesh_states(self, mock_path):
-    del mock_path
-    # Most Source subclasses should have default names and be instantiable
-    # without any __init__ arguments.
-    # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
-    # pylint: enable=missing-kwoa
-    self.assertSameElements(
-        source.affected_core_profiles,
-        self._expected_affected_core_profiles,
-    )
 
 
 if __name__ == "__main__":

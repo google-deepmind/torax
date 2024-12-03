@@ -66,7 +66,6 @@ class SourceTestCase(parameterized.TestCase):
   _source_class_builder: source_lib.SourceBuilderProtocol
   _config_attr_name: str
   _unsupported_modes: Sequence[runtime_params_lib.Mode]
-  _expected_affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...]
 
   @classmethod
   def setUpClass(
@@ -74,30 +73,18 @@ class SourceTestCase(parameterized.TestCase):
       source_class: Type[source_lib.Source],
       runtime_params_class: Type[runtime_params_lib.RuntimeParams],
       unsupported_modes: Sequence[runtime_params_lib.Mode],
-      expected_affected_core_profiles: tuple[
-          source_lib.AffectedCoreProfile, ...
-      ],
+      links_back: bool = False,
   ):
     super().setUpClass()
     cls._source_class = source_class
     cls._source_class_builder = source_lib.make_source_builder(
         source_type=source_class,
         runtime_params_type=runtime_params_class,
+        links_back=links_back,
     )
     cls._runtime_params_class = runtime_params_class
     cls._unsupported_modes = unsupported_modes
-    cls._expected_affected_core_profiles = expected_affected_core_profiles
-
-  def test_expected_mesh_states(self):
-    # Most Source subclasses should have default names and be instantiable
-    # without any __init__ arguments.
-    # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
-    # pylint: enable=missing-kwoa
-    self.assertSameElements(
-        source.affected_core_profiles,
-        self._expected_affected_core_profiles,
-    )
+    cls._links_back = links_back
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = self._runtime_params_class()

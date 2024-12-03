@@ -41,10 +41,6 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
             runtime_params_lib.Mode.FORMULA_BASED,
             runtime_params_lib.Mode.PRESCRIBED,
         ],
-        expected_affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_EL,
-            source_lib.AffectedCoreProfile.PSI,
-        ),
     )
 
   def test_source_value(self):

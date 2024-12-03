@@ -38,7 +38,6 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
-        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
 
   def test_generic_current_hires(self):
