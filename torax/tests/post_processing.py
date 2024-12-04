@@ -28,6 +28,7 @@ from torax import output
 from torax import post_processing
 from torax import state
 from torax.config import runtime_params as runtime_params_lib
+from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
@@ -69,8 +70,13 @@ class PostProcessingTest(parameterized.TestCase):
             'electron_cyclotron_source': np.stack([7 * ones, 2 * ones]),
         },
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     self.core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )

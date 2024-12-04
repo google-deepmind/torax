@@ -20,7 +20,6 @@ Rmaj~0.9m , Rmin~0.2m, B0~1.4T, Ip~170kA.
 
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'plasma_composition': {
             'Ai': 2.0,
@@ -77,6 +76,7 @@ CONFIG = {
             'el_heat_fraction': 0.6,
         },
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'qlknn',
         'apply_inner_patch': True,

@@ -38,9 +38,11 @@ SOURCE_NAME = 'ohmic_heat_source'
     jax_utils.jit,
     static_argnames=[
         'source_models',
+        'static_runtime_params_slice',
     ],
 )
 def calc_psidot(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -56,6 +58,8 @@ def calc_psidot(
   (but abridged) formulation as in sim.calc_coeffs and fvm._calc_c is used here
 
   Args:
+    static_runtime_params_slice: Simulation configuration that does not change
+      from timestep to timestep.
     dynamic_runtime_params_slice: Simulation configuration at this timestep
     geo: Torus geometry
     core_profiles: Core plasma profiles.
@@ -67,6 +71,7 @@ def calc_psidot(
   consts = constants.CONSTANTS
 
   psi_sources, sigma, sigma_face = source_models_lib.calc_and_sum_sources_psi(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
@@ -139,6 +144,8 @@ def calc_psidot(
 
 
 def ohmic_model_func(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -146,7 +153,7 @@ def ohmic_model_func(
     source_models: source_models_lib.SourceModels | None = None,
 ) -> jax.Array:
   """Returns the Ohmic source for electron heat equation."""
-  del dynamic_source_runtime_params
+  del dynamic_source_runtime_params, static_source_runtime_params
 
   if source_models is None:
     raise TypeError('source_models is a required argument for ohmic_model_func')
@@ -157,6 +164,7 @@ def ohmic_model_func(
   )
 
   psidot = calc_psidot(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
@@ -199,6 +207,7 @@ class OhmicHeatSource(source_lib.Source):
     return (
         runtime_params_lib.Mode.ZERO,
         runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
     )
 
   @property

@@ -22,7 +22,6 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import qei_source
 from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 
@@ -38,10 +37,6 @@ class QeiSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
-        expected_affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_ION,
-            source_lib.AffectedCoreProfile.TEMP_EL,
-        ),
     )
 
   def test_expected_mesh_states(self):
@@ -64,7 +59,8 @@ class QeiSourceTest(test_lib.SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
     )
     dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
@@ -75,6 +71,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -98,7 +95,8 @@ class QeiSourceTest(test_lib.SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
     )
     dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
@@ -109,23 +107,21 @@ class QeiSourceTest(test_lib.SourceTestCase):
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
     for unsupported_mode in self._unsupported_modes:
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(RuntimeError):
-          dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        with self.assertRaises(ValueError):
+          static_slice = runtime_params_slice.build_static_runtime_params_slice(
               runtime_params,
-              sources={
+              source_runtime_params={
                   'qei_source': dataclasses.replace(
                       source_builder.runtime_params,
                       mode=unsupported_mode,
                   )
               },
-              torax_mesh=geo.torax_mesh,
-          )(
-              t=runtime_params.numerics.t_initial,
           )
           # Force pytype to recognize `source` has `get_qei`
           assert isinstance(source, qei_source.QeiSource)

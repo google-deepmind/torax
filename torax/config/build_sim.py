@@ -63,14 +63,14 @@ def _build_standard_geometry_provider(
     intermediate_builder = geometry.StandardGeometryIntermediates.from_chease
   elif geometry_type == 'fbt':
     # Check if parameters indicate a bundled FBT file and input validity.
-    if 'LY_bundle_file' in kwargs:
+    if 'LY_bundle_object' in kwargs:
       if 'geometry_configs' in kwargs:
         raise ValueError(
             "Cannot use 'geometry_configs' together with a bundled FBT file"
         )
-      if 'LY_file' in kwargs:
+      if 'LY_object' in kwargs:
         raise ValueError(
-            "Cannot use 'LY_file' together with a bundled FBT file"
+            "Cannot use 'LY_object' together with a bundled FBT file"
         )
       # Build and return the GeometryProvider for the bundled case.
       intermediates = geometry.StandardGeometryIntermediates.from_fbt_bundle(

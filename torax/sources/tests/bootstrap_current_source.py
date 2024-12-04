@@ -36,7 +36,6 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
-        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
     )
 
   def test_expected_mesh_states(self):

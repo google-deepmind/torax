@@ -96,16 +96,20 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
     static_runtime_params_slice = (
         runtime_params_slice_lib.build_static_runtime_params_slice(
-            runtime_params, stepper=stepper_params
+            runtime_params,
+            source_runtime_params=source_models_builder.runtime_params,
+            stepper=stepper_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
+        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
     )
     evolving_names = tuple(['temp_ion'])
     explicit_source_profiles = source_models_lib.build_source_profiles(
+        static_runtime_params_slice=static_runtime_params_slice,
         source_models=source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,

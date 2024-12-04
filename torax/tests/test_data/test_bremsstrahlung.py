@@ -19,7 +19,6 @@ Ip from parameters. implicit, Ti+Te, Pei low dens, no pedestal, constant chi
 
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'plasma_composition': {
             'Zeff': 3.0,
@@ -54,6 +53,7 @@ CONFIG = {
             'use_relativistic_correction': True,
         },
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
         'constant_params': {

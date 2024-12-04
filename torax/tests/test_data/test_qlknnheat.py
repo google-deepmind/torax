@@ -19,7 +19,6 @@ QLKNN.
 """
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'ne_bound_right': 0.5,
@@ -39,6 +38,7 @@ CONFIG = {
         'qei_source': {},
         'generic_current_source': {},
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'qlknn',
     },

@@ -117,6 +117,8 @@ def calc_generic_heat_source(
 
 # pytype: disable=name-error
 def _default_formula(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -125,7 +127,13 @@ def _default_formula(
 ) -> jax.Array:
   """Returns the default formula-based ion/electron heat source profile."""
   # pytype: enable=name-error
-  del dynamic_runtime_params_slice, core_profiles  # Unused.
+  del (
+      dynamic_runtime_params_slice,
+      core_profiles,
+      static_source_runtime_params,
+      static_runtime_params_slice,
+      unused_source_models,
+  )  # Unused.
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   ion, el = calc_generic_heat_source(
       geo,

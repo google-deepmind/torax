@@ -12,30 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests Pereverzev-Corrigan method for ne equation.
+"""Tests Bremsstrahlung power model with time-dependent Zimp and Zeff. CHEASE.
 
-Ip from parameters. current, heat, and particle transport. qlknn transport
-model. Pedestal. Particle sources. PC method for density. D_e
-scaled from chi_e
+Ip from parameters. implicit, Ti+Te, Pei low dens, no pedestal, constant chi
 """
+
 
 CONFIG = {
     'runtime_params': {
+        'plasma_composition': {
+            'Zeff': {0: {0: 3.0, 1: 3.0}, 1: {0: 5.0, 1: 5.0}},
+            'Zimp': {0: 10.0, 1: 30.0},
+        },
         'profile_conditions': {
             'set_pedestal': True,
-            'nbar': 0.85,
-            'ne_bound_right': 0.2,
-            # set flat Ohmic current to provide larger range of current
-            # evolution for test
-            'nu': 0,
+            'ne_is_fGW': True,
+            'ne_bound_right': 0.5,
+            'nbar': 0.95,  # initial density (Greenwald fraction units)
         },
         'numerics': {
-            'ion_heat_eq': True,
-            'el_heat_eq': True,
-            'dens_eq': True,
-            'current_eq': True,
             'resistivity_mult': 100,  # to shorten current diffusion time
-            't_final': 2,
+            't_final': 1,
         },
     },
     'geometry': {
@@ -44,37 +41,30 @@ CONFIG = {
         'Ip_from_parameters': True,
     },
     'sources': {
+        'j_bootstrap': {
+            'bootstrap_mult': 0.0,
+        },
         'generic_ion_el_heat_source': {
             'w': 0.18202270915319393,
-            'Ptot': 53.0e6,
         },
-        'fusion_heat_source': {},
         'qei_source': {},
-        'generic_particle_source': {
-            'S_tot': 0.3e22,
-        },
-        'gas_puff_source': {
-            'S_puff_tot': 0.5e22,
-        },
-        'pellet_source': {
-            'S_pellet_tot': 1.0e22,
-        },
-        'j_bootstrap': {},
+        'ohmic_heat_source': {},
         'generic_current_source': {},
+        'bremsstrahlung_heat_sink': {
+            'use_relativistic_correction': True,
+        },
     },
-    'pedestal': {
-        'neped': 1.0,
-    },
+    'pedestal': {},
     'transport': {
-        'transport_model': 'qlknn',
-        'qlknn_params': {
-            'DVeff': True,
+        'transport_model': 'constant',
+        'constant_params': {
+            'chii_const': 0.5,
+            'chie_const': 0.5,
         },
     },
     'stepper': {
         'stepper_type': 'linear',
         'predictor_corrector': False,
-        'use_pereverzev': True,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

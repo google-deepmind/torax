@@ -20,9 +20,6 @@ fusion power.
 
 
 CONFIG = {
-    'pedestal': {
-        'neped': 1.0,
-    },
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
@@ -73,6 +70,9 @@ CONFIG = {
             # multiplier for ion-electron heat exchange term for sensitivity
             'Qei_mult': 1.0,
         },
+    },
+    'pedestal': {
+        'neped': 1.0,
     },
     'transport': {
         'transport_model': 'CGM',

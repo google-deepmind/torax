@@ -105,6 +105,8 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def _calc_heating_and_current(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -117,6 +119,8 @@ def _calc_heating_and_current(
   See https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
+    static_source_runtime_params: Static runtime parameters.
     dynamic_runtime_params_slice: Global runtime parameters
     dynamic_source_runtime_params: Specific runtime parameters for the
       electron-cyclotron source.
@@ -127,6 +131,11 @@ def _calc_heating_and_current(
   Returns:
     2D array of electron cyclotron heating power density and current density.
   """
+  del (
+      static_source_runtime_params,
+      unused_model_func,
+      static_runtime_params_slice,
+  )  # Unused.
   # Helps linter understand the type of dynamic_source_runtime_params.
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   # Construct the profile
@@ -186,6 +195,7 @@ class ElectronCyclotronSource(source.Source):
     return (
         runtime_params_lib.Mode.ZERO,
         runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
     )
 
   @property

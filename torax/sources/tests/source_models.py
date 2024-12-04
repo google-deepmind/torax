@@ -29,6 +29,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.stepper import runtime_params as stepper_runtime_params_lib
 from torax.tests.test_lib import default_sources
 
 
@@ -87,12 +88,26 @@ class SourceProfilesTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
+    stepper_params = stepper_runtime_params_lib.RuntimeParams()
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params,
+            stepper=stepper_params,
+            source_runtime_params=source_models_builder.runtime_params,
+        )
+    )
     _ = source_models_lib.build_source_profiles(
+        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
@@ -100,6 +115,7 @@ class SourceProfilesTest(parameterized.TestCase):
         explicit=True,
     )
     _ = source_models_lib.build_source_profiles(
+        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
@@ -162,6 +178,8 @@ class SourceProfilesTest(parameterized.TestCase):
     def foo_formula(
         unused_dcs,
         unused_sc,
+        unused_static_runtime_params_slice,
+        unused_static_source_runtime_params,
         geo: geometry.Geometry,
         unused_state,
         unused_source_models,
@@ -197,8 +215,13 @@ class SourceProfilesTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -206,6 +229,7 @@ class SourceProfilesTest(parameterized.TestCase):
     def compute_and_sum_profiles():
       profiles = source_models_lib.build_source_profiles(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          static_runtime_params_slice=static_slice,
           geo=geo,
           core_profiles=core_profiles,
           source_models=source_models,

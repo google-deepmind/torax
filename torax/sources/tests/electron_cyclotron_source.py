@@ -27,6 +27,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
+from torax.stepper import runtime_params as stepper_runtime_params
 
 
 class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
@@ -39,12 +40,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         runtime_params_class=electron_cyclotron_source.RuntimeParams,
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
-            runtime_params_lib.Mode.PRESCRIBED,
         ],
-        expected_affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_EL,
-            source_lib.AffectedCoreProfile.PSI,
-        ),
     )
 
   def test_source_value(self):
@@ -70,8 +66,16 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params,
+            stepper=stepper_runtime_params.RuntimeParams(),
+            source_runtime_params=source_models_builder.runtime_params,
+        )
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -80,6 +84,8 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
             "foo"
         ],
+        static_runtime_params_slice=static_runtime_params_slice,
+        static_source_runtime_params=static_runtime_params_slice.sources["foo"],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -111,8 +117,16 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
         t=runtime_params.numerics.t_initial,
     )
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params,
+            stepper=stepper_runtime_params.RuntimeParams(),
+            source_runtime_params=source_models_builder.runtime_params,
+        )
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -120,20 +134,22 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     for unsupported_mode in self._unsupported_modes:
       source_builder.runtime_params.mode = unsupported_mode
       # Construct a new slice with the given mode
-      dynamic_runtime_params_slice = (
-          runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-              runtime_params=runtime_params,
-              sources=source_models_builder.runtime_params,
-              torax_mesh=geo.torax_mesh,
-          )(
-              t=runtime_params.numerics.t_initial,
+      static_runtime_params_slice = (
+          runtime_params_slice.build_static_runtime_params_slice(
+              runtime_params,
+              stepper=stepper_runtime_params.RuntimeParams(),
+              source_runtime_params=source_models_builder.runtime_params,
           )
       )
       with self.subTest(unsupported_mode.name):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+                  "foo"
+              ],
+              static_runtime_params_slice=static_runtime_params_slice,
+              static_source_runtime_params=static_runtime_params_slice.sources[
                   "foo"
               ],
               geo=geo,

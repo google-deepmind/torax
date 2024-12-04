@@ -21,7 +21,6 @@ Veff model.
 
 
 CONFIG = {
-    'pedestal': {'neped': 1.0},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
@@ -71,6 +70,7 @@ CONFIG = {
             'Qei_mult': 1.0,
         },
     },
+    'pedestal': {'neped': 1.0},
     'transport': {
         'transport_model': 'qlknn',
         'qlknn_params': {

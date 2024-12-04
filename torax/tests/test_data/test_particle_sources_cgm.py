@@ -19,9 +19,6 @@ CGM transport model. Pedestal. Particle sources
 
 
 CONFIG = {
-    'pedestal': {
-        'neped': 1.0,
-    },
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
@@ -57,6 +54,9 @@ CONFIG = {
         },
         'j_bootstrap': {},
         'generic_current_source': {},
+    },
+    'pedestal': {
+        'neped': 1.0,
     },
     'transport': {
         'transport_model': 'CGM',

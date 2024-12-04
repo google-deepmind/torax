@@ -430,10 +430,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params, stepper=stepper_params
+            runtime_params,
+            stepper=stepper_params,
+            source_runtime_params=source_models_builder.runtime_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
+        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
@@ -442,6 +445,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     explicit_source_profiles = source_models_lib.build_source_profiles(
         source_models=source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
         explicit=True,
@@ -568,18 +572,22 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params, stepper=stepper_params
+            runtime_params,
+            stepper=stepper_params,
+            source_runtime_params=source_models_builder.runtime_params,
         )
     )
     geo = geometry.build_circular_geometry(n_rho=num_cells)
     source_models = source_models_lib.SourceModels()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
+        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models,
     )
     explicit_source_profiles = source_models_lib.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,
@@ -709,7 +717,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     static_runtime_params_slice_theta0 = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params, stepper=stepper_params
+            runtime_params,
+            stepper=stepper_params,
+            source_runtime_params=source_models_builder.runtime_params,
         )
     )
     static_runtime_params_slice_theta05 = dataclasses.replace(
@@ -722,12 +732,14 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models = source_models_lib.SourceModels()
     pedestal_model = set_tped_nped.SetTemperatureDensityPedestalModel()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
+        static_runtime_params_slice_theta0,
         dynamic_runtime_params_slice,
         geo,
         source_models,
     )
     explicit_source_profiles = source_models_lib.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice_theta0,
         geo=geo,
         core_profiles=initial_core_profiles,
         source_models=source_models,
@@ -759,6 +771,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     core_profiles_t_plus_dt = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice_theta05,
         geo=geo,
         source_models=source_models,
     )

@@ -33,7 +33,6 @@ generic_current_source_profiles = np.array([
 
 # Create the config
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': False,
@@ -78,6 +77,7 @@ CONFIG = {
         'generic_ion_el_heat_source': {},
         'qei_source': {},
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
         'constant_params': {

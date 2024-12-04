@@ -18,12 +18,13 @@ import json
 import os
 from unittest import mock
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import chex
 import jax
-from jax import numpy as jnp
 import numpy as np
+from absl.testing import absltest
+from absl.testing import parameterized
+from jax import numpy as jnp
+
 from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
@@ -99,10 +100,6 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         source_class=ion_cyclotron_source.IonCyclotronSource,
         runtime_params_class=ion_cyclotron_source.RuntimeParams,
         unsupported_modes=[runtime_params_lib.Mode.FORMULA_BASED],
-        expected_affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_ION,
-            source_lib.AffectedCoreProfile.TEMP_EL,
-        ),
     )
 
   @parameterized.product(
@@ -151,12 +148,19 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
             t=0.0,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
     icrh_output = icrh_source.get_value(
+                static_slice,
+        static_slice.sources[ion_cyclotron_source.SOURCE_NAME],
         dynamic_runtime_params_slice,
         dynamic_runtime_params_slice.sources[ion_cyclotron_source.SOURCE_NAME],
         geo,
@@ -219,8 +223,13 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -229,32 +238,12 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
             "foo"
         ],
+        static_runtime_params_slice=static_slice,
+        static_source_runtime_params=static_slice.sources["foo"],
         geo=geo,
         core_profiles=core_profiles,
     )
     chex.assert_rank(ion_and_el, 2)
-
-  @mock.patch.object(
-      ion_cyclotron_source,
-      "_get_default_model_path",
-      autospec=True,
-      return_value=_DUMMY_MODEL_PATH,
-  )
-  def test_expected_mesh_states(self, mock_path):
-    # This function is reimplemented from the parent class to properly handle
-    # the mock_path, without which an error is raised.
-    del mock_path
-    source_builder = self._source_class_builder()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'foo': source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources['foo']
-    self.assertIsInstance(source, source_lib.Source)
-    self.assertSameElements(
-        source.affected_core_profiles,
-        self._expected_affected_core_profiles,
-    )
 
 
 if __name__ == "__main__":
