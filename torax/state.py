@@ -310,6 +310,7 @@ class PostProcessedOutputs:
     P_ohmic: Ohmic heating power to electrons [W]
     P_brems: Bremsstrahlung electron heat sink [W]
     P_ecrh: Total electron cyclotron source power [W]
+    P_imp: Impurity radiation heat sink [W]
     I_ecrh: Total electron cyclotron source current [A]
     I_generic: Total generic source current [A]
     Q_fusion: Fusion power gain
