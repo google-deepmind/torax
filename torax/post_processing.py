@@ -17,10 +17,8 @@
 # In torax/post_processing.py
 
 import dataclasses
-
 import jax
 from jax import numpy as jnp
-
 from torax import array_typing
 from torax import constants
 from torax import geometry

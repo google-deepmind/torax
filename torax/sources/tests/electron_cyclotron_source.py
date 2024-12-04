@@ -159,15 +159,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
     geo = geometry.build_circular_geometry()
-    # pylint: disable=missing-kwoa
-    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
-    # pylint: enable=missing-kwoa
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'foo': source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources['foo']
-    self.assertIsInstance(source, source_lib.Source)
+    source = self._source_class()
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
     # Check TEMP_EL and PSI are modified

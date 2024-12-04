@@ -14,10 +14,9 @@
 
 """Tests for bootstrap_current_source."""
 
+from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
-from absl.testing import absltest
-
 from torax import geometry
 from torax.sources import bootstrap_current_source
 from torax.sources import runtime_params as runtime_params_lib

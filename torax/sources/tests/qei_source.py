@@ -15,9 +15,7 @@
 """Tests for qei_source."""
 
 import dataclasses
-
 from absl.testing import absltest
-
 from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params

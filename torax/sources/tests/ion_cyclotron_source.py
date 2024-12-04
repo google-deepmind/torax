@@ -18,13 +18,12 @@ import json
 import os
 from unittest import mock
 
-import chex
-import jax
-import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
+import jax
 from jax import numpy as jnp
-
+import numpy as np
 from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params

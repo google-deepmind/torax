@@ -18,13 +18,11 @@ from __future__ import annotations
 
 import dataclasses
 import enum
-from typing import Any
-from typing import Optional
+from typing import Any, Optional
 
 import chex
 import jax
 from jax import numpy as jnp
-
 from torax import array_typing
 from torax import geometry
 from torax.config import config_args
