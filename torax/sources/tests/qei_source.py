@@ -15,7 +15,9 @@
 """Tests for qei_source."""
 
 import dataclasses
+
 from absl.testing import absltest
+
 from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
@@ -37,15 +39,6 @@ class QeiSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
-    )
-
-  def test_expected_mesh_states(self):
-    # This function is reimplemented here as QeiSource does not appear in
-    # source_models, which the parent class uses to build the source
-    source = qei_source.QeiSource()
-    self.assertSameElements(
-        source.affected_core_profiles,
-        self._expected_affected_core_profiles,
     )
 
   def test_source_value(self):

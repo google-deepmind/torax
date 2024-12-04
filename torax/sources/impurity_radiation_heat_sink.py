@@ -19,6 +19,8 @@ SOURCE_NAME = "impurity_radiation_heat_sink"
 
 
 def _radially_constant_fraction_of_Pin(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -29,6 +31,10 @@ def _radially_constant_fraction_of_Pin(
 
     This model represents a sink in the temp_el equation, whose value is a fixed
     % of the total heating power input."""
+    del (
+        static_source_runtime_params,
+    ) # Unused
+
     # Based on source_models.sum_sources_temp_el and source_models.calc_and_sum_sources_psi,
     # but only summing over heating *input* sources (Pohm + Paux + Palpha + ...)
     # and summing over *both* ion and electron heating
@@ -38,10 +44,12 @@ def _radially_constant_fraction_of_Pin(
         # (and will be a problem if sources are slow/non-jittable)
         # A similar TODO is noted in source_models.calc_and_sum_sources_psi
         profile = source.get_value(
-            dynamic_runtime_params_slice,
-            dynamic_runtime_params_slice.sources[source_name],
-            geo,
-            core_profiles,
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+            dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[source_name],
+            static_runtime_params_slice=static_runtime_params_slice,
+            static_source_runtime_params=static_runtime_params_slice.sources[source_name],
+            geo=geo,
+            core_profiles=core_profiles,
         )
         return source.get_source_profile_for_affected_core_profile(
             profile, source_lib.AffectedCoreProfile.TEMP_EL.value, geo

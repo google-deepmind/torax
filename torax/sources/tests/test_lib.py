@@ -14,15 +14,13 @@
 
 """Utilities to help with testing sources."""
 
-from typing import Sequence
-from typing import Type
+from typing import Sequence, Type
 
+from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-from absl.testing import parameterized
-
 from torax import core_profile_setters
 from torax import geometry
 from torax.config import runtime_params as general_runtime_params
@@ -30,6 +28,7 @@ from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+
 
 # Most of the checks and computations in TORAX require float64.
 jax.config.update('jax_enable_x64', True)
@@ -74,12 +73,10 @@ class SourceTestCase(parameterized.TestCase):
       source_class: Type[source_lib.Source],
       runtime_params_class: Type[runtime_params_lib.RuntimeParams],
       unsupported_modes: Sequence[runtime_params_lib.Mode],
-      expected_affected_core_profiles: tuple[
-          source_lib.AffectedCoreProfile, ...
-      ],
       links_back: bool = False,
   ):
     super().setUpClass()
+    cls._source_class = source_class
     cls._source_class_builder = source_lib.make_source_builder(
         source_type=source_class,
         runtime_params_type=runtime_params_class,
@@ -87,7 +84,6 @@ class SourceTestCase(parameterized.TestCase):
     )
     cls._runtime_params_class = runtime_params_class
     cls._unsupported_modes = unsupported_modes
-    cls._expected_affected_core_profiles = expected_affected_core_profiles
     cls._links_back = links_back
 
   def test_runtime_params_builds_dynamic_params(self):
@@ -329,15 +325,8 @@ class IonElSourceTestCase(SourceTestCase):
     """Tests that the relevant profile is extracted from the output."""
     geo = geometry.build_circular_geometry()
     # pylint: disable=missing-kwoa
-    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
+    source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'foo': source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources['foo']
-    self.assertIsInstance(source, source_lib.Source)
-
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
     np.testing.assert_allclose(

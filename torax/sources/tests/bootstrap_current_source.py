@@ -14,9 +14,10 @@
 
 """Tests for bootstrap_current_source."""
 
-from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
+from absl.testing import absltest
+
 from torax import geometry
 from torax.sources import bootstrap_current_source
 from torax.sources import runtime_params as runtime_params_lib
@@ -36,15 +37,6 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
-    )
-
-  def test_expected_mesh_states(self):
-    # This function is reimplemented here as BootstrapCurrentSource does not
-    # appear in source_models, which the parent class uses to build the source
-    source = bootstrap_current_source.BootstrapCurrentSource()
-    self.assertSameElements(
-        source.affected_core_profiles,
-        self._expected_affected_core_profiles,
     )
 
   def test_extraction_of_relevant_profile_from_output(self):

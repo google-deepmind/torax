@@ -32,7 +32,6 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
                 runtime_params_lib.Mode.MODEL_BASED,
                 runtime_params_lib.Mode.PRESCRIBED,
             ],
-            expected_affected_core_profiles=(source_lib.AffectedCoreProfile.TEMP_EL,),
             links_back=True,
         )
 
@@ -40,7 +39,9 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         """Tests that the source value is correct."""
         # Source builder for this class
         impurity_radiation_sink_builder = self._source_class_builder()
-        impurity_radiation_sink_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
+        impurity_radiation_sink_builder.runtime_params.mode = (
+            runtime_params_lib.Mode.MODEL_BASED
+        )
         if not source_lib.is_source_builder(impurity_radiation_sink_builder):
             raise TypeError(f"{type(self)} has a bad _source_class_builder")
 
@@ -65,7 +66,9 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         source_models = source_models_builder()
 
         # Extract the source we're testing and check that it's been built correctly
-        impurity_radiation_sink = source_models.sources[impurity_radiation_heat_sink_lib.SOURCE_NAME]
+        impurity_radiation_sink = source_models.sources[
+            impurity_radiation_heat_sink_lib.SOURCE_NAME
+        ]
         self.assertIsInstance(impurity_radiation_sink, source_lib.Source)
 
         # Geometry, profiles, and dynamic runtime params
@@ -79,18 +82,30 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
                 t=runtime_params.numerics.t_initial,
             )
         )
+        static_slice = runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params,
+            source_runtime_params=source_models_builder.runtime_params,
+        )
         core_profiles = core_profile_setters.initial_core_profiles(
+            static_runtime_params_slice=static_slice,
             dynamic_runtime_params_slice=dynamic_runtime_params_slice,
             geo=geo,
             source_models=source_models,
         )
         impurity_radiation_sink_dynamic_runtime_params_slice = (
-            dynamic_runtime_params_slice.sources[impurity_radiation_heat_sink_lib.SOURCE_NAME]
+            dynamic_runtime_params_slice.sources[
+                impurity_radiation_heat_sink_lib.SOURCE_NAME
+            ]
         )
+        impurity_radiation_sink_static_runtime_params_slice = static_slice.sources[
+            impurity_radiation_heat_sink_lib.SOURCE_NAME
+        ]
         heat_source_dynamic_runtime_params_slice = dynamic_runtime_params_slice.sources[
             generic_ion_el_heat_source.SOURCE_NAME
         ]
         impurity_radiation_heat_sink_power_density = impurity_radiation_sink.get_value(
+            static_runtime_params_slice=static_slice,
+            static_source_runtime_params=impurity_radiation_sink_static_runtime_params_slice,
             dynamic_runtime_params_slice=dynamic_runtime_params_slice,
             dynamic_source_runtime_params=impurity_radiation_sink_dynamic_runtime_params_slice,
             geo=geo,
@@ -135,8 +150,15 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
             t=runtime_params.numerics.t_initial,
         )
+        static_runtime_params_slice = (
+            runtime_params_slice.build_static_runtime_params_slice(
+                runtime_params,
+                source_runtime_params=source_models_builder.runtime_params,
+            )
+        )
         core_profiles = core_profile_setters.initial_core_profiles(
             dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+            static_runtime_params_slice=static_runtime_params_slice,
             geo=geo,
             source_models=source_models,
         )
@@ -158,6 +180,10 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
                     source.get_value(
                         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
                         dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
+                            "foo"
+                        ],
+                        static_runtime_params_slice=static_runtime_params_slice,
+                        static_source_runtime_params=static_runtime_params_slice.sources[
                             "foo"
                         ],
                         geo=geo,
