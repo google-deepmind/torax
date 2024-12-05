@@ -60,6 +60,7 @@ from typing import Callable, Final
 from absl import logging
 import jax
 from matplotlib import pyplot as plt
+import numpy as np
 import torax
 from torax import geometry_provider
 from torax import output
@@ -141,7 +142,7 @@ def _log_single_state(
 def log_simulation_output_to_stdout(
     core_profile_history: torax.CoreProfiles,
     geo: torax.Geometry,
-    t: jax.Array,
+    t: np.ndarray,
 ) -> None:
   del geo
   _log_single_state(core_profile_history.index(0), t[0])
