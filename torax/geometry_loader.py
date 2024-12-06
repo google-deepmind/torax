@@ -82,15 +82,15 @@ def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
 
 def _load_IMAS_data_from_Data_entry(file_path: str) -> dict[str, np.ndarray]:
   """Loads the equilibrium IDS for a single time slice from a specific data entry / scenario using the IMAS Access Layer"""
-  import imas
+  import imaspy
   file = open(file_path, 'r')
   scenario = yaml.load(file,Loader=yaml.CLoader)
   file.close()
   if scenario['scenario_backend'] == 'hdf5':
-        sc_backend = imas.imasdef.HDF5_BACKEND
+        sc_backend = imaspy.ids_defs.HDF5_BACKEND
   else:
-      sc_backend = imas.imasdef.MDSPLUS_BACKEND
-  input = imas.DBEntry(sc_backend,scenario['input_database'],scenario['shot'],scenario['run_in'],scenario['input_user_or_path'])
+      sc_backend = imaspy.ids_defs.MDSPLUS_BACKEND
+  input = imaspy.DBEntry(sc_backend,scenario['input_database'],scenario['shot'],scenario['run_in'],scenario['input_user_or_path'])
   input.open()
   timenow = scenario['time_begin']
   IMAS_data = input.get_slice('equilibrium',timenow,1)

@@ -1436,7 +1436,7 @@ class StandardGeometryIntermediates:
     IMAS_data = equilibrium.time_slice[0]
 
     B0 = np.abs(IMAS_data.global_quantities.magnetic_axis.b_field_tor)
-    Rmaj = IMAS_data.boundary.geometric_axis.r
+    Rmaj = np.asarray(IMAS_data.boundary.geometric_axis.r)
 
     # Poloidal flux
     psi = -1 * IMAS_data.profiles_1d.psi
@@ -1478,13 +1478,13 @@ class StandardGeometryIntermediates:
     Ip_profile = scipy.integrate.cumulative_trapezoid(y=spr * jtor, x=rhon, initial=0.0)
 
     # To check
-    z_magnetic_axis = IMAS_data.global_quantities.magnetic_axis.z
+    z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
 
     return cls(
         geometry_type=GeometryType.IMAS,
         Ip_from_parameters=Ip_from_parameters,
         Rmaj=Rmaj,
-        Rmin=IMAS_data.boundary.minor_radius,
+        Rmin=np.asarray(IMAS_data.boundary.minor_radius),
         B=B0,
         psi=psi,
         Ip_profile=Ip_profile,
