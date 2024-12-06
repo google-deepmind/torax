@@ -241,6 +241,31 @@ analysis and inspection.
 ``W_thermal_tot`` (time) [J]:
   Total thermal stored energy.
 
+``tauE`` (time) [s]:
+  Thermal confinement time defined as ``W_thermal_tot`` / ``P_heating``, where
+  ``P_heating`` is the total heating power into the plasma, including external
+  contributions and fusion heating. Radiative losses are not subtracted from
+  heating power.
+
+``H98`` (time) [dimensionless]:
+  H-mode confinement quality factor with respect to the ITER98y2 scaling law,
+  defined as ``tauE`` / ``tau98_scaling``, where ``tau98_scaling`` is the
+  confinement time defined by the ITER98y2 scaling law, derived from the ITER
+  H-mode confinement database. As for ``tauE``, radiative losses are not
+  subtracted from the ``P_loss`` term used to calculate the empirical scaling
+  law confinement time.
+
+``H97L`` (time) [dimensionless]:
+  L-mode confinement quality factor with respect to the ITER97L scaling law
+  derived from the ITER L-mode confinement database. Defined similarly to ``H98``
+  above, but using the ITER97L scaling law for the confinement time.
+
+``H20`` (time) [dimensionless]:
+  H-mode confinement quality factor with respect to the ITER20 scaling law
+  derived from the updated (2020) ITER confinement database. Defined similarly
+  to ``H98`` above, but using the updated ITER20 scaling law law for the
+  confinement time.
+
 ``FFprime_face`` (time, rho_face) [m^2 T^2 / Wb]:
   :math:`FF'` on the face grid, where F is the toroidal flux function, and
   F' is its derivative with respect to the poloidal flux.
@@ -319,6 +344,15 @@ analysis and inspection.
 
 ``P_icrh_tot`` (time) [W]:
   Total ion cyclotron resonance heating power.
+
+``P_LH_hi_dens`` (time) [W]: H-mode transition power for high density branch,
+  according to Eq 3 from Martin 2008.
+
+``P_LH_low_dens`` (time) [W]: H-mode transition power for low density branch,
+  according to Eq 4 from Ryter 2014.
+
+``ne_min_P_LH`` (time) [nref]:  Density corresponding to the minimum P_LH,
+  according to Eq 3 from Ryter 2014.
 
 ``E_cumulative_fusion`` (time) [J]:
   Total cumulative fusion energy.

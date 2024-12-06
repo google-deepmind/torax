@@ -232,7 +232,7 @@ inside |torax.sim.run_simulation()|_.
 .. |torax.sources| replace:: ``torax.sources``
 .. _torax.sources: https://github.com/google-deepmind/torax/tree/main/torax/sources
 .. |QLKNN| replace:: ``QLKNN``
-.. _QLKNN: https://github.com/google-deepmind/torax/blob/main/torax/transport_model/qlknn_wrapper.py
+.. _QLKNN: https://github.com/google-deepmind/torax/blob/main/torax/transport_model/qlknn_transport_model.py
 .. |torax.transport_model| replace:: ``torax.transport_model``
 .. _torax.transport_model: https://github.com/google-deepmind/torax/blob/main/torax/transport_model
 .. |torax.time_step_calculator| replace:: ``torax.time_step_calculator``

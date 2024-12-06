@@ -37,9 +37,11 @@ from torax.sources import source_profiles
     jax_utils.jit,
     static_argnames=[
         'source_models',
+        'static_runtime_params_slice',
     ],
 )
 def build_source_profiles(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -49,6 +51,8 @@ def build_source_profiles(
   """Builds explicit or implicit source profiles.
 
   Args:
+    static_runtime_params_slice: Input config. Cannot change from time step to
+      time step.
     dynamic_runtime_params_slice: Input config for this time step. Can change
       from time step to time step.
     geo: Geometry of the torus.
@@ -68,15 +72,21 @@ def build_source_profiles(
   dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
+  static_bootstrap_runtime_params = static_runtime_params_slice.sources[
+      source_models.j_bootstrap_name
+  ]
   bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_bootstrap_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       j_bootstrap_source=source_models.j_bootstrap,
       explicit=explicit,
   )
   other_profiles = _build_standard_source_profiles(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
@@ -93,6 +103,8 @@ def build_source_profiles(
 
 
 def _build_bootstrap_profiles(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -104,6 +116,10 @@ def _build_bootstrap_profiles(
   """Computes the bootstrap current profile.
 
   Args:
+    static_runtime_params_slice: Input config. Cannot change from time step to
+      time step.
+    static_source_runtime_params: Input runtime parameters specific to the
+      bootstrap current source that do not change from time step to time step.
     dynamic_runtime_params_slice: Input config for this time step. Can change
       from time step to time step.
     dynamic_source_runtime_params: Input runtime parameters for this time step,
@@ -126,12 +142,14 @@ def _build_bootstrap_profiles(
   bootstrap_profile = j_bootstrap_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_source_runtime_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_source_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
   )
   sigma = jax_utils.select(
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.sigma,
@@ -139,7 +157,7 @@ def _build_bootstrap_profiles(
   )
   sigma_face = jax_utils.select(
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.sigma_face,
@@ -147,7 +165,7 @@ def _build_bootstrap_profiles(
   )
   j_bootstrap = jax_utils.select(
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.j_bootstrap,
@@ -155,7 +173,7 @@ def _build_bootstrap_profiles(
   )
   j_bootstrap_face = jax_utils.select(
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.j_bootstrap_face,
@@ -163,7 +181,7 @@ def _build_bootstrap_profiles(
   )
   I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.I_bootstrap,
@@ -179,15 +197,14 @@ def _build_bootstrap_profiles(
 
 
 def _build_standard_source_profiles(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
     explicit: bool = True,
     calculate_anyway: bool = False,
-    affected_core_profiles: (
-        tuple[source_lib.AffectedCoreProfile, ...]
-    ) = (
+    affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...] = (
         source_lib.AffectedCoreProfile.PSI,
         source_lib.AffectedCoreProfile.NE,
         source_lib.AffectedCoreProfile.TEMP_ION,
@@ -197,6 +214,8 @@ def _build_standard_source_profiles(
   """Computes sources and builds a kwargs dict for SourceProfiles.
 
   Args:
+    static_runtime_params_slice: Input config. Cannot change from time step to
+      time step.
     dynamic_runtime_params_slice: Input config for this time step. Can change
       from time step to time step.
     geo: Geometry of the torus.
@@ -224,12 +243,17 @@ def _build_standard_source_profiles(
       dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
           source_name
       ]
+      static_source_runtime_params = static_runtime_params_slice.sources[
+          source_name
+      ]
       computed_source_profiles[source_name] = jax_utils.select(
           jnp.logical_or(
-              explicit == dynamic_source_runtime_params.is_explicit,
+              explicit == static_source_runtime_params.is_explicit,
               calculate_anyway,
           ),
           source.get_value(
+              static_runtime_params_slice,
+              static_source_runtime_params,
               dynamic_runtime_params_slice,
               dynamic_source_runtime_params,
               geo,
@@ -308,6 +332,7 @@ def sum_sources_temp_el(
 
 
 def calc_and_sum_sources_psi(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -319,6 +344,7 @@ def calc_and_sum_sources_psi(
   # expensive source functions that might not jittable (like file-based or
   # RPC-based sources).
   psi_profiles = _build_standard_source_profiles(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
@@ -336,9 +362,14 @@ def calc_and_sum_sources_psi(
   dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
+  static_bootstrap_runtime_params = static_runtime_params_slice.sources[
+      source_models.j_bootstrap_name
+  ]
   j_bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_bootstrap_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       j_bootstrap_source=source_models.j_bootstrap,

@@ -50,8 +50,13 @@ def _get_model_inputs(transport: qualikiz_based_transport_model.RuntimeParams):
           t=runtime_params.numerics.t_initial,
       )
   )
+  static_slice = runtime_params_slice.build_static_runtime_params_slice(
+      runtime_params,
+      source_runtime_params=source_models_builder.runtime_params,
+  )
   core_profiles = core_profile_setters.initial_core_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      static_runtime_params_slice=static_slice,
       geo=geo,
       source_models=source_models,
   )

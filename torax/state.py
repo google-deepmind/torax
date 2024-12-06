@@ -48,8 +48,8 @@ class Currents:
   j_bootstrap_face: array_typing.ArrayFloat
   # pylint: disable=invalid-name
   # Using physics notation naming convention
-  I_bootstrap: array_typing.ScalarFloat
-  Ip_profile_face: array_typing.ArrayFloat
+  I_bootstrap: array_typing.ScalarFloat  # [A]
+  Ip_profile_face: array_typing.ArrayFloat  # [A]
   sigma: array_typing.ArrayFloat
   jtot_hires: Optional[array_typing.ArrayFloat] = None
 
@@ -283,6 +283,13 @@ class PostProcessedOutputs:
     W_thermal_ion: Ion thermal stored energy [J]
     W_thermal_el: Electron thermal stored energy [J]
     W_thermal_tot: Total thermal stored energy [J]
+    tauE: Thermal energy confinement time [s]
+    H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
+      law derived from the ITER H-mode confinement database
+    H97L: L-mode confinement quality factor with respect to the ITER97L scaling
+      law derived from the ITER H-mode confinement database
+    H20: H-mode confinement quality factor with respect to the ITER20 scaling
+      law derived from the updated (2020) ITER H-mode confinement database
     FFprime_face: FF' on the face grid, where F is the toroidal flux function
     psi_norm_face: Normalized poloidal flux on the face grid [Wb]
     psi_face: Poloidal flux on the face grid [Wb]
@@ -314,6 +321,9 @@ class PostProcessedOutputs:
     P_icrh_el: Ion cyclotron resonance heating to electrons [W]
     P_icrh_ion: Ion cyclotron resonance heating to ions [W]
     P_icrh_tot: Total ion cyclotron resonance heating power [W]
+    P_LH_hi_dens: H-mode transition power for high density branch [W]
+    P_LH_low_dens: H-mode transition power for low density branch [W]
+    ne_min_P_LH: Density corresponding to the minimum P_LH [nref]
     E_cumulative_fusion: Total cumulative fusion energy [J]
     E_cumulative_external: Total external injected energy (Ohmic + auxiliary
       heating) [J]
@@ -327,6 +337,10 @@ class PostProcessedOutputs:
   W_thermal_ion: array_typing.ScalarFloat
   W_thermal_el: array_typing.ScalarFloat
   W_thermal_tot: array_typing.ScalarFloat
+  tauE: array_typing.ScalarFloat
+  H98: array_typing.ScalarFloat
+  H97L: array_typing.ScalarFloat
+  H20: array_typing.ScalarFloat
   FFprime_face: array_typing.ArrayFloat
   psi_norm_face: array_typing.ArrayFloat
   # psi_face included in post_processed output for convenience, since the
@@ -356,6 +370,9 @@ class PostProcessedOutputs:
   P_icrh_el: array_typing.ScalarFloat
   P_icrh_ion: array_typing.ScalarFloat
   P_icrh_tot: array_typing.ScalarFloat
+  P_LH_hi_dens: array_typing.ScalarFloat
+  P_LH_low_dens: array_typing.ScalarFloat
+  ne_min_P_LH: array_typing.ScalarFloat
   E_cumulative_fusion: array_typing.ScalarFloat
   E_cumulative_external: array_typing.ScalarFloat
   # pylint: enable=invalid-name
@@ -371,6 +388,10 @@ class PostProcessedOutputs:
         W_thermal_ion=jnp.array(0.0),
         W_thermal_el=jnp.array(0.0),
         W_thermal_tot=jnp.array(0.0),
+        tauE=jnp.array(0.0),
+        H98=jnp.array(0.0),
+        H97L=jnp.array(0.0),
+        H20=jnp.array(0.0),
         FFprime_face=jnp.zeros(geo.rho_face.shape),
         psi_norm_face=jnp.zeros(geo.rho_face.shape),
         psi_face=jnp.zeros(geo.rho_face.shape),
@@ -397,6 +418,9 @@ class PostProcessedOutputs:
         P_icrh_ion=jnp.array(0.0),
         P_icrh_el=jnp.array(0.0),
         P_icrh_tot=jnp.array(0.0),
+        P_LH_hi_dens=jnp.array(0.0),
+        P_LH_low_dens=jnp.array(0.0),
+        ne_min_P_LH=jnp.array(0.0),
         E_cumulative_fusion=jnp.array(0.0),
         E_cumulative_external=jnp.array(0.0),
     )

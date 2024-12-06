@@ -20,9 +20,6 @@ density. D_e scaled from chi_e
 
 
 CONFIG = {
-    'pedestal': {
-        'neped': 1.0,
-    },
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
@@ -68,6 +65,9 @@ CONFIG = {
         'qei_source': {
             'Qei_mult': 1.0,
         },
+    },
+    'pedestal': {
+        'neped': 1.0,
     },
     'transport': {
         'transport_model': 'qlknn',

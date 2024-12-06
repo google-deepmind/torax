@@ -34,7 +34,7 @@ from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
-from torax.transport_model import qlknn_wrapper
+from torax.transport_model import qlknn_transport_model
 from torax.transport_model import runtime_params as transport_model_params
 
 
@@ -115,11 +115,11 @@ class BuildSimTest(parameterized.TestCase):
       )
     with self.subTest('transport'):
       self.assertIsInstance(
-          sim.transport_model, qlknn_wrapper.QLKNNTransportModel
+          sim.transport_model, qlknn_transport_model.QLKNNTransportModel
       )
       self.assertIsInstance(
           dynamic_runtime_params_slice.transport,
-          qlknn_wrapper.DynamicRuntimeParams,
+          qlknn_transport_model.DynamicRuntimeParams,
       )
       # pytype: disable=attribute-error
       self.assertEqual(
@@ -417,7 +417,7 @@ class BuildSimTest(parameterized.TestCase):
       dict(
           testcase_name='qlknn',
           name='qlknn',
-          expected_type=qlknn_wrapper.QLKNNTransportModel,
+          expected_type=qlknn_transport_model.QLKNNTransportModel,
       ),
   )
   def test_build_transport_models(self, name, expected_type):
@@ -454,7 +454,8 @@ class BuildSimTest(parameterized.TestCase):
       self.assertEqual(transport_model_builder.runtime_params.alpha, 7.89)
     elif name == 'qlknn':
       assert isinstance(
-          transport_model_builder.runtime_params, qlknn_wrapper.RuntimeParams
+          transport_model_builder.runtime_params,
+          qlknn_transport_model.RuntimeParams,
       )
       self.assertEqual(transport_model_builder.runtime_params.coll_mult, 10.11)
     else:

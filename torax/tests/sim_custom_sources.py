@@ -48,6 +48,47 @@ _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
   """Integration tests for torax.sim with custom sources."""
 
+  def setUp(self):
+    super().setUp()
+    self.source_models_builder = default_sources.get_default_sources_builder()
+    pedestal_runtime_params = set_tped_nped.RuntimeParams()
+    self.basic_pedestal_model_builder = (
+        set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
+            runtime_params=pedestal_runtime_params
+        )
+    )
+    self.constant_transport_model_builder = (
+        constant_transport_model.ConstantTransportModelBuilder(
+            runtime_params=constant_transport_model.RuntimeParams(
+                De_const=0.5,
+                Ve_const=-0.2,
+            ),
+        )
+    )
+    self.stepper_builder = linear_theta_method.LinearThetaMethodBuilder(
+        runtime_params=linear_theta_method.LinearRuntimeParams(
+            predictor_corrector=False,
+        )
+    )
+    # Copy the test_particle_sources_constant config in here for clarity.
+    # These are the common kwargs without any of the sources.
+    self.test_particle_sources_constant_runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
+            set_pedestal=True,
+            nbar=0.85,
+            nu=0,
+            ne_bound_right=0.5,
+        ),
+        numerics=numerics_lib.Numerics(
+            ion_heat_eq=True,
+            el_heat_eq=True,
+            dens_eq=True,  # This is important to be True to test ne sources.
+            current_eq=True,
+            resistivity_mult=100,
+            t_final=2,
+        ),
+    )
+
   def test_custom_ne_source_can_replace_defaults(self):
     """Replaces all the default ne sources with a custom one."""
 
@@ -56,6 +97,8 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     custom_source_name = 'custom_ne_source'
 
     def custom_source_formula(
+        static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+        static_source_runtime_params: runtime_params_lib.RuntimeParams,
         dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
         dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
         geo: geometry.Geometry,
@@ -67,8 +110,6 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
           dynamic_source_runtime_params, _CustomSourceDynamicRuntimeParams
       )
       ignored_default_kwargs = dict(
-          mode=dynamic_source_runtime_params.mode,
-          is_explicit=dynamic_source_runtime_params.is_explicit,
           formula=dynamic_source_runtime_params.formula,
           prescribed_values=dynamic_source_runtime_params.prescribed_values,
       )
@@ -94,16 +135,22 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
           electron_density_sources._calc_puff_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=puff_params,
+              static_runtime_params_slice=static_runtime_params_slice,
+              static_source_runtime_params=static_source_runtime_params,
               geo=geo,
           )
           + electron_density_sources._calc_generic_particle_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=params,
+              static_runtime_params_slice=static_runtime_params_slice,
+              static_source_runtime_params=static_source_runtime_params,
               geo=geo,
           )
           + electron_density_sources._calc_pellet_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               dynamic_source_runtime_params=pellet_params,
+              static_runtime_params_slice=static_runtime_params_slice,
+              static_source_runtime_params=static_source_runtime_params,
               geo=geo,
           )
       )
@@ -111,7 +158,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 
     # First instantiate the same default sources that test_particle_sources
     # constant starts with.
-    source_models_builder = default_sources.get_default_sources_builder()
+    source_models_builder = self.source_models_builder
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 1
     source_models_builder.runtime_params['qei_source'].Qei_mult = 1
     params = source_models_builder.runtime_params['generic_particle_source']
@@ -159,31 +206,6 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         )
     )
 
-    # Copy the test_particle_sources_constant config in here for clarity.
-    # These are the common kwargs without any of the sources.
-    test_particle_sources_constant_runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            set_pedestal=True,
-            nbar=0.85,
-            nu=0,
-            ne_bound_right=0.5,
-        ),
-        numerics=numerics_lib.Numerics(
-            ion_heat_eq=True,
-            el_heat_eq=True,
-            dens_eq=True,  # This is important to be True to test ne sources.
-            current_eq=True,
-            resistivity_mult=100,
-            t_final=2,
-        ),
-    )
-    pedestal_runtime_params = set_tped_nped.RuntimeParams()
-    basic_pedestal_model_builder = (
-        set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
-            runtime_params=pedestal_runtime_params
-        )
-    )
-
     # Load reference profiles
     ref_profiles, ref_time = self._get_refs(
         'test_particle_sources_constant.nc', _ALL_PROFILES
@@ -191,21 +213,12 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     geo_provider = geometry_provider.ConstantGeometryProvider(
         geometry.build_circular_geometry())
     sim = sim_lib.build_sim_object(
-        runtime_params=test_particle_sources_constant_runtime_params,
+        runtime_params=self.test_particle_sources_constant_runtime_params,
         geometry_provider=geo_provider,
-        stepper_builder=linear_theta_method.LinearThetaMethodBuilder(
-            runtime_params=linear_theta_method.LinearRuntimeParams(
-                predictor_corrector=False,
-            )
-        ),
-        transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(
-            runtime_params=constant_transport_model.RuntimeParams(
-                De_const=0.5,
-                Ve_const=-0.2,
-            ),
-        ),
+        stepper_builder=self.stepper_builder,
+        transport_model_builder=self.constant_transport_model_builder,
         source_models_builder=source_models_builder,
-        pedestal_model_builder=basic_pedestal_model_builder,
+        pedestal_model_builder=self.basic_pedestal_model_builder,
     )
 
     # Make sure the config copied here works with these references.
@@ -247,12 +260,19 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       ref_time: chex.Array,
   ):
     """Runs sim with new runtime params and checks the profiles vs. expected."""
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            self.test_particle_sources_constant_runtime_params,
+            stepper=self.stepper_builder.runtime_params,
+            source_runtime_params=self.source_models_builder.runtime_params,
+        )
+    )
     sim_outputs = sim_lib.run_simulation(
         initial_state=sim.initial_state,
         step_fn=sim.step_fn,
         geometry_provider=sim.geometry_provider,
         dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
-        static_runtime_params_slice=sim.static_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         time_step_calculator=sim.time_step_calculator,
     )
     history = output.StateHistory(sim_outputs, sim.source_models)

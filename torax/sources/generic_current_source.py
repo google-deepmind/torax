@@ -111,6 +111,8 @@ _trapz = integrate.trapezoid
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
 def _calculate_generic_current_face(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -120,6 +122,8 @@ def _calculate_generic_current_face(
   """Calculates the external current density profiles.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
+    static_source_runtime_params: Static runtime parameters.
     dynamic_runtime_params_slice: Parameter configuration at present timestep.
     dynamic_source_runtime_params: Source-specific parameters at the present
       timestep.
@@ -130,6 +134,12 @@ def _calculate_generic_current_face(
   Returns:
     External current density profile along the face grid.
   """
+  del (
+      static_source_runtime_params,
+      static_runtime_params_slice,
+      unused_state,
+      unused_source_models,
+  )  # Unused.
   # pytype: enable=name-error
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   Iext = _calculate_Iext(
@@ -157,6 +167,8 @@ def _calculate_generic_current_face(
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
 def _calculate_generic_current_hires(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -166,6 +178,8 @@ def _calculate_generic_current_hires(
   """Calculates the generic current density profile along the hires grid.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
+    static_source_runtime_params: Static runtime parameters.
     dynamic_runtime_params_slice: Parameter configuration at present timestep.
     dynamic_source_runtime_params: Source-specific parameters at the present
       timestep.
@@ -176,6 +190,12 @@ def _calculate_generic_current_hires(
   Returns:
     Generic current density profile along the hires cell grid.
   """
+  del (
+      static_source_runtime_params,
+      static_runtime_params_slice,
+      unused_state,
+      unused_source_models,
+  )  # Unused.
   # pytype: enable=name-error
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   Iext = _calculate_Iext(
@@ -241,19 +261,26 @@ class GenericCurrentSource(source.Source):
         jnp.zeros_like(geo.rho),
     )
 
+  # pytype: disable=name-error
   def generic_current_source_hires(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
       geo: geometry.Geometry,
+      unused_state: state.CoreProfiles | None = None,
+      unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
+    # pytype: enable=name-error
     """Return the current density profile along the hires cell grid."""
+    del unused_state, unused_source_models  # Unused.
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-    self.check_mode(dynamic_source_runtime_params.mode)
+    self.check_mode(static_source_runtime_params.mode)
 
     # Interpolate prescribed values onto the hires grid
     hires_prescribed_values = jnp.where(
-        dynamic_source_runtime_params.mode
+        static_source_runtime_params.mode
         == runtime_params_lib.Mode.PRESCRIBED.value,
         jnp.interp(
             geo.rho_hires_norm,
@@ -266,11 +293,15 @@ class GenericCurrentSource(source.Source):
     return source.get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         dynamic_source_runtime_params=dynamic_source_runtime_params,
+        static_runtime_params_slice=static_runtime_params_slice,
+        static_source_runtime_params=static_source_runtime_params,
         geo=geo,
         core_profiles=None,
         # There is no model for this source.
         model_func=(
-            lambda _0, _1, _2, _3, _4: jnp.zeros_like(geo.rho_hires_norm)
+            lambda _0, _1, _2, _3, _4, _5, _6: jnp.zeros_like(
+                geo.rho_hires_norm
+            )
         ),
         formula=self.hires_formula,
         output_shape=geo.rho_hires_norm.shape,

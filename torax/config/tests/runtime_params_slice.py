@@ -584,6 +584,41 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     self.assertEqual(dcs.transport.De_inner, 2.0)
 
+  def test_static_runtime_params_slice_hash_same_for_same_params(self):
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    source_models_builder = default_sources.get_default_sources_builder()
+    static_slice1 = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
+    static_slice2 = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
+    self.assertEqual(hash(static_slice1), hash(static_slice2))
+
+  def test_static_runtime_params_slice_hash_different_for_different_params(
+      self,
+  ):
+    """Test that the hash changes when the static params change."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    source_models_builder = default_sources.get_default_sources_builder()
+    static_slice1 = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
+    runtime_params_mod = dataclasses.replace(
+        runtime_params,
+        numerics=dataclasses.replace(
+            runtime_params.numerics,
+            ion_heat_eq=not runtime_params.numerics.ion_heat_eq,
+        ),
+    )
+    static_slice2 = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params_mod,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
+    self.assertNotEqual(hash(static_slice1), hash(static_slice2))
 
 if __name__ == '__main__':
   absltest.main()

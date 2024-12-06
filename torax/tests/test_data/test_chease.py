@@ -19,7 +19,6 @@ Ip from parameters. implicit, Ti+Te, no Pei, no pedestal, constant chi.
 
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'ne_bound_right': 0.5,
@@ -61,6 +60,7 @@ CONFIG = {
             'Qei_mult': 0.0,
         },
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
     },

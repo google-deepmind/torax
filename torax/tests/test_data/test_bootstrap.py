@@ -19,7 +19,6 @@ Constant transport coefficient model
 
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': False,
@@ -66,6 +65,7 @@ CONFIG = {
             'Qei_mult': 1.0,
         },
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
         'constant_params': {

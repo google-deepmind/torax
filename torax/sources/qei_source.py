@@ -78,6 +78,7 @@ class QeiSource(source.Source):
     return (
         runtime_params_lib.Mode.ZERO,
         runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
     )
 
   @property
@@ -96,9 +97,9 @@ class QeiSource(source.Source):
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
-    self.check_mode(dynamic_source_runtime_params.mode)
+    self.check_mode(static_runtime_params_slice.sources[SOURCE_NAME].mode)
     return jax.lax.cond(
-        dynamic_source_runtime_params.mode
+        static_runtime_params_slice.sources[SOURCE_NAME].mode
         == runtime_params_lib.Mode.MODEL_BASED.value,
         lambda: _model_based_qei(
             static_runtime_params_slice,

@@ -17,7 +17,6 @@
 from absl.testing import absltest
 from torax.sources import electron_density_sources as eds
 from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source as source_lib
 from torax.sources.tests import test_lib
 
 
@@ -32,7 +31,6 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
-        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
 
@@ -47,7 +45,6 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
-        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
 
@@ -62,7 +59,6 @@ class SourceTest(test_lib.SingleProfileSourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
-        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
 
@@ -77,7 +73,6 @@ class RecombinationDensitySinkTest(test_lib.SingleProfileSourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
-        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.NE,),
     )
 
 

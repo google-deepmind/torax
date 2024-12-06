@@ -23,7 +23,6 @@ Result should be the same as test_psi_and_heat since fext=0 is ignored.
 
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             # initial condition ion temperature for r=0 and r=Rmin
@@ -55,6 +54,7 @@ CONFIG = {
         'generic_ion_el_heat_source': {},
         'qei_source': {},
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'qlknn',
     },

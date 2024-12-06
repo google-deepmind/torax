@@ -18,7 +18,6 @@ Implicit solver, Ti+Te, Pei standard dens, pedestal, constant chi.
 """
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'ne_bound_right': 0.5,
@@ -41,6 +40,7 @@ CONFIG = {
         'pellet_source': {},
         'generic_current_source': {},
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
         'constant_params': {

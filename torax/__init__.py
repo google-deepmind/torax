@@ -73,6 +73,7 @@ CANONICAL_ORDER = [
     'dt',
     'source_type',
     'static_runtime_params_slice',
+    'static_source_runtime_params',
     'dynamic_runtime_params_slice',
     'dynamic_runtime_params_slice_t',
     'dynamic_runtime_params_slice_t_plus_dt',

@@ -18,7 +18,6 @@ Ip from parameters. implicit, psi (current diffusion) only
 """
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': False,
@@ -43,6 +42,7 @@ CONFIG = {
         },
         'generic_current_source': {},
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
     },

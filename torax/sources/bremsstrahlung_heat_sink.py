@@ -122,6 +122,8 @@ def calc_bremsstrahlung(
 
 
 def bremsstrahlung_model_func(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -129,6 +131,11 @@ def bremsstrahlung_model_func(
     unused_model_func: source_models.SourceModels | None,
 ) -> jax.Array:
   """Model function for the Bremsstrahlung heat sink."""
+  del (
+      static_source_runtime_params,
+      static_runtime_params_slice,
+      unused_model_func,
+  )  # Unused.
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   _, P_brem_profile = calc_bremsstrahlung(
       core_profiles,

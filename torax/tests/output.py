@@ -28,6 +28,7 @@ from torax import output
 from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.sources import source as source_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
@@ -76,9 +77,14 @@ class StateHistoryTest(parameterized.TestCase):
             'fusion_heat_source': jnp.stack([ones, ones]),
         },
     )
+    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
 
     self.core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )

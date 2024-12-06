@@ -52,14 +52,6 @@ CONFIG = {
             # internal boundary condition (pedestal)
             # do not set internal boundary condition if this is False
             'set_pedestal': True,
-            'Tiped': 1.0,  # ion pedestal top temperature in keV for Ti and Te
-            'Teped': (
-                1.0
-            ),  # electron pedestal top temperature in keV for Ti and Te
-            'neped_is_fGW': True,
-            # pedestal top electron density in units of nref
-            'neped': {0: 0.3, 80: 0.7},
-            'Ped_top': 0.9,  # set ped top location in normalized radius
         },
         'numerics': {
             # simulation control
@@ -146,6 +138,14 @@ CONFIG = {
             # multiplier for ion-electron heat exchange term for sensitivity
             'Qei_mult': 1.0,
         },
+    },
+    'pedestal': {
+        'Tiped': 1.0,  # ion pedestal top temperature in keV for Ti
+        'Teped': 1.0,  # electron pedestal top temperature in keV for Te
+        'neped_is_fGW': True,
+        # pedestal top electron density in units of nref
+        'neped': {0: 0.3, 80: 0.7},
+        'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },
     'transport': {
         'transport_model': 'qlknn',

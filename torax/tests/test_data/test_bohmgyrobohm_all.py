@@ -30,10 +30,6 @@
 
 
 CONFIG = {
-    'pedestal': {
-        'neped': 0.8,
-        'neped_is_fGW': True,
-    },
     'runtime_params': {
         'profile_conditions': {
             'nbar': 0.8,
@@ -63,6 +59,10 @@ CONFIG = {
         # Ion and electron heat sources (for the temp-ion and temp-el eqs).
         'generic_ion_el_heat_source': {},
         'qei_source': {},
+    },
+    'pedestal': {
+        'neped': 0.8,
+        'neped_is_fGW': True,
     },
     'transport': {
         'transport_model': 'bohm-gyrobohm',

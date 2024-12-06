@@ -19,7 +19,6 @@ Used in no-compilation tests.
 """
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': False,
@@ -46,6 +45,7 @@ CONFIG = {
             'Qei_mult': 0.0,
         },
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
     },

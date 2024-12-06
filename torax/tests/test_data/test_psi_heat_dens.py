@@ -18,7 +18,6 @@ Constant transport coefficient model. Pedestal
 """
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': True,
@@ -44,6 +43,7 @@ CONFIG = {
         'j_bootstrap': {},
         'generic_current_source': {},
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
         'constant_params': {

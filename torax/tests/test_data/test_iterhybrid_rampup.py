@@ -20,14 +20,6 @@ With Newton-Raphson stepper and adaptive timestep (backtracking)
 
 
 CONFIG = {
-    'pedestal': {
-        'Tiped': 1.0,  # ion pedestal top temperature in keV for Ti and Te
-        'Teped': 1.0,  # electron pedestal top temperature in keV for Ti and Te
-        'neped_is_fGW': True,
-        # pedestal top electron density in units of nref
-        'neped': {0: 0.3, 80: 0.7},
-        'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
-    },
     'runtime_params': {
         'plasma_composition': {
             # physical inputs
@@ -146,6 +138,14 @@ CONFIG = {
             # multiplier for ion-electron heat exchange term for sensitivity
             'Qei_mult': 1.0,
         },
+    },
+    'pedestal': {
+        'Tiped': 1.0,  # ion pedestal top temperature in keV for Ti and Te
+        'Teped': 1.0,  # electron pedestal top temperature in keV for Ti and Te
+        'neped_is_fGW': True,
+        # pedestal top electron density in units of nref
+        'neped': {0: 0.3, 80: 0.7},
+        'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
     },
     'transport': {
         'transport_model': 'qlknn',

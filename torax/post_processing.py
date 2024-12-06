@@ -24,6 +24,7 @@ from torax import constants
 from torax import geometry
 from torax import jax_utils
 from torax import math_utils
+from torax import physics
 from torax import state
 from torax.sources import source_profiles
 
@@ -302,9 +303,7 @@ def _calculate_integrated_sources(
           profile * geo.spr_cell, geo
       )
 
-  integrated['P_sol_tot'] = (
-      integrated['P_sol_ion'] + integrated['P_sol_el']
-  )
+  integrated['P_sol_tot'] = integrated['P_sol_ion'] + integrated['P_sol_el']
   integrated['P_external_tot'] = (
       integrated['P_external_ion'] + integrated['P_external_el']
   )
@@ -363,6 +362,37 @@ def make_outputs(
       / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
   )
 
+  P_LH_hi_dens, P_LH_low_dens, ne_min_P_LH = (
+      physics.calculate_plh_scaling_factor(geo, sim_state.core_profiles)
+  )
+
+  # Thermal energy confinement time is the stored energy divided by the total
+  # input power into the plasma.
+
+  # Ploss term here does not include the reduction of radiated power. Most
+  # analysis of confinement times from databases have not included this term.
+  # Therefore highly radiative scenarios can lead to skewed results.
+
+  Ploss = (
+      integrated_sources['P_alpha_tot'] + integrated_sources['P_external_tot']
+  )
+  # TODO(b/380848256): include dW/dt term
+  tauE = W_thermal_tot / Ploss
+
+  tauH98 = physics.calculate_scaling_law_confinement_time(
+      geo, sim_state.core_profiles, Ploss/1e6, 'H98'
+  )
+  tauH97L = physics.calculate_scaling_law_confinement_time(
+      geo, sim_state.core_profiles, Ploss/1e6, 'H97L'
+  )
+  tauH20 = physics.calculate_scaling_law_confinement_time(
+      geo, sim_state.core_profiles, Ploss/1e6, 'H20'
+  )
+
+  H98 = tauE / tauH98
+  H97L = tauE / tauH97L
+  H20 = tauE / tauH20
+
   # Calculate total external (injected) and fusion (generated) energies based on
   # interval average.
   if previous_sim_state is not None:
@@ -405,11 +435,18 @@ def make_outputs(
       W_thermal_ion=W_thermal_ion,
       W_thermal_el=W_thermal_el,
       W_thermal_tot=W_thermal_tot,
+      tauE=tauE,
+      H98=H98,
+      H97L=H97L,
+      H20=H20,
       FFprime_face=FFprime_face,
       psi_norm_face=psi_norm_face,
       psi_face=sim_state.core_profiles.psi.face_value(),
       **integrated_sources,
       Q_fusion=Q_fusion,
+      P_LH_low_dens=P_LH_low_dens,
+      P_LH_hi_dens=P_LH_hi_dens,
+      ne_min_P_LH=ne_min_P_LH,
       E_cumulative_fusion=E_cumulative_fusion,
       E_cumulative_external=E_cumulative_external,
   )

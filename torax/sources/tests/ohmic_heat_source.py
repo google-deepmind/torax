@@ -11,26 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Tests for generic_ion_el_heat_source."""
-
+"""Tests for ohmic_heat_source."""
 from absl.testing import absltest
-from torax.sources import generic_ion_el_heat_source
+from torax.sources import ohmic_heat_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources.tests import test_lib
 
 
-class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
-  """Tests for GenericIonElectronHeatSource."""
+class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
+  """Tests for OhmicHeatSource."""
 
   @classmethod
   def setUpClass(cls):
     super().setUpClass(
-        source_class=generic_ion_el_heat_source.GenericIonElectronHeatSource,
-        runtime_params_class=generic_ion_el_heat_source.RuntimeParams,
+        source_class=ohmic_heat_source.OhmicHeatSource,
+        runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
         unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
+            runtime_params_lib.Mode.FORMULA_BASED,
         ],
+        links_back=True,
     )
 
 

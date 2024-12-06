@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+from typing import Any
 
 import chex
 from torax import array_typing
@@ -103,6 +104,12 @@ class RuntimeParams(base.RuntimeParametersConfig):
   ) -> RuntimeParamsProvider:
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
+  def build_static_params(self) -> StaticRuntimeParams:
+    return StaticRuntimeParams(
+        mode=self.mode.value,
+        is_explicit=self.is_explicit,
+    )
+
 
 @chex.dataclass
 class RuntimeParamsProvider(
@@ -113,6 +120,18 @@ class RuntimeParamsProvider(
   runtime_params_config: RuntimeParams
   formula: base.RuntimeParametersProvider
   prescribed_values: interpolated_param.InterpolatedVarTimeRho
+
+  def get_dynamic_params_kwargs(
+      self,
+      t: chex.Numeric,
+  ) -> dict[str, Any]:
+    dynamic_params_kwargs = super(
+        RuntimeParamsProvider, self
+    ).get_dynamic_params_kwargs(t)
+    # Remove any fields from runtime params that are included in static params.
+    for field in dataclasses.fields(StaticRuntimeParams):
+      del dynamic_params_kwargs[field.name]
+    return dynamic_params_kwargs
 
   def build_dynamic_params(
       self,
@@ -129,10 +148,13 @@ class DynamicRuntimeParams:
   stateless, so these params are their inputs to determine their output
   profiles.
   """
-
-  # This maps to the enum value for the Mode enum. The enum itself is not
-  # JAX-friendly.
-  mode: int
-  is_explicit: bool
   formula: formula_config.DynamicFormula
   prescribed_values: array_typing.ArrayFloat
+
+
+@chex.dataclass(frozen=True)
+class StaticRuntimeParams:
+  """Static params for the sources."""
+
+  mode: int
+  is_explicit: bool

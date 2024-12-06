@@ -16,7 +16,11 @@
 
 
 CONFIG = {
-    'runtime_params': {},  # {} means that only default runtime_params are used
+    'runtime_params': {
+        'profile_conditions': {},  # use default profile conditions
+        'plasma_composition': {},  # use default plasma composition
+        'numerics': {},  # use default numerics
+    },
     # circular geometry is only for testing and prototyping
     'geometry': {
         'geometry_type': 'circular',
@@ -35,6 +39,7 @@ CONFIG = {
         'qei_source': {},
         'ohmic_heat_source': {},
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
     },

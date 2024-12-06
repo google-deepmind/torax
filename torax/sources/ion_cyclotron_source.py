@@ -357,6 +357,8 @@ def _helium3_tail_temperature(
 
 
 def _icrh_model_func(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: DynamicRuntimeParams,
     geo: geometry.Geometry,
@@ -365,7 +367,12 @@ def _icrh_model_func(
     toric_nn: ToricNNWrapper,
 ) -> jax.Array:
   """Compute ion/electron heat source terms."""
-  del unused_source_models, dynamic_runtime_params_slice
+  del (
+      unused_source_models,
+      dynamic_runtime_params_slice,
+      static_source_runtime_params,
+      static_runtime_params_slice,
+  )  # Unused.
 
   # Construct inputs for ToricNN.
   volume = integrate.trapezoid(geo.vpr_face, geo.rho_face_norm)

@@ -33,7 +33,7 @@ from torax import simulation_app
 from torax.config import build_sim
 from torax.config import config_loader
 from torax.plotting import plotruns_lib
-from torax.transport_model import qlknn_wrapper
+from torax.transport_model import qlknn_transport_model
 
 
 # String used when prompting the user to make a choice of command
@@ -104,9 +104,9 @@ _QLKNN_MODEL_PATH = flags.DEFINE_string(
     'Path to the qlknn model network parameters (if using a QLKNN transport'
     ' model). If not set, then it will use the value from the config in the'
     ' "model_path" field in the qlknn_params. If that is not set, it will look'
-    f' for the "{qlknn_wrapper.MODEL_PATH_ENV_VAR}" env variable.'
+    f' for the "{qlknn_transport_model.MODEL_PATH_ENV_VAR}" env variable.'
     ' Finally, if this is also not set, it uses a hardcoded default path'
-    f' "{qlknn_wrapper.DEFAULT_MODEL_PATH}".',
+    f' "{qlknn_transport_model.DEFAULT_MODEL_PATH}".',
 )
 
 _OUTPUT_DIR = flags.DEFINE_string(

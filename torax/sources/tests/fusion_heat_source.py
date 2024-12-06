@@ -21,9 +21,9 @@ from absl.testing import parameterized
 import numpy as np
 from torax import constants
 from torax import core_profile_setters
+from torax.config import runtime_params_slice
 from torax.sources import fusion_heat_source
 from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 from torax.tests.test_lib import torax_refs
@@ -40,10 +40,6 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
-        expected_affected_core_profiles=(
-            source.AffectedCoreProfile.TEMP_ION,
-            source.AffectedCoreProfile.TEMP_EL,
-        ),
     )
 
   @parameterized.parameters([
@@ -70,9 +66,14 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
             sources=source_models_builder.runtime_params,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     source_models = source_models_builder()
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )

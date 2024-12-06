@@ -14,6 +14,7 @@
 
 """Unit tests for torax.physics."""
 
+import dataclasses
 from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -24,6 +25,7 @@ from torax import core_profile_setters
 from torax import geometry
 from torax import physics
 from torax import state
+from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
@@ -117,7 +119,12 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
             sources=source_models_builder.runtime_params,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+    )
     initial_core_profiles = core_profile_setters.initial_core_profiles(
+        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models=source_models,
@@ -126,6 +133,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     # pylint: disable=protected-access
     if isinstance(geo, geometry.CircularAnalyticalGeometry):
       currents = core_profile_setters._prescribe_currents_no_bootstrap(
+          static_slice,
           dynamic_runtime_params_slice,
           geo,
           source_models=source_models,
@@ -171,7 +179,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
           references.runtime_params.profile_conditions.Ip_tot * 1e6,
       )
     else:
-      assert(isinstance(geo, geometry.StandardGeometry))
+      assert isinstance(geo, geometry.StandardGeometry)
       np.testing.assert_allclose(
           Ip_profile_face[-1],
           geo.Ip_profile_face[-1],
@@ -279,6 +287,228 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         physics._calculate_weighted_Zeff(core_profiles), expected
     )
     # pylint: enable=protected-access
+
+  def test_calculate_plh_scaling_factor(self):
+    """Compare `calculate_plh_scaling_factor` to a reference value."""
+    geo = geometry.build_circular_geometry(
+        n_rho=25,
+        elongation_LCFS=1.0,
+        hires_fac=4,
+        Rmaj=6.0,
+        Rmin=2.0,
+        B0=5.0,
+    )
+    core_profiles = state.CoreProfiles(
+        ne=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 2,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(2.0),
+            dr=geo.drho_norm,
+        ),
+        ni=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 1,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(1.0),
+            dr=geo.drho_norm,
+        ),
+        nimp=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        temp_ion=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        temp_el=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        psi=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        psidot=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        currents=state.Currents.zeros(geo),
+        q_face=jnp.array(0.0),
+        s_face=jnp.array(0.0),
+        Zi=1.0,
+        Ai=3.0,
+        Zimp=20,
+        Aimp=40,
+        nref=1e20,
+    )
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        currents=dataclasses.replace(
+            core_profiles.currents,
+            Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+        ),
+    )
+    # pylint: disable=invalid-name
+    P_LH_hi_dens, P_LH_low_dens, ne_min_P_LH = (
+        physics.calculate_plh_scaling_factor(geo, core_profiles)
+    )
+    expected_PLH_hi_dens = (
+        2.15 * 2**0.782 * 5**0.772 * 2**0.975 * 6**0.999 * (2.014 / 3)
+    )
+    expected_PLH_low_dens = 0.36 * 10**0.27 * 5**1.25 * 6**1.23 * 3**0.08
+    expected_ne_min_P_LH = 0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 / 10
+    # pylint: enable=invalid-name
+    np.testing.assert_allclose(P_LH_hi_dens / 1e6, expected_PLH_hi_dens)
+    np.testing.assert_allclose(P_LH_low_dens / 1e6, expected_PLH_low_dens)
+    np.testing.assert_allclose(ne_min_P_LH, expected_ne_min_P_LH)
+
+  @parameterized.parameters([
+      dict(elongation_LCFS=1.0),
+      dict(elongation_LCFS=1.5),
+  ])
+  # pylint: disable=invalid-name
+  def test_calculate_scaling_law_confinement_time(self, elongation_LCFS):
+    """Compare `calculate_scaling_law_confinement_time` to reference values."""
+    geo = geometry.build_circular_geometry(
+        n_rho=25,
+        elongation_LCFS=elongation_LCFS,
+        hires_fac=4,
+        Rmaj=6.0,
+        Rmin=2.0,
+        B0=5.0,
+    )
+    core_profiles = state.CoreProfiles(
+        ne=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 2,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(2.0),
+            dr=geo.drho_norm,
+        ),
+        ni=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 2,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(1.0),
+            dr=geo.drho_norm,
+        ),
+        nimp=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        temp_ion=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        temp_el=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        psi=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        psidot=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        currents=state.Currents.zeros(geo),
+        q_face=jnp.array(0.0),
+        s_face=jnp.array(0.0),
+        Zi=1.0,
+        Ai=3.0,
+        Zimp=20.0,
+        Aimp=40.0,
+        nref=1e20,
+    )
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        currents=dataclasses.replace(
+            core_profiles.currents,
+            Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+        ),
+    )
+    Ploss = jnp.array(50.0)
+
+    H98 = physics.calculate_scaling_law_confinement_time(
+        geo, core_profiles, Ploss, 'H98'
+    )
+    H97L = physics.calculate_scaling_law_confinement_time(
+        geo, core_profiles, Ploss, 'H97L'
+    )
+    H20 = physics.calculate_scaling_law_confinement_time(
+        geo, core_profiles, Ploss, 'H20'
+    )
+    expected_H98 = (
+        0.0562
+        * 10**0.93
+        * 5**0.15
+        * 20**0.41
+        * 50**-0.69
+        * 6**1.97
+        * (1/3)**0.58
+        * 3**0.19
+        * elongation_LCFS**0.78
+    )
+
+    expected_H97L = (
+        0.023
+        * 10**0.96
+        * 5**0.03
+        * 20**0.4
+        * 50**-0.73
+        * 6**1.83
+        * (1/3)**-0.06
+        * 3**0.20
+        * elongation_LCFS**0.64
+    )
+
+    expected_H20 = (
+        0.053
+        * 10**0.98
+        * 5**0.22
+        * 20**0.24
+        * 50**-0.669
+        * 6**1.71
+        * (1/3)**0.35
+        * 3**0.20
+        * elongation_LCFS**0.80
+    )
+    # pylint: enable=invalid-name
+    np.testing.assert_allclose(H98, expected_H98)
+    np.testing.assert_allclose(H97L, expected_H97L)
+    np.testing.assert_allclose(H20, expected_H20)
 
 
 if __name__ == '__main__':

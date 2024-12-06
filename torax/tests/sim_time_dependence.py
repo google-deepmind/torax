@@ -112,7 +112,8 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     )
     input_state = sim_lib.get_initial_state(
         static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params
+            runtime_params,
+            source_runtime_params=source_models_builder.runtime_params,
         ),
         dynamic_runtime_params_slice=initial_dynamic_runtime_params_slice,
         geo=geo,
@@ -122,7 +123,8 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     )
     output_state = sim_step_fn(
         static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params
+            runtime_params,
+            source_runtime_params=source_models_builder.runtime_params,
         ),
         dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
         geometry_provider=geometry_provider,

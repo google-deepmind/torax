@@ -100,6 +100,8 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # Create custom sources whose output profiles depend on Tiped.
     # This is not physically realistic, just for testing purposes.
     def custom_source_formula(
+        unused_static_runtime_params_slice,
+        unused_static_source_runtime_params,
         unused_dynamic_runtime_params,
         source_conf,
         geo,
@@ -140,9 +142,14 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             torax_mesh=geo.torax_mesh,
         )
     )
-    initial_dcs = dynamic_runtime_params_slice_provider(t=0.0,)
+    initial_dcs = dynamic_runtime_params_slice_provider(
+        t=0.0,
+    )
     static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(runtime_params)
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params,
+            source_runtime_params=source_models_builder.runtime_params,
+        )
     )
 
     sim_outputs = sim_lib.run_simulation(
@@ -319,6 +326,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
             dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
                 t=new_t,
             ),
+            static_runtime_params_slice=static_runtime_params_slice,
             geo=geometry_provider(new_t),
             core_profiles=input_state.core_profiles,  # no state evolution.
             source_models=self.stepper.source_models,
