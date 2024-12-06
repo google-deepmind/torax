@@ -1057,10 +1057,10 @@ def compute_boundary_conditions(
           ),
           right_face_constraint=(
             _psi_value_constraint_from_Vloop(
+              dt,
               dynamic_runtime_params_slice_t,
               core_profiles_t_minus_dt,
               geo,
-              dt,
             )
             if dynamic_runtime_params_slice_t.profile_conditions.Vloop_bound_right is not None
             else None
