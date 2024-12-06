@@ -111,7 +111,7 @@ class PlotData:
   q_ohmic: np.ndarray  # [MW/m^3]
   q_brems: np.ndarray  # [MW/m^3]
   q_ei: np.ndarray  # [MW/m^3]
-  q_imp: np.ndarray  # [MW/m^3]
+  q_rad: np.ndarray  # [MW/m^3]
   Q_fusion: np.ndarray  # pylint: disable=invalid-name  # Dimensionless
   s_puff: np.ndarray  # [10^20 m^-3 s^-1]
   s_generic: np.ndarray  # [10^20 m^-3 s^-1]
@@ -179,7 +179,7 @@ def load_data(filename: str) -> PlotData:
         'P_alpha_tot': 1e6,  # W to MW
         'P_brems': 1e6,  # W to MW
         'P_ecrh': 1e6,  # W to MW
-        'P_imp': 1e6,  # W to MW
+        'P_rad': 1e6,  # W to MW
         'I_ecrh': 1e6,  # A to MA
         'I_generic': 1e6,  # A to MA
     }
@@ -249,7 +249,7 @@ def load_data(filename: str) -> PlotData:
       q_brems=get_optional_data(
           core_sources_dataset, 'bremsstrahlung_heat_sink', 'cell'
       ),
-      q_imp=get_optional_data(
+      q_rad=get_optional_data(
           core_sources_dataset, 'impurity_radiation_heat_sink', 'cell'
       ),
       q_ei=core_sources_dataset['qei_source'].to_numpy(),  # ion heating/sink
@@ -269,7 +269,7 @@ def load_data(filename: str) -> PlotData:
           - post_processed_outputs_dataset['P_ohmic']
       ).to_numpy(),
       p_alpha=post_processed_outputs_dataset['P_alpha_tot'].to_numpy(),
-      p_sink=post_processed_outputs_dataset['P_brems'].to_numpy() + post_processed_outputs_dataset['P_imp'].to_numpy(),
+      p_sink=post_processed_outputs_dataset['P_brems'].to_numpy() + post_processed_outputs_dataset['P_rad'].to_numpy(),
       t=time,
   )
 

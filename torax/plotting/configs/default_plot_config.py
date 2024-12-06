@@ -145,8 +145,8 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('q_brems', 'q_imp'),
-            labels=(r'$Q_\mathrm{brems}$', r'$Q_\mathrm{imp}$'),
+            attrs=('q_brems', 'q_rad'),
+            labels=(r'$Q_\mathrm{brems}$', r'$Q_\mathrm{rad}$'),
             ylabel=r'Heat sink density $[MW~m^{-3}]$',
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
