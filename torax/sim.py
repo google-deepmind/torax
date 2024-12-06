@@ -503,6 +503,7 @@ class SimulationStepFn:
     # conditions and time-dependent prescribed profiles not directly solved by
     # PDE system.
     core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
+        dt=dt,
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
@@ -624,10 +625,11 @@ class SimulationStepFn:
       )
 
       core_profiles_t_plus_dt = provide_core_profiles_t_plus_dt(
-          core_profiles_t=core_profiles_t,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
+          core_profiles_t=core_profiles_t,
       )
       core_profiles, core_sources, core_transport, stepper_numeric_outputs = (
           self._stepper_fn(
@@ -1611,6 +1613,7 @@ def _update_psidot(
 
 
 def provide_core_profiles_t_plus_dt(
+    dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
@@ -1619,7 +1622,9 @@ def provide_core_profiles_t_plus_dt(
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
   updated_boundary_conditions = (
       core_profile_setters.compute_boundary_conditions(
+          dt,
           dynamic_runtime_params_slice_t_plus_dt,
+          core_profiles_t,
           geo_t_plus_dt,
       )
   )

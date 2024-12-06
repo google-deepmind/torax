@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for module torax.boundary_conditions."""
+"""Tests for module torax.core_profile_setters."""
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -494,8 +494,10 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        dynamic_runtime_params_slice,
-        self.geo,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+        core_profiles_t_minus_dt=None, # This test does not hit the conditional that requires this
+        geo=self.geo,
+        dt=runtime_params.numerics.fixed_dt,
     )
 
     if (ne_is_fGW and ne_bound_right is None) or (
@@ -590,8 +592,10 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        dynamic_runtime_params_slice,
-        self.geo,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+        core_profiles_t_minus_dt=None, # This test does not hit the conditional that requires this
+        geo=self.geo,
+        dt=runtime_params.numerics.fixed_dt,
     )
 
     self.assertEqual(
@@ -621,13 +625,13 @@ class CoreProfileSettersTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(
-        t=1.0,
-    )
+    dynamic_runtime_params_slice = provider(t=1.0)
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        dynamic_runtime_params_slice,
-        self.geo,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+        core_profiles_t_minus_dt=None, # This test does not hit the conditional that requires this
+        geo=self.geo,
+        dt=runtime_params.numerics.fixed_dt,
     )
 
     self.assertEqual(
