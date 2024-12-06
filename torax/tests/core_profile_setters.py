@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for module torax.boundary_conditions."""
+"""Tests for module torax.core_profile_setters."""
 
-import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
-
+import numpy as np
 from torax import core_profile_setters
 from torax import geometry
 from torax import physics
@@ -27,6 +26,7 @@ from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.transport_model import runtime_params as transport_params_lib
+
 
 SMALL_VALUE = 1e-6
 

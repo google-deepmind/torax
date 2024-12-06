@@ -14,15 +14,14 @@
 
 """Unit tests for the `torax.config.profile_conditions` module."""
 
-import numpy as np
-import xarray as xr
 from absl.testing import absltest
 from absl.testing import parameterized
-
+import numpy as np
 from torax import geometry
 from torax import interpolated_param
 from torax.config import config_args
 from torax.config import profile_conditions
+import xarray as xr
 
 
 # pylint: disable=invalid-name
@@ -250,6 +249,7 @@ class ProfileConditionsTest(parameterized.TestCase):
           Ti=values,
           Ti_bound_right=None,
       )
+
 
 if __name__ == '__main__':
   absltest.main()

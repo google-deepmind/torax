@@ -15,10 +15,9 @@
 """Tests for module torax.boundary_conditions."""
 
 
-import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
-
+import numpy as np
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry

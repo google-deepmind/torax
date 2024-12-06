@@ -607,18 +607,35 @@ def _init_psi_and_current(
       dynamic_runtime_params_slice.profile_conditions.Vloop_bound_right is not None
   )
 
-  # Retrieving psi from the profile conditions.
+  # Case 1: retrieving psi from the profile conditions.
   if dynamic_runtime_params_slice.profile_conditions.psi is not None:
-    # TODO: do we need to support the case where psi is given, but Vloop_bound_right
-    # is used to set the BC rather than Ip_tot?
-    psi = cell_variable.CellVariable(
+    # Calculate the dpsi/drho necessary to achieve the given Ip_tot
+    dpsi_drho_edge = _calculate_psi_grad_constraint_from_Ip_tot(
+          dynamic_runtime_params_slice,
+          geo,
+    )
+
+    # Set the psi BCs to ensure the correct Ip_tot
+    if use_Vloop_bound_right:
+      # Extrapolate using the dpsi/drho calculated above to set the psi value at the right face
+      psi = cell_variable.CellVariable(
         value=dynamic_runtime_params_slice.profile_conditions.psi,
-        right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip_tot(
-            dynamic_runtime_params_slice,
-            geo,
+        right_face_grad_constraint=None,
+        right_face_constraint=(
+          dynamic_runtime_params_slice.profile_conditions.psi[-1]
+          + dpsi_drho_edge * geo.drho / 2
         ),
         dr=geo.drho_norm,
-    )
+      )
+    else:
+      # Use the dpsi/drho calculated above as the right face gradient constraint
+      psi = cell_variable.CellVariable(
+        value=dynamic_runtime_params_slice.profile_conditions.psi,
+        right_face_grad_constraint=dpsi_drho_edge,
+        right_face_constraint=None,
+        dr=geo.drho_norm,
+      )
+
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
     currents = _calculate_currents_from_psi(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -626,7 +643,8 @@ def _init_psi_and_current(
         core_profiles=core_profiles,
         source_models=source_models,
     )
-  # Retrieving psi from the standard geometry input.
+
+  # Case 2: retrieving psi from the standard geometry input.
   elif (
       isinstance(geo, geometry.StandardGeometry)
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
@@ -634,31 +652,48 @@ def _init_psi_and_current(
     # psi is already provided from a numerical equilibrium, so no need to
     # first calculate currents. However, non-inductive currents are still
     # calculated and used in current diffusion equation.
+
+    # Calculate the dpsi/drho necessary to achieve the given Ip_tot
+    dpsi_drho_edge = _calculate_psi_grad_constraint_from_Ip_tot(
+          dynamic_runtime_params_slice,
+          geo,
+    )
+
+    # Set the psi BCs based on whether Vloop is provided and the source of Ip
+    if use_Vloop_bound_right and geo.Ip_from_parameters:
+      right_face_grad_constraint = None
+      right_face_constraint = geo.psi_from_Ip[-1] + dpsi_drho_edge * geo.drho / 2
+    elif use_Vloop_bound_right:
+      right_face_grad_constraint = None
+      right_face_constraint = geo.psi_from_Ip[-1]
+    else:
+      right_face_grad_constraint = dpsi_drho_edge
+      right_face_constraint = None
+
     psi = cell_variable.CellVariable(
-        value=geo.psi_from_Ip,
-        right_face_grad_constraint=_calculate_psi_grad_constraint_from_Ip_tot(
-            dynamic_runtime_params_slice,
-            geo,
-        )
-        if not use_Vloop_bound_right
-        else None,
-        right_face_constraint=geo.psi_from_Ip[-1]
-        if use_Vloop_bound_right
-        else None,
-        dr=geo.drho_norm,
+      value=geo.psi_from_Ip,  # Use psi from equilibrium
+      right_face_grad_constraint=right_face_grad_constraint,
+      right_face_constraint=right_face_constraint,
+      dr=geo.drho_norm,
     )
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
+    # Calculate non-inductive currents
     currents = _calculate_currents_from_psi(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
         source_models=source_models,
     )
-  # Calculating j according to nu formula and psi from j.
+
+  # Case 3: calculating j according to nu formula and psi from j.
   elif (
       isinstance(geo, geometry.CircularAnalyticalGeometry)
       or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
+    # TODO: Vloop_bound_right is not yet supported for this case.
+    if use_Vloop_bound_right:
+      raise NotImplementedError('Vloop_bound_right not yet supported for this case.')
+
     currents = _prescribe_currents_no_bootstrap(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,

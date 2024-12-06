@@ -28,16 +28,13 @@ from __future__ import annotations
 
 import dataclasses
 import time
-from typing import Any
-from typing import Optional
+from typing import Any, Optional
 
+from absl import logging
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-import xarray as xr
-from absl import logging
-
 from torax import calc_coeffs
 from torax import core_profile_setters
 from torax import geometry
@@ -60,6 +57,7 @@ from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
+import xarray as xr
 
 
 def _log_timestep(

@@ -20,13 +20,12 @@ import dataclasses
 import logging
 
 import chex
-from typing_extensions import override
-
 from torax import array_typing
 from torax import geometry
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
+from typing_extensions import override
 
 
 # pylint: disable=invalid-name

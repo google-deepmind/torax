@@ -23,7 +23,6 @@ import dataclasses
 
 import jax
 from jax import numpy as jnp
-
 from torax import constants
 from torax import core_profile_setters
 from torax import geometry
