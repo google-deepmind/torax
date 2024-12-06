@@ -281,11 +281,7 @@ def _prescribe_currents_no_bootstrap(
   # form of external current on face grid
   generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_generic_current_params,
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_runtime_params_slice.sources[
-          generic_current_source.SOURCE_NAME
-      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -312,7 +308,6 @@ def _prescribe_currents_no_bootstrap(
   jtot_hires = _get_jtot_hires(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
-      dynamic_generic_current_params,
       geo,
       bootstrap_profile,
       Iohm,
@@ -363,13 +358,7 @@ def _prescribe_currents_with_bootstrap(
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ],
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -389,11 +378,7 @@ def _prescribe_currents_with_bootstrap(
   # form of external current on face grid
   generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_generic_current_params,
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_runtime_params_slice.sources[
-          source_models.generic_current_source_name
-      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -424,7 +409,6 @@ def _prescribe_currents_with_bootstrap(
   jtot_hires = _get_jtot_hires(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
-      dynamic_generic_current_params,
       geo,
       bootstrap_profile,
       Iohm,
@@ -478,31 +462,16 @@ def _calculate_currents_from_psi(
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ],
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ],
       geo=geo,
       core_profiles=core_profiles,
-  )
-
-  # Calculate splitting of currents depending on input runtime params.
-  dynamic_generic_current_params = get_generic_current_params(
-      dynamic_runtime_params_slice, source_models
   )
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
   generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_generic_current_params,
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_runtime_params_slice.sources[
-          source_models.generic_current_source_name
-      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -994,7 +963,6 @@ def compute_boundary_conditions(
 def _get_jtot_hires(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_generic_current_params: generic_current_source.DynamicRuntimeParams,
     geo: Geometry,
     bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
     Iohm: jax.Array | float,
@@ -1008,11 +976,7 @@ def _get_jtot_hires(
   # calculate hi-res "External" current profile (e.g. ECCD) on cell grid.
   generic_current_hires = generic_current.generic_current_source_hires(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_generic_current_params,
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_runtime_params_slice.sources[
-          generic_current_source.SOURCE_NAME
-      ],
       geo=geo,
   )
 

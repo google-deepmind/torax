@@ -19,7 +19,7 @@ import functools
 import json
 import logging
 import os
-from typing import Any, Final, Sequence
+from typing import Any, ClassVar, Final, Sequence
 
 import chex
 import flax.linen as nn
@@ -41,8 +41,6 @@ from typing_extensions import override
 
 # Internal import.
 
-
-SOURCE_NAME: Final[str] = 'ion_cyclotron_source'
 # Environment variable for the TORIC NN model. Used if the model path
 # is not set in the config.
 _MODEL_PATH_ENV_VAR: Final[str] = 'TORIC_NN_MODEL_PATH'
@@ -358,10 +356,9 @@ def _helium3_tail_temperature(
 
 def _icrh_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     unused_source_models: source_models.SourceModels | None,
     toric_nn: ToricNNWrapper,
@@ -369,10 +366,12 @@ def _icrh_model_func(
   """Compute ion/electron heat source terms."""
   del (
       unused_source_models,
-      dynamic_runtime_params_slice,
-      static_source_runtime_params,
       static_runtime_params_slice,
   )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
+  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
   # Construct inputs for ToricNN.
   volume = integrate.trapezoid(geo.vpr_face, geo.rho_face_norm)
@@ -476,12 +475,15 @@ def _icrh_model_func(
   source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
 
   return jnp.stack([source_ion, source_el])
+
+
 # pylint: enable=invalid-name
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
+  SOURCE_NAME: ClassVar[str] = 'ion_cyclotron_source'
   # The model function is fixed to _icrh_model_func because that is the only
   # supported implementation of this source.
   # However, since this is a param in the parent dataclass, we need to (a)
@@ -494,6 +496,10 @@ class IonCyclotronSource(source.Source):
           toric_nn=ToricNNWrapper(),
       ),
   )
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:

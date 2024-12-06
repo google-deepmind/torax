@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
@@ -35,8 +36,6 @@ from torax.sources import source_models
 InterpolatedVarTimeRhoInput = (
     runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
 )
-
-SOURCE_NAME = "electron_cyclotron_source"
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -106,10 +105,9 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 def _calc_heating_and_current(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     unused_model_func: source_models.SourceModels,
 ) -> jax.Array:
@@ -120,11 +118,9 @@ def _calc_heating_and_current(
 
   Args:
     static_runtime_params_slice: Static runtime parameters.
-    static_source_runtime_params: Static runtime parameters.
     dynamic_runtime_params_slice: Global runtime parameters
-    dynamic_source_runtime_params: Specific runtime parameters for the
-      electron-cyclotron source.
     geo: Magnetic geometry.
+    source_name: Name of the source.
     core_profiles: CoreProfiles component of the state.
     unused_model_func: (unused) source models used in the simulation.
 
@@ -132,10 +128,12 @@ def _calc_heating_and_current(
     2D array of electron cyclotron heating power density and current density.
   """
   del (
-      static_source_runtime_params,
       unused_model_func,
       static_runtime_params_slice,
   )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   # Helps linter understand the type of dynamic_source_runtime_params.
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   # Construct the profile
@@ -187,8 +185,12 @@ def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
-
+  SOURCE_NAME: ClassVar[str] = "electron_cyclotron_source"
   model_func: source.SourceProfileFunction = _calc_heating_and_current
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:

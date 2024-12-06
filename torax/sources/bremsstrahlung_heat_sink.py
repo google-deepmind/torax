@@ -19,6 +19,7 @@
 """Bremsstrahlung heat sink for electron heat equation.."""
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
@@ -29,9 +30,6 @@ from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
-
-
-SOURCE_NAME = 'bremsstrahlung_heat_sink'
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -123,19 +121,20 @@ def calc_bremsstrahlung(
 
 def bremsstrahlung_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     unused_model_func: source_models.SourceModels | None,
 ) -> jax.Array:
   """Model function for the Bremsstrahlung heat sink."""
   del (
-      static_source_runtime_params,
       static_runtime_params_slice,
       unused_model_func,
   )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   _, P_brem_profile = calc_bremsstrahlung(
       core_profiles,
@@ -151,7 +150,12 @@ def bremsstrahlung_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
+  SOURCE_NAME: ClassVar[str] = 'bremsstrahlung_heat_sink'
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:

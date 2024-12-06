@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
+from typing import ClassVar, Optional
 
 import jax
 from jax import numpy as jnp
@@ -28,9 +28,6 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-
-
-SOURCE_NAME = 'fusion_heat_source'
 
 
 def calc_fusion(
@@ -122,20 +119,15 @@ def calc_fusion(
 # pytype: disable=name-error
 def fusion_heat_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Model function for fusion heating."""
   # pytype: enable=name-error
-  del (
-      dynamic_source_runtime_params,
-      static_source_runtime_params,
-      static_runtime_params_slice,
-  )  # Unused.
+  del static_runtime_params_slice, source_name  # Unused.
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
       geo, core_profiles, dynamic_runtime_params_slice.numerics.nref
@@ -147,7 +139,12 @@ def fusion_heat_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
+  SOURCE_NAME: ClassVar[str] = 'fusion_heat_source'
   model_func: source.SourceProfileFunction = fusion_heat_model_func
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
