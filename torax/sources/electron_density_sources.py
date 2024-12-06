@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
@@ -100,12 +101,10 @@ def _calc_puff_source(
   )
 
 
-GAS_PUFF_SOURCE_NAME = 'gas_puff_source'
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
+  SOURCE_NAME: ClassVar[str] = 'gas_puff_source'
   formula: source.SourceProfileFunction = _calc_puff_source
 
   @property
@@ -194,12 +193,10 @@ def _calc_generic_particle_source(
   )
 
 
-GENERIC_PARTICLE_SOURCE_NAME = 'generic_particle_source'
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
+  SOURCE_NAME: ClassVar[str] = 'generic_particle_source'
   formula: source.SourceProfileFunction = _calc_generic_particle_source
 
   @property
@@ -277,12 +274,10 @@ def _calc_pellet_source(
   )
 
 
-PELLET_SOURCE_NAME = 'pellet_source'
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class PelletSource(source.Source):
   """Pellet source for the ne equation."""
+  SOURCE_NAME: ClassVar[str] = 'pellet_source'
   formula: source.SourceProfileFunction = _calc_pellet_source
 
   @property

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
+from typing import ClassVar, Optional
 
 import chex
 import jax
@@ -30,9 +30,6 @@ from torax.config import runtime_params_slice
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-
-
-SOURCE_NAME = 'generic_ion_el_heat_source'
 # Many variables throughout this function are capitalized based on physics
 # notational conventions rather than on Google Python style
 # pylint: disable=invalid-name
@@ -151,6 +148,7 @@ def _default_formula(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
+  SOURCE_NAME: ClassVar[str] = 'generic_ion_el_heat_source'
   formula: source.SourceProfileFunction = _default_formula
 
   @property

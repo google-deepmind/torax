@@ -14,8 +14,11 @@
 """Ohmic heat source."""
 
 from __future__ import annotations
+
 import dataclasses
 import functools
+from typing import ClassVar
+
 import jax
 import jax.numpy as jnp
 from torax import constants
@@ -29,9 +32,6 @@ from torax.fvm import diffusion_terms
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
-
-
-SOURCE_NAME = 'ohmic_heat_source'
 
 
 @functools.partial(
@@ -190,6 +190,7 @@ class OhmicHeatSource(source_lib.Source):
 
   Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
   """
+  SOURCE_NAME: ClassVar[str] = 'ohmic_heat_source'
   # Users must pass in a pointer to the complete set of sources to this object.
   source_models: source_models_lib.SourceModels
   # The model function is fixed to ohmic_model_func because that is the only

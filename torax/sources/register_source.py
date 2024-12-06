@@ -97,52 +97,58 @@ def _register_new_source(
 
 
 _REGISTERED_SOURCES = {
-    bootstrap_current_source.SOURCE_NAME: _register_new_source(
-        source_class=bootstrap_current_source.BootstrapCurrentSource,
-        default_runtime_params_class=bootstrap_current_source.RuntimeParams,
+    bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME: (
+        _register_new_source(
+            source_class=bootstrap_current_source.BootstrapCurrentSource,
+            default_runtime_params_class=bootstrap_current_source.RuntimeParams,
+        )
     ),
-    generic_current_source.SOURCE_NAME: _register_new_source(
-        source_class=generic_current_source.GenericCurrentSource,
-        default_runtime_params_class=generic_current_source.RuntimeParams,
+    generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+        _register_new_source(
+            source_class=generic_current_source.GenericCurrentSource,
+            default_runtime_params_class=generic_current_source.RuntimeParams,
+        )
     ),
-    electron_cyclotron_source.SOURCE_NAME: _register_new_source(
+    electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: _register_new_source(
         source_class=electron_cyclotron_source.ElectronCyclotronSource,
         default_runtime_params_class=electron_cyclotron_source.RuntimeParams,
     ),
-    electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME: _register_new_source(
+    electron_density_sources.GenericParticleSource.SOURCE_NAME: _register_new_source(
         source_class=electron_density_sources.GenericParticleSource,
         default_runtime_params_class=electron_density_sources.GenericParticleSourceRuntimeParams,
     ),
-    electron_density_sources.GAS_PUFF_SOURCE_NAME: _register_new_source(
+    electron_density_sources.GasPuffSource.SOURCE_NAME: _register_new_source(
         source_class=electron_density_sources.GasPuffSource,
         default_runtime_params_class=electron_density_sources.GasPuffRuntimeParams,
     ),
-    electron_density_sources.PELLET_SOURCE_NAME: _register_new_source(
+    electron_density_sources.PelletSource.SOURCE_NAME: _register_new_source(
         source_class=electron_density_sources.PelletSource,
         default_runtime_params_class=electron_density_sources.PelletRuntimeParams,
     ),
-    ion_el_heat.SOURCE_NAME: _register_new_source(
+    ion_el_heat.GenericIonElectronHeatSource.SOURCE_NAME: _register_new_source(
         source_class=ion_el_heat.GenericIonElectronHeatSource,
         default_runtime_params_class=ion_el_heat.RuntimeParams,
     ),
-    fusion_heat_source.SOURCE_NAME: _register_new_source(
+    fusion_heat_source.FusionHeatSource.SOURCE_NAME: _register_new_source(
         source_class=fusion_heat_source.FusionHeatSource,
         default_runtime_params_class=fusion_heat_source.FusionHeatSourceRuntimeParams,
     ),
-    qei_source.SOURCE_NAME: _register_new_source(
+    qei_source.QeiSource.SOURCE_NAME: _register_new_source(
         source_class=qei_source.QeiSource,
         default_runtime_params_class=qei_source.RuntimeParams,
     ),
-    ohmic_heat_source.SOURCE_NAME: _register_new_source(
+    ohmic_heat_source.OhmicHeatSource.SOURCE_NAME: _register_new_source(
         source_class=ohmic_heat_source.OhmicHeatSource,
         default_runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
         links_back=True,
     ),
-    bremsstrahlung_heat_sink.SOURCE_NAME: _register_new_source(
-        source_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
-        default_runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
+    bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME: (
+        _register_new_source(
+            source_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
+            default_runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
+        )
     ),
-    ion_cyclotron_source.SOURCE_NAME: _register_new_source(
+    ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME: _register_new_source(
         source_class=ion_cyclotron_source.IonCyclotronSource,
         default_runtime_params_class=ion_cyclotron_source.RuntimeParams,
     ),
@@ -155,4 +161,3 @@ def get_registered_source(source_name: str) -> RegisteredSource:
     return _REGISTERED_SOURCES[source_name]
   else:
     raise RuntimeError(f'Source:{source_name} has not been registered.')
-

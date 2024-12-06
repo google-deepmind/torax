@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
+from typing import ClassVar, Optional
 
 import chex
 import jax
@@ -34,9 +34,6 @@ from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from typing_extensions import override
-
-
-SOURCE_NAME = 'generic_current_source'
 # pylint: disable=invalid-name
 
 
@@ -236,6 +233,7 @@ def _calculate_Iext(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
+  SOURCE_NAME: ClassVar[str] = 'generic_current_source'
   formula: source.SourceProfileFunction = _calculate_generic_current_face
   hires_formula: source.SourceProfileFunction = _calculate_generic_current_hires
 

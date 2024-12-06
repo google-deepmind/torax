@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
@@ -30,10 +31,7 @@ from torax.sources import source
 from torax.sources import source_profiles
 
 
-SOURCE_NAME = 'qei_source'
 # pylint: disable=invalid-name
-
-
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   # multiplier for ion-electron heat exchange term for sensitivity testing
@@ -72,6 +70,7 @@ class QeiSource(source.Source):
   This is a special-case source because it can provide both implicit and
   explicit terms in our solver. See sim.py for how this is used.
   """
+  SOURCE_NAME: ClassVar[str] = 'qei_source'
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
@@ -97,9 +96,9 @@ class QeiSource(source.Source):
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
-    self.check_mode(static_runtime_params_slice.sources[SOURCE_NAME].mode)
+    self.check_mode(static_runtime_params_slice.sources[self.SOURCE_NAME].mode)
     return jax.lax.cond(
-        static_runtime_params_slice.sources[SOURCE_NAME].mode
+        static_runtime_params_slice.sources[self.SOURCE_NAME].mode
         == runtime_params_lib.Mode.MODEL_BASED.value,
         lambda: _model_based_qei(
             static_runtime_params_slice,

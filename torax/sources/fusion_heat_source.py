@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
+from typing import ClassVar, Optional
 
 import jax
 from jax import numpy as jnp
@@ -28,9 +28,6 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-
-
-SOURCE_NAME = 'fusion_heat_source'
 
 
 def calc_fusion(
@@ -147,6 +144,7 @@ def fusion_heat_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
+  SOURCE_NAME: ClassVar[str] = 'fusion_heat_source'
   model_func: source.SourceProfileFunction = fusion_heat_model_func
 
   @property

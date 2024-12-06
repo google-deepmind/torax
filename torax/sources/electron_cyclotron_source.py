@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
@@ -35,8 +36,6 @@ from torax.sources import source_models
 InterpolatedVarTimeRhoInput = (
     runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
 )
-
-SOURCE_NAME = "electron_cyclotron_source"
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -187,7 +186,7 @@ def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
-
+  SOURCE_NAME: ClassVar[str] = "electron_cyclotron_source"
   model_func: source.SourceProfileFunction = _calc_heating_and_current
 
   @property

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
@@ -32,9 +33,6 @@ from torax.fvm import cell_variable
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
-
-
-SOURCE_NAME = 'j_bootstrap'
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -91,6 +89,7 @@ class BootstrapCurrentSource(source.Source):
   - bootstrap current (on cell and face grids)
   - total integrated bootstrap current
   """
+  SOURCE_NAME: ClassVar[str] = 'j_bootstrap'
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
@@ -167,7 +166,7 @@ class BootstrapCurrentSource(source.Source):
   ) -> jax.Array:
     return jnp.where(
         affected_core_profile in self.affected_core_profiles_ints,
-        profile[SOURCE_NAME],
+        profile[self.SOURCE_NAME],
         jnp.zeros_like(geo.rho),
     )
 

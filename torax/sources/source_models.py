@@ -503,7 +503,8 @@ class SourceModels:
     if self._generic_current is None:
       self._generic_current = generic_current_source.GenericCurrentSource()
       self._add_standard_source(
-          generic_current_source.SOURCE_NAME, self._generic_current
+          generic_current_source.GenericCurrentSource.SOURCE_NAME,
+          self._generic_current,
       )
 
     # Then add all the "standard" sources.
@@ -590,7 +591,7 @@ class SourceModels:
 
   @property
   def j_bootstrap_name(self) -> str:
-    return bootstrap_current_source.SOURCE_NAME
+    return bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
 
   @property
   def generic_current_source(
@@ -603,7 +604,7 @@ class SourceModels:
 
   @property
   def generic_current_source_name(self) -> str:
-    return generic_current_source.SOURCE_NAME
+    return generic_current_source.GenericCurrentSource.SOURCE_NAME
 
   @property
   def qei_source(self) -> qei_source_lib.QeiSource:
@@ -613,7 +614,7 @@ class SourceModels:
 
   @property
   def qei_source_name(self) -> str:
-    return qei_source_lib.SOURCE_NAME
+    return qei_source_lib.QeiSource.SOURCE_NAME
 
   @property
   def psi_sources(self) -> dict[str, source_lib.Source]:
@@ -693,54 +694,53 @@ class SourceModelsBuilder:
     source_builders = source_builders or {}
 
     # Validate that these sources are found
-    bootstrap_found = (
-        False
-        if bootstrap_current_source.SOURCE_NAME not in source_builders
-        else True
-    )
-    qei_found = (
-        False if qei_source_lib.SOURCE_NAME not in source_builders else True
-    )
-    generic_current_found = (
-        False
-        if generic_current_source.SOURCE_NAME not in source_builders
-        else True
-    )
-
+    bootstrap_found = qei_found = generic_current_found = False
+    if (
+        bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
+        in source_builders
+    ):
+      bootstrap_found = True
+    if qei_source_lib.QeiSource.SOURCE_NAME in source_builders:
+      qei_found = True
+    if (
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+        in source_builders
+    ):
+      generic_current_found = True
     # These are special sources that must be present for every TORAX run.
     # If these sources are missing, we need to include builders for them.
     # We also ZERO out these sources if they are not explicitly provided.
     # The SourceModels would also build them, but then there'd be no
     # user-editable runtime params for them.
     if not bootstrap_found:
-      source_builders[bootstrap_current_source.SOURCE_NAME] = (
-          source_lib.make_source_builder(
-              bootstrap_current_source.BootstrapCurrentSource,
-              runtime_params_type=bootstrap_current_source.RuntimeParams,
-          )()
-      )
       source_builders[
-          bootstrap_current_source.SOURCE_NAME
+          bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
+      ] = source_lib.make_source_builder(
+          bootstrap_current_source.BootstrapCurrentSource,
+          runtime_params_type=bootstrap_current_source.RuntimeParams,
+      )()
+      source_builders[
+          bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
       ].runtime_params.mode = runtime_params_lib.Mode.ZERO
     if not qei_found:
-      source_builders[qei_source_lib.SOURCE_NAME] = (
+      source_builders[qei_source_lib.QeiSource.SOURCE_NAME] = (
           source_lib.make_source_builder(
               qei_source_lib.QeiSource,
               runtime_params_type=qei_source_lib.RuntimeParams,
           )()
       )
-      source_builders[qei_source_lib.SOURCE_NAME].runtime_params.mode = (
-          runtime_params_lib.Mode.ZERO
-      )
-    if not generic_current_found:
-      source_builders[generic_current_source.SOURCE_NAME] = (
-          source_lib.make_source_builder(
-              generic_current_source.GenericCurrentSource,
-              runtime_params_type=generic_current_source.RuntimeParams,
-          )()
-      )
       source_builders[
-          generic_current_source.SOURCE_NAME
+          qei_source_lib.QeiSource.SOURCE_NAME
+      ].runtime_params.mode = runtime_params_lib.Mode.ZERO
+    if not generic_current_found:
+      source_builders[
+          generic_current_source.GenericCurrentSource.SOURCE_NAME
+      ] = source_lib.make_source_builder(
+          generic_current_source.GenericCurrentSource,
+          runtime_params_type=generic_current_source.RuntimeParams,
+      )()
+      source_builders[
+          generic_current_source.GenericCurrentSource.SOURCE_NAME
       ].runtime_params.mode = runtime_params_lib.Mode.ZERO
 
     self.source_builders = source_builders

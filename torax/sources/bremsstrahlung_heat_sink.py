@@ -19,6 +19,7 @@
 """Bremsstrahlung heat sink for electron heat equation.."""
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
@@ -29,9 +30,6 @@ from torax.config import runtime_params_slice
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
-
-
-SOURCE_NAME = 'bremsstrahlung_heat_sink'
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -151,6 +149,7 @@ def bremsstrahlung_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
+  SOURCE_NAME: ClassVar[str] = 'bremsstrahlung_heat_sink'
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func
 
   @property

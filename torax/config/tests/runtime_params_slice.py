@@ -185,20 +185,20 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources={
-              electron_density_sources.GAS_PUFF_SOURCE_NAME: (
+              electron_density_sources.GasPuffSource.SOURCE_NAME: (
                   electron_density_sources.GasPuffRuntimeParams(
                       puff_decay_length={0.0: 0.0, 1.0: 4.0},
                       S_puff_tot={0.0: 0.0, 1.0: 5.0},
                   )
               ),
-              electron_density_sources.PELLET_SOURCE_NAME: (
+              electron_density_sources.PelletSource.SOURCE_NAME: (
                   electron_density_sources.PelletRuntimeParams(
                       pellet_width={0.0: 0.0, 1.0: 1.0},
                       pellet_deposition_location={0.0: 0.0, 1.0: 2.0},
                       S_pellet_tot={0.0: 0.0, 1.0: 3.0},
                   )
               ),
-              electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME: (
+              electron_density_sources.GenericParticleSource.SOURCE_NAME: (
                   electron_density_sources.GenericParticleSourceRuntimeParams(
                       particle_width={0.0: 0.0, 1.0: 6.0},
                       deposition_location={0.0: 0.0, 1.0: 7.0},
@@ -210,12 +210,14 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       )(
           t=0.5,
       )
-      pellet_source = dcs.sources[electron_density_sources.PELLET_SOURCE_NAME]
+      pellet_source = dcs.sources[
+          electron_density_sources.PelletSource.SOURCE_NAME
+      ]
       gas_puff_source = dcs.sources[
-          electron_density_sources.GAS_PUFF_SOURCE_NAME
+          electron_density_sources.GasPuffSource.SOURCE_NAME
       ]
       generic_particle_source = dcs.sources[
-          electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME
+          electron_density_sources.GenericParticleSource.SOURCE_NAME
       ]
       assert isinstance(
           pellet_source,
@@ -247,7 +249,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources={
-              electron_density_sources.GAS_PUFF_SOURCE_NAME: (
+              electron_density_sources.GasPuffSource.SOURCE_NAME: (
                   sources_params_lib.RuntimeParams(
                       formula=formula_config.Exponential(
                           total={0.0: 0.0, 1.0: 1.0},
@@ -262,7 +264,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           t=0.25,
       )
       gas_puff_source = dcs.sources[
-          electron_density_sources.GAS_PUFF_SOURCE_NAME
+          electron_density_sources.GasPuffSource.SOURCE_NAME
       ]
       assert isinstance(
           gas_puff_source.formula,
@@ -277,7 +279,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources={
-              electron_density_sources.GAS_PUFF_SOURCE_NAME: (
+              electron_density_sources.GasPuffSource.SOURCE_NAME: (
                   sources_params_lib.RuntimeParams(
                       formula=formula_config.Gaussian(
                           total={0.0: 0.0, 1.0: 1.0},
@@ -292,7 +294,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           t=0.25,
       )
       gas_puff_source = dcs.sources[
-          electron_density_sources.GAS_PUFF_SOURCE_NAME
+          electron_density_sources.GasPuffSource.SOURCE_NAME
       ]
       assert isinstance(gas_puff_source.formula, formula_config.DynamicGaussian)
       np.testing.assert_allclose(gas_puff_source.formula.total, 0.25)
@@ -306,7 +308,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={
-            generic_current_source.SOURCE_NAME: (
+            generic_current_source.GenericCurrentSource.SOURCE_NAME: (
                 generic_current_source.RuntimeParams(wext={0.0: 1.0, 1.0: -1.0})
             ),
         },
@@ -317,7 +319,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     dcs = dcs_provider(
         t=0.0,
     )
-    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    generic_current = dcs.sources[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ]
     assert isinstance(
         generic_current, generic_current_source.DynamicRuntimeParams
     )
@@ -326,7 +330,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     dcs = dcs_provider(
         t=0.5,
     )
-    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    generic_current = dcs.sources[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ]
     assert isinstance(
         generic_current, generic_current_source.DynamicRuntimeParams
     )
@@ -501,7 +507,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params[
-        generic_current_source.SOURCE_NAME
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
     ].Iext = 1.0
     geo = geometry.build_circular_geometry(n_rho=4)
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
@@ -517,7 +523,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
     # Update an interpolated variable.
     source_models_builder.runtime_params[
-        generic_current_source.SOURCE_NAME
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
     ].Iext = 2.0
 
     # Check pre-update that nothing has changed.
@@ -526,7 +532,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     for key in source_models_builder.runtime_params.keys():
       self.assertIn(key, dcs.sources)
-    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    generic_current = dcs.sources[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ]
     assert isinstance(
         generic_current, generic_current_source.DynamicRuntimeParams
     )
@@ -543,7 +551,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     for key in source_models_builder.runtime_params.keys():
       self.assertIn(key, dcs.sources)
-    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    generic_current = dcs.sources[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ]
     assert isinstance(
         generic_current, generic_current_source.DynamicRuntimeParams
     )

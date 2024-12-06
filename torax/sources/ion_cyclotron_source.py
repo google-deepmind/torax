@@ -19,7 +19,7 @@ import functools
 import json
 import logging
 import os
-from typing import Any, Final, Sequence
+from typing import Any, ClassVar, Final, Sequence
 
 import chex
 import flax.linen as nn
@@ -41,8 +41,6 @@ from typing_extensions import override
 
 # Internal import.
 
-
-SOURCE_NAME: Final[str] = 'ion_cyclotron_source'
 # Environment variable for the TORIC NN model. Used if the model path
 # is not set in the config.
 _MODEL_PATH_ENV_VAR: Final[str] = 'TORIC_NN_MODEL_PATH'
@@ -482,6 +480,7 @@ def _icrh_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
+  SOURCE_NAME: ClassVar[str] = 'ion_cyclotron_source'
   # The model function is fixed to _icrh_model_func because that is the only
   # supported implementation of this source.
   # However, since this is a param in the parent dataclass, we need to (a)

@@ -284,7 +284,7 @@ def _prescribe_currents_no_bootstrap(
       dynamic_source_runtime_params=dynamic_generic_current_params,
       static_runtime_params_slice=static_runtime_params_slice,
       static_source_runtime_params=static_runtime_params_slice.sources[
-          generic_current_source.SOURCE_NAME
+          generic_current_source.GenericCurrentSource.SOURCE_NAME
       ],
       geo=geo,
       core_profiles=core_profiles,
@@ -1011,7 +1011,7 @@ def _get_jtot_hires(
       dynamic_source_runtime_params=dynamic_generic_current_params,
       static_runtime_params_slice=static_runtime_params_slice,
       static_source_runtime_params=static_runtime_params_slice.sources[
-          generic_current_source.SOURCE_NAME
+          generic_current_source.GenericCurrentSource.SOURCE_NAME
       ],
       geo=geo,
   )
