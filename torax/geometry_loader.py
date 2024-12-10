@@ -80,22 +80,13 @@ def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
   return eqdsk_data.__dict__  # dict(eqdsk_data)
 
 
-def _load_IMAS_data_from_Data_entry(file_path: str) -> dict[str, np.ndarray]:
-  """Loads the equilibrium IDS for a single time slice from a specific data entry / scenario using the IMAS Access Layer"""
+def _load_IMAS_data_from_netCDF(file_path: str) -> dict[str, np.ndarray]:
+  """Loads the equilibrium IDS for a single time slice from an IMAS netCDF file path"""
   import imaspy
-  file = open(file_path, 'r')
-  scenario = yaml.load(file,Loader=yaml.CLoader)
-  file.close()
-  if scenario['scenario_backend'] == 'hdf5':
-        sc_backend = imaspy.ids_defs.HDF5_BACKEND
-  else:
-      sc_backend = imaspy.ids_defs.MDSPLUS_BACKEND
-  input = imaspy.DBEntry(sc_backend,scenario['input_database'],scenario['shot'],scenario['run_in'],scenario['input_user_or_path'])
-  input.open()
-  timenow = scenario['time_begin']
-  IMAS_data = input.get_slice('equilibrium',timenow,1)
+  input = imaspy.DBEntry(file_path, "r")
+  equilibrium_ids = input.get('equilibrium')
 
-  return IMAS_data
+  return equilibrium_ids
 
 
 def load_geo_data(
@@ -122,6 +113,6 @@ def load_geo_data(
     case GeometrySource.EQDSK:
       return _load_eqdsk_data(file_path=filepath)
     case GeometrySource.IMAS:
-      return _load_IMAS_data_from_Data_entry(file_path=filepath)
+      return _load_IMAS_data_from_netCDF(file_path=filepath)
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')
