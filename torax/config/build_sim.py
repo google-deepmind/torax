@@ -88,11 +88,7 @@ def _build_standard_geometry_provider(
   elif geometry_type == 'eqdsk':
     intermediate_builder = geometry.StandardGeometryIntermediates.from_eqdsk
   elif geometry_type == 'imas':
-    #Check if the equilibrium is directly given or needs to be read from a Data entry
-    if 'equilibrium' in kwargs:
       intermediate_builder = geometry.StandardGeometryIntermediates.from_IMAS
-    else:
-      intermediate_builder = geometry.StandardGeometryIntermediates.from_IMAS_Data_entry
   else:
     raise ValueError(f'Unknown geometry type: {geometry_type}')
   if 'geometry_configs' in kwargs:
@@ -156,6 +152,7 @@ def build_geometry_provider_from_config(
    -  "circular"
    -  "chease"
    -  "fbt"
+   -  "imas"
 
   Depending on the `geometry_type` given, there are different keys/values
   expected in the rest of the config. See the following functions to get a full
@@ -164,6 +161,7 @@ def build_geometry_provider_from_config(
    -  `geometry.build_circular_geometry()`
    -  `geometry.StandardGeometryIntermediates.from_chease()`
    -  `geometry.StandardGeometryIntermediates.from_fbt()`
+   -  'geometry.StandardGeometryIntermediates.from_imas()'
 
    For time dependent geometries, the input config should have a key
   `geometry_configs` which maps times to a dict of geometry config args.

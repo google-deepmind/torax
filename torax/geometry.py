@@ -1377,44 +1377,10 @@ class StandardGeometryIntermediates:
     )
 
   @classmethod
-  def from_IMAS_Data_entry(
-      cls,
-      geometry_dir: str | None = None,
-      Ip_from_parameters: bool = True,
-      n_rho: int = 25,
-      hires_fac: int = 4,
-      Scenario: str = "scenario.yaml",
-  ) -> StandardGeometryIntermediates:
-    """Returns StandardGeometryIntermediates from a equilibrium IDS loaded from a Data Entry specified in a scenario.yaml file.
-
-    This method is for cases when the equilibrium is taken from an existing scenario. A single time slice is taken.
-
-    Args:
-      geometry_dir: Directory where to find the scenario file ontaining the parameters of the Data entry to read.
-        If None, uses the environment variable TORAX_GEOMETRY_DIR if
-        available. If that variable is not set and geometry_dir is not provided,
-        then it defaults to another dir. See `load_geo_data` implementation.
-      Scenario: File name for the scenario parameters.
-      Ip_from_parameters: If True, then Ip is taken from the config and the
-        values in the Geometry are rescaled
-      n_rho: Grid resolution used for all TORAX cell variables.
-      hires_fac: Grid refinement factor for poloidal flux <--> plasma current
-        calculations.
-
-    Returns:
-      A StandardGeometryIntermediates instance based on the input slice. This
-      can then be used to build a StandardGeometry by passing to
-      `build_standard_geometry`.
-    """
-    equilibrium = geometry_loader.load_geo_data(
-        geometry_dir, Scenario, geometry_loader.GeometrySource.IMAS
-    )
-    return cls.from_IMAS(equilibrium, Ip_from_parameters, n_rho, hires_fac)
-
-  @classmethod
   def from_IMAS(
       cls,
-      equilibrium,
+      equilibrium_object: str | Mapping[str, np.ndarray],
+      geometry_dir: str | None = None,
       Ip_from_parameters: bool = False,
       n_rho: int = 25,
       hires_fac: int = 4,
@@ -1422,7 +1388,11 @@ class StandardGeometryIntermediates:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
 
     Args:
-      equilibrium: Equilbrium IDS containing the relevant data.
+      equilibrium_object: Either directly the equilbrium IDS containing the relevant data, or the name of the IMAS netCDF file containing the equilibrium.
+      geometry_dir: Directory where to find the scenario file ontaining the parameters of the Data entry to read.
+        If None, uses the environment variable TORAX_GEOMETRY_DIR if
+        available. If that variable is not set and geometry_dir is not provided,
+        then it defaults to another dir. See `load_geo_data` implementation.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
         values in the Geometry are resacled to match the new Ip.
       n_rho: Radial grid points (num cells)
@@ -1433,6 +1403,13 @@ class StandardGeometryIntermediates:
       A StandardGeometry instance based on the input file. This can then be
       used to build a StandardGeometry by passing to `build_standard_geometry`.
     """
+    #If the equilibrium_object is the file name, loads the ids from the netCDF.
+    if isinstance(equilibrium_object, str):
+      equilibrium = geometry_loader.load_geo_data(geometry_dir, equilibrium_object, geometry_loader.GeometrySource.IMAS)
+    elif isinstance(equilibrium_object, Mapping):
+      equilibrium = equilibrium_object
+    else:
+      raise ValueError('equilibrium_object must be a string (file path) or an IDS')
     IMAS_data = equilibrium.time_slice[0]
 
     B0 = np.abs(IMAS_data.global_quantities.magnetic_axis.b_field_tor)
