@@ -21,11 +21,11 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-import torax  # useful for setting up jax properly.
 from torax import core_profile_setters
 from torax import geometry
+from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
-from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -51,9 +51,9 @@ class FooSource(source_lib.Source):
     return source_lib.get_ion_el_output_shape
 
   @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
+  def supported_modes(self) -> tuple[source_runtime_params_lib.Mode, ...]:
     return (
-        runtime_params_lib.Mode.FORMULA_BASED,
+        source_runtime_params_lib.Mode.FORMULA_BASED,
     )
 
 
@@ -75,8 +75,8 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
-    runtime_params = torax.GeneralRuntimeParams()
-    geo = torax.build_circular_geometry()
+    runtime_params = runtime_params_lib.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     dynamic_runtime_params_slice = (
@@ -125,7 +125,7 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
     """Test that sum_sources_temp_{ion|el} works with jitting."""
-    geo = torax.build_circular_geometry()
+    geo = geometry.build_circular_geometry()
 
     # Use the default sources where the generic_ion_el_heat_source,
     # fusion_heat_source, and ohmic_heat_source are included and produce
@@ -198,14 +198,14 @@ class SourceProfilesTest(parameterized.TestCase):
     )
     # Set the source mode to FORMULA.
     foo_source_builder.runtime_params.mode = (
-        runtime_params_lib.Mode.FORMULA_BASED
+        source_runtime_params_lib.Mode.FORMULA_BASED
     )
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {source_name: foo_source_builder},
     )
     source_models = source_models_builder()
-    runtime_params = torax.GeneralRuntimeParams()
-    geo = torax.build_circular_geometry()
+    runtime_params = runtime_params_lib.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,

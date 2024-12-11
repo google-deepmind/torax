@@ -21,6 +21,10 @@ import chex
 from jax import numpy as jnp
 import numpy as np
 import torax
+from torax import fvm
+from torax import geometry
+from torax import geometry_provider as geometry_provider_lib
+from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -30,18 +34,13 @@ from torax.transport_model import runtime_params as transport_model_params
 
 _GEO_DIRECTORY = 'torax/data/third_party/geo'
 
-# It's best to import the parent `torax` package because that has the
-# __init__ file that configures jax to float64
-fvm = torax.fvm
-geometry = torax.geometry
-
 
 @chex.dataclass(frozen=True)
 class References:
   """Collection of reference values useful for unit tests."""
 
   runtime_params: general_runtime_params.GeneralRuntimeParams
-  geometry_provider: torax.GeometryProvider
+  geometry_provider: geometry_provider_lib.GeometryProvider
   psi: fvm.cell_variable.CellVariable
   psi_face_grad: np.ndarray
   jtot: np.ndarray
@@ -51,13 +50,13 @@ class References:
 
 def build_consistent_dynamic_runtime_params_slice_and_geometry(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
-    geometry_provider: torax.GeometryProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
     sources: dict[str, sources_params.RuntimeParams] | None = None,
     t: chex.Numeric | None = None,
 ) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
   """Builds a consistent Geometry and a DynamicRuntimeParamsSlice."""
   t = runtime_params.numerics.t_initial if t is None else t
-  return torax.get_consistent_dynamic_runtime_params_slice_and_geometry(
+  return sim_lib.get_consistent_dynamic_runtime_params_slice_and_geometry(
       t,
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params,
@@ -215,7 +214,7 @@ def circular_references() -> References:
   ])
   return References(
       runtime_params=runtime_params,
-      geometry_provider=torax.ConstantGeometryProvider(geo),
+      geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
       jtot=jtot,
@@ -370,7 +369,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
   ])
   return References(
       runtime_params=runtime_params,
-      geometry_provider=torax.ConstantGeometryProvider(geo),
+      geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
       jtot=jtot,
@@ -525,7 +524,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
   ])
   return References(
       runtime_params=runtime_params,
-      geometry_provider=torax.ConstantGeometryProvider(geo),
+      geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
       jtot=jtot,
@@ -539,6 +538,7 @@ class ReferenceValueTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
+    torax.set_jax_precision()
     # Some pre-calculated reference values are used in more than one test.
     # These are loaded here.
     self.circular_references = circular_references()

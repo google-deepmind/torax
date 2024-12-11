@@ -24,12 +24,14 @@ from typing import Optional, Sequence
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-import torax
+from torax import geometry
+from torax import geometry_provider
 from torax import output
 from torax import sim as sim_lib
 from torax import state
 from torax.config import build_sim as build_sim_lib
 from torax.config import numerics as numerics_lib
+from torax.config import runtime_params as runtime_params_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.spectators import spectator as spectator_lib
@@ -464,7 +466,7 @@ class SimTest(sim_test_case.SimTestCase):
   def test_no_op(self):
     """Tests that running the stepper with all equations off is a no-op."""
 
-    runtime_params = torax.general_runtime_params.GeneralRuntimeParams(
+    runtime_params = runtime_params_lib.GeneralRuntimeParams(
         numerics=numerics_lib.Numerics(
             t_final=0.1,
             ion_heat_eq=False,
@@ -474,8 +476,8 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
-    geo_provider = torax.ConstantGeometryProvider(
-        torax.build_circular_geometry()
+    geo_provider = geometry_provider.ConstantGeometryProvider(
+        geometry.build_circular_geometry()
     )
 
     sim = sim_lib.build_sim_object(

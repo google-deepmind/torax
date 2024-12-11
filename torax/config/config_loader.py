@@ -17,8 +17,10 @@
 import importlib
 import logging
 from typing import Any
-import torax
+
+from torax import sim
 from torax.config import build_sim
+from torax.config import runtime_params
 
 # Tracks all the modules imported so far. Maps the name to the module object.
 _ALL_MODULES = {}
@@ -28,7 +30,7 @@ def build_sim_and_runtime_params_from_config_module(
     config_module_str: str,
     qlknn_model_path: str | None,
     config_package: str | None = None,
-) -> tuple[torax.Sim, torax.GeneralRuntimeParams]:
+) -> tuple[sim.Sim, runtime_params.GeneralRuntimeParams]:
   """Returns a Sim and RuntimeParams from the config module.
 
   Args:
@@ -48,7 +50,7 @@ def build_sim_and_runtime_params_from_config_module(
     new_runtime_params = build_sim.build_runtime_params_from_config(
         config['runtime_params']
     )
-    sim = build_sim.build_sim_from_config(config)
+    simulator = build_sim.build_sim_from_config(config)
   elif hasattr(config_module, 'get_runtime_params') and hasattr(
       config_module, 'get_sim'
   ):
@@ -57,13 +59,13 @@ def build_sim_and_runtime_params_from_config_module(
     if qlknn_model_path is not None:
       logging.warning('Cannot override qlknn model for this type of config.')
     new_runtime_params = config_module.get_runtime_params()
-    sim = config_module.get_sim()
+    simulator = config_module.get_sim()
   else:
     raise ValueError(
         f'Config module {config_module_str} must either define a get_sim() '
         'method or a CONFIG dictionary.'
     )
-  return sim, new_runtime_params
+  return simulator, new_runtime_params
 
 
 def maybe_update_config_with_qlknn_model_path(
