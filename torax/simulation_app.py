@@ -175,8 +175,6 @@ def update_sim(
   #  - spectator
   #  - time step calculator
   #  - source objects (runtime params are updated)
-  # TODO(b/323504363): change this to take a geometry provider instead of a
-  # geometry object.
 
   _update_source_params(sim, source_runtime_params)
   static_runtime_params_slice = (
