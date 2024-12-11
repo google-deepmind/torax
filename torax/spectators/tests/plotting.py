@@ -16,9 +16,9 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import torax  # We want this import to make sure jax gets set to float64
 from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
+from torax import sim
 from torax.config import numerics as numerics_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.pedestal_model import set_tped_nped
@@ -75,7 +75,7 @@ def _run_sim_with_sources(
     geometry_provider: geometry_provider_lib.GeometryProvider,
     observer: spectator.Spectator,
 ):
-  torax.build_sim_object(
+  sim.build_sim_object(
       runtime_params=runtime_params,
       geometry_provider=geometry_provider,
       stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
@@ -93,7 +93,7 @@ def _run_sim_without_sources(
     geometry_provider: geometry_provider_lib.GeometryProvider,
     observer: spectator.Spectator,
 ):
-  torax.build_sim_object(
+  sim.build_sim_object(
       runtime_params=runtime_params,
       geometry_provider=geometry_provider,
       stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),

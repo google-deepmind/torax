@@ -21,12 +21,12 @@ from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 import numpy as np
-import torax
 from torax import output
 from torax import sim as sim_lib
 from torax import simulation_app
 from torax.config import build_sim
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.tests import test_lib
 from torax.tests.test_lib import paths
 from torax.time_step_calculator import array_time_step_calculator
@@ -136,7 +136,7 @@ class SimTestCase(parameterized.TestCase):
       names = ['t']
       for profile_name, ref_profile in ref_profiles.items():
         torax_var_history = core_profiles[profile_name]
-        if isinstance(torax_var_history, torax.CellVariable):
+        if isinstance(torax_var_history, cell_variable.CellVariable):
           actual_value_history = torax_var_history.value
         else:
           actual_value_history = torax_var_history

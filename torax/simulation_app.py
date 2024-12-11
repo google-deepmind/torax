@@ -60,10 +60,12 @@ from typing import Callable, Final
 from absl import logging
 import jax
 from matplotlib import pyplot as plt
-import torax
+from torax import geometry
 from torax import geometry_provider
 from torax import output
 from torax import sim as sim_lib
+from torax import state
+from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax.sources import runtime_params as source_runtime_params_lib
@@ -125,7 +127,7 @@ def write_simulation_output_to_file(
 
 
 def _log_single_state(
-    core_profiles: torax.CoreProfiles,
+    core_profiles: state.CoreProfiles,
     t: float | jax.Array,
 ) -> None:
   log_to_stdout('At time t = %.4f\n' % float(t), color=AnsiColors.GREEN)
@@ -139,8 +141,8 @@ def _log_single_state(
 
 
 def log_simulation_output_to_stdout(
-    core_profile_history: torax.CoreProfiles,
-    geo: torax.Geometry,
+    core_profile_history: state.CoreProfiles,
+    geo: geometry.Geometry,
     t: jax.Array,
 ) -> None:
   del geo
@@ -161,7 +163,7 @@ def _get_output_dir(
 
 def update_sim(
     sim: sim_lib.Sim,
-    runtime_params: torax.GeneralRuntimeParams,
+    runtime_params: runtime_params_lib.GeneralRuntimeParams,
     geo_provider: geometry_provider.GeometryProvider,
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
