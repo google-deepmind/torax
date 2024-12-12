@@ -60,6 +60,7 @@ TEMP_ION_RIGHT_BC = "temp_ion_right_bc"
 PSI = "psi"
 PSIDOT = "psidot"
 PSI_RIGHT_GRAD_BC = "psi_right_grad_bc"
+PSI_RIGHT_BC = "psi_right_bc"
 NE = "ne"
 NE_RIGHT_BC = "ne_right_bc"
 NI = "ni"
@@ -195,9 +196,9 @@ class StateHistory:
     post_processed_output = [
         state.post_processed_outputs for state in sim_outputs.sim_history
     ]
-    stack = lambda *ys: jnp.stack(ys)
+    stack = lambda *ys: jnp.stack(jnp.array(ys))
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
-        stack, *core_profiles
+        stack, *core_profiles, is_leaf=lambda x: x is None,
     )
     self.core_sources: source_profiles.SourceProfiles = jax.tree_util.tree_map(
         stack, *core_sources
@@ -262,6 +263,9 @@ class StateHistory:
     xr_dict[PSI] = self.core_profiles.psi.value
     xr_dict[PSI_RIGHT_GRAD_BC] = (
         self.core_profiles.psi.right_face_grad_constraint
+    )
+    xr_dict[PSI_RIGHT_BC] = (
+        self.core_profiles.psi.right_face_constraint
     )
     xr_dict[PSIDOT] = self.core_profiles.psidot.value
     xr_dict[NE] = self.core_profiles.ne.value
