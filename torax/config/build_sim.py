@@ -14,7 +14,7 @@
 
 """Functions to build sim.Sim objects, which are used to run TORAX."""
 
-from collections.abc import MutableMapping
+from collections.abc import Mapping
 import copy
 from typing import Any
 
@@ -140,7 +140,7 @@ def _build_circular_geometry_provider(
 
 
 def build_geometry_provider_from_config(
-    geometry_config: dict[str, Any],
+    geometry_config: Mapping[str, Any],
 ) -> geometry_provider.GeometryProvider:
   """Builds a `Geometry` from the input config.
 
@@ -173,7 +173,7 @@ def build_geometry_provider_from_config(
     raise ValueError('geometry_type must be set in the input config.')
   # Do a shallow copy to keep references to the original objects while not
   # modifying the original config dict with the pop-statement below.
-  kwargs = copy.copy(geometry_config)
+  kwargs = dict(geometry_config)
   geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
   if geometry_type == 'circular':
     return _build_circular_geometry_provider(**kwargs)
@@ -187,7 +187,7 @@ def build_geometry_provider_from_config(
 
 
 def build_sim_from_config(
-    config: MutableMapping[str, Any],
+    config: Mapping[str, Any],
 ) -> sim_lib.Sim:
   """Builds a sim.Sim object from the given TORAX config.
 
@@ -293,7 +293,7 @@ def build_sim_from_config(
 
 
 def build_runtime_params_from_config(
-    general_runtime_params_config: dict[str, Any],
+    general_runtime_params_config: Mapping[str, Any],
 ) -> runtime_params_lib.GeneralRuntimeParams:
   """Builds `GeneralRuntimeParams` from the input config.
 
