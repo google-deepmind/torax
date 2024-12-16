@@ -27,6 +27,7 @@ from torax.sources import ion_cyclotron_source
 from torax.sources import ohmic_heat_source
 from torax.sources import qei_source
 from torax.sources import register_source
+from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 
 
@@ -50,8 +51,19 @@ class SourceTest(parameterized.TestCase):
     """Test that all sources in the registry build successfully."""
     registered_source = register_source.get_registered_source(source_name)
     source_class = registered_source.source_class
-    source_runtime_params_class = registered_source.default_runtime_params_class
-    source_builder_class = registered_source.source_builder_class
+    model_function = registered_source.model_functions[
+        register_source.DEFAULT_MODEL_FUNCTION_NAME
+    ]
+    source_builder_class = model_function.source_builder_class
+    source_runtime_params_class = model_function.runtime_params_class
+    if source_builder_class is None:
+      source_builder_class = source_lib.make_source_builder(
+          registered_source.source_class,
+          runtime_params_type=source_runtime_params_class,
+          links_back=model_function.links_back,
+          model_func=model_function.source_profile_function,
+      )
+    source_runtime_params_class = model_function.runtime_params_class
     source_builder = source_builder_class()
     self.assertIsInstance(
         source_builder.runtime_params, source_runtime_params_class
