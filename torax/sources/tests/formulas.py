@@ -52,7 +52,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
     # original puff source.
 
     # For this test, use test_particle_sources_constant with the linear stepper.
-    custom_source_name = 'custom_exponential_source'
+    custom_source_name = 'foo'
 
     # Copy the test_particle_sources_constant config in here for clarity.
     test_particle_sources_constant_runtime_params = general_runtime_params.GeneralRuntimeParams(
