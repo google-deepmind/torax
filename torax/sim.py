@@ -35,7 +35,6 @@ import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import calc_coeffs
 from torax import core_profile_setters
 from torax import geometry
 from torax import geometry_provider as geometry_provider_lib
@@ -47,7 +46,6 @@ from torax import state
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.fvm import cell_variable
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
@@ -106,77 +104,6 @@ def get_consistent_dynamic_runtime_params_slice_and_geometry(
       dynamic_runtime_params_slice, geo
   )
   return dynamic_runtime_params_slice, geo
-
-
-class CoeffsCallback:
-  """Implements fvm.Block1DCoeffsCallback using calc_coeffs.
-
-  Attributes:
-    static_runtime_params_slice: See the docstring for `stepper.Stepper`.
-    transport_model: See the docstring for `stepper.Stepper`.
-    explicit_source_profiles: See the docstring for `stepper.Stepper`.
-    source_models: See the docstring for `stepper.Stepper`.
-    evolving_names: The names of the evolving variables.
-    pedestal_model: See the docstring for `stepper.Stepper`.
-  """
-
-  def __init__(
-      self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      transport_model: transport_model_lib.TransportModel,
-      explicit_source_profiles: source_profiles_lib.SourceProfiles,
-      source_models: source_models_lib.SourceModels,
-      evolving_names: tuple[str, ...],
-      pedestal_model: pedestal_model_lib.PedestalModel,
-  ):
-    self.static_runtime_params_slice = static_runtime_params_slice
-    self.transport_model = transport_model
-    self.explicit_source_profiles = explicit_source_profiles
-    self.source_models = source_models
-    self.evolving_names = evolving_names
-    self.pedestal_model = pedestal_model
-
-  def __call__(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      x: tuple[cell_variable.CellVariable, ...],
-      allow_pereverzev: bool = False,
-      # Checks if reduced calc_coeffs for explicit terms when theta_imp=1
-      # should be called
-      explicit_call: bool = False,
-  ):
-    replace = {k: v for k, v in zip(self.evolving_names, x)}
-    core_profiles = config_args.recursive_replace(core_profiles, **replace)
-    # update ion density in core_profiles if ne is being evolved.
-    # Necessary for consistency in iterative nonlinear solutions
-    if 'ne' in self.evolving_names:
-      ni, nimp = core_profile_setters._updated_ion_density(
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles.ne,
-      )
-      core_profiles = dataclasses.replace(core_profiles, ni=ni, nimp=nimp)
-
-    if allow_pereverzev:
-      use_pereverzev = self.static_runtime_params_slice.stepper.use_pereverzev
-    else:
-      use_pereverzev = False
-
-    return calc_coeffs.calc_coeffs(
-        static_runtime_params_slice=self.static_runtime_params_slice,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        core_profiles=core_profiles,
-        transport_model=self.transport_model,
-        explicit_source_profiles=self.explicit_source_profiles,
-        source_models=self.source_models,
-        evolving_names=self.evolving_names,
-        use_pereverzev=use_pereverzev,
-        explicit_call=explicit_call,
-        pedestal_model=self.pedestal_model,
-    )
 
 
 class SimulationStepFn:
