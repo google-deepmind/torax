@@ -179,43 +179,6 @@ class CoeffsCallback:
     )
 
 
-class FrozenCoeffsCallback(CoeffsCallback):
-  """CoeffsCallback that returns the same coefficients each time.
-
-  NOTE: This class is mainly used for testing. It will ignore any time-dependent
-  runtime configuration parameters, so it can yield incorrect results.
-  """
-
-  def __init__(self, *args, **kwargs):
-    if 'dynamic_runtime_params_slice' not in kwargs:
-      raise ValueError('dynamic_runtime_params_slice must be provided.')
-    dynamic_runtime_params_slice = kwargs.pop('dynamic_runtime_params_slice')
-    geo = kwargs.pop('geo')
-    core_profiles = kwargs.pop('core_profiles')
-    super().__init__(*args, **kwargs)
-    x = tuple([core_profiles[name] for name in self.evolving_names])
-    self.frozen_coeffs = super().__call__(
-        dynamic_runtime_params_slice,
-        geo,
-        core_profiles,
-        x,
-        allow_pereverzev=False,
-        explicit_call=False,
-    )
-
-  def __call__(
-      self,
-      dynamic_runtime_params_slice,
-      geo,
-      core_profiles,
-      x,
-      allow_pereverzev=False,
-      explicit_call=False,
-  ):
-
-    return self.frozen_coeffs
-
-
 class SimulationStepFn:
   """Advances the TORAX simulation one time step.
 
