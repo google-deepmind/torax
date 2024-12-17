@@ -30,12 +30,11 @@ from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 
 
-def _radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
+def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> jax.Array:
@@ -46,37 +45,30 @@ def _radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
 
   Args:
     static_runtime_params_slice: Static runtime parameters.
-    static_source_runtime_params: Static source runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters.
-    dynamic_source_runtime_params: Dynamic source runtime parameters.
     geo: Geometry object.
+    source_name: Name of the source.
     core_profiles: Core profiles object.
     source_models: Source models object.
 
   Returns:
     The heat sink profile.
   """
-  del (static_source_runtime_params,)  # Unused
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
   # Based on source_models.sum_sources_temp_el and source_models.calc_and_sum
   # sources_psi, but only summing over heating *input* sources
   # (Pohm + Paux + Palpha + ...) and summing over *both* ion + electron heating
 
-  def get_heat_source_profile(
-      source_name: str, source: source_lib.Source
-  ) -> jax.Array:
+  def get_heat_source_profile(source: source_lib.Source) -> jax.Array:
     # TODO(b/381543891): Currently this recomputes the profile for each source,
     # which is inefficient. Refactor to avoid this.
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            source_name
-        ],
         static_runtime_params_slice=static_runtime_params_slice,
-        static_source_runtime_params=static_runtime_params_slice.sources[
-            source_name
-        ],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -95,7 +87,6 @@ def _radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
   }
   source_profiles = jax.tree.map(
       get_heat_source_profile,
-      list(heat_sources.keys()),
       list(heat_sources.values()),
   )
   Qtot_in = jnp.sum(jnp.stack(source_profiles), axis=0)
@@ -150,8 +141,12 @@ class ImpurityRadiationHeatSink(source_lib.Source):
   SOURCE_NAME = "impurity_radiation_heat_sink"
   source_models: source_models_lib.SourceModels
   model_func: source_lib.SourceProfileFunction = (
-      _radially_constant_fraction_of_Pin
+      radially_constant_fraction_of_Pin
   )
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
