@@ -35,7 +35,6 @@ from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
-from torax.stepper import runtime_params as stepper_runtime_params
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import transport_model as transport_model_lib
@@ -71,64 +70,32 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry()
     geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
     transport_builder = FakeTransportModelBuilder()
-    transport = FakeTransportModel()
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    source_models = source_models_builder()
     pedestal_model_builder = (
         set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
     )
-    pedestal_model = pedestal_model_builder()
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
-    stepper = FakeStepper(
-        param='Ti_bound_right',
-        max_value=2.5,
-        transport_model=transport,
-        source_models=source_models,
-        pedestal_model=pedestal_model,
-        inner_solver_iterations=inner_solver_iterations,
-    )
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
-    sim_step_fn = sim_lib.SimulationStepFn(
-        stepper,
-        time_calculator,
-        transport_model=transport,
-        pedestal_model=pedestal_model,
-    )
-    dynamic_runtime_params_slice_provider = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            transport=transport_builder.runtime_params,
-            sources=source_models_builder.runtime_params,
-            stepper=stepper_runtime_params.RuntimeParams(),
-            torax_mesh=geo.torax_mesh,
-            pedestal=pedestal_model_builder.runtime_params,
-        )
-    )
-    initial_dynamic_runtime_params_slice = (
-        dynamic_runtime_params_slice_provider(
-            t=runtime_params.numerics.t_initial,
-        )
-    )
-    input_state = sim_lib.get_initial_state(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
-        ),
-        dynamic_runtime_params_slice=initial_dynamic_runtime_params_slice,
-        geo=geo,
-        time_step_calculator=time_calculator,
-        source_models=source_models,
-        step_fn=sim_step_fn,
-    )
-    output_state = sim_step_fn(
-        static_runtime_params_slice=runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
-        ),
-        dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+    sim = sim_lib.build_sim_object(
+        runtime_params=runtime_params,
         geometry_provider=geometry_provider,
-        input_state=input_state,
+        stepper_builder=FakeStepperBuilder(
+            param='Ti_bound_right',
+            max_value=2.5,
+            inner_solver_iterations=inner_solver_iterations,
+        ),
+        transport_model_builder=transport_builder,
+        source_models_builder=source_models_builder,
+        pedestal_model_builder=pedestal_model_builder,
+        time_step_calculator=time_calculator,
+    )
+    sim_step_fn = sim.step_fn
+    output_state = sim_step_fn(
+        static_runtime_params_slice=sim.static_runtime_params_slice,
+        dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
+        geometry_provider=sim.geometry_provider,
+        input_state=sim.initial_state,
     )
     # The initial step will not work, so it should take several adaptive time
     # steps to get under the Ti_bound_right threshold set above if adaptive_dt
@@ -147,6 +114,30 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         output_state.core_sources.qei.qei_coef, expected_combined_value
+    )
+
+
+@dataclasses.dataclass(kw_only=True)
+class FakeStepperBuilder(stepper_lib.StepperBuilder):
+  """Builds a FakeStepper."""
+
+  param: str
+  max_value: float
+  inner_solver_iterations: list[int] | None
+
+  def __call__(
+      self,
+      transport_model: transport_model_lib.TransportModel,
+      source_models: source_models_lib.SourceModels,
+      pedestal_model: pedestal_model_lib.PedestalModel,
+  ):
+    return FakeStepper(
+        param=self.param,
+        max_value=self.max_value,
+        transport_model=transport_model,
+        source_models=source_models,
+        pedestal_model=pedestal_model,
+        inner_solver_iterations=self.inner_solver_iterations,
     )
 
 
