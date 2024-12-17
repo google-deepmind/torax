@@ -655,8 +655,6 @@ def get_initial_state(
   )
 
 
-# This class is read-only but not a frozen dataclass to allow us to set the
-# SimulationStepFn attribute lazily when run() is called.
 class Sim:
   """A lightweight object holding all components of a simulation.
 
@@ -740,9 +738,6 @@ class Sim:
 
   @property
   def source_models(self) -> source_models_lib.SourceModels:
-    if self._step_fn is None:
-      assert self._stepper is not None
-      return self._stepper.source_models
     return self._step_fn.stepper.source_models
 
   def run(
@@ -768,14 +763,6 @@ class Sim:
       Tuple of all ToraxSimStates, one per time step and an additional one at
       the beginning for the starting state.
     """
-    if self._step_fn is None:
-      self._step_fn = SimulationStepFn(
-          stepper=self._stepper,
-          time_step_calculator=self.time_step_calculator,
-          transport_model=self._transport_model,
-          pedestal_model=self._pedestal_model,
-      )
-    assert self.step_fn
     if spectator is not None:
       spectator.reset()
     return run_simulation(
