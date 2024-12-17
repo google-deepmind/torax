@@ -70,7 +70,8 @@ _LOG_SIM_PROGRESS = flags.DEFINE_bool(
 _PLOT_SIM_PROGRESS = flags.DEFINE_bool(
     'plot_progress',
     False,
-    'If true, plots the time of each timestep as the simulation runs.',
+    'If true, plots the time of each timestep as the simulation runs.'
+    ' Note: this is temporarily disabled.',
 )
 
 _LOG_SIM_OUTPUT = flags.DEFINE_bool(

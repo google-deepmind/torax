@@ -50,7 +50,6 @@ from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
-from torax.spectators import spectator as spectator_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
@@ -743,7 +742,6 @@ class Sim:
   def run(
       self,
       log_timestep_info: bool = False,
-      spectator: spectator_lib.Spectator | None = None,
   ) -> output.ToraxSimOutputs:
     """Runs the transport simulation over a prescribed time interval.
 
@@ -751,20 +749,11 @@ class Sim:
 
     Args:
       log_timestep_info: See `run_simulation()`.
-      spectator: If a SimulationStepFn has not yet been built for this Sim
-        object (if it was not passed in __init__ or this object has never been
-        run), then it will be built in this call, and this spectator will be
-        built into it. If the SimulationStepFn has already been built, then this
-        argument is ignored and the spectator built into the SimulationStepFn
-        cannot change. In these cases where you want to use a new spectator, you
-        must build a new Sim object.
 
     Returns:
       Tuple of all ToraxSimStates, one per time step and an additional one at
       the beginning for the starting state.
     """
-    if spectator is not None:
-      spectator.reset()
     return run_simulation(
         static_runtime_params_slice=self.static_runtime_params_slice,
         dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
@@ -773,7 +762,6 @@ class Sim:
         time_step_calculator=self.time_step_calculator,
         step_fn=self.step_fn,
         log_timestep_info=log_timestep_info,
-        spectator=spectator,
     )
 
 
@@ -1005,7 +993,6 @@ def run_simulation(
     time_step_calculator: ts.TimeStepCalculator,
     step_fn: SimulationStepFn,
     log_timestep_info: bool = False,
-    spectator: spectator_lib.Spectator | None = None,
 ) -> output.ToraxSimOutputs:
   """Runs the transport simulation over a prescribed time interval.
 
@@ -1046,8 +1033,6 @@ def run_simulation(
       ToraxSimState objects.
     log_timestep_info: If True, logs basic timestep info, like time, dt, on
       every step.
-    spectator: Object which can "spectate" values as the simulation runs. See
-      the Spectator class docstring for more details.
 
   Returns:
     ToraxSimOutputs, containing information on the sim error state, and the
@@ -1080,10 +1065,6 @@ def run_simulation(
           geometry_provider,
       )
   )
-  if spectator is not None:
-    # Because of the updates we apply to the core sources during the next
-    # iteration, we need to start the spectator before step here.
-    spectator.before_step()
 
   sim_state = initial_state
 
@@ -1120,14 +1101,6 @@ def run_simulation(
           logging.info(
               'Solver converged only within coarse tolerance in previous step.'
           )
-    # Make sure to "spectate" the state after the source profiles  have been
-    # merged and updated in the output sim_state.
-    if spectator is not None:
-      _update_spectator(spectator, sim_state)
-      # This is after the previous time step's step_fn() call.
-      spectator.after_step()
-      # Now prep the spectator for the following time step.
-      spectator.before_step()
 
     if first_step:
       # Initialize the sim_history with the initial state.
@@ -1176,10 +1149,6 @@ def run_simulation(
       explicit_source_profiles=explicit_source_profiles,
       implicit_source_profiles=sim_state.core_sources,
   )
-  if spectator is not None:
-    # Complete the last time step.
-    _update_spectator(spectator, sim_state)
-    spectator.after_step()
 
   # If the first step of the simulation was very long, call it out. It might
   # have to do with tracing the jitted step_fn.
@@ -1210,73 +1179,6 @@ def run_simulation(
   )
   return output.ToraxSimOutputs(
       sim_error=sim_error, sim_history=tuple(sim_history)
-  )
-
-
-def _update_spectator(
-    spectator: spectator_lib.Spectator,
-    output_state: state.ToraxSimState,
-) -> None:
-  """Updates the spectator with values from the output state."""
-  spectator.observe(key='q_face', data=output_state.core_profiles.q_face)
-  spectator.observe(key='s_face', data=output_state.core_profiles.s_face)
-  spectator.observe(key='ne', data=output_state.core_profiles.ne.value)
-  spectator.observe(
-      key='temp_ion',
-      data=output_state.core_profiles.temp_ion.value,
-  )
-  spectator.observe(
-      key='temp_el',
-      data=output_state.core_profiles.temp_el.value,
-  )
-  spectator.observe(
-      key='j_bootstrap_face',
-      data=output_state.core_profiles.currents.j_bootstrap_face,
-  )
-  spectator.observe(
-      key='johm',
-      data=output_state.core_profiles.currents.johm,
-  )
-  spectator.observe(
-      key='generic_current_source',
-      data=output_state.core_profiles.currents.generic_current_source,
-  )
-  spectator.observe(
-      key='jtot_face',
-      data=output_state.core_profiles.currents.jtot_face,
-  )
-  spectator.observe(
-      key='chi_face_ion', data=output_state.core_transport.chi_face_ion
-  )
-  spectator.observe(
-      key='chi_face_el', data=output_state.core_transport.chi_face_el
-  )
-  spectator.observe(
-      key='Qext_i',
-      data=output_state.core_sources.get_profile(
-          'generic_ion_el_heat_source_ion'
-      ),
-  )
-  spectator.observe(
-      key='Qext_e',
-      data=output_state.core_sources.get_profile(
-          'generic_ion_el_heat_source_el'
-      ),
-  )
-  spectator.observe(
-      key='Qfus_i',
-      data=output_state.core_sources.get_profile('fusion_heat_source_ion'),
-  )
-  spectator.observe(
-      key='Qfus_e',
-      data=output_state.core_sources.get_profile('fusion_heat_source_el'),
-  )
-  spectator.observe(
-      key='Qohm',
-      data=output_state.core_sources.get_profile('ohmic_heat_source'),
-  )
-  spectator.observe(
-      key='Qei', data=output_state.core_sources.get_profile('qei_source')
   )
 
 

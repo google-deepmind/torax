@@ -34,9 +34,7 @@ from torax.config import numerics as numerics_lib
 from torax.config import runtime_params as runtime_params_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
-from torax.spectators import spectator as spectator_lib
 from torax.stepper import linear_theta_method
-from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
@@ -521,40 +519,6 @@ class SimTest(sim_test_case.SimTestCase):
                 f'Diff: {profile_history[i] - first_profile}\n'
             )
             raise AssertionError(msg)
-
-  @parameterized.named_parameters(
-      (
-          'implicit_update',
-          linear_theta_method.LinearThetaMethodBuilder,
-      ),
-      (
-          'explicit_update',
-          explicit_stepper.ExplicitStepperBuilder,
-      ),
-  )
-  def test_observers_update_during_runs(self, stepper_builder_constructor):
-    """Verify that the observer's state is updated after the simulation run."""
-    stepper_builder = stepper_builder_constructor()
-    # Load config structure.
-    config_module = self._get_config_module('test_explicit.py')
-    runtime_params = config_module.get_runtime_params()
-    geo_provider = config_module.get_geometry_provider()
-
-    time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
-    spectator = spectator_lib.InMemoryJaxArraySpectator()
-    sim = sim_lib.build_sim_object(
-        runtime_params=runtime_params,
-        geometry_provider=geo_provider,
-        stepper_builder=stepper_builder,
-        transport_model_builder=config_module.get_transport_model_builder(),
-        source_models_builder=config_module.get_sources_builder(),
-        time_step_calculator=time_step_calculator,
-        pedestal_model_builder=config_module.get_pedestal_model_builder(),
-    )
-    sim.run(
-        spectator=spectator,
-    )
-    self.assertNotEmpty(spectator.arrays)
 
   # pylint: disable=invalid-name
   @parameterized.product(

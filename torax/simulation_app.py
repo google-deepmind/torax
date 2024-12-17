@@ -59,7 +59,6 @@ from typing import Callable, Final
 
 from absl import logging
 import jax
-from matplotlib import pyplot as plt
 from torax import geometry
 from torax import geometry_provider
 from torax import output
@@ -69,7 +68,6 @@ from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax.sources import runtime_params as source_runtime_params_lib
-from torax.spectators import plotting
 from torax.stepper import runtime_params as stepper_runtime_params_lib
 from torax.transport_model import runtime_params as transport_runtime_params_lib
 import xarray as xr
@@ -279,30 +277,15 @@ def main(
   sim = get_sim()
   geo = sim.geometry_provider(sim.initial_state.t)
 
-  spectator = None
-  if plot_sim_progress:
-    if can_plot():
-      plt.ion()
-      spectator = plotting.PlotSpectator(
-          plots=plotting.get_default_plot_config(geo=geo),
-          pyplot_figure_kwargs=dict(
-              figsize=(12, 6),
-          ),
-      )
-      plt.show()
-    else:
-      logging.warning(
-          'plotting requested, but there is no display connected to show the '
-          'plot.'
-      )
-
   log_to_stdout('Starting simulation.', color=AnsiColors.GREEN)
   sim_outputs = sim.run(
       log_timestep_info=log_sim_progress,
-      spectator=spectator,
   )
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
   state_history = output.StateHistory(sim_outputs, sim.source_models)
+
+  if plot_sim_progress:
+    raise NotImplementedError('Plotting progress is temporarily disabled.')
 
   data_tree = state_history.simulation_output_to_xr(geo, sim.file_restart)
 
