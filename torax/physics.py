@@ -23,6 +23,7 @@ import dataclasses
 import chex
 import jax
 from jax import numpy as jnp
+
 from torax import array_typing
 from torax import constants
 from torax import geometry
@@ -406,6 +407,23 @@ def _calculate_lambda_ei(
     Coulomb logarithm.
   """
   return 15.2 - 0.5 * jnp.log(ne / 1e20) + jnp.log(temp_el)
+
+def _calculate_lambda_ee(
+    temp_el: jax.Array,
+    ne: jax.Array,
+) -> jax.Array:
+  """Calculates Coulomb logarithm for electron-ion collisions.
+
+  See Wesson 3rd edition p727.
+
+  Args:
+    temp_el: Electron temperature in keV.
+    ne: Electron density in m^-3.
+
+  Returns:
+    Coulomb logarithm.
+  """
+  return 14.9 - 0.5 * jnp.log(ne / 1e20) + jnp.log(temp_el)
 
 
 def fast_ion_fractional_heating_formula(
