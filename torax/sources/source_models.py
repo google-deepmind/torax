@@ -69,15 +69,11 @@ def build_source_profiles(
   """
   # Bootstrap current is a special-case source with multiple outputs, so handle
   # it here.
-  dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
-      source_models.j_bootstrap_name
-  ]
   static_bootstrap_runtime_params = static_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
   bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
       static_runtime_params_slice=static_runtime_params_slice,
       static_source_runtime_params=static_bootstrap_runtime_params,
       geo=geo,
@@ -106,7 +102,6 @@ def _build_bootstrap_profiles(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     j_bootstrap_source: bootstrap_current_source.BootstrapCurrentSource,
@@ -122,8 +117,6 @@ def _build_bootstrap_profiles(
       bootstrap current source that do not change from time step to time step.
     dynamic_runtime_params_slice: Input config for this time step. Can change
       from time step to time step.
-    dynamic_source_runtime_params: Input runtime parameters for this time step,
-      specific to the bootstrap current source.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
@@ -141,9 +134,7 @@ def _build_bootstrap_profiles(
   """
   bootstrap_profile = j_bootstrap_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_source_runtime_params,
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_source_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -240,9 +231,6 @@ def _build_standard_source_profiles(
   affected_core_profiles_set = set(affected_core_profiles)
   for source_name, source in source_models.standard_sources.items():
     if affected_core_profiles_set.intersection(source.affected_core_profiles):
-      dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-          source_name
-      ]
       static_source_runtime_params = static_runtime_params_slice.sources[
           source_name
       ]
@@ -253,9 +241,7 @@ def _build_standard_source_profiles(
           ),
           source.get_value(
               static_runtime_params_slice,
-              static_source_runtime_params,
               dynamic_runtime_params_slice,
-              dynamic_source_runtime_params,
               geo,
               core_profiles,
           ),
@@ -359,15 +345,11 @@ def calc_and_sum_sources_psi(
         affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
         geo=geo,
     )
-  dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
-      source_models.j_bootstrap_name
-  ]
   static_bootstrap_runtime_params = static_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
   j_bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
       static_runtime_params_slice=static_runtime_params_slice,
       static_source_runtime_params=static_bootstrap_runtime_params,
       geo=geo,

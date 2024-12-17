@@ -38,6 +38,10 @@ class FooSource(source_lib.Source):
   """A test source."""
 
   @property
+  def source_name(self) -> str:
+    return 'foo'
+
+  @property
   def affected_core_profiles(
       self,
   ) -> tuple[source_lib.AffectedCoreProfile, ...]:
@@ -177,10 +181,9 @@ class SourceProfilesTest(parameterized.TestCase):
 
     def foo_formula(
         unused_dcs,
-        unused_sc,
         unused_static_runtime_params_slice,
-        unused_static_source_runtime_params,
         geo: geometry.Geometry,
+        unused_source_name: str,
         unused_state,
         unused_source_models,
     ):
