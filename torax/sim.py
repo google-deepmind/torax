@@ -71,22 +71,6 @@ def _log_timestep(
   )
 
 
-def _log_sim_error(sim_error: state.SimError) -> None:
-  """Logs simulation error."""
-  if sim_error == state.SimError.NAN_DETECTED:
-    logging.error("""
-        Simulation stopped due to NaNs in core profiles.
-        Possible cause is negative temperatures or densities.
-        Output file contains all profiles up to the last valid step.
-        """)
-  elif sim_error == state.SimError.QUASINEUTRALITY_BROKEN:
-    logging.error("""
-        Simulation stopped due to quasineutrality being violated.
-        Possible cause is bad handling of impurity species.
-        Output file contains all profiles up to the last valid step.
-        """)
-
-
 def get_consistent_dynamic_runtime_params_slice_and_geometry(
     t: chex.Numeric,
     dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
@@ -1176,7 +1160,7 @@ def run_simulation(
     # simulation history to the user for inspection.
     sim_error = sim_state.check_for_errors()
     if sim_error != state.SimError.NO_ERROR:
-      _log_sim_error(sim_error)
+      sim_error.log_error()
       break
     else:
       sim_history.append(sim_state)

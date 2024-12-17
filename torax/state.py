@@ -20,6 +20,7 @@ import dataclasses
 import enum
 from typing import Any, Optional
 
+from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
@@ -456,6 +457,25 @@ class SimError(enum.Enum):
   NO_ERROR = 0
   NAN_DETECTED = 1
   QUASINEUTRALITY_BROKEN = 2
+
+  def log_error(self):
+    match self:
+      case SimError.NAN_DETECTED:
+        logging.error("""
+            Simulation stopped due to NaNs in core profiles.
+            Possible cause is negative temperatures or densities.
+            Output file contains all profiles up to the last valid step.
+            """)
+      case SimError.QUASINEUTRALITY_BROKEN:
+        logging.error("""
+            Simulation stopped due to quasineutrality being violated.
+            Possible cause is bad handling of impurity species.
+            Output file contains all profiles up to the last valid step.
+            """)
+      case SimError.NO_ERROR:
+        pass
+      case _:
+        raise ValueError(f"Unknown SimError: {self}")
 
 
 @chex.dataclass
