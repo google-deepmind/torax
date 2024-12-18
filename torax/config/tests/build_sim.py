@@ -366,7 +366,7 @@ class BuildSimTest(parameterized.TestCase):
     # pytype: enable=attribute-error
     self.assertEqual(
         source_models_builder.runtime_params['gas_puff_source'].mode,
-        source_runtime_params_lib.Mode.FORMULA_BASED,  # On by default.
+        source_runtime_params_lib.Mode.MODEL_BASED,  # On by default.
     )
     self.assertEqual(
         source_models_builder.runtime_params['ohmic_heat_source'].mode,
