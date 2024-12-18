@@ -284,11 +284,8 @@ not need to be JAX-compatible, since explicit sources are an input into the PDE 
 and do not require JIT compilation. Conversely, implicit treatment can be important for accurately
 resolving the impact of fast-evolving source terms.
 
-All sources can optionally be set to zero, prescribed with non-physics-based formulas
-(currently Gaussian or exponential) with user-configurable time-dependent parameters like
-amplitude, width, and location, or calculated with a dedicated physics-based model. Not
-all sources currently have a model implementation. However, the code modular structure
-facilitates easy coupling of additional source models in future work. Specifics of source models
+All sources can optionally be set to zero, prescribed with explicit values or calculated with a dedicated physics-based model.
+However, the code modular structure facilitates easy coupling of additional source models in future work. Specifics of source models
 currently implemented in TORAX follow:
 
 Ion-electron heat exchange
