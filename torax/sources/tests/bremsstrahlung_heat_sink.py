@@ -41,6 +41,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
+        source_name=bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
     )
 
   @parameterized.parameters([

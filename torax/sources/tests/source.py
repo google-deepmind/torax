@@ -44,12 +44,21 @@ class PsiTestSource(source_lib.Source):
   def affected_core_profiles(self):
     return (source_lib.AffectedCoreProfile.PSI,)
 
+  @property
+  def source_name(self) -> str:
+    return 'foo'
+
 
 PsiTestSourceBuilder = source_lib.make_source_builder(PsiTestSource)
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
 class IonElTestSource(source_lib.Source):
+  """Test source that affects ion and electron profiles."""
+
+  @property
+  def source_name(self) -> str:
+    return 'foo'
 
   @property
   def affected_core_profiles(self):
@@ -193,11 +202,7 @@ class SourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            'foo'
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -211,6 +216,10 @@ class SourceTest(parameterized.TestCase):
 
     class TestSource(source_lib.Source):
       """A test source."""
+
+      @property
+      def source_name(self) -> str:
+        return 'foo'
 
       @property
       def affected_core_profiles(
@@ -256,11 +265,7 @@ class SourceTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-              'foo'
-          ],
           static_runtime_params_slice=static_slice,
-          static_source_runtime_params=static_slice.sources['foo'],
           geo=geo,
           core_profiles=core_profiles,
       )
@@ -281,10 +286,10 @@ class SourceTest(parameterized.TestCase):
     source = source_models.sources['foo']
     source = dataclasses.replace(
         source,
-        model_func=lambda _0, _1, _2, _3, _4, _5, _6: jnp.ones(
+        model_func=lambda _0, _1, _2, _3, _4, _5: jnp.ones(
             source_lib.ProfileType.CELL.get_profile_shape(geo)
         ),
-        formula=lambda _0, _1, _2, _3, _4, _5, _6: jnp.ones(
+        formula=lambda _0, _1, _2, _3, _4, _5: jnp.ones(
             source_lib.ProfileType.CELL.get_profile_shape(geo)
         )
         * 2,
@@ -318,11 +323,7 @@ class SourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            'foo'
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -372,11 +373,7 @@ class SourceTest(parameterized.TestCase):
       )
       profile = source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-              'foo'
-          ],
           static_runtime_params_slice=static_slice,
-          static_source_runtime_params=static_slice.sources['foo'],
           geo=geo,
           core_profiles=core_profiles,
       )
@@ -396,11 +393,7 @@ class SourceTest(parameterized.TestCase):
       )
       profile = source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-              'foo'
-          ],
           static_runtime_params_slice=static_slice,
-          static_source_runtime_params=static_slice.sources['foo'],
           geo=geo,
           core_profiles=core_profiles,
       )
@@ -420,11 +413,7 @@ class SourceTest(parameterized.TestCase):
       )
       profile = source.get_value(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-              'foo'
-          ],
           static_runtime_params_slice=static_slice,
-          static_source_runtime_params=static_slice.sources['foo'],
           geo=geo,
           core_profiles=core_profiles,
       )
@@ -439,7 +428,7 @@ class SourceTest(parameterized.TestCase):
     output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
     source_builder = IonElTestSourceBuilder(
-        formula=lambda _0, _1, _2, _3, _4, _5, _6: expected_output,
+        formula=lambda _0, _1, _2, _3, _4, _5: expected_output,
     )
     source_builder.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -469,11 +458,7 @@ class SourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            'foo'
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -485,7 +470,7 @@ class SourceTest(parameterized.TestCase):
     output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
     source_builder = IonElTestSourceBuilder(
-        model_func=lambda _0, _1, _2, _3, _4, _5, _6: expected_output,
+        model_func=lambda _0, _1, _2, _3, _4, _5: expected_output,
     )
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -515,11 +500,7 @@ class SourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            'foo'
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -565,11 +546,7 @@ class SourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            'foo'
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -584,6 +561,10 @@ class SourceTest(parameterized.TestCase):
       output_shape_getter = lambda _0: output_shape
 
       @property
+      def source_name(self) -> str:
+        return 'foo'
+
+      @property
       def affected_core_profiles(self):
         return (
             source_lib.AffectedCoreProfile.PSI,
@@ -592,7 +573,7 @@ class SourceTest(parameterized.TestCase):
 
     profile = jnp.asarray([[1, 2, 3, 4], [5, 6, 7, 8]])  # from get_value()
     source = TestSource(
-        model_func=lambda _0, _1, _2, _3, _4, _5, _6: profile,
+        model_func=lambda _0, _1, _2, _3, _4, _5: profile,
     )
     geo = geometry.build_circular_geometry(n_rho=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
@@ -622,7 +603,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry(n_rho=5)
     expected_output = jnp.ones((5))  # 5 matches the geo.
     source_builder = PsiTestSourceBuilder(
-        formula=lambda _0, _1, _2, _3, _4, _5, _6: expected_output,
+        formula=lambda _0, _1, _2, _3, _4, _5: expected_output,
     )
     source_builder.runtime_params.mode = runtime_params_lib.Mode.FORMULA_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -651,11 +632,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     )
     profile = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            'foo'
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -666,7 +643,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     profile = jnp.asarray([1, 2, 3, 4])  # from get_value()
 
     source = test_lib.TestSource(
-        model_func=lambda _0, _1, _2, _3, _4, _5, _6: profile,
+        model_func=lambda _0, _1, _2, _3, _4, _5: profile,
     )
     geo = geometry.build_circular_geometry(n_rho=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
