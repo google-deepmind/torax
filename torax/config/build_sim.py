@@ -410,7 +410,11 @@ def _build_single_source_builder_from_config(
 ) -> source_lib.SourceBuilderProtocol:
   """Builds a source builder from the input config."""
   registered_source = register_source.get_registered_source(source_name)
-  runtime_params = registered_source.default_runtime_params_class()
+  model_func = register_source.DEFAULT_MODEL_FUNCTION_NAME
+  if 'model_func' in source_config:
+    model_func = source_config.pop('model_func')
+  model_function = registered_source.model_functions[model_func]
+  runtime_params = model_function.runtime_params_class()
   # Update the defaults with the config provided.
   source_config = copy.copy(source_config)
   if 'mode' in source_config:
@@ -444,7 +448,16 @@ def _build_single_source_builder_from_config(
   if formula is not None:
     kwargs['formula'] = formula
 
-  return registered_source.source_builder_class(**kwargs)
+  source_builder_class = model_function.source_builder_class
+  if source_builder_class is None:
+    source_builder_class = source_lib.make_source_builder(
+        registered_source.source_class,
+        runtime_params_type=model_function.runtime_params_class,
+        links_back=model_function.links_back,
+        model_func=model_function.source_profile_function,
+    )
+
+  return source_builder_class(**kwargs)
 
 
 def build_transport_model_builder_from_config(

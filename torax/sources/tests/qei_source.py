@@ -37,6 +37,8 @@ class QeiSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
+        source_name=qei_source.QeiSource.SOURCE_NAME,
+        model_func=None,
     )
 
   def test_source_value(self):
@@ -70,7 +72,6 @@ class QeiSourceTest(test_lib.SourceTestCase):
     qei = source.get_qei(
         static_slice,
         dynamic_slice,
-        dynamic_slice.sources['qei_source'],
         geo,
         core_profiles,
     )
@@ -119,7 +120,6 @@ class QeiSourceTest(test_lib.SourceTestCase):
           source.get_qei(
               static_slice,
               dynamic_slice,
-              dynamic_slice.sources['qei_source'],
               geo,
               core_profiles,
           )
