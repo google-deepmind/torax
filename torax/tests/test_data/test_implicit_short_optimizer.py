@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""test_implicit_short_optimizer: optimizer stepper with explicit coeffs.
-
-Same as test_frozen_optimizer apart from factor 10 less t_final.
-Used in no-compilation tests.
-"""
+"""test_implicit_short_optimizer: basic test of implicit solver."""
 
 CONFIG = {
     'runtime_params': {
