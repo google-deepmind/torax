@@ -22,14 +22,13 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import geometry
 from torax import jax_utils
 from torax import math_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
-from torax.geometry import Geometry  # pylint: disable=g-importing-member
+from torax.geometry import geometry
 from torax.sources import generic_current_source
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
@@ -40,7 +39,7 @@ _trapz = jax.scipy.integrate.trapezoid
 
 def updated_ion_temperature(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Updated ion temp. Used upon initialization and if temp_ion=False."""
   # pylint: disable=invalid-name
@@ -65,7 +64,7 @@ def updated_ion_temperature(
 
 def updated_electron_temperature(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Updated electron temp. Used upon initialization and if temp_el=False."""
   # pylint: disable=invalid-name
@@ -91,7 +90,7 @@ def updated_electron_temperature(
 # pylint: disable=invalid-name
 def _get_ne(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Helper to get the electron density profile at the current timestep."""
   # pylint: disable=invalid-name
@@ -170,7 +169,7 @@ def _get_ne(
 
 def _updated_ion_density(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
     ne: cell_variable.CellVariable,
 ) -> tuple[
     cell_variable.CellVariable,
@@ -215,7 +214,7 @@ def _updated_ion_density(
 
 def updated_density(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
 ) -> tuple[
     cell_variable.CellVariable,
     cell_variable.CellVariable,
@@ -238,7 +237,7 @@ def updated_density(
 def _prescribe_currents_no_bootstrap(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
@@ -338,7 +337,7 @@ def _prescribe_currents_no_bootstrap(
 def _prescribe_currents_with_bootstrap(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
@@ -450,7 +449,7 @@ def _prescribe_currents_with_bootstrap(
 def _calculate_currents_from_psi(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
@@ -532,7 +531,7 @@ def _calculate_currents_from_psi(
 
 def _update_psi_from_j(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
     jtot_hires: jax.Array,
 ) -> cell_variable.CellVariable:
   """Calculates poloidal flux (psi) consistent with plasma current.
@@ -586,7 +585,7 @@ def _update_psi_from_j(
 # pylint: enable=invalid-name
 def _calculate_psi_grad_constraint(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates the constraint on the poloidal flux (psi)."""
   return (
@@ -600,7 +599,7 @@ def _calculate_psi_grad_constraint(
 def _init_psi_and_current(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: source_models_lib.SourceModels,
 ) -> state.CoreProfiles:
@@ -704,9 +703,7 @@ def _init_psi_and_current(
         psi,
     )
     # pylint: enable=invalid-name
-    currents = dataclasses.replace(
-        currents, Ip_profile_face=Ip_profile_face
-    )
+    currents = dataclasses.replace(currents, Ip_profile_face=Ip_profile_face)
   else:
     raise ValueError('Cannot compute psi for given config.')
 
@@ -718,7 +715,7 @@ def _init_psi_and_current(
 def initial_core_profiles(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
     source_models: source_models_lib.SourceModels,
 ) -> state.CoreProfiles:
   """Calculates the initial core profiles.
@@ -809,7 +806,7 @@ def initial_core_profiles(
 def updated_prescribed_core_profiles(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> dict[str, jax.Array]:
   """Updates core profiles which are not being evolved by PDE.
@@ -870,7 +867,7 @@ def updated_prescribed_core_profiles(
 def update_evolving_core_profiles(
     x_new: tuple[cell_variable.CellVariable, ...],
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     evolving_names: tuple[str, ...],
 ) -> state.CoreProfiles:
@@ -995,7 +992,7 @@ def _get_jtot_hires(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_generic_current_params: generic_current_source.DynamicRuntimeParams,
-    geo: Geometry,
+    geo: geometry.Geometry,
     bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
     Iohm: jax.Array | float,
     generic_current: generic_current_source.GenericCurrentSource,

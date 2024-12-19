@@ -21,13 +21,13 @@ standard linear solution.
 from typing import Any
 import chex
 import jax
-from torax import geometry
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import implicit_solve_block
+from torax.geometry import geometry
 
 
 def predictor_corrector_method(

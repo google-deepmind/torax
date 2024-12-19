@@ -16,9 +16,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 

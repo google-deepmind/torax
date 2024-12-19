@@ -19,9 +19,9 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import electron_cyclotron_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib

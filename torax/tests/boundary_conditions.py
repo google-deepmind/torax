@@ -20,11 +20,11 @@ from absl.testing import parameterized
 import numpy as np
 from torax import constants
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import source_models as source_models_lib
 
 

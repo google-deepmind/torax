@@ -21,8 +21,8 @@ a time-interpolated version of this config via the DynamicRuntimeParams.
 from __future__ import annotations
 
 import chex
-from torax import geometry
 from torax.config import base
+from torax.geometry import geometry
 
 
 @chex.dataclass

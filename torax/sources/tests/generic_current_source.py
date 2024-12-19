@@ -18,9 +18,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import numpy as np
-from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import generic_current_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib

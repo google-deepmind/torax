@@ -25,11 +25,10 @@ import jax
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
-from torax import geometry
 from torax import jax_utils
 from torax import state
 from torax.fvm import cell_variable
-from torax.geometry import Geometry  # pylint: disable=g-importing-member
+from torax.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -49,7 +48,7 @@ def get_main_ion_dilution_factor(
 
 @jax_utils.jit
 def update_jtot_q_face_s_face(
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     q_correction_factor: float,
 ) -> state.CoreProfiles:
@@ -163,7 +162,7 @@ def _calculate_log_tau_e_Z1(
 
 
 def internal_boundary(
-    geo: Geometry,
+    geo: geometry.Geometry,
     Ped_top: jax.Array,
     set_pedestal: jax.Array,
 ) -> jax.Array:
@@ -177,7 +176,7 @@ def internal_boundary(
 
 
 def calc_q_from_psi(
-    geo: Geometry,
+    geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
     q_correction_factor: float,
 ) -> tuple[chex.Array, chex.Array]:
@@ -222,7 +221,7 @@ def calc_q_from_psi(
 
 
 def calc_jtot_from_psi(
-    geo: Geometry,
+    geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
 ) -> tuple[chex.Array, chex.Array, chex.Array]:
   """Calculates FSA toroidal current density (jtot) from poloidal flux (psi).
@@ -263,7 +262,7 @@ def calc_jtot_from_psi(
 
 
 def calc_s_from_psi(
-    geo: Geometry, psi: cell_variable.CellVariable
+    geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
   """Calculates magnetic shear (s) from poloidal flux (psi).
 
@@ -297,7 +296,7 @@ def calc_s_from_psi(
 
 
 def calc_s_from_psi_rmid(
-    geo: Geometry, psi: cell_variable.CellVariable
+    geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
   """Calculates magnetic shear (s) from poloidal flux (psi).
 
@@ -332,7 +331,7 @@ def calc_s_from_psi_rmid(
 
 
 def calc_nu_star(
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     nref: float,
     Zeff_face: jax.Array,
@@ -446,7 +445,7 @@ def fast_ion_fractional_heating_formula(
 
 
 def calculate_plh_scaling_factor(
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
   """Calculates the H-mode transition power scaling in low and high density branches.
@@ -507,7 +506,7 @@ def calculate_plh_scaling_factor(
 
 
 def calculate_scaling_law_confinement_time(
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     Ploss: jax.Array,
     scaling_law: str,
@@ -590,21 +589,21 @@ def calculate_scaling_law_confinement_time(
 
   tau_scaling = (
       params['prefactor']
-      * Ip**params['Ip_exponent']
-      * B**params['B_exponent']
-      * line_avg_ne**params['line_avg_ne_exponent']
-      * Ploss**params['Ploss_exponent']
-      * R**params['R_exponent']
-      * inverse_aspect_ratio**params['inverse_aspect_ratio_exponent']
-      * elongation**params['elongation_exponent']
-      * effective_mass**params['effective_mass_exponent']
-      * (1 + triangularity)**params['triangularity_exponent']
+      * Ip ** params['Ip_exponent']
+      * B ** params['B_exponent']
+      * line_avg_ne ** params['line_avg_ne_exponent']
+      * Ploss ** params['Ploss_exponent']
+      * R ** params['R_exponent']
+      * inverse_aspect_ratio ** params['inverse_aspect_ratio_exponent']
+      * elongation ** params['elongation_exponent']
+      * effective_mass ** params['effective_mass_exponent']
+      * (1 + triangularity) ** params['triangularity_exponent']
   )
   return tau_scaling
 
 
 def _calculate_line_avg_density(
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> jax.Array:
   """Calculates line-averaged electron density.

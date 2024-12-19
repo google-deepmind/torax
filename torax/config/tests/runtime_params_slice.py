@@ -20,10 +20,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
-from torax import geometry
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
+from torax.geometry import geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import formula_config
@@ -74,11 +74,15 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self._geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(t=1.0,)
+    dynamic_runtime_params_slice = provider(
+        t=1.0,
+    )
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 2.5
     )
-    dynamic_runtime_params_slice = provider(t=2.0,)
+    dynamic_runtime_params_slice = provider(
+        t=2.0,
+    )
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 3.0
     )
@@ -422,9 +426,18 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
 
   @parameterized.product(
-      ne_bound_right=[None, 1.0,],
-      ne_bound_right_is_fGW=[True, False,],
-      ne_is_fGW=[True, False,],
+      ne_bound_right=[
+          None,
+          1.0,
+      ],
+      ne_bound_right_is_fGW=[
+          True,
+          False,
+      ],
+      ne_is_fGW=[
+          True,
+          False,
+      ],
   )
   def test_profile_conditions_set_electron_density_and_boundary_condition(
       self,
@@ -629,6 +642,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
     )
     self.assertNotEqual(hash(static_slice1), hash(static_slice2))
+
 
 if __name__ == '__main__':
   absltest.main()

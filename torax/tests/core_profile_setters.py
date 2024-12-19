@@ -18,11 +18,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax import physics
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
+from torax.geometry import geometry
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.transport_model import runtime_params as transport_params_lib

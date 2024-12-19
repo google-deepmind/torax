@@ -23,8 +23,8 @@ import jax
 from jax import numpy as jnp
 import jaxtyping as jt
 from torax import array_typing
-from torax import geometry
 from torax import jax_utils
+from torax.geometry import geometry
 
 
 @enum.unique

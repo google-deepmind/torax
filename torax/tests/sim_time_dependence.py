@@ -23,14 +23,14 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import geometry
-from torax import geometry_provider as geometry_provider_lib
 from torax import sim as sim_lib
 from torax import state
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
+from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib

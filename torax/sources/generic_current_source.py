@@ -25,12 +25,12 @@ from jax import numpy as jnp
 from jax.scipy import integrate
 import jaxtyping as jt
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
 from torax import state
 from torax.config import base
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from typing_extensions import override
@@ -66,9 +66,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
 
 @chex.dataclass
-class RuntimeParamsProvider(
-    runtime_params_lib.RuntimeParamsProvider
-):
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   """Provides runtime parameters for a given time and geometry."""
 
   runtime_params_config: RuntimeParams
@@ -80,7 +78,7 @@ class RuntimeParamsProvider(
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) ->  DynamicRuntimeParams:
+  ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
@@ -233,6 +231,7 @@ def _calculate_Iext(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
+
   SOURCE_NAME: ClassVar[str] = 'generic_current_source'
   formula: source.SourceProfileFunction = _calculate_generic_current_face
   hires_formula: source.SourceProfileFunction = _calculate_generic_current_hires

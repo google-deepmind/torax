@@ -20,9 +20,9 @@ import abc
 import dataclasses
 import chex
 from torax import array_typing
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.pedestal_model import runtime_params as runtime_params_lib
 
 

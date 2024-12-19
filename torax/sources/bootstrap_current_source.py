@@ -24,12 +24,12 @@ import jax
 from jax import numpy as jnp
 from jax.scipy import integrate
 from torax import constants
-from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -89,6 +89,7 @@ class BootstrapCurrentSource(source.Source):
   - bootstrap current (on cell and face grids)
   - total integrated bootstrap current
   """
+
   SOURCE_NAME: ClassVar[str] = 'j_bootstrap'
 
   @property

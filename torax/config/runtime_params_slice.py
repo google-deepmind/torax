@@ -41,11 +41,11 @@ from collections.abc import Mapping
 import dataclasses
 
 import chex
-from torax import geometry
 from torax.config import numerics
 from torax.config import plasma_composition
 from torax.config import profile_conditions
 from torax.config import runtime_params as general_runtime_params_lib
+from torax.geometry import geometry
 from torax.pedestal_model import runtime_params as pedestal_model_params
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
@@ -148,7 +148,9 @@ def _build_dynamic_sources(
 ) -> dict[str, sources_params.DynamicRuntimeParams]:
   """Builds a dict of DynamicSourceConfigSlice based on the input config."""
   return {
-      source_name: input_source_config.build_dynamic_params(t,)
+      source_name: input_source_config.build_dynamic_params(
+          t,
+      )
       for source_name, input_source_config in sources.items()
   }
 
@@ -262,15 +264,11 @@ class DynamicRuntimeParamsSliceProvider:
 
   def _construct_providers(self):
     """Construct the providers that will give us the dynamic params."""
-    self._runtime_params_provider = (
-        self._runtime_params.make_provider(
-            self._torax_mesh
-        )
+    self._runtime_params_provider = self._runtime_params.make_provider(
+        self._torax_mesh
     )
     self._transport_runtime_params_provider = (
-        self._transport_runtime_params.make_provider(
-            self._torax_mesh
-        )
+        self._transport_runtime_params.make_provider(self._torax_mesh)
     )
     self._sources_providers = {
         key: source.make_provider(self._torax_mesh)

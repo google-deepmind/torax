@@ -22,10 +22,10 @@ from typing import ClassVar
 import chex
 import jax
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -36,6 +36,7 @@ from torax.sources import source_models
 @dataclasses.dataclass(kw_only=True)
 class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for GasPuffSource."""
+
   # exponential decay length of gas puff ionization [normalized radial coord]
   puff_decay_length: runtime_params_lib.TimeInterpolatedInput = 0.05
   # total gas puff particles/s
@@ -56,6 +57,7 @@ class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
 @chex.dataclass
 class GasPuffRuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   """Provides runtime parameters for a given time and geometry."""
+
   runtime_params_config: GasPuffRuntimeParams
   puff_decay_length: interpolated_param.InterpolatedVarSingleAxis
   S_puff_tot: interpolated_param.InterpolatedVarSingleAxis
@@ -104,6 +106,7 @@ def _calc_puff_source(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
+
   SOURCE_NAME: ClassVar[str] = 'gas_puff_source'
   formula: source.SourceProfileFunction = _calc_puff_source
 
@@ -150,9 +153,7 @@ class GenericParticleSourceRuntimeParamsProvider(
   ) -> DynamicParticleRuntimeParams:
     return DynamicParticleRuntimeParams(
         particle_width=float(self.particle_width.get_value(t)),
-        deposition_location=float(
-            self.deposition_location.get_value(t)
-        ),
+        deposition_location=float(self.deposition_location.get_value(t)),
         S_tot=float(self.S_tot.get_value(t)),
         formula=self.formula.build_dynamic_params(t),
         prescribed_values=self.prescribed_values.get_value(t),
@@ -196,6 +197,7 @@ def _calc_generic_particle_source(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
+
   SOURCE_NAME: ClassVar[str] = 'generic_particle_source'
   formula: source.SourceProfileFunction = _calc_generic_particle_source
 
@@ -228,6 +230,7 @@ class PelletRuntimeParams(runtime_params_lib.RuntimeParams):
 @chex.dataclass
 class PelletRuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   """Provides runtime parameters for a given time and geometry."""
+
   runtime_params_config: PelletRuntimeParams
   pellet_width: interpolated_param.InterpolatedVarSingleAxis
   pellet_deposition_location: interpolated_param.InterpolatedVarSingleAxis
@@ -277,6 +280,7 @@ def _calc_pellet_source(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class PelletSource(source.Source):
   """Pellet source for the ne equation."""
+
   SOURCE_NAME: ClassVar[str] = 'pellet_source'
   formula: source.SourceProfileFunction = _calc_pellet_source
 
@@ -294,6 +298,7 @@ class PelletSource(source.Source):
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class RecombinationDensitySink(source.Source):
   """Recombination sink for the electron density equation."""
+
   affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
       source.AffectedCoreProfile.NE,
   )

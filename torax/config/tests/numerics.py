@@ -16,9 +16,9 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax import geometry
 from torax import interpolated_param
 from torax.config import numerics
+from torax.geometry import geometry
 
 
 class NumericsTest(parameterized.TestCase):

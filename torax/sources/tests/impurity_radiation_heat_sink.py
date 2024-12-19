@@ -20,10 +20,10 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax import math_utils
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import generic_ion_el_heat_source
 from torax.sources import (
     impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,

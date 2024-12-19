@@ -16,12 +16,12 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.fvm import calc_coeffs
+from torax.geometry import geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib

@@ -21,10 +21,10 @@ from typing import Callable
 import chex
 from jax import numpy as jnp
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model
 from torax.pedestal_model import runtime_params as runtime_params_lib
 from typing_extensions import override

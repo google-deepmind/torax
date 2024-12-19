@@ -23,7 +23,6 @@ from typing import Type
 
 import chex
 import jax
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import calc_coeffs
@@ -31,6 +30,7 @@ from torax.fvm import cell_variable
 from torax.fvm import enums
 from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles

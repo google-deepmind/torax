@@ -17,7 +17,7 @@
 from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
-from torax import geometry
+from torax.geometry import geometry
 from torax.sources import bootstrap_current_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib

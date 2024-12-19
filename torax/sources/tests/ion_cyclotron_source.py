@@ -25,9 +25,9 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import ion_cyclotron_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -177,15 +177,16 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     # Implicit integration using the trapezoid rule.
     integrated_power = jnp.sum(ion_el_total * geo.vpr * geo.drho_norm)
 
-    np.testing.assert_allclose(integrated_power, total_power,)
+    np.testing.assert_allclose(
+        integrated_power,
+        total_power,
+    )
 
   def test_toric_nn_loads_and_predicts_with_dummy_model(self):
     """Test that the ToricNNWrapper loads and predicts consistently."""
     # Load the model and verify the prediction are consistent with the output
     # of the dummy network.
-    toric_wrapper = ion_cyclotron_source.ToricNNWrapper(
-        path=_DUMMY_MODEL_PATH
-    )
+    toric_wrapper = ion_cyclotron_source.ToricNNWrapper(path=_DUMMY_MODEL_PATH)
     wrapper_output = toric_wrapper.predict(self.dummy_input)
     np.testing.assert_array_equal(
         wrapper_output.power_deposition_He3,

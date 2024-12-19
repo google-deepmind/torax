@@ -23,7 +23,6 @@ import jax
 import jax.numpy as jnp
 from torax import constants
 from torax import core_profile_setters
-from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
@@ -31,6 +30,7 @@ from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -155,8 +155,7 @@ def _calculate_pereverzev_flux(
   chi_face_per_ion = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm
-          > pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       chi_face_per_ion,
@@ -164,8 +163,7 @@ def _calculate_pereverzev_flux(
   chi_face_per_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm
-          > pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       chi_face_per_el,
@@ -185,8 +183,7 @@ def _calculate_pereverzev_flux(
   d_face_per_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm
-          > pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       d_face_per_el * geo.g1_over_vpr_face,
@@ -195,8 +192,7 @@ def _calculate_pereverzev_flux(
   v_face_per_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm
-          > pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       v_face_per_el * geo.g0_face,
@@ -343,9 +339,7 @@ def _calc_coeffs_full(
 
   pedestal_model_output: pedestal_model_lib.PedestalModelOutput = jax.lax.cond(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-      lambda: pedestal_model(
-          dynamic_runtime_params_slice, geo, core_profiles
-      ),
+      lambda: pedestal_model(dynamic_runtime_params_slice, geo, core_profiles),
       # TODO(b/380271610): Refactor to avoid needing dummy output.
       lambda: pedestal_model_lib.PedestalModelOutput(
           neped=0.0,
@@ -454,12 +448,8 @@ def _calc_coeffs_full(
       source_models,
   )
 
-  true_ne = (
-      core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
-  )
-  true_ni = (
-      core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
-  )
+  true_ne = core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
+  true_ni = core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
 
   true_ne_face = (
       core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
@@ -629,16 +619,10 @@ def _calc_coeffs_full(
 
   # entire coefficient preceding dT/dr in heat transport equations
   full_chi_face_ion = (
-      geo.g1_over_vpr_face
-      * true_ni_face
-      * consts.keV2J
-      * chi_face_ion
+      geo.g1_over_vpr_face * true_ni_face * consts.keV2J * chi_face_ion
   )
   full_chi_face_el = (
-      geo.g1_over_vpr_face
-      * true_ne_face
-      * consts.keV2J
-      * chi_face_el
+      geo.g1_over_vpr_face * true_ne_face * consts.keV2J * chi_face_el
   )
 
   # entire coefficient preceding dne/dr in particle equation
@@ -725,12 +709,7 @@ def _calc_coeffs_full(
 
   # Add phibdot terms to particle transport convection
   full_v_face_el += (
-      -1.0
-      / 2.0
-      * geo.Phibdot
-      / geo.Phib
-      * geo.rho_face_norm
-      * geo.vpr_face
+      -1.0 / 2.0 * geo.Phibdot / geo.Phib * geo.rho_face_norm * geo.vpr_face
   )
 
   # Add phibdot terms to poloidal flux convection

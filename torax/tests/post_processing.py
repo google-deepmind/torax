@@ -22,14 +22,14 @@ import numpy as np
 import scipy
 from torax import constants
 from torax import core_profile_setters
-from torax import geometry
-from torax import geometry_provider
 from torax import output
 from torax import post_processing
 from torax import state
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import geometry
+from torax.geometry import geometry_provider
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import sim_test_case

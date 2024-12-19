@@ -37,9 +37,9 @@ from typing import Any, Callable, Optional, Protocol, TypeAlias
 import chex
 import jax
 from jax import numpy as jnp
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 
 
@@ -86,6 +86,7 @@ class AffectedCoreProfile(enum.IntEnum):
   The profiles of each source/sink are terms included in equations evolving
   different core profiles. This enum maps a source to those equations.
   """
+
   # Current density equation.
   PSI = 1
   # Electron density equation.
@@ -127,6 +128,7 @@ class Source(abc.ABC):
     affected_core_profiles_ints: Derived property from the
       affected_core_profiles. Integer values of those enums.
   """
+
   model_func: SourceProfileFunction | None = None
   formula: SourceProfileFunction | None = None
 
@@ -153,7 +155,10 @@ class Source(abc.ABC):
   def affected_core_profiles_ints(self) -> tuple[int, ...]:
     return tuple([int(cp) for cp in self.affected_core_profiles])
 
-  def check_mode(self, mode: int,):
+  def check_mode(
+      self,
+      mode: int,
+  ):
     """Raises an error if the source type is not supported."""
     if runtime_params_lib.Mode(mode) not in self.supported_modes:
       raise ValueError(

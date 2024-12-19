@@ -22,9 +22,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -52,9 +52,7 @@ class FooSource(source_lib.Source):
 
   @property
   def supported_modes(self) -> tuple[source_runtime_params_lib.Mode, ...]:
-    return (
-        source_runtime_params_lib.Mode.FORMULA_BASED,
-    )
+    return (source_runtime_params_lib.Mode.FORMULA_BASED,)
 
 
 _FooSourceBuilder = source_lib.make_source_builder(

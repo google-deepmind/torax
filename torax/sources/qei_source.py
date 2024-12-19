@@ -22,10 +22,10 @@ from typing import ClassVar
 import chex
 import jax
 from jax import numpy as jnp
-from torax import geometry
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -70,6 +70,7 @@ class QeiSource(source.Source):
   This is a special-case source because it can provide both implicit and
   explicit terms in our solver. See sim.py for how this is used.
   """
+
   SOURCE_NAME: ClassVar[str] = 'qei_source'
 
   @property

@@ -22,9 +22,9 @@ from typing import TypeAlias, Union
 import chex
 import jax
 from jax import numpy as jnp
-from torax import geometry
 from torax import state as state_module
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.time_step_calculator import time_step_calculator
 
 State: TypeAlias = int

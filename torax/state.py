@@ -25,9 +25,9 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
-from torax import geometry
 from torax.config import config_args
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.sources import source_profiles
 
 

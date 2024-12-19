@@ -24,9 +24,9 @@ from typing import ClassVar
 import chex
 import jax
 from jax import numpy as jnp
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
@@ -47,6 +47,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 @chex.dataclass
 class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   """Provides runtime parameters for a given time and geometry."""
+
   runtime_params_config: RuntimeParams
 
   def build_dynamic_params(
@@ -149,6 +150,7 @@ def bremsstrahlung_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
+
   SOURCE_NAME: ClassVar[str] = 'bremsstrahlung_heat_sink'
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func
 

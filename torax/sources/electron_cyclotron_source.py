@@ -24,10 +24,10 @@ import jax
 import jax.numpy as jnp
 from torax import array_typing
 from torax import constants
-from torax import geometry
 from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -186,6 +186,7 @@ def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
+
   SOURCE_NAME: ClassVar[str] = "electron_cyclotron_source"
   model_func: source.SourceProfileFunction = _calc_heating_and_current
 

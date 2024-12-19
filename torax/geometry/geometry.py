@@ -31,9 +31,9 @@ import numpy as np
 import scipy
 from torax import array_typing
 from torax import constants
-from torax import geometry_loader
 from torax import interpolated_param
 from torax import jax_utils
+from torax.geometry import geometry_loader
 
 
 @chex.dataclass(frozen=True)

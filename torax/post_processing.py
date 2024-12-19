@@ -21,11 +21,11 @@ import jax
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
-from torax import geometry
 from torax import jax_utils
 from torax import math_utils
 from torax import physics
 from torax import state
+from torax.geometry import geometry
 from torax.sources import source_profiles
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -381,13 +381,13 @@ def make_outputs(
   tauE = W_thermal_tot / Ploss
 
   tauH98 = physics.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss/1e6, 'H98'
+      geo, sim_state.core_profiles, Ploss / 1e6, 'H98'
   )
   tauH97L = physics.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss/1e6, 'H97L'
+      geo, sim_state.core_profiles, Ploss / 1e6, 'H97L'
   )
   tauH20 = physics.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss/1e6, 'H20'
+      geo, sim_state.core_profiles, Ploss / 1e6, 'H20'
   )
 
   H98 = tauE / tauH98

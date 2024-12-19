@@ -22,10 +22,10 @@ from typing import ClassVar, Optional
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import geometry
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 
@@ -107,7 +107,9 @@ def calc_fusion(
   birth_energy = 3520  # Birth energy of alpha particles is 3.52MeV.
   alpha_mass = 4.002602
   frac_i = physics.fast_ion_fractional_heating_formula(
-      birth_energy, core_profiles.temp_el.value, alpha_mass,
+      birth_energy,
+      core_profiles.temp_el.value,
+      alpha_mass,
   )
   frac_e = 1.0 - frac_i
   Pfus_i = Pfus_cell * frac_i * alpha_fraction
@@ -144,6 +146,7 @@ def fusion_heat_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class FusionHeatSource(source.Source):
   """Fusion heat source for both ion and electron heat."""
+
   SOURCE_NAME: ClassVar[str] = 'fusion_heat_source'
   model_func: source.SourceProfileFunction = fusion_heat_model_func
 
@@ -170,4 +173,5 @@ class FusionHeatSource(source.Source):
 @dataclasses.dataclass
 class FusionHeatSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime params for FusionHeatSource."""
+
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED

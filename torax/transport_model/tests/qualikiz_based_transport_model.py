@@ -18,10 +18,10 @@ from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 from torax import core_profile_setters
-from torax import geometry
 from torax import state
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
@@ -166,6 +166,7 @@ class FakeQualikizBasedTransportModel(
     return self._prepare_qualikiz_inputs(
         Zeff_face, nref, q_correction_factor, transport, geo, core_profiles
     )
+
   # pylint: enable=invalid-name
 
   def _call_implementation(

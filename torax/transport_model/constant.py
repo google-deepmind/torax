@@ -25,11 +25,11 @@ from typing import Callable
 import chex
 from jax import numpy as jnp
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
@@ -139,7 +139,7 @@ class ConstantTransportModel(transport_model.TransportModel):
 
   def __hash__(self):
     # All ConstantTransportModels are equivalent and can hash the same
-    return hash(('ConstantTransportModel'))
+    return hash('ConstantTransportModel')
 
   def __eq__(self, other):
     # All ConstantTransportModels are equivalent

@@ -28,7 +28,6 @@ import jax
 from jax import numpy as jnp
 import jaxopt
 from torax import core_profile_setters
-from torax import geometry
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
@@ -37,6 +36,7 @@ from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import discrete_system
 from torax.fvm import fvm_conversions
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles

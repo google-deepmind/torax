@@ -21,10 +21,10 @@ import chex
 import jax
 import jax.numpy as jnp
 from torax import array_typing
-from torax import geometry
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib

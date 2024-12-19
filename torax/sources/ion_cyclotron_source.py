@@ -29,11 +29,11 @@ from jax.scipy import integrate
 import jaxtyping as jt
 import numpy as np
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
@@ -99,6 +99,7 @@ class ToricNNInputs:
 @chex.dataclass(frozen=True)
 class ToricNNOutputs:
   """Outputs from the ToricNN model."""
+
   # Power deposition on helium-3 in MW/m^3/MW_{abs}.
   power_deposition_He3: array_typing.ArrayFloat
   # Power deposition on tritium (second harmonic) in MW/m^3/MW_{abs}.
@@ -201,6 +202,8 @@ class ToricNNWrapper:
         power_deposition_2T=outputs_2T,
         power_deposition_e=outputs_e,
     )
+
+
 # pylint: enable=invalid-name
 
 
@@ -249,7 +252,10 @@ class _ToricNN(nn.Module):
     self.pca_components = self.param(
         'pca_components',
         jax.random.normal,
-        (self.pca_coeffs, self.radial_nodes,),
+        (
+            self.pca_coeffs,
+            self.radial_nodes,
+        ),
     )
     self.pca_mean = self.param(
         'pca_mean',
@@ -268,9 +274,13 @@ class _ToricNN(nn.Module):
 
     # MLP.
     for hidden_size in self.hidden_sizes:
-      x = nn.Dense(hidden_size,)(x)
+      x = nn.Dense(
+          hidden_size,
+      )(x)
       x = nn.relu(x)
-    x = nn.Dense(self.pca_coeffs,)(x)
+    x = nn.Dense(
+        self.pca_coeffs,
+    )(x)
 
     x = x @ self.pca_components + self.pca_mean  # Project back to true values.
     x = x * (x > 0)  # Eliminate non-physical values for power deposition.
@@ -474,12 +484,15 @@ def _icrh_model_func(
   source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
 
   return jnp.stack([source_ion, source_el])
+
+
 # pylint: enable=invalid-name
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
+
   SOURCE_NAME: ClassVar[str] = 'ion_cyclotron_source'
   # The model function is fixed to _icrh_model_func because that is the only
   # supported implementation of this source.

@@ -28,14 +28,14 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import array_typing
-from torax import geometry
-from torax import geometry_provider as geometry_provider_lib
 from torax import interpolated_param
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
+from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
@@ -113,7 +113,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # Include 2 versions of this source, one implicit and one explicit.
     source_models_builder = source_models_lib.SourceModelsBuilder({
         'implicit_ne_source': test_lib.TestSourceBuilder(
-
             formula=custom_source_formula,
             runtime_params=_FakeSourceRuntimeParams(
                 mode=runtime_params_lib.Mode.FORMULA_BASED,

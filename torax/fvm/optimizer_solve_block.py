@@ -19,7 +19,6 @@ See function docstring for details.
 from typing import TypeAlias
 
 import jax
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
@@ -27,6 +26,7 @@ from torax.fvm import cell_variable
 from torax.fvm import enums
 from torax.fvm import fvm_conversions
 from torax.fvm import residual_and_loss
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
@@ -127,7 +127,10 @@ def optimizer_solve_block(
 
   coeffs_old = coeffs_callback(
       dynamic_runtime_params_slice_t,
-      geo_t, core_profiles_t, x_old, explicit_call=True
+      geo_t,
+      core_profiles_t,
+      x_old,
+      explicit_call=True,
   )
 
   match initial_guess_mode:

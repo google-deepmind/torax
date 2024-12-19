@@ -22,13 +22,13 @@ from typing import ClassVar
 import jax
 import jax.numpy as jnp
 from torax import constants
-from torax import geometry
 from torax import jax_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import convection_terms
 from torax.fvm import diffusion_terms
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -190,6 +190,7 @@ class OhmicHeatSource(source_lib.Source):
 
   Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
   """
+
   SOURCE_NAME: ClassVar[str] = 'ohmic_heat_source'
   # Users must pass in a pointer to the complete set of sources to this object.
   source_models: source_models_lib.SourceModels

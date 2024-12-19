@@ -21,10 +21,10 @@ import functools
 import jax
 import jax.numpy as jnp
 from torax import constants
-from torax import geometry
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import bootstrap_current_source
 from torax.sources import generic_current_source
 from torax.sources import qei_source as qei_source_lib
@@ -556,10 +556,9 @@ class SourceModels:
     Raises:
       ValueError if a "special-case" source is provided.
     """
-    if (
-        isinstance(source, bootstrap_current_source.BootstrapCurrentSource)
-        or isinstance(source, qei_source_lib.QeiSource)
-    ):
+    if isinstance(
+        source, bootstrap_current_source.BootstrapCurrentSource
+    ) or isinstance(source, qei_source_lib.QeiSource):
       raise ValueError(
           'Cannot add a source with the following types: '
           'bootstrap_current_source.BootstrapCurrentSource,'

@@ -21,10 +21,10 @@ import logging
 
 import chex
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
+from torax.geometry import geometry
 
 
 # pylint: disable=invalid-name

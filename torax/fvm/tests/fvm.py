@@ -24,7 +24,6 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
@@ -34,6 +33,7 @@ from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
+from torax.geometry import geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib

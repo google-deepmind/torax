@@ -36,8 +36,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
-from torax import geometry_provider as geometry_provider_lib
 from torax import jax_utils
 from torax import output
 from torax import physics
@@ -46,6 +44,8 @@ from torax import state
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
+from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib

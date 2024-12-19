@@ -18,9 +18,9 @@ import dataclasses
 from typing import Optional
 import jax
 from jax import numpy as jnp
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import formula_config
 from torax.sources import runtime_params
 

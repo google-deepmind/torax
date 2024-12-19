@@ -22,12 +22,12 @@ from jax import numpy as jnp
 import numpy as np
 import torax
 from torax import fvm
-from torax import geometry
-from torax import geometry_provider as geometry_provider_lib
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
+from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
 from torax.transport_model import runtime_params as transport_model_params
@@ -158,7 +158,7 @@ def circular_references() -> References:
       47.64848792277505,
   ]).astype('float64')
   jtot = np.array([
-      2.65603608751821e+06,
+      2.65603608751821e06,
       2.63507449221355e06,
       2.57171291638819e06,
       2.49295208016546e06,

@@ -18,11 +18,11 @@ from collections.abc import Mapping
 import copy
 from typing import Any
 
-from torax import geometry
-from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
+from torax.geometry import geometry
+from torax.geometry import geometry_provider
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import formula_config
@@ -45,6 +45,7 @@ from torax.transport_model import qlknn_transport_model
 # pylint: disable=g-import-not-at-top
 try:
   from torax.transport_model import qualikiz_transport_model
+
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
 except ImportError:
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False

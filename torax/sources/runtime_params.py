@@ -22,9 +22,9 @@ from typing import Any
 
 import chex
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax.config import base
+from torax.geometry import geometry
 from torax.sources import formula_config
 
 
@@ -148,6 +148,7 @@ class DynamicRuntimeParams:
   stateless, so these params are their inputs to determine their output
   profiles.
   """
+
   formula: formula_config.DynamicFormula
   prescribed_values: array_typing.ArrayFloat
 

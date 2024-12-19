@@ -21,10 +21,10 @@ from typing import TypeAlias
 
 import chex
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
+from torax.geometry import geometry
 
 
 TimeInterpolatedInput: TypeAlias = interpolated_param.TimeInterpolatedInput
@@ -53,9 +53,15 @@ class Exponential(base.RuntimeParametersConfig['ExponentialProvider']):
     del torax_mesh  # Unused.
     return ExponentialProvider(
         runtime_params_config=self,
-        total=config_args.get_interpolated_var_single_axis(self.total,),
-        c1=config_args.get_interpolated_var_single_axis(self.c1,),
-        c2=config_args.get_interpolated_var_single_axis(self.c2,),
+        total=config_args.get_interpolated_var_single_axis(
+            self.total,
+        ),
+        c1=config_args.get_interpolated_var_single_axis(
+            self.c1,
+        ),
+        c2=config_args.get_interpolated_var_single_axis(
+            self.c2,
+        ),
     )
 
 
@@ -71,7 +77,7 @@ class ExponentialProvider(base.RuntimeParametersProvider['DynamicExponential']):
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-    ) -> DynamicExponential:
+  ) -> DynamicExponential:
     return DynamicExponential(**self.get_dynamic_params_kwargs(t))
 
 
@@ -101,14 +107,22 @@ class Gaussian(base.RuntimeParametersConfig['GaussianProvider']):
     del torax_mesh  # Unused.
     return GaussianProvider(
         runtime_params_config=self,
-        total=config_args.get_interpolated_var_single_axis(self.total,),
-        c1=config_args.get_interpolated_var_single_axis(self.c1,),
-        c2=config_args.get_interpolated_var_single_axis(self.c2,),)
+        total=config_args.get_interpolated_var_single_axis(
+            self.total,
+        ),
+        c1=config_args.get_interpolated_var_single_axis(
+            self.c1,
+        ),
+        c2=config_args.get_interpolated_var_single_axis(
+            self.c2,
+        ),
+    )
 
 
 @chex.dataclass
 class GaussianProvider(base.RuntimeParametersProvider['DynamicGaussian']):
   """Runtime parameter provider for a single source/sink term."""
+
   runtime_params_config: Gaussian
   total: interpolated_param.InterpolatedVarSingleAxis
   c1: interpolated_param.InterpolatedVarSingleAxis
@@ -117,7 +131,7 @@ class GaussianProvider(base.RuntimeParametersProvider['DynamicGaussian']):
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-    ) -> DynamicGaussian:
+  ) -> DynamicGaussian:
     return DynamicGaussian(**self.get_dynamic_params_kwargs(t))
 
 

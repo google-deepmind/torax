@@ -24,7 +24,6 @@ from absl import logging
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import geometry
 from torax import jax_utils
 from torax import state as state_module
 from torax.config import runtime_params_slice
@@ -33,6 +32,7 @@ from torax.fvm import cell_variable
 from torax.fvm import enums
 from torax.fvm import fvm_conversions
 from torax.fvm import residual_and_loss
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles

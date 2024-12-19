@@ -19,11 +19,11 @@ from __future__ import annotations
 import dataclasses
 
 import chex
-from torax import geometry
 from torax.config import base
 from torax.config import numerics as numerics_lib
 from torax.config import plasma_composition as plasma_composition_lib
 from torax.config import profile_conditions as profile_conditions_lib
+from torax.geometry import geometry
 from typing_extensions import override
 
 
@@ -92,6 +92,7 @@ class GeneralRuntimeParamsProvider(
 @chex.dataclass
 class DynamicGeneralRuntimeParams:
   """General runtime input parameters for the `torax` module."""
+
   plasma_composition: plasma_composition_lib.DynamicPlasmaComposition
   profile_conditions: profile_conditions_lib.DynamicProfileConditions
   numerics: numerics_lib.DynamicNumerics

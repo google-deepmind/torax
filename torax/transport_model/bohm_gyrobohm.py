@@ -23,11 +23,11 @@ import chex
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants as constants_module
-from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
@@ -200,29 +200,27 @@ class BohmGyroBohmModel(transport_model.TransportModel):
     # d_face_el is zero on-axis by definition
     # We also add a small epsilon to the denominator to avoid the cases where
     # chi_i + chi_e = 0
-    d_face_el = jnp.concatenate(
-        [
-            jnp.zeros(1),
-            weighting[1:] * chi_e[1:] * chi_i[1:]
-            / (chi_e[1:] + chi_i[1:] + constants_module.CONSTANTS.eps),
-        ]
-    )
+    d_face_el = jnp.concatenate([
+        jnp.zeros(1),
+        weighting[1:]
+        * chi_e[1:]
+        * chi_i[1:]
+        / (chi_e[1:] + chi_i[1:] + constants_module.CONSTANTS.eps),
+    ])
 
     # Convection
     # v_face_el is also zero on-axis by definition
     # To avoid 0/0, we set the first element to 0 manually
     # This definition for pinch velocity is from Tholerus et al.
     # Pinch velocity = inward = -ve in TORAX
-    v_face_el = -jnp.concatenate(
-        [
-            jnp.zeros(1),
-            0.5
-            * d_face_el[1:]
-            * geo.area_face[1:] ** 2
-            * geo.rho_b
-            / (geo.volume_face[1:] * geo.vpr_face[1:]),
-        ]
-    )
+    v_face_el = -jnp.concatenate([
+        jnp.zeros(1),
+        0.5
+        * d_face_el[1:]
+        * geo.area_face[1:] ** 2
+        * geo.rho_b
+        / (geo.volume_face[1:] * geo.vpr_face[1:]),
+    ])
 
     return state.CoreTransport(
         chi_face_ion=chi_i,

@@ -22,9 +22,9 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import geometry
-from torax import geometry_loader
 from torax.config import build_sim
+from torax.geometry import geometry
+from torax.geometry import geometry_loader
 
 
 class GeometryTest(parameterized.TestCase):

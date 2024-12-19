@@ -22,11 +22,11 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
@@ -477,7 +477,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         * 20**0.41
         * 50**-0.69
         * 6**1.97
-        * (1/3)**0.58
+        * (1 / 3) ** 0.58
         * 3**0.19
         * elongation_LCFS**0.78
     )
@@ -489,7 +489,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         * 20**0.4
         * 50**-0.73
         * 6**1.83
-        * (1/3)**-0.06
+        * (1 / 3) ** -0.06
         * 3**0.20
         * elongation_LCFS**0.64
     )
@@ -501,7 +501,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         * 20**0.24
         * 50**-0.669
         * 6**1.71
-        * (1/3)**0.35
+        * (1 / 3) ** 0.35
         * 3**0.20
         * elongation_LCFS**0.80
     )

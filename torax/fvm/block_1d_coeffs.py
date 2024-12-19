@@ -24,10 +24,10 @@ from typing import Any, Optional, Protocol, TypeAlias
 
 import chex
 import jax
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 
 
 # An optional argument, consisting of a 2D matrix of nested tuples, with each

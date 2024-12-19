@@ -19,11 +19,11 @@ import dataclasses
 from typing import Type, TypeAlias
 
 import jax
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles

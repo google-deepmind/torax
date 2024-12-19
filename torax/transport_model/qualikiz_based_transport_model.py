@@ -16,9 +16,9 @@
 import chex
 from jax import numpy as jnp
 from torax import constants as constants_module
-from torax import geometry
 from torax import physics
 from torax import state
+from torax.geometry import geometry
 from torax.transport_model import quasilinear_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 

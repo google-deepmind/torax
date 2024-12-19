@@ -24,13 +24,13 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
-from torax import geometry_provider
 from torax import state
 from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
+from torax.geometry import geometry_provider
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
 
@@ -142,7 +142,8 @@ class StateTest(torax_refs.ReferenceValueTest):
     """Test State.index."""
     references = references_getter()
     history = self._make_history(
-        references.runtime_params, references.geometry_provider)
+        references.runtime_params, references.geometry_provider
+    )
 
     for i in range(self.history_length):
       self.assertEqual(i, history.index(i).temp_ion.value[0])
@@ -161,7 +162,8 @@ class StateTest(torax_refs.ReferenceValueTest):
     """Test State.project."""
     references = references_getter()
     history = self._make_history(
-        references.runtime_params, references.geometry_provider)
+        references.runtime_params, references.geometry_provider
+    )
 
     seed = 20230421
     rng_state = jax.random.PRNGKey(seed)
@@ -196,7 +198,8 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     geo_provider = geometry_provider.ConstantGeometryProvider(
-        geometry.build_circular_geometry())
+        geometry.build_circular_geometry()
+    )
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
@@ -228,7 +231,8 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     geo_provider = geometry_provider.ConstantGeometryProvider(
-        geometry.build_circular_geometry())
+        geometry.build_circular_geometry()
+    )
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
@@ -255,8 +259,11 @@ class InitialStatesTest(parameterized.TestCase):
 
   @parameterized.parameters([
       dict(geo_builder=geometry.build_circular_geometry),
-      dict(geo_builder=lambda: geometry.build_standard_geometry(
-          geometry.StandardGeometryIntermediates.from_chease())),
+      dict(
+          geo_builder=lambda: geometry.build_standard_geometry(
+              geometry.StandardGeometryIntermediates.from_chease()
+          )
+      ),
   ])
   def test_initial_psi_from_j(
       self,

@@ -25,9 +25,9 @@ from typing import Callable, Final
 import chex
 import jax
 from jax import numpy as jnp
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
@@ -75,6 +75,7 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
+
   include_ITG: bool = True  # to toggle ITG modes on or off
   include_TEM: bool = True  # to toggle TEM modes on or off
   include_ETG: bool = True  # to toggle ETG modes on or off

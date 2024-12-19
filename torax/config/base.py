@@ -22,9 +22,9 @@ import enum
 from typing import Any, Generic, TypeVar
 
 import chex
-from torax import geometry
 from torax import interpolated_param
 from torax.config import config_args
+from torax.geometry import geometry
 
 DynamicT = TypeVar('DynamicT')
 ProviderT = TypeVar('ProviderT', bound='RuntimeParametersProvider')
@@ -32,6 +32,7 @@ ProviderT = TypeVar('ProviderT', bound='RuntimeParametersProvider')
 
 class GridType(enum.Enum):
   """Describes where interpolated values are defined on."""
+
   CELL = enum.auto()
   FACE = enum.auto()
 
@@ -76,7 +77,8 @@ class RuntimeParametersConfig(Generic[ProviderT], metaclass=abc.ABCMeta):
 
     Args:
       torax_mesh: Required if any of the interpolated variables are both
-      temporally and radially interpolated.
+        temporally and radially interpolated.
+
     Returns:
       A dict of kwargs to be passed to the provider constructor.
     """
@@ -161,6 +163,7 @@ class RuntimeParametersProvider(Generic[DynamicT], metaclass=abc.ABCMeta):
   - any constructed interpolated variables which will already be spatially
   interpolated and could vary in time.
   """
+
   runtime_params_config: RuntimeParametersConfig
 
   def get_dynamic_params_kwargs(
@@ -177,6 +180,7 @@ class RuntimeParametersProvider(Generic[DynamicT], metaclass=abc.ABCMeta):
 
     Args:
       t: The time to interpolate the dynamic parameters at.
+
     Returns:
       A dict of kwargs to be passed to the dynamic params constructor.
     """

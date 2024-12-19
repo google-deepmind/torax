@@ -21,9 +21,9 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -31,10 +31,11 @@ from torax.sources.tests import test_lib
 
 
 def get_zero_profile(
-    profile_type: source_lib.ProfileType, geo: geometry.Geometry,
+    profile_type: source_lib.ProfileType,
+    geo: geometry.Geometry,
 ) -> jax.Array:
   """Returns a source profile with all zeros."""
-  return  jnp.zeros(profile_type.get_profile_shape(geo))
+  return jnp.zeros(profile_type.get_profile_shape(geo))
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -220,9 +221,8 @@ class SourceTest(parameterized.TestCase):
 
       @property
       def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-        return (
-            runtime_params_lib.Mode.FORMULA_BASED,
-        )
+        return (runtime_params_lib.Mode.FORMULA_BASED,)
+
     source_builder = source_lib.make_source_builder(TestSource)()
     # But set the runtime params of the source to use ZERO as the mode.
     source_builder.runtime_params.mode = runtime_params_lib.Mode.ZERO

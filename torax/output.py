@@ -21,9 +21,9 @@ from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
-from torax import geometry
 from torax import state
 from torax.config import runtime_params
+from torax.geometry import geometry
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 import xarray as xr
@@ -145,7 +145,11 @@ def concat_datatrees(
   Returns:
     A xr.DataTree containing the concatenation of the two datasets.
   """
-  def _concat_datasets(previous_ds: xr.Dataset, ds: xr.Dataset,) -> xr.Dataset:
+
+  def _concat_datasets(
+      previous_ds: xr.Dataset,
+      ds: xr.Dataset,
+  ) -> xr.Dataset:
     """Concats two xr.Datasets."""
     # Do a minimal concat to avoid concatting any non time indexed vars.
     ds = xr.concat([previous_ds, ds], dim=TIME, data_vars="minimal")
@@ -155,6 +159,7 @@ def concat_datatrees(
     # processed outputs.
     ds = ds.drop_duplicates(dim=TIME, keep="first")
     return ds
+
   return xr.map_over_datasets(_concat_datasets, tree1, tree2)
 
 
@@ -340,9 +345,7 @@ class StateHistory:
         xr_dict[f"{profile}_el"] = self.core_sources.profiles[profile][
             :, 0, ...
         ]
-        xr_dict[f"{profile}_j"] = self.core_sources.profiles[profile][
-            :, 1, ...
-        ]
+        xr_dict[f"{profile}_j"] = self.core_sources.profiles[profile][:, 1, ...]
       else:
         xr_dict[profile] = self.core_sources.profiles[profile]
 
@@ -435,14 +438,13 @@ class StateHistory:
     }
 
     # Update dict with flattened StateHistory dataclass containers
-    core_profiles_ds = xr.Dataset(
-        self._get_core_profiles(geo), coords=coords
-    )
+    core_profiles_ds = xr.Dataset(self._get_core_profiles(geo), coords=coords)
     core_transport_ds = xr.Dataset(
         self._save_core_transport(geo), coords=coords
     )
     core_sources_ds = xr.Dataset(
-        self._save_core_sources(geo), coords=coords,
+        self._save_core_sources(geo),
+        coords=coords,
     )
     post_processed_outputs_ds = xr.Dataset(
         self._save_post_processed_outputs(geo), coords=coords

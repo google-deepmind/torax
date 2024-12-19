@@ -24,9 +24,9 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import runtime_params as runtime_params_lib
 
@@ -138,10 +138,7 @@ class TransportModel(abc.ABC):
     # set low transport in pedestal region to facilitate PDE solver
     # (more consistency between desired profile and transport coefficients)
     # if runtime_params.profile_conditions.set_pedestal:
-    mask = (
-        geo.rho_face_norm
-        >= pedestal_model_outputs.rho_norm_ped_top
-    )
+    mask = geo.rho_face_norm >= pedestal_model_outputs.rho_norm_ped_top
     chi_face_ion = jnp.where(
         jnp.logical_and(
             dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask

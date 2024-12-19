@@ -59,13 +59,13 @@ from typing import Callable, Final
 
 from absl import logging
 import jax
-from torax import geometry
-from torax import geometry_provider
 from torax import output
 from torax import sim as sim_lib
 from torax import state
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
+from torax.geometry import geometry_provider
 from torax.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import runtime_params as stepper_runtime_params_lib

@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tests for qualikiz transport_model transport model."""
 from absl.testing import absltest
-from torax import geometry
+from torax.geometry import geometry
 # pylint: disable=g-import-not-at-top
 try:
   from torax.transport_model import qualikiz_transport_model
