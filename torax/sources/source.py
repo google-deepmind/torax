@@ -43,21 +43,23 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 
 
-# Sources implement these functions to be able to provide source profiles.
 # pytype bug: 'source_models.SourceModels' not treated as forward reference
-SourceProfileFunction: TypeAlias = Callable[  # pytype: disable=name-error
-    [  # Arguments
-        runtime_params_slice.StaticRuntimeParamsSlice,  # Static runtime params.
-        runtime_params_lib.StaticRuntimeParams,  # Source-specific params.
-        runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
-        runtime_params_lib.DynamicRuntimeParams,  # Source-specific params.
-        geometry.Geometry,
-        state.CoreProfiles,
-        Optional['source_models.SourceModels'],
-    ],
-    # Returns a JAX array, tuple of arrays, or mapping of arrays.
-    chex.ArrayTree,
-]
+# pytype: disable=name-error
+@typing.runtime_checkable
+class SourceProfileFunction(Protocol):
+  """Sources implement these functions to be able to provide source profiles."""
+
+  def __call__(
+      self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      source_name: str,
+      core_profiles: state.CoreProfiles,
+      source_models: Optional['source_models.SourceModels'],
+  ) -> chex.ArrayTree:
+    ...
+# pytype: enable=name-error
 
 
 # Any callable which takes the dynamic runtime_params, geometry, and optional
@@ -114,11 +116,6 @@ class Source(abc.ABC):
       By default, the number of affected core profiles should equal the rank of
       the output shape returned by output_shape_getter. Subclasses may override
       this requirement.
-    supported_modes: Defines how the source computes its profile. Can be set to
-      zero, model-based, etc. At runtime, the input config (the RuntimeParams or
-      the DynamicRuntimeParams) will specify which supported type the Source is
-      running with. If the runtime config specifies an unsupported type, an
-      error will raise.
     output_shape_getter: Callable which returns the shape of the profiles given
       by this source.
     model_func: The function used when the the runtime type is set to
@@ -130,7 +127,11 @@ class Source(abc.ABC):
   """
 
   model_func: SourceProfileFunction | None = None
-  formula: SourceProfileFunction | None = None
+
+  @property
+  @abc.abstractmethod
+  def source_name(self) -> str:
+    """Returns the name of the source."""
 
   @property
   @abc.abstractmethod
@@ -143,35 +144,13 @@ class Source(abc.ABC):
     return get_cell_profile_shape
 
   @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    """Returns the modes supported by this source."""
-    return (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.FORMULA_BASED,
-        runtime_params_lib.Mode.PRESCRIBED,
-    )
-
-  @property
   def affected_core_profiles_ints(self) -> tuple[int, ...]:
     return tuple([int(cp) for cp in self.affected_core_profiles])
-
-  def check_mode(
-      self,
-      mode: int,
-  ):
-    """Raises an error if the source type is not supported."""
-    if runtime_params_lib.Mode(mode) not in self.supported_modes:
-      raise ValueError(
-          f'This source supports the following modes: {self.supported_modes}.'
-          f' Unsupported mode provided: {mode}.'
-      )
 
   def get_value(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> chex.ArrayTree:
@@ -179,11 +158,8 @@ class Source(abc.ABC):
 
     Args:
       static_runtime_params_slice: Static runtime parameters.
-      static_source_runtime_params: Static runtime parameters for this source.
       dynamic_runtime_params_slice: Slice of the general TORAX config that can
         be used as input for this time step.
-      dynamic_source_runtime_params: Slice of this source's runtime parameters
-        at a specific time t.
       geo: Geometry of the torus.
       core_profiles: Core plasma profiles. May be the profiles at the start of
         the time step or a "live" set of core profiles being actively updated
@@ -195,31 +171,21 @@ class Source(abc.ABC):
     Returns:
       Array, arrays, or nested dataclass/dict of arrays for the source profile.
     """
-    self.check_mode(static_source_runtime_params.mode)
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        self.source_name
+    ]
     output_shape = self.output_shape_getter(geo)
-    model_func = (
-        (lambda _0, _1, _2, _3, _4, _5, _6: jnp.zeros(output_shape))
-        if self.model_func is None
-        else self.model_func
-    )
-    formula = (
-        (lambda _0, _1, _2, _3, _4, _5, _6: jnp.zeros(output_shape))
-        if self.formula is None
-        else self.formula
-    )
 
     return get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_source_runtime_params,
         static_runtime_params_slice=static_runtime_params_slice,
-        static_source_runtime_params=static_source_runtime_params,
         geo=geo,
         core_profiles=core_profiles,
-        model_func=model_func,
-        formula=formula,
+        model_func=self.model_func,
         prescribed_values=dynamic_source_runtime_params.prescribed_values,
         output_shape=output_shape,
         source_models=getattr(self, 'source_models', None),
+        source_name=self.source_name,
     )
 
   def get_source_profile_for_affected_core_profile(
@@ -301,13 +267,11 @@ class ProfileType(enum.Enum):
 # pytype: disable=name-error
 def get_source_profiles(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
-    model_func: SourceProfileFunction,
-    formula: SourceProfileFunction,
+    model_func: SourceProfileFunction | None,
     prescribed_values: chex.Array,
     output_shape: tuple[int, ...],
     source_models: Optional['source_models.SourceModels'],
@@ -321,16 +285,13 @@ def get_source_profiles(
 
   Args:
     static_runtime_params_slice: Static runtime parameters.
-    static_source_runtime_params: Static runtime parameters for this source.
     dynamic_runtime_params_slice: Slice of the general TORAX config that can be
       used as input for this time step.
-    dynamic_source_runtime_params: Slice of this source's runtime parameters at
-      a specific time t.
     geo: Geometry information. Used as input to the source profile functions.
+    source_name: The name of the source.
     core_profiles: Core plasma profiles. Used as input to the source profile
       functions.
     model_func: Model function.
-    formula: Formula implementation.
     prescribed_values: Array of values for this timeslice, interpolated onto the
       grid (ie with shape output_shape)
     output_shape: Expected shape of the output array.
@@ -340,25 +301,18 @@ def get_source_profiles(
     Output array of a profile or concatenated/stacked profiles.
   """
   # pytype: enable=name-error
-  mode = static_source_runtime_params.mode
+  mode = static_runtime_params_slice.sources[source_name].mode
   match mode:
     case runtime_params_lib.Mode.MODEL_BASED.value:
+      if model_func is None:
+        raise ValueError(
+            'Source is in MODEL_BASED mode but has no model function.'
+        )
       return model_func(
           static_runtime_params_slice,
-          static_source_runtime_params,
           dynamic_runtime_params_slice,
-          dynamic_source_runtime_params,
           geo,
-          core_profiles,
-          source_models,
-      )
-    case runtime_params_lib.Mode.FORMULA_BASED.value:
-      return formula(
-          static_runtime_params_slice,
-          static_source_runtime_params,
-          dynamic_runtime_params_slice,
-          dynamic_source_runtime_params,
-          geo,
+          source_name,
           core_profiles,
           source_models,
       )
@@ -428,6 +382,7 @@ def is_source_builder(obj, raise_if_false: bool = False) -> bool:
 
 def _convert_source_builder_to_init_kwargs(
     source_builder: ...,
+    model_func: SourceProfileFunction | None,
 ) -> dict[str, Any]:
   """Returns a dict of init kwargs for the source builder."""
   source_init_kwargs = {}
@@ -439,12 +394,14 @@ def _convert_source_builder_to_init_kwargs(
     # including turning custom dataclasses with __call__ methods into
     # plain Python dictionaries.
     source_init_kwargs[field.name] = getattr(source_builder, field.name)
+  source_init_kwargs['model_func'] = model_func
   return source_init_kwargs
 
 
 def make_source_builder(
     source_type: ...,
     runtime_params_type: ... = runtime_params_lib.RuntimeParams,
+    model_func: SourceProfileFunction | None = None,
     links_back=False,
 ) -> SourceBuilderProtocol:
   """Given a Source type, returns a Builder for that type.
@@ -455,6 +412,7 @@ def make_source_builder(
     source_type: The Source class to make a builder for.
     runtime_params_type: The type of `runtime_params` field which will be added
       to the builder dataclass.
+    model_func: The model function to pass to the source.
     links_back: If True, the Source class has a `source_models` field linking
       back to the SourceModels object. This must be passed to the builder's
       __call__ method.
@@ -536,8 +494,8 @@ def make_source_builder(
           raise TypeError(f'Unrecognized type string: {f.type}')
 
       # Check if the field is a parameterized generic.
-      # Python cannot check isinstance for parameterized generics, so we need
-      # to handle those cases differently.
+      # Python cannot check isinstance for parameterized generics, so we ignore
+      # these cases for now.
       # For instance, if a field type is `tuple[float, ...]` and the value is
       # valid, like `(1, 2, 3)`, then `isinstance(v, f.type)` would raise a
       # TypeError.
@@ -545,14 +503,16 @@ def make_source_builder(
           type(f.type) == types.GenericAlias  # pylint: disable=unidiomatic-typecheck
           or typing.get_origin(f.type) is not None
       ):
-        # Do a superficial check in these instances. Only check that the origin
-        # type matches the value. Don't look into the rest of the object.
-        if not isinstance(v, typing.get_origin(f.type)):
-          raise TypeError(
-              f'While {context_msg} {source_type} got field {f.name} with '
-              f'input type {type(v)} but an expected type {f.type}.'
-          )
-
+        # For `Union`s check if the value is a member of the union.
+        # `typing.Union` is for types defined with `Union[A, B, C]` syntax.
+        # `types.UnionType` is for types defined with `A | B | C` syntax.
+        if typing.get_origin(f.type) in [typing.Union, types.UnionType]:
+          if not isinstance(v, typing.get_args(f.type)):
+            raise TypeError(
+                f'While {context_msg} {source_type} got argument '
+                f'{f.name} of type {type(v)} but expected '
+                f'{f.type}).'
+            )
       else:
         try:
           type_works = isinstance(v, f.type)
@@ -572,7 +532,9 @@ def make_source_builder(
   # pylint doesn't like this function name because it doesn't realize
   # this function is to be installed in a class
   def __post_init__(self):  # pylint:disable=invalid-name
-    source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
+    source_init_kwargs = _convert_source_builder_to_init_kwargs(
+        self, model_func
+    )
     check_kwargs(source_init_kwargs, 'making builder')
     # check_kwargs checks only the kwargs to Source, not SourceBuilder,
     # so it doesn't check "runtime_params"
@@ -598,7 +560,10 @@ def make_source_builder(
   if links_back:
 
     def build_source(self, source_models):
-      source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
+      source_init_kwargs = _convert_source_builder_to_init_kwargs(
+          self,
+          model_func,
+      )
       source_init_kwargs['source_models'] = source_models
       check_kwargs(source_init_kwargs, 'building')
       source = source_type(**source_init_kwargs)
@@ -608,7 +573,10 @@ def make_source_builder(
   else:
 
     def build_source(self):
-      source_init_kwargs = _convert_source_builder_to_init_kwargs(self)
+      source_init_kwargs = _convert_source_builder_to_init_kwargs(
+          self,
+          model_func,
+      )
       check_kwargs(source_init_kwargs, 'building')
       source = source_type(**source_init_kwargs)
       check_source(source)

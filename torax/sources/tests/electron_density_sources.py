@@ -16,7 +16,6 @@
 
 from absl.testing import absltest
 from torax.sources import electron_density_sources as eds
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources.tests import test_lib
 
 
@@ -28,9 +27,8 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
     super().setUpClass(
         source_class=eds.GasPuffSource,
         runtime_params_class=eds.GasPuffRuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
-        ],
+        source_name=eds.GasPuffSource.SOURCE_NAME,
+        model_func=eds.calc_puff_source,
     )
 
 
@@ -42,9 +40,8 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
     super().setUpClass(
         source_class=eds.PelletSource,
         runtime_params_class=eds.PelletRuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
-        ],
+        source_name=eds.PelletSource.SOURCE_NAME,
+        model_func=eds.calc_pellet_source,
     )
 
 
@@ -56,23 +53,8 @@ class SourceTest(test_lib.SingleProfileSourceTestCase):
     super().setUpClass(
         source_class=eds.GenericParticleSource,
         runtime_params_class=eds.GenericParticleSourceRuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
-        ],
-    )
-
-
-class RecombinationDensitySinkTest(test_lib.SingleProfileSourceTestCase):
-  """Tests for RecombinationDensitySink."""
-
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=eds.RecombinationDensitySink,
-        runtime_params_class=runtime_params_lib.RuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
-        ],
+        source_name=eds.GenericParticleSource.SOURCE_NAME,
+        model_func=eds.calc_generic_particle_source,
     )
 
 

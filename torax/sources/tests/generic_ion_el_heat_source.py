@@ -16,7 +16,6 @@
 
 from absl.testing import absltest
 from torax.sources import generic_ion_el_heat_source
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources.tests import test_lib
 
 
@@ -28,9 +27,8 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
     super().setUpClass(
         source_class=generic_ion_el_heat_source.GenericIonElectronHeatSource,
         runtime_params_class=generic_ion_el_heat_source.RuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
-        ],
+        source_name=generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME,
+        model_func=generic_ion_el_heat_source.default_formula,
     )
 
 
