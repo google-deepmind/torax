@@ -697,7 +697,44 @@ class SimTest(sim_test_case.SimTestCase):
                 ds2[var_name].values,
                 err_msg=f'Mismatch for {var_name} in restart test',
             )
+
     xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
+
+  def test_update(self):
+    sim = self._get_sim('test_iterhybrid_predictor_corrector.py')
+    new_config = self._get_config_module(
+        'test_iterhybrid_predictor_corrector_eqdsk.py'
+    ).CONFIG
+    sim.update_base_components(
+        geometry_provider=build_sim_lib.build_geometry_provider_from_config(
+            new_config['geometry']
+        )
+    )
+    sim_outputs = sim.run()
+
+    # Extract core profiles history for analysis against references
+    history = output.StateHistory(sim_outputs, sim.source_models)
+    ref_profiles, ref_time = self._get_refs(
+        'test_iterhybrid_predictor_corrector_eqdsk.nc', _ALL_PROFILES
+    )
+
+    self._check_profiles_vs_expected(
+        core_profiles=history.core_profiles,
+        t=history.times,
+        ref_time=ref_time,
+        ref_profiles=ref_profiles,
+        rtol=self.rtol,
+        atol=self.atol,
+    )
+
+  def test_update_new_mesh(self):
+    sim = self._get_sim('test_iterhybrid_rampup.py')
+    with self.assertRaisesRegex(ValueError, 'different mesh'):
+      sim.update_base_components(
+          geometry_provider=geometry_provider.ConstantGeometryProvider(
+              geometry.build_circular_geometry(n_rho=10)
+          )
+      )
 
 
 def verify_core_profiles(ref_profiles, index, core_profiles):

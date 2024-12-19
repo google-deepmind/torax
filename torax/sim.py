@@ -739,6 +739,63 @@ class Sim:
   def source_models(self) -> source_models_lib.SourceModels:
     return self._step_fn.stepper.source_models
 
+  def update_base_components(
+      self,
+      *,
+      dynamic_runtime_params_slice_provider: (
+          runtime_params_slice.DynamicRuntimeParamsSliceProvider | None
+      ) = None,
+      geometry_provider: geometry_provider_lib.GeometryProvider | None = None,
+  ):
+    """Updates the Sim object with components that have already been updated.
+
+    Currently this only supports updating the geometry provider and the dynamic
+    runtime params slice provider, both of which can be updated without
+    recompilation.
+
+    Args:
+      dynamic_runtime_params_slice_provider: The new dynamic runtime params
+        slice provider. This should already have been updated with modifications
+        to the various components. If None, the existing one is kept.
+      geometry_provider: The new geometry provider. If None, the existing one is
+        kept.
+
+    Raises:
+      ValueError: If the Sim object has a file restart or if the geometry
+        provider has a different mesh than the existing one.
+    """
+    if self._file_restart is not None:
+      # TODO(b/384767453): Add support for updating a Sim object with a file
+      # restart.
+      raise ValueError('Cannot update a Sim object with a file restart.')
+    if dynamic_runtime_params_slice_provider is not None:
+      self._dynamic_runtime_params_slice_provider = (
+          dynamic_runtime_params_slice_provider
+      )
+    if geometry_provider is not None:
+      if geometry_provider.torax_mesh != self._geometry_provider.torax_mesh:
+        raise ValueError(
+            'Cannot update a Sim object with a geometry provider with a '
+            'different mesh.'
+        )
+      self._geometry_provider = geometry_provider
+
+    dynamic_runtime_params_slice_for_init, geo_for_init = (
+        get_consistent_dynamic_runtime_params_slice_and_geometry(
+            self._initial_state.t,
+            self._dynamic_runtime_params_slice_provider,
+            self._geometry_provider,
+        )
+    )
+    self._initial_state = get_initial_state(
+        static_runtime_params_slice=self._static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
+        geo=geo_for_init,
+        source_models=self._stepper.source_models,
+        time_step_calculator=self._time_step_calculator,
+        step_fn=self._step_fn,
+    )
+
   def run(
       self,
       log_timestep_info: bool = False,
