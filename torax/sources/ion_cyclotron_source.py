@@ -364,12 +364,11 @@ def _helium3_tail_temperature(
   return core_profiles.temp_el.value * (1 + epsilon)
 
 
-def _icrh_model_func(
+def icrh_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     unused_source_models: source_models.SourceModels | None,
     toric_nn: ToricNNWrapper,
@@ -377,10 +376,12 @@ def _icrh_model_func(
   """Compute ion/electron heat source terms."""
   del (
       unused_source_models,
-      dynamic_runtime_params_slice,
-      static_source_runtime_params,
       static_runtime_params_slice,
   )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
+  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
   # Construct inputs for ToricNN.
   volume = integrate.trapezoid(geo.vpr_face, geo.rho_face_norm)
@@ -484,8 +485,6 @@ def _icrh_model_func(
   source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
 
   return jnp.stack([source_ion, source_el])
-
-
 # pylint: enable=invalid-name
 
 
@@ -494,18 +493,10 @@ class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
 
   SOURCE_NAME: ClassVar[str] = 'ion_cyclotron_source'
-  # The model function is fixed to _icrh_model_func because that is the only
-  # supported implementation of this source.
-  # However, since this is a param in the parent dataclass, we need to (a)
-  # remove the parameter from the init args and (b) set the default to the
-  # desired value.
-  model_func: source.SourceProfileFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: functools.partial(
-          _icrh_model_func,
-          toric_nn=ToricNNWrapper(),
-      ),
-  )
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
@@ -525,3 +516,28 @@ class IonCyclotronSource(source.Source):
   @property
   def output_shape_getter(self) -> source.SourceOutputShapeFunction:
     return source.get_ion_el_output_shape
+
+
+@dataclasses.dataclass(kw_only=True, frozen=False)
+class IonCyclotronSourceBuilder:
+  """Builder for the IonCyclotronSource."""
+
+  runtime_params: RuntimeParams = dataclasses.field(
+      default_factory=RuntimeParams
+  )
+  links_back: bool = False
+  model_func: source.SourceProfileFunction | None = None
+
+  def __post_init__(self):
+    if self.model_func is None:
+      self.model_func = functools.partial(
+          icrh_model_func,
+          toric_nn=ToricNNWrapper(),
+      )
+
+  def __call__(
+      self,
+      formula: source.SourceProfileFunction | None = None,
+  ) -> IonCyclotronSource:
+
+    return IonCyclotronSource(formula=formula, model_func=self.model_func,)

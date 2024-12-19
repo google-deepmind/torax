@@ -25,7 +25,6 @@ from torax import array_typing
 from torax import interpolated_param
 from torax.config import base
 from torax.geometry import geometry
-from torax.sources import formula_config
 
 
 TimeInterpolatedInput = interpolated_param.TimeInterpolatedInput
@@ -81,12 +80,6 @@ class RuntimeParams(base.RuntimeParametersConfig):
   # running the simulation.
   is_explicit: bool = False
 
-  # Parameters used only when the source is using a prescribed formula to
-  # compute its profile.
-  formula: base.RuntimeParametersConfig = dataclasses.field(
-      default_factory=formula_config.Exponential
-  )
-
   # Prescribed values for the source. Used only when the source is fully
   # prescribed (i.e. source.mode == Mode.PRESCRIBED).
   # The default here is a vector of all zeros along for all rho and time, and
@@ -118,7 +111,6 @@ class RuntimeParamsProvider(
   """Runtime parameter provider for a single source/sink term."""
 
   runtime_params_config: RuntimeParams
-  formula: base.RuntimeParametersProvider
   prescribed_values: interpolated_param.InterpolatedVarTimeRho
 
   def get_dynamic_params_kwargs(
@@ -148,8 +140,6 @@ class DynamicRuntimeParams:
   stateless, so these params are their inputs to determine their output
   profiles.
   """
-
-  formula: formula_config.DynamicFormula
   prescribed_values: array_typing.ArrayFloat
 
 
