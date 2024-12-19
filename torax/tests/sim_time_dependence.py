@@ -91,7 +91,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         time_step_calculator=time_calculator,
     )
     sim_step_fn = sim.step_fn
-    output_state = sim_step_fn(
+    output_state, _ = sim_step_fn(
         static_runtime_params_slice=sim.static_runtime_params_slice,
         dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
         geometry_provider=sim.geometry_provider,

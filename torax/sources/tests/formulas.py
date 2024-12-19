@@ -219,14 +219,7 @@ class FormulasIntegrationTest(sim_test_case.SimTestCase):
       ref_time: chex.Array,
   ):
     """Runs sim with new runtime params and checks the profiles vs. expected."""
-    sim_outputs = sim_lib.run_simulation(
-        static_runtime_params_slice=sim.static_runtime_params_slice,
-        dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
-        geometry_provider=sim.geometry_provider,
-        initial_state=sim.initial_state,
-        time_step_calculator=sim.time_step_calculator,
-        step_fn=sim.step_fn,
-    )
+    sim_outputs = sim.run()
     history = output.StateHistory(sim_outputs, sim.source_models)
     self._check_profiles_vs_expected(
         core_profiles=history.core_profiles,
