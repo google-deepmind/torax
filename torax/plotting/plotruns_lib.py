@@ -127,6 +127,12 @@ class PlotData:
   t: np.ndarray  # [s]
   rho_cell_coord: np.ndarray  # Normalized toroidal flux coordinate
   rho_face_coord: np.ndarray  # Normalized toroidal flux coordinate
+  te_volume_avg: np.ndarray # [keV]
+  ti_volume_avg: np.ndarray # [keV]
+  ne_volume_avg: np.ndarray # [10^20 m^-3]
+  ni_volume_avg: np.ndarray # [10^20 m^-3]
+  W_thermal_tot: np.ndarray # [MJ]
+  q95: np.ndarray # pylint: disable=invalid-name  # Dimensionless
 
 
 def load_data(filename: str) -> PlotData:
@@ -182,6 +188,7 @@ def load_data(filename: str) -> PlotData:
         'P_rad': 1e6,  # W to MW
         'I_ecrh': 1e6,  # A to MA
         'I_generic': 1e6,  # A to MA
+        'W_thermal_tot': 1e6, # J to MJ
     }
 
     for var_name, scale in transformations.items():
@@ -271,6 +278,12 @@ def load_data(filename: str) -> PlotData:
       p_alpha=post_processed_outputs_dataset['P_alpha_tot'].to_numpy(),
       p_sink=post_processed_outputs_dataset['P_brems'].to_numpy()
       + post_processed_outputs_dataset['P_rad'].to_numpy(),
+      te_volume_avg=post_processed_outputs_dataset['te_volume_avg'].to_numpy(),
+      ti_volume_avg=post_processed_outputs_dataset['ti_volume_avg'].to_numpy(),
+      ne_volume_avg=post_processed_outputs_dataset['ne_volume_avg'].to_numpy(),
+      ni_volume_avg=post_processed_outputs_dataset['ni_volume_avg'].to_numpy(),
+      W_thermal_tot=post_processed_outputs_dataset['W_thermal_tot'].to_numpy(),
+      q95=post_processed_outputs_dataset['q95'].to_numpy(),
       t=time,
   )
 
