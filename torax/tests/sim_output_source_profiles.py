@@ -38,6 +38,7 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.sources.tests import test_lib
@@ -50,6 +51,30 @@ from torax.transport_model import constant as constant_transport_model
 
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
+
+
+class TestImplicitNeSource(test_lib.TestSource):
+  """A test source."""
+
+  @property
+  def source_name(self) -> str:
+    return 'implicit_ne_source'
+
+
+class TestExplicitNeSource(test_lib.TestSource):
+  """A test source."""
+
+  @property
+  def source_name(self) -> str:
+    return 'explicit_ne_source'
+
+
+TestImplicitNeSourceBuilder = source_lib.make_source_builder(
+    TestImplicitNeSource
+)
+TestExplicitNeSourceBuilder = source_lib.make_source_builder(
+    TestExplicitNeSource
+)
 
 
 class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
@@ -101,28 +126,31 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # This is not physically realistic, just for testing purposes.
     def custom_source_formula(
         unused_static_runtime_params_slice,
-        unused_static_source_runtime_params,
-        unused_dynamic_runtime_params,
-        source_conf,
+        dynamic_runtime_params,
         geo,
+        source_name,
         unused_state,
         unused_source_models,
     ):
-      return jnp.ones_like(geo.rho) * source_conf.foo
+      dynamic_source_params = dynamic_runtime_params.sources[source_name]
+      return jnp.ones_like(geo.rho) * dynamic_source_params.foo
 
     # Include 2 versions of this source, one implicit and one explicit.
+    source_builder = source_lib.make_source_builder(
+        TestImplicitNeSource,
+        runtime_params_type=_FakeSourceRuntimeParams,
+        model_func=custom_source_formula,
+    )
     source_models_builder = source_models_lib.SourceModelsBuilder({
-        'implicit_ne_source': test_lib.TestSourceBuilder(
-            formula=custom_source_formula,
+        'implicit_ne_source': source_builder(
             runtime_params=_FakeSourceRuntimeParams(
-                mode=runtime_params_lib.Mode.FORMULA_BASED,
+                mode=runtime_params_lib.Mode.MODEL_BASED,
                 foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
             ),
         ),
-        'explicit_ne_source': test_lib.TestSourceBuilder(
-            formula=custom_source_formula,
+        'explicit_ne_source': source_builder(
             runtime_params=_FakeSourceRuntimeParams(
-                mode=runtime_params_lib.Mode.FORMULA_BASED,
+                mode=runtime_params_lib.Mode.MODEL_BASED,
                 foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
             ),
         ),
@@ -249,7 +277,6 @@ class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
       raise ValueError('torax_mesh is required for FakeSourceRuntimeParams.')
     return _FakeSourceRuntimeParamsProvider(
         runtime_params_config=self,
-        formula=self.formula.make_provider(torax_mesh),
         prescribed_values=config_args.get_interpolated_var_2d(
             self.prescribed_values, torax_mesh.cell_centers
         ),
