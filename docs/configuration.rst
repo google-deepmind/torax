@@ -803,10 +803,6 @@ The configurable runtime parameters of each source are as follows:
     Source values come from a model in code. Specific model selection is not yet available in TORAX since there are no source components with more than one
     physics model. However, this will be straightforward to develop when that occurs.
 
-* ``'FORMULA'``
-    Source values come from a prescribed (possibly time-dependent) formula that is not dependent on the state of the system. The formula type (Gaussian, exponential)
-    is set by ``formula_type``.
-
 * ``'PRESCRIBED'``
     Source values are arbitrarily prescribed by the user. The value is set by ``prescribed_values``, and can contain the same
     data structures as :ref:`Time-varying arrays`.
@@ -840,38 +836,13 @@ and can be set to anything convenient.
   beginning of a time step, or do not have any dependance on state. Implicit sources depend on updated states as the iterative solvers evolve the state through the
   course of a time step. If a source model is complex but evolves over slow timescales compared to the state, it may be beneficial to set it as explicit.
 
-``formula_type`` (str='default')
-  Sets the formula type if ``mode=='formula'``. The current options are:
-
-* ``'exponential'`` takes the following arguments:
-  * c1 (float): Offset location
-  * c2 (float): Exponential decay parameter
-  * total (float): integral
-
-  The profile is parameterized as follows :math:`Q = C e^{-(r - c1) / c2}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
-  then c1 and c2 are interpreted as being in normalized toroidal flux units.
-
-* ``'gaussian'`` takes the following arguments:
-  * c1 (float): Gaussian peak Location
-  * c2 (float): Gaussian width
-  * total (float): integral
-
-  The profile is parameterized as follows :math:`Q = C e^{-((r - c1)^2) / (2 c2^2)}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
-  then c1 and c2 are interpreted as being in normalized toroidal flux units.
-
-* ``'default'``
-    Some sources have default implementations which use the above formulas under the hood with intuitive parameter names for c1 and c2.
-    Consult the list below for further details.
 
 generic_ion_el_heat_source
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A utility source module that allows for a time dependent Gaussian ion and electron heat source.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the Gaussian formula.
+``mode`` (str = 'model')
 
 ``rsource`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -914,10 +885,7 @@ gas_puff_source
 
 Formula based exponential gas puff source. No first-principle-based model is yet implemented in TORAX.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the exponential formula with ``c1=1``.
+``mode`` (str = 'model')
 
 ``puff_decay_length`` (float = 0.05), **time-varying-scalar**
   Gas puff decay length from edge in units of :math:`\hat{\rho}`.
@@ -930,10 +898,7 @@ pellet_source
 
 Time dependent Gaussian pellet source. No first-principle-based model is yet implemented in TORAX.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the Gaussian formula.
+``mode`` (str = 'model')
 
 ``pellet_deposition_location`` (float = 0.85), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -949,10 +914,7 @@ generic_particle_source
 
 Time dependent Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the Gaussian formula with.
+``mode`` (str = 'model')
 
 ``deposition_location`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -978,10 +940,7 @@ generic_current_source
 
 Generic external current profile, parameterized as a Gaussian.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the Gaussian formula.
+``mode`` (str = 'model')
 
 ``rext`` (float = 0.4), **time-varying-scalar**
   Gaussian center of current profile in units of :math:`\hat{\rho}`.

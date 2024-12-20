@@ -35,6 +35,7 @@ This is an internal feature of TORAX and the number of registered sources is
 expected to grow over time as TORAX becomes more feature rich but ultimately be
 finite.
 """
+
 import dataclasses
 from typing import Type
 
@@ -54,109 +55,163 @@ from torax.sources import source
 
 
 @dataclasses.dataclass(frozen=True)
+class ModelFunction:
+  source_profile_function: source.SourceProfileFunction | None
+  runtime_params_class: Type[runtime_params.RuntimeParams]
+  source_builder_class: source.SourceBuilderProtocol | None = None
+  links_back: bool = False
+
+
+@dataclasses.dataclass(frozen=True)
 class RegisteredSource:
   source_class: Type[source.Source]
-  source_builder_class: source.SourceBuilderProtocol
-  default_runtime_params_class: Type[runtime_params.RuntimeParams]
+  model_functions: dict[str, ModelFunction]
 
 
 def _register_new_source(
     source_class: Type[source.Source],
-    default_runtime_params_class: Type[runtime_params.RuntimeParams],
-    source_builder_class: source.SourceBuilderProtocol | None = None,
-    links_back: bool = False,
+    model_functions: dict[str, ModelFunction],
 ) -> RegisteredSource:
-  """Register source class, default runtime params and (optional) builder for this source.
+  """Register source class, default runtime params for this source.
 
   Args:
     source_class: The source class.
-    default_runtime_params_class: The default runtime params class.
-    source_builder_class: The source builder class. If None, a default builder
-      is created which uses the source class and default runtime params class to
-      construct a builder for that source.
-    links_back: Whether the source requires a reference to all the source
-      models.
+    model_functions: A dictionary of model functions and their runtime params
+      for this source.
 
   Returns:
     A `RegisteredSource` dataclass containing the source class, source
     builder class, and default runtime params class.
   """
-  if source_builder_class is None:
-    builder_class = source.make_source_builder(
-        source_class,
-        runtime_params_type=default_runtime_params_class,
-        links_back=links_back,
-    )
-  else:
-    builder_class = source_builder_class
 
   return RegisteredSource(
       source_class=source_class,
-      source_builder_class=builder_class,
-      default_runtime_params_class=default_runtime_params_class,
+      model_functions=model_functions,
   )
 
 
 _REGISTERED_SOURCES = {
-    bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME: (
-        _register_new_source(
-            source_class=bootstrap_current_source.BootstrapCurrentSource,
-            default_runtime_params_class=bootstrap_current_source.RuntimeParams,
-        )
+    bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME: _register_new_source(
+        source_class=bootstrap_current_source.BootstrapCurrentSource,
+        model_functions={
+            bootstrap_current_source.BootstrapCurrentSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=None,
+                runtime_params_class=bootstrap_current_source.RuntimeParams,
+            )
+        },
     ),
-    generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-        _register_new_source(
-            source_class=generic_current_source.GenericCurrentSource,
-            default_runtime_params_class=generic_current_source.RuntimeParams,
-        )
+    generic_current_source.GenericCurrentSource.SOURCE_NAME: _register_new_source(
+        source_class=generic_current_source.GenericCurrentSource,
+        model_functions={
+            generic_current_source.GenericCurrentSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=generic_current_source.calculate_generic_current_face,
+                runtime_params_class=generic_current_source.RuntimeParams,
+            )
+        },
     ),
     electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: _register_new_source(
         source_class=electron_cyclotron_source.ElectronCyclotronSource,
-        default_runtime_params_class=electron_cyclotron_source.RuntimeParams,
+        model_functions={
+            electron_cyclotron_source.ElectronCyclotronSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=electron_cyclotron_source.calc_heating_and_current,
+                runtime_params_class=electron_cyclotron_source.RuntimeParams,
+            )
+        },
     ),
     electron_density_sources.GenericParticleSource.SOURCE_NAME: _register_new_source(
         source_class=electron_density_sources.GenericParticleSource,
-        default_runtime_params_class=electron_density_sources.GenericParticleSourceRuntimeParams,
+        model_functions={
+            electron_density_sources.GenericParticleSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=electron_density_sources.calc_generic_particle_source,
+                runtime_params_class=electron_density_sources.GenericParticleSourceRuntimeParams,
+            )
+        },
     ),
     electron_density_sources.GasPuffSource.SOURCE_NAME: _register_new_source(
         source_class=electron_density_sources.GasPuffSource,
-        default_runtime_params_class=electron_density_sources.GasPuffRuntimeParams,
+        model_functions={
+            electron_density_sources.GasPuffSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=electron_density_sources.calc_puff_source,
+                runtime_params_class=electron_density_sources.GasPuffRuntimeParams,
+            )
+        },
     ),
     electron_density_sources.PelletSource.SOURCE_NAME: _register_new_source(
         source_class=electron_density_sources.PelletSource,
-        default_runtime_params_class=electron_density_sources.PelletRuntimeParams,
+        model_functions={
+            electron_density_sources.PelletSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=electron_density_sources.calc_pellet_source,
+                runtime_params_class=electron_density_sources.PelletRuntimeParams,
+            )
+        },
     ),
     ion_el_heat.GenericIonElectronHeatSource.SOURCE_NAME: _register_new_source(
         source_class=ion_el_heat.GenericIonElectronHeatSource,
-        default_runtime_params_class=ion_el_heat.RuntimeParams,
+        model_functions={
+            ion_el_heat.GenericIonElectronHeatSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=ion_el_heat.default_formula,
+                runtime_params_class=ion_el_heat.RuntimeParams,
+            )
+        },
     ),
     fusion_heat_source.FusionHeatSource.SOURCE_NAME: _register_new_source(
         source_class=fusion_heat_source.FusionHeatSource,
-        default_runtime_params_class=fusion_heat_source.FusionHeatSourceRuntimeParams,
+        model_functions={
+            fusion_heat_source.FusionHeatSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=fusion_heat_source.fusion_heat_model_func,
+                runtime_params_class=fusion_heat_source.FusionHeatSourceRuntimeParams,
+            )
+        },
     ),
     qei_source.QeiSource.SOURCE_NAME: _register_new_source(
         source_class=qei_source.QeiSource,
-        default_runtime_params_class=qei_source.RuntimeParams,
+        model_functions={
+            qei_source.QeiSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=None,
+                runtime_params_class=qei_source.RuntimeParams,
+            )
+        },
     ),
     ohmic_heat_source.OhmicHeatSource.SOURCE_NAME: _register_new_source(
         source_class=ohmic_heat_source.OhmicHeatSource,
-        default_runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
-        links_back=True,
+        model_functions={
+            ohmic_heat_source.OhmicHeatSource.DEFAULT_MODEL_FUNCTION_NAME: (
+                ModelFunction(
+                    source_profile_function=ohmic_heat_source.ohmic_model_func,
+                    runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
+                    links_back=True,
+                )
+            )
+        },
     ),
-    bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME: (
-        _register_new_source(
-            source_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
-            default_runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
-        )
+    bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME: _register_new_source(
+        source_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
+        model_functions={
+            bremsstrahlung_heat_sink.BremsstrahlungHeatSink.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=bremsstrahlung_heat_sink.bremsstrahlung_model_func,
+                runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
+            )
+        },
     ),
     ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME: _register_new_source(
         source_class=ion_cyclotron_source.IonCyclotronSource,
-        default_runtime_params_class=ion_cyclotron_source.RuntimeParams,
+        model_functions={
+            ion_cyclotron_source.IonCyclotronSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=None,
+                runtime_params_class=ion_cyclotron_source.RuntimeParams,
+                source_builder_class=ion_cyclotron_source.IonCyclotronSourceBuilder,
+            )
+        },
     ),
     impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME: _register_new_source(
         source_class=impurity_radiation_heat_sink.ImpurityRadiationHeatSink,
-        default_runtime_params_class=impurity_radiation_heat_sink.RuntimeParams,
-        links_back=True,
+        model_functions={
+            impurity_radiation_heat_sink.ImpurityRadiationHeatSink.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=impurity_radiation_heat_sink.radially_constant_fraction_of_Pin,
+                runtime_params_class=impurity_radiation_heat_sink.RuntimeParams,
+                links_back=True,
+            )
+        },
     ),
 }
 
@@ -167,3 +222,28 @@ def get_registered_source(source_name: str) -> RegisteredSource:
     return _REGISTERED_SOURCES[source_name]
   else:
     raise RuntimeError(f'Source:{source_name} has not been registered.')
+
+
+def register_model_function(
+    source_name: str,
+    model_function_name: str,
+    model_function: source.SourceProfileFunction,
+    runtime_params_class: Type[runtime_params.RuntimeParams],
+    source_builder_class: source.SourceBuilderProtocol | None = None,
+    links_back: bool = False,
+) -> None:
+  """Register a model function for a source."""
+  if source_name not in _REGISTERED_SOURCES:
+    raise ValueError(f'Source:{source_name} has not been registered.')
+  if model_function in _REGISTERED_SOURCES[source_name].model_functions:
+    raise ValueError(
+        f'Model function:{model_function} has already been registered for'
+        f' source:{source_name}.'
+    )
+  registered_source = _REGISTERED_SOURCES[source_name]
+  registered_source.model_functions[model_function_name] = ModelFunction(
+      source_profile_function=model_function,
+      runtime_params_class=runtime_params_class,
+      source_builder_class=source_builder_class,
+      links_back=links_back,
+  )
