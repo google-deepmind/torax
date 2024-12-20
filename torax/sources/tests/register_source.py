@@ -13,9 +13,11 @@
 # limitations under the License.
 """Tests for the source registry."""
 
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import numpy as np
 from torax.sources import bootstrap_current_source
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import electron_cyclotron_source
@@ -27,6 +29,8 @@ from torax.sources import ion_cyclotron_source
 from torax.sources import ohmic_heat_source
 from torax.sources import qei_source
 from torax.sources import register_source
+from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 
 
@@ -50,8 +54,19 @@ class SourceTest(parameterized.TestCase):
     """Test that all sources in the registry build successfully."""
     registered_source = register_source.get_registered_source(source_name)
     source_class = registered_source.source_class
-    source_runtime_params_class = registered_source.default_runtime_params_class
-    source_builder_class = registered_source.source_builder_class
+    model_function = registered_source.model_functions[
+        source_class.DEFAULT_MODEL_FUNCTION_NAME
+    ]
+    source_builder_class = model_function.source_builder_class
+    source_runtime_params_class = model_function.runtime_params_class
+    if source_builder_class is None:
+      source_builder_class = source_lib.make_source_builder(
+          registered_source.source_class,
+          runtime_params_type=source_runtime_params_class,
+          links_back=model_function.links_back,
+          model_func=model_function.source_profile_function,
+      )
+    source_runtime_params_class = model_function.runtime_params_class
     source_builder = source_builder_class()
     self.assertIsInstance(
         source_builder.runtime_params, source_runtime_params_class
@@ -69,6 +84,69 @@ class SourceTest(parameterized.TestCase):
       )
       source = source_builder(source_models)
     self.assertIsInstance(source, source_class)
+
+  @parameterized.parameters(
+      bootstrap_current_source.BootstrapCurrentSource,
+      bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
+      electron_cyclotron_source.ElectronCyclotronSource,
+      electron_density_sources.GenericParticleSource,
+      electron_density_sources.GasPuffSource,
+      electron_density_sources.PelletSource,
+      fusion_heat_source.FusionHeatSource,
+      generic_current_source.GenericCurrentSource,
+      ion_el_heat.GenericIonElectronHeatSource,
+      (ohmic_heat_source.OhmicHeatSource, True),
+      qei_source.QeiSource,
+  )
+  def test_register_model_function(
+      self,
+      source_type: type[source_lib.Source],
+      links_back: bool = False,
+  ):
+    """Test that the model functions can be registered against TORAX sources."""
+    model_function_name = "dummy_model_function"
+    dummy_model_function = lambda *args, **kwargs: np.array([1.0, 2.0])
+    runtime_params_type = runtime_params_lib.RuntimeParams
+    register_source.register_model_function(
+        source_name=source_type.SOURCE_NAME,
+        model_function_name=model_function_name,
+        model_function=dummy_model_function,
+        runtime_params_class=runtime_params_type,
+        links_back=links_back,
+    )
+    # Retrieve the model function from the registry.
+    registered_source = register_source.get_registered_source(
+        source_type.SOURCE_NAME
+    )
+    model_function = registered_source.model_functions[model_function_name]
+
+    # Create a source builder and source for the model function.
+    source_builder_class = source_lib.make_source_builder(
+        registered_source.source_class,
+        runtime_params_type=model_function.runtime_params_class,
+        links_back=model_function.links_back,
+        model_func=model_function.source_profile_function,
+    )
+    source_builder = source_builder_class()
+    self.assertIsInstance(source_builder.runtime_params, runtime_params_type)
+    if links_back:
+      source = source_builder(source_models=mock.Mock())
+    else:
+      source = source_builder()
+    self.assertIsInstance(source, source_type)
+
+    # Check the model function returns the expected value.
+    np.testing.assert_array_equal(
+        source.model_func(
+            static_runtime_params_slice=mock.Mock(),
+            dynamic_runtime_params_slice=mock.Mock(),
+            geo=mock.Mock(),
+            source_name=mock.Mock(),
+            core_profiles=mock.Mock(),
+            source_models=mock.Mock(),
+        ),
+        np.array([1.0, 2.0]),
+    )
 
 
 if __name__ == "__main__":

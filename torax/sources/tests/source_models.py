@@ -38,6 +38,10 @@ class FooSource(source_lib.Source):
   """A test source."""
 
   @property
+  def source_name(self) -> str:
+    return 'foo'
+
+  @property
   def affected_core_profiles(
       self,
   ) -> tuple[source_lib.AffectedCoreProfile, ...]:
@@ -49,10 +53,6 @@ class FooSource(source_lib.Source):
   @property
   def output_shape_getter(self) -> source_lib.SourceOutputShapeFunction:
     return source_lib.get_ion_el_output_shape
-
-  @property
-  def supported_modes(self) -> tuple[source_runtime_params_lib.Mode, ...]:
-    return (source_runtime_params_lib.Mode.FORMULA_BASED,)
 
 
 _FooSourceBuilder = source_lib.make_source_builder(
@@ -175,10 +175,9 @@ class SourceProfilesTest(parameterized.TestCase):
 
     def foo_formula(
         unused_dcs,
-        unused_sc,
         unused_static_runtime_params_slice,
-        unused_static_source_runtime_params,
         geo: geometry.Geometry,
+        unused_source_name: str,
         unused_state,
         unused_source_models,
     ):
@@ -187,16 +186,12 @@ class SourceProfilesTest(parameterized.TestCase):
           jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo)),
       ])
 
-    foo_source_builder = _FooSourceBuilder(
-        formula=foo_formula,
-    )
-    foo_source_builder.affected_core_profiles = (
-        source_lib.AffectedCoreProfile.TEMP_EL,
-        source_lib.AffectedCoreProfile.NE,
-    )
-    # Set the source mode to FORMULA.
+    foo_source_builder = source_lib.make_source_builder(
+        FooSource, model_func=foo_formula
+    )()
+    # Set the source mode to MODEL_BASED.
     foo_source_builder.runtime_params.mode = (
-        source_runtime_params_lib.Mode.FORMULA_BASED
+        source_runtime_params_lib.Mode.MODEL_BASED
     )
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {source_name: foo_source_builder},

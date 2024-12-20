@@ -25,7 +25,6 @@ from torax import array_typing
 from torax import interpolated_param
 from torax.config import base
 from torax.geometry import geometry
-from torax.sources import formula_config
 
 
 TimeInterpolatedInput = interpolated_param.TimeInterpolatedInput
@@ -42,15 +41,10 @@ class Mode(enum.Enum):
   # explicit depending on the model implementation.
   MODEL_BASED = 1
 
-  # Source values come from a prescribed (possibly time-dependent) formula that
-  # is not dependent on the state of the system. These formulas may be dependent
-  # on the config and geometry of the system.
-  FORMULA_BASED = 2
-
   # Source values come from a pre-determined set of values, that may evolve in
   # time. Values can be drawn from a file or an array. These sources are always
   # explicit.
-  PRESCRIBED = 3
+  PRESCRIBED = 2
 
 
 @dataclasses.dataclass
@@ -80,12 +74,6 @@ class RuntimeParams(base.RuntimeParametersConfig):
   # source type and is_explicit is passed in, an error will be thrown when
   # running the simulation.
   is_explicit: bool = False
-
-  # Parameters used only when the source is using a prescribed formula to
-  # compute its profile.
-  formula: base.RuntimeParametersConfig = dataclasses.field(
-      default_factory=formula_config.Exponential
-  )
 
   # Prescribed values for the source. Used only when the source is fully
   # prescribed (i.e. source.mode == Mode.PRESCRIBED).
@@ -118,7 +106,6 @@ class RuntimeParamsProvider(
   """Runtime parameter provider for a single source/sink term."""
 
   runtime_params_config: RuntimeParams
-  formula: base.RuntimeParametersProvider
   prescribed_values: interpolated_param.InterpolatedVarTimeRho
 
   def get_dynamic_params_kwargs(
@@ -148,8 +135,6 @@ class DynamicRuntimeParams:
   stateless, so these params are their inputs to determine their output
   profiles.
   """
-
-  formula: formula_config.DynamicFormula
   prescribed_values: array_typing.ArrayFloat
 
 
