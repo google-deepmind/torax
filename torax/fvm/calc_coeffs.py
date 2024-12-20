@@ -728,9 +728,6 @@ def _calc_coeffs_full(
   qei = source_models.qei_source.get_qei(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-          source_models.qei_source_name
-      ],
       geo=geo,
       # For Qei, always use the current set of core profiles.
       # In the linear solver, core_profiles is the set of profiles at time t (at

@@ -76,21 +76,22 @@ class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 # Default formula: exponential with nref normalization.
-def _calc_puff_source(
+def calc_puff_source(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     unused_state: state.CoreProfiles | None = None,
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from puffs."""
   del (
-      static_source_runtime_params,
       unused_source_models,
       static_runtime_params_slice,
   )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   assert isinstance(dynamic_source_runtime_params, DynamicGasPuffRuntimeParams)
   return formulas.exponential_profile(
       c1=1.0,
@@ -108,7 +109,12 @@ class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'gas_puff_source'
-  formula: source.SourceProfileFunction = _calc_puff_source
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_puff_source'
+  formula: source.SourceProfileFunction = calc_puff_source
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
@@ -167,21 +173,22 @@ class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   S_tot: array_typing.ScalarFloat
 
 
-def _calc_generic_particle_source(
+def calc_generic_particle_source(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     unused_state: state.CoreProfiles | None = None,
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from SBI."""
   del (
-      static_source_runtime_params,
       unused_source_models,
       static_runtime_params_slice,
   )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   assert isinstance(dynamic_source_runtime_params, DynamicParticleRuntimeParams)
   return formulas.gaussian_profile(
       c1=dynamic_source_runtime_params.deposition_location,
@@ -199,7 +206,12 @@ class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_particle_source'
-  formula: source.SourceProfileFunction = _calc_generic_particle_source
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_particle_source'
+  formula: source.SourceProfileFunction = calc_generic_particle_source
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
@@ -250,21 +262,22 @@ class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   S_pellet_tot: array_typing.ScalarFloat
 
 
-def _calc_pellet_source(
+def calc_pellet_source(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     unused_state: state.CoreProfiles | None = None,
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from pellets."""
   del (
-      static_source_runtime_params,
       unused_source_models,
       static_runtime_params_slice,
   )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   assert isinstance(dynamic_source_runtime_params, DynamicPelletRuntimeParams)
   return formulas.gaussian_profile(
       c1=dynamic_source_runtime_params.pellet_deposition_location,
@@ -282,23 +295,13 @@ class PelletSource(source.Source):
   """Pellet source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'pellet_source'
-  formula: source.SourceProfileFunction = _calc_pellet_source
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_pellet_source'
+  formula: source.SourceProfileFunction = calc_pellet_source
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.NE,)
-
-
-# pylint: enable=invalid-name
-# The sources below don't have any source-specific implementations, so their
-# bodies are empty. You can refer to their base class to see the implementation.
-# We define new classes here to:
-#  a) support any future source-specific implementation.
-#  b) better readability and human-friendly error messages when debugging.
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class RecombinationDensitySink(source.Source):
-  """Recombination sink for the electron density equation."""
-
-  affected_core_profiles: tuple[source.AffectedCoreProfile, ...] = (
-      source.AffectedCoreProfile.NE,
-  )
