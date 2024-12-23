@@ -329,6 +329,11 @@ class PostProcessedOutputs:
     E_cumulative_fusion: Total cumulative fusion energy [J]
     E_cumulative_external: Total external injected energy (Ohmic + auxiliary
       heating) [J]
+    te_volume_avg: Volume average electron temperature [keV]
+    ti_volume_avg: Volume average ion temperature [keV]
+    ne_volume_avg: Volume average electron density [nref m^-3]
+    ni_volume_avg: Volume average main ion density [nref m^-3]
+    q95: q at 95% of the normalized poloidal flux
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -378,6 +383,11 @@ class PostProcessedOutputs:
   ne_min_P_LH: array_typing.ScalarFloat
   E_cumulative_fusion: array_typing.ScalarFloat
   E_cumulative_external: array_typing.ScalarFloat
+  te_volume_avg: array_typing.ScalarFloat
+  ti_volume_avg: array_typing.ScalarFloat
+  ne_volume_avg: array_typing.ScalarFloat
+  ni_volume_avg: array_typing.ScalarFloat
+  q95: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -427,6 +437,11 @@ class PostProcessedOutputs:
         ne_min_P_LH=jnp.array(0.0),
         E_cumulative_fusion=jnp.array(0.0),
         E_cumulative_external=jnp.array(0.0),
+        te_volume_avg=jnp.array(0.0),
+        ti_volume_avg=jnp.array(0.0),
+        ne_volume_avg=jnp.array(0.0),
+        ni_volume_avg=jnp.array(0.0),
+        q95=jnp.array(0.0),
     )
 
 
