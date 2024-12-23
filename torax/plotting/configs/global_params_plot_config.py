@@ -19,15 +19,12 @@ from torax.plotting import plotruns_lib
 PLOT_CONFIG = plotruns_lib.FigureProperties(
     rows=2,
     cols=3,
-    tick_fontsize=8,
-    axes_fontsize=8,
-    default_legend_fontsize=7,
-    figure_size_factor=5,
+    tick_fontsize=10,
+    axes_fontsize=10,
+    default_legend_fontsize=8,
+    figure_size_factor=3,
     title_fontsize=12,
     axes=(
-        # For chi, set histogram percentile for y-axis upper limit, due to
-        # volatile nature of the data. Do not include first timepoint since
-        # chi is defined as zero there and may unduly affect ylim.
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
             attrs=('i_total', 'i_bootstrap', 'i_generic', 'i_ecrh'),
