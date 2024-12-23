@@ -46,7 +46,7 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
             attrs=('W_thermal_tot',),
-            labels=(r'$W_\mathrm{therm_tot}$',),
+            labels=(r'$W_\mathrm{therm\_tot}$',),
             ylabel='Total thermal stored energy [MJ]',
         ),
         plotruns_lib.PlotProperties(
