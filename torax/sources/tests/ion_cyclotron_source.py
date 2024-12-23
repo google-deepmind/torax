@@ -182,23 +182,24 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         total_power,
     )
 
-  def test_toric_nn_loads_and_predicts_with_dummy_model(self):
+  @classmethod
+  def test_toric_nn_loads_and_predicts_with_dummy_model(cls):
     """Test that the ToricNNWrapper loads and predicts consistently."""
     # Load the model and verify the prediction are consistent with the output
     # of the dummy network.
     toric_wrapper = ion_cyclotron_source.ToricNNWrapper(path=_DUMMY_MODEL_PATH)
-    wrapper_output = toric_wrapper.predict(self.dummy_input)
+    wrapper_output = toric_wrapper.predict(cls.dummy_input)
     np.testing.assert_array_equal(
         wrapper_output.power_deposition_He3,
-        self.dummy_output,
+        cls.dummy_output,
     )
     np.testing.assert_array_equal(
         wrapper_output.power_deposition_2T,
-        self.dummy_output,
+        cls.dummy_output,
     )
     np.testing.assert_array_equal(
         wrapper_output.power_deposition_e,
-        self.dummy_output,
+        cls.dummy_output,
     )
     # pylint: enable=protected-access
 
