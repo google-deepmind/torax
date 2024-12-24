@@ -38,6 +38,10 @@ class TestSource(source_lib.Source):
   """A test source."""
 
   @property
+  def source_name(self) -> str:
+    return 'foo'
+
+  @property
   def affected_core_profiles(
       self,
   ) -> tuple[source_lib.AffectedCoreProfile, ...]:
@@ -66,6 +70,7 @@ class SourceTestCase(parameterized.TestCase):
   _source_class_builder: source_lib.SourceBuilderProtocol
   _config_attr_name: str
   _unsupported_modes: Sequence[runtime_params_lib.Mode]
+  _source_name: str
 
   @classmethod
   def setUpClass(
@@ -73,6 +78,7 @@ class SourceTestCase(parameterized.TestCase):
       source_class: Type[source_lib.Source],
       runtime_params_class: Type[runtime_params_lib.RuntimeParams],
       unsupported_modes: Sequence[runtime_params_lib.Mode],
+      source_name: str,
       links_back: bool = False,
   ):
     super().setUpClass()
@@ -85,6 +91,7 @@ class SourceTestCase(parameterized.TestCase):
     cls._runtime_params_class = runtime_params_class
     cls._unsupported_modes = unsupported_modes
     cls._links_back = links_back
+    cls._source_name = source_name
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = self._runtime_params_class()
@@ -133,10 +140,10 @@ class SingleProfileSourceTestCase(SourceTestCase):
     # pylint: enable=missing-kwoa
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'foo': source_builder},
+        {self._source_name: source_builder},
     )
     source_models = source_models_builder()
-    source = source_models.sources['foo']
+    source = source_models.sources[self._source_name]
     source_builder.runtime_params.mode = source.supported_modes[0]
     self.assertIsInstance(source, source_lib.Source)
     geo = geometry.build_circular_geometry()
@@ -162,11 +169,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     )
     value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            'foo'
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -180,10 +183,10 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'foo': source_builder},
+        {self._source_name: source_builder},
     )
     source_models = source_models_builder()
-    source = source_models.sources['foo']
+    source = source_models.sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -216,11 +219,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         with self.assertRaises(ValueError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-                  'foo'
-              ],
               static_runtime_params_slice=static_slice,
-              static_source_runtime_params=static_slice.sources['foo'],
               geo=geo,
               core_profiles=core_profiles,
           )
@@ -237,10 +236,10 @@ class IonElSourceTestCase(SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'foo': source_builder},
+        {self._source_name: source_builder},
     )
     source_models = source_models_builder()
-    source = source_models.sources['foo']
+    source = source_models.sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -264,11 +263,7 @@ class IonElSourceTestCase(SourceTestCase):
     )
     ion_and_el = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            'foo'
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources['foo'],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -282,10 +277,10 @@ class IonElSourceTestCase(SourceTestCase):
     source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {'foo': source_builder},
+        {self._source_name: source_builder},
     )
     source_models = source_models_builder()
-    source = source_models.sources['foo']
+    source = source_models.sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -318,11 +313,7 @@ class IonElSourceTestCase(SourceTestCase):
         with self.assertRaises(ValueError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-                  'foo'
-              ],
               static_runtime_params_slice=static_slice,
-              static_source_runtime_params=static_slice.sources['foo'],
               geo=geo,
               core_profiles=core_profiles,
           )

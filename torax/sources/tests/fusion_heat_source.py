@@ -40,6 +40,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
+        source_name=fusion_heat_source.FusionHeatSource.SOURCE_NAME,
     )
 
   @parameterized.parameters([

@@ -405,13 +405,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models = source_models_lib.SourceModels()
     bootstrap_profile = source_models.j_bootstrap.get_value(
         dynamic_runtime_params_slice=dcs3,
-        dynamic_source_runtime_params=dcs3.sources[
-            source_models.j_bootstrap_name
-        ],
         static_runtime_params_slice=static_slice,
-        static_source_runtime_params=static_slice.sources[
-            source_models.j_bootstrap_name
-        ],
         geo=geo,
         core_profiles=core_profiles3_helper,
     )

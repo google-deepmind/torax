@@ -22,7 +22,6 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import formula_config
-from torax.sources import runtime_params
 
 
 # Many variables throughout this function are capitalized based on physics
@@ -118,20 +117,20 @@ class Exponential:
   def __call__(  # pytype: disable=name-error
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      static_source_runtime_params: runtime_params.StaticRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
+      source_name: str,
       unused_state: state.CoreProfiles | None,
       unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
     del (
-        dynamic_runtime_params_slice,
         static_runtime_params_slice,
-        static_source_runtime_params,
         unused_state,
         unused_source_models,
     )  # Unused.
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        source_name
+    ]
     exp_config = dynamic_source_runtime_params.formula
     assert isinstance(exp_config, formula_config.DynamicExponential)
     return exponential_profile(
@@ -149,20 +148,20 @@ class Gaussian:
   def __call__(  # pytype: disable=name-error
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      static_source_runtime_params: runtime_params.StaticRuntimeParams,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
       geo: geometry.Geometry,
+      source_name: str,
       unused_state: state.CoreProfiles | None,
       unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
     del (
-        dynamic_runtime_params_slice,
         static_runtime_params_slice,
-        static_source_runtime_params,
         unused_state,
         unused_source_models,
     )  # Unused.
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        source_name
+    ]
     gaussian_config = dynamic_source_runtime_params.formula
     assert isinstance(gaussian_config, formula_config.DynamicGaussian)
     return gaussian_profile(

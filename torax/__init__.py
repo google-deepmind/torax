@@ -73,6 +73,7 @@ CANONICAL_ORDER = [
     'geo_t',
     'geo_t_plus_dt',
     'geometry_provider',
+    'source_name',
     'x_old',
     'state',
     'unused_state',

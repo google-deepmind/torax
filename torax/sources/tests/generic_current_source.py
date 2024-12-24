@@ -38,6 +38,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.MODEL_BASED,
         ],
+        source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
     )
 
   def test_generic_current_hires(self):
@@ -71,13 +72,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
     self.assertIsNotNone(
         source.generic_current_source_hires(
             dynamic_runtime_params_slice=dynamic_slice,
-            dynamic_source_runtime_params=dynamic_slice.sources[
-                generic_current_source.GenericCurrentSource.SOURCE_NAME
-            ],
             static_runtime_params_slice=static_slice,
-            static_source_runtime_params=static_slice.sources[
-                generic_current_source.GenericCurrentSource.SOURCE_NAME
-            ],
             geo=geo,
         )
     )
@@ -115,13 +110,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
     self.assertEqual(
         source.get_value(
             static_slice,
-            static_slice.sources[
-                generic_current_source.GenericCurrentSource.SOURCE_NAME
-            ],
             dynamic_runtime_params_slice,
-            dynamic_runtime_params_slice.sources[
-                generic_current_source.GenericCurrentSource.SOURCE_NAME
-            ],
             geo,
             core_profiles=None,
         ).shape,

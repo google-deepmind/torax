@@ -115,22 +115,22 @@ def calc_generic_heat_source(
 # pytype: disable=name-error
 def _default_formula(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Returns the default formula-based ion/electron heat source profile."""
   # pytype: enable=name-error
   del (
-      dynamic_runtime_params_slice,
       core_profiles,
-      static_source_runtime_params,
       static_runtime_params_slice,
       unused_source_models,
   )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   ion, el = calc_generic_heat_source(
       geo,
@@ -151,6 +151,10 @@ class GenericIonElectronHeatSource(source.Source):
 
   SOURCE_NAME: ClassVar[str] = 'generic_ion_el_heat_source'
   formula: source.SourceProfileFunction = _default_formula
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:

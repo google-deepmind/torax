@@ -94,64 +94,36 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 
     # For this example, use test_particle_sources_constant with the linear
     # stepper.
-    custom_source_name = 'custom_ne_source'
+    custom_source_name = 'foo'
 
     def custom_source_formula(
         static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-        static_source_runtime_params: runtime_params_lib.RuntimeParams,
         dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-        dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
         geo: geometry.Geometry,
+        unused_source_name: str,
         unused_state: state_lib.CoreProfiles | None,
         unused_source_models: ...,
     ):
       # Combine the outputs.
-      assert isinstance(
-          dynamic_source_runtime_params, _CustomSourceDynamicRuntimeParams
-      )
-      ignored_default_kwargs = dict(
-          formula=dynamic_source_runtime_params.formula,
-          prescribed_values=dynamic_source_runtime_params.prescribed_values,
-      )
-      puff_params = electron_density_sources.DynamicGasPuffRuntimeParams(
-          puff_decay_length=dynamic_source_runtime_params.puff_decay_length,
-          S_puff_tot=dynamic_source_runtime_params.S_puff_tot,
-          **ignored_default_kwargs,
-      )
-      params = electron_density_sources.DynamicParticleRuntimeParams(
-          deposition_location=dynamic_source_runtime_params.deposition_location,
-          particle_width=dynamic_source_runtime_params.particle_width,
-          S_tot=dynamic_source_runtime_params.S_tot,
-          **ignored_default_kwargs,
-      )
-      pellet_params = electron_density_sources.DynamicPelletRuntimeParams(
-          pellet_deposition_location=dynamic_source_runtime_params.pellet_deposition_location,
-          pellet_width=dynamic_source_runtime_params.pellet_width,
-          S_pellet_tot=dynamic_source_runtime_params.S_pellet_tot,
-          **ignored_default_kwargs,
-      )
       # pylint: disable=protected-access
       return (
           electron_density_sources._calc_puff_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              dynamic_source_runtime_params=puff_params,
               static_runtime_params_slice=static_runtime_params_slice,
-              static_source_runtime_params=static_source_runtime_params,
               geo=geo,
+              source_name=electron_density_sources.GasPuffSource.SOURCE_NAME,
           )
           + electron_density_sources._calc_generic_particle_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              dynamic_source_runtime_params=params,
               static_runtime_params_slice=static_runtime_params_slice,
-              static_source_runtime_params=static_source_runtime_params,
               geo=geo,
+              source_name=electron_density_sources.GenericParticleSource.SOURCE_NAME,
           )
           + electron_density_sources._calc_pellet_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              dynamic_source_runtime_params=pellet_params,
               static_runtime_params_slice=static_runtime_params_slice,
-              static_source_runtime_params=static_source_runtime_params,
               geo=geo,
+              source_name=electron_density_sources.PelletSource.SOURCE_NAME,
           )
       )
       # pylint: enable=protected-access

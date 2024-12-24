@@ -42,10 +42,8 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
     super().setUpClass(
         source_class=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink,
         runtime_params_class=impurity_radiation_heat_sink_lib.RuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
-            runtime_params_lib.Mode.PRESCRIBED,
-        ],
+        unsupported_modes=[],
+        source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
         links_back=True,
     )
 
@@ -73,9 +71,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
     # Source models
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {
-            impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME: (
-                impurity_radiation_sink_builder
-            ),
+            self._source_name: impurity_radiation_sink_builder,
             generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME: (
                 heat_source_builder
             ),
@@ -84,9 +80,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
     source_models = source_models_builder()
 
     # Extract the source we're testing and check that it's been built correctly
-    impurity_radiation_sink = source_models.sources[
-        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME
-    ]
+    impurity_radiation_sink = source_models.sources[self._source_name]
     self.assertIsInstance(impurity_radiation_sink, source_lib.Source)
 
     # Geometry, profiles, and dynamic runtime params
@@ -111,12 +105,9 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         geo=geo,
         source_models=source_models,
     )
-    impurity_radiation_sink_dynamic_runtime_params_slice = dynamic_runtime_params_slice.sources[
-        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME
-    ]
-    impurity_radiation_sink_static_runtime_params_slice = static_slice.sources[
-        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME
-    ]
+    impurity_radiation_sink_dynamic_runtime_params_slice = (
+        dynamic_runtime_params_slice.sources[self._source_name]
+    )
 
     heat_source_dynamic_runtime_params_slice = (
         dynamic_runtime_params_slice.sources[
@@ -132,13 +123,13 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         heat_source_dynamic_runtime_params_slice,
         generic_ion_el_heat_source.DynamicRuntimeParams,
     )
-    impurity_radiation_heat_sink_power_density = impurity_radiation_sink.get_value(
-        static_runtime_params_slice=static_slice,
-        static_source_runtime_params=impurity_radiation_sink_static_runtime_params_slice,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=impurity_radiation_sink_dynamic_runtime_params_slice,
-        geo=geo,
-        core_profiles=core_profiles,
+    impurity_radiation_heat_sink_power_density = (
+        impurity_radiation_sink.get_value(
+            static_runtime_params_slice=static_slice,
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+            geo=geo,
+            core_profiles=core_profiles,
+        )
     )
 
     # ImpurityRadiationHeatSink provides TEMP_EL only
@@ -163,10 +154,12 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
     geo = geometry.build_circular_geometry()
     source_builder = self._source_class_builder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {"foo": source_builder},
+        {
+            self._source_name: source_builder
+        },
     )
     source_models = source_models_builder()
-    source = source_models.sources["foo"]
+    source = source_models.sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -209,13 +202,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         with self.assertRaises(RuntimeError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-                  "foo"
-              ],
               static_runtime_params_slice=static_runtime_params_slice,
-              static_source_runtime_params=static_runtime_params_slice.sources[
-                  "foo"
-              ],
               geo=geo,
               core_profiles=core_profiles,
           )
@@ -225,10 +212,10 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
     geo = geometry.build_circular_geometry()
     source_builder = self._source_class_builder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {"foo": source_builder},
+        {self._source_name: source_builder},
     )
     source_models = source_models_builder()
-    source = source_models.sources["foo"]
+    source = source_models.sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     fake_profile = jnp.ones(cell)

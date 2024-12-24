@@ -41,6 +41,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
+        source_name=electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
     )
 
   def test_source_value(self):
@@ -50,10 +51,16 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
       raise TypeError(f"{type(self)} has a bad _source_class_builder")
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {"foo": source_builder},
+        {
+            electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
+                source_builder
+            )
+        },
     )
     source_models = source_models_builder()
-    source = source_models.sources["foo"]
+    source = source_models.sources[
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME
+    ]
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
     geo = geometry.build_circular_geometry()
@@ -82,11 +89,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     )
     value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            "foo"
-        ],
         static_runtime_params_slice=static_runtime_params_slice,
-        static_source_runtime_params=static_runtime_params_slice.sources["foo"],
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -102,10 +105,16 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     geo = geometry.build_circular_geometry()
     source_builder = self._source_class_builder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {"foo": source_builder},
+        {
+            electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
+                source_builder
+            )
+        },
     )
     source_models = source_models_builder()
-    source = source_models.sources["foo"]
+    source = source_models.sources[
+        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME
+    ]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice_provider = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -148,13 +157,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         with self.assertRaises(ValueError):
           source.get_value(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-                  "foo"
-              ],
               static_runtime_params_slice=static_runtime_params_slice,
-              static_source_runtime_params=static_runtime_params_slice.sources[
-                  "foo"
-              ],
               geo=geo,
               core_profiles=core_profiles,
           )

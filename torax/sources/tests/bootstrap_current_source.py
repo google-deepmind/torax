@@ -36,6 +36,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
+        source_name=bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME,
     )
 
   def test_extraction_of_relevant_profile_from_output(self):

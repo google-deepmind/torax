@@ -1351,33 +1351,16 @@ def update_current_distribution(
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ],
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ],
       geo=geo,
       core_profiles=core_profiles,
-  )
-
-  # Calculate splitting of currents depending on input runtime params.
-  dynamic_generic_current_params = (
-      core_profile_setters.get_generic_current_params(
-          dynamic_runtime_params_slice, source_models
-      )
   )
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
   generic_current_face = source_models.generic_current_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_generic_current_params,
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_runtime_params_slice.sources[
-          source_models.generic_current_source_name
-      ],
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -1527,9 +1510,6 @@ def get_initial_source_profiles(
   qei = source_models.qei_source.get_qei(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-          source_models.qei_source_name
-      ],
       geo=geo,
       core_profiles=core_profiles,
   )
