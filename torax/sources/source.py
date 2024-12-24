@@ -43,20 +43,23 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 
 
-# Sources implement these functions to be able to provide source profiles.
 # pytype bug: 'source_models.SourceModels' not treated as forward reference
-SourceProfileFunction: TypeAlias = Callable[  # pytype: disable=name-error
-    [  # Arguments
-        runtime_params_slice.StaticRuntimeParamsSlice,  # Static runtime params.
-        runtime_params_slice.DynamicRuntimeParamsSlice,  # General config params
-        geometry.Geometry,
-        str,  # Source name
-        state.CoreProfiles,
-        Optional['source_models.SourceModels'],
-    ],
-    # Returns a JAX array, tuple of arrays, or mapping of arrays.
-    chex.ArrayTree,
-]
+# pytype: disable=name-error
+@typing.runtime_checkable
+class SourceProfileFunction(Protocol):
+  """Sources implement these functions to be able to provide source profiles."""
+
+  def __call__(
+      self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      source_name: str,
+      core_profiles: state.CoreProfiles,
+      source_models: Optional['source_models.SourceModels'],
+  ) -> chex.ArrayTree:
+    ...
+# pytype: enable=name-error
 
 
 # Any callable which takes the dynamic runtime_params, geometry, and optional
@@ -552,8 +555,16 @@ def make_source_builder(
           type(f.type) == types.GenericAlias  # pylint: disable=unidiomatic-typecheck
           or typing.get_origin(f.type) is not None
       ):
-        pass
-
+        # For `Union`s check if the value is a member of the union.
+        # `typing.Union` is for types defined with `Union[A, B, C]` syntax.
+        # `types.UnionType` is for types defined with `A | B | C` syntax.
+        if typing.get_origin(f.type) in [typing.Union, types.UnionType]:
+          if not isinstance(v, typing.get_args(f.type)):
+            raise TypeError(
+                f'While {context_msg} {source_type} got argument '
+                f'{f.name} of type {type(v)} but expected '
+                f'{f.type}).'
+            )
       else:
         try:
           type_works = isinstance(v, f.type)
