@@ -107,6 +107,7 @@ class Source(abc.ABC):
   are in turn used to compute coeffs in sim.py.
 
   Attributes:
+    SOURCE_NAME: The name of the source.
     DEFAULT_MODEL_FUNCTION_NAME: The name of the model function used with this
       source if another isn't specified.
     runtime_params: Input dataclass containing all the source-specific runtime
@@ -127,6 +128,7 @@ class Source(abc.ABC):
     affected_core_profiles_ints: Derived property from the
       affected_core_profiles. Integer values of those enums.
   """
+  SOURCE_NAME: ClassVar[str] = 'source'
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'default'
   model_func: SourceProfileFunction | None = None
 

@@ -201,3 +201,28 @@ def get_supported_source(source_name: str) -> SupportedSource:
     return _SUPPORTED_SOURCES[source_name]
   else:
     raise RuntimeError(f'Source:{source_name} has not been registered.')
+
+
+def register_model_function(
+    source_name: str,
+    model_function_name: str,
+    model_function: source.SourceProfileFunction,
+    runtime_params_class: Type[runtime_params.RuntimeParams],
+    source_builder_class: source.SourceBuilderProtocol | None = None,
+    links_back: bool = False,
+) -> None:
+  """Register a model function by adding to one of the supported sources in the registry."""
+  if source_name not in _SUPPORTED_SOURCES:
+    raise ValueError(f'Source:{source_name} not found under supported sources.')
+  if model_function in _SUPPORTED_SOURCES[source_name].model_functions:
+    raise ValueError(
+        f'Model function:{model_function} has already been registered for'
+        f' source:{source_name}.'
+    )
+  registered_source = _SUPPORTED_SOURCES[source_name]
+  registered_source.model_functions[model_function_name] = ModelFunction(
+      source_profile_function=model_function,
+      runtime_params_class=runtime_params_class,
+      source_builder_class=source_builder_class,
+      links_back=links_back,
+  )
