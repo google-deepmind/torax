@@ -840,25 +840,6 @@ and can be set to anything convenient.
   beginning of a time step, or do not have any dependance on state. Implicit sources depend on updated states as the iterative solvers evolve the state through the
   course of a time step. If a source model is complex but evolves over slow timescales compared to the state, it may be beneficial to set it as explicit.
 
-``formula_type`` (str='default')
-  Sets the formula type if ``mode=='formula'``. The current options are:
-
-* ``'exponential'`` takes the following arguments:
-  * c1 (float): Offset location
-  * c2 (float): Exponential decay parameter
-  * total (float): integral
-
-  The profile is parameterized as follows :math:`Q = C e^{-(r - c1) / c2}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
-  then c1 and c2 are interpreted as being in normalized toroidal flux units.
-
-* ``'gaussian'`` takes the following arguments:
-  * c1 (float): Gaussian peak Location
-  * c2 (float): Gaussian width
-  * total (float): integral
-
-  The profile is parameterized as follows :math:`Q = C e^{-((r - c1)^2) / (2 c2^2)}` , where ``C`` is calculated to be consistent with ``total``. If ``use_normalized_r==True``,
-  then c1 and c2 are interpreted as being in normalized toroidal flux units.
-
 * ``'default'``
     Some sources have default implementations which use the above formulas under the hood with intuitive parameter names for c1 and c2.
     Consult the list below for further details.
@@ -868,10 +849,7 @@ generic_ion_el_heat_source
 
 A utility source module that allows for a time dependent Gaussian ion and electron heat source.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the Gaussian formula.
+``mode`` (str = 'model')
 
 ``rsource`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.

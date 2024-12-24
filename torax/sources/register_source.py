@@ -35,6 +35,7 @@ This is an internal feature of TORAX and the number of registered sources is
 expected to grow over time as TORAX becomes more feature rich but ultimately be
 finite.
 """
+
 import dataclasses
 from typing import Type
 

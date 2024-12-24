@@ -161,7 +161,6 @@ class GenericParticleSourceRuntimeParamsProvider(
         particle_width=float(self.particle_width.get_value(t)),
         deposition_location=float(self.deposition_location.get_value(t)),
         S_tot=float(self.S_tot.get_value(t)),
-        formula=self.formula.build_dynamic_params(t),
         prescribed_values=self.prescribed_values.get_value(t),
     )
 

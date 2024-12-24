@@ -386,26 +386,16 @@ class SourceModels:
   .. code-block:: python
 
     # Define an electron-density source with a time-dependent Gaussian profile.
-    my_custom_source = source.SingleProfileSource(
-        supported_modes=(
-            runtime_params_lib.Mode.ZERO,
-            runtime_params_lib.Mode.FORMULA_BASED,
-        ),
-        affected_core_profiles=source.AffectedCoreProfile.NE,
-        formula=formulas.Gaussian(),
-        # Define (possibly) time-dependent parameters to feed to the formula.
-        runtime_params=runtime_params_lib.RuntimeParams(
-            formula=formula_config.Gaussian(
-                total={0.0: 1.0, 5.0: 2.0, 10.0: 1.0},  # time-dependent.
-                c1=2.0,
-                c2=3.0,
-            ),
-        ),
+    gas_puff_source = register_source.get_registered_source('gas_puff_source')
+    gas_puff_source_builder = source_lib.make_source_builder(
+        gas_puff_source.source_class,
+        runtime_params_type=gas_puff_source.model_functions['calc_puff_source'].runtime_params_class,
+        model_func=gas_puff_source.model_functions['calc_puff_source'].source_profile_function,
     )
     # Define the collection of sources here, which in this example only includes
     # one source.
     all_torax_sources = SourceModels(
-        sources={'my_custom_source': my_custom_source}
+        sources={'gas_puff_source': gas_puff_source_builder}
     )
 
   See runtime_params.py for more details on how to configure all the source/sink

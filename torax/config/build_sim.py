@@ -25,8 +25,6 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
-from torax.sources import formula_config
-from torax.sources import formulas
 from torax.sources import register_source
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
@@ -353,48 +351,12 @@ def build_sources_builder_from_config(
         },
     }
 
-  If the `mode` is set to `formula_based`, then the you can provide a
-  `formula_type` key which may have the following values:
-
-  -  `default`: Uses the default impl (if the source has one) (default)
-
-    -  The other config args are based on the source's RuntimeParams object
-       outlined above.
-
-  -  `exponential`: Exponential profile.
-
-    - The other config args are from `sources.formula_config.Exponential`.
-
-  -  `gaussian`: Gaussian profile.
-
-    - The other config args are from `sources.formula_config.Gaussian`.
-
-  E.g. for an example heat source:
-
-  .. code-block:: python
-
-    {
-        mode: 'formula',
-        formula_type: 'gaussian',
-        total: 120e6,  # total heating
-        c1: 0.0,  # Source Gaussian central location (in normalized r)
-        c2: 0.25,  # Gaussian width in normalized radial coordinates
-    }
-
-  If you have custom source implementations, you may update this funtion to
-  handle those new sources and keys, or you may use the "advanced" configuration
-  method and build your `SourceModel` object directly.
-
   Args:
     source_configs: Input config dict defining all sources, with a structure as
       described above.
 
   Returns:
     A `SourceModelsBuilder`.
-
-  Raises:
-    ValueError if an input key doesn't match one of the source names defined
-      above.
   """
 
   source_builders = {
@@ -427,33 +389,10 @@ def _build_single_source_builder_from_config(
   if 'mode' in source_config:
     mode = source_runtime_params_lib.Mode[source_config.pop('mode').upper()]
     runtime_params.mode = mode
-  formula = None
-  if 'formula_type' in source_config:
-    func = source_config.pop('formula_type').lower()
-    if func == 'default':
-      pass  # Nothing to do here.
-    elif func == 'exponential':
-      runtime_params.formula = config_args.recursive_replace(
-          formula_config.Exponential(),
-          ignore_extra_kwargs=True,
-          **source_config,
-      )
-      formula = formulas.Exponential()
-    elif func == 'gaussian':
-      runtime_params.formula = config_args.recursive_replace(
-          formula_config.Gaussian(),
-          ignore_extra_kwargs=True,
-          **source_config,
-      )
-      formula = formulas.Gaussian()
-    else:
-      raise ValueError(f'Unknown formula_type for source {source_name}: {func}')
   runtime_params = config_args.recursive_replace(
       runtime_params, ignore_extra_kwargs=True, **source_config
   )
   kwargs = {'runtime_params': runtime_params}
-  if formula is not None:
-    kwargs['formula'] = formula
 
   source_builder_class = model_function.source_builder_class
   if source_builder_class is None:

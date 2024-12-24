@@ -26,9 +26,7 @@ from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.geometry import geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
-from torax.sources import formula_config
 from torax.sources import generic_current_source
-from torax.sources import runtime_params as sources_params_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.tests.test_lib import default_sources
 from torax.transport_model import runtime_params as transport_params_lib
@@ -247,63 +245,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           generic_particle_source.deposition_location, 3.5
       )
       np.testing.assert_allclose(generic_particle_source.S_tot, 4.0)
-
-    with self.subTest('exponential_formula'):
-      runtime_params = general_runtime_params.GeneralRuntimeParams()
-      dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
-          runtime_params=runtime_params,
-          sources={
-              electron_density_sources.GasPuffSource.SOURCE_NAME: (
-                  sources_params_lib.RuntimeParams(
-                      formula=formula_config.Exponential(
-                          total={0.0: 0.0, 1.0: 1.0},
-                          c1={0.0: 0.0, 1.0: 2.0},
-                          c2={0.0: 0.0, 1.0: 3.0},
-                      )
-                  )
-              ),
-          },
-          torax_mesh=self._geo.torax_mesh,
-      )(
-          t=0.25,
-      )
-      gas_puff_source = dcs.sources[
-          electron_density_sources.GasPuffSource.SOURCE_NAME
-      ]
-      assert isinstance(
-          gas_puff_source.formula,
-          formula_config.DynamicExponential,
-      )
-      np.testing.assert_allclose(gas_puff_source.formula.total, 0.25)
-      np.testing.assert_allclose(gas_puff_source.formula.c1, 0.5)
-      np.testing.assert_allclose(gas_puff_source.formula.c2, 0.75)
-
-    with self.subTest('gaussian_formula'):
-      runtime_params = general_runtime_params.GeneralRuntimeParams()
-      dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
-          runtime_params=runtime_params,
-          sources={
-              electron_density_sources.GasPuffSource.SOURCE_NAME: (
-                  sources_params_lib.RuntimeParams(
-                      formula=formula_config.Gaussian(
-                          total={0.0: 0.0, 1.0: 1.0},
-                          c1={0.0: 0.0, 1.0: 2.0},
-                          c2={0.0: 0.0, 1.0: 3.0},
-                      )
-                  )
-              ),
-          },
-          torax_mesh=self._geo.torax_mesh,
-      )(
-          t=0.25,
-      )
-      gas_puff_source = dcs.sources[
-          electron_density_sources.GasPuffSource.SOURCE_NAME
-      ]
-      assert isinstance(gas_puff_source.formula, formula_config.DynamicGaussian)
-      np.testing.assert_allclose(gas_puff_source.formula.total, 0.25)
-      np.testing.assert_allclose(gas_puff_source.formula.c1, 0.5)
-      np.testing.assert_allclose(gas_puff_source.formula.c2, 0.75)
 
   def test_wext_in_dynamic_runtime_params_cannot_be_negative(self):
     """Tests that wext cannot be negative."""

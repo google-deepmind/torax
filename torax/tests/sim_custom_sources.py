@@ -35,6 +35,7 @@ from torax.geometry import geometry_provider
 from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import source as source_lib
 from torax.sources.tests import test_lib
 from torax.stepper import linear_theta_method
 from torax.tests.test_lib import default_sources
@@ -161,20 +162,25 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
 
     # Add the custom source with the correct params, but keep it turned off to
     # start.
+    source_builder = source_lib.make_source_builder(
+        test_lib.TestSource,
+        runtime_params_type=_CustomSourceRuntimeParams,
+        model_func=custom_source_formula,
+    )
+    runtime_params = _CustomSourceRuntimeParams(
+        mode=runtime_params_lib.Mode.ZERO,
+        puff_decay_length=gas_puff_params.puff_decay_length,
+        S_puff_tot=gas_puff_params.S_puff_tot,
+        particle_width=params.particle_width,
+        deposition_location=params.deposition_location,
+        S_tot=params.S_tot,
+        pellet_width=pellet_params.pellet_width,
+        pellet_deposition_location=pellet_params.pellet_deposition_location,
+        S_pellet_tot=pellet_params.S_pellet_tot,
+    )
     source_models_builder.source_builders[custom_source_name] = (
-        test_lib.TestSourceBuilder(
-            formula=custom_source_formula,
-            runtime_params=_CustomSourceRuntimeParams(
-                mode=runtime_params_lib.Mode.ZERO,
-                puff_decay_length=gas_puff_params.puff_decay_length,
-                S_puff_tot=gas_puff_params.S_puff_tot,
-                particle_width=params.particle_width,
-                deposition_location=params.deposition_location,
-                S_tot=params.S_tot,
-                pellet_width=pellet_params.pellet_width,
-                pellet_deposition_location=pellet_params.pellet_deposition_location,
-                S_pellet_tot=pellet_params.S_pellet_tot,
-            ),
+        source_builder(
+            runtime_params=runtime_params,
         )
     )
 
@@ -213,16 +219,12 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       params.mode = runtime_params_lib.Mode.ZERO
       pellet_params.mode = runtime_params_lib.Mode.ZERO
       gas_puff_params.mode = runtime_params_lib.Mode.ZERO
-      source_models_builder.runtime_params[custom_source_name].mode = (
-          runtime_params_lib.Mode.FORMULA_BASED
-      )
+      runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
       self._run_sim_and_check(sim, ref_profiles, ref_time)
 
     with self.subTest('without_defaults_and_without_custom_source'):
       # Confirm that the custom source actual has an effect.
-      source_models_builder.runtime_params[custom_source_name].mode = (
-          runtime_params_lib.Mode.ZERO
-      )
+      runtime_params.mode = runtime_params_lib.Mode.ZERO
       with self.assertRaises(AssertionError):
         self._run_sim_and_check(sim, ref_profiles, ref_time)
 
@@ -284,7 +286,6 @@ class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
       raise ValueError('torax_mesh is required for CustomSourceRuntimeParams.')
     return _CustomSourceRuntimeParamsProvider(
         runtime_params_config=self,
-        formula=self.formula.make_provider(torax_mesh),
         prescribed_values=config_args.get_interpolated_var_2d(
             self.prescribed_values, torax_mesh.cell_centers
         ),

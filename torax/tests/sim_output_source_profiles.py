@@ -136,18 +136,21 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
       return jnp.ones_like(geo.rho) * dynamic_source_params.foo
 
     # Include 2 versions of this source, one implicit and one explicit.
+    source_builder = source_lib.make_source_builder(
+        TestImplicitNeSource,
+        runtime_params_type=_FakeSourceRuntimeParams,
+        model_func=custom_source_formula,
+    )
     source_models_builder = source_models_lib.SourceModelsBuilder({
-        'implicit_ne_source': TestImplicitNeSourceBuilder(
-            formula=custom_source_formula,
+        'implicit_ne_source': source_builder(
             runtime_params=_FakeSourceRuntimeParams(
-                mode=runtime_params_lib.Mode.FORMULA_BASED,
+                mode=runtime_params_lib.Mode.MODEL_BASED,
                 foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
             ),
         ),
-        'explicit_ne_source': TestExplicitNeSourceBuilder(
-            formula=custom_source_formula,
+        'explicit_ne_source': source_builder(
             runtime_params=_FakeSourceRuntimeParams(
-                mode=runtime_params_lib.Mode.FORMULA_BASED,
+                mode=runtime_params_lib.Mode.MODEL_BASED,
                 foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
             ),
         ),
@@ -275,7 +278,6 @@ class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
       raise ValueError('torax_mesh is required for FakeSourceRuntimeParams.')
     return _FakeSourceRuntimeParamsProvider(
         runtime_params_config=self,
-        formula=self.formula.make_provider(torax_mesh),
         prescribed_values=config_args.get_interpolated_var_2d(
             self.prescribed_values, torax_mesh.cell_centers
         ),
