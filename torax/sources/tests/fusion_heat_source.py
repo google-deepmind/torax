@@ -23,7 +23,6 @@ from torax import constants
 from torax import core_profile_setters
 from torax.config import runtime_params_slice
 from torax.sources import fusion_heat_source
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 from torax.tests.test_lib import torax_refs
@@ -37,9 +36,6 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     super().setUpClass(
         source_class=fusion_heat_source.FusionHeatSource,
         runtime_params_class=fusion_heat_source.FusionHeatSourceRuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.FORMULA_BASED,
-        ],
         source_name=fusion_heat_source.FusionHeatSource.SOURCE_NAME,
         model_func=fusion_heat_source.fusion_heat_model_func,
     )

@@ -41,15 +41,10 @@ class Mode(enum.Enum):
   # explicit depending on the model implementation.
   MODEL_BASED = 1
 
-  # Source values come from a prescribed (possibly time-dependent) formula that
-  # is not dependent on the state of the system. These formulas may be dependent
-  # on the config and geometry of the system.
-  FORMULA_BASED = 2
-
   # Source values come from a pre-determined set of values, that may evolve in
   # time. Values can be drawn from a file or an array. These sources are always
   # explicit.
-  PRESCRIBED = 3
+  PRESCRIBED = 2
 
 
 @dataclasses.dataclass

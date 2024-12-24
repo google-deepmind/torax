@@ -42,7 +42,6 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
     super().setUpClass(
         source_class=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink,
         runtime_params_class=impurity_radiation_heat_sink_lib.RuntimeParams,
-        unsupported_modes=[],
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
         links_back=True,
         model_func=impurity_radiation_heat_sink_lib.radially_constant_fraction_of_Pin
@@ -151,65 +150,6 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         * -impurity_radiation_sink_dynamic_runtime_params_slice.fraction_of_total_power_density,
         rtol=1e-2,  # TODO(b/382682284): this rtol seems v. high
     )
-
-  def test_invalid_source_types_raise_errors(self):
-    """Tests that using unsupported types raises an error."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
-    source_builder = self._source_class_builder()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {
-            self._source_name: source_builder
-        },
-    )
-    source_models = source_models_builder()
-    source = source_models.sources[self._source_name]
-    self.assertIsInstance(source, source_lib.Source)
-    dynamic_runtime_params_slice_provider = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            sources=source_models_builder.runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )
-    )
-    # This slice is needed to create the core_profiles
-    dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-        t=runtime_params.numerics.t_initial,
-    )
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params=runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )
-    )
-    core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo,
-        source_models=source_models,
-    )
-
-    for unsupported_mode in self._unsupported_modes:
-      source_builder.runtime_params.mode = unsupported_mode
-      # Construct a new slice with the given mode
-      dynamic_runtime_params_slice = (
-          runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-              runtime_params=runtime_params,
-              sources=source_models_builder.runtime_params,
-              torax_mesh=geo.torax_mesh,
-          )(
-              t=runtime_params.numerics.t_initial,
-          )
-      )
-      with self.subTest(unsupported_mode.name):
-        with self.assertRaises(RuntimeError):
-          source.get_value(
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              static_runtime_params_slice=static_runtime_params_slice,
-              geo=geo,
-              core_profiles=core_profiles,
-          )
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""

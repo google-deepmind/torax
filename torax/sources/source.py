@@ -118,11 +118,6 @@ class Source(abc.ABC):
       By default, the number of affected core profiles should equal the rank of
       the output shape returned by output_shape_getter. Subclasses may override
       this requirement.
-    supported_modes: Defines how the source computes its profile. Can be set to
-      zero, model-based, etc. At runtime, the input config (the RuntimeParams or
-      the DynamicRuntimeParams) will specify which supported type the Source is
-      running with. If the runtime config specifies an unsupported type, an
-      error will raise.
     output_shape_getter: Callable which returns the shape of the profiles given
       by this source.
     model_func: The function used when the the runtime type is set to
@@ -134,7 +129,6 @@ class Source(abc.ABC):
   """
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'default'
   model_func: SourceProfileFunction | None = None
-  formula: SourceProfileFunction | None = None
 
   @property
   @abc.abstractmethod
@@ -152,29 +146,8 @@ class Source(abc.ABC):
     return get_cell_profile_shape
 
   @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    """Returns the modes supported by this source."""
-    return (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.FORMULA_BASED,
-        runtime_params_lib.Mode.MODEL_BASED,
-        runtime_params_lib.Mode.PRESCRIBED,
-    )
-
-  @property
   def affected_core_profiles_ints(self) -> tuple[int, ...]:
     return tuple([int(cp) for cp in self.affected_core_profiles])
-
-  def check_mode(
-      self,
-      mode: int,
-  ):
-    """Raises an error if the source type is not supported."""
-    if runtime_params_lib.Mode(mode) not in self.supported_modes:
-      raise ValueError(
-          f'This source supports the following modes: {self.supported_modes}.'
-          f' Unsupported mode provided: {mode}.'
-      )
 
   def get_value(
       self,
@@ -200,13 +173,9 @@ class Source(abc.ABC):
     Returns:
       Array, arrays, or nested dataclass/dict of arrays for the source profile.
     """
-    static_source_runtime_params = static_runtime_params_slice.sources[
-        self.source_name
-    ]
     dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
         self.source_name
     ]
-    self.check_mode(static_source_runtime_params.mode)
     output_shape = self.output_shape_getter(geo)
 
     return get_source_profiles(
@@ -215,7 +184,6 @@ class Source(abc.ABC):
         geo=geo,
         core_profiles=core_profiles,
         model_func=self.model_func,
-        formula=self.formula,
         prescribed_values=dynamic_source_runtime_params.prescribed_values,
         output_shape=output_shape,
         source_models=getattr(self, 'source_models', None),
@@ -306,7 +274,6 @@ def get_source_profiles(
     source_name: str,
     core_profiles: state.CoreProfiles,
     model_func: SourceProfileFunction | None,
-    formula: SourceProfileFunction | None,
     prescribed_values: chex.Array,
     output_shape: tuple[int, ...],
     source_models: Optional['source_models.SourceModels'],
@@ -327,7 +294,6 @@ def get_source_profiles(
     core_profiles: Core plasma profiles. Used as input to the source profile
       functions.
     model_func: Model function.
-    formula: Formula implementation.
     prescribed_values: Array of values for this timeslice, interpolated onto the
       grid (ie with shape output_shape)
     output_shape: Expected shape of the output array.
@@ -345,19 +311,6 @@ def get_source_profiles(
             'Source is in MODEL_BASED mode but has no model function.'
         )
       return model_func(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          source_name,
-          core_profiles,
-          source_models,
-      )
-    case runtime_params_lib.Mode.FORMULA_BASED.value:
-      if formula is None:
-        raise ValueError(
-            'Source is in FORMULA_BASED mode but has no formula function.'
-        )
-      return formula(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,

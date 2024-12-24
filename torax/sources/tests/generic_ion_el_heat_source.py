@@ -27,7 +27,6 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
     super().setUpClass(
         source_class=generic_ion_el_heat_source.GenericIonElectronHeatSource,
         runtime_params_class=generic_ion_el_heat_source.RuntimeParams,
-        unsupported_modes=[],
         source_name=generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME,
         model_func=generic_ion_el_heat_source.default_formula,
     )

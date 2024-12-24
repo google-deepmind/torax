@@ -500,14 +500,6 @@ class IonCyclotronSource(source.Source):
     return self.SOURCE_NAME
 
   @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    return (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.MODEL_BASED,
-        runtime_params_lib.Mode.PRESCRIBED,
-    )
-
-  @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (
         source.AffectedCoreProfile.TEMP_ION,
@@ -538,7 +530,8 @@ class IonCyclotronSourceBuilder:
 
   def __call__(
       self,
-      formula: source.SourceProfileFunction | None = None,
   ) -> IonCyclotronSource:
 
-    return IonCyclotronSource(formula=formula, model_func=self.model_func,)
+    return IonCyclotronSource(
+        model_func=self.model_func,
+    )

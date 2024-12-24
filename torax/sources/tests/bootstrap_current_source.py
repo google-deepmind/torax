@@ -19,7 +19,6 @@ import jax.numpy as jnp
 import numpy as np
 from torax.geometry import geometry
 from torax.sources import bootstrap_current_source
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_profiles
 from torax.sources.tests import test_lib
@@ -33,9 +32,6 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     super().setUpClass(
         source_class=bootstrap_current_source.BootstrapCurrentSource,
         runtime_params_class=bootstrap_current_source.RuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.FORMULA_BASED,
-        ],
         source_name=bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME,
         model_func=None,
     )

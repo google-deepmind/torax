@@ -14,7 +14,6 @@
 """Tests for ohmic_heat_source."""
 from absl.testing import absltest
 from torax.sources import ohmic_heat_source
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources.tests import test_lib
 
 
@@ -26,9 +25,6 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
     super().setUpClass(
         source_class=ohmic_heat_source.OhmicHeatSource,
         runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.FORMULA_BASED,
-        ],
         source_name=ohmic_heat_source.OhmicHeatSource.SOURCE_NAME,
         links_back=True,
         model_func=ohmic_heat_source.ohmic_model_func,

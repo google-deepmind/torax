@@ -23,7 +23,6 @@ from absl.testing import parameterized
 from torax import core_profile_setters
 from torax.config import runtime_params_slice
 from torax.sources import bremsstrahlung_heat_sink
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 from torax.stepper import runtime_params as stepper_runtime_params
@@ -38,9 +37,6 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     super().setUpClass(
         source_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
         runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.FORMULA_BASED,
-        ],
         source_name=bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
         model_func=bremsstrahlung_heat_sink.bremsstrahlung_model_func,
     )

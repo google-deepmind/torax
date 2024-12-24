@@ -29,7 +29,6 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import ion_cyclotron_source
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
@@ -98,7 +97,6 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     super().setUpClass(
         source_class=ion_cyclotron_source.IonCyclotronSource,
         runtime_params_class=ion_cyclotron_source.RuntimeParams,
-        unsupported_modes=[runtime_params_lib.Mode.FORMULA_BASED],
         source_class_builder=ion_cyclotron_source.IonCyclotronSourceBuilder,
         source_name=ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
         model_func=None,

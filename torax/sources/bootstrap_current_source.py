@@ -126,8 +126,6 @@ class BootstrapCurrentSource(source.Source):
     dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
         self.source_name
     ]
-    # Make sure the input mode requested is supported.
-    self.check_mode(static_source_runtime_params.mode)
     # Make sure the input params are the correct type.
     if not isinstance(dynamic_source_runtime_params, DynamicRuntimeParams):
       raise TypeError(

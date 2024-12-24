@@ -284,7 +284,6 @@ class GenericCurrentSource(source.Source):
         self.source_name
     ]
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-    self.check_mode(static_source_runtime_params.mode)
 
     # Interpolate prescribed values onto the hires grid
     hires_prescribed_values = jnp.where(
@@ -305,7 +304,6 @@ class GenericCurrentSource(source.Source):
         core_profiles=None,
         # There is no model for this source.
         model_func=self.hires_formula,
-        formula=None,
         output_shape=geo.rho_hires_norm.shape,
         prescribed_values=hires_prescribed_values,
         source_models=getattr(self, 'source_models', None),

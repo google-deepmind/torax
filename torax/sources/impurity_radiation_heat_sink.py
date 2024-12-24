@@ -153,15 +153,6 @@ class ImpurityRadiationHeatSink(source_lib.Source):
     return self.SOURCE_NAME
 
   @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    """Returns the modes supported by this source."""
-    return (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.MODEL_BASED,
-        runtime_params_lib.Mode.PRESCRIBED,
-    )
-
-  @property
   def affected_core_profiles(
       self,
   ) -> tuple[source_lib.AffectedCoreProfile, ...]:

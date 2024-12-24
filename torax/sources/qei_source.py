@@ -79,14 +79,6 @@ class QeiSource(source.Source):
     return self.SOURCE_NAME
 
   @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    return (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.MODEL_BASED,
-        runtime_params_lib.Mode.PRESCRIBED,
-    )
-
-  @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (
         source.AffectedCoreProfile.TEMP_ION,
@@ -101,7 +93,6 @@ class QeiSource(source.Source):
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
-    self.check_mode(static_runtime_params_slice.sources[self.source_name].mode)
     dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
         self.source_name
     ]

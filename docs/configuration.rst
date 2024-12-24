@@ -803,10 +803,6 @@ The configurable runtime parameters of each source are as follows:
     Source values come from a model in code. Specific model selection is not yet available in TORAX since there are no source components with more than one
     physics model. However, this will be straightforward to develop when that occurs.
 
-* ``'FORMULA'``
-    Source values come from a prescribed (possibly time-dependent) formula that is not dependent on the state of the system. The formula type (Gaussian, exponential)
-    is set by ``formula_type``.
-
 * ``'PRESCRIBED'``
     Source values are arbitrarily prescribed by the user. The value is set by ``prescribed_values``, and can contain the same
     data structures as :ref:`Time-varying arrays`.
@@ -840,9 +836,6 @@ and can be set to anything convenient.
   beginning of a time step, or do not have any dependance on state. Implicit sources depend on updated states as the iterative solvers evolve the state through the
   course of a time step. If a source model is complex but evolves over slow timescales compared to the state, it may be beneficial to set it as explicit.
 
-* ``'default'``
-    Some sources have default implementations which use the above formulas under the hood with intuitive parameter names for c1 and c2.
-    Consult the list below for further details.
 
 generic_ion_el_heat_source
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -890,12 +883,9 @@ Fusion power assuming a 50-50 D-T ion distribution.
 gas_puff_source
 ^^^^^^^^^^^^^^^
 
-Formula based exponential gas puff source. No first-principle-based model is yet implemented in TORAX.
+Exponential based gas puff source. No first-principle-based model is yet implemented in TORAX.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the exponential formula with ``c1=1``.
+``mode`` (str = 'model')
 
 ``puff_decay_length`` (float = 0.05), **time-varying-scalar**
   Gas puff decay length from edge in units of :math:`\hat{\rho}`.
@@ -908,10 +898,7 @@ pellet_source
 
 Time dependent Gaussian pellet source. No first-principle-based model is yet implemented in TORAX.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the Gaussian formula.
+``mode`` (str = 'model')
 
 ``pellet_deposition_location`` (float = 0.85), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -927,10 +914,7 @@ generic_particle_source
 
 Time dependent Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the Gaussian formula with.
+``mode`` (str = 'model')
 
 ``deposition_location`` (float = 0.0), **time-varying-scalar**
   Gaussian center of source profile in units of :math:`\hat{\rho}`.
@@ -956,10 +940,7 @@ generic_current_source
 
 Generic external current profile, parameterized as a Gaussian.
 
-``mode`` (str = 'formula')
-
-``formula_type`` (str = 'default')
-  Uses the Gaussian formula.
+``mode`` (str = 'model')
 
 ``rext`` (float = 0.4), **time-varying-scalar**
   Gaussian center of current profile in units of :math:`\hat{\rho}`.

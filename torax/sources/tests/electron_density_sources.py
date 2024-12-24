@@ -27,7 +27,6 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
     super().setUpClass(
         source_class=eds.GasPuffSource,
         runtime_params_class=eds.GasPuffRuntimeParams,
-        unsupported_modes=[],
         source_name=eds.GasPuffSource.SOURCE_NAME,
         model_func=eds.calc_puff_source,
     )
@@ -41,7 +40,6 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
     super().setUpClass(
         source_class=eds.PelletSource,
         runtime_params_class=eds.PelletRuntimeParams,
-        unsupported_modes=[],
         source_name=eds.PelletSource.SOURCE_NAME,
         model_func=eds.calc_pellet_source,
     )
@@ -55,7 +53,6 @@ class SourceTest(test_lib.SingleProfileSourceTestCase):
     super().setUpClass(
         source_class=eds.GenericParticleSource,
         runtime_params_class=eds.GenericParticleSourceRuntimeParams,
-        unsupported_modes=[],
         source_name=eds.GenericParticleSource.SOURCE_NAME,
         model_func=eds.calc_generic_particle_source,
     )

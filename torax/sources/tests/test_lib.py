@@ -14,7 +14,7 @@
 
 """Utilities to help with testing sources."""
 
-from typing import Sequence, Type
+from typing import Type
 
 from absl.testing import parameterized
 import chex
@@ -47,15 +47,6 @@ class TestSource(source_lib.Source):
   ) -> tuple[source_lib.AffectedCoreProfile, ...]:
     return (source_lib.AffectedCoreProfile.NE,)
 
-  @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    return (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.FORMULA_BASED,
-        runtime_params_lib.Mode.MODEL_BASED,
-        runtime_params_lib.Mode.PRESCRIBED,
-    )
-
 
 TestSourceBuilder = source_lib.make_source_builder(TestSource)
 
@@ -69,7 +60,6 @@ class SourceTestCase(parameterized.TestCase):
   _source_class: Type[source_lib.Source]
   _source_class_builder: source_lib.SourceBuilderProtocol
   _config_attr_name: str
-  _unsupported_modes: Sequence[runtime_params_lib.Mode]
   _source_name: str
   _runtime_params_class: Type[runtime_params_lib.RuntimeParams]
 
@@ -78,7 +68,6 @@ class SourceTestCase(parameterized.TestCase):
       cls,
       source_class: Type[source_lib.Source],
       runtime_params_class: Type[runtime_params_lib.RuntimeParams],
-      unsupported_modes: Sequence[runtime_params_lib.Mode],
       source_name: str,
       model_func: source_lib.SourceProfileFunction | None,
       links_back: bool = False,
@@ -96,7 +85,6 @@ class SourceTestCase(parameterized.TestCase):
     else:
       cls._source_class_builder = source_class_builder
     cls._runtime_params_class = runtime_params_class
-    cls._unsupported_modes = unsupported_modes
     cls._links_back = links_back
     cls._source_name = source_name
 
@@ -114,7 +102,6 @@ class SourceTestCase(parameterized.TestCase):
       mode=(
           runtime_params_lib.Mode.ZERO,
           runtime_params_lib.Mode.MODEL_BASED,
-          runtime_params_lib.Mode.FORMULA_BASED,
           runtime_params_lib.Mode.PRESCRIBED,
       ),
       is_explicit=(True, False),
@@ -182,55 +169,6 @@ class SingleProfileSourceTestCase(SourceTestCase):
     )
     chex.assert_rank(value, 1)
 
-  def test_invalid_source_types_raise_errors(self):
-    """Tests that using unsupported types raises an error."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
-    # pylint: disable=missing-kwoa
-    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
-    # pylint: enable=missing-kwoa
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {self._source_name: source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources[self._source_name]
-    self.assertIsInstance(source, source_lib.Source)
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            sources=source_models_builder.runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=runtime_params.numerics.t_initial,
-        )
-    )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
-        torax_mesh=geo.torax_mesh,
-    )
-    core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
-        geo=geo,
-        source_models=source_models,
-    )
-    for unsupported_mode in self._unsupported_modes:
-      source_builder.runtime_params.mode = unsupported_mode
-      static_slice = runtime_params_slice.build_static_runtime_params_slice(
-          runtime_params=runtime_params,
-          source_runtime_params=source_models_builder.runtime_params,
-          torax_mesh=geo.torax_mesh,
-      )
-      with self.subTest(unsupported_mode.name):
-        with self.assertRaises(ValueError):
-          source.get_value(
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              static_runtime_params_slice=static_slice,
-              geo=geo,
-              core_profiles=core_profiles,
-          )
-
 
 class IonElSourceTestCase(SourceTestCase):
   """Base test class for IonElSource subclasses."""
@@ -275,55 +213,6 @@ class IonElSourceTestCase(SourceTestCase):
         core_profiles=core_profiles,
     )
     chex.assert_rank(ion_and_el, 2)
-
-  def test_invalid_source_types_raise_errors(self):
-    """Tests that using unsupported types raises an error."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
-    # pylint: disable=missing-kwoa
-    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
-    # pylint: enable=missing-kwoa
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {self._source_name: source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources[self._source_name]
-    self.assertIsInstance(source, source_lib.Source)
-    dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            sources=source_models_builder.runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=runtime_params.numerics.t_initial,
-        )
-    )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
-        torax_mesh=geo.torax_mesh,
-    )
-    core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
-        geo=geo,
-        source_models=source_models,
-    )
-    for unsupported_mode in self._unsupported_modes:
-      source_builder.runtime_params.mode = unsupported_mode
-      static_slice = runtime_params_slice.build_static_runtime_params_slice(
-          runtime_params=runtime_params,
-          source_runtime_params=source_models_builder.runtime_params,
-          torax_mesh=geo.torax_mesh,
-      )
-      with self.subTest(unsupported_mode.name):
-        with self.assertRaises(ValueError):
-          source.get_value(
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              static_runtime_params_slice=static_slice,
-              geo=geo,
-              core_profiles=core_profiles,
-          )
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""

@@ -22,7 +22,6 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import generic_current_source
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources.tests import test_lib
 
@@ -35,9 +34,6 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
     super().setUpClass(
         source_class=generic_current_source.GenericCurrentSource,
         runtime_params_class=generic_current_source.RuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
-        ],
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
         model_func=generic_current_source.calculate_generic_current_face,
     )
