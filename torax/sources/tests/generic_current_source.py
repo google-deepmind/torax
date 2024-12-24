@@ -59,12 +59,13 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
         t=runtime_params.numerics.t_initial,
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params={
             generic_current_source.GenericCurrentSource.SOURCE_NAME: (
                 source_builder.runtime_params
             ),
         },
+        torax_mesh=geo.torax_mesh,
     )
     self.assertIsInstance(source, generic_current_source.GenericCurrentSource)
     self.assertIsNotNone(
@@ -103,12 +104,13 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
         t=runtime_params.numerics.t_initial,
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params={
             generic_current_source.GenericCurrentSource.SOURCE_NAME: (
                 source_builder.runtime_params
             ),
         },
+        torax_mesh=geo.torax_mesh,
     )
     self.assertEqual(
         source.get_value(

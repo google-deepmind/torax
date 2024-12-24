@@ -263,9 +263,10 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     """Runs sim with new runtime params and checks the profiles vs. expected."""
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(
-            self.test_particle_sources_constant_runtime_params,
-            stepper=self.stepper_builder.runtime_params,
+            runtime_params=self.test_particle_sources_constant_runtime_params,
             source_runtime_params=self.source_models_builder.runtime_params,
+            torax_mesh=sim.geometry_provider.torax_mesh,
+            stepper=self.stepper_builder.runtime_params,
         )
     )
     sim_outputs = sim_lib.run_simulation(

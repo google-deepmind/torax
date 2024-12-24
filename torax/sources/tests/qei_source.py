@@ -50,8 +50,9 @@ class QeiSourceTest(test_lib.SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
@@ -86,8 +87,9 @@ class QeiSourceTest(test_lib.SourceTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
@@ -106,13 +108,14 @@ class QeiSourceTest(test_lib.SourceTestCase):
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(ValueError):
           static_slice = runtime_params_slice.build_static_runtime_params_slice(
-              runtime_params,
+              runtime_params=runtime_params,
               source_runtime_params={
                   'qei_source': dataclasses.replace(
                       source_builder.runtime_params,
                       mode=unsupported_mode,
                   )
               },
+              torax_mesh=geo.torax_mesh,
           )
           # Force pytype to recognize `source` has `get_qei`
           assert isinstance(source, qei_source.QeiSource)

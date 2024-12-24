@@ -179,9 +179,10 @@ def update_sim(
   _update_source_params(sim, source_runtime_params)
   static_runtime_params_slice = (
       runtime_params_slice.build_static_runtime_params_slice(
-          runtime_params,
-          stepper=stepper_runtime_params,
+          runtime_params=runtime_params,
           source_runtime_params=source_runtime_params,
+          torax_mesh=geo_provider.torax_mesh,
+          stepper=stepper_runtime_params,
       )
   )
   dynamic_runtime_params_slice_provider = (

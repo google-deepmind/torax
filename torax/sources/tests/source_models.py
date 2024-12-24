@@ -87,8 +87,9 @@ class SourceProfilesTest(parameterized.TestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -99,9 +100,10 @@ class SourceProfilesTest(parameterized.TestCase):
     stepper_params = stepper_runtime_params_lib.RuntimeParams()
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params,
-            stepper=stepper_params,
+            runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
+            torax_mesh=geo.torax_mesh,
+            stepper=stepper_params,
         )
     )
     _ = source_models_lib.build_source_profiles(
@@ -214,8 +216,9 @@ class SourceProfilesTest(parameterized.TestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,

@@ -120,8 +120,9 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     initial_core_profiles = core_profile_setters.initial_core_profiles(
         static_slice,

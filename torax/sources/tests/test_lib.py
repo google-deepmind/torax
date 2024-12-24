@@ -150,8 +150,9 @@ class SingleProfileSourceTestCase(SourceTestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -194,8 +195,9 @@ class SingleProfileSourceTestCase(SourceTestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -206,8 +208,9 @@ class SingleProfileSourceTestCase(SourceTestCase):
     for unsupported_mode in self._unsupported_modes:
       source_builder.runtime_params.mode = unsupported_mode
       static_slice = runtime_params_slice.build_static_runtime_params_slice(
-          runtime_params,
+          runtime_params=runtime_params,
           source_runtime_params=source_models_builder.runtime_params,
+          torax_mesh=geo.torax_mesh,
       )
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(ValueError):
@@ -249,8 +252,9 @@ class IonElSourceTestCase(SourceTestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -293,8 +297,9 @@ class IonElSourceTestCase(SourceTestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -305,8 +310,9 @@ class IonElSourceTestCase(SourceTestCase):
     for unsupported_mode in self._unsupported_modes:
       source_builder.runtime_params.mode = unsupported_mode
       static_slice = runtime_params_slice.build_static_runtime_params_slice(
-          runtime_params,
+          runtime_params=runtime_params,
           source_runtime_params=source_models_builder.runtime_params,
+          torax_mesh=geo.torax_mesh,
       )
       with self.subTest(unsupported_mode.name):
         with self.assertRaises(ValueError):

@@ -68,9 +68,10 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     )
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params,
-            stepper=stepper_runtime_params.RuntimeParams(),
+            runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
+            torax_mesh=geo.torax_mesh,
+            stepper=stepper_runtime_params.RuntimeParams(),
         )
     )
     source_models = source_models_builder()

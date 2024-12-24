@@ -68,9 +68,10 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     )
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params,
-            stepper=stepper_runtime_params.RuntimeParams(),
+            runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
+            torax_mesh=geo.torax_mesh,
+            stepper=stepper_runtime_params.RuntimeParams(),
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -119,9 +120,10 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     )
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params,
-            stepper=stepper_runtime_params.RuntimeParams(),
+            runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
+            torax_mesh=geo.torax_mesh,
+            stepper=stepper_runtime_params.RuntimeParams(),
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -136,9 +138,10 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
       # Construct a new slice with the given mode
       static_runtime_params_slice = (
           runtime_params_slice.build_static_runtime_params_slice(
-              runtime_params,
-              stepper=stepper_runtime_params.RuntimeParams(),
+              runtime_params=runtime_params,
               source_runtime_params=source_models_builder.runtime_params,
+              torax_mesh=geo.torax_mesh,
+              stepper=stepper_runtime_params.RuntimeParams(),
           )
       )
       with self.subTest(unsupported_mode.name):

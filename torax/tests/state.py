@@ -80,8 +80,9 @@ class StateTest(torax_refs.ReferenceValueTest):
           )
       )
       static_slice = runtime_params_slice.build_static_runtime_params_slice(
-          runtime_params,
+          runtime_params=runtime_params,
           source_runtime_params=source_models_builder.runtime_params,
+          torax_mesh=geo.torax_mesh,
       )
       # Bind non-JAX arguments so it can be jitted
       bound = functools.partial(
@@ -117,8 +118,9 @@ class StateTest(torax_refs.ReferenceValueTest):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        references.runtime_params,
+        runtime_params=references.runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     basic_core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -208,8 +210,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -241,8 +244,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -315,8 +319,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        config1,
+        runtime_params=config1,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
@@ -333,8 +338,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        config2,
+        runtime_params=config2,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,
@@ -353,8 +359,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        config3,
+        runtime_params=config3,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles3 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3,
@@ -372,8 +379,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        config3_helper,
+        runtime_params=config3_helper,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles3_helper = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3_helper,
@@ -482,8 +490,9 @@ class InitialStatesTest(parameterized.TestCase):
         t=config2.numerics.t_initial,
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        config1,
+        runtime_params=config1,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
@@ -492,8 +501,9 @@ class InitialStatesTest(parameterized.TestCase):
         source_models=source_models,
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        config2,
+        runtime_params=config2,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
     )
     core_profiles2 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,

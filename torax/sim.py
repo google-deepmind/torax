@@ -932,11 +932,13 @@ def build_sim_object(
   transport_model = transport_model_builder()
   pedestal_model = pedestal_model_builder()
 
+  # TODO(b/385788907): Clearly document all changes that lead to recompilations.
   static_runtime_params_slice = (
       runtime_params_slice.build_static_runtime_params_slice(
           runtime_params=runtime_params,
-          stepper=stepper_builder.runtime_params,
           source_runtime_params=source_models_builder.runtime_params,
+          torax_mesh=geometry_provider.torax_mesh,
+          stepper=stepper_builder.runtime_params,
       )
   )
   dynamic_runtime_params_slice_provider = (

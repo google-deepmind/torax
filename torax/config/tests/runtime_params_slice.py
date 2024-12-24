@@ -608,15 +608,18 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     self.assertEqual(dcs.transport.De_inner, 2.0)
 
   def test_static_runtime_params_slice_hash_same_for_same_params(self):
+    """Tests that the hash is the same for the same static params."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = default_sources.get_default_sources_builder()
     static_slice1 = runtime_params_slice_lib.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=self._geo.torax_mesh,
     )
     static_slice2 = runtime_params_slice_lib.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=self._geo.torax_mesh,
     )
     self.assertEqual(hash(static_slice1), hash(static_slice2))
 
@@ -627,8 +630,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = default_sources.get_default_sources_builder()
     static_slice1 = runtime_params_slice_lib.build_static_runtime_params_slice(
-        runtime_params,
+        runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=self._geo.torax_mesh,
     )
     runtime_params_mod = dataclasses.replace(
         runtime_params,
@@ -638,8 +642,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         ),
     )
     static_slice2 = runtime_params_slice_lib.build_static_runtime_params_slice(
-        runtime_params_mod,
+        runtime_params=runtime_params_mod,
         source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=self._geo.torax_mesh,
     )
     self.assertNotEqual(hash(static_slice1), hash(static_slice2))
 

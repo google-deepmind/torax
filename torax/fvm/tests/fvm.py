@@ -430,9 +430,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params,
-            stepper=stepper_params,
+            runtime_params=runtime_params,
+            torax_mesh=geo.torax_mesh,
             source_runtime_params=source_models_builder.runtime_params,
+            stepper=stepper_params,
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(
@@ -572,9 +573,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     static_runtime_params_slice = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params,
-            stepper=stepper_params,
+            runtime_params=runtime_params,
+            torax_mesh=geo.torax_mesh,
             source_runtime_params=source_models_builder.runtime_params,
+            stepper=stepper_params,
         )
     )
     geo = geometry.build_circular_geometry(n_rho=num_cells)
@@ -717,9 +719,10 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     static_runtime_params_slice_theta0 = (
         runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params,
-            stepper=stepper_params,
+            runtime_params=runtime_params,
+            torax_mesh=geo.torax_mesh,
             source_runtime_params=source_models_builder.runtime_params,
+            stepper=stepper_params,
         )
     )
     static_runtime_params_slice_theta05 = dataclasses.replace(
