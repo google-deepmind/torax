@@ -580,7 +580,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     geo = geometry.build_circular_geometry(n_rho=num_cells)
-    source_models = source_models_lib.SourceModels()
+    source_models = source_models_builder()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
@@ -732,7 +732,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         ),
     )
 
-    source_models = source_models_lib.SourceModels()
+    source_models = source_models_builder()
     pedestal_model = set_tped_nped.SetTemperatureDensityPedestalModel()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
         static_runtime_params_slice_theta0,

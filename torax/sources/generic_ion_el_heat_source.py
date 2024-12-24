@@ -48,7 +48,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
   # electron heating fraction
   el_heat_fraction: runtime_params_lib.TimeInterpolatedInput = 0.66666
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
       self,
@@ -151,7 +151,6 @@ class GenericIonElectronHeatSource(source.Source):
 
   SOURCE_NAME: ClassVar[str] = 'generic_ion_el_heat_source'
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'default_formula'
-  formula: source.SourceProfileFunction = default_formula
   model_func: source.SourceProfileFunction = default_formula
 
   @property

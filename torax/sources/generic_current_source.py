@@ -52,7 +52,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   # Toggles if external current is provided absolutely or as a fraction of Ip.
   use_absolute_current: bool = False
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def grid_type(self) -> base.GridType:
@@ -236,7 +236,6 @@ class GenericCurrentSource(source.Source):
 
   SOURCE_NAME: ClassVar[str] = 'generic_current_source'
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_current_face'
-  formula: source.SourceProfileFunction = calculate_generic_current_face
   hires_formula: source.SourceProfileFunction = _calculate_generic_current_hires
   model_func: source.SourceProfileFunction = calculate_generic_current_face
 
@@ -305,12 +304,8 @@ class GenericCurrentSource(source.Source):
         geo=geo,
         core_profiles=None,
         # There is no model for this source.
-        model_func=(
-            lambda _0, _1, _2, _3, _4, _5: jnp.zeros_like(
-                geo.rho_hires_norm
-            )
-        ),
-        formula=self.hires_formula,
+        model_func=self.hires_formula,
+        formula=None,
         output_shape=geo.rho_hires_norm.shape,
         prescribed_values=hires_prescribed_values,
         source_models=getattr(self, 'source_models', None),

@@ -16,6 +16,7 @@
 
 import dataclasses
 from typing import Callable
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -27,9 +28,11 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
+from torax.sources import generic_current_source
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
+
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -108,9 +111,9 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     runtime_params = references.runtime_params
     source_models_builder = source_models_lib.SourceModelsBuilder()
     # Turn on the external current source.
-    source_models_builder.runtime_params['generic_current_source'].mode = (
-        source_runtime_params.Mode.FORMULA_BASED
-    )
+    source_models_builder.runtime_params[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ].mode = source_runtime_params.Mode.MODEL_BASED
     source_models = source_models_builder()
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(

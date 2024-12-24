@@ -151,7 +151,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources[self._source_name]
-    source_builder.runtime_params.mode = source.supported_modes[1]
+    source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (

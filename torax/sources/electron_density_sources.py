@@ -41,7 +41,7 @@ class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
   puff_decay_length: runtime_params_lib.TimeInterpolatedInput = 0.05
   # total gas puff particles/s
   S_puff_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
       self,
@@ -110,7 +110,6 @@ class GasPuffSource(source.Source):
 
   SOURCE_NAME: ClassVar[str] = 'gas_puff_source'
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_puff_source'
-  formula: source.SourceProfileFunction = calc_puff_source
   model_func: source.SourceProfileFunction = calc_puff_source
 
   @property
@@ -132,7 +131,7 @@ class GenericParticleSourceRuntimeParams(runtime_params_lib.RuntimeParams):
   deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.0
   # total particle source
   S_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
       self,
@@ -208,7 +207,6 @@ class GenericParticleSource(source.Source):
 
   SOURCE_NAME: ClassVar[str] = 'generic_particle_source'
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_particle_source'
-  formula: source.SourceProfileFunction = calc_generic_particle_source
   model_func: source.SourceProfileFunction = calc_generic_particle_source
 
   @property
@@ -232,7 +230,7 @@ class PelletRuntimeParams(runtime_params_lib.RuntimeParams):
   pellet_deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.85
   # total pellet particles/s (continuous pellet model)
   S_pellet_tot: runtime_params_lib.TimeInterpolatedInput = 2e22
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
       self,
@@ -298,7 +296,6 @@ class PelletSource(source.Source):
 
   SOURCE_NAME: ClassVar[str] = 'pellet_source'
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_pellet_source'
-  formula: source.SourceProfileFunction = calc_pellet_source
   model_func: source.SourceProfileFunction = calc_pellet_source
 
   @property
