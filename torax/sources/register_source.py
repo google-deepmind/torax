@@ -152,6 +152,7 @@ _REGISTERED_SOURCES = {
     ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME: _register_new_source(
         source_class=ion_cyclotron_source.IonCyclotronSource,
         default_runtime_params_class=ion_cyclotron_source.RuntimeParams,
+        source_builder_class=ion_cyclotron_source.IonCyclotronSourceBuilder,
     ),
     impurity_radiation_heat_sink.ImpurityRadiationHeatSink.SOURCE_NAME: _register_new_source(
         source_class=impurity_radiation_heat_sink.ImpurityRadiationHeatSink,

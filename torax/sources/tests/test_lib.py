@@ -80,14 +80,18 @@ class SourceTestCase(parameterized.TestCase):
       unsupported_modes: Sequence[runtime_params_lib.Mode],
       source_name: str,
       links_back: bool = False,
+      source_class_builder: source_lib.SourceBuilderProtocol | None = None,
   ):
     super().setUpClass()
     cls._source_class = source_class
-    cls._source_class_builder = source_lib.make_source_builder(
-        source_type=source_class,
-        runtime_params_type=runtime_params_class,
-        links_back=links_back,
-    )
+    if source_class_builder is None:
+      cls._source_class_builder = source_lib.make_source_builder(
+          source_type=source_class,
+          runtime_params_type=runtime_params_class,
+          links_back=links_back,
+      )
+    else:
+      cls._source_class_builder = source_class_builder
     cls._runtime_params_class = runtime_params_class
     cls._unsupported_modes = unsupported_modes
     cls._links_back = links_back

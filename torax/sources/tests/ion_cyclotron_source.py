@@ -99,6 +99,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         source_class=ion_cyclotron_source.IonCyclotronSource,
         runtime_params_class=ion_cyclotron_source.RuntimeParams,
         unsupported_modes=[runtime_params_lib.Mode.FORMULA_BASED],
+        source_class_builder=ion_cyclotron_source.IonCyclotronSourceBuilder,
         source_name=ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
     )
 

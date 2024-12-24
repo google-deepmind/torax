@@ -495,18 +495,6 @@ class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
 
   SOURCE_NAME: ClassVar[str] = 'ion_cyclotron_source'
-  # The model function is fixed to _icrh_model_func because that is the only
-  # supported implementation of this source.
-  # However, since this is a param in the parent dataclass, we need to (a)
-  # remove the parameter from the init args and (b) set the default to the
-  # desired value.
-  model_func: source.SourceProfileFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: functools.partial(
-          _icrh_model_func,
-          toric_nn=ToricNNWrapper(),
-      ),
-  )
 
   @property
   def source_name(self) -> str:
@@ -530,3 +518,23 @@ class IonCyclotronSource(source.Source):
   @property
   def output_shape_getter(self) -> source.SourceOutputShapeFunction:
     return source.get_ion_el_output_shape
+
+
+@dataclasses.dataclass(kw_only=True, frozen=False)
+class IonCyclotronSourceBuilder:
+  """Builder for the IonCyclotronSource."""
+
+  runtime_params: RuntimeParams = dataclasses.field(
+      default_factory=RuntimeParams
+  )
+  links_back: bool = False
+
+  def __call__(
+      self,
+      formula: source.SourceProfileFunction | None = None,
+  ) -> IonCyclotronSource:
+    model_func: source.SourceProfileFunction = functools.partial(
+        _icrh_model_func,
+        toric_nn=ToricNNWrapper(),
+    )
+    return IonCyclotronSource(formula=formula, model_func=model_func,)
