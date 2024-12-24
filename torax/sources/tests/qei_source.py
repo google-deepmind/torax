@@ -38,6 +38,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
         source_name=qei_source.QeiSource.SOURCE_NAME,
+        model_func=None,
     )
 
   def test_source_value(self):

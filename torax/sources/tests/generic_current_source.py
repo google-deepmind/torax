@@ -39,6 +39,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
             runtime_params_lib.Mode.MODEL_BASED,
         ],
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
+        model_func=generic_current_source.calculate_generic_current_face,
     )
 
   def test_generic_current_hires(self):

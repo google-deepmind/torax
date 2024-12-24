@@ -103,13 +103,13 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   gaussian_ec_total_power: array_typing.ScalarFloat
 
 
-def _calc_heating_and_current(
+def calc_heating_and_current(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
-    unused_model_func: source_models.SourceModels,
+    unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Model function for the electron-cyclotron source.
 
@@ -128,7 +128,7 @@ def _calc_heating_and_current(
     2D array of electron cyclotron heating power density and current density.
   """
   del (
-      unused_model_func,
+      unused_source_models,
       static_runtime_params_slice,
   )  # Unused.
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
@@ -187,7 +187,8 @@ class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
 
   SOURCE_NAME: ClassVar[str] = "electron_cyclotron_source"
-  model_func: source.SourceProfileFunction = _calc_heating_and_current
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = "calc_heating_and_current"
+  model_func: source.SourceProfileFunction = calc_heating_and_current
 
   @property
   def source_name(self) -> str:

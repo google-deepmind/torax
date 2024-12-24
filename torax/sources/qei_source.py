@@ -72,6 +72,7 @@ class QeiSource(source.Source):
   """
 
   SOURCE_NAME: ClassVar[str] = 'qei_source'
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'model_based_qei'
 
   @property
   def source_name(self) -> str:

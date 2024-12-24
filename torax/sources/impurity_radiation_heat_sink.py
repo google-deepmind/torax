@@ -16,6 +16,7 @@
 """Basic impurity radiation heat sink for electron heat equation.."""
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
@@ -139,10 +140,13 @@ class ImpurityRadiationHeatSink(source_lib.Source):
   """Impurity radiation heat sink for electron heat equation."""
 
   SOURCE_NAME = "impurity_radiation_heat_sink"
-  source_models: source_models_lib.SourceModels
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = (
+      "radially_constant_fraction_of_Pin"
+  )
   model_func: source_lib.SourceProfileFunction = (
       radially_constant_fraction_of_Pin
   )
+  source_models: source_models_lib.SourceModels
 
   @property
   def source_name(self) -> str:

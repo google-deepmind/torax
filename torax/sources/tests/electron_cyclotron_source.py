@@ -42,6 +42,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
         source_name=electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
+        model_func=electron_cyclotron_source.calc_heating_and_current,
     )
 
   def test_source_value(self):
@@ -51,16 +52,10 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
       raise TypeError(f"{type(self)} has a bad _source_class_builder")
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {
-            electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME: (
-                source_builder
-            )
-        },
+        {self._source_name: source_builder},
     )
     source_models = source_models_builder()
-    source = source_models.sources[
-        electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME
-    ]
+    source = source_models.sources[self._source_name]
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
     geo = geometry.build_circular_geometry()

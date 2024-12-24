@@ -107,19 +107,19 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       # Combine the outputs.
       # pylint: disable=protected-access
       return (
-          electron_density_sources._calc_puff_source(
+          electron_density_sources.calc_puff_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               static_runtime_params_slice=static_runtime_params_slice,
               geo=geo,
               source_name=electron_density_sources.GasPuffSource.SOURCE_NAME,
           )
-          + electron_density_sources._calc_generic_particle_source(
+          + electron_density_sources.calc_generic_particle_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               static_runtime_params_slice=static_runtime_params_slice,
               geo=geo,
               source_name=electron_density_sources.GenericParticleSource.SOURCE_NAME,
           )
-          + electron_density_sources._calc_pellet_source(
+          + electron_density_sources.calc_pellet_source(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice,
               static_runtime_params_slice=static_runtime_params_slice,
               geo=geo,

@@ -42,6 +42,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
             runtime_params_lib.Mode.FORMULA_BASED,
         ],
         source_name=bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
+        model_func=bremsstrahlung_heat_sink.bremsstrahlung_model_func,
     )
 
   @parameterized.parameters([

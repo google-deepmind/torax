@@ -156,6 +156,7 @@ class SourceTest(parameterized.TestCase):
     @dataclasses.dataclass(frozen=True, eq=True)
     class MySource:
       my_field: int
+      model_func: source_lib.SourceProfileFunction | None = None
 
     # pylint doesn't realize this is a class
     MySourceBuilder = source_lib.make_source_builder(  # pylint: disable=invalid-name
@@ -376,16 +377,13 @@ class SourceTest(parameterized.TestCase):
           },
           torax_mesh=geo.torax_mesh,
       )
-      profile = source.get_value(
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          static_runtime_params_slice=static_slice,
-          geo=geo,
-          core_profiles=core_profiles,
-      )
-      np.testing.assert_allclose(
-          profile,
-          get_zero_profile(source_lib.ProfileType.CELL, geo),
-      )
+      with self.assertRaises(ValueError):
+        source.get_value(
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+            static_runtime_params_slice=static_slice,
+            geo=geo,
+            core_profiles=core_profiles,
+        )
     with self.subTest('formula'):
       static_slice = runtime_params_slice.build_static_runtime_params_slice(
           runtime_params=runtime_params,
@@ -397,16 +395,13 @@ class SourceTest(parameterized.TestCase):
           },
           torax_mesh=geo.torax_mesh,
       )
-      profile = source.get_value(
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          static_runtime_params_slice=static_slice,
-          geo=geo,
-          core_profiles=core_profiles,
-      )
-      np.testing.assert_allclose(
-          profile,
-          get_zero_profile(source_lib.ProfileType.CELL, geo),
-      )
+      with self.assertRaises(ValueError):
+        source.get_value(
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+            static_runtime_params_slice=static_slice,
+            geo=geo,
+            core_profiles=core_profiles,
+        )
     with self.subTest('prescribed'):
       static_slice = runtime_params_slice.build_static_runtime_params_slice(
           runtime_params=runtime_params,
@@ -477,9 +472,10 @@ class SourceTest(parameterized.TestCase):
     geo = geometry.build_circular_geometry()
     output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
-    source_builder = IonElTestSourceBuilder(
+    source_builder = source_lib.make_source_builder(
+        IonElTestSource,
         model_func=lambda _0, _1, _2, _3, _4, _5: expected_output,
-    )
+    )()
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'foo': source_builder},

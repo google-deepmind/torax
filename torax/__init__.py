@@ -89,6 +89,7 @@ CANONICAL_ORDER = [
     'source_profiles',
     'source_profile',
     'explicit_source_profiles',
+    'model_func',
     'source_models',
     'pedestal_model',
     'time_step_calculator',

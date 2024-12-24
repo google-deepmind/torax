@@ -101,6 +101,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         unsupported_modes=[runtime_params_lib.Mode.FORMULA_BASED],
         source_class_builder=ion_cyclotron_source.IonCyclotronSourceBuilder,
         source_name=ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
+        model_func=None,
     )
 
   @parameterized.product(

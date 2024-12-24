@@ -153,6 +153,7 @@ class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
 
   SOURCE_NAME: ClassVar[str] = 'bremsstrahlung_heat_sink'
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'bremsstrahlung_model_func'
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func
 
   @property

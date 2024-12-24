@@ -13,7 +13,9 @@
 # limitations under the License.
 
 """Utilities to help with testing sources."""
+
 from torax.sources import register_source
+from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 
 
@@ -60,9 +62,18 @@ def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
   ]
   source_builders = {}
   for name in names:
-    registered_source = register_source.get_registered_source(name)
-    runtime_params = registered_source.default_runtime_params_class()
-    source_builders[name] = registered_source.source_builder_class(
-        runtime_params=runtime_params
-    )
+    registered_source = register_source.get_supported_source(name)
+    model_function = registered_source.model_functions[
+        registered_source.source_class.DEFAULT_MODEL_FUNCTION_NAME
+    ]
+    runtime_params = model_function.runtime_params_class()
+    source_builder_class = model_function.source_builder_class
+    if source_builder_class is None:
+      source_builder_class = source_lib.make_source_builder(
+          registered_source.source_class,
+          runtime_params_type=model_function.runtime_params_class,
+          links_back=model_function.links_back,
+          model_func=model_function.source_profile_function,
+      )
+    source_builders[name] = source_builder_class(runtime_params=runtime_params)
   return source_models_lib.SourceModelsBuilder(source_builders)

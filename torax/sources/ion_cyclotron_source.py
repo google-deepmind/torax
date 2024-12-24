@@ -364,7 +364,7 @@ def _helium3_tail_temperature(
   return core_profiles.temp_el.value * (1 + epsilon)
 
 
-def _icrh_model_func(
+def icrh_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -485,8 +485,6 @@ def _icrh_model_func(
   source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
 
   return jnp.stack([source_ion, source_el])
-
-
 # pylint: enable=invalid-name
 
 
@@ -495,6 +493,7 @@ class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
 
   SOURCE_NAME: ClassVar[str] = 'ion_cyclotron_source'
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'icrh_model_func'
 
   @property
   def source_name(self) -> str:
@@ -528,13 +527,18 @@ class IonCyclotronSourceBuilder:
       default_factory=RuntimeParams
   )
   links_back: bool = False
+  model_func: source.SourceProfileFunction | None = None
+
+  def __post_init__(self):
+    if self.model_func is None:
+      self.model_func = functools.partial(
+          icrh_model_func,
+          toric_nn=ToricNNWrapper(),
+      )
 
   def __call__(
       self,
       formula: source.SourceProfileFunction | None = None,
   ) -> IonCyclotronSource:
-    model_func: source.SourceProfileFunction = functools.partial(
-        _icrh_model_func,
-        toric_nn=ToricNNWrapper(),
-    )
-    return IonCyclotronSource(formula=formula, model_func=model_func,)
+
+    return IonCyclotronSource(formula=formula, model_func=self.model_func,)

@@ -76,7 +76,7 @@ class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 # Default formula: exponential with nref normalization.
-def _calc_puff_source(
+def calc_puff_source(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -109,7 +109,9 @@ class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'gas_puff_source'
-  formula: source.SourceProfileFunction = _calc_puff_source
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_puff_source'
+  formula: source.SourceProfileFunction = calc_puff_source
+  model_func: source.SourceProfileFunction = calc_puff_source
 
   @property
   def source_name(self) -> str:
@@ -172,7 +174,7 @@ class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   S_tot: array_typing.ScalarFloat
 
 
-def _calc_generic_particle_source(
+def calc_generic_particle_source(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -205,7 +207,9 @@ class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_particle_source'
-  formula: source.SourceProfileFunction = _calc_generic_particle_source
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_particle_source'
+  formula: source.SourceProfileFunction = calc_generic_particle_source
+  model_func: source.SourceProfileFunction = calc_generic_particle_source
 
   @property
   def source_name(self) -> str:
@@ -260,7 +264,7 @@ class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   S_pellet_tot: array_typing.ScalarFloat
 
 
-def _calc_pellet_source(
+def calc_pellet_source(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -293,7 +297,9 @@ class PelletSource(source.Source):
   """Pellet source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'pellet_source'
-  formula: source.SourceProfileFunction = _calc_pellet_source
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_pellet_source'
+  formula: source.SourceProfileFunction = calc_pellet_source
+  model_func: source.SourceProfileFunction = calc_pellet_source
 
   @property
   def source_name(self) -> str:

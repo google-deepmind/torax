@@ -91,6 +91,7 @@ class BootstrapCurrentSource(source.Source):
   """
 
   SOURCE_NAME: ClassVar[str] = 'j_bootstrap'
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_neoclassical'
 
   @property
   def source_name(self) -> str:

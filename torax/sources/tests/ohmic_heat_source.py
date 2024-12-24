@@ -31,6 +31,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         ],
         source_name=ohmic_heat_source.OhmicHeatSource.SOURCE_NAME,
         links_back=True,
+        model_func=ohmic_heat_source.ohmic_model_func,
     )
 
 

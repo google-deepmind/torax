@@ -149,7 +149,7 @@ def ohmic_model_func(
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels | None = None,
+    source_models: source_models_lib.SourceModels,
 ) -> jax.Array:
   """Returns the Ohmic source for electron heat equation."""
   del source_name  # Unused.
@@ -190,17 +190,10 @@ class OhmicHeatSource(source_lib.Source):
   """
 
   SOURCE_NAME: ClassVar[str] = 'ohmic_heat_source'
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'ohmic_model_func'
+  model_func: source_lib.SourceProfileFunction = ohmic_model_func
   # Users must pass in a pointer to the complete set of sources to this object.
   source_models: source_models_lib.SourceModels
-  # The model function is fixed to ohmic_model_func because that is the only
-  # supported implementation of this source.
-  # However, since this is a param in the parent dataclass, we need to (a)
-  # remove the parameter from the init args and (b) set the default to the
-  # desired value.
-  model_func: source_lib.SourceProfileFunction | None = dataclasses.field(
-      init=False,
-      default_factory=lambda: ohmic_model_func,
-  )
 
   @property
   def source_name(self) -> str:

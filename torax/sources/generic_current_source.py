@@ -105,7 +105,7 @@ _trapz = integrate.trapezoid
 
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
-def _calculate_generic_current_face(
+def calculate_generic_current_face(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -235,8 +235,10 @@ class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_current_source'
-  formula: source.SourceProfileFunction = _calculate_generic_current_face
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_current_face'
+  formula: source.SourceProfileFunction = calculate_generic_current_face
   hires_formula: source.SourceProfileFunction = _calculate_generic_current_hires
+  model_func: source.SourceProfileFunction = calculate_generic_current_face
 
   @property
   def source_name(self) -> str:

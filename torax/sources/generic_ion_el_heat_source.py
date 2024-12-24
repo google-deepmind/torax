@@ -113,7 +113,7 @@ def calc_generic_heat_source(
 
 
 # pytype: disable=name-error
-def _default_formula(
+def default_formula(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -150,7 +150,9 @@ class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_ion_el_heat_source'
-  formula: source.SourceProfileFunction = _default_formula
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'default_formula'
+  formula: source.SourceProfileFunction = default_formula
+  model_func: source.SourceProfileFunction = default_formula
 
   @property
   def source_name(self) -> str:

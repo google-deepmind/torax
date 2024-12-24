@@ -71,6 +71,7 @@ class SourceTestCase(parameterized.TestCase):
   _config_attr_name: str
   _unsupported_modes: Sequence[runtime_params_lib.Mode]
   _source_name: str
+  _runtime_params_class: Type[runtime_params_lib.RuntimeParams]
 
   @classmethod
   def setUpClass(
@@ -79,6 +80,7 @@ class SourceTestCase(parameterized.TestCase):
       runtime_params_class: Type[runtime_params_lib.RuntimeParams],
       unsupported_modes: Sequence[runtime_params_lib.Mode],
       source_name: str,
+      model_func: source_lib.SourceProfileFunction | None,
       links_back: bool = False,
       source_class_builder: source_lib.SourceBuilderProtocol | None = None,
   ):
@@ -89,6 +91,7 @@ class SourceTestCase(parameterized.TestCase):
           source_type=source_class,
           runtime_params_type=runtime_params_class,
           links_back=links_back,
+          model_func=model_func,
       )
     else:
       cls._source_class_builder = source_class_builder
@@ -138,7 +141,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     # SingleProfileSource subclasses should have default names and be
     # instantiable without any __init__ arguments.
     # pylint: disable=missing-kwoa
-    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
+    source_builder = self._source_class_builder()
     if not source_lib.is_source_builder(source_builder):
       raise TypeError(f'{type(self)} has a bad _source_class_builder')
     # pylint: enable=missing-kwoa
@@ -148,7 +151,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     )
     source_models = source_models_builder()
     source = source_models.sources[self._source_name]
-    source_builder.runtime_params.mode = source.supported_modes[0]
+    source_builder.runtime_params.mode = source.supported_modes[1]
     self.assertIsInstance(source, source_lib.Source)
     geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
@@ -235,7 +238,7 @@ class IonElSourceTestCase(SourceTestCase):
   def test_source_value(self):
     """Tests that the source can provide a value by default."""
     # pylint: disable=missing-kwoa
-    source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
+    source_builder = self._source_class_builder()
     # pylint: enable=missing-kwoa
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry.build_circular_geometry()

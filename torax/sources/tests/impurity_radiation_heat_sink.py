@@ -45,6 +45,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         unsupported_modes=[],
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
         links_back=True,
+        model_func=impurity_radiation_heat_sink_lib.radially_constant_fraction_of_Pin
     )
 
   def test_source_value(self):
@@ -62,8 +63,11 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
     heat_source_builder_builder = source_lib.make_source_builder(
         source_type=generic_ion_el_heat_source.GenericIonElectronHeatSource,
         runtime_params_type=generic_ion_el_heat_source.RuntimeParams,
+        model_func=generic_ion_el_heat_source.default_formula,
     )
-    heat_source_builder = heat_source_builder_builder()
+    heat_source_builder = heat_source_builder_builder(
+        model_func=generic_ion_el_heat_source.default_formula
+    )
 
     # Runtime params
     runtime_params = general_runtime_params.GeneralRuntimeParams()
