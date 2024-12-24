@@ -13,11 +13,12 @@
 # limitations under the License.
 
 """Tests that TORAX can be run with compilation disabled."""
+import os
 from typing import Optional, Sequence
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from test.support import os_helper
 from torax.tests.test_lib import sim_test_case
 
 
@@ -56,8 +57,7 @@ class SimTest(sim_test_case.SimTestCase):
       use_ref_time: bool = False,
   ):
     """No-compilation version of integration tests."""
-    with os_helper.EnvironmentVarGuard() as env:
-      env.set('TORAX_COMPILATION_ENABLED', 'False')
+    with mock.patch.dict(os.environ, {'TORAX_COMPILATION_ENABLED': 'False'}):
       self._test_torax_sim(
           config_name,
           profiles,
