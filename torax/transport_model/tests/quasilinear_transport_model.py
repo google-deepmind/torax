@@ -154,8 +154,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         value=jnp.array([1.0]), right_face_constraint=jnp.array(1.0)
     )
     chiGB = quasilinear_transport_model.calculate_chiGB(
-        core_profiles=core_profiles,
-        b_unit=1.0,
+        reference_temperature=core_profiles.temp_ion.face_value(),
+        reference_magnetic_field=1.0,
+        reference_mass=1.0,
         reference_length=1.0,
     )
     chi_GB_expected = (
@@ -183,7 +184,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         core_profiles=core_profiles,
         nref=1e20,
         q=np.array(1.0),
-        b_unit=1.0,
+        reference_magnetic_field=1.0,
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
     )
 
