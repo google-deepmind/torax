@@ -99,34 +99,6 @@ class RuntimeParams(base.RuntimeParametersConfig):
     )
 
 
-@chex.dataclass
-class RuntimeParamsProvider(
-    base.RuntimeParametersProvider['DynamicRuntimeParams']
-):
-  """Runtime parameter provider for a single source/sink term."""
-
-  runtime_params_config: RuntimeParams
-  prescribed_values: interpolated_param.InterpolatedVarTimeRho
-
-  def get_dynamic_params_kwargs(
-      self,
-      t: chex.Numeric,
-  ) -> dict[str, Any]:
-    dynamic_params_kwargs = super(
-        RuntimeParamsProvider, self
-    ).get_dynamic_params_kwargs(t)
-    # Remove any fields from runtime params that are included in static params.
-    for field in dataclasses.fields(StaticRuntimeParams):
-      del dynamic_params_kwargs[field.name]
-    return dynamic_params_kwargs
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams:
   """Dynamic params for a single TORAX source.
@@ -144,3 +116,34 @@ class StaticRuntimeParams:
 
   mode: int
   is_explicit: bool
+
+
+@chex.dataclass
+class RuntimeParamsProvider(
+    base.RuntimeParametersProvider['DynamicRuntimeParams']
+):
+  """Runtime parameter provider for a single source/sink term."""
+
+  runtime_params_config: RuntimeParams
+  prescribed_values: interpolated_param.InterpolatedVarTimeRho
+
+  def get_dynamic_params_kwargs(
+      self,
+      t: chex.Numeric,
+      static_runtime_params_type: type[
+          StaticRuntimeParams
+      ] = StaticRuntimeParams,
+  ) -> dict[str, Any]:
+    dynamic_params_kwargs = super(
+        RuntimeParamsProvider, self
+    ).get_dynamic_params_kwargs(t)
+    # Remove any fields from runtime params that are included in static params.
+    for field in dataclasses.fields(static_runtime_params_type):
+      del dynamic_params_kwargs[field.name]
+    return dynamic_params_kwargs
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
