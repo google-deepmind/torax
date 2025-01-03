@@ -91,7 +91,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     )
     # pylint: enable=protected-access
     with open(_DUMMY_MODEL_PATH, "w") as f:
-      json.dump(model_config, f)
+      json.dump(model_config, f, indent=4, separators=(",", ":"))
     cls.dummy_input = model_input
     cls.dummy_output = model_output
     super().setUpClass(
