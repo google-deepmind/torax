@@ -107,21 +107,13 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
       frequency=[119e6, 120e6, 121e6],
       minority_concentration=[1, 2, 3, 4, 5],
   )
-  @mock.patch.object(
-      ion_cyclotron_source,
-      "_get_default_model_path",
-      autospec=True,
-      return_value=_DUMMY_MODEL_PATH,
-  )
   def test_icrh_output_matches_total_power(
       self,
-      mock_path,
       total_power: float,
       frequency: float,
       minority_concentration: float,
   ):
     """Test source outputs match the total heating power using dummy model."""
-    del mock_path
     source_class_builder = self._source_class_builder()
     source_models_builder = source_models_lib.SourceModelsBuilder({
         ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME: (
