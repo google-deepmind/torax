@@ -405,6 +405,13 @@ class SimTest(sim_test_case.SimTestCase):
           0,
           1e-6,
       ),
+      (
+          'test_iterhybrid_rampup_cyclotron',
+          'test_iterhybrid_rampup_cyclotron.py',
+          _ALL_PROFILES,
+          0,
+          1e-6,
+      ),
       # Tests time-dependent circular geometry.
       (
           'test_time_dependent_circular_geo',
