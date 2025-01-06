@@ -292,6 +292,23 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     )
     # pylint: enable=protected-access
 
+  # TODO(b/377225415): generalize to arbitrary number of ions.
+  # pylint: disable=invalid-name
+  @parameterized.parameters([
+      dict(Zi=1.0, Zimp=10.0, Zeff=1.0, expected=1.0),
+      dict(Zi=1.0, Zimp=5.0, Zeff=1.0, expected=1.0),
+      dict(Zi=2.0, Zimp=10.0, Zeff=2.0, expected=0.5),
+      dict(Zi=2.0, Zimp=5.0, Zeff=2.0, expected=0.5),
+      dict(Zi=1.0, Zimp=10.0, Zeff=1.9, expected=0.9),
+      dict(Zi=2.0, Zimp=10.0, Zeff=3.6, expected=0.4),
+  ])
+  def test_get_main_ion_dilution_factor(self, Zi, Zimp, Zeff, expected):
+    """Unit test of `get_main_ion_dilution_factor`."""
+    np.testing.assert_allclose(
+        physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff), expected
+    )
+  # pylint: enable=invalid-name
+
   def test_calculate_plh_scaling_factor(self):
     """Compare `calculate_plh_scaling_factor` to a reference value."""
     geo = geometry.build_circular_geometry(

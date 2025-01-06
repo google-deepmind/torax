@@ -224,10 +224,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
         self.geo,
     )
 
+    Zi = dynamic_runtime_params_slice.plasma_composition.Zi
     Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
     Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
 
-    dilution_factor = physics.get_main_ion_dilution_factor(Zimp, Zeff)
+    dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
     np.testing.assert_allclose(
         ne.value,
         expected_value,
@@ -242,7 +243,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         nimp.value,
-        (expected_value - ni.value) / Zimp,
+        (expected_value - ni.value * Zi) / Zimp,
         atol=1e-6,
         rtol=1e-6,
     )

@@ -374,6 +374,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with main ion charge Zi=2.
+      (
+          'test_iterhybrid_predictor_corrector_zi2',
+          'test_iterhybrid_predictor_corrector_zi2.py',
+          _ALL_PROFILES,
+          1e-5,
+      ),
       # Predictor-corrector solver with ECCD Lin Liu model.
       (
           'test_iterhybrid_predictor_corrector_ec_linliu',

@@ -115,13 +115,14 @@ class BoundaryConditionsTest(parameterized.TestCase):
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
     )
     # pylint: disable=invalid-name
+    Zi = runtime_params.plasma_composition.Zi
     Zeff = runtime_params.plasma_composition.Zeff
     Zimp = core_profiles.Zimp
     # pylint: enable=invalid-name
-    dilution_factor = (Zimp - Zeff) / (Zimp - 1)
+    dilution_factor = (Zimp - Zeff) / (Zi * (Zimp - Zi))
     expected_ni_bound_right = expected_ne_bound_right * dilution_factor
     expected_nimp_bound_right = (
-        expected_ne_bound_right - expected_ni_bound_right
+        expected_ne_bound_right - expected_ni_bound_right * Zi
     ) / Zimp
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
     np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)

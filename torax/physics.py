@@ -39,11 +39,14 @@ _DEUTERIUM_MASS_AMU = 2.014
 # pylint: disable=invalid-name
 
 
+# TODO(b/377225415): generalize to arbitrary number of ions.
 def get_main_ion_dilution_factor(
-    Zimp: float,
-    Zeff: jax.Array,
+    Zi: array_typing.ScalarFloat,
+    Zimp: array_typing.ScalarFloat,
+    Zeff: array_typing.ArrayFloat,
 ) -> jax.Array:
-  return (Zimp - Zeff) / (Zimp - 1)
+  """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
+  return (Zimp - Zeff) / (Zi*(Zimp - Zi))
 
 
 @jax_utils.jit

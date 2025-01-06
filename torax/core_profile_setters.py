@@ -182,13 +182,14 @@ def _updated_ion_density(
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne ,
   # where all density units are in nref
 
+  Zi = dynamic_runtime_params_slice.plasma_composition.Zi
   Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
   Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
   Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
 
-  dilution_factor = physics.get_main_ion_dilution_factor(Zimp, Zeff)
+  dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
   dilution_factor_edge = physics.get_main_ion_dilution_factor(
-      Zimp, Zeff_face[-1]
+      Zi, Zimp, Zeff_face[-1]
   )
 
   ni = cell_variable.CellVariable(
@@ -201,11 +202,11 @@ def _updated_ion_density(
   )
 
   nimp = cell_variable.CellVariable(
-      value=(ne.value - ni.value) / Zimp,
+      value=(ne.value - ni.value * Zi) / Zimp,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(
-          ne.right_face_constraint - ni.right_face_constraint
+          ne.right_face_constraint - ni.right_face_constraint * Zi
       )
       / Zimp,
   )
@@ -909,16 +910,18 @@ def compute_boundary_conditions(
   # define ion profile based on (flat) Zeff and single assumed impurity
   # with Zimp. main ion limited to hydrogenic species for now.
   # Assume isotopic balance for DT fusion power. Solve for ni based on:
-  # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne
+  # Zeff = (Zi * ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni*Zi = ne
 
   dilution_factor_edge = physics.get_main_ion_dilution_factor(
+      dynamic_runtime_params_slice.plasma_composition.Zi,
       dynamic_runtime_params_slice.plasma_composition.Zimp,
       dynamic_runtime_params_slice.plasma_composition.Zeff_face[-1],
   )
 
   ni_bound_right = ne_bound_right * dilution_factor_edge
   nimp_bound_right = (
-      ne_bound_right - ni_bound_right
+      ne_bound_right
+      - ni_bound_right * dynamic_runtime_params_slice.plasma_composition.Zi
   ) / dynamic_runtime_params_slice.plasma_composition.Zimp
 
   return {
