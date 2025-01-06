@@ -87,9 +87,7 @@ class TGLFBasedTransportModel(quasilinear_transport_model.QuasilinearTransportMo
 
     def _prepare_tglf_inputs(
         Zeff_face: chex.Array,
-        nref: chex.Numeric,
         q_correction_factor: chex.Numeric,
-        transport: DynamicRuntimeParams,
         geo: geometry.Geometry,
         core_profiles: state.CoreProfiles,
     ) -> TGLFInputs:
