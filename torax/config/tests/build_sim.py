@@ -17,14 +17,12 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax import geometry
-from torax import geometry_provider
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
+from torax.geometry import geometry_provider
 from torax.pedestal_model import set_tped_nped
-from torax.sources import formula_config
-from torax.sources import formulas
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
@@ -366,38 +364,12 @@ class BuildSimTest(parameterized.TestCase):
     # pytype: enable=attribute-error
     self.assertEqual(
         source_models_builder.runtime_params['gas_puff_source'].mode,
-        source_runtime_params_lib.Mode.FORMULA_BASED,  # On by default.
+        source_runtime_params_lib.Mode.MODEL_BASED,  # On by default.
     )
     self.assertEqual(
         source_models_builder.runtime_params['ohmic_heat_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
-
-  def test_updating_formula_via_source_config(self):
-    """Tests that we can set the formula type and params via the config."""
-    source_models_builder = build_sim.build_sources_builder_from_config({
-        'gas_puff_source': {
-            'formula_type': 'gaussian',
-            'total': 1,
-            'c1': 2,
-            'c2': 3,
-        }
-    })
-    source_models = source_models_builder()
-    gas_source = source_models.sources['gas_puff_source']
-    self.assertIsInstance(gas_source.formula, formulas.Gaussian)
-    gas_source_runtime_params = source_models_builder.runtime_params[
-        'gas_puff_source'
-    ]
-    self.assertIsInstance(
-        gas_source_runtime_params.formula,
-        formula_config.Gaussian,
-    )
-    # pytype: disable=attribute-error
-    self.assertEqual(gas_source_runtime_params.formula.total, 1)
-    self.assertEqual(gas_source_runtime_params.formula.c1, 2)
-    self.assertEqual(gas_source_runtime_params.formula.c2, 3)
-    # pytype: enable=attribute-error
 
   def test_missing_transport_model_raises_error(self):
     with self.assertRaises(ValueError):

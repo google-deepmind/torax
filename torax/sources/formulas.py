@@ -13,18 +13,9 @@
 # limitations under the License.
 
 """Prescribed formulas for computing source profiles."""
-
-import dataclasses
-from typing import Optional
 import jax
 from jax import numpy as jnp
-from torax import geometry
-from torax import state
-from torax.config import runtime_params_slice
-from torax.sources import formula_config
-from torax.sources import runtime_params
-
-
+from torax.geometry import geometry
 # Many variables throughout this function are capitalized based on physics
 # notational conventions rather than on Google Python style
 # pylint: disable=invalid-name
@@ -103,53 +94,3 @@ def gaussian_profile(
       geo.vpr_face * S_face, geo.rho_face_norm
   )
   return C * S
-
-
-# pylint: enable=invalid-name
-
-
-# Callable classes used as arguments for Source formulas.
-
-
-@dataclasses.dataclass(frozen=True)
-class Exponential:
-  """Callable class providing an exponential profile."""
-
-  def __call__(  # pytype: disable=name-error
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
-      geo: geometry.Geometry,
-      unused_state: state.CoreProfiles | None,
-      unused_source_models: Optional['source_models.SourceModels'] = None,
-  ) -> jax.Array:
-    exp_config = dynamic_source_runtime_params.formula
-    assert isinstance(exp_config, formula_config.DynamicExponential)
-    return exponential_profile(
-        c1=exp_config.c1,
-        c2=exp_config.c2,
-        total=exp_config.total,
-        geo=geo,
-    )
-
-
-@dataclasses.dataclass(frozen=True)
-class Gaussian:
-  """Callable class providing a gaussian profile."""
-
-  def __call__(  # pytype: disable=name-error
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params.DynamicRuntimeParams,
-      geo: geometry.Geometry,
-      unused_state: state.CoreProfiles | None,
-      unused_source_models: Optional['source_models.SourceModels'] = None,
-  ) -> jax.Array:
-    gaussian_config = dynamic_source_runtime_params.formula
-    assert isinstance(gaussian_config, formula_config.DynamicGaussian)
-    return gaussian_profile(
-        c1=gaussian_config.c1,
-        c2=gaussian_config.c2,
-        total=gaussian_config.total,
-        geo=geo,
-    )

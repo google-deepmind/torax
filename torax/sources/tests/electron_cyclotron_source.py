@@ -19,14 +19,15 @@ import chex
 import jax.numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import electron_cyclotron_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
+from torax.stepper import runtime_params as stepper_runtime_params
 
 
 class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
@@ -37,14 +38,8 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     super().setUpClass(
         source_class=electron_cyclotron_source.ElectronCyclotronSource,
         runtime_params_class=electron_cyclotron_source.RuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.FORMULA_BASED,
-            runtime_params_lib.Mode.PRESCRIBED,
-        ],
-        expected_affected_core_profiles=(
-            source_lib.AffectedCoreProfile.TEMP_EL,
-            source_lib.AffectedCoreProfile.PSI,
-        ),
+        source_name=electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
+        model_func=electron_cyclotron_source.calc_heating_and_current,
     )
 
   def test_source_value(self):
@@ -54,10 +49,10 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
       raise TypeError(f"{type(self)} has a bad _source_class_builder")
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = source_models_lib.SourceModelsBuilder(
-        {"foo": source_builder},
+        {self._source_name: source_builder},
     )
     source_models = source_models_builder()
-    source = source_models.sources["foo"]
+    source = source_models.sources[self._source_name]
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
     geo = geometry.build_circular_geometry()
@@ -70,16 +65,23 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params=runtime_params,
+            source_runtime_params=source_models_builder.runtime_params,
+            torax_mesh=geo.torax_mesh,
+            stepper=stepper_runtime_params.RuntimeParams(),
+        )
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )
     value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-            "foo"
-        ],
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
     )
@@ -88,57 +90,6 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     # ElectronCyclotronSource default model_func provides sane default values
     if jnp.any(jnp.isnan(value)):
       raise AssertionError(f"Source value contains NaNs: {value}")
-
-  def test_invalid_source_types_raise_errors(self):
-    """Tests that using unsupported types raises an error."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
-    source_builder = self._source_class_builder()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {"foo": source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources["foo"]
-    self.assertIsInstance(source, source_lib.Source)
-    dynamic_runtime_params_slice_provider = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            sources=source_models_builder.runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )
-    )
-    # This slice is needed to create the core_profiles
-    dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-        t=runtime_params.numerics.t_initial,
-    )
-    core_profiles = core_profile_setters.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        source_models=source_models,
-    )
-
-    for unsupported_mode in self._unsupported_modes:
-      source_builder.runtime_params.mode = unsupported_mode
-      # Construct a new slice with the given mode
-      dynamic_runtime_params_slice = (
-          runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-              runtime_params=runtime_params,
-              sources=source_models_builder.runtime_params,
-              torax_mesh=geo.torax_mesh,
-          )(
-              t=runtime_params.numerics.t_initial,
-          )
-      )
-      with self.subTest(unsupported_mode.name):
-        with self.assertRaises(RuntimeError):
-          source.get_value(
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-                  "foo"
-              ],
-              geo=geo,
-              core_profiles=core_profiles,
-          )
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""

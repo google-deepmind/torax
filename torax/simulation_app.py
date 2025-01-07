@@ -59,15 +59,15 @@ from typing import Callable, Final
 
 from absl import logging
 import jax
-from matplotlib import pyplot as plt
-import torax
-from torax import geometry_provider
 from torax import output
 from torax import sim as sim_lib
+from torax import state
+from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
+from torax.geometry import geometry_provider
 from torax.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax.sources import runtime_params as source_runtime_params_lib
-from torax.spectators import plotting
 from torax.stepper import runtime_params as stepper_runtime_params_lib
 from torax.transport_model import runtime_params as transport_runtime_params_lib
 import xarray as xr
@@ -125,7 +125,7 @@ def write_simulation_output_to_file(
 
 
 def _log_single_state(
-    core_profiles: torax.CoreProfiles,
+    core_profiles: state.CoreProfiles,
     t: float | jax.Array,
 ) -> None:
   log_to_stdout('At time t = %.4f\n' % float(t), color=AnsiColors.GREEN)
@@ -139,8 +139,8 @@ def _log_single_state(
 
 
 def log_simulation_output_to_stdout(
-    core_profile_history: torax.CoreProfiles,
-    geo: torax.Geometry,
+    core_profile_history: state.CoreProfiles,
+    geo: geometry.Geometry,
     t: jax.Array,
 ) -> None:
   del geo
@@ -161,7 +161,7 @@ def _get_output_dir(
 
 def update_sim(
     sim: sim_lib.Sim,
-    runtime_params: torax.GeneralRuntimeParams,
+    runtime_params: runtime_params_lib.GeneralRuntimeParams,
     geo_provider: geometry_provider.GeometryProvider,
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
@@ -175,13 +175,13 @@ def update_sim(
   #  - spectator
   #  - time step calculator
   #  - source objects (runtime params are updated)
-  # TODO(b/323504363): change this to take a geometry provider instead of a
-  # geometry object.
 
   _update_source_params(sim, source_runtime_params)
   static_runtime_params_slice = (
       runtime_params_slice.build_static_runtime_params_slice(
-          runtime_params,
+          runtime_params=runtime_params,
+          source_runtime_params=source_runtime_params,
+          torax_mesh=geo_provider.torax_mesh,
           stepper=stepper_runtime_params,
       )
   )
@@ -278,30 +278,15 @@ def main(
   sim = get_sim()
   geo = sim.geometry_provider(sim.initial_state.t)
 
-  spectator = None
-  if plot_sim_progress:
-    if can_plot():
-      plt.ion()
-      spectator = plotting.PlotSpectator(
-          plots=plotting.get_default_plot_config(geo=geo),
-          pyplot_figure_kwargs=dict(
-              figsize=(12, 6),
-          ),
-      )
-      plt.show()
-    else:
-      logging.warning(
-          'plotting requested, but there is no display connected to show the '
-          'plot.'
-      )
-
   log_to_stdout('Starting simulation.', color=AnsiColors.GREEN)
   sim_outputs = sim.run(
       log_timestep_info=log_sim_progress,
-      spectator=spectator,
   )
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
   state_history = output.StateHistory(sim_outputs, sim.source_models)
+
+  if plot_sim_progress:
+    raise NotImplementedError('Plotting progress is temporarily disabled.')
 
   data_tree = state_history.simulation_output_to_xr(geo, sim.file_restart)
 

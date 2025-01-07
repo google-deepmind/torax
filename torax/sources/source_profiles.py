@@ -19,7 +19,7 @@ from __future__ import annotations
 import chex
 import jax
 import jax.numpy as jnp
-from torax import geometry
+from torax.geometry import geometry
 
 
 @chex.dataclass(frozen=True)

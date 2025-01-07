@@ -22,16 +22,90 @@ import functools
 import jax
 import jax.numpy as jnp
 from torax import constants
-from torax import geometry
+from torax import core_profile_setters
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
+from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
+
+
+class CoeffsCallback:
+  """Implements fvm.Block1DCoeffsCallback using calc_coeffs.
+
+  Attributes:
+    static_runtime_params_slice: See the docstring for `stepper.Stepper`.
+    transport_model: See the docstring for `stepper.Stepper`.
+    explicit_source_profiles: See the docstring for `stepper.Stepper`.
+    source_models: See the docstring for `stepper.Stepper`.
+    evolving_names: The names of the evolving variables.
+    pedestal_model: See the docstring for `stepper.Stepper`.
+  """
+
+  def __init__(
+      self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      transport_model: transport_model_lib.TransportModel,
+      explicit_source_profiles: source_profiles_lib.SourceProfiles,
+      source_models: source_models_lib.SourceModels,
+      evolving_names: tuple[str, ...],
+      pedestal_model: pedestal_model_lib.PedestalModel,
+  ):
+    self.static_runtime_params_slice = static_runtime_params_slice
+    self.transport_model = transport_model
+    self.explicit_source_profiles = explicit_source_profiles
+    self.source_models = source_models
+    self.evolving_names = evolving_names
+    self.pedestal_model = pedestal_model
+
+  def __call__(
+      self,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      x: tuple[cell_variable.CellVariable, ...],
+      allow_pereverzev: bool = False,
+      # Checks if reduced calc_coeffs for explicit terms when theta_imp=1
+      # should be called
+      explicit_call: bool = False,
+  ):
+    replace = {k: v for k, v in zip(self.evolving_names, x)}
+    core_profiles = config_args.recursive_replace(core_profiles, **replace)
+    # update ion density in core_profiles if ne is being evolved.
+    # Necessary for consistency in iterative nonlinear solutions
+    if 'ne' in self.evolving_names:
+      ni, nimp = core_profile_setters._updated_ion_density(
+          dynamic_runtime_params_slice,
+          geo,
+          core_profiles.ne,
+      )
+      core_profiles = dataclasses.replace(core_profiles, ni=ni, nimp=nimp)
+
+    if allow_pereverzev:
+      use_pereverzev = self.static_runtime_params_slice.stepper.use_pereverzev
+    else:
+      use_pereverzev = False
+
+    return calc_coeffs(
+        static_runtime_params_slice=self.static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        core_profiles=core_profiles,
+        transport_model=self.transport_model,
+        explicit_source_profiles=self.explicit_source_profiles,
+        source_models=self.source_models,
+        evolving_names=self.evolving_names,
+        use_pereverzev=use_pereverzev,
+        explicit_call=explicit_call,
+        pedestal_model=self.pedestal_model,
+    )
 
 
 def _calculate_pereverzev_flux(
@@ -81,8 +155,7 @@ def _calculate_pereverzev_flux(
   chi_face_per_ion = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm
-          > pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       chi_face_per_ion,
@@ -90,8 +163,7 @@ def _calculate_pereverzev_flux(
   chi_face_per_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm
-          > pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       chi_face_per_el,
@@ -111,8 +183,7 @@ def _calculate_pereverzev_flux(
   d_face_per_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm
-          > pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       d_face_per_el * geo.g1_over_vpr_face,
@@ -121,8 +192,7 @@ def _calculate_pereverzev_flux(
   v_face_per_el = jnp.where(
       jnp.logical_and(
           dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm
-          > pedestal_model_output.rho_norm_ped_top,
+          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
       ),
       0.0,
       v_face_per_el * geo.g0_face,
@@ -269,9 +339,7 @@ def _calc_coeffs_full(
 
   pedestal_model_output: pedestal_model_lib.PedestalModelOutput = jax.lax.cond(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-      lambda: pedestal_model(
-          dynamic_runtime_params_slice, geo, core_profiles
-      ),
+      lambda: pedestal_model(dynamic_runtime_params_slice, geo, core_profiles),
       # TODO(b/380271610): Refactor to avoid needing dummy output.
       lambda: pedestal_model_lib.PedestalModelOutput(
           neped=0.0,
@@ -295,6 +363,7 @@ def _calc_coeffs_full(
   implicit_source_profiles = source_models_lib.build_source_profiles(
       source_models=source_models,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       explicit=False,
@@ -305,35 +374,35 @@ def _calc_coeffs_full(
   # Decide which values to use depending on whether the source is explicit or
   # implicit.
   sigma = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.sigma,
       implicit_source_profiles.j_bootstrap.sigma,
   )
   sigma_face = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.sigma_face,
       implicit_source_profiles.j_bootstrap.sigma_face,
   )
   j_bootstrap = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap,
       implicit_source_profiles.j_bootstrap.j_bootstrap,
   )
   j_bootstrap_face = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.j_bootstrap_face,
       implicit_source_profiles.j_bootstrap.j_bootstrap_face,
   )
   I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.j_bootstrap_name
       ].is_explicit,
       explicit_source_profiles.j_bootstrap.I_bootstrap,
@@ -342,7 +411,7 @@ def _calc_coeffs_full(
   # The formula for generic_current in external_current_source.py is for the
   # external current on the face grid, not the cell grid.
   generic_current_face = jax_utils.select(
-      dynamic_runtime_params_slice.sources[
+      static_runtime_params_slice.sources[
           source_models.generic_current_source_name
       ].is_explicit,
       explicit_source_profiles.profiles[
@@ -379,12 +448,8 @@ def _calc_coeffs_full(
       source_models,
   )
 
-  true_ne = (
-      core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
-  )
-  true_ni = (
-      core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
-  )
+  true_ne = core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
+  true_ni = core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
 
   true_ne_face = (
       core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
@@ -554,16 +619,10 @@ def _calc_coeffs_full(
 
   # entire coefficient preceding dT/dr in heat transport equations
   full_chi_face_ion = (
-      geo.g1_over_vpr_face
-      * true_ni_face
-      * consts.keV2J
-      * chi_face_ion
+      geo.g1_over_vpr_face * true_ni_face * consts.keV2J * chi_face_ion
   )
   full_chi_face_el = (
-      geo.g1_over_vpr_face
-      * true_ne_face
-      * consts.keV2J
-      * chi_face_el
+      geo.g1_over_vpr_face * true_ne_face * consts.keV2J * chi_face_el
   )
 
   # entire coefficient preceding dne/dr in particle equation
@@ -650,12 +709,7 @@ def _calc_coeffs_full(
 
   # Add phibdot terms to particle transport convection
   full_v_face_el += (
-      -1.0
-      / 2.0
-      * geo.Phibdot
-      / geo.Phib
-      * geo.rho_face_norm
-      * geo.vpr_face
+      -1.0 / 2.0 * geo.Phibdot / geo.Phib * geo.rho_face_norm * geo.vpr_face
   )
 
   # Add phibdot terms to poloidal flux convection
@@ -674,9 +728,6 @@ def _calc_coeffs_full(
   qei = source_models.qei_source.get_qei(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_runtime_params_slice.sources[
-          source_models.qei_source_name
-      ],
       geo=geo,
       # For Qei, always use the current set of core profiles.
       # In the linear solver, core_profiles is the set of profiles at time t (at

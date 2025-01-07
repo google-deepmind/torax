@@ -20,8 +20,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy.integrate
-from torax import geometry
 from torax import math_utils
+from torax.geometry import geometry
 
 jax.config.update('jax_enable_x64', True)
 

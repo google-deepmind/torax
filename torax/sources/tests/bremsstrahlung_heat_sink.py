@@ -21,11 +21,11 @@ from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax import core_profile_setters
+from torax.config import runtime_params_slice
 from torax.sources import bremsstrahlung_heat_sink
-from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
+from torax.stepper import runtime_params as stepper_runtime_params
 from torax.tests.test_lib import torax_refs
 
 
@@ -37,10 +37,8 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     super().setUpClass(
         source_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
         runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.FORMULA_BASED,
-        ],
-        expected_affected_core_profiles=(source.AffectedCoreProfile.TEMP_EL,),
+        source_name=bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
+        model_func=bremsstrahlung_heat_sink.bremsstrahlung_model_func,
     )
 
   @parameterized.parameters([
@@ -66,9 +64,18 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
             sources=source_models_builder.runtime_params,
         )
     )
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params=runtime_params,
+            source_runtime_params=source_models_builder.runtime_params,
+            torax_mesh=geo.torax_mesh,
+            stepper=stepper_runtime_params.RuntimeParams(),
+        )
+    )
     source_models = source_models_builder()
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         source_models=source_models,
     )

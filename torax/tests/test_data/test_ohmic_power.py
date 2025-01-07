@@ -19,7 +19,6 @@ Ip from parameters. implicit, Ti+Te, Pei low dens, no pedestal, constant chi
 
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'set_pedestal': False,
@@ -48,6 +47,7 @@ CONFIG = {
         'ohmic_heat_source': {},
         'generic_current_source': {},
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'constant',
     },

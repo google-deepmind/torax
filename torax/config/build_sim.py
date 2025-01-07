@@ -14,19 +14,17 @@
 
 """Functions to build sim.Sim objects, which are used to run TORAX."""
 
-from collections.abc import MutableMapping
+from collections.abc import Mapping
 import copy
 from typing import Any
 
-from torax import geometry
-from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
+from torax.geometry import geometry
+from torax.geometry import geometry_provider
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
-from torax.sources import formula_config
-from torax.sources import formulas
 from torax.sources import register_source
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
@@ -45,6 +43,7 @@ from torax.transport_model import qlknn_transport_model
 # pylint: disable=g-import-not-at-top
 try:
   from torax.transport_model import qualikiz_transport_model
+
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
 except ImportError:
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
@@ -63,14 +62,14 @@ def _build_standard_geometry_provider(
     intermediate_builder = geometry.StandardGeometryIntermediates.from_chease
   elif geometry_type == 'fbt':
     # Check if parameters indicate a bundled FBT file and input validity.
-    if 'LY_bundle_file' in kwargs:
+    if 'LY_bundle_object' in kwargs:
       if 'geometry_configs' in kwargs:
         raise ValueError(
             "Cannot use 'geometry_configs' together with a bundled FBT file"
         )
-      if 'LY_file' in kwargs:
+      if 'LY_object' in kwargs:
         raise ValueError(
-            "Cannot use 'LY_file' together with a bundled FBT file"
+            "Cannot use 'LY_object' together with a bundled FBT file"
         )
       # Build and return the GeometryProvider for the bundled case.
       intermediates = geometry.StandardGeometryIntermediates.from_fbt_bundle(
@@ -142,7 +141,7 @@ def _build_circular_geometry_provider(
 
 
 def build_geometry_provider_from_config(
-    geometry_config: dict[str, Any],
+    geometry_config: Mapping[str, Any],
 ) -> geometry_provider.GeometryProvider:
   """Builds a `Geometry` from the input config.
 
@@ -177,7 +176,7 @@ def build_geometry_provider_from_config(
     raise ValueError('geometry_type must be set in the input config.')
   # Do a shallow copy to keep references to the original objects while not
   # modifying the original config dict with the pop-statement below.
-  kwargs = copy.copy(geometry_config)
+  kwargs = dict(geometry_config)
   geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
   if geometry_type == 'circular':
     return _build_circular_geometry_provider(**kwargs)
@@ -191,7 +190,7 @@ def build_geometry_provider_from_config(
 
 
 def build_sim_from_config(
-    config: MutableMapping[str, Any],
+    config: Mapping[str, Any],
 ) -> sim_lib.Sim:
   """Builds a sim.Sim object from the given TORAX config.
 
@@ -297,7 +296,7 @@ def build_sim_from_config(
 
 
 def build_runtime_params_from_config(
-    general_runtime_params_config: dict[str, Any],
+    general_runtime_params_config: Mapping[str, Any],
 ) -> runtime_params_lib.GeneralRuntimeParams:
   """Builds `GeneralRuntimeParams` from the input config.
 
@@ -356,48 +355,12 @@ def build_sources_builder_from_config(
         },
     }
 
-  If the `mode` is set to `formula_based`, then the you can provide a
-  `formula_type` key which may have the following values:
-
-  -  `default`: Uses the default impl (if the source has one) (default)
-
-    -  The other config args are based on the source's RuntimeParams object
-       outlined above.
-
-  -  `exponential`: Exponential profile.
-
-    - The other config args are from `sources.formula_config.Exponential`.
-
-  -  `gaussian`: Gaussian profile.
-
-    - The other config args are from `sources.formula_config.Gaussian`.
-
-  E.g. for an example heat source:
-
-  .. code-block:: python
-
-    {
-        mode: 'formula',
-        formula_type: 'gaussian',
-        total: 120e6,  # total heating
-        c1: 0.0,  # Source Gaussian central location (in normalized r)
-        c2: 0.25,  # Gaussian width in normalized radial coordinates
-    }
-
-  If you have custom source implementations, you may update this funtion to
-  handle those new sources and keys, or you may use the "advanced" configuration
-  method and build your `SourceModel` object directly.
-
   Args:
     source_configs: Input config dict defining all sources, with a structure as
       described above.
 
   Returns:
     A `SourceModelsBuilder`.
-
-  Raises:
-    ValueError if an input key doesn't match one of the source names defined
-      above.
   """
 
   source_builders = {
@@ -413,42 +376,38 @@ def _build_single_source_builder_from_config(
     source_config: dict[str, Any],
 ) -> source_lib.SourceBuilderProtocol:
   """Builds a source builder from the input config."""
-  registered_source = register_source.get_registered_source(source_name)
-  runtime_params = registered_source.default_runtime_params_class()
+  supported_source = register_source.get_supported_source(source_name)
+  if 'model_func' in source_config:
+    # If the user has specified a model function, try to retrive that from the
+    # registered source model functions.
+    model_func = source_config.pop('model_func')
+    model_function = supported_source.model_functions[model_func]
+  else:
+    # Otherwise, use the default model function.
+    model_function = supported_source.model_functions[
+        supported_source.source_class.DEFAULT_MODEL_FUNCTION_NAME
+    ]
+  runtime_params = model_function.runtime_params_class()
   # Update the defaults with the config provided.
   source_config = copy.copy(source_config)
   if 'mode' in source_config:
     mode = source_runtime_params_lib.Mode[source_config.pop('mode').upper()]
     runtime_params.mode = mode
-  formula = None
-  if 'formula_type' in source_config:
-    func = source_config.pop('formula_type').lower()
-    if func == 'default':
-      pass  # Nothing to do here.
-    elif func == 'exponential':
-      runtime_params.formula = config_args.recursive_replace(
-          formula_config.Exponential(),
-          ignore_extra_kwargs=True,
-          **source_config,
-      )
-      formula = formulas.Exponential()
-    elif func == 'gaussian':
-      runtime_params.formula = config_args.recursive_replace(
-          formula_config.Gaussian(),
-          ignore_extra_kwargs=True,
-          **source_config,
-      )
-      formula = formulas.Gaussian()
-    else:
-      raise ValueError(f'Unknown formula_type for source {source_name}: {func}')
   runtime_params = config_args.recursive_replace(
       runtime_params, ignore_extra_kwargs=True, **source_config
   )
   kwargs = {'runtime_params': runtime_params}
-  if formula is not None:
-    kwargs['formula'] = formula
 
-  return registered_source.source_builder_class(**kwargs)
+  source_builder_class = model_function.source_builder_class
+  if source_builder_class is None:
+    source_builder_class = source_lib.make_source_builder(
+        supported_source.source_class,
+        runtime_params_type=model_function.runtime_params_class,
+        links_back=model_function.links_back,
+        model_func=model_function.source_profile_function,
+    )
+
+  return source_builder_class(**kwargs)
 
 
 def build_transport_model_builder_from_config(

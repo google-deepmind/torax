@@ -22,10 +22,10 @@ import dataclasses
 
 import jax
 from torax import core_profile_setters
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
@@ -184,7 +184,7 @@ class Stepper(abc.ABC):
       source_profiles.SourceProfiles,
       state.CoreTransport,
       state.StepperNumericOutputs,
-    ]:
+  ]:
     """Calculates new values of the changing variables.
 
     Subclasses must either implement `_x_new` so that `Stepper.__call__`

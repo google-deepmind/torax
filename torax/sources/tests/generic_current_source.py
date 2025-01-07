@@ -18,11 +18,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import numpy as np
-from torax import geometry
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import generic_current_source
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources.tests import test_lib
 
@@ -35,10 +34,8 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
     super().setUpClass(
         source_class=generic_current_source.GenericCurrentSource,
         runtime_params_class=generic_current_source.RuntimeParams,
-        unsupported_modes=[
-            runtime_params_lib.Mode.MODEL_BASED,
-        ],
-        expected_affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
+        source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
+        model_func=generic_current_source.calculate_generic_current_face,
     )
 
   def test_generic_current_hires(self):
@@ -51,19 +48,28 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
     dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources={
-            generic_current_source.SOURCE_NAME: source_builder.runtime_params,
+            generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+                source_builder.runtime_params
+            ),
         },
         torax_mesh=geo.torax_mesh,
     )(
         t=runtime_params.numerics.t_initial,
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params={
+            generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+                source_builder.runtime_params
+            ),
+        },
+        torax_mesh=geo.torax_mesh,
+    )
     self.assertIsInstance(source, generic_current_source.GenericCurrentSource)
     self.assertIsNotNone(
         source.generic_current_source_hires(
             dynamic_runtime_params_slice=dynamic_slice,
-            dynamic_source_runtime_params=dynamic_slice.sources[
-                generic_current_source.SOURCE_NAME
-            ],
+            static_runtime_params_slice=static_slice,
             geo=geo,
         )
     )
@@ -81,18 +87,27 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
     dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources={
-            generic_current_source.SOURCE_NAME: source_builder.runtime_params,
+            generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+                source_builder.runtime_params
+            ),
         },
         torax_mesh=geo.torax_mesh,
     )(
         t=runtime_params.numerics.t_initial,
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params={
+            generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+                source_builder.runtime_params
+            ),
+        },
+        torax_mesh=geo.torax_mesh,
+    )
     self.assertEqual(
         source.get_value(
+            static_slice,
             dynamic_runtime_params_slice,
-            dynamic_runtime_params_slice.sources[
-                generic_current_source.SOURCE_NAME
-            ],
             geo,
             core_profiles=None,
         ).shape,

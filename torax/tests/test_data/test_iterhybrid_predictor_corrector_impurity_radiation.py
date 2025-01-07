@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Spectators.
+"""Identical to test_iterhybrid_predictor_corrector but simple impurity radiation."""
 
-This module contains functionality related to extracting simulation
-variables at any point during the simulation, including during stepper
-iterations. Spectators are a separate mechanism for probing variables,
-independent from the stepper output.
-"""
+import copy
+
+from torax.tests.test_data import test_iterhybrid_predictor_corrector
+
+CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
+
+CONFIG['sources']['impurity_radiation_heat_sink'] = {
+    'fraction_of_total_power_density': 0.1
+}

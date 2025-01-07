@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tests for constant transport model."""
 from absl.testing import absltest
-from torax import geometry
+from torax.geometry import geometry
 from torax.transport_model import constant
 
 

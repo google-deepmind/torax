@@ -22,12 +22,12 @@ import inspect
 from absl.testing import absltest
 from absl.testing import parameterized
 import torax
-from torax import calc_coeffs
 from torax import core_profile_setters
 from torax import physics
 from torax import sim
 from torax import state
 from torax.fvm import block_1d_coeffs
+from torax.fvm import calc_coeffs
 from torax.fvm import discrete_system
 from torax.fvm import implicit_solve_block
 from torax.fvm import newton_raphson_solve_block

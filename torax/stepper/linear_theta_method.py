@@ -19,11 +19,11 @@ import dataclasses
 from typing import Type, TypeAlias
 
 import jax
-from torax import geometry
-from torax import sim
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
@@ -41,7 +41,9 @@ class LinearThetaMethod(stepper_lib.Stepper):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
-      callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
+      callback_class: Type[
+          calc_coeffs.CoeffsCallback
+      ] = calc_coeffs.CoeffsCallback,
   ):
     super().__init__(transport_model, source_models, pedestal_model)
     self.callback_class = callback_class

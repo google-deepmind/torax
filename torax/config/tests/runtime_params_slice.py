@@ -20,15 +20,13 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
-from torax import geometry
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
+from torax.geometry import geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
-from torax.sources import formula_config
 from torax.sources import generic_current_source
-from torax.sources import runtime_params as sources_params_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.tests.test_lib import default_sources
 from torax.transport_model import runtime_params as transport_params_lib
@@ -74,11 +72,15 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self._geo.torax_mesh,
     )
-    dynamic_runtime_params_slice = provider(t=1.0,)
+    dynamic_runtime_params_slice = provider(
+        t=1.0,
+    )
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 2.5
     )
-    dynamic_runtime_params_slice = provider(t=2.0,)
+    dynamic_runtime_params_slice = provider(
+        t=2.0,
+    )
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.profile_conditions.Ti_bound_right, 3.0
     )
@@ -185,20 +187,20 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources={
-              electron_density_sources.GAS_PUFF_SOURCE_NAME: (
+              electron_density_sources.GasPuffSource.SOURCE_NAME: (
                   electron_density_sources.GasPuffRuntimeParams(
                       puff_decay_length={0.0: 0.0, 1.0: 4.0},
                       S_puff_tot={0.0: 0.0, 1.0: 5.0},
                   )
               ),
-              electron_density_sources.PELLET_SOURCE_NAME: (
+              electron_density_sources.PelletSource.SOURCE_NAME: (
                   electron_density_sources.PelletRuntimeParams(
                       pellet_width={0.0: 0.0, 1.0: 1.0},
                       pellet_deposition_location={0.0: 0.0, 1.0: 2.0},
                       S_pellet_tot={0.0: 0.0, 1.0: 3.0},
                   )
               ),
-              electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME: (
+              electron_density_sources.GenericParticleSource.SOURCE_NAME: (
                   electron_density_sources.GenericParticleSourceRuntimeParams(
                       particle_width={0.0: 0.0, 1.0: 6.0},
                       deposition_location={0.0: 0.0, 1.0: 7.0},
@@ -210,12 +212,14 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       )(
           t=0.5,
       )
-      pellet_source = dcs.sources[electron_density_sources.PELLET_SOURCE_NAME]
+      pellet_source = dcs.sources[
+          electron_density_sources.PelletSource.SOURCE_NAME
+      ]
       gas_puff_source = dcs.sources[
-          electron_density_sources.GAS_PUFF_SOURCE_NAME
+          electron_density_sources.GasPuffSource.SOURCE_NAME
       ]
       generic_particle_source = dcs.sources[
-          electron_density_sources.GENERIC_PARTICLE_SOURCE_NAME
+          electron_density_sources.GenericParticleSource.SOURCE_NAME
       ]
       assert isinstance(
           pellet_source,
@@ -242,63 +246,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       )
       np.testing.assert_allclose(generic_particle_source.S_tot, 4.0)
 
-    with self.subTest('exponential_formula'):
-      runtime_params = general_runtime_params.GeneralRuntimeParams()
-      dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
-          runtime_params=runtime_params,
-          sources={
-              electron_density_sources.GAS_PUFF_SOURCE_NAME: (
-                  sources_params_lib.RuntimeParams(
-                      formula=formula_config.Exponential(
-                          total={0.0: 0.0, 1.0: 1.0},
-                          c1={0.0: 0.0, 1.0: 2.0},
-                          c2={0.0: 0.0, 1.0: 3.0},
-                      )
-                  )
-              ),
-          },
-          torax_mesh=self._geo.torax_mesh,
-      )(
-          t=0.25,
-      )
-      gas_puff_source = dcs.sources[
-          electron_density_sources.GAS_PUFF_SOURCE_NAME
-      ]
-      assert isinstance(
-          gas_puff_source.formula,
-          formula_config.DynamicExponential,
-      )
-      np.testing.assert_allclose(gas_puff_source.formula.total, 0.25)
-      np.testing.assert_allclose(gas_puff_source.formula.c1, 0.5)
-      np.testing.assert_allclose(gas_puff_source.formula.c2, 0.75)
-
-    with self.subTest('gaussian_formula'):
-      runtime_params = general_runtime_params.GeneralRuntimeParams()
-      dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
-          runtime_params=runtime_params,
-          sources={
-              electron_density_sources.GAS_PUFF_SOURCE_NAME: (
-                  sources_params_lib.RuntimeParams(
-                      formula=formula_config.Gaussian(
-                          total={0.0: 0.0, 1.0: 1.0},
-                          c1={0.0: 0.0, 1.0: 2.0},
-                          c2={0.0: 0.0, 1.0: 3.0},
-                      )
-                  )
-              ),
-          },
-          torax_mesh=self._geo.torax_mesh,
-      )(
-          t=0.25,
-      )
-      gas_puff_source = dcs.sources[
-          electron_density_sources.GAS_PUFF_SOURCE_NAME
-      ]
-      assert isinstance(gas_puff_source.formula, formula_config.DynamicGaussian)
-      np.testing.assert_allclose(gas_puff_source.formula.total, 0.25)
-      np.testing.assert_allclose(gas_puff_source.formula.c1, 0.5)
-      np.testing.assert_allclose(gas_puff_source.formula.c2, 0.75)
-
   def test_wext_in_dynamic_runtime_params_cannot_be_negative(self):
     """Tests that wext cannot be negative."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
@@ -306,7 +253,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={
-            generic_current_source.SOURCE_NAME: (
+            generic_current_source.GenericCurrentSource.SOURCE_NAME: (
                 generic_current_source.RuntimeParams(wext={0.0: 1.0, 1.0: -1.0})
             ),
         },
@@ -317,7 +264,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     dcs = dcs_provider(
         t=0.0,
     )
-    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    generic_current = dcs.sources[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ]
     assert isinstance(
         generic_current, generic_current_source.DynamicRuntimeParams
     )
@@ -326,7 +275,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     dcs = dcs_provider(
         t=0.5,
     )
-    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    generic_current = dcs.sources[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ]
     assert isinstance(
         generic_current, generic_current_source.DynamicRuntimeParams
     )
@@ -416,9 +367,18 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
 
   @parameterized.product(
-      ne_bound_right=[None, 1.0,],
-      ne_bound_right_is_fGW=[True, False,],
-      ne_is_fGW=[True, False,],
+      ne_bound_right=[
+          None,
+          1.0,
+      ],
+      ne_bound_right_is_fGW=[
+          True,
+          False,
+      ],
+      ne_is_fGW=[
+          True,
+          False,
+      ],
   )
   def test_profile_conditions_set_electron_density_and_boundary_condition(
       self,
@@ -501,7 +461,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params[
-        generic_current_source.SOURCE_NAME
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
     ].Iext = 1.0
     geo = geometry.build_circular_geometry(n_rho=4)
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
@@ -517,7 +477,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
     # Update an interpolated variable.
     source_models_builder.runtime_params[
-        generic_current_source.SOURCE_NAME
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
     ].Iext = 2.0
 
     # Check pre-update that nothing has changed.
@@ -526,7 +486,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     for key in source_models_builder.runtime_params.keys():
       self.assertIn(key, dcs.sources)
-    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    generic_current = dcs.sources[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ]
     assert isinstance(
         generic_current, generic_current_source.DynamicRuntimeParams
     )
@@ -543,7 +505,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     for key in source_models_builder.runtime_params.keys():
       self.assertIn(key, dcs.sources)
-    generic_current = dcs.sources[generic_current_source.SOURCE_NAME]
+    generic_current = dcs.sources[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ]
     assert isinstance(
         generic_current, generic_current_source.DynamicRuntimeParams
     )
@@ -583,6 +547,47 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         t=0.0,
     )
     self.assertEqual(dcs.transport.De_inner, 2.0)
+
+  def test_static_runtime_params_slice_hash_same_for_same_params(self):
+    """Tests that the hash is the same for the same static params."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    source_models_builder = default_sources.get_default_sources_builder()
+    static_slice1 = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=self._geo.torax_mesh,
+    )
+    static_slice2 = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=self._geo.torax_mesh,
+    )
+    self.assertEqual(hash(static_slice1), hash(static_slice2))
+
+  def test_static_runtime_params_slice_hash_different_for_different_params(
+      self,
+  ):
+    """Test that the hash changes when the static params change."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    source_models_builder = default_sources.get_default_sources_builder()
+    static_slice1 = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=self._geo.torax_mesh,
+    )
+    runtime_params_mod = dataclasses.replace(
+        runtime_params,
+        numerics=dataclasses.replace(
+            runtime_params.numerics,
+            ion_heat_eq=not runtime_params.numerics.ion_heat_eq,
+        ),
+    )
+    static_slice2 = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params=runtime_params_mod,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=self._geo.torax_mesh,
+    )
+    self.assertNotEqual(hash(static_slice1), hash(static_slice2))
 
 
 if __name__ == '__main__':

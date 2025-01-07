@@ -25,10 +25,10 @@ from typing import TypeAlias
 import chex
 import jax
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
 from torax.config import base
+from torax.geometry import geometry
 
 
 # Type-alias for clarity. While the InterpolatedVarSingleAxiss can vary across

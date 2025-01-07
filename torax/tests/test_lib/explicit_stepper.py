@@ -25,11 +25,11 @@ import jax
 from jax import numpy as jnp
 from torax import constants
 from torax import core_profile_setters
-from torax import geometry
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import diffusion_terms
+from torax.geometry import geometry
 from torax.sources import source_models
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib

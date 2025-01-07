@@ -15,12 +15,12 @@
 """Config for test_explicit. Basic test of explicit linear solver."""
 import dataclasses
 
-from torax import geometry
-from torax import geometry_provider
 from torax import sim as sim_lib
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
+from torax.geometry import geometry
+from torax.geometry import geometry_provider
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
@@ -47,10 +47,10 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
   )
 
 
-def get_geometry_provider(
-) -> geometry_provider.ConstantGeometryProvider:
+def get_geometry_provider() -> geometry_provider.ConstantGeometryProvider:
   return geometry_provider.ConstantGeometryProvider(
-      geometry.build_circular_geometry())
+      geometry.build_circular_geometry()
+  )
 
 
 def get_transport_model_builder() -> (

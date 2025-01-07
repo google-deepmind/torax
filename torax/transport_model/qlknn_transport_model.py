@@ -25,12 +25,13 @@ from typing import Callable, Final
 import chex
 import jax
 from jax import numpy as jnp
-from torax import geometry
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
+from torax.transport_model import qlknn_model_wrapper
 from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
@@ -61,6 +62,8 @@ def get_default_runtime_params_from_model_path(
         # underpredict ITG electron heat flux in shaped, high-beta scenarios.
         ITG_flux_ratio_correction=2.0,
     )
+  elif version == '11D':
+    return RuntimeParams()
   else:
     raise ValueError(f'Unknown model version: {version}')
 
@@ -72,6 +75,7 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
+
   include_ITG: bool = True  # to toggle ITG modes on or off
   include_TEM: bool = True  # to toggle TEM modes on or off
   include_ETG: bool = True  # to toggle ETG modes on or off
@@ -122,6 +126,9 @@ def _get_model(path: str) -> base_qlknn_model.BaseQLKNNModel:
   """Load the model."""
   logging.info('Loading model from %s', path)
   try:
+    # New QLKNN models are encapsulated in a single `.qlknn` file.
+    if path.endswith('.qlknn'):
+      return qlknn_model_wrapper.QLKNNModelWrapper(path)
     return qlknn_10d.QLKNN10D(path)
   except FileNotFoundError as fnfe:
     raise FileNotFoundError(

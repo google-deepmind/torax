@@ -21,20 +21,25 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-import torax  # useful for setting up jax properly.
 from torax import core_profile_setters
-from torax import geometry
+from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
-from torax.sources import runtime_params as runtime_params_lib
+from torax.geometry import geometry
+from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.stepper import runtime_params as stepper_runtime_params_lib
 from torax.tests.test_lib import default_sources
 
 
 @dataclasses.dataclass(frozen=True)
 class FooSource(source_lib.Source):
   """A test source."""
+
+  @property
+  def source_name(self) -> str:
+    return 'foo'
 
   @property
   def affected_core_profiles(
@@ -48,12 +53,6 @@ class FooSource(source_lib.Source):
   @property
   def output_shape_getter(self) -> source_lib.SourceOutputShapeFunction:
     return source_lib.get_ion_el_output_shape
-
-  @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    return (
-        runtime_params_lib.Mode.FORMULA_BASED,
-    )
 
 
 _FooSourceBuilder = source_lib.make_source_builder(
@@ -74,8 +73,8 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
-    runtime_params = torax.GeneralRuntimeParams()
-    geo = torax.build_circular_geometry()
+    runtime_params = runtime_params_lib.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     dynamic_runtime_params_slice = (
@@ -87,12 +86,28 @@ class SourceProfilesTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
+    stepper_params = stepper_runtime_params_lib.RuntimeParams()
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params=runtime_params,
+            source_runtime_params=source_models_builder.runtime_params,
+            torax_mesh=geo.torax_mesh,
+            stepper=stepper_params,
+        )
+    )
     _ = source_models_lib.build_source_profiles(
+        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
@@ -100,6 +115,7 @@ class SourceProfilesTest(parameterized.TestCase):
         explicit=True,
     )
     _ = source_models_lib.build_source_profiles(
+        static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
@@ -109,7 +125,7 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
     """Test that sum_sources_temp_{ion|el} works with jitting."""
-    geo = torax.build_circular_geometry()
+    geo = geometry.build_circular_geometry()
 
     # Use the default sources where the generic_ion_el_heat_source,
     # fusion_heat_source, and ohmic_heat_source are included and produce
@@ -161,8 +177,9 @@ class SourceProfilesTest(parameterized.TestCase):
 
     def foo_formula(
         unused_dcs,
-        unused_sc,
+        unused_static_runtime_params_slice,
         geo: geometry.Geometry,
+        unused_source_name: str,
         unused_state,
         unused_source_models,
     ):
@@ -171,23 +188,19 @@ class SourceProfilesTest(parameterized.TestCase):
           jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo)),
       ])
 
-    foo_source_builder = _FooSourceBuilder(
-        formula=foo_formula,
-    )
-    foo_source_builder.affected_core_profiles = (
-        source_lib.AffectedCoreProfile.TEMP_EL,
-        source_lib.AffectedCoreProfile.NE,
-    )
-    # Set the source mode to FORMULA.
+    foo_source_builder = source_lib.make_source_builder(
+        FooSource, model_func=foo_formula
+    )()
+    # Set the source mode to MODEL_BASED.
     foo_source_builder.runtime_params.mode = (
-        runtime_params_lib.Mode.FORMULA_BASED
+        source_runtime_params_lib.Mode.MODEL_BASED
     )
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {source_name: foo_source_builder},
     )
     source_models = source_models_builder()
-    runtime_params = torax.GeneralRuntimeParams()
-    geo = torax.build_circular_geometry()
+    runtime_params = runtime_params_lib.GeneralRuntimeParams()
+    geo = geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -197,8 +210,14 @@ class SourceProfilesTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
@@ -206,6 +225,7 @@ class SourceProfilesTest(parameterized.TestCase):
     def compute_and_sum_profiles():
       profiles = source_models_lib.build_source_profiles(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          static_runtime_params_slice=static_slice,
           geo=geo,
           core_profiles=core_profiles,
           source_models=source_models,

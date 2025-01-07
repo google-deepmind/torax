@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tests for bohm_gyrobohm."""
 from absl.testing import absltest
-from torax import geometry
+from torax.geometry import geometry
 from torax.transport_model import bohm_gyrobohm
 
 

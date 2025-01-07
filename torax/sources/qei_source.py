@@ -17,23 +17,21 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
 from jax import numpy as jnp
-from torax import geometry
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 
 
-SOURCE_NAME = 'qei_source'
 # pylint: disable=invalid-name
-
-
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   # multiplier for ion-electron heat exchange term for sensitivity testing
@@ -73,12 +71,12 @@ class QeiSource(source.Source):
   explicit terms in our solver. See sim.py for how this is used.
   """
 
+  SOURCE_NAME: ClassVar[str] = 'qei_source'
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'model_based_qei'
+
   @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    return (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.MODEL_BASED,
-    )
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
@@ -91,14 +89,15 @@ class QeiSource(source.Source):
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> source_profiles.QeiInfo:
     """Computes the value of the source."""
-    self.check_mode(dynamic_source_runtime_params.mode)
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        self.source_name
+    ]
     return jax.lax.cond(
-        dynamic_source_runtime_params.mode
+        static_runtime_params_slice.sources[self.source_name].mode
         == runtime_params_lib.Mode.MODEL_BASED.value,
         lambda: _model_based_qei(
             static_runtime_params_slice,

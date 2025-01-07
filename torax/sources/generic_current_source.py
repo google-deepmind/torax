@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
+from typing import ClassVar, Optional
 
 import chex
 import jax
@@ -25,18 +25,15 @@ from jax import numpy as jnp
 from jax.scipy import integrate
 import jaxtyping as jt
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax import jax_utils
 from torax import state
 from torax.config import base
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from typing_extensions import override
-
-
-SOURCE_NAME = 'generic_current_source'
 # pylint: disable=invalid-name
 
 
@@ -55,7 +52,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   # Toggles if external current is provided absolutely or as a fraction of Ip.
   use_absolute_current: bool = False
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property
   def grid_type(self) -> base.GridType:
@@ -69,9 +66,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
 
 @chex.dataclass
-class RuntimeParamsProvider(
-    runtime_params_lib.RuntimeParamsProvider
-):
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   """Provides runtime parameters for a given time and geometry."""
 
   runtime_params_config: RuntimeParams
@@ -83,7 +78,7 @@ class RuntimeParamsProvider(
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) ->  DynamicRuntimeParams:
+  ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
@@ -110,26 +105,37 @@ _trapz = integrate.trapezoid
 
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
-def _calculate_generic_current_face(
+def calculate_generic_current_face(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     unused_state: state.CoreProfiles | None = None,
     unused_source_models: Optional['source_models.SourceModels'] = None,
 ) -> jax.Array:
   """Calculates the external current density profiles.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Parameter configuration at present timestep.
-    dynamic_source_runtime_params: Source-specific parameters at the present
-      timestep.
     geo: Tokamak geometry.
+    source_name: Name of the source.
     unused_state: State argument not used in this function but is present to
       adhere to the source API.
+    unused_source_models: Source models argument not used in this function but
+      is present to adhere to the source API.
 
   Returns:
     External current density profile along the face grid.
   """
+  del (
+      static_runtime_params_slice,
+      unused_state,
+      unused_source_models,
+  )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   # pytype: enable=name-error
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   Iext = _calculate_Iext(
@@ -157,25 +163,36 @@ def _calculate_generic_current_face(
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
 def _calculate_generic_current_hires(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     unused_state: state.CoreProfiles | None = None,
     unused_source_models: Optional['source_models.SourceModels'] = None,
 ) -> jax.Array:
   """Calculates the generic current density profile along the hires grid.
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Parameter configuration at present timestep.
-    dynamic_source_runtime_params: Source-specific parameters at the present
-      timestep.
     geo: Tokamak geometry.
+    source_name: Name of the source.
     unused_state: State argument not used in this function but is present to
       adhere to the source API.
+    unused_source_models: Source models argument not used in this function but
+      is present to adhere to the source API.
 
   Returns:
     Generic current density profile along the hires cell grid.
   """
+  del (
+      static_runtime_params_slice,
+      unused_state,
+      unused_source_models,
+  )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   # pytype: enable=name-error
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   Iext = _calculate_Iext(
@@ -216,8 +233,15 @@ def _calculate_Iext(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
-  formula: source.SourceProfileFunction = _calculate_generic_current_face
+
+  SOURCE_NAME: ClassVar[str] = 'generic_current_source'
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_current_face'
   hires_formula: source.SourceProfileFunction = _calculate_generic_current_hires
+  model_func: source.SourceProfileFunction = calculate_generic_current_face
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
@@ -241,19 +265,29 @@ class GenericCurrentSource(source.Source):
         jnp.zeros_like(geo.rho),
     )
 
+  # pytype: disable=name-error
   def generic_current_source_hires(
       self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
       geo: geometry.Geometry,
+      unused_state: state.CoreProfiles | None = None,
+      unused_source_models: Optional['source_models.SourceModels'] = None,
   ) -> jax.Array:
+    # pytype: enable=name-error
     """Return the current density profile along the hires cell grid."""
+    del unused_state, unused_source_models  # Unused.
+    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+        self.source_name
+    ]
+    static_source_runtime_params = static_runtime_params_slice.sources[
+        self.source_name
+    ]
     assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-    self.check_mode(dynamic_source_runtime_params.mode)
 
     # Interpolate prescribed values onto the hires grid
     hires_prescribed_values = jnp.where(
-        dynamic_source_runtime_params.mode
+        static_source_runtime_params.mode
         == runtime_params_lib.Mode.PRESCRIBED.value,
         jnp.interp(
             geo.rho_hires_norm,
@@ -265,15 +299,13 @@ class GenericCurrentSource(source.Source):
 
     return source.get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        dynamic_source_runtime_params=dynamic_source_runtime_params,
+        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=None,
         # There is no model for this source.
-        model_func=(
-            lambda _0, _1, _2, _3, _4: jnp.zeros_like(geo.rho_hires_norm)
-        ),
-        formula=self.hires_formula,
+        model_func=self.hires_formula,
         output_shape=geo.rho_hires_norm.shape,
         prescribed_values=hires_prescribed_values,
         source_models=getattr(self, 'source_models', None),
+        source_name=self.source_name,
     )

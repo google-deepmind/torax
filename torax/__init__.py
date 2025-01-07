@@ -13,55 +13,44 @@
 # limitations under the License.
 
 """Library functionality for TORAX."""
-
-# pylint: disable=g-importing-member
-
 import os
 
 import jax
-from torax import fvm
-from torax import math_utils
-from torax import physics
-from torax.config import runtime_params as general_runtime_params
-from torax.config.config_args import recursive_replace
-from torax.constants import CONSTANTS
-from torax.geometry import build_circular_geometry
-from torax.geometry import build_standard_geometry
-from torax.geometry import CircularAnalyticalGeometry
-from torax.geometry import Geometry
-from torax.geometry import Grid1D
-from torax.geometry import StandardGeometry
-from torax.geometry import StandardGeometryIntermediates
-from torax.geometry_provider import ConstantGeometryProvider
-from torax.geometry_provider import GeometryProvider
-from torax.physics import internal_boundary
-from torax.sim import build_sim_object
-from torax.sim import get_consistent_dynamic_runtime_params_slice_and_geometry
-from torax.sim import run_simulation
+
+# pylint: disable=g-importing-member
+
+from torax.config.build_sim import build_sim_from_config
+from torax.config.config_loader import import_module
+from torax.interpolated_param import InterpolatedVarSingleAxis
+from torax.output import ToraxSimOutputs
 from torax.sim import Sim
-from torax.sources.source_profiles import SourceProfiles
-from torax.state import CoreProfiles
-from torax.state import CoreTransport
-from torax.stepper.stepper import Stepper
-from torax.time_step_calculator.chi_time_step_calculator import ChiTimeStepCalculator
-from torax.time_step_calculator.fixed_time_step_calculator import FixedTimeStepCalculator
-from torax.time_step_calculator.time_step_calculator import TimeStepCalculator
-# Unsure why but `from torax.config import GeneralRuntimeParams` doesn't work in
-# some circumstances.
-GeneralRuntimeParams = general_runtime_params.GeneralRuntimeParams
+from torax.state import SimError
 
 
 # pylint: enable=g-importing-member
 
-# Default TORAX JAX precision is f64
-precision = os.getenv('JAX_PRECISION', 'f64')
-assert precision == 'f64' or precision == 'f32', (
-    'Unknown JAX precision environment variable: %s' % precision
-)
-if precision == 'f64':
-  jax.config.update('jax_enable_x64', True)
 
-CellVariable = fvm.cell_variable.CellVariable
+__all__ = [
+    'build_sim_from_config',
+    'import_module',
+    'InterpolatedVarSingleAxis',
+    'Sim',
+    'SimError',
+    'ToraxSimOutputs',
+]
+
+
+def set_jax_precision():
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  if precision == 'f64':
+    jax.config.update('jax_enable_x64', True)
+
+
+set_jax_precision()
 
 # Throughout TORAX, we maintain the following canonical argument order for
 # common argument names passed to many functions. This is a stylistic
@@ -73,6 +62,7 @@ CANONICAL_ORDER = [
     'dt',
     'source_type',
     'static_runtime_params_slice',
+    'static_source_runtime_params',
     'dynamic_runtime_params_slice',
     'dynamic_runtime_params_slice_t',
     'dynamic_runtime_params_slice_t_plus_dt',
@@ -83,6 +73,7 @@ CANONICAL_ORDER = [
     'geo_t',
     'geo_t_plus_dt',
     'geometry_provider',
+    'source_name',
     'x_old',
     'state',
     'unused_state',
@@ -98,6 +89,7 @@ CANONICAL_ORDER = [
     'source_profiles',
     'source_profile',
     'explicit_source_profiles',
+    'model_func',
     'source_models',
     'pedestal_model',
     'time_step_calculator',

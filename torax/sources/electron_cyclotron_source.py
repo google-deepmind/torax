@@ -17,16 +17,17 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import ClassVar
 
 import chex
 import jax
 import jax.numpy as jnp
 from torax import array_typing
 from torax import constants
-from torax import geometry
 from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -35,8 +36,6 @@ from torax.sources import source_models
 InterpolatedVarTimeRhoInput = (
     runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
 )
-
-SOURCE_NAME = "electron_cyclotron_source"
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -104,12 +103,13 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   gaussian_ec_total_power: array_typing.ScalarFloat
 
 
-def _calc_heating_and_current(
+def calc_heating_and_current(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
-    unused_model_func: source_models.SourceModels,
+    unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Model function for the electron-cyclotron source.
 
@@ -117,16 +117,23 @@ def _calc_heating_and_current(
   See https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
 
   Args:
+    static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Global runtime parameters
-    dynamic_source_runtime_params: Specific runtime parameters for the
-      electron-cyclotron source.
     geo: Magnetic geometry.
+    source_name: Name of the source.
     core_profiles: CoreProfiles component of the state.
     unused_model_func: (unused) source models used in the simulation.
 
   Returns:
     2D array of electron cyclotron heating power density and current density.
   """
+  del (
+      unused_source_models,
+      static_runtime_params_slice,
+  )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   # Helps linter understand the type of dynamic_source_runtime_params.
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   # Construct the profile
@@ -179,13 +186,20 @@ def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
 
-  model_func: source.SourceProfileFunction = _calc_heating_and_current
+  SOURCE_NAME: ClassVar[str] = "electron_cyclotron_source"
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = "calc_heating_and_current"
+  model_func: source.SourceProfileFunction = calc_heating_and_current
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
     return (
         runtime_params_lib.Mode.ZERO,
         runtime_params_lib.Mode.MODEL_BASED,
+        runtime_params_lib.Mode.PRESCRIBED,
     )
 
   @property

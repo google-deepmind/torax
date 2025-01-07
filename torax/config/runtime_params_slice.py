@@ -41,11 +41,11 @@ from collections.abc import Mapping
 import dataclasses
 
 import chex
-from torax import geometry
 from torax.config import numerics
 from torax.config import plasma_composition
 from torax.config import profile_conditions
 from torax.config import runtime_params as general_runtime_params_lib
+from torax.geometry import geometry
 from torax.pedestal_model import runtime_params as pedestal_model_params
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
@@ -113,6 +113,10 @@ class StaticRuntimeParamsSlice:
   """
 
   stepper: stepper_params.StaticRuntimeParams
+  # Mapping of source name to source-specific static runtime params.
+  sources: Mapping[str, sources_params.StaticRuntimeParams]
+  # Torax mesh used to construct the geometry.
+  torax_mesh: geometry.Grid1D
   # Solve the ion heat equation (ion temperature evolves over time)
   ion_heat_eq: bool
   # Solve the electron heat equation (electron temperature evolves over time)
@@ -128,6 +132,18 @@ class StaticRuntimeParamsSlice:
   # iteratively at successively lower dt until convergence is reached
   adaptive_dt: bool
 
+  def __hash__(self):
+    return hash((
+        self.stepper,
+        tuple(sorted(self.sources.items())),  # Hashable version of sources
+        hash(self.torax_mesh),  # Grid1D has a hash method defined.
+        self.ion_heat_eq,
+        self.el_heat_eq,
+        self.current_eq,
+        self.dens_eq,
+        self.adaptive_dt,
+    ))
+
 
 def _build_dynamic_sources(
     sources: dict[str, sources_params.RuntimeParamsProvider],
@@ -135,20 +151,46 @@ def _build_dynamic_sources(
 ) -> dict[str, sources_params.DynamicRuntimeParams]:
   """Builds a dict of DynamicSourceConfigSlice based on the input config."""
   return {
-      source_name: input_source_config.build_dynamic_params(t,)
+      source_name: input_source_config.build_dynamic_params(
+          t,
+      )
       for source_name, input_source_config in sources.items()
   }
 
 
 def build_static_runtime_params_slice(
+    *,
     runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
+    source_runtime_params: dict[str, sources_params.RuntimeParams],
+    torax_mesh: geometry.Grid1D,
     stepper: stepper_params.RuntimeParams | None = None,
 ) -> StaticRuntimeParamsSlice:
-  """Builds a StaticRuntimeParamsSlice."""
-  # t set to None because there shouldnt be time-dependent params in the static
-  # config.
+  """Builds a StaticRuntimeParamsSlice.
+
+  Args:
+    runtime_params: General runtime params from which static params are taken,
+      which are the choices on equations being solved, and adaptive dt.
+    source_runtime_params: data from which the source related static variables
+      are taken, which are the explicit/implicit toggle and calculation mode for
+      each source.
+    torax_mesh: The torax mesh, e.g. the grid used to construct the geometry.
+      This is static for the entire simulation and any modification implies
+      changed array sizes, and hence would require a recompilation. Useful to
+      have a static (concrete) mesh for various internal calculations.
+    stepper: stepper runtime params from which stepper static variables are
+      extracted, related to solver methods. If None, defaults to the
+      default stepper runtime params.
+
+  Returns:
+    A StaticRuntimeParamsSlice.
+  """
   stepper = stepper or stepper_params.RuntimeParams()
   return StaticRuntimeParamsSlice(
+      sources={
+          source_name: specific_source_runtime_params.build_static_params()
+          for source_name, specific_source_runtime_params in source_runtime_params.items()
+      },
+      torax_mesh=torax_mesh,
       stepper=stepper.build_static_params(),
       ion_heat_eq=runtime_params.numerics.ion_heat_eq,
       el_heat_eq=runtime_params.numerics.el_heat_eq,
@@ -244,15 +286,11 @@ class DynamicRuntimeParamsSliceProvider:
 
   def _construct_providers(self):
     """Construct the providers that will give us the dynamic params."""
-    self._runtime_params_provider = (
-        self._runtime_params.make_provider(
-            self._torax_mesh
-        )
+    self._runtime_params_provider = self._runtime_params.make_provider(
+        self._torax_mesh
     )
     self._transport_runtime_params_provider = (
-        self._transport_runtime_params.make_provider(
-            self._torax_mesh
-        )
+        self._transport_runtime_params.make_provider(self._torax_mesh)
     )
     self._sources_providers = {
         key: source.make_provider(self._torax_mesh)

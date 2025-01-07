@@ -16,19 +16,23 @@
 
 import dataclasses
 from typing import Callable
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax import physics
 from torax import state
+from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import geometry
+from torax.sources import generic_current_source
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
+
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -107,9 +111,9 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     runtime_params = references.runtime_params
     source_models_builder = source_models_lib.SourceModelsBuilder()
     # Turn on the external current source.
-    source_models_builder.runtime_params['generic_current_source'].mode = (
-        source_runtime_params.Mode.FORMULA_BASED
-    )
+    source_models_builder.runtime_params[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ].mode = source_runtime_params.Mode.MODEL_BASED
     source_models = source_models_builder()
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -118,7 +122,13 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
             sources=source_models_builder.runtime_params,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )
     initial_core_profiles = core_profile_setters.initial_core_profiles(
+        static_slice,
         dynamic_runtime_params_slice,
         geo,
         source_models=source_models,
@@ -127,6 +137,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     # pylint: disable=protected-access
     if isinstance(geo, geometry.CircularAnalyticalGeometry):
       currents = core_profile_setters._prescribe_currents_no_bootstrap(
+          static_slice,
           dynamic_runtime_params_slice,
           geo,
           source_models=source_models,
@@ -281,6 +292,23 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     )
     # pylint: enable=protected-access
 
+  # TODO(b/377225415): generalize to arbitrary number of ions.
+  # pylint: disable=invalid-name
+  @parameterized.parameters([
+      dict(Zi=1.0, Zimp=10.0, Zeff=1.0, expected=1.0),
+      dict(Zi=1.0, Zimp=5.0, Zeff=1.0, expected=1.0),
+      dict(Zi=2.0, Zimp=10.0, Zeff=2.0, expected=0.5),
+      dict(Zi=2.0, Zimp=5.0, Zeff=2.0, expected=0.5),
+      dict(Zi=1.0, Zimp=10.0, Zeff=1.9, expected=0.9),
+      dict(Zi=2.0, Zimp=10.0, Zeff=3.6, expected=0.4),
+  ])
+  def test_get_main_ion_dilution_factor(self, Zi, Zimp, Zeff, expected):
+    """Unit test of `get_main_ion_dilution_factor`."""
+    np.testing.assert_allclose(
+        physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff), expected
+    )
+  # pylint: enable=invalid-name
+
   def test_calculate_plh_scaling_factor(self):
     """Compare `calculate_plh_scaling_factor` to a reference value."""
     geo = geometry.build_circular_geometry(
@@ -366,11 +394,142 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     )
     expected_PLH_low_dens = 0.36 * 10**0.27 * 5**1.25 * 6**1.23 * 3**0.08
     expected_ne_min_P_LH = 0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 / 10
-
     # pylint: enable=invalid-name
     np.testing.assert_allclose(P_LH_hi_dens / 1e6, expected_PLH_hi_dens)
     np.testing.assert_allclose(P_LH_low_dens / 1e6, expected_PLH_low_dens)
     np.testing.assert_allclose(ne_min_P_LH, expected_ne_min_P_LH)
+
+  @parameterized.parameters([
+      dict(elongation_LCFS=1.0),
+      dict(elongation_LCFS=1.5),
+  ])
+  # pylint: disable=invalid-name
+  def test_calculate_scaling_law_confinement_time(self, elongation_LCFS):
+    """Compare `calculate_scaling_law_confinement_time` to reference values."""
+    geo = geometry.build_circular_geometry(
+        n_rho=25,
+        elongation_LCFS=elongation_LCFS,
+        hires_fac=4,
+        Rmaj=6.0,
+        Rmin=2.0,
+        B0=5.0,
+    )
+    core_profiles = state.CoreProfiles(
+        ne=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 2,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(2.0),
+            dr=geo.drho_norm,
+        ),
+        ni=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 2,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(1.0),
+            dr=geo.drho_norm,
+        ),
+        nimp=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        temp_ion=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        temp_el=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        psi=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        psidot=cell_variable.CellVariable(
+            value=jnp.ones_like(geo.rho_norm) * 0,
+            left_face_grad_constraint=jnp.zeros(()),
+            right_face_grad_constraint=None,
+            right_face_constraint=jnp.array(0.0),
+            dr=geo.drho_norm,
+        ),
+        currents=state.Currents.zeros(geo),
+        q_face=jnp.array(0.0),
+        s_face=jnp.array(0.0),
+        Zi=1.0,
+        Ai=3.0,
+        Zimp=20.0,
+        Aimp=40.0,
+        nref=1e20,
+    )
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        currents=dataclasses.replace(
+            core_profiles.currents,
+            Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
+        ),
+    )
+    Ploss = jnp.array(50.0)
+
+    H98 = physics.calculate_scaling_law_confinement_time(
+        geo, core_profiles, Ploss, 'H98'
+    )
+    H97L = physics.calculate_scaling_law_confinement_time(
+        geo, core_profiles, Ploss, 'H97L'
+    )
+    H20 = physics.calculate_scaling_law_confinement_time(
+        geo, core_profiles, Ploss, 'H20'
+    )
+    expected_H98 = (
+        0.0562
+        * 10**0.93
+        * 5**0.15
+        * 20**0.41
+        * 50**-0.69
+        * 6**1.97
+        * (1 / 3) ** 0.58
+        * 3**0.19
+        * elongation_LCFS**0.78
+    )
+
+    expected_H97L = (
+        0.023
+        * 10**0.96
+        * 5**0.03
+        * 20**0.4
+        * 50**-0.73
+        * 6**1.83
+        * (1 / 3) ** -0.06
+        * 3**0.20
+        * elongation_LCFS**0.64
+    )
+
+    expected_H20 = (
+        0.053
+        * 10**0.98
+        * 5**0.22
+        * 20**0.24
+        * 50**-0.669
+        * 6**1.71
+        * (1 / 3) ** 0.35
+        * 3**0.20
+        * elongation_LCFS**0.80
+    )
+    # pylint: enable=invalid-name
+    np.testing.assert_allclose(H98, expected_H98)
+    np.testing.assert_allclose(H97L, expected_H97L)
+    np.testing.assert_allclose(H20, expected_H20)
 
 
 if __name__ == '__main__':

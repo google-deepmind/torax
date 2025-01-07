@@ -31,9 +31,9 @@ import numpy as np
 import scipy
 from torax import array_typing
 from torax import constants
-from torax import geometry_loader
 from torax import interpolated_param
 from torax import jax_utils
+from torax.geometry import geometry_loader
 
 
 @chex.dataclass(frozen=True)
@@ -865,8 +865,8 @@ class StandardGeometryIntermediates:
   def from_fbt_single_slice(
       cls,
       geometry_dir: str | None,
-      LY_file: str,
-      L_file: str,
+      LY_object: str | Mapping[str, np.ndarray],
+      L_object: str | Mapping[str, np.ndarray],
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
       hires_fac: int = 4,
@@ -886,8 +886,8 @@ class StandardGeometryIntermediates:
         geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
         available. If that variable is not set and geometry_dir is not provided,
         then it defaults to another dir. See `load_geo_data` implementation.
-      LY_file: File name for LY data.
-      L_file: File name for L data.
+      LY_object: File name for LY data, or directly an LY single slice dict.
+      L_object: File name for L data, or directly an L dict.
       Ip_from_parameters: If True, then Ip is taken from the config and the
         values in the Geometry are rescaled
       n_rho: Grid resolution used for all TORAX cell variables.
@@ -899,47 +899,68 @@ class StandardGeometryIntermediates:
       can then be used to build a StandardGeometry by passing to
       `build_standard_geometry`.
     """
-    LY = geometry_loader.load_geo_data(
-        geometry_dir, LY_file, geometry_loader.GeometrySource.FBT
-    )
-    L = geometry_loader.load_geo_data(
-        geometry_dir, L_file, geometry_loader.GeometrySource.FBT
-    )
+    if isinstance(LY_object, str):
+      LY = geometry_loader.load_geo_data(
+          geometry_dir, LY_object, geometry_loader.GeometrySource.FBT
+      )
+    elif isinstance(LY_object, Mapping):
+      LY = LY_object
+    else:
+      raise ValueError(
+          'LY_object must be a string (file path) or a dictionary.'
+      )
+    if isinstance(L_object, str):
+      L = geometry_loader.load_geo_data(
+          geometry_dir, L_object, geometry_loader.GeometrySource.FBT
+      )
+    elif isinstance(L_object, Mapping):
+      L = L_object
+    else:
+      raise ValueError('L_object must be a string (file path) or a dictionary.')
+
+    # Convert any scalar LY values to ndarrays such that validation method works
+    for key in LY:
+      if not isinstance(LY[key], np.ndarray):
+        LY[key] = np.array(LY[key])
+
+    # Raises a ValueError if the data is invalid.
+    _validate_fbt_data(LY, L)
     return cls._from_fbt(LY, L, Ip_from_parameters, n_rho, hires_fac)
 
   @classmethod
   def from_fbt_bundle(
       cls,
       geometry_dir: str | None,
-      LY_bundle_file: str,
-      L_file: str,
+      LY_bundle_object: str | Mapping[str, np.ndarray],
+      L_object: str | Mapping[str, np.ndarray],
       LY_to_torax_times: np.ndarray | None,
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
       hires_fac: int = 4,
-  ) -> dict[float, StandardGeometryIntermediates]:
+  ) -> Mapping[float, StandardGeometryIntermediates]:
     """Returns StandardGeometryIntermediates from a bundled FBT LY file.
 
-    LY_bundle_file is an FBT data file containing a bundle of LY geometry
-    slices at different times, packaged within a single file (as opposed to
+    LY_bundle_object is an FBT data object containing a bundle of LY geometry
+    slices at different times, packaged within a single object (as opposed to
     a sequence of standalone LY files). LY_to_torax_times is a 1D array of
     times, defining the times in the TORAX simulation corresponding to each
     slice in the LY bundle. All times in the LY bundle must be mapped to
-    times in TORAX.
+    times in TORAX. The LY_bundle_object and L_object can either be file names
+    for disk loading, or directly the data dicts.
 
     Args:
       geometry_dir: Directory where to find the FBT file describing the magnetic
         geometry. If None, uses the environment variable TORAX_GEOMETRY_DIR if
         available. If that variable is not set and geometry_dir is not provided,
         then it defaults to another dir. See `load_geo_data` implementation.
-      LY_bundle_file: File name for bundled LY data, e.g. as produced by liuqe
-        meqlpack.
-      L_file: File name for L data. Assumed to be the same L data for all LY
-        slices in the bundle.
+      LY_bundle_object: Either file name for bundled LY data, e.g. as produced
+        by liuqe meqlpack, or the data dict itself.
+      L_object: Either file name for L data. Assumed to be the same L data for
+        all LY slices in the bundle, or the data dict itself.
       LY_to_torax_times: User-provided times which map the times of the LY
         geometry slices to TORAX simulation times. A ValueError is raised if the
         number of array elements doesn't match the length of the LY_bundle array
-        data. If None, then the times are taken from the LY_bundle_file itself.
+        data. If None, then times are taken from the LY_bundle_object itself.
       Ip_from_parameters: If True, then Ip is taken from the config and the
         values in the Geometry are rescaled.
       n_rho: Grid resolution used for all TORAX cell variables.
@@ -952,23 +973,37 @@ class StandardGeometryIntermediates:
       can then be used to build a StandardGeometryProvider.
     """
 
-    LY_bundle = geometry_loader.load_geo_data(
-        geometry_dir, LY_bundle_file, geometry_loader.GeometrySource.FBT
-    )['LY']
+    if isinstance(LY_bundle_object, str):
+      LY_bundle = geometry_loader.load_geo_data(
+          geometry_dir, LY_bundle_object, geometry_loader.GeometrySource.FBT
+      )
+    elif isinstance(LY_bundle_object, Mapping):
+      LY_bundle = LY_bundle_object
+    else:
+      raise ValueError(
+          'LY_bundle_object must be a string (file path) or a dictionary.'
+      )
 
-    # Load the L file associated with the LY bundle.
-    L = geometry_loader.load_geo_data(
-        geometry_dir, L_file, geometry_loader.GeometrySource.FBT
-    )
+    if isinstance(L_object, str):
+      L = geometry_loader.load_geo_data(
+          geometry_dir, L_object, geometry_loader.GeometrySource.FBT
+      )
+    elif isinstance(L_object, Mapping):
+      L = L_object
+    else:
+      raise ValueError('L_object must be a string (file path) or a dictionary.')
+
+    # Raises a ValueError if the data is invalid.
+    _validate_fbt_data(LY_bundle, L)
 
     if LY_to_torax_times is None:
-      LY_to_torax_times = LY_bundle['t'].item()  # ndarray of times
+      LY_to_torax_times = LY_bundle['t']  # ndarray of times
     else:
-      if len(LY_to_torax_times) != len(LY_bundle['t'].item()):
+      if len(LY_to_torax_times) != len(LY_bundle['t']):
         raise ValueError(f"""
             Length of LY_to_torax_times must match length of LY bundle data:
             len(LY_to_torax_times)={len(LY_to_torax_times)},
-            len(LY_bundle['t'].item())={len(LY_bundle['t'].item())}
+            len(LY_bundle['t'])={len(LY_bundle['t'])}
             """)
 
     intermediates = {}
@@ -983,9 +1018,9 @@ class StandardGeometryIntermediates:
   @classmethod
   def _get_LY_single_slice_from_bundle(
       cls,
-      LY_bundle: np.ndarray,
+      LY_bundle: Mapping[str, np.ndarray],
       idx: int,
-  ) -> dict[str, np.ndarray]:
+  ) -> Mapping[str, np.ndarray]:
     """Returns a single LY slice from a bundled LY file, at index idx."""
 
     # The keys below are the relevant LY keys for the FBT geometry provider.
@@ -1008,17 +1043,14 @@ class StandardGeometryIntermediates:
         'FtPQ',
         'zA',
     ]
-    # The item() is needed due to the particular structure of the LY bundle.
-    LY_single_slice = {
-        key: LY_bundle[key].item()[..., idx] for key in relevant_keys
-    }
+    LY_single_slice = {key: LY_bundle[key][..., idx] for key in relevant_keys}
     return LY_single_slice
 
   @classmethod
   def _from_fbt(
       cls,
-      LY: dict[str, np.ndarray],
-      L: dict[str, np.ndarray],
+      LY: Mapping[str, np.ndarray],
+      L: Mapping[str, np.ndarray],
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
       hires_fac: int = 4,
@@ -1719,6 +1751,68 @@ def build_standard_geometry(
       Phibdot=np.asarray(0.0),
       _z_magnetic_axis=intermediate.z_magnetic_axis,
   )
+
+
+def _validate_fbt_data(
+    LY: Mapping[str, np.ndarray], L: Mapping[str, np.ndarray]
+) -> None:
+  """Validates the FBT data dictionaries.
+
+  Works for both single slice and bundle LY data.
+
+  Args:
+    LY: A dictionary of FBT LY geometry data.
+    L: A dictionary of FBT L geometry data.
+
+  Raises a ValueError if the data is invalid.
+  """
+
+  # The checks for L['pQ'] and LY['t'] are done first since their existence
+  # is needed for the shape checks.
+  if 'pQ' not in L:
+    raise ValueError("L data is missing the 'pQ' key.")
+  if 't' not in LY:
+    raise ValueError("L data is missing the 't' key.")
+
+  len_psinorm = len(L['pQ'])
+  len_times = len(LY['t']) if LY['t'].shape else 1  # Handle scalar t
+  time_only_shape = (len_times,) if len_times > 1 else ()
+  psi_and_time_shape = (
+      (len_psinorm, len_times) if len_times > 1 else (len_psinorm,)
+  )
+
+  required_LY_spec = {
+      'rBt': time_only_shape,
+      'aminor': psi_and_time_shape,
+      'rgeom': psi_and_time_shape,
+      'TQ': psi_and_time_shape,
+      'FB': time_only_shape,
+      'FA': time_only_shape,
+      'Q1Q': psi_and_time_shape,
+      'Q2Q': psi_and_time_shape,
+      'Q3Q': psi_and_time_shape,
+      'Q4Q': psi_and_time_shape,
+      'Q5Q': psi_and_time_shape,
+      'ItQ': psi_and_time_shape,
+      'deltau': psi_and_time_shape,
+      'deltal': psi_and_time_shape,
+      'kappa': psi_and_time_shape,
+      'FtPQ': psi_and_time_shape,
+      'zA': time_only_shape,
+  }
+
+  missing_LY_keys = required_LY_spec.keys() - LY.keys()
+  if missing_LY_keys:
+    raise ValueError(
+        f'LY data is missing the following keys: {missing_LY_keys}'
+    )
+
+  for key, shape in required_LY_spec.items():
+    if LY[key].shape != shape:
+      raise ValueError(
+          f"Incorrect shape for key '{key}' in LY data. "
+          f'Expected {shape}:, got {LY[key].shape}.'
+      )
 
 
 # pylint: enable=invalid-name

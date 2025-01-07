@@ -25,11 +25,10 @@ import jax
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
-from torax import geometry
 from torax import jax_utils
 from torax import state
 from torax.fvm import cell_variable
-from torax.geometry import Geometry  # pylint: disable=g-importing-member
+from torax.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -40,16 +39,19 @@ _DEUTERIUM_MASS_AMU = 2.014
 # pylint: disable=invalid-name
 
 
+# TODO(b/377225415): generalize to arbitrary number of ions.
 def get_main_ion_dilution_factor(
-    Zimp: float,
-    Zeff: jax.Array,
+    Zi: array_typing.ScalarFloat,
+    Zimp: array_typing.ScalarFloat,
+    Zeff: array_typing.ArrayFloat,
 ) -> jax.Array:
-  return (Zimp - Zeff) / (Zimp - 1)
+  """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
+  return (Zimp - Zeff) / (Zi*(Zimp - Zi))
 
 
 @jax_utils.jit
 def update_jtot_q_face_s_face(
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     q_correction_factor: float,
 ) -> state.CoreProfiles:
@@ -163,7 +165,7 @@ def _calculate_log_tau_e_Z1(
 
 
 def internal_boundary(
-    geo: Geometry,
+    geo: geometry.Geometry,
     Ped_top: jax.Array,
     set_pedestal: jax.Array,
 ) -> jax.Array:
@@ -177,7 +179,7 @@ def internal_boundary(
 
 
 def calc_q_from_psi(
-    geo: Geometry,
+    geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
     q_correction_factor: float,
 ) -> tuple[chex.Array, chex.Array]:
@@ -222,7 +224,7 @@ def calc_q_from_psi(
 
 
 def calc_jtot_from_psi(
-    geo: Geometry,
+    geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
 ) -> tuple[chex.Array, chex.Array, chex.Array]:
   """Calculates FSA toroidal current density (jtot) from poloidal flux (psi).
@@ -263,7 +265,7 @@ def calc_jtot_from_psi(
 
 
 def calc_s_from_psi(
-    geo: Geometry, psi: cell_variable.CellVariable
+    geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
   """Calculates magnetic shear (s) from poloidal flux (psi).
 
@@ -297,7 +299,7 @@ def calc_s_from_psi(
 
 
 def calc_s_from_psi_rmid(
-    geo: Geometry, psi: cell_variable.CellVariable
+    geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
   """Calculates magnetic shear (s) from poloidal flux (psi).
 
@@ -332,7 +334,7 @@ def calc_s_from_psi_rmid(
 
 
 def calc_nu_star(
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     nref: float,
     Zeff_face: jax.Array,
@@ -446,7 +448,7 @@ def fast_ion_fractional_heating_formula(
 
 
 def calculate_plh_scaling_factor(
-    geo: Geometry,
+    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
   """Calculates the H-mode transition power scaling in low and high density branches.
@@ -471,19 +473,7 @@ def calculate_plh_scaling_factor(
       density corresponding to the P_LH minimum.
   """
 
-  # Line-averaged electron density is poorly defined. In general, the definition
-  # is machine-dependent and even shot-dependent since it depends on the usage
-  # of a specific interferometry chord. Furthermore, even if we knew the
-  # specific chord used, its calculation would depend on magnetic geometry
-  # information beyond what is available in StandardGeometry.
-  # In lieu of a better solution, we use line-averaged electron density defined
-  # on the outer midplane.
-  Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
-  line_avg_ne = (
-      core_profiles.nref
-      * _trapz(core_profiles.ne.face_value(), geo.Rout_face)
-      / Rmin_out
-  )
+  line_avg_ne = _calculate_line_avg_density(geo, core_profiles)
   # LH transition power for deuterium, in W. Eq 3 from Martin 2008.
   P_LH_hi_dens_D = (
       2.15
@@ -516,6 +506,132 @@ def calculate_plh_scaling_factor(
       * 1e6
   )
   return P_LH_hi_dens, P_LH_low_dens, ne_min_P_LH
+
+
+def calculate_scaling_law_confinement_time(
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+    Ploss: jax.Array,
+    scaling_law: str,
+) -> jax.Array:
+  """Calculates the thermal energy confinement time for a given empirical scaling law.
+
+  Args:
+    geo: Torus geometry.
+    core_profiles: Core plasma profiles.
+    Ploss: Plasma power loss in MW.
+    scaling_law: Scaling law to use.
+
+  Returns:
+    Thermal energy confinement time in s.
+  """
+  scaling_params = {
+      'H98': {
+          # H98 empirical confinement scaling law:
+          # ITER Physics Expert Groups on Confinement and Transport and
+          # Confinement Modelling and Database, Nucl. Fusion 39 2175, 1999
+          # Doyle et al, Nucl. Fusion 47 (2007) S18–S127, Eq 30
+          'prefactor': 0.0562,
+          'Ip_exponent': 0.93,
+          'B_exponent': 0.15,
+          'line_avg_ne_exponent': 0.41,
+          'Ploss_exponent': -0.69,
+          'R_exponent': 1.97,
+          'inverse_aspect_ratio_exponent': 0.58,
+          'elongation_exponent': 0.78,
+          'effective_mass_exponent': 0.19,
+          'triangularity_exponent': 0.0,
+      },
+      'H97L': {
+          # From the ITER L-mode confinement database.
+          # S.M. Kaye et al 1997 Nucl. Fusion 37 1303, Eq 7
+          'prefactor': 0.023,
+          'Ip_exponent': 0.96,
+          'B_exponent': 0.03,
+          'line_avg_ne_exponent': 0.4,
+          'Ploss_exponent': -0.73,
+          'R_exponent': 1.83,
+          'inverse_aspect_ratio_exponent': -0.06,
+          'elongation_exponent': 0.64,
+          'effective_mass_exponent': 0.20,
+          'triangularity_exponent': 0.0,
+      },
+      'H20': {
+          # Updated ITER H-mode confinement database, using full dataset.
+          # G. Verdoolaege et al 2021 Nucl. Fusion 61 076006, Eq 7
+          'prefactor': 0.053,
+          'Ip_exponent': 0.98,
+          'B_exponent': 0.22,
+          'line_avg_ne_exponent': 0.24,
+          'Ploss_exponent': -0.669,
+          'R_exponent': 1.71,
+          'inverse_aspect_ratio_exponent': 0.35,
+          'elongation_exponent': 0.80,
+          'effective_mass_exponent': 0.20,
+          'triangularity_exponent': 0.36,  # (1+delta)^exponent
+      },
+  }
+
+  if scaling_law not in scaling_params:
+    raise ValueError(f'Unknown scaling law: {scaling_law}')
+
+  params = scaling_params[scaling_law]
+
+  Ip = core_profiles.currents.Ip_profile_face[-1] / 1e6  # in MA
+  B = geo.B0
+  line_avg_ne = _calculate_line_avg_density(geo, core_profiles) / 1e19
+  R = geo.Rmaj
+  inverse_aspect_ratio = geo.Rmin / geo.Rmaj
+
+  # Effective elongation definition. This is a different definition than
+  # the standard definition used in geo.elongation.
+  elongation = geo.area_face[-1] / (jnp.pi * geo.Rmin**2)
+  # TODO(b/317360834): extend when multiple ions are supported.
+  effective_mass = core_profiles.Ai
+  triangularity = geo.delta_face[-1]
+
+  tau_scaling = (
+      params['prefactor']
+      * Ip ** params['Ip_exponent']
+      * B ** params['B_exponent']
+      * line_avg_ne ** params['line_avg_ne_exponent']
+      * Ploss ** params['Ploss_exponent']
+      * R ** params['R_exponent']
+      * inverse_aspect_ratio ** params['inverse_aspect_ratio_exponent']
+      * elongation ** params['elongation_exponent']
+      * effective_mass ** params['effective_mass_exponent']
+      * (1 + triangularity) ** params['triangularity_exponent']
+  )
+  return tau_scaling
+
+
+def _calculate_line_avg_density(
+    geo: geometry.Geometry,
+    core_profiles: state.CoreProfiles,
+) -> jax.Array:
+  """Calculates line-averaged electron density.
+
+  Line-averaged electron density is poorly defined. In general, the definition
+  is machine-dependent and even shot-dependent since it depends on the usage of
+  a specific interferometry chord. Furthermore, even if we knew the specific
+  chord used, its calculation would depend on magnetic geometry information
+  beyond what is available in StandardGeometry. In lieu of a better solution, we
+  use line-averaged electron density defined on the outer midplane.
+
+  Args:
+    geo: Torus geometry.
+    core_profiles: Core plasma profiles.
+
+  Returns:
+    Line-averaged electron density.
+  """
+  Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
+  line_avg_ne = (
+      core_profiles.nref
+      * _trapz(core_profiles.ne.face_value(), geo.Rout_face)
+      / Rmin_out
+  )
+  return line_avg_ne
 
 
 # pylint: enable=invalid-name

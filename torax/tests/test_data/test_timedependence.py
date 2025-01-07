@@ -20,10 +20,6 @@ pedestal, mocking up current-overshoot and an LH transition
 """
 
 CONFIG = {
-    'pedestal': {
-        'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
-        'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
-    },
     'runtime_params': {
         'profile_conditions': {
             'Ti': {0.0: {0.0: 10.0, 1.0: 1.0}},
@@ -61,6 +57,10 @@ CONFIG = {
         },
         'qei_source': {},
         'generic_current_source': {},
+    },
+    'pedestal': {
+        'Tiped': {0: 2, 4: 2, 6: 5, 8: 4},
+        'Teped': {0: 2, 4: 2, 6: 5, 8: 4},
     },
     'transport': {
         'transport_model': 'qlknn',

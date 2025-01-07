@@ -18,11 +18,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import core_profile_setters
-from torax import geometry
 from torax import physics
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
+from torax.geometry import geometry
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.transport_model import runtime_params as transport_params_lib
@@ -224,10 +224,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
         self.geo,
     )
 
+    Zi = dynamic_runtime_params_slice.plasma_composition.Zi
     Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
     Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
 
-    dilution_factor = physics.get_main_ion_dilution_factor(Zimp, Zeff)
+    dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
     np.testing.assert_allclose(
         ne.value,
         expected_value,
@@ -242,7 +243,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         nimp.value,
-        (expected_value - ni.value) / Zimp,
+        (expected_value - ni.value * Zi) / Zimp,
         atol=1e-6,
         rtol=1e-6,
     )
@@ -548,7 +549,13 @@ class CoreProfileSettersTest(parameterized.TestCase):
     dynamic_runtime_params_slice = provider(
         t=1.0,
     )
+    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=self.geo.torax_mesh,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
+        static_slice,
         dynamic_runtime_params_slice,
         self.geo,
         source_models,

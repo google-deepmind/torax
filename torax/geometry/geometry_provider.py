@@ -23,7 +23,7 @@ from __future__ import annotations
 from typing import Protocol
 
 import chex
-from torax import geometry
+from torax.geometry import geometry
 
 
 class GeometryProvider(Protocol):

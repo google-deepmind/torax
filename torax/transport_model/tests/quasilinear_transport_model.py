@@ -21,11 +21,11 @@ from jax import numpy as jnp
 import numpy as np
 from torax import constants as constants_module
 from torax import core_profile_setters
-from torax import geometry
 from torax import state
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
@@ -56,8 +56,14 @@ def _get_model_inputs(transport: quasilinear_transport_model.RuntimeParams):
           t=runtime_params.numerics.t_initial,
       )
   )
+  static_slice = runtime_params_slice.build_static_runtime_params_slice(
+      runtime_params=runtime_params,
+      source_runtime_params=source_models_builder.runtime_params,
+      torax_mesh=geo.torax_mesh,
+  )
   core_profiles = core_profile_setters.initial_core_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      static_runtime_params_slice=static_slice,
       geo=geo,
       source_models=source_models,
   )
@@ -148,8 +154,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         value=jnp.array([1.0]), right_face_constraint=jnp.array(1.0)
     )
     chiGB = quasilinear_transport_model.calculate_chiGB(
-        core_profiles=core_profiles,
-        b_unit=1.0,
+        reference_temperature=core_profiles.temp_ion.face_value(),
+        reference_magnetic_field=1.0,
+        reference_mass=1.0,
         reference_length=1.0,
     )
     chi_GB_expected = (
@@ -177,7 +184,7 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
         core_profiles=core_profiles,
         nref=1e20,
         q=np.array(1.0),
-        b_unit=1.0,
+        reference_magnetic_field=1.0,
         normalized_logarithmic_gradients=normalized_logarithmic_gradients,
     )
 

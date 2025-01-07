@@ -29,9 +29,11 @@ from absl import flags
 from absl import logging
 import jax
 import torax
+from torax import sim as sim_lib
 from torax import simulation_app
 from torax.config import build_sim
 from torax.config import config_loader
+from torax.config import runtime_params
 from torax.plotting import plotruns_lib
 from torax.transport_model import qlknn_transport_model
 
@@ -68,7 +70,8 @@ _LOG_SIM_PROGRESS = flags.DEFINE_bool(
 _PLOT_SIM_PROGRESS = flags.DEFINE_bool(
     'plot_progress',
     False,
-    'If true, plots the time of each timestep as the simulation runs.',
+    'If true, plots the time of each timestep as the simulation runs.'
+    ' Note: this is temporarily disabled.',
 )
 
 _LOG_SIM_OUTPUT = flags.DEFINE_bool(
@@ -199,10 +202,10 @@ def maybe_update_config_module(
 
 
 def change_config(
-    sim: torax.Sim,
+    sim: sim_lib.Sim,
     config_module_str: str,
     qlknn_model_path: str | None,
-) -> tuple[torax.Sim, torax.GeneralRuntimeParams] | None:
+) -> tuple[sim_lib.Sim, runtime_params.GeneralRuntimeParams] | None:
   """Returns a new Sim with the updated config but same SimulationStepFn.
 
   This function gives the user a chance to reuse the SimulationStepFn without
@@ -314,7 +317,7 @@ def change_config(
 
 def change_sim_obj(
     config_module_str: str, qlknn_model_path: str | None
-) -> tuple[torax.Sim, torax.GeneralRuntimeParams, str]:
+) -> tuple[sim_lib.Sim, runtime_params.GeneralRuntimeParams, str]:
   """Builds a new Sim from the config module.
 
   Unlike change_config(), this function builds a brand new Sim object with a
@@ -472,6 +475,7 @@ def _post_run_plotting(
 
 
 def main(_):
+  torax.set_jax_precision()
   config_module_str = _PYTHON_CONFIG_MODULE.value
   if config_module_str is None:
     raise ValueError(f'--{_PYTHON_CONFIG_MODULE.name} must be specified.')

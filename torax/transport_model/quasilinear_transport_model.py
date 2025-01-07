@@ -18,24 +18,28 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import constants as constants_module
-from torax import geometry
 from torax import state
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
 
 def calculate_chiGB(  # pylint: disable=invalid-name
-    core_profiles: state.CoreProfiles,
-    b_unit: chex.Numeric,
+    reference_temperature: chex.Array,
+    reference_magnetic_field: chex.Numeric,
+    reference_mass: chex.Numeric,
     reference_length: chex.Numeric,
 ) -> chex.Array:
   """Calculates the gyrobohm diffusivity.
 
+  Different transport models make different choices for the reference
+  temperature, magnetic field, and mass used for gyrobohm normalization.
+
   Args:
-    core_profiles: CoreProfiles object containing plasma profiles.
-    b_unit: Magnetic field strength [T]. Different transport models have
-      different definitions of the specific magnetic field input.
+    reference_temperature: Reference temperature on the face grid [keV].
+    reference_magnetic_field: Magnetic field strength [T].
+    reference_mass: Reference ion mass [amu].
     reference_length: Reference length for normalization [m].
 
   Returns:
@@ -43,9 +47,9 @@ def calculate_chiGB(  # pylint: disable=invalid-name
   """
   constants = constants_module.CONSTANTS
   return (
-      (core_profiles.Ai * constants.mp) ** 0.5
-      / (constants.qe * b_unit) ** 2
-      * (core_profiles.temp_ion.face_value() * constants.keV2J) ** 1.5
+      (reference_mass * constants.mp) ** 0.5
+      / (reference_magnetic_field * constants.qe) ** 2
+      * (reference_temperature * constants.keV2J) ** 1.5
       / reference_length
   )
 
@@ -54,7 +58,7 @@ def calculate_alpha(
     core_profiles: state.CoreProfiles,
     nref: chex.Numeric,
     q: chex.Array,
-    b_unit: chex.Numeric,
+    reference_magnetic_field: chex.Numeric,
     normalized_logarithmic_gradients: NormalizedLogarithmicGradients,
 ) -> chex.Array:
   """Calculates the alpha_MHD parameter.
@@ -68,8 +72,8 @@ def calculate_alpha(
     core_profiles: CoreProfiles object containing plasma profiles.
     nref: Reference density.
     q: Safety factor.
-    b_unit: Magnetic field strength. Different transport models have different
-      definitions of the specific magnetic field input.
+    reference_magnetic_field: Magnetic field strength. Different transport
+      models have different definitions of the specific magnetic field input.
     normalized_logarithmic_gradients: Normalized logarithmic gradients of plasma
       profiles.
 
@@ -78,7 +82,14 @@ def calculate_alpha(
   """
   constants = constants_module.CONSTANTS
 
-  factor_0 = 2 * constants.keV2J * nref / b_unit**2 * constants.mu0 * q**2
+  factor_0 = (
+      2
+      * constants.keV2J
+      * nref
+      / reference_magnetic_field**2
+      * constants.mu0
+      * q**2
+  )
   alpha = factor_0 * (
       core_profiles.temp_el.face_value()
       * core_profiles.ne.face_value()

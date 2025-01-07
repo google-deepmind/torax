@@ -23,14 +23,14 @@ from typing import Type
 
 import chex
 import jax
-from torax import geometry
-from torax import sim
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import enums
 from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
+from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
@@ -59,7 +59,9 @@ class NonlinearThetaMethod(stepper.Stepper):
       transport_model: transport_model_lib.TransportModel,
       source_models: source_models_lib.SourceModels,
       pedestal_model: pedestal_model_lib.PedestalModel,
-      callback_class: Type[sim.CoeffsCallback] = sim.CoeffsCallback,
+      callback_class: Type[
+          calc_coeffs.CoeffsCallback
+      ] = calc_coeffs.CoeffsCallback,
   ):
     super().__init__(transport_model, source_models, pedestal_model)
     self.callback_class = callback_class
@@ -120,7 +122,7 @@ class NonlinearThetaMethod(stepper.Stepper):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
-      coeffs_callback: sim.CoeffsCallback,
+      coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -183,7 +185,7 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
-      coeffs_callback: sim.CoeffsCallback,
+      coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],
@@ -318,7 +320,7 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
       core_profiles_t: state.CoreProfiles,
       core_profiles_t_plus_dt: state.CoreProfiles,
       explicit_source_profiles: source_profiles.SourceProfiles,
-      coeffs_callback: sim.CoeffsCallback,
+      coeffs_callback: calc_coeffs.CoeffsCallback,
       evolving_names: tuple[str, ...],
   ) -> tuple[
       tuple[cell_variable.CellVariable, ...],

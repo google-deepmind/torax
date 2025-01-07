@@ -21,10 +21,10 @@ import functools
 import jax
 import jax.numpy as jnp
 from torax import constants
-from torax import geometry
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import bootstrap_current_source
 from torax.sources import generic_current_source
 from torax.sources import qei_source as qei_source_lib
@@ -37,9 +37,11 @@ from torax.sources import source_profiles
     jax_utils.jit,
     static_argnames=[
         'source_models',
+        'static_runtime_params_slice',
     ],
 )
 def build_source_profiles(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -49,6 +51,8 @@ def build_source_profiles(
   """Builds explicit or implicit source profiles.
 
   Args:
+    static_runtime_params_slice: Input config. Cannot change from time step to
+      time step.
     dynamic_runtime_params_slice: Input config for this time step. Can change
       from time step to time step.
     geo: Geometry of the torus.
@@ -65,18 +69,20 @@ def build_source_profiles(
   """
   # Bootstrap current is a special-case source with multiple outputs, so handle
   # it here.
-  dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
+  static_bootstrap_runtime_params = static_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
   bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_bootstrap_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       j_bootstrap_source=source_models.j_bootstrap,
       explicit=explicit,
   )
   other_profiles = _build_standard_source_profiles(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
@@ -93,8 +99,9 @@ def build_source_profiles(
 
 
 def _build_bootstrap_profiles(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    static_source_runtime_params: runtime_params_lib.StaticRuntimeParams,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     j_bootstrap_source: bootstrap_current_source.BootstrapCurrentSource,
@@ -104,10 +111,12 @@ def _build_bootstrap_profiles(
   """Computes the bootstrap current profile.
 
   Args:
+    static_runtime_params_slice: Input config. Cannot change from time step to
+      time step.
+    static_source_runtime_params: Input runtime parameters specific to the
+      bootstrap current source that do not change from time step to time step.
     dynamic_runtime_params_slice: Input config for this time step. Can change
       from time step to time step.
-    dynamic_source_runtime_params: Input runtime parameters for this time step,
-      specific to the bootstrap current source.
     geo: Geometry of the torus.
     core_profiles: Core plasma profiles, either at the start of the time step
       (if explicit) or the live profiles being evolved during the time step (if
@@ -125,13 +134,13 @@ def _build_bootstrap_profiles(
   """
   bootstrap_profile = j_bootstrap_source.get_value(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_source_runtime_params,
+      static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
   )
   sigma = jax_utils.select(
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.sigma,
@@ -139,7 +148,7 @@ def _build_bootstrap_profiles(
   )
   sigma_face = jax_utils.select(
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.sigma_face,
@@ -147,7 +156,7 @@ def _build_bootstrap_profiles(
   )
   j_bootstrap = jax_utils.select(
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.j_bootstrap,
@@ -155,7 +164,7 @@ def _build_bootstrap_profiles(
   )
   j_bootstrap_face = jax_utils.select(
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.j_bootstrap_face,
@@ -163,7 +172,7 @@ def _build_bootstrap_profiles(
   )
   I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
       jnp.logical_or(
-          explicit == dynamic_source_runtime_params.is_explicit,
+          explicit == static_source_runtime_params.is_explicit,
           calculate_anyway,
       ),
       bootstrap_profile.I_bootstrap,
@@ -179,15 +188,14 @@ def _build_bootstrap_profiles(
 
 
 def _build_standard_source_profiles(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     source_models: SourceModels,
     explicit: bool = True,
     calculate_anyway: bool = False,
-    affected_core_profiles: (
-        tuple[source_lib.AffectedCoreProfile, ...]
-    ) = (
+    affected_core_profiles: tuple[source_lib.AffectedCoreProfile, ...] = (
         source_lib.AffectedCoreProfile.PSI,
         source_lib.AffectedCoreProfile.NE,
         source_lib.AffectedCoreProfile.TEMP_ION,
@@ -197,6 +205,8 @@ def _build_standard_source_profiles(
   """Computes sources and builds a kwargs dict for SourceProfiles.
 
   Args:
+    static_runtime_params_slice: Input config. Cannot change from time step to
+      time step.
     dynamic_runtime_params_slice: Input config for this time step. Can change
       from time step to time step.
     geo: Geometry of the torus.
@@ -221,17 +231,17 @@ def _build_standard_source_profiles(
   affected_core_profiles_set = set(affected_core_profiles)
   for source_name, source in source_models.standard_sources.items():
     if affected_core_profiles_set.intersection(source.affected_core_profiles):
-      dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      static_source_runtime_params = static_runtime_params_slice.sources[
           source_name
       ]
       computed_source_profiles[source_name] = jax_utils.select(
           jnp.logical_or(
-              explicit == dynamic_source_runtime_params.is_explicit,
+              explicit == static_source_runtime_params.is_explicit,
               calculate_anyway,
           ),
           source.get_value(
+              static_runtime_params_slice,
               dynamic_runtime_params_slice,
-              dynamic_source_runtime_params,
               geo,
               core_profiles,
           ),
@@ -308,6 +318,7 @@ def sum_sources_temp_el(
 
 
 def calc_and_sum_sources_psi(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -319,6 +330,7 @@ def calc_and_sum_sources_psi(
   # expensive source functions that might not jittable (like file-based or
   # RPC-based sources).
   psi_profiles = _build_standard_source_profiles(
+      static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
@@ -333,12 +345,13 @@ def calc_and_sum_sources_psi(
         affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
         geo=geo,
     )
-  dynamic_bootstrap_runtime_params = dynamic_runtime_params_slice.sources[
+  static_bootstrap_runtime_params = static_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
   j_bootstrap_profiles = _build_bootstrap_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      dynamic_source_runtime_params=dynamic_bootstrap_runtime_params,
+      static_runtime_params_slice=static_runtime_params_slice,
+      static_source_runtime_params=static_bootstrap_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
       j_bootstrap_source=source_models.j_bootstrap,
@@ -373,26 +386,16 @@ class SourceModels:
   .. code-block:: python
 
     # Define an electron-density source with a time-dependent Gaussian profile.
-    my_custom_source = source.SingleProfileSource(
-        supported_modes=(
-            runtime_params_lib.Mode.ZERO,
-            runtime_params_lib.Mode.FORMULA_BASED,
-        ),
-        affected_core_profiles=source.AffectedCoreProfile.NE,
-        formula=formulas.Gaussian(),
-        # Define (possibly) time-dependent parameters to feed to the formula.
-        runtime_params=runtime_params_lib.RuntimeParams(
-            formula=formula_config.Gaussian(
-                total={0.0: 1.0, 5.0: 2.0, 10.0: 1.0},  # time-dependent.
-                c1=2.0,
-                c2=3.0,
-            ),
-        ),
+    gas_puff_source = register_source.get_registered_source('gas_puff_source')
+    gas_puff_source_builder = source_lib.make_source_builder(
+        gas_puff_source.source_class,
+        runtime_params_type=gas_puff_source.model_functions['calc_puff_source'].runtime_params_class,
+        model_func=gas_puff_source.model_functions['calc_puff_source'].source_profile_function,
     )
     # Define the collection of sources here, which in this example only includes
     # one source.
     all_torax_sources = SourceModels(
-        sources={'my_custom_source': my_custom_source}
+        sources={'gas_puff_source': gas_puff_source_builder}
     )
 
   See runtime_params.py for more details on how to configure all the source/sink
@@ -472,7 +475,8 @@ class SourceModels:
     if self._generic_current is None:
       self._generic_current = generic_current_source.GenericCurrentSource()
       self._add_standard_source(
-          generic_current_source.SOURCE_NAME, self._generic_current
+          generic_current_source.GenericCurrentSource.SOURCE_NAME,
+          self._generic_current,
       )
 
     # Then add all the "standard" sources.
@@ -524,10 +528,9 @@ class SourceModels:
     Raises:
       ValueError if a "special-case" source is provided.
     """
-    if (
-        isinstance(source, bootstrap_current_source.BootstrapCurrentSource)
-        or isinstance(source, qei_source_lib.QeiSource)
-    ):
+    if isinstance(
+        source, bootstrap_current_source.BootstrapCurrentSource
+    ) or isinstance(source, qei_source_lib.QeiSource):
       raise ValueError(
           'Cannot add a source with the following types: '
           'bootstrap_current_source.BootstrapCurrentSource,'
@@ -559,7 +562,7 @@ class SourceModels:
 
   @property
   def j_bootstrap_name(self) -> str:
-    return bootstrap_current_source.SOURCE_NAME
+    return bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
 
   @property
   def generic_current_source(
@@ -572,7 +575,7 @@ class SourceModels:
 
   @property
   def generic_current_source_name(self) -> str:
-    return generic_current_source.SOURCE_NAME
+    return generic_current_source.GenericCurrentSource.SOURCE_NAME
 
   @property
   def qei_source(self) -> qei_source_lib.QeiSource:
@@ -582,7 +585,7 @@ class SourceModels:
 
   @property
   def qei_source_name(self) -> str:
-    return qei_source_lib.SOURCE_NAME
+    return qei_source_lib.QeiSource.SOURCE_NAME
 
   @property
   def psi_sources(self) -> dict[str, source_lib.Source]:
@@ -662,54 +665,54 @@ class SourceModelsBuilder:
     source_builders = source_builders or {}
 
     # Validate that these sources are found
-    bootstrap_found = (
-        False
-        if bootstrap_current_source.SOURCE_NAME not in source_builders
-        else True
-    )
-    qei_found = (
-        False if qei_source_lib.SOURCE_NAME not in source_builders else True
-    )
-    generic_current_found = (
-        False
-        if generic_current_source.SOURCE_NAME not in source_builders
-        else True
-    )
-
+    bootstrap_found = qei_found = generic_current_found = False
+    if (
+        bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
+        in source_builders
+    ):
+      bootstrap_found = True
+    if qei_source_lib.QeiSource.SOURCE_NAME in source_builders:
+      qei_found = True
+    if (
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+        in source_builders
+    ):
+      generic_current_found = True
     # These are special sources that must be present for every TORAX run.
     # If these sources are missing, we need to include builders for them.
     # We also ZERO out these sources if they are not explicitly provided.
     # The SourceModels would also build them, but then there'd be no
     # user-editable runtime params for them.
     if not bootstrap_found:
-      source_builders[bootstrap_current_source.SOURCE_NAME] = (
-          source_lib.make_source_builder(
-              bootstrap_current_source.BootstrapCurrentSource,
-              runtime_params_type=bootstrap_current_source.RuntimeParams,
-          )()
-      )
       source_builders[
-          bootstrap_current_source.SOURCE_NAME
+          bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
+      ] = source_lib.make_source_builder(
+          bootstrap_current_source.BootstrapCurrentSource,
+          runtime_params_type=bootstrap_current_source.RuntimeParams,
+      )()
+      source_builders[
+          bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
       ].runtime_params.mode = runtime_params_lib.Mode.ZERO
     if not qei_found:
-      source_builders[qei_source_lib.SOURCE_NAME] = (
+      source_builders[qei_source_lib.QeiSource.SOURCE_NAME] = (
           source_lib.make_source_builder(
               qei_source_lib.QeiSource,
               runtime_params_type=qei_source_lib.RuntimeParams,
           )()
       )
-      source_builders[qei_source_lib.SOURCE_NAME].runtime_params.mode = (
-          runtime_params_lib.Mode.ZERO
-      )
-    if not generic_current_found:
-      source_builders[generic_current_source.SOURCE_NAME] = (
-          source_lib.make_source_builder(
-              generic_current_source.GenericCurrentSource,
-              runtime_params_type=generic_current_source.RuntimeParams,
-          )()
-      )
       source_builders[
-          generic_current_source.SOURCE_NAME
+          qei_source_lib.QeiSource.SOURCE_NAME
+      ].runtime_params.mode = runtime_params_lib.Mode.ZERO
+    if not generic_current_found:
+      source_builders[
+          generic_current_source.GenericCurrentSource.SOURCE_NAME
+      ] = source_lib.make_source_builder(
+          generic_current_source.GenericCurrentSource,
+          runtime_params_type=generic_current_source.RuntimeParams,
+          model_func=generic_current_source.calculate_generic_current_face,
+      )()
+      source_builders[
+          generic_current_source.GenericCurrentSource.SOURCE_NAME
       ].runtime_params.mode = runtime_params_lib.Mode.ZERO
 
     self.source_builders = source_builders

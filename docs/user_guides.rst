@@ -13,6 +13,7 @@ input and output, the TORAX equation summary, solver details, and physics model 
    configuration
    output
    running
+   running_programmatically
    plotting
    cache
 

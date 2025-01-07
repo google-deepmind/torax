@@ -28,6 +28,8 @@ import numpy as np
 from torax import output
 import xarray as xr
 
+# Internal import.
+
 # Constants for figure setup, plot labels, and formatting.
 # The axes are designed to be plotted in the order they appear in the list,
 # first ascending in columns, then rows.
@@ -111,6 +113,7 @@ class PlotData:
   q_ohmic: np.ndarray  # [MW/m^3]
   q_brems: np.ndarray  # [MW/m^3]
   q_ei: np.ndarray  # [MW/m^3]
+  q_rad: np.ndarray  # [MW/m^3]
   Q_fusion: np.ndarray  # pylint: disable=invalid-name  # Dimensionless
   s_puff: np.ndarray  # [10^20 m^-3 s^-1]
   s_generic: np.ndarray  # [10^20 m^-3 s^-1]
@@ -126,6 +129,12 @@ class PlotData:
   t: np.ndarray  # [s]
   rho_cell_coord: np.ndarray  # Normalized toroidal flux coordinate
   rho_face_coord: np.ndarray  # Normalized toroidal flux coordinate
+  te_volume_avg: np.ndarray  # [keV]
+  ti_volume_avg: np.ndarray  # [keV]
+  ne_volume_avg: np.ndarray  # [10^20 m^-3]
+  ni_volume_avg: np.ndarray  # [10^20 m^-3]
+  W_thermal_tot: np.ndarray  # [MJ]  # pylint: disable=invalid-name
+  q95: np.ndarray  # Dimensionless
 
 
 def load_data(filename: str) -> PlotData:
@@ -171,14 +180,17 @@ def load_data(filename: str) -> PlotData:
         'fusion_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'ohmic_heat_source': 1e6,  # W/m^3 to MW/m^3
         'bremsstrahlung_heat_sink': 1e6,  # W/m^3 to MW/m^3
+        'impurity_radiation_heat_sink': 1e6,  # W/m^3 to MW/m^3
         'qei_source': 1e6,  # W/m^3 to MW/m^3
         'P_ohmic': 1e6,  # W to MW
         'P_external_tot': 1e6,  # W to MW
         'P_alpha_tot': 1e6,  # W to MW
         'P_brems': 1e6,  # W to MW
         'P_ecrh': 1e6,  # W to MW
+        'P_rad': 1e6,  # W to MW
         'I_ecrh': 1e6,  # A to MA
         'I_generic': 1e6,  # A to MA
+        'W_thermal_tot': 1e6,  # J to MJ
     }
 
     for var_name, scale in transformations.items():
@@ -246,6 +258,9 @@ def load_data(filename: str) -> PlotData:
       q_brems=get_optional_data(
           core_sources_dataset, 'bremsstrahlung_heat_sink', 'cell'
       ),
+      q_rad=get_optional_data(
+          core_sources_dataset, 'impurity_radiation_heat_sink', 'cell'
+      ),
       q_ei=core_sources_dataset['qei_source'].to_numpy(),  # ion heating/sink
       Q_fusion=post_processed_outputs_dataset['Q_fusion'].to_numpy(),  # pylint: disable=invalid-name
       s_puff=get_optional_data(core_sources_dataset, 'gas_puff_source', 'cell'),
@@ -263,7 +278,14 @@ def load_data(filename: str) -> PlotData:
           - post_processed_outputs_dataset['P_ohmic']
       ).to_numpy(),
       p_alpha=post_processed_outputs_dataset['P_alpha_tot'].to_numpy(),
-      p_sink=post_processed_outputs_dataset['P_brems'].to_numpy(),
+      p_sink=post_processed_outputs_dataset['P_brems'].to_numpy()
+      + post_processed_outputs_dataset['P_rad'].to_numpy(),
+      te_volume_avg=post_processed_outputs_dataset['te_volume_avg'].to_numpy(),
+      ti_volume_avg=post_processed_outputs_dataset['ti_volume_avg'].to_numpy(),
+      ne_volume_avg=post_processed_outputs_dataset['ne_volume_avg'].to_numpy(),
+      ni_volume_avg=post_processed_outputs_dataset['ni_volume_avg'].to_numpy(),
+      W_thermal_tot=post_processed_outputs_dataset['W_thermal_tot'].to_numpy(),
+      q95=post_processed_outputs_dataset['q95'].to_numpy(),
       t=time,
   )
 

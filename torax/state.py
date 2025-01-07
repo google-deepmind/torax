@@ -20,13 +20,14 @@ import dataclasses
 import enum
 from typing import Any, Optional
 
+from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
-from torax import geometry
 from torax.config import config_args
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.sources import source_profiles
 
 
@@ -283,6 +284,13 @@ class PostProcessedOutputs:
     W_thermal_ion: Ion thermal stored energy [J]
     W_thermal_el: Electron thermal stored energy [J]
     W_thermal_tot: Total thermal stored energy [J]
+    tauE: Thermal energy confinement time [s]
+    H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
+      law derived from the ITER H-mode confinement database
+    H97L: L-mode confinement quality factor with respect to the ITER97L scaling
+      law derived from the ITER H-mode confinement database
+    H20: H-mode confinement quality factor with respect to the ITER20 scaling
+      law derived from the updated (2020) ITER H-mode confinement database
     FFprime_face: FF' on the face grid, where F is the toroidal flux function
     psi_norm_face: Normalized poloidal flux on the face grid [Wb]
     psi_face: Poloidal flux on the face grid [Wb]
@@ -308,6 +316,7 @@ class PostProcessedOutputs:
     P_ohmic: Ohmic heating power to electrons [W]
     P_brems: Bremsstrahlung electron heat sink [W]
     P_ecrh: Total electron cyclotron source power [W]
+    P_rad: Impurity radiation heat sink [W]
     I_ecrh: Total electron cyclotron source current [A]
     I_generic: Total generic source current [A]
     Q_fusion: Fusion power gain
@@ -320,6 +329,11 @@ class PostProcessedOutputs:
     E_cumulative_fusion: Total cumulative fusion energy [J]
     E_cumulative_external: Total external injected energy (Ohmic + auxiliary
       heating) [J]
+    te_volume_avg: Volume average electron temperature [keV]
+    ti_volume_avg: Volume average ion temperature [keV]
+    ne_volume_avg: Volume average electron density [nref m^-3]
+    ni_volume_avg: Volume average main ion density [nref m^-3]
+    q95: q at 95% of the normalized poloidal flux
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -330,6 +344,10 @@ class PostProcessedOutputs:
   W_thermal_ion: array_typing.ScalarFloat
   W_thermal_el: array_typing.ScalarFloat
   W_thermal_tot: array_typing.ScalarFloat
+  tauE: array_typing.ScalarFloat
+  H98: array_typing.ScalarFloat
+  H97L: array_typing.ScalarFloat
+  H20: array_typing.ScalarFloat
   FFprime_face: array_typing.ArrayFloat
   psi_norm_face: array_typing.ArrayFloat
   # psi_face included in post_processed output for convenience, since the
@@ -353,6 +371,7 @@ class PostProcessedOutputs:
   P_ohmic: array_typing.ScalarFloat
   P_brems: array_typing.ScalarFloat
   P_ecrh: array_typing.ScalarFloat
+  P_rad: array_typing.ScalarFloat
   I_ecrh: array_typing.ScalarFloat
   I_generic: array_typing.ScalarFloat
   Q_fusion: array_typing.ScalarFloat
@@ -364,6 +383,11 @@ class PostProcessedOutputs:
   ne_min_P_LH: array_typing.ScalarFloat
   E_cumulative_fusion: array_typing.ScalarFloat
   E_cumulative_external: array_typing.ScalarFloat
+  te_volume_avg: array_typing.ScalarFloat
+  ti_volume_avg: array_typing.ScalarFloat
+  ne_volume_avg: array_typing.ScalarFloat
+  ni_volume_avg: array_typing.ScalarFloat
+  q95: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -377,6 +401,10 @@ class PostProcessedOutputs:
         W_thermal_ion=jnp.array(0.0),
         W_thermal_el=jnp.array(0.0),
         W_thermal_tot=jnp.array(0.0),
+        tauE=jnp.array(0.0),
+        H98=jnp.array(0.0),
+        H97L=jnp.array(0.0),
+        H20=jnp.array(0.0),
         FFprime_face=jnp.zeros(geo.rho_face.shape),
         psi_norm_face=jnp.zeros(geo.rho_face.shape),
         psi_face=jnp.zeros(geo.rho_face.shape),
@@ -397,6 +425,7 @@ class PostProcessedOutputs:
         P_ohmic=jnp.array(0.0),
         P_brems=jnp.array(0.0),
         P_ecrh=jnp.array(0.0),
+        P_rad=jnp.array(0.0),
         I_ecrh=jnp.array(0.0),
         I_generic=jnp.array(0.0),
         Q_fusion=jnp.array(0.0),
@@ -408,6 +437,11 @@ class PostProcessedOutputs:
         ne_min_P_LH=jnp.array(0.0),
         E_cumulative_fusion=jnp.array(0.0),
         E_cumulative_external=jnp.array(0.0),
+        te_volume_avg=jnp.array(0.0),
+        ti_volume_avg=jnp.array(0.0),
+        ne_volume_avg=jnp.array(0.0),
+        ni_volume_avg=jnp.array(0.0),
+        q95=jnp.array(0.0),
     )
 
 
@@ -438,6 +472,25 @@ class SimError(enum.Enum):
   NO_ERROR = 0
   NAN_DETECTED = 1
   QUASINEUTRALITY_BROKEN = 2
+
+  def log_error(self):
+    match self:
+      case SimError.NAN_DETECTED:
+        logging.error("""
+            Simulation stopped due to NaNs in core profiles.
+            Possible cause is negative temperatures or densities.
+            Output file contains all profiles up to the last valid step.
+            """)
+      case SimError.QUASINEUTRALITY_BROKEN:
+        logging.error("""
+            Simulation stopped due to quasineutrality being violated.
+            Possible cause is bad handling of impurity species.
+            Output file contains all profiles up to the last valid step.
+            """)
+      case SimError.NO_ERROR:
+        pass
+      case _:
+        raise ValueError(f"Unknown SimError: {self}")
 
 
 @chex.dataclass

@@ -27,6 +27,9 @@ import xarray as xr
 
 RHO_NORM = 'rho_norm'
 
+interp_fn = jax_utils.jit(jnp.interp)
+interp_fn_vmap = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
+
 
 class InterpolatedParamBase(abc.ABC):
   """Base class for interpolated params.
@@ -70,22 +73,27 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
 
   def __init__(self, xs: chex.Array, ys: chex.Array):
     """Initialises a piecewise-linear interpolated param, xs must be sorted."""
-    self._xs = xs
-    self._ys = ys
+
+    # TODO(b/381884065)
+    self._xs = (
+        xs.astype(np.float64) if np.issubdtype(xs.dtype, np.integer) else xs
+    )
+    self._ys = (
+        ys.astype(np.float64) if np.issubdtype(ys.dtype, np.integer) else ys
+    )
+
     jax_utils.assert_rank(self.xs, 1)
     if self.xs.shape[0] != self.ys.shape[0]:
       raise ValueError(
           'xs and ys must have the same number of elements in the first '
           f'dimension. Given: {self.xs.shape} and {self.ys.shape}.'
       )
-    diff = jnp.sum(jnp.abs(jnp.sort(self.xs) - self.xs))
-    jax_utils.error_if(diff, diff > 1e-8, 'xs must be sorted.')
-    if self.ys.ndim == 1:
-      self._fn = jax_utils.jit(jnp.interp)
-    elif self.ys.ndim == 2:
-      self._fn = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
-    else:
+    if ys.ndim not in (1, 2):
       raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
+
+    xs_np = np.array(self.xs)
+    if not np.array_equal(np.sort(xs_np), xs_np):
+      raise RuntimeError('xs must be sorted.')
 
   @property
   def xs(self) -> chex.Array:
@@ -99,7 +107,35 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
       self,
       x: chex.Numeric,
   ) -> chex.Array:
-    return self._fn(x, self.xs, self.ys)
+    x_shape = getattr(x, 'shape', ())
+    is_jax = isinstance(x, jax.Array)
+    # This function can be used inside a JITted function, where x are
+    # tracers. Thus are required to use the JAX versions of functions in this
+    # case.
+    interp = interp_fn if is_jax else np.interp
+    full = jnp.full if is_jax else np.full
+
+    match self.ys.ndim:
+      # This is simply interp, but with fast paths for common special cases.
+      case 1:
+        # When ys is size 1, no interpolation is needed: all values are just
+        # ys.
+        if self.ys.size == 1:
+          if x_shape == ():  # pylint: disable=g-explicit-bool-comparison
+            return self.ys[0]
+          else:
+            return full(x_shape, self.ys[0], dtype=self.ys.dtype)
+        else:
+          return interp(x, self.xs, self.ys)
+      # The 2D case is mapped across the last dimension.
+      case 2:
+        # Special case: no interpolation needed.
+        if len(self.ys) == 1 and x_shape == ():  # pylint: disable=g-explicit-bool-comparison
+          return self.ys[0]
+        else:
+          return interp_fn_vmap(x, self.xs, self.ys)
+      case _:
+        raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
 
 @jax_utils.jit
@@ -203,7 +239,7 @@ def rhonorm1_defined_in_timerhoinput(
       elif len(values) == 3:
         _, rho_norm, _ = values
       else:
-      # pytype: enable=bad-unpacking
+        # pytype: enable=bad-unpacking
         raise ValueError('Only array tuples of length 2 or 3 are supported.')
       if 1.0 not in rho_norm:
         return False

@@ -21,10 +21,10 @@ import logging
 
 import chex
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
+from torax.geometry import geometry
 from typing_extensions import override
 
 
@@ -84,7 +84,7 @@ class ProfileConditions(
   ne_bound_right: interpolated_param.TimeInterpolatedInput | None = None
   ne_bound_right_is_fGW: bool = False
   ne_bound_right_is_absolute: bool = False
-# Internal boundary condition (pedestal)
+  # Internal boundary condition (pedestal)
   # Do not set internal boundary condition if this is False
   set_pedestal: interpolated_param.TimeInterpolatedInput = True
   # current profiles (broad "Ohmic" + localized "external" currents)

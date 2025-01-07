@@ -26,6 +26,7 @@ import scipy
 import yaml
 
 # Internal import.
+# Internal import.
 
 
 @enum.unique
@@ -64,7 +65,23 @@ def _load_CHEASE_data(  # pylint: disable=invalid-name
 
 def _load_fbt_data(file_path: str | IO[bytes]) -> dict[str, np.ndarray]:
   """Loads data into a dictionary from an FBT-LY file or file path."""
-  return scipy.io.loadmat(file_path, squeeze_me=True)
+
+  meq_data = scipy.io.loadmat(file_path, squeeze_me=True)
+
+  if 'LY' not in meq_data:
+    # L file or LY file not the output of MEQ meqlpack. Return as is.
+    return meq_data
+  else:
+    # LY bundle file. numpy structured array likely resulting from
+    # scipy.io.loadmat returning the output of MEQ meqlpack.m.
+    # Reformat to return a dict. Shapes of 2D arrays are (radius, time)
+    LY_bundle_dict = {}  # pylint: disable=invalid-name
+    LY_bundle_array = meq_data['LY']  # pylint: disable=invalid-name
+    field_names = LY_bundle_array.dtype.names
+    for name in field_names:
+      LY_bundle_dict[name] = LY_bundle_array[name].item()
+
+    return LY_bundle_dict
 
 
 def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:

@@ -17,22 +17,19 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
+from typing import ClassVar, Optional
 
 import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-
-
-SOURCE_NAME = 'generic_ion_el_heat_source'
 # Many variables throughout this function are capitalized based on physics
 # notational conventions rather than on Google Python style
 # pylint: disable=invalid-name
@@ -51,7 +48,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
   # electron heating fraction
   el_heat_fraction: runtime_params_lib.TimeInterpolatedInput = 0.66666
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.FORMULA_BASED
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
       self,
@@ -116,16 +113,24 @@ def calc_generic_heat_source(
 
 
 # pytype: disable=name-error
-def _default_formula(
+def default_formula(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: runtime_params_lib.DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Returns the default formula-based ion/electron heat source profile."""
   # pytype: enable=name-error
-  del dynamic_runtime_params_slice, core_profiles  # Unused.
+  del (
+      core_profiles,
+      static_runtime_params_slice,
+      unused_source_models,
+  )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   ion, el = calc_generic_heat_source(
       geo,
@@ -143,7 +148,14 @@ def _default_formula(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
-  formula: source.SourceProfileFunction = _default_formula
+
+  SOURCE_NAME: ClassVar[str] = 'generic_ion_el_heat_source'
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'default_formula'
+  model_func: source.SourceProfileFunction = default_formula
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:

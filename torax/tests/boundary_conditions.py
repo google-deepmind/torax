@@ -20,11 +20,11 @@ from absl.testing import parameterized
 import numpy as np
 from torax import constants
 from torax import core_profile_setters
-from torax import geometry
 from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import source_models as source_models_lib
 
 
@@ -81,7 +81,13 @@ class BoundaryConditionsTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
+    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )
     core_profiles = core_profile_setters.initial_core_profiles(
+        static_slice,
         initial_dynamic_runtime_params_slice,
         geo,
         source_models=source_models,
@@ -109,13 +115,14 @@ class BoundaryConditionsTest(parameterized.TestCase):
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
     )
     # pylint: disable=invalid-name
+    Zi = runtime_params.plasma_composition.Zi
     Zeff = runtime_params.plasma_composition.Zeff
     Zimp = core_profiles.Zimp
     # pylint: enable=invalid-name
-    dilution_factor = (Zimp - Zeff) / (Zimp - 1)
+    dilution_factor = (Zimp - Zeff) / (Zi * (Zimp - Zi))
     expected_ni_bound_right = expected_ne_bound_right * dilution_factor
     expected_nimp_bound_right = (
-        expected_ne_bound_right - expected_ni_bound_right
+        expected_ne_bound_right - expected_ni_bound_right * Zi
     ) / Zimp
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
     np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)

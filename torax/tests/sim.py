@@ -24,17 +24,17 @@ from typing import Optional, Sequence
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-import torax
 from torax import output
 from torax import sim as sim_lib
 from torax import state
 from torax.config import build_sim as build_sim_lib
 from torax.config import numerics as numerics_lib
+from torax.config import runtime_params as runtime_params_lib
+from torax.geometry import geometry
+from torax.geometry import geometry_provider
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
-from torax.spectators import spectator as spectator_lib
 from torax.stepper import linear_theta_method
-from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
@@ -243,6 +243,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests Bremsstrahlung heat sink with time dependent Zimp and Zeff. CHEASE
+      (
+          'test_bremsstrahlung_time_dependent_Zimp',
+          'test_bremsstrahlung_time_dependent_Zimp.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Tests ion-electron heat exchange test at high density. CHEASE geometry.
       (
           'test_qei_chease_highdens',
@@ -367,10 +374,24 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with main ion charge Zi=2.
+      (
+          'test_iterhybrid_predictor_corrector_zi2',
+          'test_iterhybrid_predictor_corrector_zi2.py',
+          _ALL_PROFILES,
+          1e-5,
+      ),
       # Predictor-corrector solver with ECCD Lin Liu model.
       (
           'test_iterhybrid_predictor_corrector_ec_linliu',
           'test_iterhybrid_predictor_corrector_ec_linliu.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Predictor-corrector solver with simple impurity radiation
+      (
+          'test_iterhybrid_predictor_corrector_impurity_radiation',
+          'test_iterhybrid_predictor_corrector_impurity_radiation.py',
           _ALL_PROFILES,
           0,
       ),
@@ -450,7 +471,7 @@ class SimTest(sim_test_case.SimTestCase):
   def test_no_op(self):
     """Tests that running the stepper with all equations off is a no-op."""
 
-    runtime_params = torax.general_runtime_params.GeneralRuntimeParams(
+    runtime_params = runtime_params_lib.GeneralRuntimeParams(
         numerics=numerics_lib.Numerics(
             t_final=0.1,
             ion_heat_eq=False,
@@ -460,8 +481,8 @@ class SimTest(sim_test_case.SimTestCase):
     )
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
-    geo_provider = torax.ConstantGeometryProvider(
-        torax.build_circular_geometry()
+    geo_provider = geometry_provider.ConstantGeometryProvider(
+        geometry.build_circular_geometry()
     )
 
     sim = sim_lib.build_sim_object(
@@ -505,40 +526,6 @@ class SimTest(sim_test_case.SimTestCase):
                 f'Diff: {profile_history[i] - first_profile}\n'
             )
             raise AssertionError(msg)
-
-  @parameterized.named_parameters(
-      (
-          'implicit_update',
-          linear_theta_method.LinearThetaMethodBuilder,
-      ),
-      (
-          'explicit_update',
-          explicit_stepper.ExplicitStepperBuilder,
-      ),
-  )
-  def test_observers_update_during_runs(self, stepper_builder_constructor):
-    """Verify that the observer's state is updated after the simulation run."""
-    stepper_builder = stepper_builder_constructor()
-    # Load config structure.
-    config_module = self._get_config_module('test_explicit.py')
-    runtime_params = config_module.get_runtime_params()
-    geo_provider = config_module.get_geometry_provider()
-
-    time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
-    spectator = spectator_lib.InMemoryJaxArraySpectator()
-    sim = sim_lib.build_sim_object(
-        runtime_params=runtime_params,
-        geometry_provider=geo_provider,
-        stepper_builder=stepper_builder,
-        transport_model_builder=config_module.get_transport_model_builder(),
-        source_models_builder=config_module.get_sources_builder(),
-        time_step_calculator=time_step_calculator,
-        pedestal_model_builder=config_module.get_pedestal_model_builder(),
-    )
-    sim.run(
-        spectator=spectator,
-    )
-    self.assertNotEmpty(spectator.arrays)
 
   # pylint: disable=invalid-name
   @parameterized.product(
@@ -717,7 +704,44 @@ class SimTest(sim_test_case.SimTestCase):
                 ds2[var_name].values,
                 err_msg=f'Mismatch for {var_name} in restart test',
             )
+
     xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
+
+  def test_update(self):
+    sim = self._get_sim('test_iterhybrid_predictor_corrector.py')
+    new_config = self._get_config_module(
+        'test_iterhybrid_predictor_corrector_eqdsk.py'
+    ).CONFIG
+    sim.update_base_components(
+        geometry_provider=build_sim_lib.build_geometry_provider_from_config(
+            new_config['geometry']
+        )
+    )
+    sim_outputs = sim.run()
+
+    # Extract core profiles history for analysis against references
+    history = output.StateHistory(sim_outputs, sim.source_models)
+    ref_profiles, ref_time = self._get_refs(
+        'test_iterhybrid_predictor_corrector_eqdsk.nc', _ALL_PROFILES
+    )
+
+    self._check_profiles_vs_expected(
+        core_profiles=history.core_profiles,
+        t=history.times,
+        ref_time=ref_time,
+        ref_profiles=ref_profiles,
+        rtol=self.rtol,
+        atol=self.atol,
+    )
+
+  def test_update_new_mesh(self):
+    sim = self._get_sim('test_iterhybrid_rampup.py')
+    with self.assertRaisesRegex(ValueError, 'different mesh'):
+      sim.update_base_components(
+          geometry_provider=geometry_provider.ConstantGeometryProvider(
+              geometry.build_circular_geometry(n_rho=10)
+          )
+      )
 
 
 def verify_core_profiles(ref_profiles, index, core_profiles):

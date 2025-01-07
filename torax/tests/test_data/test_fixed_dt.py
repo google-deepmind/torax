@@ -16,7 +16,6 @@
 
 
 CONFIG = {
-    'pedestal': {},
     'runtime_params': {
         'profile_conditions': {
             'ne_bound_right': 0.5,
@@ -40,6 +39,7 @@ CONFIG = {
         'generic_ion_el_heat_source': {},
         'qei_source': {},
     },
+    'pedestal': {},
     'transport': {
         'transport_model': 'qlknn',
     },

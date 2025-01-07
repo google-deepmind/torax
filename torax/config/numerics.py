@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import chex
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax.config import base
+from torax.geometry import geometry
 from typing_extensions import override
 
 

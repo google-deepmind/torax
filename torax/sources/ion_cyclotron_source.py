@@ -19,7 +19,7 @@ import functools
 import json
 import logging
 import os
-from typing import Any, Final, Sequence
+from typing import Any, ClassVar, Final, Sequence
 
 import chex
 import flax.linen as nn
@@ -29,11 +29,11 @@ from jax.scipy import integrate
 import jaxtyping as jt
 import numpy as np
 from torax import array_typing
-from torax import geometry
 from torax import interpolated_param
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
@@ -42,7 +42,6 @@ from typing_extensions import override
 # Internal import.
 
 
-SOURCE_NAME: Final[str] = 'ion_cyclotron_source'
 # Environment variable for the TORIC NN model. Used if the model path
 # is not set in the config.
 _MODEL_PATH_ENV_VAR: Final[str] = 'TORIC_NN_MODEL_PATH'
@@ -101,6 +100,7 @@ class ToricNNInputs:
 @chex.dataclass(frozen=True)
 class ToricNNOutputs:
   """Outputs from the ToricNN model."""
+
   # Power deposition on helium-3 in MW/m^3/MW_{abs}.
   power_deposition_He3: array_typing.ArrayFloat
   # Power deposition on tritium (second harmonic) in MW/m^3/MW_{abs}.
@@ -203,6 +203,8 @@ class ToricNNWrapper:
         power_deposition_2T=outputs_2T,
         power_deposition_e=outputs_e,
     )
+
+
 # pylint: enable=invalid-name
 
 
@@ -251,7 +253,10 @@ class _ToricNN(nn.Module):
     self.pca_components = self.param(
         'pca_components',
         jax.random.normal,
-        (self.pca_coeffs, self.radial_nodes,),
+        (
+            self.pca_coeffs,
+            self.radial_nodes,
+        ),
     )
     self.pca_mean = self.param(
         'pca_mean',
@@ -270,9 +275,13 @@ class _ToricNN(nn.Module):
 
     # MLP.
     for hidden_size in self.hidden_sizes:
-      x = nn.Dense(hidden_size,)(x)
+      x = nn.Dense(
+          hidden_size,
+      )(x)
       x = nn.relu(x)
-    x = nn.Dense(self.pca_coeffs,)(x)
+    x = nn.Dense(
+        self.pca_coeffs,
+    )(x)
 
     x = x @ self.pca_components + self.pca_mean  # Project back to true values.
     x = x * (x > 0)  # Eliminate non-physical values for power deposition.
@@ -356,16 +365,24 @@ def _helium3_tail_temperature(
   return core_profiles.temp_el.value * (1 + epsilon)
 
 
-def _icrh_model_func(
+def icrh_model_func(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    dynamic_source_runtime_params: DynamicRuntimeParams,
     geo: geometry.Geometry,
+    source_name: str,
     core_profiles: state.CoreProfiles,
     unused_source_models: source_models.SourceModels | None,
     toric_nn: ToricNNWrapper,
 ) -> jax.Array:
   """Compute ion/electron heat source terms."""
-  del unused_source_models, dynamic_runtime_params_slice
+  del (
+      unused_source_models,
+      static_runtime_params_slice,
+  )  # Unused.
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
+  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
   # Construct inputs for ToricNN.
   volume = integrate.trapezoid(geo.vpr_face, geo.rho_face_norm)
@@ -475,26 +492,13 @@ def _icrh_model_func(
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class IonCyclotronSource(source.Source):
   """Ion cyclotron source with surrogate model."""
-  # The model function is fixed to _icrh_model_func because that is the only
-  # supported implementation of this source.
-  # However, since this is a param in the parent dataclass, we need to (a)
-  # remove the parameter from the init args and (b) set the default to the
-  # desired value.
-  model_func: source.SourceProfileFunction = dataclasses.field(
-      init=False,
-      default_factory=lambda: functools.partial(
-          _icrh_model_func,
-          toric_nn=ToricNNWrapper(),
-      ),
-  )
+
+  SOURCE_NAME: ClassVar[str] = 'ion_cyclotron_source'
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'icrh_model_func'
 
   @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    return (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.MODEL_BASED,
-        runtime_params_lib.Mode.PRESCRIBED,
-    )
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
 
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
@@ -506,3 +510,29 @@ class IonCyclotronSource(source.Source):
   @property
   def output_shape_getter(self) -> source.SourceOutputShapeFunction:
     return source.get_ion_el_output_shape
+
+
+@dataclasses.dataclass(kw_only=True, frozen=False)
+class IonCyclotronSourceBuilder:
+  """Builder for the IonCyclotronSource."""
+
+  runtime_params: RuntimeParams = dataclasses.field(
+      default_factory=RuntimeParams
+  )
+  links_back: bool = False
+  model_func: source.SourceProfileFunction | None = None
+
+  def __post_init__(self):
+    if self.model_func is None:
+      self.model_func = functools.partial(
+          icrh_model_func,
+          toric_nn=ToricNNWrapper(),
+      )
+
+  def __call__(
+      self,
+  ) -> IonCyclotronSource:
+
+    return IonCyclotronSource(
+        model_func=self.model_func,
+    )
