@@ -29,6 +29,7 @@ from torax.transport_model import base_qlknn_model
 from torax.transport_model import qualikiz_based_transport_model
 
 # Internal import.
+# Internal import.
 
 # Move this to common lib.
 _ACTIVATION_FNS: Final[Mapping[str, Callable[[jax.Array], jax.Array]]] = (
@@ -117,6 +118,7 @@ class QuaLiKizNDNN:
 
   @classmethod
   def from_json(cls, json_file) -> QuaLiKizNDNN:
+    """Loads a QuaLiKizNDNN from a JSON file."""
     with open(json_file) as file_:
       model_dict = json.load(file_)
     return cls(model_dict)
