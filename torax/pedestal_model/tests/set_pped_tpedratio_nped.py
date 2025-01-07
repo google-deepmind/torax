@@ -15,49 +15,48 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
+import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
-from torax.pedestal_model import set_tped_nped
+from torax.pedestal_model import set_pped_tpedratio_nped
 from torax.sources import source_models as source_models_lib
 
 
-class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
-  """Tests for the `torax.pedestal_model.set_tped_nped` module."""
+class SetPressureTemperatureRatioAndDensityPedestalModelTest(
+    parameterized.TestCase
+):
+  """Tests for the `torax.pedestal_model.set_pped_tpedratio_nped` module."""
 
   def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = set_tped_nped.RuntimeParams()
+    runtime_params = set_pped_tpedratio_nped.RuntimeParams()
     geo = geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
 
   @parameterized.product(
-      Tiped=[5, {0.0: 5.0, 1.0: 10.0}],
-      Teped=[4, {0.0: 4.0, 1.0: 8.0}],
       neped=[0.7, {0.0: 0.7, 1.0: 0.9}],
       rho_norm_ped_top=[{0.0: 0.5, 1.0: 0.7}],
       neped_is_fGW=[False, True],
       time=[0.0, 1.0],
+      ion_electron_temperature_ratio=[1.0, {0.0: 1.0, 1.0: 1.5}],
   )
   def test_build_and_call_pedestal_model(
-      # pylint: disable=invalid-name
       self,
-      Tiped,
-      Teped,
       neped,
       rho_norm_ped_top,
       neped_is_fGW,
       time,
-      # pylint: enable=invalid-name
+      ion_electron_temperature_ratio,
   ):
+    # pylint: disable=invalid-name
     """Test we can build and call the pedestal model with expected outputs."""
-    pedestal_runtime_params = set_tped_nped.RuntimeParams(
-        Tiped=Tiped,
-        Teped=Teped,
-        rho_norm_ped_top=rho_norm_ped_top,
+    pedestal_runtime_params = set_pped_tpedratio_nped.RuntimeParams(
         neped=neped,
         neped_is_fGW=neped_is_fGW,
+        rho_norm_ped_top=rho_norm_ped_top,
+        ion_electron_temperature_ratio=ion_electron_temperature_ratio,
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = source_models_lib.SourceModelsBuilder()
@@ -70,7 +69,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         pedestal=pedestal_runtime_params,
     )
     geo = geometry.build_circular_geometry()
-    builder = set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
+    builder = set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModelBuilder(
         runtime_params=pedestal_runtime_params
     )
     dynamic_runtime_params_slice = provider(t=time)
@@ -94,14 +93,6 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         core_profiles=core_profiles,
     )
 
-    if isinstance(Tiped, (float, int)):
-      self.assertEqual(pedestal_model_output.Tiped, Tiped)
-    else:
-      self.assertEqual(pedestal_model_output.Tiped, Tiped[time])
-    if isinstance(Teped, (float, int)):
-      self.assertEqual(pedestal_model_output.Teped, Teped)
-    else:
-      self.assertEqual(pedestal_model_output.Teped, Teped[time])
     if isinstance(rho_norm_ped_top, (float, int)):
       self.assertEqual(pedestal_model_output.rho_norm_ped_top, rho_norm_ped_top)
     else:
@@ -124,6 +115,17 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       # pylint: enable=invalid-name
       expected_neped *= nGW
     self.assertEqual(pedestal_model_output.neped, expected_neped)
+
+    if isinstance(ion_electron_temperature_ratio, (float, int)):
+      np.testing.assert_allclose(
+          pedestal_model_output.Tiped / pedestal_model_output.Teped,
+          ion_electron_temperature_ratio,
+      )
+    else:
+      np.testing.assert_allclose(
+          pedestal_model_output.Tiped / pedestal_model_output.Teped,
+          ion_electron_temperature_ratio[time],
+      )
 
 
 if __name__ == '__main__':

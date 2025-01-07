@@ -405,7 +405,28 @@ electron temperature.
 ``Teped`` (float = 5.0) **time-varying-scalar**
   Electron temperature at the pedestal top in units of keV.
 
-``rho_norm_ped`` (float = 0.91) **time-varying-scalar**
+``rho_norm_ped_top`` (float = 0.91) **time-varying-scalar**
+  Location of pedestal top, in units of :math:`\hat{\rho}`.
+
+set_pped_tpedratio_nped
+^^^^^^^^^^^^^^^^^^^^^^^
+Set the pedestal width, electron density and ion temperature by providing the
+total pressure at the pedestal and the ratio of ion to electron temperature.
+
+``Pped`` (float = 10.0) **time-varying-scalar**
+  The plasma pressure at the pedestal in units of :math:`[Pa]`.
+
+``neped`` (float = 0.7) **time-varying-scalar**
+  Electron density at the pedestal top.
+  In units of reference density if ``neped_is_fGW==False``. In units of Greenwald fraction if ``neped_is_fGW==True``.
+
+``neped_is_fGW`` (bool = False) **time-varying-scalar**
+  Toggles units of ``neped``.
+
+``ion_electron_temperature_ratio`` **time-varying-scalar**
+  Ratio of the ion and electron temperature at the pedestal.
+
+``rho_norm_ped_top`` (float = 0.91) **time-varying-scalar**
   Location of pedestal top, in units of :math:`\hat{\rho}`.
 
 geometry
