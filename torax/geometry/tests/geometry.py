@@ -26,6 +26,8 @@ from torax.config import build_sim
 from torax.geometry import geometry
 from torax.geometry import geometry_loader
 
+# Internal import.
+
 
 class GeometryTest(parameterized.TestCase):
   """Unit tests for the `geometry` module."""

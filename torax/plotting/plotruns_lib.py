@@ -28,6 +28,8 @@ import numpy as np
 from torax import output
 import xarray as xr
 
+# Internal import.
+
 # Constants for figure setup, plot labels, and formatting.
 # The axes are designed to be plotted in the order they appear in the list,
 # first ascending in columns, then rows.
