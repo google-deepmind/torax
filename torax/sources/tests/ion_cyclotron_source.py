@@ -33,8 +33,6 @@ from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 
-# Internal import.
-
 
 _DUMMY_MODEL_PATH = "/tmp/toricnn.json"
 

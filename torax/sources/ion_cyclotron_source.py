@@ -39,7 +39,6 @@ from torax.sources import source
 from torax.sources import source_models
 from typing_extensions import override
 
-# Internal import.
 
 # Environment variable for the TORIC NN model. Used if the model path
 # is not set in the config.
