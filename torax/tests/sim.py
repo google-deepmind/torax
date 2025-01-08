@@ -395,6 +395,14 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with cyclotron radiation heat sink
+      (
+          'test_iterhybrid_predictor_corrector_cyclotron',
+          'test_iterhybrid_predictor_corrector_cyclotron.py',
+          _ALL_PROFILES,
+          0,
+          1e-8,
+      ),
       # Tests Newton-Raphson nonlinear solver for ITER-hybrid-like-config
       (
           'test_iterhybrid_newton',
