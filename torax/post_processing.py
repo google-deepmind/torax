@@ -39,6 +39,7 @@ ION_EL_HEAT_SOURCE_TRANSFORMATIONS = {
 EL_HEAT_SOURCE_TRANSFORMATIONS = {
     'ohmic_heat_source': 'P_ohmic',
     'bremsstrahlung_heat_sink': 'P_brems',
+    'cyclotron_radiation_heat_sink': 'P_cycl',
     'electron_cyclotron_source': 'P_ecrh',
     'impurity_radiation_heat_sink': 'P_rad',
 }

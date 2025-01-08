@@ -45,11 +45,11 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   wall_reflection_coeff: float = 0.9
 
   # The beta parameter is used in the parameterized function for the
-  # temperature fit. beta_min, beta_max, and beta_grid_length are used for a
+  # temperature fit. beta_min, beta_max, and beta_grid_size are used for a
   # grid search to find the best fit.
   beta_min: float = 0.5
   beta_max: float = 8.0
-  beta_grid_length: int = 32
+  beta_grid_size: int = 32
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
@@ -64,7 +64,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
         is_explicit=self.is_explicit,
         beta_min=self.beta_min,
         beta_max=self.beta_max,
-        beta_grid_length=self.beta_grid_length,
+        beta_grid_size=self.beta_grid_size,
     )
 
 
@@ -87,7 +87,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 class StaticRuntimeParams(runtime_params_lib.StaticRuntimeParams):
   beta_min: float
   beta_max: float
-  beta_grid_length: int
+  beta_grid_size: int
 
 
 @chex.dataclass(frozen=True)
@@ -249,7 +249,7 @@ def _solve_alpha_t_beta_t_grid_search(
   Args:
     rho_norm: Normalized toroidal flux coordinate.
     te_data: The temperature data to be fit, assumed to be on the face grid.
-    beta_scan_parameters: A tuple of (beta_min, beta_max, beta_grid_length)
+    beta_scan_parameters: A tuple of (beta_min, beta_max, beta_grid_size)
       parameters for the grid search.
 
   Returns:
@@ -352,7 +352,7 @@ def cyclotron_radiation_albajar(
   beta_scan_parameters = (
       static_source_runtime_params.beta_min,
       static_source_runtime_params.beta_max,
-      static_source_runtime_params.beta_grid_length,
+      static_source_runtime_params.beta_grid_size,
   )
   alpha_t, beta_t = _solve_alpha_t_beta_t_grid_search(
       rho_norm=static_runtime_params_slice.torax_mesh.face_centers,

@@ -112,6 +112,7 @@ class PlotData:
   q_alpha_e: np.ndarray  # [MW/m^3]
   q_ohmic: np.ndarray  # [MW/m^3]
   q_brems: np.ndarray  # [MW/m^3]
+  q_cycl: np.ndarray  # [MW/m^3]
   q_ei: np.ndarray  # [MW/m^3]
   q_rad: np.ndarray  # [MW/m^3]
   Q_fusion: np.ndarray  # pylint: disable=invalid-name  # Dimensionless
@@ -126,6 +127,9 @@ class PlotData:
   p_ohmic: np.ndarray  # [MW]
   p_alpha: np.ndarray  # [MW]
   p_sink: np.ndarray  # [MW]
+  p_brems: np.ndarray  # [MW]
+  p_cycl: np.ndarray  # [MW]
+  p_rad: np.ndarray  # [MW]
   t: np.ndarray  # [s]
   rho_cell_coord: np.ndarray  # Normalized toroidal flux coordinate
   rho_face_coord: np.ndarray  # Normalized toroidal flux coordinate
@@ -180,12 +184,14 @@ def load_data(filename: str) -> PlotData:
         'fusion_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'ohmic_heat_source': 1e6,  # W/m^3 to MW/m^3
         'bremsstrahlung_heat_sink': 1e6,  # W/m^3 to MW/m^3
+        'cyclotron_radiation_heat_sink': 1e6,  # W/m^3 to MW/m^3
         'impurity_radiation_heat_sink': 1e6,  # W/m^3 to MW/m^3
         'qei_source': 1e6,  # W/m^3 to MW/m^3
         'P_ohmic': 1e6,  # W to MW
         'P_external_tot': 1e6,  # W to MW
         'P_alpha_tot': 1e6,  # W to MW
         'P_brems': 1e6,  # W to MW
+        'P_cycl': 1e6,  # W to MW
         'P_ecrh': 1e6,  # W to MW
         'P_rad': 1e6,  # W to MW
         'I_ecrh': 1e6,  # A to MA
@@ -258,6 +264,9 @@ def load_data(filename: str) -> PlotData:
       q_brems=get_optional_data(
           core_sources_dataset, 'bremsstrahlung_heat_sink', 'cell'
       ),
+      q_cycl=get_optional_data(
+          core_sources_dataset, 'cyclotron_radiation_heat_sink', 'cell'
+      ),
       q_rad=get_optional_data(
           core_sources_dataset, 'impurity_radiation_heat_sink', 'cell'
       ),
@@ -279,7 +288,11 @@ def load_data(filename: str) -> PlotData:
       ).to_numpy(),
       p_alpha=post_processed_outputs_dataset['P_alpha_tot'].to_numpy(),
       p_sink=post_processed_outputs_dataset['P_brems'].to_numpy()
-      + post_processed_outputs_dataset['P_rad'].to_numpy(),
+      + post_processed_outputs_dataset['P_rad'].to_numpy()
+      + post_processed_outputs_dataset['P_cycl'].to_numpy(),
+      p_brems=post_processed_outputs_dataset['P_brems'].to_numpy(),
+      p_rad=post_processed_outputs_dataset['P_rad'].to_numpy(),
+      p_cycl=post_processed_outputs_dataset['P_cycl'].to_numpy(),
       te_volume_avg=post_processed_outputs_dataset['te_volume_avg'].to_numpy(),
       ti_volume_avg=post_processed_outputs_dataset['ti_volume_avg'].to_numpy(),
       ne_volume_avg=post_processed_outputs_dataset['ne_volume_avg'].to_numpy(),
