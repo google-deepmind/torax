@@ -37,7 +37,7 @@ class PlasmaComposition(
   """Configuration for the plasma composition."""
 
   # amu of main ion (if multiple isotope, make average)
-  Ai: float = 2.5
+  Ai: float = 2.51505
   # charge of main ion
   Zi: float = 1.0
   # needed for qlknn and fusion power
