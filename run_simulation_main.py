@@ -35,7 +35,6 @@ from torax.config import build_sim
 from torax.config import config_loader
 from torax.config import runtime_params
 from torax.plotting import plotruns_lib
-from torax.transport_model import qlknn_transport_model
 
 
 # String used when prompting the user to make a choice of command
@@ -99,17 +98,6 @@ _QUIT = flags.DEFINE_bool(
     'quit',
     False,
     'If True, quits after the first operation (no interactive mode).',
-)
-
-_QLKNN_MODEL_PATH = flags.DEFINE_string(
-    'qlknn_model_path',
-    None,
-    'Path to the qlknn model network parameters (if using a QLKNN transport'
-    ' model). If not set, then it will use the value from the config in the'
-    ' "model_path" field in the qlknn_params. If that is not set, it will look'
-    f' for the "{qlknn_transport_model.MODEL_PATH_ENV_VAR}" env variable.'
-    ' Finally, if this is also not set, it uses a hardcoded default path'
-    f' "{qlknn_transport_model.DEFAULT_MODEL_PATH}".',
 )
 
 _OUTPUT_DIR = flags.DEFINE_string(
@@ -204,7 +192,6 @@ def maybe_update_config_module(
 def change_config(
     sim: sim_lib.Sim,
     config_module_str: str,
-    qlknn_model_path: str | None,
 ) -> tuple[sim_lib.Sim, runtime_params.GeneralRuntimeParams] | None:
   """Returns a new Sim with the updated config but same SimulationStepFn.
 
@@ -219,7 +206,6 @@ def change_config(
   Args:
     sim: Sim object used in the previous run.
     config_module_str: Config module being used.
-    qlknn_model_path: QLKNN model path set by flag.
 
   Returns:
     Tuple with:
@@ -257,9 +243,6 @@ def change_config(
   if hasattr(config_module, 'CONFIG'):
     # Assume that the config module uses the basic config dict to build Sim.
     sim_config = config_module.CONFIG
-    config_loader.maybe_update_config_with_qlknn_model_path(
-        sim_config, qlknn_model_path
-    )
     new_runtime_params = build_sim.build_runtime_params_from_config(
         sim_config['runtime_params']
     )
@@ -316,7 +299,7 @@ def change_config(
 
 
 def change_sim_obj(
-    config_module_str: str, qlknn_model_path: str | None
+    config_module_str: str
 ) -> tuple[sim_lib.Sim, runtime_params.GeneralRuntimeParams, str]:
   """Builds a new Sim from the config module.
 
@@ -327,7 +310,6 @@ def change_sim_obj(
   Args:
     config_module_str: Config module used previously. User will have the
       opportunity to update which module to load.
-    qlknn_model_path: QLKNN model path set by flag.
 
   Returns:
     Tuple with:
@@ -344,7 +326,7 @@ def change_sim_obj(
   input('Press Enter when done changing the module.')
   sim, new_runtime_params = (
       config_loader.build_sim_and_runtime_params_from_config_module(
-          config_module_str, qlknn_model_path, _PYTHON_CONFIG_PACKAGE.value
+          config_module_str, _PYTHON_CONFIG_PACKAGE.value
       )
   )
   return sim, new_runtime_params, config_module_str
@@ -482,7 +464,6 @@ def main(_):
   log_sim_progress = _LOG_SIM_PROGRESS.value
   plot_sim_progress = _PLOT_SIM_PROGRESS.value
   log_sim_output = _LOG_SIM_OUTPUT.value
-  qlknn_model_path = _QLKNN_MODEL_PATH.value
   sim = None
   new_runtime_params = None
   output_files = []
@@ -490,7 +471,7 @@ def main(_):
     start_time = time.time()
     sim, new_runtime_params = (
         config_loader.build_sim_and_runtime_params_from_config_module(
-            config_module_str, qlknn_model_path, _PYTHON_CONFIG_PACKAGE.value
+            config_module_str, _PYTHON_CONFIG_PACKAGE.value
         )
     )
     output_dir = (
@@ -573,8 +554,7 @@ def main(_):
           try:
             start_time = time.time()
             sim_and_runtime_params_or_none = change_config(
-                sim, config_module_str, qlknn_model_path
-            )
+                sim, config_module_str)
             if sim_and_runtime_params_or_none is not None:
               sim, new_runtime_params = sim_and_runtime_params_or_none
             config_change_time = time.time() - start_time
@@ -595,7 +575,7 @@ def main(_):
         try:
           start_time = time.time()
           sim, new_runtime_params, config_module_str = change_sim_obj(
-              config_module_str, qlknn_model_path
+              config_module_str
           )
           sim_change_time = time.time() - start_time
           simulation_app.log_to_stdout(

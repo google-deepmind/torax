@@ -30,7 +30,7 @@ TORAX_QLKNN_MODEL_PATH
 ^^^^^^^^^^^^^^^^^^^^^^^
 Path to the QuaLiKiz-neural-network parameters. The path specified here
 will be ignored if the ``model_path`` field in the ``qlknn_params`` section of
-the run config file or the ``qlknn_model_path`` flag are set.
+the run config file is set.
 
 .. code-block:: console
 
@@ -103,18 +103,6 @@ Provide a reference run to compare against in post-simulation plotting.
   python3 run_simulation_main.py \
   --config='torax.examples.basic_config' \
   --reference_run=<path_to_reference_run>
-
-qlknn_model_path
-^^^^^^^^^^^^^^^^
-Provide a path to load the QLKNN model from. This flag supersedes
-the path set in the config file and the ``TORAX_QLKNN_MODEL_PATH`` environment
-variable.
-
-.. code-block:: console
-
-  python3 run_simulation_main.py \
-  --config='torax.examples.basic_config' \
-  --qlknn_model_path=<path_to_qlknn_model>
 
 output_dir
 ^^^^^^^^^^
