@@ -1358,18 +1358,17 @@ def update_current_distribution(
 
   # calculate "External" current profile (e.g. ECCD)
   # form of external current on face grid
-  generic_current_face = source_models.generic_current_source.get_value(
+  external_current = source_models.external_current_source(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
   )
-  generic_current = geometry.face_to_cell(generic_current_face)
 
   johm = (
       core_profiles.currents.jtot
       - bootstrap_profile.j_bootstrap
-      - generic_current
+      - external_current
   )
 
   currents = dataclasses.replace(
@@ -1379,7 +1378,7 @@ def update_current_distribution(
       I_bootstrap=bootstrap_profile.I_bootstrap,
       sigma=bootstrap_profile.sigma,
       johm=johm,
-      generic_current_source=generic_current,
+      external_current_source=external_current,
   )
   new_core_profiles = dataclasses.replace(
       core_profiles,

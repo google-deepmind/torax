@@ -581,7 +581,7 @@ class SimTest(sim_test_case.SimTestCase):
         output.J_BOOTSTRAP,
         output.J_BOOTSTRAP_FACE,
         output.JOHM,
-        output.CORE_PROFILES_GENERIC_CURRENT,
+        output.CORE_PROFILES_EXTERNAL_CURRENT,
         output.JTOT,
         output.JTOT_FACE,
         output.I_BOOTSTRAP,
@@ -805,8 +805,8 @@ def verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.generic_current_source,
-      ref_profiles[output.CORE_PROFILES_GENERIC_CURRENT][index, :],
+      core_profiles.currents.external_current_source,
+      ref_profiles[output.CORE_PROFILES_EXTERNAL_CURRENT][index, :],
   )
   np.testing.assert_allclose(
       core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]

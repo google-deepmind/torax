@@ -32,6 +32,7 @@ from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -408,27 +409,30 @@ def _calc_coeffs_full(
       explicit_source_profiles.j_bootstrap.I_bootstrap,
       implicit_source_profiles.j_bootstrap.I_bootstrap,
   )
-  # The formula for generic_current in external_current_source.py is for the
-  # external current on the face grid, not the cell grid.
-  generic_current_face = jax_utils.select(
-      static_runtime_params_slice.sources[
-          source_models.generic_current_source_name
-      ].is_explicit,
-      explicit_source_profiles.profiles[
-          source_models.generic_current_source_name
-      ],
-      implicit_source_profiles.profiles[
-          source_models.generic_current_source_name
-      ],
-  )
-  generic_current = geometry.face_to_cell(generic_current_face)
+
+  external_current = jnp.zeros_like(geo.rho)
+  # Sum over all psi sources (except the bootstrap current).
+  for source_name, source in source_models.psi_sources.items():
+    external_current += jax_utils.select(
+        static_runtime_params_slice.sources[source_name].is_explicit,
+        source.get_source_profile_for_affected_core_profile(
+            profile=explicit_source_profiles.profiles[source_name],
+            affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
+            geo=geo,
+        ),
+        source.get_source_profile_for_affected_core_profile(
+            profile=implicit_source_profiles.profiles[source_name],
+            affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
+            geo=geo,
+        ),
+    )
 
   currents = dataclasses.replace(
       core_profiles.currents,
       j_bootstrap=j_bootstrap,
       j_bootstrap_face=j_bootstrap_face,
-      generic_current_source=generic_current,
-      johm=(core_profiles.currents.jtot - j_bootstrap - generic_current),
+      external_current_source=external_current,
+      johm=(core_profiles.currents.jtot - j_bootstrap - external_current),
       I_bootstrap=I_bootstrap,
       sigma=sigma,
   )

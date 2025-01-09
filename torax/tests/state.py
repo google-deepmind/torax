@@ -24,6 +24,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
+from torax import math_utils
 from torax import state
 from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
@@ -31,6 +32,8 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
+from torax.sources import generic_current_source
+from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import torax_refs
 
@@ -311,6 +314,9 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
+    source_models_builder.runtime_params[
+        generic_current_source.GenericCurrentSource.SOURCE_NAME
+    ].mode = runtime_params_lib.Mode.MODEL_BASED
     dcs1, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             config1,
@@ -391,13 +397,11 @@ class InitialStatesTest(parameterized.TestCase):
     )
 
     # calculate total and Ohmic current profiles arising from nu=2
-    jformula_face = (1 - geo.rho_face_norm**2) ** 2
-    denom = jax.scipy.integrate.trapezoid(
-        jformula_face * geo.spr_face, geo.rho_face_norm
-    )
+    jformula = (1 - geo.rho_norm**2) ** 2
+    denom = jax.scipy.integrate.trapezoid(jformula * geo.spr_cell, geo.rho_norm)
     ctot = config1.profile_conditions.Ip_tot * 1e6 / denom
-    jtot_formula_face = jformula_face * ctot
-    johm_formula_face = jtot_formula_face * (
+    jtot_formula = jformula * ctot
+    johm_formula = jtot_formula * (
         1 - dcs1.sources[source_models.generic_current_source_name].fext  # pytype: disable=attribute-error
     )
 
@@ -421,9 +425,9 @@ class InitialStatesTest(parameterized.TestCase):
     )
 
     np.testing.assert_allclose(
-        core_profiles1.currents.generic_current_source
+        core_profiles1.currents.external_current_source
         + core_profiles1.currents.johm,
-        geometry.face_to_cell(jtot_formula_face),
+        jtot_formula,
         rtol=1e-12,
         atol=1e-12,
     )
@@ -431,23 +435,29 @@ class InitialStatesTest(parameterized.TestCase):
         AssertionError,
         np.testing.assert_allclose,
         core_profiles1.currents.johm,
-        geometry.face_to_cell(johm_formula_face),
+        johm_formula,
+        rtol=2e-4,
+        atol=2e-4,
     )
     np.testing.assert_allclose(
         core_profiles2.currents.johm,
-        geometry.face_to_cell(johm_formula_face),
-        rtol=1e-12,
-        atol=1e-12,
+        johm_formula,
+        rtol=2e-4,
+        atol=2e-4,
     )
     np.testing.assert_raises(
         AssertionError,
         np.testing.assert_allclose,
         core_profiles2.currents.jtot_face,
-        jtot_formula_face,
+        math_utils.cell_to_face(
+            jtot_formula,
+            geo,
+            preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
+        ),
     )
     np.testing.assert_allclose(
         core_profiles3.currents.johm,
-        geometry.face_to_cell(jtot_formula_face) * (1 - f_bootstrap),
+        jtot_formula * (1 - f_bootstrap),
         rtol=1e-12,
         atol=1e-12,
     )

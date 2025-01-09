@@ -160,61 +160,6 @@ def calculate_generic_current_face(
   return generic_current_face
 
 
-# pytype bug: does not treat 'source_models.SourceModels' as a forward reference
-# pytype: disable=name-error
-def _calculate_generic_current_hires(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    source_name: str,
-    unused_state: state.CoreProfiles | None = None,
-    unused_source_models: Optional['source_models.SourceModels'] = None,
-) -> jax.Array:
-  """Calculates the generic current density profile along the hires grid.
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: Parameter configuration at present timestep.
-    geo: Tokamak geometry.
-    source_name: Name of the source.
-    unused_state: State argument not used in this function but is present to
-      adhere to the source API.
-    unused_source_models: Source models argument not used in this function but
-      is present to adhere to the source API.
-
-  Returns:
-    Generic current density profile along the hires cell grid.
-  """
-  del (
-      static_runtime_params_slice,
-      unused_state,
-      unused_source_models,
-  )  # Unused.
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  # pytype: enable=name-error
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-  Iext = _calculate_Iext(
-      dynamic_runtime_params_slice,
-      dynamic_source_runtime_params,
-  )
-  # calculate a generic "External" current profile (e.g. ECCD)
-  # form of external current on cell grid
-  generic_current_form_hires = jnp.exp(
-      -((geo.rho_hires_norm - dynamic_source_runtime_params.rext) ** 2)
-      / (2 * dynamic_source_runtime_params.wext**2)
-  )
-  Cext_hires = (
-      Iext
-      * 1e6
-      / _trapz(generic_current_form_hires * geo.spr_hires, geo.rho_hires_norm)
-  )
-  # External current profile on cell grid
-  generic_current_hires = Cext_hires * generic_current_form_hires
-  return generic_current_hires
-
-
 def _calculate_Iext(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_source_runtime_params: DynamicRuntimeParams,
@@ -236,7 +181,6 @@ class GenericCurrentSource(source.Source):
 
   SOURCE_NAME: ClassVar[str] = 'generic_current_source'
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_current_face'
-  hires_formula: source.SourceProfileFunction = _calculate_generic_current_hires
   model_func: source.SourceProfileFunction = calculate_generic_current_face
 
   @property
@@ -263,49 +207,4 @@ class GenericCurrentSource(source.Source):
         # Source profiles are always on cell grid so cast to cell grid.
         geometry.face_to_cell(profile),
         jnp.zeros_like(geo.rho),
-    )
-
-  # pytype: disable=name-error
-  def generic_current_source_hires(
-      self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
-      unused_state: state.CoreProfiles | None = None,
-      unused_source_models: Optional['source_models.SourceModels'] = None,
-  ) -> jax.Array:
-    # pytype: enable=name-error
-    """Return the current density profile along the hires cell grid."""
-    del unused_state, unused_source_models  # Unused.
-    dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-        self.source_name
-    ]
-    static_source_runtime_params = static_runtime_params_slice.sources[
-        self.source_name
-    ]
-    assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-
-    # Interpolate prescribed values onto the hires grid
-    hires_prescribed_values = jnp.where(
-        static_source_runtime_params.mode
-        == runtime_params_lib.Mode.PRESCRIBED.value,
-        jnp.interp(
-            geo.rho_hires_norm,
-            geo.rho_face_norm,
-            dynamic_source_runtime_params.prescribed_values,
-        ),
-        jnp.zeros_like(geo.rho_hires_norm),
-    )
-
-    return source.get_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo,
-        core_profiles=None,
-        # There is no model for this source.
-        model_func=self.hires_formula,
-        output_shape=geo.rho_hires_norm.shape,
-        prescribed_values=hires_prescribed_values,
-        source_models=getattr(self, 'source_models', None),
-        source_name=self.source_name,
     )

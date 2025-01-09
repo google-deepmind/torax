@@ -20,6 +20,7 @@ import functools
 
 import jax
 import jax.numpy as jnp
+from torax import array_typing
 from torax import constants
 from torax import jax_utils
 from torax import state
@@ -564,14 +565,27 @@ class SourceModels:
   def j_bootstrap_name(self) -> str:
     return bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
 
-  @property
-  def generic_current_source(
+  def external_current_source(
       self,
-  ) -> generic_current_source.GenericCurrentSource:
-    # TODO(b/336995925): Modify to be a sum over all current sources.
-    if self._generic_current is None:
-      raise ValueError('generic_current is not initialized.')
-    return self._generic_current
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+  ) -> array_typing.ArrayFloat:
+    """Returns contributions to external current from all psi sources."""
+    total = jnp.zeros_like(geo.rho)
+    for source in self.psi_sources.values():
+      source_value = source.get_value(
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          static_runtime_params_slice=static_runtime_params_slice,
+          geo=geo,
+          core_profiles=core_profiles,
+      )
+      total += source.get_source_profile_for_affected_core_profile(
+          source_value, source_lib.AffectedCoreProfile.PSI, geo,
+      )
+
+    return total
 
   @property
   def generic_current_source_name(self) -> str:

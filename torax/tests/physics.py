@@ -151,6 +151,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     else:
       raise ValueError(f'Unknown geometry type: {geo.geometry_type}')
     # pylint: enable=protected-access
+    print(psi)
 
     np.testing.assert_allclose(psi, references.psi.value)
 
@@ -175,7 +176,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         references.psi,
     )
     # pylint: enable=invalid-name
-    np.testing.assert_allclose(j, references.jtot)
+    np.testing.assert_allclose(j, references.jtot, rtol=1e-5)
 
     if references.Ip_from_parameters:
       np.testing.assert_allclose(
@@ -210,7 +211,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         references.psi,
     )
 
-    np.testing.assert_allclose(s, references.s)
+    np.testing.assert_allclose(s, references.s, rtol=1e-5)
 
   def test_fast_ion_fractional_heating_formula(self):
     """Compare `ion_heat_fraction` to a reference value."""

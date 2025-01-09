@@ -44,7 +44,7 @@ class Currents:
   jtot: array_typing.ArrayFloat
   jtot_face: array_typing.ArrayFloat
   johm: array_typing.ArrayFloat
-  generic_current_source: array_typing.ArrayFloat
+  external_current_source: array_typing.ArrayFloat
   j_bootstrap: array_typing.ArrayFloat
   j_bootstrap_face: array_typing.ArrayFloat
   # pylint: disable=invalid-name
@@ -75,7 +75,7 @@ class Currents:
         jtot=jnp.zeros(geo.rho_face.shape),
         jtot_face=jnp.zeros(geo.rho_face.shape),
         johm=jnp.zeros(geo.rho_face.shape),
-        generic_current_source=jnp.zeros(geo.rho_face.shape),
+        external_current_source=jnp.zeros(geo.rho_face.shape),
         j_bootstrap=jnp.zeros(geo.rho_face.shape),
         j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
         I_bootstrap=jnp.array(0.0),
