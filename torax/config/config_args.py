@@ -73,25 +73,6 @@ def input_is_an_interpolated_var_single_axis(
     return _check(field_type)  # pytype: disable=bad-return-type
 
 
-def _is_bool(
-    interp_input: interpolated_param.InterpolatedVarSingleAxisInput,
-) -> bool:
-  if isinstance(interp_input, dict):
-    if not interp_input:
-      raise ValueError('InterpolatedVarSingleAxisInput must include values.')
-    value = list(interp_input.values())[0]
-    return isinstance(value, bool)
-  return isinstance(interp_input, bool)
-
-
-def _convert_value_to_floats(
-    interp_input: interpolated_param.InterpolatedVarSingleAxisInput,
-) -> interpolated_param.InterpolatedVarSingleAxisInput:
-  if isinstance(interp_input, dict):
-    return {key: float(value) for key, value in interp_input.items()}
-  return float(interp_input)
-
-
 def get_interpolated_var_single_axis(
     interpolated_var_single_axis_input: interpolated_param.InterpolatedVarSingleAxisInput,
 ) -> interpolated_param.InterpolatedVarSingleAxis:
@@ -100,40 +81,17 @@ def get_interpolated_var_single_axis(
   Args:
     interpolated_var_single_axis_input: Input that can be used to construct a
       `interpolated_param.InterpolatedVarSingleAxis` object. Can be either:
-      Python primitives, an xr.DataArray, a tuple(axis_array, values_array).
-      See torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars
-      for more information on the supported inputs.
+      Python primitives, an xr.DataArray, a tuple(axis_array, values_array). See
+      torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars for
+      more information on the supported inputs.
 
   Returns:
     A constructed interpolated var.
   """
-  interpolation_mode = interpolated_param.InterpolationMode.PIECEWISE_LINEAR
-  # The param is a InterpolatedVarSingleAxisInput, so we need to convert it to
-  # an InterpolatedVarSingleAxis first.
-  if isinstance(interpolated_var_single_axis_input, tuple):
-    if len(interpolated_var_single_axis_input) != 2:
-      raise ValueError(
-          'Single axis interpolated var tuple length must be 2. The first '
-          'element are the values and the second element is the '
-          'interpolation mode or both values should be arrays to be directly '
-          f'interpolated. Given: {interpolated_var_single_axis_input}.'
+  xs, ys, interpolation_mode, is_bool_param = (
+      interpolated_param.convert_input_to_xs_ys(
+          interpolated_var_single_axis_input
       )
-    if isinstance(interpolated_var_single_axis_input[1], str):
-      interpolation_mode = interpolated_param.InterpolationMode[
-          interpolated_var_single_axis_input[1].upper()
-      ]
-      interpolated_var_single_axis_input = interpolated_var_single_axis_input[0]
-
-  if _is_bool(interpolated_var_single_axis_input):
-    interpolated_var_single_axis_input = _convert_value_to_floats(
-        interpolated_var_single_axis_input
-    )
-    is_bool_param = True
-  else:
-    is_bool_param = False
-
-  xs, ys = interpolated_param.convert_input_to_xs_ys(
-      interpolated_var_single_axis_input
   )
 
   interpolated_var_single_axis = interpolated_param.InterpolatedVarSingleAxis(
@@ -205,11 +163,12 @@ def _load_from_primitives(
   if not primitive_values:
     raise ValueError('Values mapping must not be empty.')
 
-  primitive_values = {
-      t: interpolated_param.convert_input_to_xs_ys(v)
-      for t, v in primitive_values.items()
-  }
-  return primitive_values
+  loaded_values = {}
+  for t, v in primitive_values.items():
+    x, y, _, _ = interpolated_param.convert_input_to_xs_ys(v)
+    loaded_values[t] = (x, y)
+
+  return loaded_values
 
 
 def _load_from_xr_array(

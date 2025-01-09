@@ -450,9 +450,9 @@ class InterpolatedParamTest(parameterized.TestCase):
   )
   def test_convert_input_to_xs_ys(self, values, expected_output):
     """Test input conversion to numpy arrays."""
-    output = interpolated_param.convert_input_to_xs_ys(values)
-    np.testing.assert_allclose(output[0], expected_output[0])
-    np.testing.assert_allclose(output[1], expected_output[1])
+    x, y, _, _ = interpolated_param.convert_input_to_xs_ys(values)
+    np.testing.assert_allclose(x, expected_output[0])
+    np.testing.assert_allclose(y, expected_output[1])
 
   @parameterized.parameters(
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR,
