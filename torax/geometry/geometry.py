@@ -1438,13 +1438,14 @@ class StandardGeometryIntermediates:
     #If the equilibrium_object is the file name, loads the ids from the netCDF.
     if isinstance(equilibrium_object, str):
       equilibrium = geometry_loader.load_geo_data(geometry_dir, equilibrium_object, geometry_loader.GeometrySource.IMAS)
-    elif isinstance(equilibrium_object, Mapping):
+    # elif isinstance(equilibrium_object, Mapping):
+    elif True:
       equilibrium = equilibrium_object
     else:
       raise ValueError('equilibrium_object must be a string (file path) or an IDS')
     IMAS_data = equilibrium.time_slice[0]
 
-    B0 = np.abs(IMAS_data.global_quantities.magnetic_axis.b_field_tor)
+    B0 = np.abs(IMAS_data.global_quantities.magnetic_axis.b_field_phi)
     Rmaj = np.asarray(IMAS_data.boundary.geometric_axis.r)
 
     # Poloidal flux
@@ -1476,11 +1477,11 @@ class StandardGeometryIntermediates:
     flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1 # C2/C1
 
      #TODO : Read Ip_profile from IMAS_data equilibrium IDS. With IMAS_data.profiles_1d.j_phi we might be able to compute Ip_profile.
-    #Important : j_tor works for IDSs with version < 3.42.0, to replace by j_phi for newer versions.
+    #Important : j_phi works for IDSs with version < 3.42.0, to replace by j_phi for newer versions.
     #jtor = dI/drhon / (drho/dS) = dI/drhon / spr
     # spr = vpr / ( 2 * np.pi * Rmaj)
     # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
-    jtor= -1 * IMAS_data.profiles_1d.j_tor
+    jtor= -1 * IMAS_data.profiles_1d.j_phi
     rhon = np.sqrt(Phi / Phi[-1])
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
     spr = vpr / (2*np.pi * Rmaj)
@@ -1514,8 +1515,6 @@ class StandardGeometryIntermediates:
         hires_fac=hires_fac,
         z_magnetic_axis=z_magnetic_axis,
     )
-
-
 
 
 def build_standard_geometry(
