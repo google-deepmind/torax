@@ -16,11 +16,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import dataclasses
 import logging
 
 import chex
+import numpy as np
 from torax import array_typing
+from torax import constants
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
@@ -28,6 +31,63 @@ from torax.geometry import geometry
 
 
 # pylint: disable=invalid-name
+@chex.dataclass(frozen=True)
+class IonMixture:
+  """Represents a mixture of ion species. The mixture can depend on time.
+
+  Main use cases:
+  1. Represent a bundled mixture of hydrogenic main ions (e.g. D and T)
+  2. Represent a bundled impurity species where the avg charge state, mass,
+    and radiation is consistent with each fractional concentration, and these
+    quantities are then averaged over the mixture to represent a single impurity
+    species in the transport equations for efficiency.
+
+  Attributes:
+    species: A dict mapping ion symbols (from ION_SYMBOLS) to their fractional
+      concentration in the mixture. The fractions must sum to 1.
+    tolerance: The tolerance used to check if the fractions sum to 1.
+  """
+
+  species: Mapping[
+      constants.ION_SYMBOLS, interpolated_param.TimeInterpolatedInput
+  ]
+  tolerance: float = 1e-6
+
+  def __post_init__(self):
+
+    if not self.species:
+      raise ValueError(self.__class__.__name__ + ' species cannot be empty.')
+
+    if not isinstance(self.species, Mapping):
+      raise ValueError('species must be a Mapping')
+
+    time_arrays = []
+    fraction_arrays = []
+
+    for value in self.species.values():
+      time_array, fraction_array, _, _ = (
+          interpolated_param.convert_input_to_xs_ys(value)
+      )
+      time_arrays.append(time_array)
+      fraction_arrays.append(fraction_array)
+
+    # Check if all time arrays are equal
+    # Note that if the TimeInterpolatedInput is a constant fraction (float) then
+    # convert_input_to_xs_ys returns a single-element array for t with value=0
+    if not all(np.array_equal(time_arrays[0], x) for x in time_arrays[1:]):
+      raise ValueError(
+          'All time indexes for '
+          + self.__class__.__name__
+          + ' fractions must be equal.'
+      )
+
+    # Check if the ion fractions sum to 1 at all times
+    fraction_sum = np.sum(fraction_arrays, axis=0)
+    if not np.allclose(fraction_sum, 1.0, rtol=self.tolerance):
+      raise ValueError(
+          'Fractional concentrations in an IonMixture must sum to 1 at all'
+          ' times.'
+      )
 
 
 @chex.dataclass
