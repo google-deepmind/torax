@@ -219,7 +219,7 @@ TORAX currently offers three transport models:
     quasilinear gyrokinetic transport model itself. Since QuaLiKiz is an external code (written in Fortran),
     both `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ and its associated
     `QuaLiKiz Pythontools <https://gitlab.com/qualikiz-group/QuaLiKiz-pythontools>`_ must be installed separately.
-    The path to the QuaLiKiz executable must be set in the ``TORAX_QLK_EXEC_PATH`` environment variable.
+    (tag 1.4.1 or higher) The path to the QuaLiKiz executable must be set in the ``TORAX_QLK_EXEC_PATH`` environment variable.
     If this environment variable is not set, then the default is ``~/qualikiz/QuaLiKiz``.
     See above links for installation instructions. QuaLiKiz and TORAX exchange data via file I/O on
     a temporary directory. Since transport model calls are ostensibly carried out within JAX-compiled functions,
