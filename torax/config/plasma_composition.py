@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import dataclasses
 import logging
+import typing
 
 import chex
 import numpy as np
@@ -60,6 +61,15 @@ class IonMixture:
 
     if not isinstance(self.species, Mapping):
       raise ValueError('species must be a Mapping')
+
+    # Iterate through species keys and check if they are in the allowed list.
+    allowed_symbols = typing.get_args(constants.ION_SYMBOLS)
+    for ion_symbol in self.species:
+      if ion_symbol not in allowed_symbols:
+        raise ValueError(
+            f'Invalid ion symbol: {ion_symbol}. Allowed symbols are:'
+            f' {allowed_symbols}'
+        )
 
     time_arrays = []
     fraction_arrays = []

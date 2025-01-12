@@ -147,6 +147,7 @@ class IonMixtureTest(parameterized.TestCase):
       ('valid_tolerance', {'D': 0.49999999, 'T': 0.5}, False),
       ('invalid_tolerance', {'D': 0.4999, 'T': 0.5}, True),
       ('invalid_not_mapping', 'D', True),
+      ('invalid_ion_symbol', {'De': 0.5, 'Tr': 0.5}, True),
   )
   def test_ion_mixture_constructor(self, input_species, should_raise):
     """Tests various cases of IonMixture construction."""
