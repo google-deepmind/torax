@@ -482,12 +482,15 @@ def format_plots(
       )
 
     lower_bound = ymin / 1.05 if ymin > 0 else ymin * 1.05
-    if cfg.ylim_min_zero:
-      ax.set_ylim([min(lower_bound, 0), ymax * 1.05])
-    else:
-      ax.set_ylim([lower_bound, ymax * 1.05])
 
-    ax.legend(fontsize=cfg.legend_fontsize)
+    # Guard against empty data
+    if ymax != 0 or ymin != 0:  # Check for meaningful data range
+      if cfg.ylim_min_zero:
+        ax.set_ylim([min(lower_bound, 0), ymax * 1.05])
+      else:
+        ax.set_ylim([lower_bound, ymax * 1.05])
+
+      ax.legend(fontsize=cfg.legend_fontsize)
 
 
 def get_rho(
