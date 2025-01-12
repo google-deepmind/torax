@@ -84,7 +84,7 @@ _SUPPORTED_SOURCES = {
         source_class=generic_current_source.GenericCurrentSource,
         model_functions={
             generic_current_source.GenericCurrentSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
-                source_profile_function=generic_current_source.calculate_generic_current_face,
+                source_profile_function=generic_current_source.calculate_generic_current,
                 runtime_params_class=generic_current_source.RuntimeParams,
             )
         },

@@ -22,18 +22,16 @@ from typing import ClassVar, Optional
 import chex
 import jax
 from jax import numpy as jnp
-from jax.scipy import integrate
-import jaxtyping as jt
 from torax import array_typing
 from torax import interpolated_param
 from torax import jax_utils
+from torax import math_utils
 from torax import state
 from torax.config import base
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from typing_extensions import override
 # pylint: disable=invalid-name
 
 
@@ -56,7 +54,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   @property
   def grid_type(self) -> base.GridType:
-    return base.GridType.FACE
+    return base.GridType.CELL
 
   def make_provider(
       self,
@@ -100,12 +98,9 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     self.sanity_check()
 
 
-_trapz = integrate.trapezoid
-
-
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
-def calculate_generic_current_face(
+def calculate_generic_current(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -126,7 +121,7 @@ def calculate_generic_current_face(
       is present to adhere to the source API.
 
   Returns:
-    External current density profile along the face grid.
+    External current density profile along the cell grid.
   """
   del (
       static_runtime_params_slice,
@@ -142,22 +137,22 @@ def calculate_generic_current_face(
       dynamic_runtime_params_slice,
       dynamic_source_runtime_params,
   )
-  # form of external current on face grid
-  generic_current_form_face = jnp.exp(
-      -((geo.rho_face_norm - dynamic_source_runtime_params.rext) ** 2)
+  # form of external current on cell grid
+  generic_current_form = jnp.exp(
+      -((geo.rho_norm - dynamic_source_runtime_params.rext) ** 2)
       / (2 * dynamic_source_runtime_params.wext**2)
   )
 
   Cext = (
       Iext
       * 1e6
-      / _trapz(generic_current_form_face * geo.spr_face, geo.rho_face_norm)
+      / math_utils.cell_integration(generic_current_form * geo.spr_cell, geo)
   )
 
-  generic_current_face = (
-      Cext * generic_current_form_face
-  )  # external current profile
-  return generic_current_face
+  generic_current_profile = (
+      Cext * generic_current_form
+  )
+  return generic_current_profile
 
 
 def _calculate_Iext(
@@ -180,8 +175,8 @@ class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_current_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_current_face'
-  model_func: source.SourceProfileFunction = calculate_generic_current_face
+  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_current'
+  model_func: source.SourceProfileFunction = calculate_generic_current
 
   @property
   def source_name(self) -> str:
@@ -193,18 +188,4 @@ class GenericCurrentSource(source.Source):
 
   @property
   def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.ProfileType.FACE.get_profile_shape
-
-  @override
-  def get_source_profile_for_affected_core_profile(
-      self,
-      profile: jt.Float[jt.Array, 'rhon_face'],
-      affected_core_profile: int,
-      geo: geometry.Geometry,
-  ) -> jt.Float[jt.Array, 'rhon']:
-    return jnp.where(
-        affected_core_profile in self.affected_core_profiles_ints,
-        # Source profiles are always on cell grid so cast to cell grid.
-        geometry.face_to_cell(profile),
-        jnp.zeros_like(geo.rho),
-    )
+    return source.ProfileType.CELL.get_profile_shape

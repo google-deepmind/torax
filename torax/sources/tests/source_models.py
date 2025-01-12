@@ -316,16 +316,13 @@ class SourceProfilesTest(parameterized.TestCase):
         source_models=source_models,
         static_runtime_params_slice=static_runtime_params_slice,
     )
-    expected_generic_current_source_face = source_models.psi_sources[
+    expected_generic_current_source = source_models.psi_sources[
         generic_current_source.GenericCurrentSource.SOURCE_NAME
     ].get_value(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
-    )
-    expected_generic_current_source = geometry.face_to_cell(
-        expected_generic_current_source_face
     )
 
     external_current_source = source_models.external_current_source(

@@ -297,8 +297,6 @@ def _calculate_integrated_sources(
       # index 1 corresponds to the current source profile.
       if key == 'electron_cyclotron_source':
         profile = core_sources.profiles[key][1, :]
-      elif key == 'generic_current_source':
-        profile = geometry.face_to_cell(core_sources.profiles[key])
       else:
         profile = core_sources.profiles[key]
       integrated[f'{value}'] = math_utils.cell_integration(

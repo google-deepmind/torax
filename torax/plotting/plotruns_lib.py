@@ -96,6 +96,7 @@ class PlotData:
   johm: np.ndarray  # [MA/m^2]
   j_bootstrap: np.ndarray  # [MA/m^2]
   j_ecrh: np.ndarray  # [MA/m^2]
+  generic_current_source: np.ndarray  # [MA/m^2]
   external_current_source: np.ndarray  # [MA/m^2]
   q: np.ndarray  # Dimensionless
   s: np.ndarray  # Dimensionless
@@ -170,6 +171,7 @@ def load_data(filename: str) -> PlotData:
         output.JOHM: 1e6,  # A/m^2 to MA/m^2
         output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
         output.CORE_PROFILES_EXTERNAL_CURRENT: 1e6,  # A/m^2 to MA/m^2
+        'generic_current_source': 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
         output.IP_PROFILE_FACE: 1e6,  # A to MA
         'electron_cyclotron_source_j': 1e6,  # A/m^2 to MA/m^2
@@ -228,6 +230,9 @@ def load_data(filename: str) -> PlotData:
       ].to_numpy(),
       j_ecrh=get_optional_data(
           core_sources_dataset, 'electron_cyclotron_source_j', 'cell'
+      ),
+      generic_current_source=get_optional_data(
+          core_sources_dataset, 'generic_current_source', 'cell'
       ),
       q=core_profiles_dataset[output.Q_FACE].to_numpy(),
       s=core_profiles_dataset[output.S_FACE].to_numpy(),

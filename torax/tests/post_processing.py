@@ -55,7 +55,6 @@ class PostProcessingTest(parameterized.TestCase):
     )
     # Make some dummy source profiles.
     ones = np.ones_like(geo.rho)
-    ones_face = np.ones_like(geo.rho_face)
     self.source_profiles = source_profiles_lib.SourceProfiles(
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
             geo
@@ -64,7 +63,7 @@ class PostProcessingTest(parameterized.TestCase):
         profiles={
             'bremsstrahlung_heat_sink': -ones,
             'ohmic_heat_source': ones * 5,
-            'generic_current_source': ones_face * 2,
+            'generic_current_source': ones * 2,
             'fusion_heat_source': np.stack([ones, ones]),
             'generic_ion_el_heat_source': np.stack([2 * ones, 3 * ones]),
             'electron_cyclotron_source': np.stack([7 * ones, 2 * ones]),

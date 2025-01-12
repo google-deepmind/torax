@@ -379,7 +379,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_zi2',
           'test_iterhybrid_predictor_corrector_zi2.py',
           _ALL_PROFILES,
-          1e-5,
+          5e-5,
       ),
       # Predictor-corrector solver with ECCD Lin Liu model.
       (

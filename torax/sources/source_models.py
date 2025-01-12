@@ -723,7 +723,7 @@ class SourceModelsBuilder:
       ] = source_lib.make_source_builder(
           generic_current_source.GenericCurrentSource,
           runtime_params_type=generic_current_source.RuntimeParams,
-          model_func=generic_current_source.calculate_generic_current_face,
+          model_func=generic_current_source.calculate_generic_current,
       )()
       source_builders[
           generic_current_source.GenericCurrentSource.SOURCE_NAME
