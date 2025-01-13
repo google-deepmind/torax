@@ -335,7 +335,7 @@ class GeometryTest(parameterized.TestCase):
 
   def test_build_standard_geometry_from_IMAS(self):
     """Test that the default IMAS geometry can be built."""
-    intermediate = geometry.StandardGeometryIntermediates.from_IMAS_Data_entry()
+    intermediate = geometry.StandardGeometryIntermediates.from_IMAS()
     geo = geometry.build_standard_geometry(intermediate)
 
 
