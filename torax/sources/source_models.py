@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import functools
 
 import jax
@@ -405,9 +406,7 @@ class SourceModels:
 
   def __init__(
       self,
-      source_builders: (
-          dict[str, source_lib.SourceBuilderProtocol] | None
-      ) = None,
+      source_builders: Mapping[str, source_lib.SourceBuilderProtocol]
   ):
     """Constructs a collection of sources.
 
@@ -432,8 +431,6 @@ class SourceModels:
       ValueError if there is a naming collision with the reserved names as
       described above.
     """
-
-    source_builders = source_builders or {}
 
     # Begin initial construction with sources that don't link back to the
     # SourceModels

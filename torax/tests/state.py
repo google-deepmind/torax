@@ -406,7 +406,7 @@ class InitialStatesTest(parameterized.TestCase):
     )
 
     # Calculate bootstrap current for config3 which doesn't zero it out
-    source_models = source_models_lib.SourceModels()
+    source_models = source_models_lib.SourceModels({})
     bootstrap_profile = source_models.j_bootstrap.get_value(
         dynamic_runtime_params_slice=dcs3,
         static_runtime_params_slice=static_slice,

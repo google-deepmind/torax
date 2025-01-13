@@ -61,14 +61,6 @@ _FooSourceBuilder = source_lib.make_source_builder(
 )
 
 
-class SourceModelsTest(parameterized.TestCase):
-  """Tests for SourceModels."""
-
-  def test_default_constructor_works(self):
-    """Tests that you can initialize the SourceModels class with no args."""
-    _ = source_models_lib.SourceModels()
-
-
 class SourceProfilesTest(parameterized.TestCase):
   """Tests for computing source profiles."""
 
