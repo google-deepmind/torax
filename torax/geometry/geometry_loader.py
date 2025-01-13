@@ -25,6 +25,8 @@ import scipy
 
 import yaml
 
+from torax.torax_imastools.util import load_IMAS_data_from_netCDF
+
 # Internal import.
 # Internal import.
 
@@ -97,15 +99,6 @@ def _load_eqdsk_data(file_path: str) -> dict[str, np.ndarray]:
   return eqdsk_data.__dict__  # dict(eqdsk_data)
 
 
-def _load_IMAS_data_from_netCDF(file_path: str) -> dict[str, np.ndarray]:
-  """Loads the equilibrium IDS for a single time slice from an IMAS netCDF file path"""
-  import imaspy
-  input = imaspy.DBEntry(file_path, "r")
-  equilibrium_ids = input.get('equilibrium')
-
-  return equilibrium_ids
-
-
 def load_geo_data(
     geometry_dir: str | None,
     geometry_file: str,
@@ -130,6 +123,6 @@ def load_geo_data(
     case GeometrySource.EQDSK:
       return _load_eqdsk_data(file_path=filepath)
     case GeometrySource.IMAS:
-      return _load_IMAS_data_from_netCDF(file_path=filepath)
+      return load_IMAS_data_from_netCDF(file_path=filepath)
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')

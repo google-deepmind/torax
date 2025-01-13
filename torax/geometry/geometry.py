@@ -21,7 +21,7 @@ from collections.abc import Mapping
 import dataclasses
 import enum
 import functools
-from typing import Type
+from typing import Type, Any
 
 import chex
 import contourpy
@@ -34,6 +34,7 @@ from torax import constants
 from torax import interpolated_param
 from torax import jax_utils
 from torax.geometry import geometry_loader
+from torax.torax_imastools.util import geometry_from_IMAS
 
 
 @chex.dataclass(frozen=True)
@@ -1415,7 +1416,7 @@ class StandardGeometryIntermediates:
   @classmethod
   def from_IMAS(
       cls,
-      equilibrium_object: str | Mapping[str, np.ndarray],
+      equilibrium_object: str | Any,
       geometry_dir: str | None = None,
       Ip_from_parameters: bool = False,
       n_rho: int = 25,
@@ -1439,86 +1440,14 @@ class StandardGeometryIntermediates:
       A StandardGeometry instance based on the input file. This can then be
       used to build a StandardGeometry by passing to `build_standard_geometry`.
     """
-    #If the equilibrium_object is the file name, loads the ids from the netCDF.
-    if isinstance(equilibrium_object, str):
-      equilibrium = geometry_loader.load_geo_data(geometry_dir, equilibrium_object, geometry_loader.GeometrySource.IMAS)
-    # elif isinstance(equilibrium_object, Mapping):
-    elif True:
-      equilibrium = equilibrium_object
-    else:
-      raise ValueError('equilibrium_object must be a string (file path) or an IDS')
-    IMAS_data = equilibrium.time_slice[0]
-
-    B0 = np.abs(IMAS_data.global_quantities.magnetic_axis.b_field_phi)
-    Rmaj = np.asarray(IMAS_data.boundary.geometric_axis.r)
-
-    # Poloidal flux
-    psi = -1 * IMAS_data.profiles_1d.psi
-    # toroidal flux
-    Phi = -1 * IMAS_data.profiles_1d.phi
-    # midplane radii
-    Rin = IMAS_data.profiles_1d.r_inboard
-    Rout = IMAS_data.profiles_1d.r_outboard
-    # toroidal field flux function
-    F = np.abs(IMAS_data.profiles_1d.f)
-
-    #Flux surface integrals of various geometry quantities
-    #IDS Contour integrals
-    if len(IMAS_data.profiles_1d.dvolume_dpsi) > 0:
-        dvoldpsi = -1 * IMAS_data.profiles_1d.dvolume_dpsi
-    else:
-        dvoldpsi = -1 * np.gradient(IMAS_data.profiles_1d.volume) \
-            / np.gradient(IMAS_data.profiles_1d.psi)
-    if len(IMAS_data.profiles_1d.dpsi_drho_tor) > 0:
-        dpsidrhotor = -1 * IMAS_data.profiles_1d.dpsi_drho_tor
-    else:
-        dpsidrhotor = -1 * np.gradient(IMAS_data.profiles_1d.psi) \
-            / np.gradient(IMAS_data.profiles_1d.rho_tor)
-    flux_surf_avg_RBp = IMAS_data.profiles_1d.gm7 * dpsidrhotor / (2 * np.pi) # dpsi, C0/C1
-    flux_surf_avg_R2Bp2 = IMAS_data.profiles_1d.gm3 * (dpsidrhotor **2) / (4 * np.pi**2) # C4/C1
-    flux_surf_avg_Bp2 = IMAS_data.profiles_1d.gm2 * (dpsidrhotor **2) / (4 * np.pi**2) # C3/C1
-    int_dl_over_Bp = dvoldpsi #C1
-    flux_surf_avg_1_over_R2 = IMAS_data.profiles_1d.gm1 # C2/C1
-
-     #TODO : Read Ip_profile from IMAS_data equilibrium IDS. With IMAS_data.profiles_1d.j_phi we might be able to compute Ip_profile.
-    #Important : j_phi works for IDSs with version < 3.42.0, to replace by j_phi for newer versions.
-    #jtor = dI/drhon / (drho/dS) = dI/drhon / spr
-    # spr = vpr / ( 2 * np.pi * Rmaj)
-    # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
-    jtor= -1 * IMAS_data.profiles_1d.j_phi
-    rhon = np.sqrt(Phi / Phi[-1])
-    vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
-    spr = vpr / (2*np.pi * Rmaj)
-    Ip_profile = scipy.integrate.cumulative_trapezoid(y=spr * jtor, x=rhon, initial=0.0)
-
-    # To check
-    z_magnetic_axis = np.asarray(IMAS_data.global_quantities.magnetic_axis.z)
-
-    return cls(
-        geometry_type=GeometryType.IMAS,
+    inputs = geometry_from_IMAS(
+        equilibrium_object=equilibrium_object,
+        geometry_dir=geometry_dir,
         Ip_from_parameters=Ip_from_parameters,
-        Rmaj=Rmaj,
-        Rmin=np.asarray(IMAS_data.boundary.minor_radius),
-        B=B0,
-        psi=psi,
-        Ip_profile=Ip_profile,
-        Phi=Phi,
-        Rin=Rin,
-        Rout=Rout,
-        F=F,
-        int_dl_over_Bp=int_dl_over_Bp,
-        flux_surf_avg_1_over_R2=flux_surf_avg_1_over_R2,
-        flux_surf_avg_Bp2=flux_surf_avg_Bp2,
-        flux_surf_avg_RBp=flux_surf_avg_RBp,
-        flux_surf_avg_R2Bp2=flux_surf_avg_R2Bp2,
-        delta_upper_face=IMAS_data.profiles_1d.triangularity_upper,
-        delta_lower_face=IMAS_data.profiles_1d.triangularity_lower,
-        elongation=IMAS_data.profiles_1d.elongation,
-        vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
-        z_magnetic_axis=z_magnetic_axis,
     )
+    return cls(geometry_type=GeometryType.IMAS, **inputs)
 
 
 def build_standard_geometry(
