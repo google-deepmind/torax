@@ -246,11 +246,63 @@ def rhonorm1_defined_in_timerhoinput(
   return True
 
 
+def _is_bool(
+    interp_input: InterpolatedVarSingleAxisInput,
+) -> bool:
+  if isinstance(interp_input, dict):
+    if not interp_input:
+      raise ValueError('InterpolatedVarSingleAxisInput must include values.')
+    value = list(interp_input.values())[0]
+    return isinstance(value, bool)
+  return isinstance(interp_input, bool)
+
+
+def _convert_value_to_floats(
+    interp_input: InterpolatedVarSingleAxisInput,
+) -> InterpolatedVarSingleAxisInput:
+  if isinstance(interp_input, dict):
+    return {key: float(value) for key, value in interp_input.items()}
+  return float(interp_input)
+
+
 def convert_input_to_xs_ys(
     interp_input: InterpolatedVarSingleAxisInput,
-) -> tuple[chex.Array, chex.Array]:
-  """Converts config inputs into inputs suitable for constructors."""
+) -> tuple[chex.Array, chex.Array, InterpolationMode, bool]:
+  """Converts config inputs into inputs suitable for constructors.
+
+  Args:
+    interp_input: The input to convert.
+
+  Returns:
+    A tuple of (xs, ys, interpolation_mode, is_bool_param) where xs and ys are
+    the arrays to be used in the constructor, interpolation_mode is the
+    interpolation mode to be used, and is_bool_param is True if the input is a
+    bool and False otherwise.
+  """
   # This function does NOT need to be jittable.
+  interpolation_mode = InterpolationMode.PIECEWISE_LINEAR
+  # The param is a InterpolatedVarSingleAxisInput, so we need to convert it to
+  # an InterpolatedVarSingleAxis first.
+  if isinstance(interp_input, tuple):
+    if len(interp_input) != 2:
+      raise ValueError(
+          'Single axis interpolated var tuple length must be 2. The first '
+          'element are the values and the second element is the '
+          'interpolation mode or both values should be arrays to be directly '
+          f'interpolated. Given: {interp_input}.'
+      )
+    if isinstance(interp_input[1], str):
+      interpolation_mode = InterpolationMode[interp_input[1].upper()]
+      interp_input = interp_input[0]
+
+  if _is_bool(interp_input):
+    interp_input = _convert_value_to_floats(
+        interp_input
+    )
+    is_bool_param = True
+  else:
+    is_bool_param = False
+
   if isinstance(interp_input, xr.DataArray):
     if len(interp_input.coords) != 1:
       raise ValueError(
@@ -265,6 +317,8 @@ def convert_input_to_xs_ys(
     return (
         interp_input[index].data,
         interp_input.values,
+        interpolation_mode,
+        is_bool_param,
     )
   if isinstance(interp_input, tuple):
     if len(interp_input) != 2:
@@ -276,33 +330,26 @@ def convert_input_to_xs_ys(
     sort_order = np.argsort(xs)
     xs = xs[sort_order]
     ys = ys[sort_order]
-    return np.asarray(xs), np.asarray(ys)
+    return np.asarray(xs), np.asarray(ys), interpolation_mode, is_bool_param
   if isinstance(interp_input, dict):
     if not interp_input:
       raise ValueError('InterpolatedVarSingleAxisInput must include values.')
     sorted_keys = sorted(interp_input.keys())
     values = [interp_input[key] for key in sorted_keys]
-    return np.array(sorted_keys), np.array(values)
+    return (
+        np.array(sorted_keys),
+        np.array(values),
+        interpolation_mode,
+        is_bool_param,
+    )
   else:
     # The input is a single value.
-    return np.array([0]), np.array([interp_input])
-
-
-def _is_bool(interp_input: InterpolatedVarSingleAxisInput) -> bool:
-  if isinstance(interp_input, dict):
-    if not interp_input:
-      raise ValueError('InterpolatedVarSingleAxisInput must include values.')
-    value = list(interp_input.values())[0]
-    return isinstance(value, bool)
-  return isinstance(interp_input, bool)
-
-
-def convert_value_to_floats(
-    interp_input: InterpolatedVarSingleAxisInput,
-) -> InterpolatedVarSingleAxisInput:
-  if isinstance(interp_input, dict):
-    return {key: float(value) for key, value in interp_input.items()}
-  return float(interp_input)
+    return (
+        np.array([0]),
+        np.array([interp_input]),
+        interpolation_mode,
+        is_bool_param,
+    )
 
 
 class InterpolatedVarSingleAxis(InterpolatedParamBase):

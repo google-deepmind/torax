@@ -931,7 +931,7 @@ Time dependent Gaussian pellet source. No first-principle-based model is yet imp
   Total particle source in units of particles/s
 
 generic_particle_source
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Time dependent Gaussian particle source. No first-principle-based model is yet implemented in TORAX.
 
@@ -987,6 +987,26 @@ Bremsstrahlung model from Wesson, with an optional correction for relativistic e
 ``mode`` (str = 'model')
 
 ``use_relativistic_correction`` (bool = False)
+
+cyclotron_radiation_heat_sink
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Cyclotron radiation model from Albajar NF 2001 with a deposition profile from Artaud NF 2018.
+
+``mode`` (str = 'model')
+
+``wall_reflection_coeff`` (float = 0.9)
+  Machine-dependent dimensionless parameter corresponding to the fraction of
+  cyclotron radiation reflected off the wall and reabsorbed by the plasma.
+
+``beta_min`` (float = 0.5)
+
+``beta_max`` (float = 8.0)
+
+``beta_grid_size`` (int = 32)
+  beta in this context is a variable in the temperature profile parameterization used
+  in the Albajar model. The parameter is fit with simple grid search performed over
+  the range ``[beta_min, beta_max]``, with ``beta_grid_size`` uniformly spaced steps.
 
 electron_cyclotron_source
 ^^^^^^^^^^^^^^^^^^^^^^^^^

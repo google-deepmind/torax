@@ -153,6 +153,7 @@ class Geometry:
   spr_cell: chex.Array
   spr_face: chex.Array
   delta_face: chex.Array
+  elongation: chex.Array
   elongation_face: chex.Array
   g0: chex.Array
   g0_face: chex.Array
@@ -274,6 +275,7 @@ class GeometryProvider:
   spr_cell: interpolated_param.InterpolatedVarSingleAxis
   spr_face: interpolated_param.InterpolatedVarSingleAxis
   delta_face: interpolated_param.InterpolatedVarSingleAxis
+  elongation: interpolated_param.InterpolatedVarSingleAxis
   elongation_face: interpolated_param.InterpolatedVarSingleAxis
   g0: interpolated_param.InterpolatedVarSingleAxis
   g0_face: interpolated_param.InterpolatedVarSingleAxis
@@ -417,6 +419,7 @@ class StandardGeometryProvider(GeometryProvider):
   jtot_face: interpolated_param.InterpolatedVarSingleAxis
   delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
   delta_lower_face: interpolated_param.InterpolatedVarSingleAxis
+  elongation: interpolated_param.InterpolatedVarSingleAxis
   elongation_face: interpolated_param.InterpolatedVarSingleAxis
 
   @functools.partial(jax_utils.jit, static_argnums=0)
@@ -637,6 +640,7 @@ def build_circular_geometry(
       Rout=Rout,
       Rout_face=Rout_face,
       # Set the circular geometry-specific params.
+      elongation=elongation,
       elongation_face=elongation_face,
       volume_hires=volume_hires,
       area_hires=area_hires,
@@ -1637,6 +1641,9 @@ def build_standard_geometry(
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
   # elongation
+  elongation = rhon_interpolation_func(
+      rho_norm, intermediate.elongation
+  )
   elongation_face = rhon_interpolation_func(
       rho_face_norm, intermediate.elongation
   )
@@ -1737,6 +1744,7 @@ def build_standard_geometry(
       jtot_face=jtot_face,
       delta_upper_face=delta_upper_face,
       delta_lower_face=delta_lower_face,
+      elongation=elongation,
       elongation_face=elongation_face,
       volume_hires=volume_hires,
       area_hires=area_hires,

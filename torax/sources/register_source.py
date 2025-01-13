@@ -41,6 +41,7 @@ from typing import Type
 
 from torax.sources import bootstrap_current_source
 from torax.sources import bremsstrahlung_heat_sink
+from torax.sources import cyclotron_radiation_heat_sink
 from torax.sources import electron_cyclotron_source
 from torax.sources import electron_density_sources
 from torax.sources import fusion_heat_source
@@ -83,7 +84,7 @@ _SUPPORTED_SOURCES = {
         source_class=generic_current_source.GenericCurrentSource,
         model_functions={
             generic_current_source.GenericCurrentSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
-                source_profile_function=generic_current_source.calculate_generic_current_face,
+                source_profile_function=generic_current_source.calculate_generic_current,
                 runtime_params_class=generic_current_source.RuntimeParams,
             )
         },
@@ -179,6 +180,15 @@ _SUPPORTED_SOURCES = {
                 source_profile_function=None,
                 runtime_params_class=ion_cyclotron_source.RuntimeParams,
                 source_builder_class=ion_cyclotron_source.IonCyclotronSourceBuilder,
+            )
+        },
+    ),
+    cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.SOURCE_NAME: SupportedSource(
+        source_class=cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink,
+        model_functions={
+            cyclotron_radiation_heat_sink.CyclotronRadiationHeatSink.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=cyclotron_radiation_heat_sink.cyclotron_radiation_albajar,
+                runtime_params_class=cyclotron_radiation_heat_sink.RuntimeParams,
             )
         },
     ),

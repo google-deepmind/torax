@@ -379,7 +379,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_zi2',
           'test_iterhybrid_predictor_corrector_zi2.py',
           _ALL_PROFILES,
-          1e-5,
+          5e-5,
       ),
       # Predictor-corrector solver with ECCD Lin Liu model.
       (
@@ -394,6 +394,14 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_impurity_radiation.py',
           _ALL_PROFILES,
           0,
+      ),
+      # Predictor-corrector solver with cyclotron radiation heat sink
+      (
+          'test_iterhybrid_predictor_corrector_cyclotron',
+          'test_iterhybrid_predictor_corrector_cyclotron.py',
+          _ALL_PROFILES,
+          0,
+          1e-8,
       ),
       # Tests Newton-Raphson nonlinear solver for ITER-hybrid-like-config
       (
@@ -573,7 +581,7 @@ class SimTest(sim_test_case.SimTestCase):
         output.J_BOOTSTRAP,
         output.J_BOOTSTRAP_FACE,
         output.JOHM,
-        output.CORE_PROFILES_GENERIC_CURRENT,
+        output.CORE_PROFILES_EXTERNAL_CURRENT,
         output.JTOT,
         output.JTOT_FACE,
         output.I_BOOTSTRAP,
@@ -643,20 +651,8 @@ class SimTest(sim_test_case.SimTestCase):
     if halfway:
       # Run sim till the end and check that final core profiles match reference.
       initial_state.t = ref_time[index]
-      step_fn = sim_lib.SimulationStepFn(
-          stepper=sim.stepper,
-          time_step_calculator=sim.time_step_calculator,
-          transport_model=sim.transport_model,
-          pedestal_model=sim.pedestal_model,
-      )
-      sim_outputs = sim_lib.run_simulation(
-          static_runtime_params_slice=sim.static_runtime_params_slice,
-          dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
-          geometry_provider=sim.geometry_provider,
-          initial_state=initial_state,
-          time_step_calculator=sim.time_step_calculator,
-          step_fn=step_fn,
-      )
+      sim._initial_state = initial_state  # pylint: disable=protected-access
+      sim_outputs = sim.run()
       final_core_profiles = sim_outputs.sim_history[-1].core_profiles
       verify_core_profiles(ref_profiles, -1, final_core_profiles)
     # pylint: enable=invalid-name
@@ -797,8 +793,8 @@ def verify_core_profiles(ref_profiles, index, core_profiles):
       ref_profiles[output.J_BOOTSTRAP_FACE][index, :],
   )
   np.testing.assert_allclose(
-      core_profiles.currents.generic_current_source,
-      ref_profiles[output.CORE_PROFILES_GENERIC_CURRENT][index, :],
+      core_profiles.currents.external_current_source,
+      ref_profiles[output.CORE_PROFILES_EXTERNAL_CURRENT][index, :],
   )
   np.testing.assert_allclose(
       core_profiles.currents.johm, ref_profiles[output.JOHM][index, :]

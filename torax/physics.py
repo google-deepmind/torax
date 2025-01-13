@@ -32,8 +32,6 @@ from torax.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid
 
-_DEUTERIUM_MASS_AMU = 2.014
-
 # Many variable names in this file use scientific or mathematical notation, so
 # disable pylint complaints.
 # pylint: disable=invalid-name
@@ -485,7 +483,8 @@ def calculate_plh_scaling_factor(
   )
 
   # Scale to average isotope mass.
-  P_LH_hi_dens = P_LH_hi_dens_D * _DEUTERIUM_MASS_AMU / core_profiles.Ai
+  A_deuterium = constants.ION_PROPERTIES_DICT['D']['A']
+  P_LH_hi_dens = P_LH_hi_dens_D * A_deuterium / core_profiles.Ai
 
   # Calculate low density branch of P_LH (in units of nref) from Eq 3 Ryter 2014
   ne_min_P_LH = (

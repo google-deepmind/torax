@@ -145,19 +145,32 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
-            attrs=('q_brems', 'q_rad'),
-            labels=(r'$Q_\mathrm{brems}$', r'$Q_\mathrm{rad}$'),
+            attrs=('q_brems', 'q_rad', 'q_cycl'),
+            labels=(
+                r'$Q_\mathrm{brems}$',
+                r'$Q_\mathrm{rad}$',
+                r'$Q_\mathrm{cycl}$',
+            ),
             ylabel=r'Heat sink density $[MW~m^{-3}]$',
             suppress_zero_values=True,  # Do not plot all-zero data
         ),
         plotruns_lib.PlotProperties(
             plot_type=plotruns_lib.PlotType.TIME_SERIES,
-            attrs=('p_auxiliary', 'p_ohmic', 'p_alpha', 'p_sink'),
+            attrs=(
+                'p_auxiliary',
+                'p_ohmic',
+                'p_alpha',
+                'p_brems',
+                'p_rad',
+                'p_cycl',
+            ),
             labels=(
                 r'$P_\mathrm{aux}$',
                 r'$P_\mathrm{ohm}$',
                 r'$P_\mathrm{\alpha}$',
-                r'$P_\mathrm{sink}$',
+                r'$P_\mathrm{brems}$',
+                r'$P_\mathrm{rad}$',
+                r'$P_\mathrm{cycl}$',
             ),
             ylabel=r'Total heating/sink powers $[MW]$',
             legend_fontsize=6,  # Smaller fontsize for this plot

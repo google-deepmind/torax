@@ -112,8 +112,8 @@ class Source(abc.ABC):
       source if another isn't specified.
     runtime_params: Input dataclass containing all the source-specific runtime
       parameters. At runtime, the parameters here are interpolated to a specific
-      time t and then passed to the model_func or formula, depending on the mode
-      this source is running in.
+      time t and then passed to the model_func, depending on the mode this
+      source is running in.
     affected_core_profiles: Core profiles affected by this source's profile(s).
       This attribute defines which equations the source profiles are terms for.
       By default, the number of affected core profiles should equal the rank of
@@ -123,8 +123,6 @@ class Source(abc.ABC):
       by this source.
     model_func: The function used when the the runtime type is set to
       "MODEL_BASED". If not provided, then it defaults to returning zeros.
-    formula: The prescribed formula used when the runtime type is set to
-      "FORMULA_BASED". If not provided, then it defaults to returning zeros.
     affected_core_profiles_ints: Derived property from the
       affected_core_profiles. Integer values of those enums.
   """
@@ -282,7 +280,7 @@ def get_source_profiles(
 ) -> chex.ArrayTree:
   """Returns source profiles requested by the runtime_params_lib.
 
-  This function handles MODEL_BASED, FORMULA_BASED, PRESCRIBED and ZERO sources.
+  This function handles MODEL_BASED, PRESCRIBED and ZERO sources.
   All other source types will be ignored.
   This function exists to simplify the creation of the profile to a set of
   jnp.where calls.

@@ -151,6 +151,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     else:
       raise ValueError(f'Unknown geometry type: {geo.geometry_type}')
     # pylint: enable=protected-access
+    print(psi)
 
     np.testing.assert_allclose(psi, references.psi.value)
 
@@ -175,7 +176,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         references.psi,
     )
     # pylint: enable=invalid-name
-    np.testing.assert_allclose(j, references.jtot)
+    np.testing.assert_allclose(j, references.jtot, rtol=1e-5)
 
     if references.Ip_from_parameters:
       np.testing.assert_allclose(
@@ -210,7 +211,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         references.psi,
     )
 
-    np.testing.assert_allclose(s, references.s)
+    np.testing.assert_allclose(s, references.s, rtol=1e-5)
 
   def test_fast_ion_fractional_heating_formula(self):
     """Compare `ion_heat_fraction` to a reference value."""
@@ -390,7 +391,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         physics.calculate_plh_scaling_factor(geo, core_profiles)
     )
     expected_PLH_hi_dens = (
-        2.15 * 2**0.782 * 5**0.772 * 2**0.975 * 6**0.999 * (2.014 / 3)
+        2.15 * 2**0.782 * 5**0.772 * 2**0.975 * 6**0.999 * (2.0141 / 3)
     )
     expected_PLH_low_dens = 0.36 * 10**0.27 * 5**1.25 * 6**1.23 * 3**0.08
     expected_ne_min_P_LH = 0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 / 10

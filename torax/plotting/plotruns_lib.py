@@ -97,6 +97,7 @@ class PlotData:
   j_bootstrap: np.ndarray  # [MA/m^2]
   j_ecrh: np.ndarray  # [MA/m^2]
   generic_current_source: np.ndarray  # [MA/m^2]
+  external_current_source: np.ndarray  # [MA/m^2]
   q: np.ndarray  # Dimensionless
   s: np.ndarray  # Dimensionless
   chi_i: np.ndarray  # [m^2/s]
@@ -112,6 +113,7 @@ class PlotData:
   q_alpha_e: np.ndarray  # [MW/m^3]
   q_ohmic: np.ndarray  # [MW/m^3]
   q_brems: np.ndarray  # [MW/m^3]
+  q_cycl: np.ndarray  # [MW/m^3]
   q_ei: np.ndarray  # [MW/m^3]
   q_rad: np.ndarray  # [MW/m^3]
   Q_fusion: np.ndarray  # pylint: disable=invalid-name  # Dimensionless
@@ -126,6 +128,9 @@ class PlotData:
   p_ohmic: np.ndarray  # [MW]
   p_alpha: np.ndarray  # [MW]
   p_sink: np.ndarray  # [MW]
+  p_brems: np.ndarray  # [MW]
+  p_cycl: np.ndarray  # [MW]
+  p_rad: np.ndarray  # [MW]
   t: np.ndarray  # [s]
   rho_cell_coord: np.ndarray  # Normalized toroidal flux coordinate
   rho_face_coord: np.ndarray  # Normalized toroidal flux coordinate
@@ -165,7 +170,8 @@ def load_data(filename: str) -> PlotData:
         output.JTOT: 1e6,  # A/m^2 to MA/m^2
         output.JOHM: 1e6,  # A/m^2 to MA/m^2
         output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
-        output.CORE_PROFILES_GENERIC_CURRENT: 1e6,  # A/m^2 to MA/m^2
+        output.CORE_PROFILES_EXTERNAL_CURRENT: 1e6,  # A/m^2 to MA/m^2
+        'generic_current_source': 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
         output.IP_PROFILE_FACE: 1e6,  # A to MA
         'electron_cyclotron_source_j': 1e6,  # A/m^2 to MA/m^2
@@ -180,12 +186,14 @@ def load_data(filename: str) -> PlotData:
         'fusion_heat_source_el': 1e6,  # W/m^3 to MW/m^3
         'ohmic_heat_source': 1e6,  # W/m^3 to MW/m^3
         'bremsstrahlung_heat_sink': 1e6,  # W/m^3 to MW/m^3
+        'cyclotron_radiation_heat_sink': 1e6,  # W/m^3 to MW/m^3
         'impurity_radiation_heat_sink': 1e6,  # W/m^3 to MW/m^3
         'qei_source': 1e6,  # W/m^3 to MW/m^3
         'P_ohmic': 1e6,  # W to MW
         'P_external_tot': 1e6,  # W to MW
         'P_alpha_tot': 1e6,  # W to MW
         'P_brems': 1e6,  # W to MW
+        'P_cycl': 1e6,  # W to MW
         'P_ecrh': 1e6,  # W to MW
         'P_rad': 1e6,  # W to MW
         'I_ecrh': 1e6,  # A to MA
@@ -217,11 +225,14 @@ def load_data(filename: str) -> PlotData:
       j=core_profiles_dataset[output.JTOT].to_numpy(),
       johm=core_profiles_dataset[output.JOHM].to_numpy(),
       j_bootstrap=core_profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
-      generic_current_source=core_profiles_dataset[
-          output.CORE_PROFILES_GENERIC_CURRENT
+      external_current_source=core_profiles_dataset[
+          output.CORE_PROFILES_EXTERNAL_CURRENT
       ].to_numpy(),
       j_ecrh=get_optional_data(
           core_sources_dataset, 'electron_cyclotron_source_j', 'cell'
+      ),
+      generic_current_source=get_optional_data(
+          core_sources_dataset, 'generic_current_source', 'cell'
       ),
       q=core_profiles_dataset[output.Q_FACE].to_numpy(),
       s=core_profiles_dataset[output.S_FACE].to_numpy(),
@@ -258,6 +269,9 @@ def load_data(filename: str) -> PlotData:
       q_brems=get_optional_data(
           core_sources_dataset, 'bremsstrahlung_heat_sink', 'cell'
       ),
+      q_cycl=get_optional_data(
+          core_sources_dataset, 'cyclotron_radiation_heat_sink', 'cell'
+      ),
       q_rad=get_optional_data(
           core_sources_dataset, 'impurity_radiation_heat_sink', 'cell'
       ),
@@ -279,7 +293,11 @@ def load_data(filename: str) -> PlotData:
       ).to_numpy(),
       p_alpha=post_processed_outputs_dataset['P_alpha_tot'].to_numpy(),
       p_sink=post_processed_outputs_dataset['P_brems'].to_numpy()
-      + post_processed_outputs_dataset['P_rad'].to_numpy(),
+      + post_processed_outputs_dataset['P_rad'].to_numpy()
+      + post_processed_outputs_dataset['P_cycl'].to_numpy(),
+      p_brems=post_processed_outputs_dataset['P_brems'].to_numpy(),
+      p_rad=post_processed_outputs_dataset['P_rad'].to_numpy(),
+      p_cycl=post_processed_outputs_dataset['P_cycl'].to_numpy(),
       te_volume_avg=post_processed_outputs_dataset['te_volume_avg'].to_numpy(),
       ti_volume_avg=post_processed_outputs_dataset['ti_volume_avg'].to_numpy(),
       ne_volume_avg=post_processed_outputs_dataset['ne_volume_avg'].to_numpy(),
@@ -464,12 +482,15 @@ def format_plots(
       )
 
     lower_bound = ymin / 1.05 if ymin > 0 else ymin * 1.05
-    if cfg.ylim_min_zero:
-      ax.set_ylim([min(lower_bound, 0), ymax * 1.05])
-    else:
-      ax.set_ylim([lower_bound, ymax * 1.05])
 
-    ax.legend(fontsize=cfg.legend_fontsize)
+    # Guard against empty data
+    if ymax != 0 or ymin != 0:  # Check for meaningful data range
+      if cfg.ylim_min_zero:
+        ax.set_ylim([min(lower_bound, 0), ymax * 1.05])
+      else:
+        ax.set_ylim([lower_bound, ymax * 1.05])
+
+      ax.legend(fontsize=cfg.legend_fontsize)
 
 
 def get_rho(

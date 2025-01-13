@@ -35,53 +35,17 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
         source_class=generic_current_source.GenericCurrentSource,
         runtime_params_class=generic_current_source.RuntimeParams,
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
-        model_func=generic_current_source.calculate_generic_current_face,
+        model_func=generic_current_source.calculate_generic_current,
     )
 
-  def test_generic_current_hires(self):
-    """Tests that a formula-based source provides values when called."""
-    source_builder = self._source_class_builder()
-    source = source_builder()
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    # Must be circular for generic_current_hires call.
-    geo = geometry.build_circular_geometry()
-    dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-        runtime_params,
-        sources={
-            generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-                source_builder.runtime_params
-            ),
-        },
-        torax_mesh=geo.torax_mesh,
-    )(
-        t=runtime_params.numerics.t_initial,
-    )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
-        source_runtime_params={
-            generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-                source_builder.runtime_params
-            ),
-        },
-        torax_mesh=geo.torax_mesh,
-    )
-    self.assertIsInstance(source, generic_current_source.GenericCurrentSource)
-    self.assertIsNotNone(
-        source.generic_current_source_hires(
-            dynamic_runtime_params_slice=dynamic_slice,
-            static_runtime_params_slice=static_slice,
-            geo=geo,
-        )
-    )
-
-  def test_profile_is_on_face_grid(self):
-    """Tests that the profile is given on the face grid."""
+  def test_profile_is_on_cell_grid(self):
+    """Tests that the profile is given on the cell grid."""
     geo = geometry.build_circular_geometry()
     source_builder = self._source_class_builder()
     source = source_builder()
     self.assertEqual(
         source.output_shape_getter(geo),
-        source_lib.ProfileType.FACE.get_profile_shape(geo),
+        source_lib.ProfileType.CELL.get_profile_shape(geo),
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -111,7 +75,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
             geo,
             core_profiles=None,
         ).shape,
-        source_lib.ProfileType.FACE.get_profile_shape(geo),
+        source_lib.ProfileType.CELL.get_profile_shape(geo),
     )
 
   @parameterized.named_parameters(
@@ -136,11 +100,11 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
 
     # Build a face profile with 3 values on a 2-cell grid.
     geo = geometry.build_circular_geometry(n_rho=2)
-    face_profile = np.array([1, 2, 3])
+    cell_profile = np.array([1.5, 2.5])
 
     np.testing.assert_allclose(
         source.get_source_profile_for_affected_core_profile(
-            face_profile,
+            cell_profile,
             affected_core_profile.value,
             geo,
         ),

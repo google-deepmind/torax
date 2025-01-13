@@ -219,7 +219,7 @@ TORAX currently offers three transport models:
     quasilinear gyrokinetic transport model itself. Since QuaLiKiz is an external code (written in Fortran),
     both `QuaLiKiz <https://gitlab.com/qualikiz-group/QuaLiKiz>`_ and its associated
     `QuaLiKiz Pythontools <https://gitlab.com/qualikiz-group/QuaLiKiz-pythontools>`_ must be installed separately.
-    The path to the QuaLiKiz executable must be set in the ``TORAX_QLK_EXEC_PATH`` environment variable.
+    (tag 1.4.1 or higher) The path to the QuaLiKiz executable must be set in the ``TORAX_QLK_EXEC_PATH`` environment variable.
     If this environment variable is not set, then the default is ``~/qualikiz/QuaLiKiz``.
     See above links for installation instructions. QuaLiKiz and TORAX exchange data via file I/O on
     a temporary directory. Since transport model calls are ostensibly carried out within JAX-compiled functions,
@@ -409,8 +409,8 @@ Presently, TORAX provides three built-in formula-based particle sources for the 
 
 Radiation
 ---------
-Currently, TORAX only has a dedicated model for Bremsstrahlung. Models for cyclotron radiation,
-recombination, and line radiation are still left for future work.
+Currently, TORAX has dedicated models for Bremsstrahlung and cyclotron radiation.
+Models for line radiation are left for future work.
 
 Bremsstrahlung
 ^^^^^^^^^^^^^^
@@ -418,8 +418,16 @@ Bremsstrahlung
 Uses the model from Wesson, John, and David J. Campbell. Tokamaks. Vol. 149.
 An optional correction for relativistic effects from Stott PPCF 2005 can be enabled with the flag "use_relativistic_correction".
 
-Ion Cyclotron Resonance
-^^^^^^^^^^^^^^^^^^^^^^^
+Cyclotron Radiation
+^^^^^^^^^^^^^^^^^^^
+
+Uses the total radiation power from `Albajar NF 2001 <https://doi.org/10.1088/0029-5515/41/6/301>`_
+with a deposition profile from `Artaud NF 2018 <https://doi.org/10.1088/1741-4326/aad5b1>`_.
+The Albajar model includes a parameterization of the temperature profile which in TORAX is fit by simple
+grid search for computational efficiency.
+
+Ion Cyclotron Resonance Heating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Presently this source is implemented for a SPARC specific ICRH scenario.
 

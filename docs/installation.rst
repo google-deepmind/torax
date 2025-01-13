@@ -97,5 +97,14 @@ Enter the TORAX directory and pip install the dependencies.
 
   cd torax; pip install .
 
+**Recommended** for developers. Instead of the above, install optional dependencies
+for (parallel) pytest and documentation generation. Also install in editable mode to
+not require reinstallation for every change.
+
+.. code-block:: console
+
+  cd torax; pip install -e .[dev]
+
+
 Optional: Install additional GPU support for JAX if your machine has a GPU:
 https://jax.readthedocs.io/en/latest/installation.html#supported-platforms

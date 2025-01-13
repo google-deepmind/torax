@@ -44,7 +44,7 @@ class Currents:
   jtot: array_typing.ArrayFloat
   jtot_face: array_typing.ArrayFloat
   johm: array_typing.ArrayFloat
-  generic_current_source: array_typing.ArrayFloat
+  external_current_source: array_typing.ArrayFloat
   j_bootstrap: array_typing.ArrayFloat
   j_bootstrap_face: array_typing.ArrayFloat
   # pylint: disable=invalid-name
@@ -75,7 +75,7 @@ class Currents:
         jtot=jnp.zeros(geo.rho_face.shape),
         jtot_face=jnp.zeros(geo.rho_face.shape),
         johm=jnp.zeros(geo.rho_face.shape),
-        generic_current_source=jnp.zeros(geo.rho_face.shape),
+        external_current_source=jnp.zeros(geo.rho_face.shape),
         j_bootstrap=jnp.zeros(geo.rho_face.shape),
         j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
         I_bootstrap=jnp.array(0.0),
@@ -315,6 +315,7 @@ class PostProcessedOutputs:
     P_alpha_tot: Total fusion power to plasma [W]
     P_ohmic: Ohmic heating power to electrons [W]
     P_brems: Bremsstrahlung electron heat sink [W]
+    P_cycl: Cyclotron radiation electron heat sink [W]
     P_ecrh: Total electron cyclotron source power [W]
     P_rad: Impurity radiation heat sink [W]
     I_ecrh: Total electron cyclotron source current [A]
@@ -370,6 +371,7 @@ class PostProcessedOutputs:
   P_alpha_tot: array_typing.ScalarFloat
   P_ohmic: array_typing.ScalarFloat
   P_brems: array_typing.ScalarFloat
+  P_cycl: array_typing.ScalarFloat
   P_ecrh: array_typing.ScalarFloat
   P_rad: array_typing.ScalarFloat
   I_ecrh: array_typing.ScalarFloat
@@ -424,6 +426,7 @@ class PostProcessedOutputs:
         P_alpha_tot=jnp.array(0.0),
         P_ohmic=jnp.array(0.0),
         P_brems=jnp.array(0.0),
+        P_cycl=jnp.array(0.0),
         P_ecrh=jnp.array(0.0),
         P_rad=jnp.array(0.0),
         I_ecrh=jnp.array(0.0),

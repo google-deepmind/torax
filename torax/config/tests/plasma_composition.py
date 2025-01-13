@@ -23,7 +23,7 @@ from torax.geometry import geometry
 
 
 class PlasmaCompositionTest(parameterized.TestCase):
-  """Unit tests for the `torax.config.plasma_composition` module."""
+  """Unit tests for methods in the `torax.config.plasma_composition` module."""
 
   def test_plasma_composition_make_provider(self):
     """Checks provider construction with no issues."""
@@ -115,6 +115,47 @@ class PlasmaCompositionTest(parameterized.TestCase):
       value = getattr(provider, field)
       if isinstance(value, interpolated_param.InterpolatedParamBase):
         self.assertIs(value, interpolated_params[field])
+
+
+class IonMixtureTest(parameterized.TestCase):
+  """Unit tests for constructing the IonMixture class."""
+
+  @parameterized.named_parameters(
+      ('valid_constant', {'D': 0.5, 'T': 0.5}, False),
+      (
+          'valid_time_dependent',
+          {'D': {0: 0.6, 1: 0.7}, 'T': {0: 0.4, 1: 0.3}},
+          False,
+      ),
+      (
+          'valid_time_dependent_with_step',
+          {'D': ({0: 0.6, 1: 0.7}, 'step'), 'T': {0: 0.4, 1: 0.3}},
+          False,
+      ),
+      ('invalid_empty', {}, True),
+      ('invalid_fractions', {'D': 0.4, 'T': 0.3}, True),
+      (
+          'invalid_time_mismatch',
+          {'D': {0: 0.5, 1: 0.6}, 'T': {0: 0.5, 2: 0.4}},
+          True,
+      ),
+      (
+          'invalid_time_dependent_fractions',
+          {'D': {0: 0.6, 1: 0.7}, 'T': {0: 0.5, 1: 0.4}},
+          True,
+      ),
+      ('valid_tolerance', {'D': 0.49999999, 'T': 0.5}, False),
+      ('invalid_tolerance', {'D': 0.4999, 'T': 0.5}, True),
+      ('invalid_not_mapping', 'D', True),
+      ('invalid_ion_symbol', {'De': 0.5, 'Tr': 0.5}, True),
+  )
+  def test_ion_mixture_constructor(self, input_species, should_raise):
+    """Tests various cases of IonMixture construction."""
+    if should_raise:
+      with self.assertRaises(ValueError):
+        plasma_composition.IonMixture(species=input_species)
+    else:
+      plasma_composition.IonMixture(species=input_species)
 
 
 if __name__ == '__main__':

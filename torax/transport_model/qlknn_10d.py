@@ -29,6 +29,7 @@ from torax.transport_model import base_qlknn_model
 from torax.transport_model import qualikiz_based_transport_model
 
 # Internal import.
+# Internal import.
 
 # Move this to common lib.
 _ACTIVATION_FNS: Final[Mapping[str, Callable[[jax.Array], jax.Array]]] = (
@@ -95,9 +96,7 @@ class QuaLiKizNDNN:
     self._model = MLP(hidden_sizes=hidden_sizes, activations=activations)
 
   def _load_prescale(self, key: str, names: list[str]) -> np.ndarray:
-    return np.array([self._model_config[key][k] for k in names])[
-        np.newaxis, :
-    ]
+    return np.array([self._model_config[key][k] for k in names])[np.newaxis, :]
 
   def __call__(
       self,
@@ -161,16 +160,12 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
 
     model_output = {}
     model_output['qi_itg'] = self.net_itgleading(inputs).clip(0)
-    model_output['qe_itg'] = (
-        self.net_itgqediv(inputs) * model_output['qi_itg']
-    )
+    model_output['qe_itg'] = self.net_itgqediv(inputs) * model_output['qi_itg']
     model_output['pfe_itg'] = (
         self.net_itgpfediv(inputs) * model_output['qi_itg']
     )
     model_output['qe_tem'] = self.net_temleading(inputs).clip(0)
-    model_output['qi_tem'] = (
-        self.net_temqidiv(inputs) * model_output['qe_tem']
-    )
+    model_output['qi_tem'] = self.net_temqidiv(inputs) * model_output['qe_tem']
     model_output['pfe_tem'] = (
         self.net_tempfediv(inputs) * model_output['qe_tem']
     )

@@ -179,8 +179,10 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             torax_mesh=geo.torax_mesh,
         )
     )
-
-    sim_outputs = sim_lib.run_simulation(
+    sim = sim_lib.Sim(
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+        geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
         initial_state=sim_lib.get_initial_state(
             static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice=initial_dcs,
@@ -189,12 +191,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             source_models=source_models,
             step_fn=step_fn,
         ),
-        step_fn=step_fn,
-        geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
-        dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-        static_runtime_params_slice=static_runtime_params_slice,
         time_step_calculator=time_stepper,
+        step_fn=step_fn,
+        source_models_builder=source_models_builder,
     )
+
+    sim_outputs = sim.run()
 
     # The implicit and explicit profiles get merged together before being
     # outputted, and they are aligned as well as possible to be computed based
@@ -326,13 +328,21 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
   def stepper(self):
     return self._stepper
 
+  @property
+  def transport_model(self):
+    return self._stepper.transport_model
+
+  @property
+  def pedestal_model(self):
+    return self._stepper.pedestal_model
+
   def __call__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state_module.ToraxSimState,
-  ) -> state_module.ToraxSimState:
+  ) -> tuple[state_module.ToraxSimState, state_module.SimError]:
     dt, ts_state = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
             t=input_state.t,
@@ -359,7 +369,7 @@ class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
             source_models=self.stepper.source_models,
             explicit=False,
         ),
-    )
+    ), state_module.SimError.NO_ERROR
 
 
 if __name__ == '__main__':

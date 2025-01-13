@@ -98,14 +98,6 @@ class BootstrapCurrentSource(source.Source):
     return self.SOURCE_NAME
 
   @property
-  def supported_modes(self) -> tuple[runtime_params_lib.Mode, ...]:
-    return (
-        runtime_params_lib.Mode.ZERO,
-        runtime_params_lib.Mode.MODEL_BASED,
-        runtime_params_lib.Mode.PRESCRIBED,
-    )
-
-  @property
   def output_shape_getter(self) -> source.SourceOutputShapeFunction:
     return _default_output_shapes
 
