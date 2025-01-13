@@ -167,7 +167,7 @@ def update_sim(
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
     stepper_runtime_params: stepper_runtime_params_lib.RuntimeParams,
     pedestal_runtime_params: pedestal_runtime_params_lib.RuntimeParams,
-) -> sim_lib.Sim:
+) -> None:
   """Updates the sim with a new set of runtime params and geometry."""
   # NOTE: This function will NOT update any of the following:
   #  - stepper (for the mesh state)
@@ -175,8 +175,6 @@ def update_sim(
   #  - spectator
   #  - time step calculator
   #  - source objects (runtime params are updated)
-
-  _update_source_params(sim, source_runtime_params)
   static_runtime_params_slice = (
       runtime_params_slice.build_static_runtime_params_slice(
           runtime_params=runtime_params,
@@ -189,49 +187,19 @@ def update_sim(
       runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           transport=transport_runtime_params,
-          sources=sim.source_models_builder.runtime_params,
+          sources=source_runtime_params,
           stepper=stepper_runtime_params,
           pedestal=pedestal_runtime_params,
           torax_mesh=geo_provider.torax_mesh,
       )
   )
 
-  geo = geo_provider(runtime_params.numerics.t_initial)
-  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      t=runtime_params.numerics.t_initial,
-  )
-  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
-      dynamic_runtime_params_slice, geo
-  )
-  initial_state = sim_lib.get_initial_state(
+  sim.update_base_components(
+      allow_recompilation=True,
       static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      time_step_calculator=sim.time_step_calculator,
-      source_models=sim.source_models,
-      step_fn=sim.step_fn,
-  )
-  return sim_lib.Sim(
-      time_step_calculator=sim.time_step_calculator,
-      initial_state=initial_state,
-      geometry_provider=geo_provider,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-      static_runtime_params_slice=static_runtime_params_slice,
-      step_fn=sim.step_fn,
-      source_models_builder=sim.source_models_builder,
+      geometry_provider=geo_provider,
   )
-
-
-def _update_source_params(
-    sim: sim_lib.Sim,
-    source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
-) -> None:
-  for source_name, source_runtime_params in source_runtime_params.items():
-    if source_name not in sim.source_models.sources:
-      raise ValueError(f'Source {source_name} not found in sim.')
-    sim.source_models_builder.source_builders[source_name].runtime_params = (
-        source_runtime_params
-    )
 
 
 def can_plot() -> bool:

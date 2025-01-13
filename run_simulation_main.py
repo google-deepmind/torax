@@ -286,7 +286,7 @@ def change_config(
         f' not match the existing transport model {type(sim.transport_model)}.'
         ' When using this option, you cannot change the transport model.'
     )
-  sim = simulation_app.update_sim(
+  simulation_app.update_sim(
       sim=sim,
       runtime_params=new_runtime_params,
       geo_provider=new_geo_provider,

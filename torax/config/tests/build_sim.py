@@ -108,8 +108,8 @@ class BuildSimTest(parameterized.TestCase):
       self.assertEqual(geo.torax_mesh.nx, 5)
     with self.subTest('sources'):
       self.assertEqual(
-          sim.source_models_builder.runtime_params['pellet_source'].mode,
-          source_runtime_params_lib.Mode.ZERO,
+          sim.static_runtime_params_slice.sources['pellet_source'].mode,
+          source_runtime_params_lib.Mode.ZERO.value,
       )
     with self.subTest('transport'):
       self.assertIsInstance(

@@ -600,7 +600,7 @@ class SimTest(sim_test_case.SimTestCase):
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
         t=loading_time,
     )
-    source_models = sim.source_models_builder()
+    source_models = sim.stepper.source_models
 
     # Load in the reference core profiles.
     Ip_total = ref_profiles[output.IP_PROFILE_FACE][index, -1] / 1e6

@@ -258,7 +258,6 @@ class SimTestCase(parameterized.TestCase):
           dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
           static_runtime_params_slice=sim.static_runtime_params_slice,
           step_fn=sim.step_fn,
-          source_models_builder=sim.source_models_builder,
       )
 
     # Build geo needed for output generation

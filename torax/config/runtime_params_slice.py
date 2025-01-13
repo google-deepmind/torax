@@ -144,6 +144,13 @@ class StaticRuntimeParamsSlice:
         self.adaptive_dt,
     ))
 
+  def validate_new(self, new_params: StaticRuntimeParamsSlice):
+    """Validates that the new static runtime params slice is compatible."""
+    if set(new_params.sources) != set(self.sources):
+      raise ValueError(
+          'New static runtime params slice has different sources.'
+      )
+
 
 def _build_dynamic_sources(
     sources: dict[str, sources_params.RuntimeParamsProvider],
@@ -277,6 +284,20 @@ class DynamicRuntimeParamsSliceProvider:
     self._stepper = stepper
     self._pedestal_runtime_params = pedestal
     self._construct_providers()
+
+  @property
+  def sources(self) -> dict[str, sources_params.RuntimeParams]:
+    return self._sources
+
+  def validate_new(
+      self,
+      new_provider: DynamicRuntimeParamsSliceProvider,
+  ):
+    """Validates that the new provider is compatible."""
+    if set(new_provider.sources) != set(self.sources):
+      raise ValueError(
+          'New dynamic runtime params slice provider has different sources.'
+      )
 
   @property
   def runtime_params_provider(

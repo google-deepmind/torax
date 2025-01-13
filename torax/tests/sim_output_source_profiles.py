@@ -193,7 +193,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         ),
         time_step_calculator=time_stepper,
         step_fn=step_fn,
-        source_models_builder=source_models_builder,
     )
 
     sim_outputs = sim.run()

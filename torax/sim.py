@@ -662,7 +662,6 @@ class Sim:
       geometry_provider: geometry_provider_lib.GeometryProvider,
       initial_state: state.ToraxSimState,
       time_step_calculator: ts.TimeStepCalculator,
-      source_models_builder: source_models_lib.SourceModelsBuilder,
       step_fn: SimulationStepFn,
       file_restart: general_runtime_params.FileRestart | None = None,
   ):
@@ -673,7 +672,6 @@ class Sim:
     self._geometry_provider = geometry_provider
     self._initial_state = initial_state
     self._time_step_calculator = time_step_calculator
-    self.source_models_builder = source_models_builder
     self._stepper = step_fn.stepper
     self._transport_model = step_fn.transport_model
     self._pedestal_model = step_fn.pedestal_model
@@ -731,6 +729,10 @@ class Sim:
   def update_base_components(
       self,
       *,
+      allow_recompilation: bool = False,
+      static_runtime_params_slice: (
+          runtime_params_slice.StaticRuntimeParamsSlice | None
+      ) = None,
       dynamic_runtime_params_slice_provider: (
           runtime_params_slice.DynamicRuntimeParamsSliceProvider | None
       ) = None,
@@ -743,6 +745,12 @@ class Sim:
     recompilation.
 
     Args:
+      allow_recompilation: Whether recompilation is allowed. If True, the
+        static runtime params slice can be updated. NOTE: recompilaton may
+        still occur if the mesh is updated or if the shapes returned in the
+        dynamic runtime params slice provider change even if this is False.
+      static_runtime_params_slice: The new static runtime params slice. If None,
+        the existing one is kept.
       dynamic_runtime_params_slice_provider: The new dynamic runtime params
         slice provider. This should already have been updated with modifications
         to the various components. If None, the existing one is kept.
@@ -757,7 +765,21 @@ class Sim:
       # TODO(b/384767453): Add support for updating a Sim object with a file
       # restart.
       raise ValueError('Cannot update a Sim object with a file restart.')
+    if not allow_recompilation and static_runtime_params_slice is not None:
+      raise ValueError(
+          'Cannot update a Sim object with a static runtime params slice if '
+          'recompilation is not allowed.'
+      )
+
+    if static_runtime_params_slice is not None:
+      self._static_runtime_params_slice.validate_new(
+          static_runtime_params_slice
+      )
+      self._static_runtime_params_slice = static_runtime_params_slice
     if dynamic_runtime_params_slice_provider is not None:
+      self._dynamic_runtime_params_slice_provider.validate_new(
+          dynamic_runtime_params_slice_provider
+      )
       self._dynamic_runtime_params_slice_provider = (
           dynamic_runtime_params_slice_provider
       )
@@ -771,7 +793,7 @@ class Sim:
 
     dynamic_runtime_params_slice_for_init, geo_for_init = (
         get_consistent_dynamic_runtime_params_slice_and_geometry(
-            self._initial_state.t,
+            self._dynamic_runtime_params_slice_provider.runtime_params_provider.numerics.runtime_params_config.t_initial,
             self._dynamic_runtime_params_slice_provider,
             self._geometry_provider,
         )
@@ -1028,7 +1050,6 @@ def build_sim_object(
       initial_state=initial_state,
       time_step_calculator=time_step_calculator,
       step_fn=step_fn,
-      source_models_builder=source_models_builder,
       file_restart=file_restart,
   )
 
