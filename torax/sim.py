@@ -57,19 +57,6 @@ from torax.transport_model import transport_model as transport_model_lib
 import xarray as xr
 
 
-def _log_timestep(
-    t: jax.Array, dt: jax.Array, outer_stepper_iterations: int
-) -> None:
-  """Logs basic timestep info."""
-  logging.info(
-      '\nSimulation time: %.5f, previous dt: %.6f, previous stepper'
-      ' iterations: %d',
-      t,
-      dt,
-      outer_stepper_iterations,
-  )
-
-
 def get_consistent_dynamic_runtime_params_slice_and_geometry(
     t: chex.Numeric,
     dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
@@ -147,7 +134,7 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
-  ) -> state.ToraxSimState:
+  ) -> tuple[state.ToraxSimState, state.SimError]:
     """Advances the simulation state one time step.
 
     Args:
@@ -179,6 +166,7 @@ class SimulationStepFn:
             1 if solver did not converge for this step (was above coarse tol)
             2 if solver converged within coarse tolerance. Allowed to pass with
               a warning. Occasional error=2 has low impact on final sim state.
+      SimError indicating if an error has occurred during simulation.
     """
     dynamic_runtime_params_slice_t, geo_t = (
         get_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -259,13 +247,14 @@ class SimulationStepFn:
           explicit_source_profiles,
       )
 
-    return self.finalize_output(
+    sim_state = self.finalize_output(
         input_state,
         output_state,
         dynamic_runtime_params_slice_t_plus_dt,
         static_runtime_params_slice,
         geo_t_plus_dt,
     )
+    return sim_state, sim_state.check_for_errors()
 
   def init_time_step_calculator(
       self,
@@ -811,7 +800,7 @@ class Sim:
       Tuple of all ToraxSimStates, one per time step and an additional one at
       the beginning for the starting state.
     """
-    return run_simulation(
+    return _run_simulation(
         static_runtime_params_slice=self.static_runtime_params_slice,
         dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
         geometry_provider=self.geometry_provider,
@@ -822,7 +811,7 @@ class Sim:
     )
 
 
-def override_initial_runtime_params_from_file(
+def _override_initial_runtime_params_from_file(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     t_restart: float,
@@ -876,7 +865,7 @@ def override_initial_runtime_params_from_file(
   return dynamic_runtime_params_slice, geo
 
 
-def override_initial_state_post_processed_outputs_from_file(
+def _override_initial_state_post_processed_outputs_from_file(
     geo: geometry.Geometry,
     ds: xr.Dataset,
 ) -> state.PostProcessedOutputs:
@@ -987,7 +976,7 @@ def build_sim_object(
       )
     # Override some of dynamic runtime params slice from t=t_initial.
     dynamic_runtime_params_slice_for_init, geo_for_init = (
-        override_initial_runtime_params_from_file(
+        _override_initial_runtime_params_from_file(
             dynamic_runtime_params_slice_for_init,
             geo_for_init,
             t_restart,
@@ -1002,7 +991,7 @@ def build_sim_object(
     )
     post_processed_dataset = post_processed_dataset.squeeze()
     post_processed_outputs = (
-        override_initial_state_post_processed_outputs_from_file(
+        _override_initial_state_post_processed_outputs_from_file(
             geo_for_init,
             post_processed_dataset,
         )
@@ -1044,7 +1033,7 @@ def build_sim_object(
   )
 
 
-def run_simulation(
+def _run_simulation(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
@@ -1126,15 +1115,14 @@ def run_simulation(
   )
 
   sim_state = initial_state
+  sim_history = []
+  sim_state = post_processing.make_outputs(sim_state=sim_state, geo=geo)
+  sim_history.append(sim_state)
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
   # the appropriate error code.
   sim_error = state.SimError.NO_ERROR
 
-  # Initialize first_step, used to post-process and append the initial state to
-  # the sim_history.
-  first_step = True
-  sim_history = []
   # Advance the simulation until the time_step_calculator tells us we are done.
   while time_step_calculator.not_done(
       sim_state.t,
@@ -1144,29 +1132,9 @@ def run_simulation(
     # Measure how long in wall clock time each simulation step takes.
     step_start_time = time.time()
     if log_timestep_info:
-      _log_timestep(
-          sim_state.t,
-          sim_state.dt,
-          sim_state.stepper_numeric_outputs.outer_stepper_iterations,
-      )
-      # TODO(b/330172917): once tol and coarse_tol are configurable in the
-      # runtime_params, also log the value of tol and coarse_tol below
-      match sim_state.stepper_numeric_outputs.stepper_error_state:
-        case 0:
-          pass
-        case 1:
-          logging.info('Solver did not converge in previous step.')
-        case 2:
-          logging.info(
-              'Solver converged only within coarse tolerance in previous step.'
-          )
+      _log_timestep(sim_state)
 
-    if first_step:
-      # Initialize the sim_history with the initial state.
-      sim_state = post_processing.make_outputs(sim_state=sim_state, geo=geo)
-      sim_history.append(sim_state)
-      first_step = False
-    sim_state = step_fn(
+    sim_state, sim_error = step_fn(
         static_runtime_params_slice,
         dynamic_runtime_params_slice_provider,
         geometry_provider,
@@ -1177,7 +1145,6 @@ def run_simulation(
     # Checks if sim_state is valid. If not, exit simulation early.
     # We don't raise an Exception because we want to return the truncated
     # simulation history to the user for inspection.
-    sim_error = sim_state.check_for_errors()
     if sim_error != state.SimError.NO_ERROR:
       sim_error.log_error()
       break
@@ -1187,15 +1154,18 @@ def run_simulation(
   # Log final timestep
   if log_timestep_info and sim_error == state.SimError.NO_ERROR:
     # The "sim_state" here has been updated by the loop above.
-    _log_timestep(
-        sim_state.t,
-        sim_state.dt,
-        sim_state.stepper_numeric_outputs.outer_stepper_iterations,
-    )
+    _log_timestep(sim_state)
 
   # Update the final time step's source profiles based on the explicit source
   # profiles computed based on the final state.
   logging.info("Updating last step's source profiles.")
+  dynamic_runtime_params_slice, geo = (
+      get_consistent_dynamic_runtime_params_slice_and_geometry(
+          sim_state.t,
+          dynamic_runtime_params_slice_provider,
+          geometry_provider,
+      )
+  )
   explicit_source_profiles = source_models_lib.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
@@ -1579,3 +1549,27 @@ def merge_source_profiles(
       j_bootstrap=summed_bootstrap_profile,
       qei=summed_qei_info,
   )
+
+
+def _log_timestep(
+    sim_state: state.ToraxSimState,
+) -> None:
+  """Logs basic timestep info."""
+  logging.info(
+      '\nSimulation time: %.5f, previous dt: %.6f, previous stepper'
+      ' iterations: %d',
+      sim_state.t,
+      sim_state.dt,
+      sim_state.stepper_numeric_outputs.outer_stepper_iterations,
+  )
+  # TODO(b/330172917): once tol and coarse_tol are configurable in the
+  # runtime_params, also log the value of tol and coarse_tol below
+  match sim_state.stepper_numeric_outputs.stepper_error_state:
+    case 0:
+      pass
+    case 1:
+      logging.info('Solver did not converge in previous step.')
+    case 2:
+      logging.info(
+          'Solver converged only within coarse tolerance in previous step.'
+      )

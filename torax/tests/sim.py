@@ -651,20 +651,8 @@ class SimTest(sim_test_case.SimTestCase):
     if halfway:
       # Run sim till the end and check that final core profiles match reference.
       initial_state.t = ref_time[index]
-      step_fn = sim_lib.SimulationStepFn(
-          stepper=sim.stepper,
-          time_step_calculator=sim.time_step_calculator,
-          transport_model=sim.transport_model,
-          pedestal_model=sim.pedestal_model,
-      )
-      sim_outputs = sim_lib.run_simulation(
-          static_runtime_params_slice=sim.static_runtime_params_slice,
-          dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
-          geometry_provider=sim.geometry_provider,
-          initial_state=initial_state,
-          time_step_calculator=sim.time_step_calculator,
-          step_fn=step_fn,
-      )
+      sim._initial_state = initial_state  # pylint: disable=protected-access
+      sim_outputs = sim.run()
       final_core_profiles = sim_outputs.sim_history[-1].core_profiles
       verify_core_profiles(ref_profiles, -1, final_core_profiles)
     # pylint: enable=invalid-name

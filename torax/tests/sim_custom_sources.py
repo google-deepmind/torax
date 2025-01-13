@@ -243,14 +243,8 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
             stepper=self.stepper_builder.runtime_params,
         )
     )
-    sim_outputs = sim_lib.run_simulation(
-        initial_state=sim.initial_state,
-        step_fn=sim.step_fn,
-        geometry_provider=sim.geometry_provider,
-        dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
-        static_runtime_params_slice=static_runtime_params_slice,
-        time_step_calculator=sim.time_step_calculator,
-    )
+    sim._static_runtime_params_slice = static_runtime_params_slice  # pylint: disable=protected-access
+    sim_outputs = sim.run()
     history = output.StateHistory(sim_outputs, sim.source_models)
     self._check_profiles_vs_expected(
         core_profiles=history.core_profiles,
