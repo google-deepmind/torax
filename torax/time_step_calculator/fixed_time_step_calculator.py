@@ -29,6 +29,7 @@ STATE = None
 State = type(STATE)
 
 
+# TODO(b/337844885). Make this a time dependent calculator.
 class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
   """TimeStepCalculator based on constant time steps.
 
