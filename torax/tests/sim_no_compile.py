@@ -35,7 +35,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           1e-5,
           None,
-          False,
       ),
       # test_qlknnheat is the simplest test known to have had the no-compile
       # mode diverge from the compiled mode.
@@ -45,7 +44,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
           1e-11,
-          False,
       ),
   )
   def test_torax_sim(
@@ -54,7 +52,6 @@ class SimTest(sim_test_case.SimTestCase):
       profiles: Sequence[str],
       rtol: Optional[float] = None,
       atol: Optional[float] = None,
-      use_ref_time: bool = False,
   ):
     """No-compilation version of integration tests."""
     with mock.patch.dict(os.environ, {'TORAX_COMPILATION_ENABLED': 'False'}):
@@ -63,7 +60,6 @@ class SimTest(sim_test_case.SimTestCase):
           profiles,
           rtol=rtol,
           atol=atol,
-          use_ref_time=use_ref_time,
       )
 
 
