@@ -128,6 +128,10 @@ class SimulationStepFn:
   def transport_model(self) -> transport_model_lib.TransportModel:
     return self._transport_model
 
+  @property
+  def time_step_calculator(self) -> ts.TimeStepCalculator:
+    return self._time_step_calculator
+
   def __call__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
@@ -604,8 +608,6 @@ def get_initial_state(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    source_models: source_models_lib.SourceModels,
-    time_step_calculator: ts.TimeStepCalculator,
     step_fn: SimulationStepFn,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
@@ -613,7 +615,7 @@ def get_initial_state(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
-      source_models,
+      step_fn.stepper.source_models,
   )
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
@@ -634,7 +636,7 @@ def get_initial_state(
       core_sources=initial_core_sources,
       core_transport=state.CoreTransport.zeros(geo),
       post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
-      time_step_calculator_state=time_step_calculator.initial_state(),
+      time_step_calculator_state=step_fn.time_step_calculator.initial_state(),
       stepper_numeric_outputs=state.StepperNumericOutputs(
           stepper_error_state=0,
           outer_stepper_iterations=0,
@@ -661,7 +663,6 @@ class Sim:
       dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       initial_state: state.ToraxSimState,
-      time_step_calculator: ts.TimeStepCalculator,
       step_fn: SimulationStepFn,
       file_restart: general_runtime_params.FileRestart | None = None,
   ):
@@ -671,10 +672,6 @@ class Sim:
     )
     self._geometry_provider = geometry_provider
     self._initial_state = initial_state
-    self._time_step_calculator = time_step_calculator
-    self._stepper = step_fn.stepper
-    self._transport_model = step_fn.transport_model
-    self._pedestal_model = step_fn.pedestal_model
     self._step_fn = step_fn
     self._file_restart = file_restart
 
@@ -684,7 +681,7 @@ class Sim:
 
   @property
   def time_step_calculator(self) -> ts.TimeStepCalculator:
-    return self._time_step_calculator
+    return self._step_fn.time_step_calculator
 
   @property
   def initial_state(self) -> state.ToraxSimState:
@@ -712,19 +709,19 @@ class Sim:
 
   @property
   def stepper(self) -> stepper_lib.Stepper:
-    return self._stepper
+    return self._step_fn.stepper
 
   @property
   def transport_model(self) -> transport_model_lib.TransportModel:
-    return self._transport_model
+    return self.stepper.transport_model
 
   @property
   def pedestal_model(self) -> pedestal_model_lib.PedestalModel:
-    return self._pedestal_model
+    return self.stepper.pedestal_model
 
   @property
   def source_models(self) -> source_models_lib.SourceModels:
-    return self._step_fn.stepper.source_models
+    return self.stepper.source_models
 
   def update_base_components(
       self,
@@ -802,8 +799,6 @@ class Sim:
         static_runtime_params_slice=self._static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
         geo=geo_for_init,
-        source_models=self._stepper.source_models,
-        time_step_calculator=self._time_step_calculator,
         step_fn=self._step_fn,
     )
 
@@ -827,7 +822,6 @@ class Sim:
         dynamic_runtime_params_slice_provider=self.dynamic_runtime_params_slice_provider,
         geometry_provider=self.geometry_provider,
         initial_state=self.initial_state,
-        time_step_calculator=self.time_step_calculator,
         step_fn=self.step_fn,
         log_timestep_info=log_timestep_info,
     )
@@ -1030,8 +1024,6 @@ def build_sim_object(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
       geo=geo_for_init,
-      source_models=stepper.source_models,
-      time_step_calculator=time_step_calculator,
       step_fn=step_fn,
   )
 
@@ -1048,7 +1040,6 @@ def build_sim_object(
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       geometry_provider=geometry_provider,
       initial_state=initial_state,
-      time_step_calculator=time_step_calculator,
       step_fn=step_fn,
       file_restart=file_restart,
   )
@@ -1059,7 +1050,6 @@ def _run_simulation(
     dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     initial_state: state.ToraxSimState,
-    time_step_calculator: ts.TimeStepCalculator,
     step_fn: SimulationStepFn,
     log_timestep_info: bool = False,
 ) -> output.ToraxSimOutputs:
@@ -1094,8 +1084,6 @@ def _run_simulation(
     initial_state: The starting state of the simulation. This includes both the
       state variables which the stepper.Stepper will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
-    time_step_calculator: TimeStepCalculator determining policy for stepping
-      through time.
     step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
       after one timestep. Note that step_fn determines dt (how long the timestep
       is). The state_history that run_simulation() outputs comes from these
@@ -1145,7 +1133,7 @@ def _run_simulation(
   sim_error = state.SimError.NO_ERROR
 
   # Advance the simulation until the time_step_calculator tells us we are done.
-  while time_step_calculator.not_done(
+  while step_fn.time_step_calculator.not_done(
       sim_state.t,
       dynamic_runtime_params_slice.numerics.t_final,
       sim_state.time_step_calculator_state,

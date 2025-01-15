@@ -187,11 +187,8 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
             static_runtime_params_slice=static_runtime_params_slice,
             dynamic_runtime_params_slice=initial_dcs,
             geo=geo,
-            time_step_calculator=time_stepper,
-            source_models=source_models,
             step_fn=step_fn,
         ),
-        time_step_calculator=time_stepper,
         step_fn=step_fn,
     )
 

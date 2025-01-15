@@ -80,14 +80,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Tests sim.ArrayTimeStepCalculator
-      (
-          'test_arraytimestepcalculator',
-          'test_qei.py',
-          _ALL_PROFILES,
-          0,
-          True,
-      ),
       # Tests pedestal internal boundary condition
       (
           'test_pedestal',
@@ -124,7 +116,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
           1e-11,
-          False,
       ),
       # Tests fixed_dt timestep
       (
@@ -133,7 +124,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
           1e-11,
-          False,
       ),
       # Tests current diffusion
       (
@@ -450,7 +440,6 @@ class SimTest(sim_test_case.SimTestCase):
       profiles: Sequence[str],
       rtol: Optional[float] = None,
       atol: Optional[float] = None,
-      use_ref_time: bool = False,
   ):
     """Integration test comparing to reference output from TORAX."""
     # The @parameterized decorator removes the `test_torax_sim` method,
@@ -461,7 +450,6 @@ class SimTest(sim_test_case.SimTestCase):
         profiles,
         rtol=rtol,
         atol=atol,
-        use_ref_time=use_ref_time,
     )
 
   def test_fail(self):
@@ -600,7 +588,6 @@ class SimTest(sim_test_case.SimTestCase):
     dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
         t=loading_time,
     )
-    source_models = sim.stepper.source_models
 
     # Load in the reference core profiles.
     Ip_total = ref_profiles[output.IP_PROFILE_FACE][index, -1] / 1e6
@@ -640,8 +627,6 @@ class SimTest(sim_test_case.SimTestCase):
         sim.static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
-        source_models,
-        sim.time_step_calculator,
         sim.step_fn,
     )
 

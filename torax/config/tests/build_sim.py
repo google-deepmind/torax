@@ -27,7 +27,6 @@ from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import runtime_params as stepper_params
-from torax.time_step_calculator import array_time_step_calculator
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport
@@ -510,18 +509,6 @@ class BuildSimTest(parameterized.TestCase):
         calculator_type
     )
     self.assertIsInstance(time_stepper, expected_type)
-
-  def test_build_array_time_step_calculator(self):
-    time_stepper = build_sim.build_time_step_calculator_from_config({
-        'calculator_type': 'array',
-        'init_kwargs': {
-            'arr': [0.1, 0.2, 0.3],
-        },
-    })
-    self.assertIsInstance(
-        time_stepper, array_time_step_calculator.ArrayTimeStepCalculator
-    )
-
 
 if __name__ == '__main__':
   absltest.main()

@@ -29,7 +29,6 @@ from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.tests import test_lib
 from torax.tests.test_lib import paths
-from torax.time_step_calculator import array_time_step_calculator
 
 PYTHON_MODULE_PREFIX = '.tests.test_data.'
 PYTHON_CONFIG_PACKAGE = 'torax'
@@ -218,7 +217,6 @@ class SimTestCase(parameterized.TestCase):
       ref_name: Optional[str] = None,
       rtol: Optional[float] = None,
       atol: Optional[float] = None,
-      use_ref_time: bool = False,
       write_output: bool = True,
   ):
     """Integration test comparing to TORAX reference output.
@@ -230,7 +228,6 @@ class SimTestCase(parameterized.TestCase):
       ref_name: Name of reference filename to load. (Leave off dir path)
       rtol: Optional float, to override the class level rtol.
       atol: Optional float, to override the class level atol.
-      use_ref_time: If True, locks to time steps calculated by reference.
       write_output: If True, writes output to tmp dir if test fails.
     """
 
@@ -246,19 +243,6 @@ class SimTestCase(parameterized.TestCase):
 
     # Load reference profiles
     ref_profiles, ref_time = self._get_refs(ref_name, profiles)
-
-    if use_ref_time:
-      time_step_calculator = array_time_step_calculator.ArrayTimeStepCalculator(
-          ref_time
-      )
-      sim = sim_lib.Sim(
-          time_step_calculator=time_step_calculator,
-          initial_state=sim.initial_state,
-          geometry_provider=sim.geometry_provider,
-          dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
-          static_runtime_params_slice=sim.static_runtime_params_slice,
-          step_fn=sim.step_fn,
-      )
 
     # Build geo needed for output generation
     geo = sim.geometry_provider(sim.initial_state.t)
