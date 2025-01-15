@@ -334,6 +334,7 @@ class PostProcessedOutputs:
     ti_volume_avg: Volume average ion temperature [keV]
     ne_volume_avg: Volume average electron density [nref m^-3]
     ni_volume_avg: Volume average main ion density [nref m^-3]
+    ne_greenwald_fraction: Electron density Greenwald fraction []
     q95: q at 95% of the normalized poloidal flux
   """
 
@@ -389,6 +390,7 @@ class PostProcessedOutputs:
   ti_volume_avg: array_typing.ScalarFloat
   ne_volume_avg: array_typing.ScalarFloat
   ni_volume_avg: array_typing.ScalarFloat
+  ne_greenwald_fraction: array_typing.ScalarFloat
   q95: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
@@ -444,6 +446,7 @@ class PostProcessedOutputs:
         ti_volume_avg=jnp.array(0.0),
         ne_volume_avg=jnp.array(0.0),
         ni_volume_avg=jnp.array(0.0),
+        ne_greenwald_fraction=jnp.array(0.0),
         q95=jnp.array(0.0),
     )
 
