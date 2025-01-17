@@ -1042,29 +1042,6 @@ def _override_initial_state_post_processed_outputs_from_file(
   return post_processed_outputs
 
 
-def build_sim_object(
-    runtime_params: general_runtime_params.GeneralRuntimeParams,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
-    stepper_builder: stepper_lib.StepperBuilder,
-    transport_model_builder: transport_model_lib.TransportModelBuilder,
-    source_models_builder: source_models_lib.SourceModelsBuilder,
-    pedestal_model_builder: pedestal_model_lib.PedestalModelBuilder,
-    time_step_calculator: Optional[ts.TimeStepCalculator] = None,
-    file_restart: Optional[general_runtime_params.FileRestart] = None,
-) -> Sim:
-  """Builds a Sim object from the input runtime params and sim components."""
-  return Sim.create(
-      runtime_params=runtime_params,
-      geometry_provider=geometry_provider,
-      stepper_builder=stepper_builder,
-      transport_model_builder=transport_model_builder,
-      source_models_builder=source_models_builder,
-      pedestal_model_builder=pedestal_model_builder,
-      time_step_calculator=time_step_calculator,
-      file_restart=file_restart,
-  )
-
-
 def _run_simulation(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,

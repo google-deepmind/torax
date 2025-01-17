@@ -481,7 +481,7 @@ class SimTest(sim_test_case.SimTestCase):
         geometry.build_circular_geometry()
     )
 
-    sim = sim_lib.build_sim_object(
+    sim = sim_lib.Sim.create(
         runtime_params=runtime_params,
         geometry_provider=geo_provider,
         stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),

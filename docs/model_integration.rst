@@ -312,14 +312,6 @@ the |torax.sim.Sim|_ object.
 
 .. code-block:: python
 
-    # in sim.py. Copied here for reference, no need to modify this.
-
-    def build_sim_object(
-        ...
-        transport_model_builder: transport_model_lib.TransportModelBuilder,
-        ...
-    ) -> Sim:
-
     # in your TORAX configuration or run file .py
 
     my_custom_transport_builder = MyCustomTransportModelBuilder()
@@ -334,7 +326,7 @@ the |torax.sim.Sim|_ object.
     my_custom_transport_builder.runtime_params.bar = 4.0
 
     # Build the Sim object.
-    sim_object = sim_lib.build_sim_object(
+    sim_object = sim_lib.Sim.create(
         ...,
         transport_model_builder=my_custom_transport_builder,
         ...
@@ -348,7 +340,7 @@ As of 7 June 2024, you cannot instantiate and configure a custom transport model
 via the config dictionary. You may still configure the other components of your
 TORAX simulation via the config dict and use other functions in
 |torax.config.build_sim|_ to convert those to the objects you can pass into
-``build_sim_object()``. We are working on making this easier, but reach out
+``Sim.create()``. We are working on making this easier, but reach out
 if this is something you need.
 
 

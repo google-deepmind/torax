@@ -270,7 +270,7 @@ def build_sim_from_config(
   else:
     file_restart = None
 
-  return sim_lib.build_sim_object(
+  return sim_lib.Sim.create(
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
       source_models_builder=build_sources_builder_from_config(
