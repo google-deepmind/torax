@@ -371,6 +371,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           5e-5,
       ),
+      # Predictor-corrector solver with a time-dependent isotope mix.
+      (
+          'test_iterhybrid_predictor_corrector_timedependent_isotopes',
+          'test_iterhybrid_predictor_corrector_timedependent_isotopes.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Predictor-corrector solver with ECCD Lin Liu model.
       (
           'test_iterhybrid_predictor_corrector_ec_linliu',
