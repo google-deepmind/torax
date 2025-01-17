@@ -226,7 +226,8 @@ def calc_neoclassical(
   )
   lnLami = (
       30
-      - 3 * jnp.log(dynamic_runtime_params_slice.plasma_composition.Zi)
+      - 3
+      * jnp.log(dynamic_runtime_params_slice.plasma_composition.main_ion.avg_Z)
       - 0.5 * jnp.log(true_ni_face)
       + 1.5 * jnp.log(temp_ion.face_value() * 1e3)
   )

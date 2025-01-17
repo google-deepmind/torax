@@ -354,7 +354,9 @@ def _extract_qualikiz_plan(
       type=1,
       anis=1,
       danisdr=0,
-      A=np.array(dynamic_runtime_params_slice.plasma_composition.Ai),
+      A=np.array(
+          dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A
+      ),
       Z=np.array(Zi0),
   )
 

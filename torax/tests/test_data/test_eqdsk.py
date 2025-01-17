@@ -22,9 +22,9 @@ Rmaj~0.9m , Rmin~0.2m, B0~1.4T, Ip~170kA.
 CONFIG = {
     'runtime_params': {
         'plasma_composition': {
-            'Ai': 2.0,
+            'main_ion': 'D',
+            'impurity': 'Ne',
             'Zeff': 1.6,
-            'Zimp': 10,
         },
         'profile_conditions': {
             'Ip_tot': 0.25,

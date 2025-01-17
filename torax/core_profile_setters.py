@@ -181,8 +181,8 @@ def _updated_ion_density(
   # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne ,
   # where all density units are in nref
 
-  Zi = dynamic_runtime_params_slice.plasma_composition.Zi
-  Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
+  Zi = dynamic_runtime_params_slice.plasma_composition.main_ion.avg_Z
+  Zimp = dynamic_runtime_params_slice.plasma_composition.impurity.avg_Z
   Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
   Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
 
@@ -273,8 +273,7 @@ def _prescribe_currents_no_bootstrap(
       core_profiles=core_profiles,
   )
   Iext = (
-      math_utils.cell_integration(external_current * geo.spr_cell, geo)
-      / 10**6
+      math_utils.cell_integration(external_current * geo.spr_cell, geo) / 10**6
   )
   # Total Ohmic current.
   Iohm = Ip - Iext
@@ -364,8 +363,7 @@ def _prescribe_currents_with_bootstrap(
       core_profiles=core_profiles,
   )
   Iext = (
-      math_utils.cell_integration(external_current * geo.spr_cell, geo)
-      / 10**6
+      math_utils.cell_integration(external_current * geo.spr_cell, geo) / 10**6
   )
   Iohm = Ip - Iext - f_bootstrap * Ip
 
@@ -378,15 +376,11 @@ def _prescribe_currents_with_bootstrap(
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot = jformula * Ctot
-    johm = (
-        jtot - external_current - bootstrap_profile.j_bootstrap
-    )
+    johm = jtot - external_current - bootstrap_profile.j_bootstrap
   else:
     Cohm = Iohm * 1e6 / denom
     johm = jformula * Cohm
-    jtot = (
-        johm + external_current + bootstrap_profile.j_bootstrap
-    )
+    jtot = johm + external_current + bootstrap_profile.j_bootstrap
 
   jtot_hires = _get_jtot_hires(
       dynamic_runtime_params_slice,
@@ -701,11 +695,11 @@ def initial_core_profiles(
       temp_el=temp_el,
       ne=ne,
       ni=ni,
-      Zi=dynamic_runtime_params_slice.plasma_composition.Zi,
-      Ai=dynamic_runtime_params_slice.plasma_composition.Ai,
+      Zi=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_Z,
+      Ai=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
       nimp=nimp,
-      Zimp=dynamic_runtime_params_slice.plasma_composition.Zimp,
-      Aimp=dynamic_runtime_params_slice.plasma_composition.Aimp,
+      Zimp=dynamic_runtime_params_slice.plasma_composition.impurity.avg_Z,
+      Aimp=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
       psi=psi,
       psidot=psidot,
       currents=currents,
@@ -888,16 +882,17 @@ def compute_boundary_conditions(
   # Zeff = (Zi * ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni*Zi = ne
 
   dilution_factor_edge = physics.get_main_ion_dilution_factor(
-      dynamic_runtime_params_slice.plasma_composition.Zi,
-      dynamic_runtime_params_slice.plasma_composition.Zimp,
+      dynamic_runtime_params_slice.plasma_composition.main_ion.avg_Z,
+      dynamic_runtime_params_slice.plasma_composition.impurity.avg_Z,
       dynamic_runtime_params_slice.plasma_composition.Zeff_face[-1],
   )
 
   ni_bound_right = ne_bound_right * dilution_factor_edge
   nimp_bound_right = (
       ne_bound_right
-      - ni_bound_right * dynamic_runtime_params_slice.plasma_composition.Zi
-  ) / dynamic_runtime_params_slice.plasma_composition.Zimp
+      - ni_bound_right
+      * dynamic_runtime_params_slice.plasma_composition.main_ion.avg_Z
+  ) / dynamic_runtime_params_slice.plasma_composition.impurity.avg_Z
 
   return {
       'temp_ion': dict(
@@ -972,4 +967,5 @@ def _get_jtot_hires(
     johm_hires = jformula_hires * Cohm_hires
     jtot_hires = johm_hires + external_current_hires + j_bootstrap_hires
   return jtot_hires
+
 # pylint: enable=invalid-name

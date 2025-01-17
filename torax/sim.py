@@ -1445,7 +1445,7 @@ def provide_core_profiles_t_plus_dt(
       ne=ne,
       ni=ni,
       nimp=nimp,
-      Zimp=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zimp,
+      Zimp=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity.avg_Z,
   )
   return core_profiles_t_plus_dt
 

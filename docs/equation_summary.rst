@@ -26,6 +26,9 @@ TORAX solves coupled 1D PDEs in normalized toroidal flux coordinates,
       g_0q_i^{\mathrm{conv}}T_i\right] + Q_i
     \end{multline}
 
+  If multiple main ion species are present (e.g., a D-T mix), then :math:`n_i` represents the sum of all
+  main ions, and ion attributes like charge and mass are averaged values for the mixture, weighted by fractional abundance.
+
   Electron heat transport, governing the evolution of the electron temperature :math:`T_e`.
 
   .. math::

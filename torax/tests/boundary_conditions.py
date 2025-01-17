@@ -115,7 +115,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
     )
     # pylint: disable=invalid-name
-    Zi = runtime_params.plasma_composition.Zi
+    Zi = core_profiles.Zi
     Zeff = runtime_params.plasma_composition.Zeff
     Zimp = core_profiles.Zimp
     # pylint: enable=invalid-name

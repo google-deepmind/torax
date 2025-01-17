@@ -159,7 +159,10 @@ class CriticalGradientModel(transport_model.TransportModel):
 
     # gyrobohm diffusivity
     chiGB = (
-        (dynamic_runtime_params_slice.plasma_composition.Ai * constants.mp)
+        (
+            dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A
+            * constants.mp
+        )
         ** 0.5
         / (constants.qe * geo.B0) ** 2
         * (temp_ion_face * constants.keV2J) ** 1.5

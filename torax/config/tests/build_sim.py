@@ -48,7 +48,7 @@ class BuildSimTest(parameterized.TestCase):
         dict(
             runtime_params=dict(
                 plasma_composition=dict(
-                    Ai=0.1,
+                    Ai_override=0.1,
                 ),
                 profile_conditions=dict(
                     ne_is_fGW=False,
@@ -92,7 +92,9 @@ class BuildSimTest(parameterized.TestCase):
         t=sim.initial_state.t,
     )
     with self.subTest('runtime_params'):
-      self.assertEqual(dynamic_runtime_params_slice.plasma_composition.Ai, 0.1)
+      self.assertEqual(
+          dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A, 0.1
+      )
       self.assertEqual(
           dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
           False,
@@ -161,7 +163,7 @@ class BuildSimTest(parameterized.TestCase):
     """Tests that we can build all types of attributes in the runtime params."""
     runtime_params = build_sim.build_runtime_params_from_config({
         'plasma_composition': {
-            'Ai': 0.1,  # scalar fields.
+            'main_ion': 'D',
             'Zeff': {
                 0: {0: 0.1, 1: 0.1},
                 1: {0: 0.2, 1: 0.2},
@@ -179,7 +181,7 @@ class BuildSimTest(parameterized.TestCase):
         },
         'output_dir': '/tmp/this/is/a/test',
     })
-    self.assertEqual(runtime_params.plasma_composition.Ai, 0.1)
+    self.assertEqual(runtime_params.plasma_composition.main_ion, 'D')
     self.assertEqual(runtime_params.profile_conditions.ne_is_fGW, False)
     self.assertEqual(runtime_params.numerics.q_correction_factor, 0.2)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')

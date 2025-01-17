@@ -224,8 +224,8 @@ class CoreProfileSettersTest(parameterized.TestCase):
         self.geo,
     )
 
-    Zi = dynamic_runtime_params_slice.plasma_composition.Zi
-    Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
+    Zi = dynamic_runtime_params_slice.plasma_composition.main_ion.avg_Z
+    Zimp = dynamic_runtime_params_slice.plasma_composition.impurity.avg_Z
     Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
 
     dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff)

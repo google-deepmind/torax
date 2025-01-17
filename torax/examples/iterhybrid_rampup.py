@@ -22,12 +22,9 @@ With Newton-Raphson stepper and adaptive timestep (backtracking)
 CONFIG = {
     'runtime_params': {
         'plasma_composition': {
-            # physical inputs
-            'Ai': 2.5,  # amu of main ion (if multiple isotope, make average)
-            'Zeff': 1.6,  # needed for qlknn and fusion power
-            # effective impurity charge state assumed for matching
-            # dilution=0.862.
-            'Zimp': 10,
+            'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
+            'impurity': 'Ne',
+            'Zeff': 1.6,  # sets impurity density
         },
         'profile_conditions': {
             'Ip_tot': {0: 3, 80: 10.5},  # total plasma current in MA

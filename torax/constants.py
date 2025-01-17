@@ -17,31 +17,12 @@
 This module saves immutable constants used in various calculations.
 """
 
-from typing import Final, Literal, Mapping, TypeAlias
+from typing import Final, Mapping
 import chex
 import immutabledict
 from jax import numpy as jnp
 
 # pylint: disable=invalid-name
-
-
-ION_SYMBOLS: TypeAlias = Literal[
-    'H',
-    'D',
-    'T',
-    'He3',
-    'He4',
-    'Be',
-    'Li',
-    'C',
-    'N',
-    'O',
-    'Ne',
-    'Ar',
-    'Kr',
-    'Xe',
-    'W',
-]
 
 
 @chex.dataclass(frozen=True)
@@ -55,7 +36,7 @@ class IonProperties:
     Z: The ion's atomic number.
   """
 
-  symbol: ION_SYMBOLS
+  symbol: str
   name: str
   A: float
   Z: int
@@ -102,6 +83,8 @@ ION_PROPERTIES: Final[tuple[IonProperties, ...]] = (
     IonProperties(symbol='W', name='Tungsten', A=183.84, Z=74),
 )
 
-ION_PROPERTIES_DICT: Final[Mapping[ION_SYMBOLS, IonProperties]] = (
+ION_PROPERTIES_DICT: Final[Mapping[str, IonProperties]] = (
     immutabledict.immutabledict({v.symbol: v for v in ION_PROPERTIES})
 )
+
+ION_SYMBOLS = frozenset(ION_PROPERTIES_DICT.keys())
