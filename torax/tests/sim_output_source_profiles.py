@@ -20,20 +20,14 @@ This is a separate file to not bloat the main sim.py test file.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from unittest import mock
 
 from absl.testing import absltest
-import chex
-import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import array_typing
-from torax import interpolated_param
 from torax import sim as sim_lib
 from torax import state as state_module
-from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import set_tped_nped
@@ -42,11 +36,10 @@ from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.sources.tests import test_lib
-from torax.stepper import runtime_params as stepper_runtime_params
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
-from torax.time_step_calculator import time_step_calculator as ts
+from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
 
 
@@ -67,14 +60,6 @@ class TestExplicitNeSource(test_lib.TestSource):
   @property
   def source_name(self) -> str:
     return 'explicit_ne_source'
-
-
-TestImplicitNeSourceBuilder = source_lib.make_source_builder(
-    TestImplicitNeSource
-)
-TestExplicitNeSourceBuilder = source_lib.make_source_builder(
-    TestExplicitNeSource
-)
 
 
 class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
@@ -122,83 +107,99 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # The first time step and last time step's output source profiles are built
     # in a special way that combines the implicit and explicit profiles.
 
-    # Create custom sources whose output profiles depend on Tiped.
+    # Create custom sources whose output profiles depend on foo.
     # This is not physically realistic, just for testing purposes.
     def custom_source_formula(
         unused_static_runtime_params_slice,
         dynamic_runtime_params,
-        geo,
+        unused_geo,
         source_name,
         unused_state,
         unused_source_models,
     ):
       dynamic_source_params = dynamic_runtime_params.sources[source_name]
-      return jnp.ones_like(geo.rho) * dynamic_source_params.foo
+      return dynamic_source_params.prescribed_values
 
     # Include 2 versions of this source, one implicit and one explicit.
-    source_builder = source_lib.make_source_builder(
+    runtime_params = runtime_params_lib.RuntimeParams(
+        mode=runtime_params_lib.Mode.MODEL_BASED,
+        prescribed_values={
+            0.0: {0: 1.0},
+            1.0: {0: 2.0},
+            2.0: {0: 3.0},
+            3.0: {0: 4.0},
+        },
+    )
+    implicit_source_builder = source_lib.make_source_builder(
         TestImplicitNeSource,
-        runtime_params_type=_FakeSourceRuntimeParams,
+        runtime_params_type=runtime_params_lib.RuntimeParams,
+        model_func=custom_source_formula,
+    )
+    explicit_source_builder = source_lib.make_source_builder(
+        TestExplicitNeSource,
+        runtime_params_type=runtime_params_lib.RuntimeParams,
         model_func=custom_source_formula,
     )
     source_models_builder = source_models_lib.SourceModelsBuilder({
-        'implicit_ne_source': source_builder(
-            runtime_params=_FakeSourceRuntimeParams(
-                mode=runtime_params_lib.Mode.MODEL_BASED,
-                foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
-            ),
+        'implicit_ne_source': implicit_source_builder(
+            runtime_params=runtime_params,
         ),
-        'explicit_ne_source': source_builder(
-            runtime_params=_FakeSourceRuntimeParams(
-                mode=runtime_params_lib.Mode.MODEL_BASED,
-                foo={0.0: 1.0, 1.0: 2.0, 2.0: 3.0, 3.0: 4.0},
-            ),
+        'explicit_ne_source': explicit_source_builder(
+            runtime_params=runtime_params,
         ),
     })
     source_models = source_models_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
+    runtime_params.numerics.t_final = 2.
+    runtime_params.numerics.fixed_dt = 1.
     geo = geometry.build_circular_geometry()
-    time_stepper = _FakeTimeStepCalculator()
-    step_fn = _FakeSimulationStepFn(time_stepper, source_models)
-    dynamic_runtime_params_slice_provider = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            transport=constant_transport_model.RuntimeParams(),
-            sources=source_models_builder.runtime_params,
-            stepper=stepper_runtime_params.RuntimeParams(),
-            torax_mesh=geo.torax_mesh,
-        )
-    )
-    initial_dcs = dynamic_runtime_params_slice_provider(
-        t=0.0,
-    )
-    static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
-            runtime_params=runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )
-    )
-    sim = sim_lib.Sim(
-        static_runtime_params_slice=static_runtime_params_slice,
-        dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-        geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
-        initial_state=sim_lib.get_initial_state(
-            static_runtime_params_slice=static_runtime_params_slice,
-            dynamic_runtime_params_slice=initial_dcs,
-            geo=geo,
-            step_fn=step_fn,
-        ),
-        step_fn=step_fn,
-    )
+    time_stepper = fixed_time_step_calculator.FixedTimeStepCalculator()
+    def mock_step_fn(
+        _,
+        static_runtime_params_slice,
+        dynamic_runtime_params_slice_provider,
+        geometry_provider,
+        input_state,
+    ):
+      dt = 1.0
+      new_t = input_state.t + dt
+      return dataclasses.replace(
+          input_state,
+          t=new_t,
+          dt=dt,
+          time_step_calculator_state=(),
+          # The returned source profiles include only the implicit sources.
+          core_sources=source_models_lib.build_source_profiles(
+              dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
+                  t=new_t,
+              ),
+              static_runtime_params_slice=static_runtime_params_slice,
+              geo=geometry_provider(new_t),
+              core_profiles=input_state.core_profiles,  # no state evolution.
+              source_models=source_models,
+              explicit=False,
+          ),
+      ), state_module.SimError.NO_ERROR
 
-    sim_outputs = sim.run()
+    sim = sim_lib.Sim.create(
+        runtime_params=runtime_params,
+        geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
+        stepper_builder=explicit_stepper.ExplicitStepperBuilder(),
+        transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
+        source_models_builder=source_models_builder,
+        pedestal_model_builder=set_tped_nped.SetTemperatureDensityPedestalModelBuilder(),
+        time_step_calculator=time_stepper,
+    )
+    with mock.patch.object(
+        sim_lib.SimulationStepFn, '__call__', new=mock_step_fn
+    ):
+      sim_outputs = sim.run()
 
     # The implicit and explicit profiles get merged together before being
     # outputted, and they are aligned as well as possible to be computed based
     # on the state and config at time t. So both the implicit and explicit
     # profiles of each time step should be equal in this case (especially
-    # because we are using the fake step function defined below).
+    # because we are using the mock step function defined above).
     for i, sim_state in enumerate(sim_outputs.sim_history):
       np.testing.assert_allclose(
           sim_state.core_sources.profiles['implicit_ne_source'], i + 1
@@ -237,135 +238,6 @@ def _build_source_profiles_with_single_value(
           implicit_ei=cell_1d_arr,
       ),
   )
-
-
-class _FakeTimeStepCalculator(ts.TimeStepCalculator):
-  """Fake time step calculator which only runs the sim for 2 seconds."""
-
-  def initial_state(self):
-    return ()
-
-  def not_done(
-      self,
-      t: float | jax.Array,
-      t_final: float,
-      state,
-  ) -> bool | jax.Array:
-    return t < 2
-
-  def next_dt(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
-      core_profiles: state_module.CoreProfiles,
-      time_step_calculator_state,
-      core_transport: state_module.CoreTransport,
-  ) -> tuple[jax.Array, tuple[Any, ...]]:
-    return jnp.ones(()), ()
-
-
-@dataclasses.dataclass(kw_only=True)
-class _FakeSourceRuntimeParams(runtime_params_lib.RuntimeParams):
-  foo: runtime_params_lib.TimeInterpolatedInput
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> '_FakeSourceRuntimeParamsProvider':
-    if torax_mesh is None:
-      raise ValueError('torax_mesh is required for FakeSourceRuntimeParams.')
-    return _FakeSourceRuntimeParamsProvider(
-        runtime_params_config=self,
-        prescribed_values=config_args.get_interpolated_var_2d(
-            self.prescribed_values, torax_mesh.cell_centers
-        ),
-        foo=config_args.get_interpolated_var_single_axis(self.foo),
-    )
-
-
-@chex.dataclass
-class _FakeSourceRuntimeParamsProvider(
-    runtime_params_lib.RuntimeParamsProvider
-):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: _FakeSourceRuntimeParams
-  foo: interpolated_param.InterpolatedVarSingleAxis
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> '_FakeSourceDynamicRuntimeParams':
-    return _FakeSourceDynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
-@chex.dataclass(frozen=True)
-class _FakeSourceDynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  foo: array_typing.ScalarFloat
-
-
-class _FakeSimulationStepFn(sim_lib.SimulationStepFn):
-  """Fake step function which only calculates new implicit profiles."""
-
-  def __init__(
-      self,
-      time_step_calculator: ts.TimeStepCalculator,
-      source_models: source_models_lib.SourceModels,
-  ):
-    self._time_step_calculator = time_step_calculator
-    # This isn't actually used for stepping in this class.
-    self._stepper = explicit_stepper.ExplicitStepper(
-        transport_model=constant_transport_model.ConstantTransportModel(),
-        source_models=source_models,
-        pedestal_model=set_tped_nped.SetTemperatureDensityPedestalModel(),
-    )
-
-  @property
-  def stepper(self):
-    return self._stepper
-
-  @property
-  def transport_model(self):
-    return self._stepper.transport_model
-
-  @property
-  def pedestal_model(self):
-    return self._stepper.pedestal_model
-
-  def __call__(
-      self,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
-      geometry_provider: geometry_provider_lib.GeometryProvider,
-      input_state: state_module.ToraxSimState,
-  ) -> tuple[state_module.ToraxSimState, state_module.SimError]:
-    dt, ts_state = self._time_step_calculator.next_dt(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-            t=input_state.t,
-        ),
-        geo=geometry_provider(input_state.t),
-        core_profiles=input_state.core_profiles,
-        time_step_calculator_state=input_state.time_step_calculator_state,
-        core_transport=input_state.core_transport,
-    )
-    new_t = input_state.t + dt
-    return dataclasses.replace(
-        input_state,
-        t=new_t,
-        dt=dt,
-        time_step_calculator_state=ts_state,
-        # The returned source profiles include only the implicit sources.
-        core_sources=source_models_lib.build_source_profiles(
-            dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-                t=new_t,
-            ),
-            static_runtime_params_slice=static_runtime_params_slice,
-            geo=geometry_provider(new_t),
-            core_profiles=input_state.core_profiles,  # no state evolution.
-            source_models=self.stepper.source_models,
-            explicit=False,
-        ),
-    ), state_module.SimError.NO_ERROR
 
 
 if __name__ == '__main__':
