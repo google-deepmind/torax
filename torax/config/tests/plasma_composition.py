@@ -17,6 +17,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax import charge_states
 from torax import interpolated_param
 from torax.config import plasma_composition
 from torax.geometry import geometry
@@ -194,7 +195,12 @@ class IonMixtureTest(parameterized.TestCase):
     mixture = plasma_composition.IonMixture(species=species)
     provider = mixture.make_provider()
     dynamic_mixture = provider.build_dynamic_params(time)
-    np.testing.assert_allclose(dynamic_mixture.avg_Z, expected_Z)
+    calculated_Z = charge_states.get_average_charge_state(
+        ion_symbols=tuple(species.keys()),
+        ion_mixture=dynamic_mixture,
+        Te=np.array(10.0),  # Ensure that all ions in test are fully ionized
+    )
+    np.testing.assert_allclose(calculated_Z, expected_Z)
     np.testing.assert_allclose(dynamic_mixture.avg_A, expected_A)
 
   @parameterized.named_parameters(
@@ -211,12 +217,16 @@ class IonMixtureTest(parameterized.TestCase):
         Z_override=Z_override,
         A_override=A_override,
     )
-
     provider = mixture.make_provider()
     dynamic_mixture = provider.build_dynamic_params(t=0.0)
+    calculated_Z = charge_states.get_average_charge_state(
+        ion_symbols=tuple(mixture.species.keys()),
+        ion_mixture=dynamic_mixture,
+        Te=np.array(1.0),  # arbitrary temperature, won't be used for D
+    )
     Z_expected = Z if Z_override is None else Z_override
     A_expected = A if A_override is None else A_override
-    np.testing.assert_allclose(dynamic_mixture.avg_Z, Z_expected)
+    np.testing.assert_allclose(calculated_Z, Z_expected)
     np.testing.assert_allclose(dynamic_mixture.avg_A, A_expected)
 
   def test_from_config(self):

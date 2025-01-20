@@ -111,9 +111,11 @@ class CoreProfiles:
   s_face: array_typing.ArrayFloat
   nref: array_typing.ScalarFloat  # Reference density
   # pylint: disable=invalid-name
-  Zi: array_typing.ScalarFloat  # Main ion charge
+  Zi: array_typing.ArrayFloat  # Main ion charge on cell grid [amu]
+  Zi_face: array_typing.ArrayFloat  # Main ion charge on face grid [amu]
   Ai: array_typing.ScalarFloat  # Main ion mass [amu]
-  Zimp: array_typing.ScalarFloat  # Impurity charge
+  Zimp: array_typing.ArrayFloat  # Impurity charge on cell grid [amu]
+  Zimp_face: array_typing.ArrayFloat  # Impurity charge on face grid [amu]
   Aimp: array_typing.ScalarFloat  # Impurity mass [amu]
   # pylint: enable=invalid-name
 
@@ -139,6 +141,12 @@ class CoreProfiles:
         q_face=self.q_face,
         s_face=self.s_face,
         nref=self.nref,
+        Zi=self.Zi,
+        Zi_face=self.Zi_face,
+        Ai=self.Ai,
+        Zimp=self.Zimp,
+        Zimp_face=self.Zimp_face,
+        Aimp=self.Aimp,
     )
 
   def has_nans(self) -> bool:
@@ -201,6 +209,12 @@ class CoreProfiles:
         q_face=project(self.q_face),
         s_face=project(self.s_face),
         nref=project(self.nref),
+        Zi=project(self.Zi),
+        Zi_face=project(self.Zi_face),
+        Ai=project(self.Ai),
+        Zimp=project(self.Zimp),
+        Zimp_face=project(self.Zimp_face),
+        Aimp=project(self.Aimp),
     )
 
   def __hash__(self):

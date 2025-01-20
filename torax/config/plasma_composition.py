@@ -180,11 +180,7 @@ class IonMixtureProvider:
     ions = self.ion_fractions.keys()
     fractions = np.array([self.ion_fractions[ion].get_value(t) for ion in ions])
 
-    if not self.Z_override:
-      Zs = np.array([constants.ION_PROPERTIES_DICT[ion].Z for ion in ions])
-      avg_Z = np.sum(Zs * fractions)
-    else:
-      avg_Z = self.Z_override.get_value(t)
+    Z_override = None if not self.Z_override else self.Z_override.get_value(t)
 
     if not self.A_override:
       As = np.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
@@ -194,8 +190,8 @@ class IonMixtureProvider:
 
     return DynamicIonMixture(
         fractions=fractions,
-        avg_Z=avg_Z,
         avg_A=avg_A,
+        Z_override=Z_override,
     )
 
 
@@ -206,11 +202,19 @@ class DynamicIonMixture:
   Information on ion names are not stored here, but rather in
   StaticRuntimeParamsSlice, to simplify JAX logic and performance in source
   functions for fusion power and radiation which are species-dependent.
+
+  Attributes:
+    fractions: Ion fractions for a time slice.
+    avg_A: Average A of the mixture.
+    Z_override: Typically, the average Z is calculated according to the
+      temperature dependent charge-state-distribution, or for low-Z cases
+      by the atomic numbers of the ions assuming full ionization.
+      If Z_override is provided, it is used instead for the average Z.
   """
 
-  fractions: array_typing.ArrayFloat  # Ion fractions for a time slice.
-  avg_Z: array_typing.ScalarFloat  # Average Z of the mixture.
-  avg_A: array_typing.ScalarFloat  # Average A of the mixture.
+  fractions: array_typing.ArrayFloat
+  avg_A: array_typing.ScalarFloat
+  Z_override: array_typing.ScalarFloat | None = None
 
 
 @chex.dataclass

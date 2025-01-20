@@ -119,6 +119,7 @@ class ExplicitStepper(stepper_lib.Stepper):
     # Update the potentially time-dependent boundary conditions as well.
     updated_boundary_conditions = (
         core_profile_setters.compute_boundary_conditions(
+            static_runtime_params_slice,
             dynamic_runtime_params_slice_t_plus_dt,
             geo_t,
         )

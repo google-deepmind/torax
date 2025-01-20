@@ -742,10 +742,10 @@ class Sim:
     recompilation.
 
     Args:
-      allow_recompilation: Whether recompilation is allowed. If True, the
-        static runtime params slice can be updated. NOTE: recompilaton may
-        still occur if the mesh is updated or if the shapes returned in the
-        dynamic runtime params slice provider change even if this is False.
+      allow_recompilation: Whether recompilation is allowed. If True, the static
+        runtime params slice can be updated. NOTE: recompilaton may still occur
+        if the mesh is updated or if the shapes returned in the dynamic runtime
+        params slice provider change even if this is False.
       static_runtime_params_slice: The new static runtime params slice. If None,
         the existing one is kept.
       dynamic_runtime_params_slice_provider: The new dynamic runtime params
@@ -769,11 +769,19 @@ class Sim:
       )
 
     if static_runtime_params_slice is not None:
+      assert isinstance(  # Avoid pytype error.
+          self._static_runtime_params_slice,
+          runtime_params_slice.StaticRuntimeParamsSlice,
+      )
       self._static_runtime_params_slice.validate_new(
           static_runtime_params_slice
       )
       self._static_runtime_params_slice = static_runtime_params_slice
     if dynamic_runtime_params_slice_provider is not None:
+      assert isinstance(  # Avoid pytype error.
+          self._dynamic_runtime_params_slice_provider,
+          runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+      )
       self._dynamic_runtime_params_slice_provider.validate_new(
           dynamic_runtime_params_slice_provider
       )
@@ -1399,11 +1407,12 @@ def provide_core_profiles_t_plus_dt(
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
   updated_boundary_conditions = (
       core_profile_setters.compute_boundary_conditions(
+          static_runtime_params_slice,
           dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt,
       )
   )
-  updated_values = core_profile_setters.updated_prescribed_core_profiles(
+  updated_values = core_profile_setters.get_prescribed_core_profile_values(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo_t_plus_dt,
@@ -1437,6 +1446,23 @@ def provide_core_profiles_t_plus_dt(
       value=updated_values['nimp'],
       **updated_boundary_conditions['nimp'],
   )
+
+  # pylint: disable=invalid-name
+  # Update Z_face with boundary condition Z, needed for cases where temp_el
+  # is evolving and updated_prescribed_core_profiles is a no-op.
+  Zi_face = jnp.concatenate(
+      [
+          updated_values['Zi_face'][:-1],
+          jnp.array([updated_boundary_conditions['Zi_edge']]),
+      ],
+  )
+  Zimp_face = jnp.concatenate(
+      [
+          updated_values['Zimp_face'][:-1],
+          jnp.array([updated_boundary_conditions['Zimp_edge']]),
+      ],
+  )
+  # pylint: enable=invalid-name
   core_profiles_t_plus_dt = dataclasses.replace(
       core_profiles_t,
       temp_ion=temp_ion,
@@ -1445,7 +1471,10 @@ def provide_core_profiles_t_plus_dt(
       ne=ne,
       ni=ni,
       nimp=nimp,
-      Zimp=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity.avg_Z,
+      Zi=updated_values['Zi'],
+      Zi_face=Zi_face,
+      Zimp=updated_values['Zimp'],
+      Zimp_face=Zimp_face,
   )
   return core_profiles_t_plus_dt
 

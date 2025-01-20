@@ -90,6 +90,9 @@ class PlotData:
   ti: np.ndarray  # [keV]
   te: np.ndarray  # [keV]
   ne: np.ndarray  # [10^20 m^-3]
+  ni: np.ndarray  # [10^20 m^-3]
+  nimp: np.ndarray  # [10^20 m^-3]
+  zimp: np.ndarray  # [10^20 m^-3]
   psi: np.ndarray  # [Wb]
   psidot: np.ndarray  # [Wb/s]
   j: np.ndarray  # [MA/m^2]
@@ -220,6 +223,9 @@ def load_data(filename: str) -> PlotData:
       ti=core_profiles_dataset[output.TEMP_ION].to_numpy(),
       te=core_profiles_dataset[output.TEMP_EL].to_numpy(),
       ne=core_profiles_dataset[output.NE].to_numpy(),
+      ni=core_profiles_dataset[output.NI].to_numpy(),
+      nimp=core_profiles_dataset[output.NIMP].to_numpy(),
+      zimp=core_profiles_dataset[output.ZIMP].to_numpy(),
       psi=core_profiles_dataset[output.PSI].to_numpy(),
       psidot=core_profiles_dataset[output.PSIDOT].to_numpy(),
       j=core_profiles_dataset[output.JTOT].to_numpy(),

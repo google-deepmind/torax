@@ -340,8 +340,8 @@ def _extract_qualikiz_plan(
   )
 
   # pylint: disable=invalid-name
-  Zi0 = core_profiles.Zi
-  Zi1 = core_profiles.Zimp
+  Zi0 = core_profiles.Zi_face
+  Zi1 = core_profiles.Zimp_face
 
   # Calculate main ion dilution
   ni0 = core_profiles.ni.face_value() / core_profiles.ne.face_value()
@@ -354,10 +354,8 @@ def _extract_qualikiz_plan(
       type=1,
       anis=1,
       danisdr=0,
-      A=np.array(
-          dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A
-      ),
-      Z=np.array(Zi0),
+      A=np.array(core_profiles.main_ion.avg_A),
+      Z=1,  # will be a scan variable
   )
 
   ni1 = (1 - ni0 * Zi0) / Zi1  # quasineutrality
@@ -370,8 +368,8 @@ def _extract_qualikiz_plan(
       type=1,
       anis=1,
       danisdr=0,
-      A=np.array(Zi1 * 2),
-      Z=np.array(Zi1),
+      A=np.array(core_profiles.impurity.avg_A),
+      Z=10,  # will be a scan variable
   )
 
   ions = qualikiz_inputtools.IonList(ion0, ion1)
@@ -406,10 +404,12 @@ def _extract_qualikiz_plan(
       'ni0': np.array(ni0),
       'Ati0': np.array(qualikiz_inputs.Ati),
       'Ani0': np.array(qualikiz_inputs.Ani0),
+      'Zi0': np.array(Zi0),
       'Ti1': np.array(core_profiles.temp_ion.face_value()),
       'ni1': np.array(ni1),
       'Ati1': np.array(qualikiz_inputs.Ati),
       'Ani1': np.array(qualikiz_inputs.Ani1),
+      'Zi1': np.array(Zi1),
   }
   # pylint: enable=invalid-name
 

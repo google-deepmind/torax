@@ -227,6 +227,11 @@ Defines the distribution of ion species.  The keys and their meanings are as fol
   As ``Ai_override``, but for the impurity ion. If provided, this value will be used instead of the A calculated
   from the ``impurity`` specification.
 
+The average charge state of each ion in each mixture is determined by `Mavrin polynomials <https://doi.org/10.1080/10420150.2018.1462361>`_,
+which are fitted to atomic data, and in the temperature ranges of interest in the tokamak core,
+are well approximated as 1D functions of electron temperature. All ions with atomic numbers below
+Carbon are assumed to be fully ionized.
+
 Examples
 --------
 

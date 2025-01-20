@@ -378,6 +378,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with tungsten.
+      (
+          'test_iterhybrid_predictor_corrector_tungsten',
+          'test_iterhybrid_predictor_corrector_tungsten.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Predictor-corrector solver with ECCD Lin Liu model.
       (
           'test_iterhybrid_predictor_corrector_ec_linliu',

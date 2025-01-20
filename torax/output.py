@@ -78,6 +78,8 @@ SIGMA = "sigma"
 Q_FACE = "q_face"
 S_FACE = "s_face"
 NREF = "nref"
+ZIMP = "Zimp"
+NIMP = "nimp"
 
 # Core transport.
 CORE_TRANSPORT = "core_transport"
@@ -273,6 +275,8 @@ class StateHistory:
     xr_dict[NE_RIGHT_BC] = self.core_profiles.ne.right_face_constraint
     xr_dict[NI] = self.core_profiles.ni.value
     xr_dict[NI_RIGHT_BC] = self.core_profiles.ni.right_face_constraint
+    xr_dict[ZIMP] = self.core_profiles.Zimp
+    xr_dict[NIMP] = self.core_profiles.nimp.value
 
     # Currents.
     xr_dict[JTOT] = self.core_profiles.currents.jtot
