@@ -333,9 +333,11 @@ class GeometryTest(parameterized.TestCase):
 
       _ = jax.jit(f)()
 
-  def test_build_standard_geometry_from_IMAS(self):
+  @parameterized.parameters([
+      dict(equilibrium_object='ITERhybrid_COCOS17_IDS_ddv4.nc')])
+  def test_build_standard_geometry_from_IMAS(self, equilibrium_object):
     """Test that the default IMAS geometry can be built."""
-    intermediate = geometry.StandardGeometryIntermediates.from_IMAS()
+    intermediate = geometry.StandardGeometryIntermediates.from_IMAS(equilibrium_object = equilibrium_object)
     geo = geometry.build_standard_geometry(intermediate)
 
 

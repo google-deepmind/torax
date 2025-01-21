@@ -25,7 +25,7 @@ import scipy
 
 import yaml
 
-from torax.torax_imastools.util import load_IMAS_data_from_netCDF
+from torax.torax_imastools.util import load_IMAS_data
 
 # Internal import.
 # Internal import.
@@ -123,6 +123,6 @@ def load_geo_data(
     case GeometrySource.EQDSK:
       return _load_eqdsk_data(file_path=filepath)
     case GeometrySource.IMAS:
-      return load_IMAS_data_from_netCDF(file_path=filepath)
+      return load_IMAS_data(path=filepath)
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')
