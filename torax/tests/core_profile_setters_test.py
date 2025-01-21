@@ -11,14 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Tests for module torax.boundary_conditions."""
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
+from torax import jax_utils
 from torax import physics
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
@@ -39,165 +39,70 @@ class CoreProfileSettersTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
+    jax_utils.enable_errors(True)
     self.geo = geometry.build_circular_geometry(n_rho=4)
 
-  @parameterized.parameters(
-      (0.0, np.array([10.5, 7.5, 4.5, 1.5])),
-      (80.0, np.array([1.0, 1.0, 1.0, 1.0])),
-      (
-          40.0,
-          np.array([
-              (1.0 + 10.5) / 2,
-              (1.0 + 7.5) / 2,
-              (1.0 + 4.5) / 2,
-              (1.0 + 1.5) / 2,
-          ]),
-      ),
-  )
-  def test_temperature_rho_and_time_interpolation(
-      self,
-      t: float,
-      expected_temperature: np.ndarray,
-  ):
-    """Tests that the temperature rho and time interpolation works."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            Ti={0.0: {0.0: 12.0, 1.0: SMALL_VALUE}, 80.0: {0.0: 1.0}},
-            Ti_bound_right=SMALL_VALUE,
-            Te={0.0: {0.0: 12.0, 1.0: SMALL_VALUE}, 80.0: {0.0: 1.0}},
-            Te_bound_right=SMALL_VALUE,
-        ),
+  def test_updated_ion_temperature(self):
+    bound = np.array(42.)
+    value = np.array([12.0, 10.0, 8.0, 6.0])
+    profile_conditions = mock.create_autospec(
+        profile_conditions_lib.DynamicProfileConditions,
+        instance=True,
+        Ti_bound_right=bound,
+        Ti=value,
     )
-    geo = geometry.build_circular_geometry(n_rho=4)
-    dynamic_slice = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
-        runtime_params,
-        torax_mesh=geo.torax_mesh,
-    )(t=t)
-    Ti = core_profile_setters.updated_ion_temperature(dynamic_slice, geo)
-    Te = core_profile_setters.updated_electron_temperature(dynamic_slice, geo)
-    np.testing.assert_allclose(
-        Ti.value,
-        expected_temperature,
-        rtol=1e-6,
-        atol=1e-6,
+    result = core_profile_setters._updated_ion_temperature(
+        profile_conditions,
+        self.geo,
     )
-    np.testing.assert_allclose(
-        Te.value,
-        expected_temperature,
-        rtol=1e-6,
-        atol=1e-6,
-    )
+    np.testing.assert_allclose(result.value, value)
+    np.testing.assert_equal(result.right_face_constraint, bound)
 
-  @parameterized.parameters(
-      (None, None, 2.0, 2.0),
-      (1.0, None, 1.0, 2.0),
-      (None, 1.0, 2.0, 1.0),
-      (None, None, 2.0, 2.0),
-  )
-  def test_temperature_boundary_condition_override(
-      self,
-      Ti_bound_right: float | None,
-      Te_bound_right: float | None,
-      expected_Ti_bound_right: float,
-      expected_Te_bound_right: float,
-  ):
-    """Tests that the temperature boundary condition override works."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            Ti={
-                0.0: {0.0: 12.0, 1.0: 2.0},
-            },
-            Te={
-                0.0: {0.0: 12.0, 1.0: 2.0},
-            },
-            Ti_bound_right=Ti_bound_right,
-            Te_bound_right=Te_bound_right,
-        ),
+  @parameterized.parameters(0, -1)
+  def test_updated_ion_temperature_negative_Ti_bound_right(
+      self, Ti_bound_right: float):
+    profile_conditions = mock.create_autospec(
+        profile_conditions_lib.DynamicProfileConditions,
+        instance=True,
+        Ti_bound_right=np.array(Ti_bound_right),
+        Ti=np.array([12.0, 10.0, 8.0, 6.0]),
     )
-    t = 0.0
-    geo = geometry.build_circular_geometry(n_rho=4)
-    dynamic_slice = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
-        runtime_params,
-        torax_mesh=geo.torax_mesh,
-    )(
-        t=t,
-    )
-    Ti_bound_right = core_profile_setters.updated_ion_temperature(
-        dynamic_slice, geo
-    ).right_face_constraint
-    Te_bound_right = core_profile_setters.updated_electron_temperature(
-        dynamic_slice, geo
-    ).right_face_constraint
-    self.assertEqual(
-        Ti_bound_right,
-        expected_Ti_bound_right,
-    )
-    self.assertEqual(
-        Te_bound_right,
-        expected_Te_bound_right,
-    )
+    with self.assertRaisesRegex(RuntimeError, 'Ti_bound_right'):
+      core_profile_setters._updated_ion_temperature(
+          profile_conditions,
+          self.geo,
+      )
 
-  def test_time_dependent_provider_with_temperature_is_time_dependent(self):
-    """Tests that the runtime_params slice provider is time dependent for T."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            Ti={0.0: {0.0: 12.0, 1.0: SMALL_VALUE}, 3.0: {0.0: SMALL_VALUE}},
-            Ti_bound_right=SMALL_VALUE,
-            Te={0.0: {0.0: 12.0, 1.0: SMALL_VALUE}, 3.0: {0.0: SMALL_VALUE}},
-            Te_bound_right=SMALL_VALUE,
-        ),
+  def test_updated_electron_temperature(self):
+    bound = np.array(42.)
+    value = np.array([12.0, 10.0, 8.0, 6.0])
+    profile_conditions = mock.create_autospec(
+        profile_conditions_lib.DynamicProfileConditions,
+        instance=True,
+        Te_bound_right=bound,
+        Te=value,
     )
-    geo = geometry.build_circular_geometry(n_rho=4)
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
-        sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
-        torax_mesh=geo.torax_mesh,
+    result = core_profile_setters._updated_electron_temperature(
+        profile_conditions,
+        self.geo
     )
+    np.testing.assert_allclose(result.value, value)
+    np.testing.assert_equal(result.right_face_constraint, bound)
 
-    dynamic_runtime_params_slice = provider(t=1.0)
-    Ti = core_profile_setters.updated_ion_temperature(
-        dynamic_runtime_params_slice, geo
+  @parameterized.parameters(0, -1)
+  def test_updated_electron_temperature_negative_Te_bound_right(
+      self, Te_bound_right: float):
+    profile_conditions = mock.create_autospec(
+        profile_conditions_lib.DynamicProfileConditions,
+        instance=True,
+        Te_bound_right=np.array(Te_bound_right),
+        Te=np.array([12.0, 10.0, 8.0, 6.0]),
     )
-    Te = core_profile_setters.updated_electron_temperature(
-        dynamic_runtime_params_slice, geo
-    )
-
-    np.testing.assert_allclose(
-        Ti.value,
-        np.array([7.0, 5.0, 3.0, 1.0]),
-        atol=1e-6,
-        rtol=1e-6,
-    )
-    np.testing.assert_allclose(
-        Te.value,
-        np.array([7.0, 5.0, 3.0, 1.0]),
-        atol=1e-6,
-        rtol=1e-6,
-    )
-
-    dynamic_runtime_params_slice = provider(
-        t=2.0,
-    )
-    Ti = core_profile_setters.updated_ion_temperature(
-        dynamic_runtime_params_slice, geo
-    )
-    Te = core_profile_setters.updated_electron_temperature(
-        dynamic_runtime_params_slice, geo
-    )
-    np.testing.assert_allclose(
-        Ti.value,
-        np.array([3.5, 2.5, 1.5, 0.5]),
-        atol=1e-6,
-        rtol=1e-6,
-    )
-    np.testing.assert_allclose(
-        Te.value,
-        np.array([3.5, 2.5, 1.5, 0.5]),
-        atol=1e-6,
-        rtol=1e-6,
-    )
+    with self.assertRaisesRegex(RuntimeError, 'Te_bound_right'):
+      core_profile_setters._updated_electron_temperature(
+          profile_conditions,
+          self.geo,
+      )
 
   def test_ne_core_profile_setter(self):
     """Tests that setting ne works."""
@@ -225,6 +130,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0)
+
     temp_el = cell_variable.CellVariable(
         value=jnp.ones_like(self.geo.rho_norm)
         * 100.0,  # ensure full ionization
@@ -234,7 +140,9 @@ class CoreProfileSettersTest(parameterized.TestCase):
         dr=self.geo.drho_norm,
     )
     ne = core_profile_setters._get_ne(
-        dynamic_runtime_params_slice, self.geo
+        dynamic_runtime_params_slice.numerics,
+        dynamic_runtime_params_slice.profile_conditions,
+        self.geo
     )
     ni, nimp, Zi, _, Zimp, _ = (
         core_profile_setters.get_ion_density_and_charge_states(
@@ -306,7 +214,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
     dynamic_runtime_params_slice = provider(
         t=1.0,
     )
-    ne = core_profile_setters._get_ne(dynamic_runtime_params_slice, self.geo)
+    ne = core_profile_setters._get_ne(
+        dynamic_runtime_params_slice.numerics,
+        dynamic_runtime_params_slice.profile_conditions,
+        self.geo,
+    )
     np.testing.assert_allclose(
         ne.right_face_constraint,
         expected_value,
@@ -340,7 +252,9 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     ne_normalized = core_profile_setters._get_ne(
-        dynamic_runtime_params_slice_normalized, self.geo
+        dynamic_runtime_params_slice_normalized.numerics,
+        dynamic_runtime_params_slice_normalized.profile_conditions,
+        self.geo
     )
 
     np.testing.assert_allclose(np.mean(ne_normalized.value), nbar, rtol=1e-1)
@@ -351,7 +265,9 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     ne_unnormalized = core_profile_setters._get_ne(
-        dynamic_runtime_params_slice_unnormalized, self.geo
+        dynamic_runtime_params_slice_unnormalized.numerics,
+        dynamic_runtime_params_slice_unnormalized.profile_conditions,
+        self.geo
     )
 
     ratio = ne_unnormalized.value / ne_normalized.value
@@ -387,7 +303,9 @@ class CoreProfileSettersTest(parameterized.TestCase):
         t=1.0,
     )
     ne_fGW = core_profile_setters._get_ne(
-        dynamic_runtime_params_slice_fGW, self.geo
+        dynamic_runtime_params_slice_fGW.numerics,
+        dynamic_runtime_params_slice_fGW.profile_conditions,
+        self.geo
     )
 
     runtime_params.profile_conditions.ne_is_fGW = False
@@ -396,7 +314,9 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     ne = core_profile_setters._get_ne(
-        dynamic_runtime_params_slice, self.geo
+        dynamic_runtime_params_slice.numerics,
+        dynamic_runtime_params_slice.profile_conditions,
+        self.geo
     )
 
     ratio = ne.value / ne_fGW.value
