@@ -194,29 +194,6 @@ class CoreProfiles:
       if hasattr(value, "sanity_check"):
         value.sanity_check()
 
-  def project(self, weights):
-    project = lambda x: jnp.dot(weights, x)
-    proj_currents = jax.tree_util.tree_map(project, self.currents)
-    return dataclasses.replace(
-        self,
-        temp_ion=self.temp_ion.project(weights),
-        temp_el=self.temp_el.project(weights),
-        psi=self.psi.project(weights),
-        psidot=self.psidot.project(weights),
-        ne=self.ne.project(weights),
-        ni=self.ni.project(weights),
-        currents=proj_currents,
-        q_face=project(self.q_face),
-        s_face=project(self.s_face),
-        nref=project(self.nref),
-        Zi=project(self.Zi),
-        Zi_face=project(self.Zi_face),
-        Ai=project(self.Ai),
-        Zimp=project(self.Zimp),
-        Zimp_face=project(self.Zimp_face),
-        Aimp=project(self.Aimp),
-    )
-
   def __hash__(self):
     """Make CoreProfiles hashable.
 

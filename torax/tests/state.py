@@ -153,37 +153,6 @@ class StateTest(torax_refs.ReferenceValueTest):
     for i in range(self.history_length):
       self.assertEqual(i, history.index(i).temp_ion.value[0])
 
-  @parameterized.parameters([
-      dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
-      ),
-  ])
-  def test_project(
-      self,
-      references_getter: Callable[[], torax_refs.References],
-  ):
-    """Test State.project."""
-    references = references_getter()
-    history = self._make_history(
-        references.runtime_params, references.geometry_provider
-    )
-
-    seed = 20230421
-    rng_state = jax.random.PRNGKey(seed)
-    del seed  # Make sure seed isn't accidentally re-used
-    weights = jax.random.normal(rng_state, (self.history_length,))
-    del rng_state  # Make sure rng_state isn't accidentally re-used
-
-    expected = jnp.dot(weights, jnp.arange(self.history_length))
-
-    projected = history.project(weights)
-
-    actual = projected.temp_ion.value[0]
-
-    np.testing.assert_allclose(expected, actual)
-
 
 class InitialStatesTest(parameterized.TestCase):
   """Unit tests for the `torax.core_profile_setters` module."""
