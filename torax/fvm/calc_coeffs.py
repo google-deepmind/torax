@@ -77,25 +77,39 @@ class CoeffsCallback:
       # should be called
       explicit_call: bool = False,
   ):
+    # Update core_profiles with the subset of new values of evolving variables
     replace = {k: v for k, v in zip(self.evolving_names, x)}
     core_profiles = config_args.recursive_replace(core_profiles, **replace)
-    # update ion density in core_profiles if ne is being evolved.
-    # Necessary for consistency in iterative nonlinear solutions
-    if 'ne' in self.evolving_names:
-      ni, nimp = core_profile_setters._updated_ion_density(
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles.ne,
+    # Update ion and impurity density and charge states based on new iterations
+    # for temp_el and ne, if either of these are evolving.
+    if 'ne' in self.evolving_names or 'temp_el' in self.evolving_names:
+      # pylint: disable=invalid-name
+      ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+          core_profile_setters.get_ion_density_and_charge_states(
+              self.static_runtime_params_slice,
+              dynamic_runtime_params_slice,
+              geo,
+              core_profiles.ne,
+              core_profiles.temp_el,
+          )
       )
-      core_profiles = dataclasses.replace(core_profiles, ni=ni, nimp=nimp)
-
+      core_profiles = dataclasses.replace(
+          core_profiles,
+          ni=ni,
+          nimp=nimp,
+          Zi=Zi,
+          Zi_face=Zi_face,
+          Zimp=Zimp,
+          Zimp_face=Zimp_face,
+      )
+      # pylint: enable=invalid-name
     if allow_pereverzev:
       use_pereverzev = self.static_runtime_params_slice.stepper.use_pereverzev
     else:
       use_pereverzev = False
 
     return calc_coeffs(
-        static_runtime_params_slice=self.static_runtime_params_slice,
+        self.static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,

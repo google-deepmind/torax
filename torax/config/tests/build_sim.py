@@ -27,7 +27,6 @@ from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import runtime_params as stepper_params
-from torax.time_step_calculator import array_time_step_calculator
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport
@@ -49,7 +48,7 @@ class BuildSimTest(parameterized.TestCase):
         dict(
             runtime_params=dict(
                 plasma_composition=dict(
-                    Ai=0.1,
+                    Ai_override=0.1,
                 ),
                 profile_conditions=dict(
                     ne_is_fGW=False,
@@ -93,7 +92,9 @@ class BuildSimTest(parameterized.TestCase):
         t=sim.initial_state.t,
     )
     with self.subTest('runtime_params'):
-      self.assertEqual(dynamic_runtime_params_slice.plasma_composition.Ai, 0.1)
+      self.assertEqual(
+          dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A, 0.1
+      )
       self.assertEqual(
           dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
           False,
@@ -108,8 +109,8 @@ class BuildSimTest(parameterized.TestCase):
       self.assertEqual(geo.torax_mesh.nx, 5)
     with self.subTest('sources'):
       self.assertEqual(
-          sim.source_models_builder.runtime_params['pellet_source'].mode,
-          source_runtime_params_lib.Mode.ZERO,
+          sim.static_runtime_params_slice.sources['pellet_source'].mode,
+          source_runtime_params_lib.Mode.ZERO.value,
       )
     with self.subTest('transport'):
       self.assertIsInstance(
@@ -162,7 +163,7 @@ class BuildSimTest(parameterized.TestCase):
     """Tests that we can build all types of attributes in the runtime params."""
     runtime_params = build_sim.build_runtime_params_from_config({
         'plasma_composition': {
-            'Ai': 0.1,  # scalar fields.
+            'main_ion': 'D',
             'Zeff': {
                 0: {0: 0.1, 1: 0.1},
                 1: {0: 0.2, 1: 0.2},
@@ -180,7 +181,7 @@ class BuildSimTest(parameterized.TestCase):
         },
         'output_dir': '/tmp/this/is/a/test',
     })
-    self.assertEqual(runtime_params.plasma_composition.Ai, 0.1)
+    self.assertEqual(runtime_params.plasma_composition.main_ion, 'D')
     self.assertEqual(runtime_params.profile_conditions.ne_is_fGW, False)
     self.assertEqual(runtime_params.numerics.q_correction_factor, 0.2)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
@@ -292,12 +293,12 @@ class BuildSimTest(parameterized.TestCase):
             torax_mesh=geo_provider.torax_mesh,
         )
     )
-    geo = geo_provider(t=0)
-    dynamic_runtime_params_slice = runtime_params_provider(
-        t=0,
-    )
-    dynamic_slice, geo = runtime_params_slice.make_ip_consistent(
-        dynamic_runtime_params_slice, geo
+    dynamic_slice, geo = (
+        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=0,
+            dynamic_runtime_params_slice_provider=runtime_params_provider,
+            geometry_provider=geo_provider,
+        )
     )
     self.assertIsInstance(geo, geometry.StandardGeometry)
     self.assertIsNotNone(dynamic_slice)
@@ -510,18 +511,6 @@ class BuildSimTest(parameterized.TestCase):
         calculator_type
     )
     self.assertIsInstance(time_stepper, expected_type)
-
-  def test_build_array_time_step_calculator(self):
-    time_stepper = build_sim.build_time_step_calculator_from_config({
-        'calculator_type': 'array',
-        'init_kwargs': {
-            'arr': [0.1, 0.2, 0.3],
-        },
-    })
-    self.assertIsInstance(
-        time_stepper, array_time_step_calculator.ArrayTimeStepCalculator
-    )
-
 
 if __name__ == '__main__':
   absltest.main()

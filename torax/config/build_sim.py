@@ -32,7 +32,6 @@ from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import stepper as stepper_lib
-from torax.time_step_calculator import array_time_step_calculator
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as time_step_calculator_lib
@@ -275,7 +274,7 @@ def build_sim_from_config(
   else:
     file_restart = None
 
-  return sim_lib.build_sim_object(
+  return sim_lib.Sim.create(
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
       source_models_builder=build_sources_builder_from_config(
@@ -729,6 +728,4 @@ def build_time_step_calculator_from_config(
     return fixed_time_step_calculator.FixedTimeStepCalculator(**init_args)
   elif calculator_type == 'chi':
     return chi_time_step_calculator.ChiTimeStepCalculator(**init_args)
-  elif calculator_type == 'array':
-    return array_time_step_calculator.ArrayTimeStepCalculator(**init_args)
   raise ValueError(f'Unknown calculator type: {calculator_type}')

@@ -56,18 +56,19 @@ The following inputs are valid for **time-varying-scalar** parameters:
 
 Examples:
 
-1. Define a time-dependent :math:`Z_{eff}` with piecewise linear interpolation, from :math:`t=2` to :math:`t=15`.
-:math:`Z_{eff}` drops from 2.8 to 1.5, and then stays flat.
+1. Define a time-dependent total current :math:`Ip_{tot}` with piecewise linear interpolation,
+from :math:`t=10` to :math:`t=100`. :math:`Ip_{tot}` rises from 2 to 15, and then stays flat
+due to constant extrapolation beyond the last time value.
 
 .. code-block:: python
 
-  Zeff = ({2: 2.8, 5: 2.0, 8: 1.5, 15: 1.5}, 'PIECEWISE_LINEAR')
+  Ip_tot = ({10: 2.0, 100: 15.0}, 'PIECEWISE_LINEAR')
 
 or more simply, taking advantage of the default.
 
 .. code-block:: python
 
-  Zeff = {2: 2.8, 5: 2.0, 8: 1.5, 15: 1.5}
+    Ip_tot = {10: 2.0, 100: 15.0}
 
 2. Define a time dependent internal boundary condition for ion temperature, ``Tiped``, with stepwise changes,
 starting at :math:`1~keV`` at :math:`t=2s`, transitioning to :math:`3~keV`` at :math:`t=8s`, and back down
@@ -189,24 +190,108 @@ runtime_params
 plasma_composition
 ^^^^^^^^^^^^^^^^^^
 
-Defines the distribution of ion species. Currently restricted to a single main ion, a single impurity and a flat :math:`Z_{eff}`.
+Defines the distribution of ion species.  The keys and their meanings are as follows:
 
-``Ai`` (float = 2.5)
-  Mass of main ion in amu units. For multiple-isotope plasmas, make an effective average.
+``main_ion`` (str or dict = ``{'D': 0.5, 'T': 0.5}``)
+  Specifies the main ion species.
 
-``Zi`` (float = 1.0):
-  Charge of main ion in units of electron charge.
+  *   If a string, it represents a single ion species (e.g., ``'D'`` for deuterium, ``'T'`` for tritium, ``'H'`` for hydrogen). See below for the full list of supported ions.
+  *   If a dict, it represents a mixture of ion species with given fractions. By `mixture`, we mean
+      key value pairs of ion symbols and fractional concentrations, which must sum to 1 within a tolerance of 1e-6.
+      The effective mass and charge of the mixture is the weighted average of the species masses and charges.
+      The fractions can be time-dependent, i.e. are **time-varying-scalar**. The ion mixture API thus
+      supports features such as time varying isotope ratios.
 
-``Zimp`` (float = 10.0), **time-varying-scalar**
-  Impurity charge state.
+``impurity`` (str or dict = ``'Ne'``), **time-varying-scalar**
+  Specifies the impurity species, following the same syntax as ``main_ion``. A single effective impurity species
+  is currently supported, although multiple impurities can still be defined as a mixture.
 
-``Aimp`` (float = 20.18), **time-varying-scalar**
-  Impurity mass in amu units.
-
-``Zeff`` (float = 1.0), **time-varying-scalar**
+``Zeff`` (float = 1.0), **time-varying-array**
   Plasma effective charge, defined as :math:`Z_{eff}=\sum_i Z_i^2 \hat{n}_i`, where :math:`\hat{n}_i` is
-  the normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and :math:`Z_{imp}`, a consistent :math:`\hat{n}_i` is calculated,
-  with the appropriate degree of main ion dilution.
+  the normalized ion density :math:`n_i/n_e`. For a given :math:`Z_{eff}` and impurity charge states,
+  a consistent :math:`\hat{n}_i` is calculated, with the appropriate degree of main ion dilution.
+
+``Zi_override`` (float, optional = None), **time-varying-scalar**
+  An optional override for the main ion's charge (Z) or average charge of an ion mixture.
+  If provided, this value will be used instead of the Z calculated from the ``main_ion`` specification.
+
+``Ai_override`` (float, optional = None), **time-varying-scalar**
+  An optional override for the main ion's mass (A) in amu units or average mass of an IonMixture.
+  If provided, this value will be used instead of the A calculated from the ``main_ion`` specification.
+
+``Zimp_override`` (float, optional), **time-varying-scalar**
+  As ``Zi_override``, but for the impurity ion. If provided, this value will be used instead of the Z calculated
+  from the ``impurity`` specification.
+
+``Aimp_override`` (float, optional), **time-varying-scalar**
+  As ``Ai_override``, but for the impurity ion. If provided, this value will be used instead of the A calculated
+  from the ``impurity`` specification.
+
+The average charge state of each ion in each mixture is determined by `Mavrin polynomials <https://doi.org/10.1080/10420150.2018.1462361>`_,
+which are fitted to atomic data, and in the temperature ranges of interest in the tokamak core,
+are well approximated as 1D functions of electron temperature. All ions with atomic numbers below
+Carbon are assumed to be fully ionized.
+
+Examples
+--------
+
+We remind that for all cases below, the impurity density is solely constrained by
+the input ``Zeff`` value and the impurity charge state, presently assumed to be fully ionized.
+Imminent development will support temperature-dependent impurity average charge states,
+
+* Pure deuterium plasma:
+
+  .. code-block:: python
+
+    'plasma_composition': {
+        'main_ion': 'D',
+        'impurity': 'Ne',  # Neon
+        'Zeff': 1.5,
+    }
+
+* 50-50 DT ion mixture:
+
+  .. code-block:: python
+
+    'plasma_composition': {
+        'main_ion': {'D': 0.5, 'T': 0.5},
+        'impurity': 'Be',  # Beryllium
+        'Zeff': 1.8,
+    }
+
+* Time-varying DT ion mixture:
+
+  .. code-block:: python
+
+    'plasma_composition': {
+      'main_ion': {
+        'D': {0.0: 0.1, 5.0: 0.9},  # D fraction from 0.1 to 0.9
+        'T': {0.0: 0.9, 5.0: 0.1},  # T fraction from 0.9 to 0.1
+      },
+      'impurity': 'W',  # Tungsten
+      'Zeff': 2.0,
+    }
+
+Allowed ion symbols
+-------------------
+
+The following ion symbols are recognized for ``main_ion`` and ``impurity`` input fields.
+
+  *   H  (Hydrogen)
+  *   D  (Deuterium)
+  *   T  (Tritium)
+  *   He3 (Helium-3)
+  *   He4 (Helium-4)
+  *   Li (Lithium)
+  *   Be (Beryllium)
+  *   C (Carbon)
+  *   N (Nitrogen)
+  *   O (Oxygen)
+  *   Ne (Neon)
+  *   Ar (Argon)
+  *   Kr (Krypton)
+  *   Xe (Xenon)
+  *   W (Tungsten)
 
 Profile conditions
 ^^^^^^^^^^^^^^^^^^
@@ -1240,9 +1325,9 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
   CONFIG = {
       'runtime_params': {
           'plasma_composition': {
-              'Ai': 2.5,
+              'main_ion': {'D': 0.5, 'T': 0.5},
+              'impurity': 'Ne',
               'Zeff': 1.6,
-              'Zimp': 10,
           },
           'profile_conditions': {
               'Ip_tot': {0: 3, 80: 10.5},

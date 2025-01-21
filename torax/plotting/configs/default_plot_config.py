@@ -17,8 +17,8 @@
 from torax.plotting import plotruns_lib
 
 PLOT_CONFIG = plotruns_lib.FigureProperties(
-    rows=3,
-    cols=5,
+    rows=4,
+    cols=4,
     tick_fontsize=8,
     axes_fontsize=8,
     default_legend_fontsize=7,
@@ -34,9 +34,9 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylabel='Temperature [keV]',
         ),
         plotruns_lib.PlotProperties(
-            attrs=('ne',),
-            labels=(r'$n_\mathrm{e}$',),
-            ylabel=r'Electron density $[10^{20}~m^{-3}]$',
+            attrs=('ne', 'ni'),
+            labels=(r'$n_\mathrm{e}$', r'$n_\mathrm{i}$'),
+            ylabel=r'Density $[10^{20}~m^{-3}]$',
         ),
         plotruns_lib.PlotProperties(
             attrs=('chi_i', 'chi_e'),
@@ -175,6 +175,13 @@ PLOT_CONFIG = plotruns_lib.FigureProperties(
             ylabel=r'Total heating/sink powers $[MW]$',
             legend_fontsize=6,  # Smaller fontsize for this plot
             suppress_zero_values=True,  # Do not plot all-zero data
+        ),
+        plotruns_lib.PlotProperties(
+            attrs=('zimp',),
+            labels=(
+                r'$\langle Z_{impurity} \rangle$',
+            ),
+            ylabel=r'Average impurity charge [amu]',
         ),
     ),
 )

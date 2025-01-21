@@ -77,7 +77,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
-    sim = sim_lib.build_sim_object(
+    sim = sim_lib.Sim.create(
         runtime_params=runtime_params,
         geometry_provider=geometry_provider,
         stepper_builder=FakeStepperBuilder(

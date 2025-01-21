@@ -12,13 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Identical to test_iterhybrid_predictor_corrector but with Zi=2."""
-import copy
-from torax.tests.test_data import test_iterhybrid_predictor_corrector
-
-
-CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
-
-# Needed to avoid an odd pytype error
-assert(isinstance(CONFIG['runtime_params']['plasma_composition'], dict))
-CONFIG['runtime_params']['plasma_composition']['Zi_override'] = 2.0
+"""This package contains functionality related to geometry."""

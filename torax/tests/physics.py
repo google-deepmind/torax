@@ -281,8 +281,10 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         q_face=jnp.array(0.0),
         s_face=jnp.array(0.0),
         Zi=Zi,
+        Zi_face=Zi,
         Ai=Ai,
         Zimp=Zimp,
+        Zimp_face=Zimp,
         Aimp=Aimp,
         nref=1e20,
     )
@@ -374,8 +376,10 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         q_face=jnp.array(0.0),
         s_face=jnp.array(0.0),
         Zi=1.0,
+        Zi_face=1.0,
         Ai=3.0,
         Zimp=20,
+        Zimp_face=20,
         Aimp=40,
         nref=1e20,
     )
@@ -469,8 +473,10 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         q_face=jnp.array(0.0),
         s_face=jnp.array(0.0),
         Zi=1.0,
+        Zi_face=1.0,
         Ai=3.0,
         Zimp=20.0,
+        Zimp_face=20.0,
         Aimp=40.0,
         nref=1e20,
     )

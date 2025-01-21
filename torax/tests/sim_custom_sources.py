@@ -191,7 +191,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     geo_provider = geometry_provider.ConstantGeometryProvider(
         geometry.build_circular_geometry()
     )
-    sim = sim_lib.build_sim_object(
+    sim = sim_lib.Sim.create(
         runtime_params=self.test_particle_sources_constant_runtime_params,
         geometry_provider=geo_provider,
         stepper_builder=self.stepper_builder,

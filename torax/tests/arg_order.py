@@ -82,6 +82,9 @@ class ArgOrderTest(parameterized.TestCase):
     fields = inspect.getmembers(module)
     print(module.__name__)
     for name, obj in fields:
+      if name.startswith("_"):
+        # Ignore private fields and methods.
+        continue
       if inspect.isfunction(obj):
         print("\t", name)
         params = inspect.signature(obj).parameters.keys()

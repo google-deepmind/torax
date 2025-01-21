@@ -50,6 +50,60 @@ class SourceProfiles:
       return self.profiles[name]
     return jnp.zeros_like(self.j_bootstrap.j_bootstrap)
 
+  # This function can be jitted if source_models is a static argument. However,
+  # in our tests, jitting this function actually slightly slows down runs, so
+  # this is left as pure python.
+  @classmethod
+  def merge(
+      cls,
+      explicit_source_profiles: SourceProfiles,
+      implicit_source_profiles: SourceProfiles,
+  ) -> SourceProfiles:
+    """Returns a SourceProfiles that merges the input profiles.
+
+    Sources can either be explicit or implicit. The explicit_source_profiles
+    contain the profiles for all source models that are set to explicit, and it
+    contains profiles with all zeros for any implicit source. The opposite holds
+    for the implicit_source_profiles.
+
+    This function adds the two dictionaries of profiles and returns a single
+    SourceProfiles that includes both.
+
+    Args:
+      explicit_source_profiles: Profiles from explicit source models. This
+        SourceProfiles dict will include keys for both the explicit and implicit
+        sources, but only the explicit sources will have non-zero profiles. See
+        source.py and runtime_params.py for more info on explicit vs. implicit.
+      implicit_source_profiles: Profiles from implicit source models. This
+        SourceProfiles dict will include keys for both the explicit and implicit
+        sources, but only the implicit sources will have non-zero profiles. See
+        source.py and runtime_params.py for more info on explicit vs. implicit.
+
+    Returns:
+      A SourceProfiles with non-zero profiles for all sources, both explicit and
+      implicit (assuming the source model outputted a non-zero profile).
+
+    """
+    sum_profiles = lambda a, b: a + b
+    summed_bootstrap_profile = jax.tree_util.tree_map(
+        sum_profiles,
+        explicit_source_profiles.j_bootstrap,
+        implicit_source_profiles.j_bootstrap,
+    )
+    summed_qei_info = jax.tree_util.tree_map(
+        sum_profiles, explicit_source_profiles.qei, implicit_source_profiles.qei
+    )
+    summed_other_profiles = jax.tree_util.tree_map(
+        sum_profiles,
+        explicit_source_profiles.profiles,
+        implicit_source_profiles.profiles,
+    )
+    return cls(
+        profiles=summed_other_profiles,
+        j_bootstrap=summed_bootstrap_profile,
+        qei=summed_qei_info,
+    )
+
 
 @chex.dataclass(frozen=True)
 class BootstrapCurrentProfile:

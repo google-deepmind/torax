@@ -19,13 +19,18 @@ conditions, and updates time-dependent prescribed core_profiles that are not
 evolved by the PDE system.
 """
 import dataclasses
+import functools
 import jax
 from jax import numpy as jnp
+from torax import array_typing
+from torax import charge_states
 from torax import constants
 from torax import jax_utils
 from torax import math_utils
 from torax import physics
 from torax import state
+from torax.config import numerics
+from torax.config import profile_conditions
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
@@ -35,83 +40,76 @@ from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
 
+# Using capitalized variables for physics notational conventions rather than
+# Python style.
+# pylint: disable=invalid-name
 
-def updated_ion_temperature(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+
+def _updated_ion_temperature(
+    dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Updated ion temp. Used upon initialization and if temp_ion=False."""
-  # pylint: disable=invalid-name
-  Ti_bound_right = (
-      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right
-  )
-
   Ti_bound_right = jax_utils.error_if_not_positive(
-      Ti_bound_right,
+      dynamic_profile_conditions.Ti_bound_right,
       'Ti_bound_right',
   )
   temp_ion = cell_variable.CellVariable(
-      value=dynamic_runtime_params_slice.profile_conditions.Ti,
+      value=dynamic_profile_conditions.Ti,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=Ti_bound_right,
       dr=geo.drho_norm,
   )
-  # pylint: enable=invalid-name
+
   return temp_ion
 
 
-def updated_electron_temperature(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+def _updated_electron_temperature(
+    dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
   """Updated electron temp. Used upon initialization and if temp_el=False."""
-  # pylint: disable=invalid-name
-  Te_bound_right = (
-      dynamic_runtime_params_slice.profile_conditions.Te_bound_right
-  )
-
   Te_bound_right = jax_utils.error_if_not_positive(
-      Te_bound_right,
+      dynamic_profile_conditions.Te_bound_right,
       'Te_bound_right',
   )
   temp_el = cell_variable.CellVariable(
-      value=dynamic_runtime_params_slice.profile_conditions.Te,
+      value=dynamic_profile_conditions.Te,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
       right_face_constraint=Te_bound_right,
       dr=geo.drho_norm,
   )
-  # pylint: enable=invalid-name
   return temp_el
 
 
-# pylint: disable=invalid-name
 def _get_ne(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_numerics: numerics.DynamicNumerics,
+    dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
-  """Helper to get the electron density profile at the current timestep."""
-  # pylint: disable=invalid-name
+  """Gets initial or prescribed electron density profile at current timestep."""
+
   nGW = (
-      dynamic_runtime_params_slice.profile_conditions.Ip_tot
+      dynamic_profile_conditions.Ip_tot
       / (jnp.pi * geo.Rmin**2)
       * 1e20
-      / dynamic_runtime_params_slice.numerics.nref
+      / dynamic_numerics.nref
   )
   ne_value = jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
-      dynamic_runtime_params_slice.profile_conditions.ne * nGW,
-      dynamic_runtime_params_slice.profile_conditions.ne,
+      dynamic_profile_conditions.ne_is_fGW,
+      dynamic_profile_conditions.ne * nGW,
+      dynamic_profile_conditions.ne,
   )
   # Calculate ne_bound_right.
   ne_bound_right = jnp.where(
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_fGW,
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right * nGW,
-      dynamic_runtime_params_slice.profile_conditions.ne_bound_right,
+      dynamic_profile_conditions.ne_bound_right_is_fGW,
+      dynamic_profile_conditions.ne_bound_right * nGW,
+      dynamic_profile_conditions.ne_bound_right,
   )
 
-  if dynamic_runtime_params_slice.profile_conditions.normalize_to_nbar:
+  if dynamic_profile_conditions.normalize_to_nbar:
     face_left = ne_value[0]  # Zero gradient boundary condition at left face.
     face_right = ne_bound_right
     face_inner = (ne_value[..., :-1] + ne_value[..., 1:]) / 2.0
@@ -129,16 +127,15 @@ def _get_ne(
     Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
     # find target nbar in absolute units
     target_nbar = jnp.where(
-        dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
-        dynamic_runtime_params_slice.profile_conditions.nbar * nGW,
-        dynamic_runtime_params_slice.profile_conditions.nbar,
+        dynamic_profile_conditions.ne_is_fGW,
+        dynamic_profile_conditions.nbar * nGW,
+        dynamic_profile_conditions.nbar,
     )
     if (
-        not dynamic_runtime_params_slice.profile_conditions.ne_bound_right_is_absolute
+        not dynamic_profile_conditions.ne_bound_right_is_absolute
     ):
       # In this case, ne_bound_right is taken from ne and we also normalize it.
       C = target_nbar / (_trapz(ne_face, geo.Rout_face) / Rmin_out)
-      # pylint: enable=invalid-name
       ne_bound_right = C * ne_bound_right
     else:
       # If ne_bound_right is absolute, subtract off contribution from outer
@@ -166,29 +163,100 @@ def _get_ne(
   return ne
 
 
-def _updated_ion_density(
+def _get_charge_states(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    temp_el: cell_variable.CellVariable,
+) -> tuple[
+    array_typing.ArrayFloat,
+    array_typing.ArrayFloat,
+    array_typing.ArrayFloat,
+    array_typing.ArrayFloat,
+]:
+  """Updated charge states based on IonMixtures and electron temperature."""
+  Zi = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.main_ion_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
+      Te=temp_el.value,
+  )
+  Zi_face = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.main_ion_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
+      Te=temp_el.face_value(),
+  )
+
+  Zimp = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.impurity_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
+      Te=temp_el.value,
+  )
+  Zimp_face = charge_states.get_average_charge_state(
+      ion_symbols=static_runtime_params_slice.impurity_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
+      Te=temp_el.face_value(),
+  )
+
+  return Zi, Zi_face, Zimp, Zimp_face
+
+
+# jitted since also used outside the stepper
+@functools.partial(
+    jax_utils.jit, static_argnames=['static_runtime_params_slice']
+)
+def get_ion_density_and_charge_states(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     ne: cell_variable.CellVariable,
+    temp_el: cell_variable.CellVariable,
 ) -> tuple[
     cell_variable.CellVariable,
     cell_variable.CellVariable,
+    array_typing.ArrayFloat,
+    array_typing.ArrayFloat,
+    array_typing.ArrayFloat,
+    array_typing.ArrayFloat,
 ]:
-  """Updated ion densities based on electron density and plasma composition."""
-  # define ion profile based on Zeff and single assumed impurity
-  # with Zimp. main ion limited to hydrogenic species for now.
-  # Assume isotopic balance for DT fusion power. Solve for ni based on:
-  # Zeff = (ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni = ne ,
-  # where all density units are in nref
+  """Updated ion densities based on state.
 
-  Zi = dynamic_runtime_params_slice.plasma_composition.Zi
-  Zimp = dynamic_runtime_params_slice.plasma_composition.Zimp
+  Main ion and impurities are each treated as a single effective ion, but could
+  be comparised of multiple species within an IonMixture. The main ion and
+  impurity densities are calculated depending on the Zeff constraint,
+  quasineutrality, and the average impurity charge state which may be
+  temperature dependent.
+
+  Zeff = (Zi**2 * ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni*Zi = ne
+
+  Args:
+    static_runtime_params_slice: Static runtime parameters.
+    dynamic_runtime_params_slice: Dynamic runtime parameters.
+    geo: Geometry of the tokamak.
+    ne: Electron density profile [nref].
+    temp_el: Electron temperature profile [keV].
+
+  Returns:
+    ni: Ion density profile [nref].
+    nimp: Impurity density profile [nref].
+    Zi: Average charge state of main ion on cell grid [amu].
+      Typically just the average of the atomic numbers since these are normally
+      low Z ions and can be assumed to be fully ionized.
+    Zi_face: Average charge state of main ion on face grid [amu].
+    Zimp: Average charge state of impurities on cell grid [amu].
+    Zimp_face: Average charge state of impurities on face grid [amu].
+  """
+
+  Zi, Zi_face, Zimp, Zimp_face = _get_charge_states(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
+      temp_el,
+  )
+
   Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
   Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
 
   dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
   dilution_factor_edge = physics.get_main_ion_dilution_factor(
-      Zi, Zimp, Zeff_face[-1]
+      Zi_face[-1], Zimp_face[-1], Zeff_face[-1]
   )
 
   ni = cell_variable.CellVariable(
@@ -205,33 +273,11 @@ def _updated_ion_density(
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
       right_face_constraint=jnp.array(
-          ne.right_face_constraint - ni.right_face_constraint * Zi
+          ne.right_face_constraint - ni.right_face_constraint * Zi[-1]
       )
-      / Zimp,
+      / Zimp_face[-1],
   )
-  return ni, nimp
-
-
-def updated_density(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-) -> tuple[
-    cell_variable.CellVariable,
-    cell_variable.CellVariable,
-    cell_variable.CellVariable,
-]:
-  """Updated particle density. Used upon initialization and if dens_eq=False."""
-  ne = _get_ne(
-      dynamic_runtime_params_slice,
-      geo,
-  )
-  ni, nimp = _updated_ion_density(
-      dynamic_runtime_params_slice,
-      geo,
-      ne,
-  )
-
-  return ne, ni, nimp
+  return ni, nimp, Zi, Zi_face, Zimp, Zimp_face
 
 
 def _prescribe_currents_no_bootstrap(
@@ -255,7 +301,6 @@ def _prescribe_currents_no_bootstrap(
   """
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
-  # pylint: disable=invalid-name
 
   # Calculate splitting of currents depending on input runtime params.
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
@@ -273,8 +318,7 @@ def _prescribe_currents_no_bootstrap(
       core_profiles=core_profiles,
   )
   Iext = (
-      math_utils.cell_integration(external_current * geo.spr_cell, geo)
-      / 10**6
+      math_utils.cell_integration(external_current * geo.spr_cell, geo) / 10**6
   )
   # Total Ohmic current.
   Iohm = Ip - Iext
@@ -345,7 +389,6 @@ def _prescribe_currents_with_bootstrap(
 
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
-  # pylint: disable=invalid-name
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
 
   bootstrap_profile = source_models.j_bootstrap.get_value(
@@ -364,8 +407,7 @@ def _prescribe_currents_with_bootstrap(
       core_profiles=core_profiles,
   )
   Iext = (
-      math_utils.cell_integration(external_current * geo.spr_cell, geo)
-      / 10**6
+      math_utils.cell_integration(external_current * geo.spr_cell, geo) / 10**6
   )
   Iohm = Ip - Iext - f_bootstrap * Ip
 
@@ -378,15 +420,11 @@ def _prescribe_currents_with_bootstrap(
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot = jformula * Ctot
-    johm = (
-        jtot - external_current - bootstrap_profile.j_bootstrap
-    )
+    johm = jtot - external_current - bootstrap_profile.j_bootstrap
   else:
     Cohm = Iohm * 1e6 / denom
     johm = jformula * Cohm
-    jtot = (
-        johm + external_current + bootstrap_profile.j_bootstrap
-    )
+    jtot = johm + external_current + bootstrap_profile.j_bootstrap
 
   jtot_hires = _get_jtot_hires(
       dynamic_runtime_params_slice,
@@ -436,7 +474,6 @@ def _calculate_currents_from_psi(
 
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
-  # pylint: disable=invalid-name
   jtot, jtot_face, Ip_profile_face = physics.calc_jtot_from_psi(
       geo,
       core_profiles.psi,
@@ -527,7 +564,6 @@ def _update_psi_from_j(
   return psi
 
 
-# pylint: enable=invalid-name
 def _calculate_psi_grad_constraint(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -642,12 +678,10 @@ def _init_psi_and_current(
         geo,
         currents.jtot_hires,
     )
-    # pylint: disable=invalid-name
     _, _, Ip_profile_face = physics.calc_jtot_from_psi(
         geo,
         psi,
     )
-    # pylint: enable=invalid-name
     currents = dataclasses.replace(currents, Ip_profile_face=Ip_profile_face)
   else:
     raise ValueError('Cannot compute psi for given config.')
@@ -674,14 +708,27 @@ def initial_core_profiles(
   Returns:
     Initial core profiles.
   """
-  # pylint: disable=invalid-name
 
   # To set initial values and compute the boundary conditions, we need to handle
   # potentially time-varying inputs from the users.
   # The default time in build_dynamic_runtime_params_slice is t_initial
-  temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo)
-  temp_el = updated_electron_temperature(dynamic_runtime_params_slice, geo)
-  ne, ni, nimp = updated_density(dynamic_runtime_params_slice, geo)
+  temp_ion = _updated_ion_temperature(
+      dynamic_runtime_params_slice.profile_conditions, geo
+  )
+  temp_el = _updated_electron_temperature(
+      dynamic_runtime_params_slice.profile_conditions, geo
+  )
+  ne = _get_ne(dynamic_runtime_params_slice.numerics,
+               dynamic_runtime_params_slice.profile_conditions,
+               geo)
+
+  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = get_ion_density_and_charge_states(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
+      geo,
+      ne,
+      temp_el,
+  )
 
   # The later calculation needs core profiles.
   # So initialize these quantities with zeros.
@@ -701,11 +748,13 @@ def initial_core_profiles(
       temp_el=temp_el,
       ne=ne,
       ni=ni,
-      Zi=dynamic_runtime_params_slice.plasma_composition.Zi,
-      Ai=dynamic_runtime_params_slice.plasma_composition.Ai,
+      Zi=Zi,
+      Zi_face=Zi_face,
+      Ai=dynamic_runtime_params_slice.plasma_composition.main_ion.avg_A,
       nimp=nimp,
-      Zimp=dynamic_runtime_params_slice.plasma_composition.Zimp,
-      Aimp=dynamic_runtime_params_slice.plasma_composition.Aimp,
+      Zimp=Zimp,
+      Zimp_face=Zimp_face,
+      Aimp=dynamic_runtime_params_slice.plasma_composition.impurity.avg_A,
       psi=psi,
       psidot=psidot,
       currents=currents,
@@ -738,22 +787,19 @@ def initial_core_profiles(
   core_profiles = dataclasses.replace(core_profiles, psidot=psidot)
 
   # Set psi as source of truth and recalculate jtot, q, s
-  core_profiles = physics.update_jtot_q_face_s_face(
+  return physics.update_jtot_q_face_s_face(
       geo=geo,
       core_profiles=core_profiles,
       q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
   )
 
-  # pylint: enable=invalid-name
-  return core_profiles
 
-
-def updated_prescribed_core_profiles(
+def get_prescribed_core_profile_values(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> dict[str, jax.Array]:
+) -> dict[str, array_typing.ArrayFloat]:
   """Updates core profiles which are not being evolved by PDE.
 
   Uses same functions as for profile initialization.
@@ -765,40 +811,49 @@ def updated_prescribed_core_profiles(
     core_profiles: Core profiles dataclass to be updated
 
   Returns:
-    Updated core profiles.
+    Updated core profiles values on the cell grid.
   """
-  # pylint: disable=invalid-name
-
   # If profiles are not evolved, they can still potential be time-evolving,
   # depending on the runtime params. If so, they are updated below.
   if (
       not static_runtime_params_slice.ion_heat_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    temp_ion = updated_ion_temperature(dynamic_runtime_params_slice, geo).value
+    temp_ion = _updated_ion_temperature(
+        dynamic_runtime_params_slice.profile_conditions, geo).value
   else:
     temp_ion = core_profiles.temp_ion.value
   if (
       not static_runtime_params_slice.el_heat_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    temp_el = updated_electron_temperature(
-        dynamic_runtime_params_slice, geo
-    ).value
+    temp_el_cell_variable = _updated_electron_temperature(
+        dynamic_runtime_params_slice.profile_conditions, geo
+    )
+    temp_el = temp_el_cell_variable.value
   else:
-    temp_el = core_profiles.temp_el.value
+    temp_el_cell_variable = core_profiles.temp_el
+    temp_el = temp_el_cell_variable.value
   if (
       not static_runtime_params_slice.dens_eq
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
-    ne, ni, nimp = updated_density(dynamic_runtime_params_slice, geo)
-    ne = ne.value
-    ni = ni.value
-    nimp = nimp.value
+    ne_cell_variable = _get_ne(
+        dynamic_runtime_params_slice.numerics,
+        dynamic_runtime_params_slice.profile_conditions,
+        geo)
   else:
-    ne = core_profiles.ne.value
-    ni = core_profiles.ni.value
-    nimp = core_profiles.nimp.value
+    ne_cell_variable = core_profiles.ne
+  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = get_ion_density_and_charge_states(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
+      geo,
+      ne_cell_variable,
+      temp_el_cell_variable,
+  )
+  ne = ne_cell_variable.value
+  ni = ni.value
+  nimp = nimp.value
 
   return {
       'temp_ion': temp_ion,
@@ -806,11 +861,16 @@ def updated_prescribed_core_profiles(
       'ne': ne,
       'ni': ni,
       'nimp': nimp,
+      'Zi': Zi,
+      'Zi_face': Zi_face,
+      'Zimp': Zimp,
+      'Zimp_face': Zimp_face,
   }
 
 
 def update_evolving_core_profiles(
     x_new: tuple[cell_variable.CellVariable, ...],
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -820,6 +880,7 @@ def update_evolving_core_profiles(
 
   Args:
     x_new: The new values of the evolving variables.
+    static_runtime_params_slice: The static runtime params slice.
     dynamic_runtime_params_slice: The dynamic runtime params slice.
     geo: Magnetic geometry.
     core_profiles: The old set of core plasma profiles.
@@ -838,7 +899,13 @@ def update_evolving_core_profiles(
   psi = get_update(x_new, 'psi')
   ne = get_update(x_new, 'ne')
 
-  ni, nimp = _updated_ion_density(dynamic_runtime_params_slice, geo, ne)
+  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = get_ion_density_and_charge_states(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
+      geo,
+      ne,
+      temp_el,
+  )
 
   return dataclasses.replace(
       core_profiles,
@@ -848,17 +915,23 @@ def update_evolving_core_profiles(
       ne=ne,
       ni=ni,
       nimp=nimp,
+      Zi=Zi,
+      Zi_face=Zi_face,
+      Zimp=Zimp,
+      Zimp_face=Zimp_face,
   )
 
 
 def compute_boundary_conditions(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
 ) -> dict[str, dict[str, jax.Array | None]]:
   """Computes boundary conditions for time t and returns updates to State.
 
   Args:
-    dynamic_runtime_params_slice: Runtime parameters at time t.
+    static_runtime_params_slice: Static (concrete) runtime parameters
+    dynamic_runtime_params_slice: Dynamic runtime parameters
     geo: Geometry object
 
   Returns:
@@ -866,38 +939,43 @@ def compute_boundary_conditions(
     each CellVariable in the state. This dict can in theory recursively replace
     values in a State object.
   """
-  Ti_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
+  Ti_bound_right = jax_utils.error_if_not_positive(
       dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
       'Ti_bound_right',
   )
 
-  Te_bound_right = jax_utils.error_if_not_positive(  # pylint: disable=invalid-name
+  Te_bound_right = jax_utils.error_if_not_positive(
       dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
       'Te_bound_right',
   )
-
+  # TODO(b/390143606): Separate out the boundary condition calculation from the
+  # core profile calculation.
   ne = _get_ne(
-      dynamic_runtime_params_slice,
+      dynamic_runtime_params_slice.numerics,
+      dynamic_runtime_params_slice.profile_conditions,
       geo,
   )
   ne_bound_right = ne.right_face_constraint
 
-  # define ion profile based on (flat) Zeff and single assumed impurity
-  # with Zimp. main ion limited to hydrogenic species for now.
-  # Assume isotopic balance for DT fusion power. Solve for ni based on:
-  # Zeff = (Zi * ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni*Zi = ne
+  Zi_edge = charge_states.get_average_charge_state(
+      static_runtime_params_slice.main_ion_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
+      Te=Te_bound_right,
+  )
+  Zimp_edge = charge_states.get_average_charge_state(
+      static_runtime_params_slice.impurity_names,
+      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
+      Te=Te_bound_right,
+  )
 
   dilution_factor_edge = physics.get_main_ion_dilution_factor(
-      dynamic_runtime_params_slice.plasma_composition.Zi,
-      dynamic_runtime_params_slice.plasma_composition.Zimp,
+      Zi_edge,
+      Zimp_edge,
       dynamic_runtime_params_slice.plasma_composition.Zeff_face[-1],
   )
 
   ni_bound_right = ne_bound_right * dilution_factor_edge
-  nimp_bound_right = (
-      ne_bound_right
-      - ni_bound_right * dynamic_runtime_params_slice.plasma_composition.Zi
-  ) / dynamic_runtime_params_slice.plasma_composition.Zimp
+  nimp_bound_right = (ne_bound_right - ni_bound_right * Zi_edge) / Zimp_edge
 
   return {
       'temp_ion': dict(
@@ -931,10 +1009,11 @@ def compute_boundary_conditions(
               geo,
           ),
       ),
+      'Zi_edge': Zi_edge,
+      'Zimp_edge': Zimp_edge,
   }
 
 
-# pylint: disable=invalid-name
 def _get_jtot_hires(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -972,4 +1051,3 @@ def _get_jtot_hires(
     johm_hires = jformula_hires * Cohm_hires
     jtot_hires = johm_hires + external_current_hires + j_bootstrap_hires
   return jtot_hires
-# pylint: enable=invalid-name

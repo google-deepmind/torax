@@ -106,7 +106,7 @@ def get_sim() -> sim_lib.Sim:
   # config taking place via constructor args in this function.
   runtime_params = get_runtime_params()
   geo_provider = get_geometry_provider()
-  return sim_lib.build_sim_object(
+  return sim_lib.Sim.create(
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
       source_models_builder=get_sources_builder(),

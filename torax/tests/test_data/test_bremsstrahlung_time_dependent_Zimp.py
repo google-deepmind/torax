@@ -22,7 +22,7 @@ CONFIG = {
     'runtime_params': {
         'plasma_composition': {
             'Zeff': {0: {0: 3.0, 1: 3.0}, 1: {0: 5.0, 1: 5.0}},
-            'Zimp': {0: 10.0, 1: 30.0},
+            'Zimp_override': {0: 10.0, 1: 30.0},
         },
         'profile_conditions': {
             'set_pedestal': True,

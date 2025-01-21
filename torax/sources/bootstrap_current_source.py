@@ -28,7 +28,6 @@ from torax import jax_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
-from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -127,11 +126,7 @@ class BootstrapCurrentSource(source.Source):
     bootstrap_current = calc_neoclassical(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
-        temp_ion=core_profiles.temp_ion,
-        temp_el=core_profiles.temp_el,
-        ne=core_profiles.ne,
-        ni=core_profiles.ni,
-        psi=core_profiles.psi,
+        core_profiles=core_profiles,
     )
     zero_profile = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
     is_zero_mode = (
@@ -174,24 +169,14 @@ class BootstrapCurrentSource(source.Source):
 def calc_neoclassical(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    temp_ion: cell_variable.CellVariable,
-    temp_el: cell_variable.CellVariable,
-    ne: cell_variable.CellVariable,
-    ni: cell_variable.CellVariable,
-    psi: cell_variable.CellVariable,
+    core_profiles: state.CoreProfiles,
 ) -> source_profiles.BootstrapCurrentProfile:
   """Calculates sigmaneo, j_bootstrap, and I_bootstrap.
 
   Args:
     dynamic_runtime_params_slice: General configuration parameters.
     geo: Torus geometry.
-    temp_ion: Ion temperature. We don't pass in a full `core_profiles` here
-      because this function is used to create the `Currents` in the initial
-      `State`.
-    temp_el: Ion temperature.
-    ne: Electron density.
-    ni: Main ion density.
-    psi: Poloidal flux.
+    core_profiles: Core profiles data structure.
 
   Returns:
     A BootstrapCurrentProfile. See that class's docstring for more info.
@@ -207,8 +192,12 @@ def calc_neoclassical(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  true_ne_face = ne.face_value() * dynamic_runtime_params_slice.numerics.nref
-  true_ni_face = ni.face_value() * dynamic_runtime_params_slice.numerics.nref
+  true_ne_face = (
+      core_profiles.ne.face_value() * dynamic_runtime_params_slice.numerics.nref
+  )
+  true_ni_face = (
+      core_profiles.ni.face_value() * dynamic_runtime_params_slice.numerics.nref
+  )
   Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
 
   # # local r/R0 on face grid
@@ -222,24 +211,30 @@ def calc_neoclassical(
   # Spitzer conductivity
   NZ = 0.58 + 0.74 / (0.76 + Zeff_face)
   lnLame = (
-      31.3 - 0.5 * jnp.log(true_ne_face) + jnp.log(temp_el.face_value() * 1e3)
+      31.3
+      - 0.5 * jnp.log(true_ne_face)
+      + jnp.log(core_profiles.temp_el.face_value() * 1e3)
   )
   lnLami = (
       30
-      - 3 * jnp.log(dynamic_runtime_params_slice.plasma_composition.Zi)
+      - 3 * jnp.log(core_profiles.Zi_face)
       - 0.5 * jnp.log(true_ni_face)
-      + 1.5 * jnp.log(temp_ion.face_value() * 1e3)
+      + 1.5 * jnp.log(core_profiles.temp_ion.face_value() * 1e3)
   )
 
   sigsptz = (
-      1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Zeff_face / NZ / lnLame
+      1.9012e04
+      * (core_profiles.temp_el.face_value() * 1e3) ** 1.5
+      / Zeff_face
+      / NZ
+      / lnLame
   )
 
   # We don't store q_cell in the evolving core profiles, so we need to
   # recalculate it.
   q_face, _ = physics.calc_q_from_psi(
       geo=geo,
-      psi=psi,
+      psi=core_profiles.psi,
       q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
   )
   nuestar = (
@@ -250,7 +245,7 @@ def calc_neoclassical(
       * Zeff_face
       * lnLame
       / (
-          ((temp_el.face_value() * 1e3) ** 2)
+          ((core_profiles.temp_el.face_value() * 1e3) ** 2)
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
       )
   )
@@ -262,7 +257,7 @@ def calc_neoclassical(
       * Zeff_face**4
       * lnLami
       / (
-          ((temp_ion.face_value() * 1e3) ** 2)
+          ((core_profiles.temp_ion.face_value() * 1e3) ** 2)
           * (epsilon + constants.CONSTANTS.eps) ** 1.5
       )
   )
@@ -357,14 +352,18 @@ def calc_neoclassical(
       / geo.B0
   )
 
-  pe = true_ne_face * (temp_el.face_value()) * 1e3 * 1.6e-19
-  pi = true_ni_face * (temp_ion.face_value()) * 1e3 * 1.6e-19
+  pe = true_ne_face * (core_profiles.temp_el.face_value()) * 1e3 * 1.6e-19
+  pi = true_ni_face * (core_profiles.temp_ion.face_value()) * 1e3 * 1.6e-19
 
-  dpsi_drnorm = psi.face_grad()
-  dlnne_drnorm = ne.face_grad() / ne.face_value()
-  dlnni_drnorm = ni.face_grad() / ni.face_value()
-  dlnte_drnorm = temp_el.face_grad() / temp_el.face_value()
-  dlnti_drnorm = temp_ion.face_grad() / temp_ion.face_value()
+  dpsi_drnorm = core_profiles.psi.face_grad()
+  dlnne_drnorm = core_profiles.ne.face_grad() / core_profiles.ne.face_value()
+  dlnni_drnorm = core_profiles.ni.face_grad() / core_profiles.ni.face_value()
+  dlnte_drnorm = (
+      core_profiles.temp_el.face_grad() / core_profiles.temp_el.face_value()
+  )
+  dlnti_drnorm = (
+      core_profiles.temp_ion.face_grad() / core_profiles.temp_ion.face_value()
+  )
 
   global_coeff = prefactor[1:] / dpsi_drnorm[1:]
   global_coeff = jnp.concatenate([jnp.zeros(1), global_coeff])

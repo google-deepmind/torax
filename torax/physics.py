@@ -40,7 +40,7 @@ _trapz = jax.scipy.integrate.trapezoid
 # TODO(b/377225415): generalize to arbitrary number of ions.
 def get_main_ion_dilution_factor(
     Zi: array_typing.ScalarFloat,
-    Zimp: array_typing.ScalarFloat,
+    Zimp: array_typing.ArrayFloat,
     Zeff: array_typing.ArrayFloat,
 ) -> jax.Array:
   """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
