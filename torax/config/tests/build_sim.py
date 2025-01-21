@@ -293,12 +293,12 @@ class BuildSimTest(parameterized.TestCase):
             torax_mesh=geo_provider.torax_mesh,
         )
     )
-    geo = geo_provider(t=0)
-    dynamic_runtime_params_slice = runtime_params_provider(
-        t=0,
-    )
-    dynamic_slice, geo = runtime_params_slice.make_ip_consistent(
-        dynamic_runtime_params_slice, geo
+    dynamic_slice, geo = (
+        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=0,
+            dynamic_runtime_params_slice_provider=runtime_params_provider,
+            geometry_provider=geo_provider,
+        )
     )
     self.assertIsInstance(geo, geometry.StandardGeometry)
     self.assertIsNotNone(dynamic_slice)

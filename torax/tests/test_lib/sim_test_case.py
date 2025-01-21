@@ -241,16 +241,14 @@ class SimTestCase(parameterized.TestCase):
     if ref_name is None:
       ref_name = test_lib.get_data_file(config_name[:-3])
 
-    # Load reference profiles
     ref_profiles, ref_time = self._get_refs(ref_name, profiles)
 
-    # Build geo needed for output generation
-    geo = sim.geometry_provider(sim.initial_state.t)
-    dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        t=sim.initial_state.t,
-    )
-    _, geo = runtime_params_slice.make_ip_consistent(
-        dynamic_runtime_params_slice, geo
+    _, geo = (
+        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+            t=sim.initial_state.t,
+            dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
+            geometry_provider=sim.geometry_provider,
+        )
     )
 
     # Run full simulation

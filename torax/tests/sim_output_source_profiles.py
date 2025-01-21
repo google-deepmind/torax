@@ -30,6 +30,7 @@ from torax import state as state_module
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.orchestration import step_function
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -87,7 +88,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         source_models=source_models,
         value=2.0,
     )
-    merged_profiles = sim_lib.merge_source_profiles(  # pylint: disable=protected-access
+    merged_profiles = source_profiles_lib.SourceProfiles.merge(
         implicit_source_profiles=fake_implicit_source_profiles,
         explicit_source_profiles=fake_explicit_source_profiles,
     )
@@ -191,7 +192,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         time_step_calculator=time_stepper,
     )
     with mock.patch.object(
-        sim_lib.SimulationStepFn, '__call__', new=mock_step_fn
+        step_function.SimulationStepFn, '__call__', new=mock_step_fn
     ):
       sim_outputs = sim.run()
 
