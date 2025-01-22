@@ -53,7 +53,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 
 @chex.dataclass(frozen=True)
 class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
-    r"""Dimensionless inputs to the TGLF model.
+    r"""Dimensionless inputs to TGLF-based models.
 
     See https://gafusion.github.io/doc/tglf/tglf_table.html for definitions.
     """
@@ -91,33 +91,40 @@ class TGLFBasedTransportModel(quasilinear_transport_model.QuasilinearTransportMo
         geo: geometry.Geometry,
         core_profiles: state.CoreProfiles,
     ) -> TGLFInputs:
-        # Note: TGLF uses geo.rmid = (Rmax - Rmin)/2 as the radial coordinate
-        # This means all gradients are calculated w.r.t. rmid
-
-        ## Shorthand for commonly used variables
+        ## Shorthand 'standard' variables
         Te = core_profiles.temp_el
         Ti = core_profiles.temp_ion
-        ne = core_profiles.ne
+        ne = core_profiles.ne * core_profiles.nref
+        # q must be recalculated since in the nonlinear solver psi has intermediate
+        # states in the iterative solve
+        q, _ = physics.calc_q_from_psi(
+            geo=geo,
+            psi=core_profiles.psi,
+            q_correction_factor=q_correction_factor,
+        )
 
-        ## Reference velocity and length, used for normalisation
+        ## Reference values used for TGLF-specific normalisation
         # https://gafusion.github.io/doc/cgyro/outputs.html#output-normalization
+        # Note: B_unit = q/r dpsi/dr [SOURCE?]
+        # Note: TGLF uses geo.rmid = (Rmax - Rmin)/2 as the radial coordinate
+        # This means all gradients are calculated w.r.t. rmid
         vref = (Te.face_value() / (core_profiles.Ai * CONSTANTS.mp)) ** 0.5
         lref = geo.Rmin[-1]  # Minor radius at LCFS
+        B_unit = (
+            q / geo.rmid * jnp.gradient(core_profiles.psi, geo.rmid)
+        )
 
-        ## Temperature gradients, At = -1/T * dT/drho
-        # Note: RLTS = a_minor / T * dT/dr = 1 / T * dT/drho
-        # https://gafusion.github.io/doc/tglf/tglf_table.html#id2
+        ## Dimensionless gradients, eg lref_over_lti where lref=amin, lti = -ti / (dti/dr)
+        normalized_log_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
+            core_profiles=core_profiles,
+            radial_coordinate=geo.rmid,
+            reference_length=lref,
+        )
+
+        ## Dimensionless temperature ratio
         Ti_over_Te = Ti.face_value() / Te.face_value()
-        Ate = -1 / Te.face_value() * Te.face_grad(geo.rmid)
-        Ati = -1 / Ti.face_value() * Ti.face_grad(geo.rmid)
 
-        # Density gradient, Ane = -1/ne * dne/drho
-        # Note: RLNS = a_minor / ne * dne/dr = 1 / ne * dne/drho
-        # https://gafusion.github.io/doc/tglf/tglf_table.html#id2
-        # Note: nref cancels, as 1/(ne*nref) * (ne_grad * nref) = 1/ne * ne_grad
-        Ane = -1 / ne.face_value() * core_profiles.ne.face_grad(geo.rmid)
-
-        ## Electron-electron collision frequency = nu_ee / (vref/lref)
+        ## Dimensionless electron-electron collision frequency = nu_ee / (vref/lref)
         # https://gafusion.github.io/doc/tglf/tglf_list.html#xnue
         # https://gafusion.github.io/doc/cgyro/cgyro_list.html#cgyro-nu-ee
         # Note: In the TGLF docs, XNUE is mislabelled as electron-ion collision frequency.
@@ -131,26 +138,16 @@ class TGLFBasedTransportModel(quasilinear_transport_model.QuasilinearTransportMo
 
         ## Safety factor, q
         # https://gafusion.github.io/doc/tglf/tglf_list.html#q-sa
-        # Need to recalculate since in the nonlinear solver psi has intermediate
-        # states in the iterative solve
-        q, _ = physics.calc_q_from_psi(
-            geo=geo,
-            psi=core_profiles.psi,
-            q_correction_factor=q_correction_factor,
-        )
+        # defined before
 
         ## Safety factor shear, s_hat = r/q dq/dr
         # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-shat-sa
-        # calc_s_from_psi_rmid gives rq dq/dr
+        # Note: calc_s_from_psi_rmid gives rq dq/dr, so we divide by q**2
         s_hat = physics.calc_s_from_psi_rmid(geo, core_profiles.psi) / q**2
 
         ## Electron beta
         # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-betae
         p_e = ne * (Te * 1e3)  # ne in m^-3, Te in eV
-        # B_unit = q/r dpsi/dr
-        B_unit = (
-            q / geo.rmid * jnp.gradient(core_profiles.psi, geo.rmid)
-        )
         beta_e = 8 * jnp.pi * p_e / B_unit**2
 
         ## Major radius shear = dRmaj/dr
@@ -174,21 +171,24 @@ class TGLFBasedTransportModel(quasilinear_transport_model.QuasilinearTransportMo
         # chiGB = ne * vref * T_e * (rho_s_unit / lref)**2
         # where rho_s_unit = vref / (e*B_unit/ m_D / c)
         # TODO: Check if this code implementation is correct/equivalent to the above
-        chiGB = (
-            (core_profiles.Ai * CONSTANTS.mp) ** 0.5
-            / (CONSTANTS.qe * geo.B0) ** 2
-            * (Ti.face_value() * CONSTANTS.keV2J) ** 1.5
-            / lref
+        chiGB = quasilinear_transport_model.calculate_chiGB(
+          reference_temperature=core_profiles.temp_ion.face_value(),
+          reference_magnetic_field=geo.B0,
+          reference_mass=core_profiles.Ai,
+          reference_length=geo.Rmin,
         )
+        # gammaGB =
 
         return TGLFInputs(
             # From QuasilinearInputs
             chiGB=chiGB,
             Rmin=geo.Rmin,
             Rmaj=geo.Rmaj,
-            Ati=Ati,
-            Ate=Ate,
-            Ane=Ane,
+            lref_over_lti=normalized_log_gradients.lref_over_lti,
+            lref_over_lte=normalized_log_gradients.lref_over_lte,
+            lref_over_lne=normalized_log_gradients.lref_over_lne,
+            lref_over_lni0=normalized_log_gradients.lref_over_lni0,
+            lref_over_lni1=normalized_log_gradients.lref_over_lni1,
             # From TGLFInputs
             Ti_over_Te=Ti_over_Te,
             dRmaj=dRmaj,
