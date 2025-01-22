@@ -179,7 +179,7 @@ class Geometry:
   rho_hires: chex.Array
   vpr_hires: chex.Array
   Phibdot: chex.Array
-  _z_magnetic_axis: chex.Array
+  _z_magnetic_axis: chex.Array | None
 
   @property
   def rho_norm(self) -> chex.Array:
@@ -250,7 +250,13 @@ class Geometry:
 
   @property
   def z_magnetic_axis(self) -> chex.Numeric:
-    return self._z_magnetic_axis
+    z_magnetic_axis = self._z_magnetic_axis
+    if z_magnetic_axis is not None:
+      return z_magnetic_axis
+    else:
+      raise RuntimeError(
+          'Geometry does not have a z magnetic axis.'
+      )
 
 
 @chex.dataclass(frozen=True)
@@ -300,7 +306,7 @@ class GeometryProvider:
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
   vpr_hires: interpolated_param.InterpolatedVarSingleAxis
-  _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis
+  _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis | None
 
   @classmethod
   def create_provider(
@@ -330,6 +336,10 @@ class GeometryProvider:
           or attr.name == 'Ip_from_parameters'
       ):
         continue
+      if attr.name == '_z_magnetic_axis':
+        if initial_geometry._z_magnetic_axis is None:  # pylint: disable=protected-access
+          kwargs[attr.name] = None
+          continue
       kwargs[attr.name] = interpolated_param.InterpolatedVarSingleAxis(
           (times, np.stack([getattr(g, attr.name) for g in geos], axis=0))
       )
@@ -356,6 +366,10 @@ class GeometryProvider:
       if attr.name == 'Phibdot':
         kwargs[attr.name] = 0.0
         continue
+      if attr.name == '_z_magnetic_axis':
+        if self._z_magnetic_axis is None:
+          kwargs[attr.name] = None
+          continue
       kwargs[attr.name] = getattr(self, attr.name).get_value(t)
     return geometry_class(**kwargs)  # pytype: disable=wrong-keyword-args
 
@@ -425,17 +439,6 @@ class StandardGeometryProvider(GeometryProvider):
   def __call__(self, t: chex.Numeric) -> Geometry:
     """Returns a Geometry instance at the given time."""
     return self._get_geometry_base(t, StandardGeometry)
-
-
-@chex.dataclass(frozen=True)
-class CheaseGeometry(StandardGeometry):
-  """CHEASE geometry type."""
-
-  @property
-  def z_magnetic_axis(self) -> chex.Numeric:
-    raise NotImplementedError(
-        'CHEASE geometry does not have a z magnetic axis.'
-    )
 
 
 def build_circular_geometry(
@@ -722,7 +725,7 @@ class StandardGeometryIntermediates:
   vpr: chex.Array
   n_rho: int
   hires_fac: int
-  z_magnetic_axis: chex.Numeric
+  z_magnetic_axis: chex.Numeric | None
 
   def __post_init__(self):
     """Extrapolates edge values based on a Cubic spline fit."""
@@ -860,8 +863,7 @@ class StandardGeometryIntermediates:
         vpr=vpr,
         n_rho=n_rho,
         hires_fac=hires_fac,
-        # field doesn't exist in CHEASE, populate with 0.
-        z_magnetic_axis=np.array(0.0),
+        z_magnetic_axis=None,
     )
 
   @classmethod
@@ -1586,12 +1588,7 @@ def build_standard_geometry(
   area_hires = rhon_interpolation_func(rho_hires_norm, area_intermediate)
   area = rhon_interpolation_func(rho_norm, area_intermediate)
 
-  if intermediate.geometry_type == GeometryType.CHEASE:
-    geometry_type = CheaseGeometry
-  else:
-    geometry_type = StandardGeometry
-
-  return geometry_type(
+  return StandardGeometry(
       geometry_type=intermediate.geometry_type.value,
       drho_norm=np.asarray(drho_norm),
       torax_mesh=mesh,

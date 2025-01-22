@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.geometry."""
-
 import dataclasses
 import os
 
@@ -313,20 +311,18 @@ class GeometryTest(parameterized.TestCase):
 
     f(geo)
 
-  def test_build_standard_geometry_builds_correct_type_for_chease(self):
-    """Test that the default CHEASE geometry can be built and is of the correct type."""
-    intermediate = geometry.StandardGeometryIntermediates.from_chease()
-    geo = geometry.build_standard_geometry(intermediate)
-    self.assertIsInstance(geo, geometry.CheaseGeometry)
-
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""
     intermediate = geometry.StandardGeometryIntermediates.from_chease()
     geo = geometry.build_standard_geometry(intermediate)
     # Check that a runtime error is raised under both JIT and non-JIT.
-    with self.assertRaises(RuntimeError):
+    with self.assertRaisesRegex(
+        RuntimeError, 'does not have a z magnetic axis'
+    ):
       _ = geo.z_magnetic_axis
-    with self.assertRaises(RuntimeError):
+    with self.assertRaisesRegex(
+        RuntimeError, 'does not have a z magnetic axis'
+    ):
 
       def f():
         return geo.z_magnetic_axis
