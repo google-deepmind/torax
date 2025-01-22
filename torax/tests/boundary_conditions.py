@@ -103,9 +103,11 @@ class BoundaryConditionsTest(parameterized.TestCase):
     )
 
     bc = core_profile_setters.compute_boundary_conditions(
-        static_slice,
-        dynamic_runtime_params_slice,
-        geo,
+      dt=runtime_params.numerics.fixed_dt,
+      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+      core_profiles_t_minus_dt=core_profiles,
+      static_runtime_params_slice=static_slice,
+      geo=geo,
     )
     # Remove Zi_edge and Zimp_edge which are not used in core_profiles
     bc.pop('Zi_edge')

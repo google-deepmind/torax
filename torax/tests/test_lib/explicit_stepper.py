@@ -18,7 +18,6 @@ The explicit stepper is not intended to perform well; it is included only for
 testing purposes. The implementation is intentionally flat with relatively
 few configuration options, etc., to ensure reliability for testing purposes.
 """
-
 import dataclasses
 
 import jax
@@ -119,9 +118,11 @@ class ExplicitStepper(stepper_lib.Stepper):
     # Update the potentially time-dependent boundary conditions as well.
     updated_boundary_conditions = (
         core_profile_setters.compute_boundary_conditions(
-            static_runtime_params_slice,
-            dynamic_runtime_params_slice_t_plus_dt,
-            geo_t,
+          dt=dynamic_runtime_params_slice_t_plus_dt.numerics.fixed_dt,
+          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t_plus_dt,
+          core_profiles_t_minus_dt=core_profiles_t,
+          static_runtime_params_slice=static_runtime_params_slice,
+          geo=geo_t_plus_dt,
         )
     )
     temp_ion_new = dataclasses.replace(
