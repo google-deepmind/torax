@@ -131,9 +131,7 @@ def _get_ne(
         dynamic_profile_conditions.nbar * nGW,
         dynamic_profile_conditions.nbar,
     )
-    if (
-        not dynamic_profile_conditions.ne_bound_right_is_absolute
-    ):
+    if not dynamic_profile_conditions.ne_bound_right_is_absolute:
       # In this case, ne_bound_right is taken from ne and we also normalize it.
       C = target_nbar / (_trapz(ne_face, geo.Rout_face) / Rmin_out)
       ne_bound_right = C * ne_bound_right
@@ -529,11 +527,6 @@ def _update_psi_from_j(
   Returns:
     psi: Poloidal flux cell variable.
   """
-  psi_grad_constraint = _calculate_psi_grad_constraint(
-      dynamic_runtime_params_slice,
-      geo,
-  )
-
   y = jtot_hires * geo.spr_hires
   assert y.ndim == 1
   assert geo.rho_hires.ndim == 1
@@ -545,36 +538,72 @@ def _update_psi_from_j(
       (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
       / (geo.F_hires[1:] * geo.g2g3_over_rhon_hires[1:]),
   ))
-  # dpsi_dr on the cell grid
+  # dpsi_dr on hires cell grid
   dpsi_drhon_hires = scale * Ip_profile
 
-  # psi on cell grid
+  # psi on hires cell grid
   psi_hires = math_utils.cumulative_trapezoid(
       y=dpsi_drhon_hires, x=geo.rho_hires_norm, initial=0.0
   )
 
   psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
 
+  # Set the BCs for psi to ensure the correct Ip_tot
+  dpsi_drhonorm_edge = _calculate_psi_grad_constraint_from_Ip_tot(
+      dynamic_runtime_params_slice,
+      geo,
+  )
+
+  if (
+      dynamic_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+  ):
+    # For vloop_lcfs, we will prescribe a rate of change of psi at the LCFS
+    # For the first timestep, we need an initial value for psi at the LCFS, so
+    # we set it to match the desired plasma current.
+    right_face_grad_constraint = None
+    right_face_constraint = (
+        psi_value[-1] + dpsi_drhonorm_edge * geo.drho_norm / 2
+    )
+  else:
+    # Use the dpsi/drho calculated above as the right face gradient constraint
+    right_face_grad_constraint = dpsi_drhonorm_edge
+    right_face_constraint = None
+
   psi = cell_variable.CellVariable(
       value=psi_value,
       dr=geo.drho_norm,
-      right_face_grad_constraint=psi_grad_constraint,
+      right_face_grad_constraint=right_face_grad_constraint,
+      right_face_constraint=right_face_constraint,
   )
 
   return psi
 
 
-def _calculate_psi_grad_constraint(
+def _calculate_psi_grad_constraint_from_Ip_tot(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
 ) -> jax.Array:
-  """Calculates the constraint on the poloidal flux (psi)."""
+  """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
   return (
       dynamic_runtime_params_slice.profile_conditions.Ip_tot
       * 1e6
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )
+
+
+def _calculate_psi_value_constraint_from_vloop(
+    dt: array_typing.ScalarFloat,
+    theta: array_typing.ScalarFloat,
+    vloop_lcfs_t: array_typing.ScalarFloat,
+    vloop_lcfs_t_plus_dt: array_typing.ScalarFloat,
+    psi_lcfs_t: array_typing.ScalarFloat,
+) -> jax.Array:
+  """Calculates the value constraint on the poloidal flux for the next time step from loop voltage."""
+  theta_weighted_vloop_lcfs = (
+      theta * vloop_lcfs_t + (1 - theta) * vloop_lcfs_t_plus_dt
+  )
+  return psi_lcfs_t + theta_weighted_vloop_lcfs * dt
 
 
 def _init_psi_and_current(
@@ -604,16 +633,39 @@ def _init_psi_and_current(
   Returns:
     Refined core profiles.
   """
-  # Retrieving psi from the profile conditions.
+  use_vloop_as_boundary_condition = (
+      dynamic_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
+  )
+
+  # Case 1: retrieving psi from the profile conditions, using the prescribed profile and Ip_tot
   if dynamic_runtime_params_slice.profile_conditions.psi is not None:
+    # Calculate the dpsi/drho necessary to achieve the given Ip_tot
+    dpsi_drhonorm_edge = _calculate_psi_grad_constraint_from_Ip_tot(
+        dynamic_runtime_params_slice,
+        geo,
+    )
+
+    # Set the BCs to ensure the correct Ip_tot
+    if use_vloop_as_boundary_condition:
+      # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
+      # to achieve the desired Ip_tot
+      right_face_grad_constraint = None
+      right_face_constraint = (
+          dynamic_runtime_params_slice.profile_conditions.psi[-1]
+          + dpsi_drhonorm_edge * geo.drho_norm / 2
+      )
+    else:
+      # Use the dpsi/drho calculated above as the right face gradient constraint
+      right_face_grad_constraint = dpsi_drhonorm_edge
+      right_face_constraint = None
+
     psi = cell_variable.CellVariable(
         value=dynamic_runtime_params_slice.profile_conditions.psi,
-        right_face_grad_constraint=_calculate_psi_grad_constraint(
-            dynamic_runtime_params_slice,
-            geo,
-        ),
+        right_face_grad_constraint=right_face_grad_constraint,
+        right_face_constraint=right_face_constraint,
         dr=geo.drho_norm,
     )
+
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
     currents = _calculate_currents_from_psi(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -622,7 +674,8 @@ def _init_psi_and_current(
         core_profiles=core_profiles,
         source_models=source_models,
     )
-  # Retrieving psi from the standard geometry input.
+
+  # Case 2: retrieving psi from the standard geometry input.
   elif (
       isinstance(geo, geometry.StandardGeometry)
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
@@ -630,15 +683,38 @@ def _init_psi_and_current(
     # psi is already provided from a numerical equilibrium, so no need to
     # first calculate currents. However, non-inductive currents are still
     # calculated and used in current diffusion equation.
+
+    # Calculate the dpsi/drho necessary to achieve the given Ip_tot
+    dpsi_drhonorm_edge = _calculate_psi_grad_constraint_from_Ip_tot(
+        dynamic_runtime_params_slice,
+        geo,
+    )
+
+    # Set the BCs, with the option of scaling to the given Ip_tot
+    if use_vloop_as_boundary_condition and geo.Ip_from_parameters:
+      # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
+      right_face_grad_constraint = None
+      right_face_constraint = (
+          geo.psi_from_Ip[-1] + dpsi_drhonorm_edge * geo.drho_norm / 2
+      )
+    elif use_vloop_as_boundary_condition:
+      # Use the psi from the equilibrium as the right face constraint
+      right_face_grad_constraint = None
+      right_face_constraint = geo.psi_from_Ip[-1]
+    else:
+      # Use the dpsi/drho calculated above as the right face gradient constraint
+      right_face_grad_constraint = dpsi_drhonorm_edge
+      right_face_constraint = None
+
     psi = cell_variable.CellVariable(
-        value=geo.psi_from_Ip,
-        right_face_grad_constraint=_calculate_psi_grad_constraint(
-            dynamic_runtime_params_slice,
-            geo,
-        ),
+        value=geo.psi_from_Ip,  # Use psi from equilibrium
+        right_face_grad_constraint=right_face_grad_constraint,
+        right_face_constraint=right_face_constraint,
         dr=geo.drho_norm,
     )
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
+
+    # Calculate non-inductive currents
     currents = _calculate_currents_from_psi(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
@@ -646,7 +722,8 @@ def _init_psi_and_current(
         core_profiles=core_profiles,
         source_models=source_models,
     )
-  # Calculating j according to nu formula and psi from j.
+
+  # Case 3: calculating j according to nu formula and psi from j.
   elif (
       isinstance(geo, geometry.CircularAnalyticalGeometry)
       or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
@@ -686,7 +763,12 @@ def _init_psi_and_current(
   else:
     raise ValueError('Cannot compute psi for given config.')
 
-  core_profiles = dataclasses.replace(core_profiles, psi=psi, currents=currents)
+  core_profiles = dataclasses.replace(
+      core_profiles,
+      psi=psi,
+      currents=currents,
+      vloop_lcfs=dynamic_runtime_params_slice.profile_conditions.vloop_lcfs,
+  )
 
   return core_profiles
 
@@ -718,9 +800,11 @@ def initial_core_profiles(
   temp_el = _updated_electron_temperature(
       dynamic_runtime_params_slice.profile_conditions, geo
   )
-  ne = _get_ne(dynamic_runtime_params_slice.numerics,
-               dynamic_runtime_params_slice.profile_conditions,
-               geo)
+  ne = _get_ne(
+      dynamic_runtime_params_slice.numerics,
+      dynamic_runtime_params_slice.profile_conditions,
+      geo,
+  )
 
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = get_ion_density_and_charge_states(
       static_runtime_params_slice,
@@ -743,6 +827,13 @@ def initial_core_profiles(
   s_face = jnp.zeros_like(geo.rho_face)
   currents = state.Currents.zeros(geo)
 
+  # Set vloop_lcfs to 0 for the first time step if not provided
+  vloop_lcfs = (
+      jnp.array(0.0)
+      if dynamic_runtime_params_slice.profile_conditions.vloop_lcfs is None
+      else jnp.array(dynamic_runtime_params_slice.profile_conditions.vloop_lcfs)
+  )
+
   core_profiles = state.CoreProfiles(
       temp_ion=temp_ion,
       temp_el=temp_el,
@@ -761,6 +852,7 @@ def initial_core_profiles(
       q_face=q_face,
       s_face=s_face,
       nref=jnp.asarray(dynamic_runtime_params_slice.numerics.nref),
+      vloop_lcfs=vloop_lcfs,
   )
 
   core_profiles = _init_psi_and_current(
@@ -784,7 +876,11 @@ def initial_core_profiles(
           source_models,
       ),
   )
-  core_profiles = dataclasses.replace(core_profiles, psidot=psidot)
+  core_profiles = dataclasses.replace(
+      core_profiles,
+      psidot=psidot,
+      vloop_lcfs=psidot.face_value()[-1],
+  )
 
   # Set psi as source of truth and recalculate jtot, q, s
   return physics.update_jtot_q_face_s_face(
@@ -820,7 +916,8 @@ def get_prescribed_core_profile_values(
       and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
   ):
     temp_ion = _updated_ion_temperature(
-        dynamic_runtime_params_slice.profile_conditions, geo).value
+        dynamic_runtime_params_slice.profile_conditions, geo
+    ).value
   else:
     temp_ion = core_profiles.temp_ion.value
   if (
@@ -841,7 +938,8 @@ def get_prescribed_core_profile_values(
     ne_cell_variable = _get_ne(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
-        geo)
+        geo,
+    )
   else:
     ne_cell_variable = core_profiles.ne
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = get_ion_density_and_charge_states(
@@ -922,17 +1020,23 @@ def update_evolving_core_profiles(
   )
 
 
-def compute_boundary_conditions(
+def compute_boundary_conditions_for_t_plus_dt(
+    dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo_t_plus_dt: geometry.Geometry,
+    core_profiles_t: state.CoreProfiles,
 ) -> dict[str, dict[str, jax.Array | None]]:
-  """Computes boundary conditions for time t and returns updates to State.
+  """Computes boundary conditions for the next timestep and returns updates to State.
 
   Args:
+    dt: Size of the next timestep
     static_runtime_params_slice: Static (concrete) runtime parameters
-    dynamic_runtime_params_slice: Dynamic runtime parameters
-    geo: Geometry object
+    dynamic_runtime_params_slice_t: Dynamic runtime parameters for the current timestep
+    dynamic_runtime_params_slice_t_plus_dt: Dynamic runtime parameters for the next timestep
+    geo_t_plus_dt: Geometry object for the next timestep
+    core_profiles_t: Core profiles at the current timestep
 
   Returns:
     Mapping from State attribute names to dictionaries updating attributes of
@@ -940,38 +1044,38 @@ def compute_boundary_conditions(
     values in a State object.
   """
   Ti_bound_right = jax_utils.error_if_not_positive(
-      dynamic_runtime_params_slice.profile_conditions.Ti_bound_right,
+      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.Ti_bound_right,
       'Ti_bound_right',
   )
 
   Te_bound_right = jax_utils.error_if_not_positive(
-      dynamic_runtime_params_slice.profile_conditions.Te_bound_right,
+      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.Te_bound_right,
       'Te_bound_right',
   )
   # TODO(b/390143606): Separate out the boundary condition calculation from the
   # core profile calculation.
   ne = _get_ne(
-      dynamic_runtime_params_slice.numerics,
-      dynamic_runtime_params_slice.profile_conditions,
-      geo,
+      dynamic_runtime_params_slice_t_plus_dt.numerics,
+      dynamic_runtime_params_slice_t_plus_dt.profile_conditions,
+      geo_t_plus_dt,
   )
   ne_bound_right = ne.right_face_constraint
 
   Zi_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
+      ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion,
       Te=Te_bound_right,
   )
   Zimp_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
+      ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity,
       Te=Te_bound_right,
   )
 
   dilution_factor_edge = physics.get_main_ion_dilution_factor(
       Zi_edge,
       Zimp_edge,
-      dynamic_runtime_params_slice.plasma_composition.Zeff_face[-1],
+      dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zeff_face[-1],
   )
 
   ni_bound_right = ne_bound_right * dilution_factor_edge
@@ -1004,9 +1108,24 @@ def compute_boundary_conditions(
           right_face_constraint=jnp.array(nimp_bound_right),
       ),
       'psi': dict(
-          right_face_grad_constraint=_calculate_psi_grad_constraint(
-              dynamic_runtime_params_slice,
-              geo,
+          right_face_grad_constraint=(
+              _calculate_psi_grad_constraint_from_Ip_tot(
+                  dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+                  geo=geo_t_plus_dt,
+              )
+              if not dynamic_runtime_params_slice_t_plus_dt.profile_conditions.use_vloop_lcfs_boundary_condition
+              else None
+          ),
+          right_face_constraint=(
+              _calculate_psi_value_constraint_from_vloop(
+                  dt=dt,
+                  vloop_lcfs_t=dynamic_runtime_params_slice_t.profile_conditions.vloop_lcfs,
+                  vloop_lcfs_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs,
+                  psi_lcfs_t=core_profiles_t.psi.face_value()[-1],
+                  theta=static_runtime_params_slice.stepper.theta_imp,
+              )
+              if dynamic_runtime_params_slice_t_plus_dt.profile_conditions.use_vloop_lcfs_boundary_condition
+              else None
           ),
       ),
       'Zi_edge': Zi_edge,

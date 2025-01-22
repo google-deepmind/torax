@@ -13,6 +13,7 @@
 # limitations under the License.
 from unittest import mock
 
+import numpy as np
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
@@ -43,7 +44,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     self.geo = geometry.build_circular_geometry(n_rho=4)
 
   def test_updated_ion_temperature(self):
-    bound = np.array(42.)
+    bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
         profile_conditions_lib.DynamicProfileConditions,
@@ -60,7 +61,8 @@ class CoreProfileSettersTest(parameterized.TestCase):
 
   @parameterized.parameters(0, -1)
   def test_updated_ion_temperature_negative_Ti_bound_right(
-      self, Ti_bound_right: float):
+      self, Ti_bound_right: float
+  ):
     profile_conditions = mock.create_autospec(
         profile_conditions_lib.DynamicProfileConditions,
         instance=True,
@@ -74,7 +76,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
       )
 
   def test_updated_electron_temperature(self):
-    bound = np.array(42.)
+    bound = np.array(42.0)
     value = np.array([12.0, 10.0, 8.0, 6.0])
     profile_conditions = mock.create_autospec(
         profile_conditions_lib.DynamicProfileConditions,
@@ -84,14 +86,15 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
     result = core_profile_setters._updated_electron_temperature(
         profile_conditions,
-        self.geo
+        self.geo,
     )
     np.testing.assert_allclose(result.value, value)
     np.testing.assert_equal(result.right_face_constraint, bound)
 
   @parameterized.parameters(0, -1)
   def test_updated_electron_temperature_negative_Te_bound_right(
-      self, Te_bound_right: float):
+      self, Te_bound_right: float
+  ):
     profile_conditions = mock.create_autospec(
         profile_conditions_lib.DynamicProfileConditions,
         instance=True,
@@ -142,7 +145,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     ne = core_profile_setters._get_ne(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
-        self.geo
+        self.geo,
     )
     ni, nimp, Zi, _, Zimp, _ = (
         core_profile_setters.get_ion_density_and_charge_states(
@@ -254,7 +257,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     ne_normalized = core_profile_setters._get_ne(
         dynamic_runtime_params_slice_normalized.numerics,
         dynamic_runtime_params_slice_normalized.profile_conditions,
-        self.geo
+        self.geo,
     )
 
     np.testing.assert_allclose(np.mean(ne_normalized.value), nbar, rtol=1e-1)
@@ -267,7 +270,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     ne_unnormalized = core_profile_setters._get_ne(
         dynamic_runtime_params_slice_unnormalized.numerics,
         dynamic_runtime_params_slice_unnormalized.profile_conditions,
-        self.geo
+        self.geo,
     )
 
     ratio = ne_unnormalized.value / ne_normalized.value
@@ -305,7 +308,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     ne_fGW = core_profile_setters._get_ne(
         dynamic_runtime_params_slice_fGW.numerics,
         dynamic_runtime_params_slice_fGW.profile_conditions,
-        self.geo
+        self.geo,
     )
 
     runtime_params.profile_conditions.ne_is_fGW = False
@@ -316,7 +319,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     ne = core_profile_setters._get_ne(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
-        self.geo
+        self.geo,
     )
 
     ratio = ne.value / ne_fGW.value
@@ -407,7 +410,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
       ne_bound_right_is_fGW,
       expected_ne_bound_right,
   ):
-    """Tests that compute_boundary_conditions works."""
+    """Tests that compute_boundary_conditions_t_plus_dt works."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             ne={0: {0: 1.5, 1: 1}},
@@ -434,10 +437,15 @@ class CoreProfileSettersTest(parameterized.TestCase):
         t=1.0,
     )
 
-    boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        static_slice,
-        dynamic_runtime_params_slice,
-        self.geo,
+    boundary_conditions = (
+        core_profile_setters.compute_boundary_conditions_for_t_plus_dt(
+            dt=runtime_params.numerics.fixed_dt,
+            static_runtime_params_slice=static_slice,
+            dynamic_runtime_params_slice_t=None,  # This test doesn't need this
+            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+            geo_t_plus_dt=self.geo,
+            core_profiles_t=None,  # This test doesn't need this
+        )
     )
 
     if (ne_is_fGW and ne_bound_right is None) or (
@@ -514,7 +522,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
       Te_bound_right,
       expected_Te_bound_right,
   ):
-    """Tests that compute_boundary_conditions works for Te."""
+    """Tests that compute_boundary_conditions_for_t_plus_dt works for Te."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             Te={0: {0: 1.5, 1: 1}},
@@ -538,10 +546,15 @@ class CoreProfileSettersTest(parameterized.TestCase):
         t=1.0,
     )
 
-    boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        static_slice,
-        dynamic_runtime_params_slice,
-        self.geo,
+    boundary_conditions = (
+        core_profile_setters.compute_boundary_conditions_for_t_plus_dt(
+            dt=runtime_params.numerics.fixed_dt,
+            static_runtime_params_slice=static_slice,
+            dynamic_runtime_params_slice_t=None,  # This test doesn't need this
+            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+            geo_t_plus_dt=self.geo,
+            core_profiles_t=None,  # This test doesn't need this
+        )
     )
 
     self.assertEqual(
@@ -557,7 +570,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
       Ti_bound_right,
       expected_Ti_bound_right,
   ):
-    """Tests that compute_boundary_conditions works for Ti."""
+    """Tests that compute_boundary_conditions_for_t_plus_dt works for Ti."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti={0: {0: 1.5, 1: 1}},
@@ -581,10 +594,15 @@ class CoreProfileSettersTest(parameterized.TestCase):
         t=1.0,
     )
 
-    boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        static_slice,
-        dynamic_runtime_params_slice,
-        self.geo,
+    boundary_conditions = (
+        core_profile_setters.compute_boundary_conditions_for_t_plus_dt(
+            dt=runtime_params.numerics.fixed_dt,
+            static_runtime_params_slice=static_slice,
+            dynamic_runtime_params_slice_t=None,  # This test doesn't need this
+            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,
+            geo_t_plus_dt=self.geo,
+            core_profiles_t=None,  # This test doesn't need this
+        )
     )
 
     self.assertEqual(

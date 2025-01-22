@@ -15,7 +15,6 @@
 """Classes defining the TORAX state that evolves over time."""
 
 from __future__ import annotations
-
 import dataclasses
 import enum
 from typing import Any, Optional
@@ -110,6 +109,7 @@ class CoreProfiles:
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
   nref: array_typing.ScalarFloat  # Reference density
+  vloop_lcfs: array_typing.ScalarFloat # Loop voltage at LCFS (rightmost face)
   # pylint: disable=invalid-name
   Zi: array_typing.ArrayFloat  # Main ion charge on cell grid [amu]
   Zi_face: array_typing.ArrayFloat  # Main ion charge on face grid [amu]
