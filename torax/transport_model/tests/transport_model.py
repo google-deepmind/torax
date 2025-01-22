@@ -25,6 +25,7 @@ from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
@@ -45,7 +46,7 @@ class TransportSmoothingTest(parameterized.TestCase):
             ne_bound_right=0.5,
         ),
     )
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     transport_model_builder = FakeTransportModelBuilder(
@@ -197,7 +198,7 @@ class TransportSmoothingTest(parameterized.TestCase):
             ne_bound_right=0.5,
         ),
     )
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     transport_model_builder = FakeTransportModelBuilder(

@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tests for qualikiz transport_model transport model."""
 from absl.testing import absltest
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 # pylint: disable=g-import-not-at-top
 try:
   from torax.transport_model import qualikiz_transport_model
@@ -29,7 +29,7 @@ class RuntimeParamsTest(absltest.TestCase):
     if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
       self.skipTest('Qualikiz transport model is not available.')
     runtime_params = qualikiz_transport_model.RuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
 

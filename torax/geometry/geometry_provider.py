@@ -42,7 +42,7 @@ class GeometryProvider(Protocol):
 
   .. code-block:: python
 
-    geo = geometry.build_circular_geometry(...)
+    geo = circular_geometry.build_circular_geometry(...)
     constant_geo_provider = lamdba t: geo
 
     def func_expecting_geo_provider(gp: GeometryProvider):

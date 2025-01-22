@@ -23,7 +23,7 @@ from torax import core_profile_setters
 from torax import math_utils
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import generic_ion_el_heat_source
 from torax.sources import (
     impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,
@@ -87,7 +87,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
     self.assertIsInstance(impurity_radiation_sink, source_lib.Source)
 
     # Geometry, profiles, and dynamic runtime params
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -153,7 +153,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_builder = self._source_class_builder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {self._source_name: source_builder},

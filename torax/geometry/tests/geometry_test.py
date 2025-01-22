@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
 import os
 
 from absl.testing import absltest
@@ -51,23 +50,6 @@ class GeometryTest(parameterized.TestCase):
     cell_np = face_to_cell(n_rho, face)
 
     np.testing.assert_allclose(cell_jax, cell_np)
-
-  def test_frozen(self):
-    """Test that the Geometry class is frozen."""
-    geo = geometry.build_circular_geometry()
-    with self.assertRaises(dataclasses.FrozenInstanceError):
-      geo.drho_norm = 0.1
-
-  def test_circular_geometry_can_be_input_to_jitted_function(self):
-    """Test that a circular geometry can be input to a jitted function."""
-
-    def foo(geo: geometry.Geometry):
-      _ = geo  # do nothing.
-
-    foo_jitted = jax.jit(foo)
-    geo = geometry.build_circular_geometry()
-    # Make sure you can call the function with geo as an arg.
-    foo_jitted(geo)
 
   def test_standard_geometry_can_be_input_to_jitted_function(self):
     """Test that a StandardGeometry can be input to a jitted function."""
@@ -176,31 +158,6 @@ class GeometryTest(parameterized.TestCase):
     np.testing.assert_allclose(geo.Rmin, 1.5)
     np.testing.assert_allclose(geo.B0, 5.9)
 
-  def test_build_geometry_provider_from_circular(self):
-    """Test that the circular geometry provider can be built."""
-    geo_0 = geometry.build_circular_geometry(
-        n_rho=25,
-        elongation_LCFS=1.72,
-        Rmaj=6.2,
-        Rmin=2.0,
-        B0=5.3,
-        hires_fac=4,
-    )
-    geo_1 = geometry.build_circular_geometry(
-        n_rho=25,
-        elongation_LCFS=1.72,
-        Rmaj=7.2,
-        Rmin=1.0,
-        B0=5.3,
-        hires_fac=4,
-    )
-    provider = geometry.CircularAnalyticalGeometryProvider.create_provider(
-        {0.0: geo_0, 10.0: geo_1}
-    )
-    geo = provider(5.0)
-    np.testing.assert_allclose(geo.Rmaj, 6.7)
-    np.testing.assert_allclose(geo.Rmin, 1.5)
-
   @parameterized.parameters([
       dict(invalid_key='rBt', invalid_shape=(2,)),
       dict(invalid_key='aminor', invalid_shape=(10, 3)),
@@ -298,18 +255,6 @@ class GeometryTest(parameterized.TestCase):
         geometry_file=geometry_file
     )
     geometry.build_standard_geometry(intermediate)
-
-  def test_geometry_objects_can_be_used_in_jax_jitted_functions(self):
-    """Test public API of geometry objects can be used in jitted functions."""
-    geo = geometry.build_circular_geometry()
-
-    @jax.jit
-    def f(geo: geometry.Geometry):
-      for field in dir(geo):
-        if not field.startswith('_'):
-          getattr(geo, field)
-
-    f(geo)
 
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""

@@ -21,6 +21,7 @@ import jax.numpy as jnp
 import numpy as np
 import scipy.integrate
 from torax import math_utils
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 
 jax.config.update('jax_enable_x64', True)
@@ -72,7 +73,7 @@ class MathUtilsTest(parameterized.TestCase):
     x = jax.random.uniform(
         jax.random.PRNGKey(0), shape=(num_cell_grid_points + 1,)
     )
-    geo = geometry.build_circular_geometry(n_rho=num_cell_grid_points)
+    geo = circular_geometry.build_circular_geometry(n_rho=num_cell_grid_points)
 
     np.testing.assert_allclose(
         math_utils.cell_integration(geometry.face_to_cell(x), geo),
@@ -143,7 +144,7 @@ class MathUtilsTest(parameterized.TestCase):
       preserved_quantity: math_utils.IntegralPreservationQuantity,
   ):
     """Test that the cell_to_face method works as expected."""
-    geo = geometry.build_circular_geometry(n_rho=len(cell_values))
+    geo = circular_geometry.build_circular_geometry(n_rho=len(cell_values))
     cell_values = jnp.array(cell_values, dtype=jnp.float32)
 
     face_values = math_utils.cell_to_face(cell_values, geo, preserved_quantity)
@@ -176,7 +177,7 @@ class MathUtilsTest(parameterized.TestCase):
 
   def test_cell_to_face_raises_when_too_few_values(self,):
     """Test that the cell_to_face method raises when too few values are provided."""
-    geo = geometry.build_circular_geometry(n_rho=1)
+    geo = circular_geometry.build_circular_geometry(n_rho=1)
     with self.assertRaises(ValueError):
       math_utils.cell_to_face(jnp.array([1.0], dtype=np.float32), geo)
 

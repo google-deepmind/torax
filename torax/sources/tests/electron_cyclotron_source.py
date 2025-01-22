@@ -21,7 +21,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import electron_cyclotron_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -55,7 +55,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     source = source_models.sources[self._source_name]
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -93,7 +93,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source = self._source_class()
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))

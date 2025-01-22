@@ -23,6 +23,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -174,7 +175,7 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -226,7 +227,7 @@ class SourceTest(parameterized.TestCase):
     source = source_models.sources['foo']
     source_runtime_params = source_models_builder.runtime_params
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(n_rho=4)
+    geo = circular_geometry.build_circular_geometry(n_rho=4)
     source_runtime_params['foo'] = dataclasses.replace(
         source_models_builder.runtime_params['foo'],
         mode=mode,
@@ -272,7 +273,7 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -335,7 +336,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_overriding_model(self):
     """The user-specified model should override the default model."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
     source_builder = source_lib.make_source_builder(
@@ -379,7 +380,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_overriding_prescribed_values(self):
     """Providing prescribed values results in the correct profile."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
     # Define the expected output
     expected_output = jnp.ones(output_shape)
@@ -447,7 +448,7 @@ class SourceTest(parameterized.TestCase):
     source = TestSource(
         model_func=lambda _0, _1, _2, _3, _4, _5: profile,
     )
-    geo = geometry.build_circular_geometry(n_rho=4)
+    geo = circular_geometry.build_circular_geometry(n_rho=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )
@@ -476,7 +477,7 @@ class SingleProfileSourceTest(parameterized.TestCase):
     source = test_lib.TestSource(
         model_func=lambda _0, _1, _2, _3, _4, _5: profile,
     )
-    geo = geometry.build_circular_geometry(n_rho=4)
+    geo = circular_geometry.build_circular_geometry(n_rho=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )

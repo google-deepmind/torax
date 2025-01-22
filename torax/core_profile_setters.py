@@ -33,6 +33,7 @@ from torax.config import numerics
 from torax.config import profile_conditions
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
@@ -648,7 +649,7 @@ def _init_psi_and_current(
     )
   # Calculating j according to nu formula and psi from j.
   elif (
-      isinstance(geo, geometry.CircularAnalyticalGeometry)
+      isinstance(geo, circular_geometry.CircularAnalyticalGeometry)
       or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     currents = _prescribe_currents_no_bootstrap(

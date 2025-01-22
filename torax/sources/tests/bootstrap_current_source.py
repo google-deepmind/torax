@@ -17,7 +17,7 @@
 from absl.testing import absltest
 import jax.numpy as jnp
 import numpy as np
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import bootstrap_current_source
 from torax.sources import source as source_lib
 from torax.sources import source_profiles
@@ -39,7 +39,7 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
     source = bootstrap_current_source.BootstrapCurrentSource()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
     face = source_lib.ProfileType.FACE.get_profile_shape(geo)
     fake_profile = source_profiles.BootstrapCurrentProfile(

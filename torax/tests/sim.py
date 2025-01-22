@@ -30,7 +30,7 @@ from torax import state
 from torax.config import build_sim as build_sim_lib
 from torax.config import numerics as numerics_lib
 from torax.config import runtime_params as runtime_params_lib
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
@@ -492,7 +492,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     geo_provider = geometry_provider.ConstantGeometryProvider(
-        geometry.build_circular_geometry()
+        circular_geometry.build_circular_geometry()
     )
 
     sim = sim_lib.Sim.create(
@@ -734,7 +734,7 @@ class SimTest(sim_test_case.SimTestCase):
     with self.assertRaisesRegex(ValueError, 'different mesh'):
       sim.update_base_components(
           geometry_provider=geometry_provider.ConstantGeometryProvider(
-              geometry.build_circular_geometry(n_rho=10)
+              circular_geometry.build_circular_geometry(n_rho=10)
           )
       )
 

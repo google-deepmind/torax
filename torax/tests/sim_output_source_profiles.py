@@ -28,6 +28,7 @@ import numpy as np
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.config import runtime_params as general_runtime_params
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
@@ -68,7 +69,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
     # Technically, the merge_source_profiles() function should be called with
@@ -153,7 +154,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     runtime_params.numerics.t_final = 2.
     runtime_params.numerics.fixed_dt = 1.
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     time_stepper = fixed_time_step_calculator.FixedTimeStepCalculator()
     def mock_step_fn(
         _,

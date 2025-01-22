@@ -21,6 +21,7 @@ from typing import Any
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
@@ -126,14 +127,14 @@ def _build_circular_geometry_provider(
       raise ValueError('n_rho must be set in the input config.')
     geometries = {}
     for time, c in kwargs['geometry_configs'].items():
-      geometries[time] = geometry.build_circular_geometry(
+      geometries[time] = circular_geometry.build_circular_geometry(
           n_rho=kwargs['n_rho'], **c
       )
-    return geometry.CircularAnalyticalGeometryProvider.create_provider(
+    return circular_geometry.CircularAnalyticalGeometryProvider.create_provider(
         geometries
     )
   return geometry_provider.ConstantGeometryProvider(
-      geometry.build_circular_geometry(**kwargs)
+      circular_geometry.build_circular_geometry(**kwargs)
   )
 
 
@@ -153,7 +154,7 @@ def build_geometry_provider_from_config(
   expected in the rest of the config. See the following functions to get a full
   list of the arguments exposed:
 
-   -  `geometry.build_circular_geometry()`
+   -  `circular_geometry.build_circular_geometry()`
    -  `geometry.StandardGeometryIntermediates.from_chease()`
    -  `geometry.StandardGeometryIntermediates.from_fbt()`
 

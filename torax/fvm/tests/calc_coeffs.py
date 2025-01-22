@@ -21,7 +21,7 @@ from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.fvm import calc_coeffs
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
@@ -55,7 +55,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         predictor_corrector=False,
         theta_imp=theta_imp,
     )
-    geo = geometry.build_circular_geometry(n_rho=num_cells)
+    geo = circular_geometry.build_circular_geometry(n_rho=num_cells)
     transport_model_builder = (
         constant_transport_model.ConstantTransportModelBuilder(
             runtime_params=constant_transport_model.RuntimeParams(

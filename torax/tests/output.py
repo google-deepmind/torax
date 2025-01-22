@@ -27,7 +27,7 @@ from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
 from torax.sources import source as source_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -56,7 +56,7 @@ class StateHistoryTest(parameterized.TestCase):
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
     # Make some dummy source profiles that could have come from these sources.
-    self.geo = geometry.build_circular_geometry()
+    self.geo = circular_geometry.build_circular_geometry()
     ones = jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(self.geo))
     geo_provider = geometry_provider.ConstantGeometryProvider(self.geo)
     dynamic_runtime_params_slice, geo = (

@@ -20,7 +20,7 @@ import numpy as np
 from torax import charge_states
 from torax import interpolated_param
 from torax.config import plasma_composition
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 
 
 class PlasmaCompositionTest(parameterized.TestCase):
@@ -29,7 +29,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
   def test_plasma_composition_make_provider(self):
     """Checks provider construction with no issues."""
     pc = plasma_composition.PlasmaComposition()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     provider = pc.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
 
@@ -40,7 +40,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
   )
   def test_zeff_accepts_float_inputs(self, zeff: float):
     """Tests that zeff accepts a single float input."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     pc = plasma_composition.PlasmaComposition(Zeff=zeff)
     provider = pc.make_provider(geo.torax_mesh)
     dynamic_pc = provider.build_dynamic_params(t=0.0)
@@ -63,7 +63,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
         1.0: {0.0: 1.8, 0.5: 2.1, 1.0: 2.4},
     }
 
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     pc = plasma_composition.PlasmaComposition(Zeff=zeff_profile)
     provider = pc.make_provider(geo.torax_mesh)
 
@@ -102,7 +102,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
   ):
     """Tests that interpolated vars are only constructed once."""
     pc = plasma_composition.PlasmaComposition()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     provider = pc.make_provider(geo.torax_mesh)
     interpolated_params = {}
     for field in provider:

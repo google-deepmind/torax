@@ -24,7 +24,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -91,7 +91,7 @@ class SourceTestCase(parameterized.TestCase):
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = self._runtime_params_class()
     self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_params = provider.build_dynamic_params(t=0.0)
     self.assertIsInstance(
@@ -140,7 +140,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source = source_models.sources[self._source_name]
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -179,7 +179,7 @@ class IonElSourceTestCase(SourceTestCase):
     source_builder = self._source_class_builder()
     # pylint: enable=missing-kwoa
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {self._source_name: source_builder},
     )
@@ -216,7 +216,7 @@ class IonElSourceTestCase(SourceTestCase):
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa

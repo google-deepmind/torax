@@ -26,6 +26,7 @@ from torax import fvm
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.sources import runtime_params as sources_params
@@ -89,7 +90,7 @@ def circular_references() -> References:
           },
       },
   )
-  geo = geometry.build_circular_geometry(
+  geo = circular_geometry.build_circular_geometry(
       n_rho=25,
       elongation_LCFS=1.72,
       hires_fac=4,

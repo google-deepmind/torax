@@ -27,7 +27,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import ion_cyclotron_source
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -137,7 +137,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME: source_builder},
     )

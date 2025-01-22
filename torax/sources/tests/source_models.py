@@ -24,6 +24,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.sources import generic_current_source
 from torax.sources import runtime_params as source_runtime_params_lib
@@ -67,7 +68,7 @@ class SourceProfilesTest(parameterized.TestCase):
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     dynamic_runtime_params_slice = (
@@ -118,7 +119,7 @@ class SourceProfilesTest(parameterized.TestCase):
 
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
     """Test that sum_sources_temp_{ion|el} works with jitting."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
 
     # Use the default sources where the generic_ion_el_heat_source,
     # fusion_heat_source, and ohmic_heat_source are included and produce
@@ -193,7 +194,7 @@ class SourceProfilesTest(parameterized.TestCase):
     )
     source_models = source_models_builder()
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -285,7 +286,7 @@ class SourceProfilesTest(parameterized.TestCase):
     source_models_builder.runtime_params['bar'].prescribed_values = 1
     source_models = source_models_builder()
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,

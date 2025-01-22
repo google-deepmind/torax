@@ -18,7 +18,7 @@ from jax import numpy as jnp
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 
@@ -28,7 +28,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = set_tped_nped.RuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
 
@@ -62,14 +62,14 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     provider = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
         pedestal=pedestal_runtime_params,
     )
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     builder = set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
         runtime_params=pedestal_runtime_params
     )

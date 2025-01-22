@@ -27,6 +27,7 @@ from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.sources import generic_current_source
 from torax.sources import runtime_params as source_runtime_params
@@ -135,7 +136,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     )
 
     # pylint: disable=protected-access
-    if isinstance(geo, geometry.CircularAnalyticalGeometry):
+    if isinstance(geo, circular_geometry.CircularAnalyticalGeometry):
       currents = core_profile_setters._prescribe_currents_no_bootstrap(
           static_slice,
           dynamic_runtime_params_slice,
@@ -314,7 +315,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
 
   def test_calculate_plh_scaling_factor(self):
     """Compare `calculate_plh_scaling_factor` to a reference value."""
-    geo = geometry.build_circular_geometry(
+    geo = circular_geometry.build_circular_geometry(
         n_rho=25,
         elongation_LCFS=1.0,
         hires_fac=4,
@@ -411,7 +412,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
   # pylint: disable=invalid-name
   def test_calculate_scaling_law_confinement_time(self, elongation_LCFS):
     """Compare `calculate_scaling_law_confinement_time` to reference values."""
-    geo = geometry.build_circular_geometry(
+    geo = circular_geometry.build_circular_geometry(
         n_rho=25,
         elongation_LCFS=elongation_LCFS,
         hires_fac=4,

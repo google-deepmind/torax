@@ -28,7 +28,7 @@ from torax import state
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
@@ -42,7 +42,7 @@ class PostProcessingTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    self.geo = geometry.build_circular_geometry()
+    self.geo = circular_geometry.build_circular_geometry()
     geo_provider = geometry_provider.ConstantGeometryProvider(self.geo)
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
@@ -159,7 +159,7 @@ class PostProcessingTest(parameterized.TestCase):
 
   def test_compute_stored_thermal_energy(self):
     """Test that stored thermal energy is computed correctly."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     p_el = np.ones_like(geo.rho_face)
     p_ion = 2 * np.ones_like(geo.rho_face)
     p_tot = p_el + p_ion

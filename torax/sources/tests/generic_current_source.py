@@ -20,7 +20,7 @@ import chex
 import numpy as np
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import generic_current_source
 from torax.sources import source as source_lib
 from torax.sources.tests import test_lib
@@ -40,7 +40,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
 
   def test_profile_is_on_cell_grid(self):
     """Tests that the profile is given on the cell grid."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_builder = self._source_class_builder()
     source = source_builder()
     self.assertEqual(
@@ -99,7 +99,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
     source = source_builder()
 
     # Build a face profile with 3 values on a 2-cell grid.
-    geo = geometry.build_circular_geometry(n_rho=2)
+    geo = circular_geometry.build_circular_geometry(n_rho=2)
     cell_profile = np.array([1.5, 2.5])
 
     np.testing.assert_allclose(

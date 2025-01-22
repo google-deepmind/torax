@@ -29,6 +29,7 @@ from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
@@ -67,7 +68,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
             dt_reduction_factor=1.5,
         ),
     )
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
     transport_builder = FakeTransportModelBuilder()
     source_models_builder = source_models_lib.SourceModelsBuilder()

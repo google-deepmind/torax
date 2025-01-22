@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tests for runtime params for sources."""
 from absl.testing import absltest
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import runtime_params as runtime_params_lib
 
 
@@ -21,7 +21,7 @@ class RuntimeParamsTest(absltest.TestCase):
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = runtime_params_lib.RuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_params = provider.build_dynamic_params(t=0.0)
     self.assertIsInstance(
