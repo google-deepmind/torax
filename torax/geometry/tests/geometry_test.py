@@ -1,3 +1,4 @@
+import dataclasses
 # Copyright 2024 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +21,7 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax.config import build_sim
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_loader
 
@@ -273,6 +275,24 @@ class GeometryTest(parameterized.TestCase):
         return geo.z_magnetic_axis
 
       _ = jax.jit(f)()
+
+  def test_stack_geometries(self):
+    """Test that geometries can be stacked."""
+    geo_0 = circular_geometry.build_circular_geometry()
+    geo_1 = circular_geometry.build_circular_geometry()
+    # Change one of the geometries slightly so they aren't identical.
+    geo_1 = dataclasses.replace(geo_1, Rmaj=geo_1.Rmaj * 2)
+    stacked_geometries = geometry.stack_geometries([geo_0, geo_1])
+    self.assertNotIn('geometry_type', stacked_geometries.keys())
+    self.assertNotIn('torax_mesh', stacked_geometries.keys())
+    for field in dataclasses.fields(geo_0):
+      if field.name in ['geometry_type', 'torax_mesh',]:
+        continue
+      self.assertIn(field.name, stacked_geometries.keys())
+    for key, value in stacked_geometries.items():
+      np.testing.assert_allclose(
+          value, np.stack([getattr(geo_0, key), getattr(geo_1, key)])
+      )
 
 
 def face_to_cell(n_rho, face):

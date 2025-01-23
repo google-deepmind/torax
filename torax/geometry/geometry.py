@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 import dataclasses
 import enum
 import functools
@@ -257,6 +257,44 @@ class Geometry:
       raise RuntimeError(
           'Geometry does not have a z magnetic axis.'
       )
+
+
+def stack_geometries(
+    geometries: Sequence[Geometry],
+) -> Mapping[str, chex.Array]:
+  """Batch together a sequence of geometries.
+
+  Args:
+    geometries: A sequence of geometries to stack. The geometries must have the
+      same mesh, geometry type, and drho_norm.
+
+  Returns:
+    A dictionary of arrays, where each array has the same shape as the
+    corresponding attribute in the input geometries, but with an additional
+    leading axis (e.g. for the time dimension).
+  """
+  if not geometries:
+    raise ValueError('No geometries provided.')
+  # Stack the geometries.
+  torax_mesh = geometries[0].torax_mesh
+  geometry_type = geometries[0].geometry_type
+  drho_norm = geometries[0].drho_norm
+  for geometry in geometries[1:]:
+    if geometry.torax_mesh != torax_mesh:
+      raise ValueError('All geometries must have the same mesh.')
+    if geometry.geometry_type != geometry_type:
+      raise ValueError('All geometries must have the same geometry type.')
+    if geometry.drho_norm != drho_norm:
+      raise ValueError('All geometries must have the same drho_norm.')
+  array_fields = [
+      attr
+      for attr, val in dataclasses.asdict(geometries[0]).items()
+      if isinstance(val, chex.Array)
+  ]
+  return {
+      attr: jnp.stack([getattr(geo, attr) for geo in geometries])
+      for attr in array_fields
+  }
 
 
 @chex.dataclass(frozen=True)
