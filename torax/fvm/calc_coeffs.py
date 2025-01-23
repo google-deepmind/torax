@@ -388,67 +388,38 @@ def _calc_coeffs_full(
   # recalculate here to avoid issues with JAX branching in the logic.
   # Decide which values to use depending on whether the source is explicit or
   # implicit.
-  sigma = jax_utils.select(
-      static_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ].is_explicit,
-      explicit_source_profiles.j_bootstrap.sigma,
-      implicit_source_profiles.j_bootstrap.sigma,
-  )
-  sigma_face = jax_utils.select(
-      static_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ].is_explicit,
-      explicit_source_profiles.j_bootstrap.sigma_face,
-      implicit_source_profiles.j_bootstrap.sigma_face,
-  )
-  j_bootstrap = jax_utils.select(
-      static_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ].is_explicit,
-      explicit_source_profiles.j_bootstrap.j_bootstrap,
-      implicit_source_profiles.j_bootstrap.j_bootstrap,
-  )
-  j_bootstrap_face = jax_utils.select(
-      static_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ].is_explicit,
-      explicit_source_profiles.j_bootstrap.j_bootstrap_face,
-      implicit_source_profiles.j_bootstrap.j_bootstrap_face,
-  )
-  I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
-      static_runtime_params_slice.sources[
-          source_models.j_bootstrap_name
-      ].is_explicit,
-      explicit_source_profiles.j_bootstrap.I_bootstrap,
-      implicit_source_profiles.j_bootstrap.I_bootstrap,
-  )
+  if static_runtime_params_slice.sources[
+      source_models.j_bootstrap_name
+  ].is_explicit:
+    j_bootstrap = explicit_source_profiles.j_bootstrap
+  else:
+    j_bootstrap = implicit_source_profiles.j_bootstrap
 
   external_current = jnp.zeros_like(geo.rho)
   # Sum over all psi sources (except the bootstrap current).
   for source_name, source in source_models.psi_sources.items():
-    external_current += jax_utils.select(
-        static_runtime_params_slice.sources[source_name].is_explicit,
-        source.get_source_profile_for_affected_core_profile(
-            profile=explicit_source_profiles.profiles[source_name],
-            affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
-            geo=geo,
-        ),
-        source.get_source_profile_for_affected_core_profile(
-            profile=implicit_source_profiles.profiles[source_name],
-            affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
-            geo=geo,
-        ),
+    if static_runtime_params_slice.sources[source_name].is_explicit:
+      profiles = explicit_source_profiles.profiles
+    else:
+      profiles = implicit_source_profiles.profiles
+    external_current += source.get_source_profile_for_affected_core_profile(
+        profile=profiles[source_name],
+        affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
+        geo=geo,
     )
 
   currents = dataclasses.replace(
       core_profiles.currents,
-      j_bootstrap=j_bootstrap,
-      j_bootstrap_face=j_bootstrap_face,
+      j_bootstrap=j_bootstrap.j_bootstrap,
+      j_bootstrap_face=j_bootstrap.j_bootstrap_face,
       external_current_source=external_current,
-      johm=(core_profiles.currents.jtot - j_bootstrap - external_current),
-      I_bootstrap=I_bootstrap,
-      sigma=sigma,
+      johm=(
+          core_profiles.currents.jtot
+          - j_bootstrap.j_bootstrap
+          - external_current
+      ),
+      I_bootstrap=j_bootstrap.I_bootstrap,
+      sigma=j_bootstrap.sigma,
   )
   core_profiles = dataclasses.replace(core_profiles, currents=currents)
 
@@ -495,7 +466,7 @@ def _calc_coeffs_full(
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
       * geo.rho_norm
-      * sigma
+      * j_bootstrap.sigma
       * consts.mu0
       * 16
       * jnp.pi**2
@@ -737,28 +708,9 @@ def _calc_coeffs_full(
       * consts.mu0
       * geo.Phibdot
       * geo.Phib
-      * sigma_face
+      * j_bootstrap.sigma_face
       * geo.rho_face_norm**2
       / geo.F_face**2
-  )
-
-  # Ion and electron heat sources.
-  qei = source_models.qei_source.get_qei(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      # For Qei, always use the current set of core profiles.
-      # In the linear solver, core_profiles is the set of profiles at time t (at
-      # the start of the time step) or the updated core_profiles in
-      # predictor-corrector, and in the nonlinear solver, calc_coeffs is called
-      # at least twice, once with the core_profiles at time t, and again
-      # (iteratively) with core_profiles at t+dt.
-      core_profiles=core_profiles,
-  )
-  # Update the implicit profiles with the qei info.
-  implicit_source_profiles = dataclasses.replace(
-      implicit_source_profiles,
-      qei=qei,
   )
 
   # Fill heat transport equation sources. Initialize source matrices to zero
@@ -787,6 +739,7 @@ def _calc_coeffs_full(
   )
 
   # Add the Qei effects.
+  qei = implicit_source_profiles.qei
   source_mat_ii += qei.implicit_ii * geo.vpr
   source_i += qei.explicit_i * geo.vpr
   source_mat_ee += qei.implicit_ee * geo.vpr
@@ -853,7 +806,7 @@ def _calc_coeffs_full(
   # Add effective phibdot poloidal flux source term
 
   ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
-      sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
+      j_bootstrap.sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
   )
 
   source_psi += (

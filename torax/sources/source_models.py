@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import functools
 
+import chex
 import jax
 import jax.numpy as jnp
 from torax import array_typing
@@ -40,6 +41,7 @@ from torax.sources import source_profiles
     static_argnames=[
         'source_models',
         'static_runtime_params_slice',
+        'explicit',
     ],
 )
 def build_source_profiles(
@@ -91,12 +93,19 @@ def build_source_profiles(
       source_models,
       explicit,
   )
+  if not explicit:
+    qei = source_models.qei_source.get_qei(
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        core_profiles=core_profiles,
+    )
+  else:
+    qei = source_profiles.QeiInfo.zeros(geo)
   return source_profiles.SourceProfiles(
       profiles=other_profiles,
       j_bootstrap=bootstrap_profiles,
-      # Qei is computed within calc_coeffs and will replace this value. This is
-      # here as a placeholder with correct shapes.
-      qei=source_profiles.QeiInfo.zeros(geo),
+      qei=qei,
   )
 
 
@@ -140,53 +149,10 @@ def _build_bootstrap_profiles(
       geo=geo,
       core_profiles=core_profiles,
   )
-  sigma = jax_utils.select(
-      jnp.logical_or(
-          explicit == static_source_runtime_params.is_explicit,
-          calculate_anyway,
-      ),
-      bootstrap_profile.sigma,
-      jnp.zeros_like(bootstrap_profile.sigma),
-  )
-  sigma_face = jax_utils.select(
-      jnp.logical_or(
-          explicit == static_source_runtime_params.is_explicit,
-          calculate_anyway,
-      ),
-      bootstrap_profile.sigma_face,
-      jnp.zeros_like(bootstrap_profile.sigma_face),
-  )
-  j_bootstrap = jax_utils.select(
-      jnp.logical_or(
-          explicit == static_source_runtime_params.is_explicit,
-          calculate_anyway,
-      ),
-      bootstrap_profile.j_bootstrap,
-      jnp.zeros_like(bootstrap_profile.j_bootstrap),
-  )
-  j_bootstrap_face = jax_utils.select(
-      jnp.logical_or(
-          explicit == static_source_runtime_params.is_explicit,
-          calculate_anyway,
-      ),
-      bootstrap_profile.j_bootstrap_face,
-      jnp.zeros_like(bootstrap_profile.j_bootstrap_face),
-  )
-  I_bootstrap = jax_utils.select(  # pylint: disable=invalid-name
-      jnp.logical_or(
-          explicit == static_source_runtime_params.is_explicit,
-          calculate_anyway,
-      ),
-      bootstrap_profile.I_bootstrap,
-      jnp.zeros_like(bootstrap_profile.I_bootstrap),
-  )
-  return source_profiles.BootstrapCurrentProfile(
-      sigma=sigma,
-      sigma_face=sigma_face,
-      j_bootstrap=j_bootstrap,
-      j_bootstrap_face=j_bootstrap_face,
-      I_bootstrap=I_bootstrap,
-  )
+  if explicit == static_source_runtime_params.is_explicit | calculate_anyway:
+    return bootstrap_profile
+  else:
+    return source_profiles.BootstrapCurrentProfile.zero_profile(geo)
 
 
 def _build_standard_source_profiles(
@@ -203,7 +169,7 @@ def _build_standard_source_profiles(
         source_lib.AffectedCoreProfile.TEMP_ION,
         source_lib.AffectedCoreProfile.TEMP_EL,
     ),
-) -> dict[str, jax.Array]:
+) -> dict[str, chex.ArrayTree]:
   """Computes sources and builds a kwargs dict for SourceProfiles.
 
   Args:
@@ -236,19 +202,19 @@ def _build_standard_source_profiles(
       static_source_runtime_params = static_runtime_params_slice.sources[
           source_name
       ]
-      computed_source_profiles[source_name] = jax_utils.select(
-          jnp.logical_or(
-              explicit == static_source_runtime_params.is_explicit,
-              calculate_anyway,
-          ),
-          source.get_value(
-              static_runtime_params_slice,
-              dynamic_runtime_params_slice,
-              geo,
-              core_profiles,
-          ),
-          jnp.zeros(source.output_shape_getter(geo)),
-      )
+      if (
+          explicit
+          == static_source_runtime_params.is_explicit | calculate_anyway
+      ):
+        computed_source_profiles[source_name] = source.get_value(
+            static_runtime_params_slice,
+            dynamic_runtime_params_slice,
+            geo,
+            core_profiles,
+        )
+      else:
+        computed_source_profiles[source_name] = jnp.zeros(
+            source.output_shape_getter(geo))
   return computed_source_profiles
 
 

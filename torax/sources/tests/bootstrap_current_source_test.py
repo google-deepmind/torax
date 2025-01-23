@@ -37,8 +37,8 @@ class BootstrapCurrentSourceTest(test_lib.SourceTestCase):
     """Tests that the relevant profile is extracted from the output."""
     source = bootstrap_current_source.BootstrapCurrentSource()
     geo = circular_geometry.build_circular_geometry()
-    cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
-    face = source_lib.ProfileType.FACE.get_profile_shape(geo)
+    cell = source_lib.get_cell_profile_shape(geo)
+    face = source_lib.get_face_profile_shape(geo)
     fake_profile = source_profiles.BootstrapCurrentProfile(
         sigma=jnp.zeros(cell),
         sigma_face=jnp.zeros(face),

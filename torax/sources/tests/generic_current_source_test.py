@@ -42,7 +42,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
     source = source_builder()
     self.assertEqual(
         source.output_shape_getter(geo),
-        source_lib.ProfileType.CELL.get_profile_shape(geo),
+        source_lib.get_cell_profile_shape(geo),
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -72,7 +72,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
             geo,
             core_profiles=None,
         ).shape,
-        source_lib.ProfileType.CELL.get_profile_shape(geo),
+        source_lib.get_cell_profile_shape(geo),
     )
 
   @parameterized.named_parameters(

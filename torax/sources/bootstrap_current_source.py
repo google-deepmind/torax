@@ -69,9 +69,9 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 def _default_output_shapes(geo) -> tuple[int, int, int, int]:
   return (
-      source.ProfileType.CELL.get_profile_shape(geo)  # sigmaneo
-      + source.ProfileType.CELL.get_profile_shape(geo)  # bootstrap
-      + source.ProfileType.FACE.get_profile_shape(geo)  # bootstrap face
+      source.get_cell_profile_shape(geo)  # sigmaneo
+      + source.get_cell_profile_shape(geo)  # bootstrap
+      + source.get_face_profile_shape(geo)  # bootstrap face
       + (1,)  # I_bootstrap
   )
 

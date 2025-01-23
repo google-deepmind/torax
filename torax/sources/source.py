@@ -74,13 +74,6 @@ SourceOutputShapeFunction: TypeAlias = Callable[
 ]
 
 
-def get_cell_profile_shape(
-    geo: geometry.Geometry,
-):
-  """Returns the shape of a source profile on the cell grid."""
-  return ProfileType.CELL.get_profile_shape(geo)
-
-
 @enum.unique
 class AffectedCoreProfile(enum.IntEnum):
   """Defines which part of the core profiles the source helps evolve.
@@ -178,7 +171,7 @@ class Source(abc.ABC):
     ]
     output_shape = self.output_shape_getter(geo)
 
-    return get_source_profiles(
+    return _get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
@@ -247,27 +240,19 @@ class Source(abc.ABC):
       )
 
 
-class ProfileType(enum.Enum):
-  """Describes what kind of profile is expected from a source."""
+def get_cell_profile_shape(geo: geometry.Geometry) -> tuple[int, ...]:
+  """Returns the shape of a source profile on the cell grid."""
+  return geo.torax_mesh.cell_centers.shape
 
-  # Source should return a profile on the cell grid.
-  CELL = enum.auto()
 
-  # Source should return a profile on the face grid.
-  FACE = enum.auto()
-
-  def get_profile_shape(self, geo: geometry.Geometry) -> tuple[int, ...]:
-    """Returns the expected length of the source profile."""
-    profile_type_to_len = {
-        ProfileType.CELL: geo.rho.shape,
-        ProfileType.FACE: geo.rho_face.shape,
-    }
-    return profile_type_to_len[self]
+def get_face_profile_shape(geo: geometry.Geometry) -> tuple[int, ...]:
+  """Returns the shape of a source profile on the face grid."""
+  return geo.torax_mesh.face_centers.shape
 
 
 # pytype bug: 'source_models.SourceModels' not treated as a forward ref
 # pytype: disable=name-error
-def get_source_profiles(
+def _get_source_profiles(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -320,12 +305,14 @@ def get_source_profiles(
       )
     case runtime_params_lib.Mode.PRESCRIBED.value:
       return prescribed_values
-    case _:
+    case runtime_params_lib.Mode.ZERO.value:
       return jnp.zeros(output_shape)
+    case _:
+      raise ValueError(f'Unknown mode: {mode}')
 
 
 def get_ion_el_output_shape(geo):
-  return (2,) + ProfileType.CELL.get_profile_shape(geo)
+  return (2,) + get_cell_profile_shape(geo)
 
 
 @dataclasses.dataclass(frozen=False, kw_only=True)
