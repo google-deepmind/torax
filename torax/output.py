@@ -60,6 +60,7 @@ TEMP_ION_RIGHT_BC = "temp_ion_right_bc"
 PSI = "psi"
 PSIDOT = "psidot"
 PSI_RIGHT_GRAD_BC = "psi_right_grad_bc"
+PSI_RIGHT_BC = "psi_right_bc"
 NE = "ne"
 NE_RIGHT_BC = "ne_right_bc"
 NI = "ni"
@@ -80,6 +81,7 @@ S_FACE = "s_face"
 NREF = "nref"
 ZIMP = "Zimp"
 NIMP = "nimp"
+VLOOP_LCFS = "vloop_lcfs"
 
 # Core transport.
 CORE_TRANSPORT = "core_transport"
@@ -202,9 +204,9 @@ class StateHistory:
     post_processed_output = [
         state.post_processed_outputs for state in sim_outputs.sim_history
     ]
-    stack = lambda *ys: jnp.stack(ys)
+    stack = lambda *ys: jnp.stack(jnp.array(ys))
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
-        stack, *core_profiles
+        stack, *core_profiles, is_leaf=lambda x: x is None,
     )
     self.core_sources: source_profiles.SourceProfiles = jax.tree_util.tree_map(
         stack, *core_sources
@@ -270,6 +272,9 @@ class StateHistory:
     xr_dict[PSI_RIGHT_GRAD_BC] = (
         self.core_profiles.psi.right_face_grad_constraint
     )
+    xr_dict[PSI_RIGHT_BC] = (
+        self.core_profiles.psi.right_face_constraint
+    )
     xr_dict[PSIDOT] = self.core_profiles.psidot.value
     xr_dict[NE] = self.core_profiles.ne.value
     xr_dict[NE_RIGHT_BC] = self.core_profiles.ne.right_face_constraint
@@ -295,6 +300,8 @@ class StateHistory:
     xr_dict[Q_FACE] = self.core_profiles.q_face
     xr_dict[S_FACE] = self.core_profiles.s_face
     xr_dict[NREF] = self.core_profiles.nref
+
+    xr_dict[VLOOP_LCFS] = self.core_profiles.vloop_lcfs
 
     xr_dict = {
         name: self._pack_into_data_array(name, data, geo)

@@ -447,6 +447,30 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Tests current diffusion with vloop BC.
+      # Initial Ip from parameters and psi from CHEASE.
+      (
+          'test_psichease_ip_parameters_vloop',
+          'test_psichease_ip_parameters_vloop.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Tests current diffusion with vloop BC.
+      # Initial Ip and psi from CHEASE.
+      (
+          'test_psichease_ip_chease_vloop',
+          'test_psichease_ip_chease_vloop.py',
+          _ALL_PROFILES,
+          0,
+      ),
+      # Tests current diffusion with vloop BC.
+      # Initial Ip from parameters and psi from nu formula.
+      (
+          'test_psichease_ip_parameters_prescribed_jtot_vloop',
+          'test_psichease_ip_parameters_prescribed_jtot_vloop.py',
+          _ALL_PROFILES,
+          0,
+      ),
   )
   def test_torax_sim(
       self,

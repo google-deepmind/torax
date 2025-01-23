@@ -435,9 +435,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        static_slice,
-        dynamic_runtime_params_slice,
-        self.geo,
+      dt=runtime_params.numerics.fixed_dt,
+      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+      core_profiles_t_minus_dt=None, # This test doesn't need this
+      static_runtime_params_slice=static_slice,
+      geo=self.geo,
     )
 
     if (ne_is_fGW and ne_bound_right is None) or (
@@ -539,9 +541,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        static_slice,
-        dynamic_runtime_params_slice,
-        self.geo,
+      dt=runtime_params.numerics.fixed_dt,
+      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+      core_profiles_t_minus_dt=None, # This test doesn't need this
+      static_runtime_params_slice=static_slice,
+      geo=self.geo,
     )
 
     self.assertEqual(
@@ -582,9 +586,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
 
     boundary_conditions = core_profile_setters.compute_boundary_conditions(
-        static_slice,
-        dynamic_runtime_params_slice,
-        self.geo,
+      dt=runtime_params.numerics.fixed_dt,
+      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,
+      core_profiles_t_minus_dt=None, # This test doesn't need this
+      static_runtime_params_slice=static_slice,
+      geo=self.geo,
     )
 
     self.assertEqual(

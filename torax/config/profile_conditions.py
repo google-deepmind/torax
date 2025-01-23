@@ -35,10 +35,17 @@ class ProfileConditions(
 ):
   """Prescribed values and boundary conditions for the core profiles."""
 
-  # total plasma current in MA
+  # Total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
-  # overwritten by values from the geometry data
+  # overwritten by values from the geometry data.
+  # If vloop_lcfs is not None, then this Ip is used as an
+  # initial condition ONLY.
   Ip_tot: interpolated_param.TimeInterpolatedInput = 15.0
+
+  # Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt )
+  # If this is `None` the boundary condition for the psi equation at each timestep
+  # will instead be taken from `Ip_tot`.
+  vloop_lcfs: interpolated_param.TimeInterpolatedInput | None = None
 
   # Temperature boundary conditions at r=Rmin. If this is `None` the boundary
   # condition will instead be taken from `Ti` and `Te` at rhon=1.
@@ -175,6 +182,7 @@ class ProfileConditionsProvider(
 
   runtime_params_config: ProfileConditions
   Ip_tot: interpolated_param.InterpolatedVarSingleAxis
+  vloop_lcfs: interpolated_param.InterpolatedVarSingleAxis | None
   Ti_bound_right: (
       interpolated_param.InterpolatedVarSingleAxis
       | interpolated_param.InterpolatedVarTimeRho
@@ -208,6 +216,7 @@ class DynamicProfileConditions:
   """Prescribed values and boundary conditions for the core profiles."""
 
   Ip_tot: array_typing.ScalarFloat
+  vloop_lcfs: array_typing.ScalarFloat | None
   Ti_bound_right: array_typing.ScalarFloat
   Te_bound_right: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.
