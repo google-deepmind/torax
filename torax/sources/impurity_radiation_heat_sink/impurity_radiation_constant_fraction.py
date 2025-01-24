@@ -13,10 +13,9 @@
 # limitations under the License.
 
 
-"""Basic impurity radiation heat sink for electron heat equation.."""
+"""Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
 
 import dataclasses
-from typing import ClassVar
 
 import chex
 import jax
@@ -29,6 +28,8 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+
+MODEL_FUNCTION_NAME = "radially_constant_fraction_of_Pin"
 
 
 def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
@@ -133,27 +134,3 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   fraction_of_total_power_density: array_typing.ScalarFloat
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ImpurityRadiationHeatSink(source_lib.Source):
-  """Impurity radiation heat sink for electron heat equation."""
-
-  SOURCE_NAME = "impurity_radiation_heat_sink"
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = (
-      "radially_constant_fraction_of_Pin"
-  )
-  model_func: source_lib.SourceProfileFunction = (
-      radially_constant_fraction_of_Pin
-  )
-  source_models: source_models_lib.SourceModels
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(
-      self,
-  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
-    return (source_lib.AffectedCoreProfile.TEMP_EL,)

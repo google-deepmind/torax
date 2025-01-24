@@ -25,26 +25,27 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import circular_geometry
 from torax.sources import generic_ion_el_heat_source
-from torax.sources import (
-    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,
-)
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
+from torax.sources.impurity_radiation_heat_sink import (
+    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,
+)
 from torax.sources.tests import test_lib
 
 
-class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
-  """Tests for ImpurityRadiationHeatSink."""
+class ImpurityRadiationConstantFractionTest(test_lib.SourceTestCase):
+  """Tests impurity_radiation_constant_fraction implementation of ImpurityRadiationHeatSink."""
 
   @classmethod
   def setUpClass(cls):
     super().setUpClass(
         source_class=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink,
-        runtime_params_class=impurity_radiation_heat_sink_lib.RuntimeParams,
+        runtime_params_class=impurity_radiation_constant_fraction.RuntimeParams,
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
         links_back=True,
-        model_func=impurity_radiation_heat_sink_lib.radially_constant_fraction_of_Pin
+        model_func=impurity_radiation_constant_fraction.radially_constant_fraction_of_Pin,
     )
 
   def test_source_value(self):
@@ -120,7 +121,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
 
     assert isinstance(
         impurity_radiation_sink_dynamic_runtime_params_slice,
-        impurity_radiation_heat_sink_lib.DynamicRuntimeParams,
+        impurity_radiation_constant_fraction.DynamicRuntimeParams,
     )
     assert isinstance(
         heat_source_dynamic_runtime_params_slice,
