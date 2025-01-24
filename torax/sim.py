@@ -46,6 +46,7 @@ from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
@@ -630,7 +631,7 @@ def _run_simulation(
           geometry_provider=geometry_provider,
       )
   )
-  explicit_source_profiles = source_models_lib.build_source_profiles(
+  explicit_source_profiles = source_profile_builders.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
@@ -699,7 +700,7 @@ def get_initial_source_profiles(
     Implicit and explicit SourceProfiles from source models based on the core
     profiles from the starting state.
   """
-  implicit_profiles = source_models_lib.build_source_profiles(
+  implicit_profiles = source_profile_builders.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
@@ -707,15 +708,8 @@ def get_initial_source_profiles(
       source_models=source_models,
       explicit=False,
   )
-  qei = source_models.qei_source.get_qei(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-  implicit_profiles = dataclasses.replace(implicit_profiles, qei=qei)
   # Also add in the explicit sources to the initial sources.
-  explicit_source_profiles = source_models_lib.build_source_profiles(
+  explicit_source_profiles = source_profile_builders.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,

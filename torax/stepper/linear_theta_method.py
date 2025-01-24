@@ -26,6 +26,7 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
 from torax.stepper import runtime_params as runtime_params_lib
@@ -105,7 +106,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
     init_val = (
         x_new_init,
         (
-            source_models_lib.build_all_zero_profiles(
+            source_profile_builders.build_all_zero_profiles(
                 geo_t,
                 self.source_models,
             ),

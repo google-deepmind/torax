@@ -220,7 +220,7 @@ class IonElSourceTestCase(SourceTestCase):
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
-    cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
+    cell = source_lib.get_cell_profile_shape(geo)
     fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
     np.testing.assert_allclose(
         source.get_source_profile_for_affected_core_profile(
