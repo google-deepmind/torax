@@ -17,7 +17,7 @@
 import abc
 from collections.abc import Mapping
 import enum
-
+from typing import Final, TypeAlias
 import chex
 import jax
 import jax.numpy as jnp
@@ -25,10 +25,43 @@ import numpy as np
 from torax import jax_utils
 import xarray as xr
 
-RHO_NORM = 'rho_norm'
+RHO_NORM: Final[str] = 'rho_norm'
 
 interp_fn = jax_utils.jit(jnp.interp)
 interp_fn_vmap = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
+
+
+# Config input types convertible to InterpolatedParam objects.
+InterpolatedVarSingleAxisInput: TypeAlias = (
+    float
+    | dict[float, float]
+    | bool
+    | dict[float, bool]
+    | tuple[chex.Array, chex.Array]
+    | xr.DataArray
+)
+InterpolatedVarTimeRhoInput: TypeAlias = (
+    # Mapping from time to rho, value interpolated in rho
+    Mapping[float, InterpolatedVarSingleAxisInput]
+    | float
+    | xr.DataArray
+    | tuple[chex.Array, chex.Array, chex.Array]
+    | tuple[chex.Array, chex.Array]
+)
+
+# Type-alias for a variable (in rho_norm) to be interpolated in time.
+# If a string is provided, it is assumed to be an InterpolationMode else, the
+# default piecewise linear interpolation is used.
+TimeInterpolatedInput: TypeAlias = (
+    InterpolatedVarSingleAxisInput | tuple[InterpolatedVarSingleAxisInput, str]
+)
+# Type-alias for a variable to be interpolated in time and rho_norm.
+# If two strings are provided, they are assumed to be an InterpolationMode for
+# time and rho_norm respectively, otherwise the default piecewise linear
+# interpolation is used for both.
+TimeRhoInterpolatedInput: TypeAlias = (
+    InterpolatedVarTimeRhoInput | tuple[InterpolatedVarTimeRhoInput, str, str]
+)
 
 
 class InterpolatedParamBase(abc.ABC):
@@ -185,25 +218,6 @@ class StepInterpolatedParam(InterpolatedParamBase):
     return step_interpolate(self._padded_xs, self._padded_ys, x)
 
 
-# Config input types convertible to InterpolatedParam objects.
-InterpolatedVarSingleAxisInput = (
-    float
-    | dict[float, float]
-    | bool
-    | dict[float, bool]
-    | tuple[chex.Array, chex.Array]
-    | xr.DataArray
-)
-InterpolatedVarTimeRhoInput = (
-    # Mapping from time to rho, value interpolated in rho
-    Mapping[float, InterpolatedVarSingleAxisInput]
-    | float
-    | xr.DataArray
-    | tuple[chex.Array, chex.Array, chex.Array]
-    | tuple[chex.Array, chex.Array]
-)
-
-
 def rhonorm1_defined_in_timerhoinput(
     values: InterpolatedVarTimeRhoInput,
 ) -> bool:
@@ -266,7 +280,7 @@ def _convert_value_to_floats(
 
 
 def convert_input_to_xs_ys(
-    interp_input: InterpolatedVarSingleAxisInput,
+    interp_input: TimeInterpolatedInput,
 ) -> tuple[chex.Array, chex.Array, InterpolationMode, bool]:
   """Converts config inputs into inputs suitable for constructors.
 
