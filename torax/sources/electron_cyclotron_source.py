@@ -179,7 +179,7 @@ def calc_heating_and_current(
 
 
 def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
-  return (2,) + source.ProfileType.CELL.get_profile_shape(geo)
+  return (2,) + source.get_cell_profile_shape(geo)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

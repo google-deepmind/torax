@@ -30,7 +30,8 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import diffusion_terms
 from torax.geometry import geometry
-from torax.sources import source_models
+from torax.sources import source_operations
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
 from torax.transport_model import constant as constant_transport_model
@@ -106,7 +107,7 @@ class ExplicitStepper(stepper_lib.Stepper):
     )
 
     # Source term
-    c += source_models.sum_sources_temp_ion(
+    c += source_operations.sum_sources_temp_ion(
         geo_t,
         explicit_source_profiles,
         self.source_models,
@@ -153,7 +154,7 @@ class ExplicitStepper(stepper_lib.Stepper):
             q_face=q_face,
             s_face=s_face,
         ),
-        source_models.build_all_zero_profiles(
+        source_profile_builders.build_all_zero_profiles(
             geo=geo_t,
             source_models=self.source_models,
         ),
