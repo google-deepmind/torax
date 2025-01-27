@@ -12,20 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the `torax.config.numerics` module."""
+"""Pydantic config for Torax."""
 
-from absl.testing import absltest
-from absl.testing import parameterized
-from torax.config import numerics
-
-
-class NumericsTest(parameterized.TestCase):
-  """Unit tests for the `torax.config.numerics` module."""
-
-  def test_numerics_make_provider(self):
-    nums = numerics.Numerics()
-    nums.build_dynamic_params(t=0.0)
+from torax.time_step_calculator import config as time_step_calculator_config
+from torax.torax_pydantic import model_base
 
 
-if __name__ == "__main__":
-  absltest.main()
+class ToraxConfig(model_base.BaseModelMutable):
+  """Base config class for Torax.
+
+  Attributes:
+    time_step_calculator: Config for the time step calculator.
+  """
+
+  time_step_calculator: time_step_calculator_config.TimeStepCalculator
