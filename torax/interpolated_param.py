@@ -17,32 +17,20 @@
 import abc
 from collections.abc import Mapping
 import enum
-
+from typing import Any, Final, Literal, TypeAlias
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pydantic
 from torax import jax_utils
+from torax.config import pydantic_base
 import xarray as xr
 
-RHO_NORM = 'rho_norm'
+RHO_NORM: Final[str] = 'rho_norm'
 
 interp_fn = jax_utils.jit(jnp.interp)
 interp_fn_vmap = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
-
-
-class InterpolatedParamBase(abc.ABC):
-  """Base class for interpolated params.
-
-  An InterpolatedParamBase child class should implement the interface defined
-  below where, given an x-value for where to interpolate, this object
-  returns a value. The x-value can be either a time or spatial coordinate
-  depending on what we are interpolating over.
-  """
-
-  @abc.abstractmethod
-  def get_value(self, x: chex.Numeric) -> chex.Array:
-    """Returns a value for this parameter interpolated at the given input."""
 
 
 @enum.unique
@@ -66,6 +54,62 @@ class InterpolationMode(enum.Enum):
 
   PIECEWISE_LINEAR = 'piecewise_linear'
   STEP = 'step'
+
+
+InterpolationModeLiteral: TypeAlias = Literal['STEP', 'PICEWISE_LINEAR']
+
+
+# Config input types convertible to InterpolatedParam objects.
+InterpolatedVarSingleAxisInput: TypeAlias = (
+    float
+    | dict[float, float]
+    | bool
+    | dict[float, bool]
+    | tuple[chex.Array, chex.Array]
+    | xr.DataArray
+)
+InterpolatedVarTimeRhoInput: TypeAlias = (
+    # Mapping from time to rho, value interpolated in rho
+    Mapping[float, InterpolatedVarSingleAxisInput]
+    | float
+    | xr.DataArray
+    | tuple[chex.Array, chex.Array, chex.Array]
+    | tuple[chex.Array, chex.Array]
+)
+
+
+# Type-alias for a variable (in rho_norm) to be interpolated in time.
+# If a string is provided, it is assumed to be an InterpolationMode else, the
+# default piecewise linear interpolation is used.
+TimeInterpolatedInput: TypeAlias = (
+    InterpolatedVarSingleAxisInput
+    | tuple[InterpolatedVarSingleAxisInput, InterpolationModeLiteral]
+)
+# Type-alias for a variable to be interpolated in time and rho_norm.
+TimeRhoInterpolatedInput: TypeAlias = (
+    InterpolatedVarTimeRhoInput
+    | tuple[
+        InterpolatedVarTimeRhoInput,
+        Mapping[
+            Literal['time_interpolation_mode', 'rho_interpolation_mode'],
+            InterpolationModeLiteral,
+        ],
+    ]
+)
+
+
+class InterpolatedParamBase(abc.ABC):
+  """Base class for interpolated params.
+
+  An InterpolatedParamBase child class should implement the interface defined
+  below where, given an x-value for where to interpolate, this object
+  returns a value. The x-value can be either a time or spatial coordinate
+  depending on what we are interpolating over.
+  """
+
+  @abc.abstractmethod
+  def get_value(self, x: chex.Numeric) -> chex.Array:
+    """Returns a value for this parameter interpolated at the given input."""
 
 
 class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
@@ -185,25 +229,6 @@ class StepInterpolatedParam(InterpolatedParamBase):
     return step_interpolate(self._padded_xs, self._padded_ys, x)
 
 
-# Config input types convertible to InterpolatedParam objects.
-InterpolatedVarSingleAxisInput = (
-    float
-    | dict[float, float]
-    | bool
-    | dict[float, bool]
-    | tuple[chex.Array, chex.Array]
-    | xr.DataArray
-)
-InterpolatedVarTimeRhoInput = (
-    # Mapping from time to rho, value interpolated in rho
-    Mapping[float, InterpolatedVarSingleAxisInput]
-    | float
-    | xr.DataArray
-    | tuple[chex.Array, chex.Array, chex.Array]
-    | tuple[chex.Array, chex.Array]
-)
-
-
 def rhonorm1_defined_in_timerhoinput(
     values: InterpolatedVarTimeRhoInput,
 ) -> bool:
@@ -266,7 +291,7 @@ def _convert_value_to_floats(
 
 
 def convert_input_to_xs_ys(
-    interp_input: InterpolatedVarSingleAxisInput,
+    interp_input: TimeInterpolatedInput,
 ) -> tuple[chex.Array, chex.Array, InterpolationMode, bool]:
   """Converts config inputs into inputs suitable for constructors.
 
@@ -296,9 +321,7 @@ def convert_input_to_xs_ys(
       interp_input = interp_input[0]
 
   if _is_bool(interp_input):
-    interp_input = _convert_value_to_floats(
-        interp_input
-    )
+    interp_input = _convert_value_to_floats(interp_input)
     is_bool_param = True
   else:
     is_bool_param = False
@@ -480,16 +503,276 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     return self._time_interpolated_var.get_value(x)
 
 
-# Type-alias for a variable (in rho_norm) to be interpolated in time.
-# If a string is provided, it is assumed to be an InterpolationMode else, the
-# default piecewise linear interpolation is used.
-TimeInterpolatedInput = (
-    InterpolatedVarSingleAxisInput | tuple[InterpolatedVarSingleAxisInput, str]
-)
-# Type-alias for a variable to be interpolated in time and rho_norm.
-# If two strings are provided, they are assumed to be an InterpolationMode for
-# time and rho_norm respectively, otherwise the default piecewise linear
-# interpolation is used for both.
-TimeRhoInterpolatedInput = (
-    InterpolatedVarTimeRhoInput | tuple[InterpolatedVarTimeRhoInput, str, str]
-)
+class TimeVaryingScalar(pydantic_base.Base):
+  """Base class for time interpolated input types.
+
+  The Pydantic `.model_validate` constructor can accept a variety of input types
+  defined by the `TimeInterpolatedInput` type. See
+  https://torax.readthedocs.io/en/latest/configuration.html#time-varying-arrays
+  for more details.
+
+  Attributes:
+    x: A 1-dimensional NumPy array of times.
+    y: A NumPy array specifying the values to interpolate.
+    is_bool_param: If True, the input value is assumed to be a bool and is
+      converted to a float.
+    interpolation_mode: An InterpolationMode enum specifying the interpolation
+      mode to use.
+  """
+
+  time: pydantic_base.NumpyArray1D
+  value: pydantic_base.NumpyArray
+  is_bool_param: bool = False
+  interpolation_mode: InterpolationMode = InterpolationMode.PIECEWISE_LINEAR
+
+  def __eq__(self, other):
+    """Custom equality check."""
+    return (
+        np.array_equal(self.time, other.time)
+        and np.array_equal(self.value, other.value)
+        and self.is_bool_param == other.is_bool_param
+        and self.interpolation_mode == other.interpolation_mode
+    )
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def conform_data(
+      cls, data: TimeInterpolatedInput | dict[str, Any]
+  ) -> dict[str, Any]:
+
+    # This is the standard constructor input. No conforming required.
+    if isinstance(data, dict):
+      if 'time' in data.keys():  # pytype: disable=attribute-error
+        return data
+
+    time, value, interpolation_mode, is_bool_param = convert_input_to_xs_ys(
+        data
+    )
+    return dict(
+        time=time,
+        value=value,
+        interpolation_mode=interpolation_mode,
+        is_bool_param=is_bool_param,
+    )
+
+  def get_interpolated_var_single_axis(
+      self,
+  ) -> InterpolatedVarSingleAxis:
+    """Interpolates the input param at time t.
+
+    Returns:
+      A constructed interpolated var.
+    """
+
+    return InterpolatedVarSingleAxis(
+        value=(self.time, self.value),
+        interpolation_mode=self.interpolation_mode,
+        is_bool_param=self.is_bool_param,
+    )
+
+
+def _load_from_primitives(
+    primitive_values: Mapping[float, InterpolatedVarSingleAxisInput] | float,
+) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+  """Loads the data from primitives.
+
+  Three cases are supported:
+  1. A float is passed in, describes constant initial condition profile.
+  2. A non-nested dict is passed in, it will describe the radial profile for
+     the initial condition.
+  3. A nested dict is passed in, it will describe the time-dependent radial
+     profile for the initial condition.
+
+  Args:
+    primitive_values: The python primitive values to load.
+
+  Returns:
+    A mapping from time to (rho_norm, values) where rho_norm and values are both
+    arrays of equal length.
+  """
+  # Float case.
+  if isinstance(primitive_values, (float, int)):
+    primitive_values = {0.0: {0.0: primitive_values}}
+  # Non-nested dict.
+  if isinstance(primitive_values, Mapping) and all(
+      isinstance(v, float) for v in primitive_values.values()
+  ):
+    primitive_values = {0.0: primitive_values}
+
+  if len(set(primitive_values.keys())) != len(primitive_values):
+    raise ValueError('Indicies in values mapping must be unique.')
+  if not primitive_values:
+    raise ValueError('Values mapping must not be empty.')
+
+  loaded_values = {}
+  for t, v in primitive_values.items():
+    x, y, _, _ = convert_input_to_xs_ys(v)
+    loaded_values[t] = (x, y)
+
+  return loaded_values
+
+
+def _load_from_xr_array(
+    xr_array: xr.DataArray,
+) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+  """Loads the data from an xr.DataArray."""
+  if 'time' not in xr_array.coords:
+    raise ValueError('"time" must be a coordinate in given dataset.')
+  if RHO_NORM not in xr_array.coords:
+    raise ValueError(f'"{RHO_NORM}" must be a coordinate in given dataset.')
+  values = {
+      t: (
+          xr_array.rho_norm.data,
+          xr_array.sel(time=t).values,
+      )
+      for t in xr_array.time.data
+  }
+  return values
+
+
+def _load_from_arrays(
+    arrays: tuple[chex.Array, ...],
+) -> Mapping[float, tuple[chex.Array, chex.Array]]:
+  """Loads the data from numpy arrays.
+
+  Args:
+    arrays: A tuple of (times, rho_norm, values) or (rho_norm, values). - In the
+      former case times and rho_norm are assumed to be 1D arrays of equal
+      length, values is a 2D array with shape (len(times), len(rho_norm)). - In
+      the latter case rho_norm and values are assumed to be 1D arrays of equal
+      length (shortcut for initial condition profile).
+
+  Returns:
+    A mapping from time to (rho_norm, values)
+  """
+  if len(arrays) == 2:
+    # Shortcut for initial condition profile.
+    rho_norm, values = arrays
+    if len(rho_norm.shape) != 1:
+      raise ValueError(f'rho_norm must be a 1D array. Given: {rho_norm.shape}.')
+    if len(values.shape) != 1:
+      raise ValueError(f'values must be a 1D array. Given: {values.shape}.')
+    if rho_norm.shape != values.shape:
+      raise ValueError(
+          'rho_norm and values must be of the same shape. Given: '
+          f'{rho_norm.shape} and {values.shape}.'
+      )
+    return {0.0: (rho_norm, values)}
+  if len(arrays) == 3:
+    times, rho_norm, values = arrays
+    if len(times.shape) != 1:
+      raise ValueError(f'times must be a 1D array. Given: {times.shape}.')
+    if len(rho_norm.shape) != 1:
+      raise ValueError(f'rho_norm must be a 1D array. Given: {rho_norm.shape}.')
+    if values.shape != (len(times), len(rho_norm)):
+      raise ValueError(
+          'values must be of shape (len(times), len(rho_norm)). Given: '
+          f'{values.shape}.'
+      )
+    return {t: (rho_norm, values[i, :]) for i, t in enumerate(times)}
+  else:
+    raise ValueError(f'arrays must be length 2 or 3. Given: {len(arrays)}.')
+
+
+class TimeVaryingArray(pydantic_base.Base):
+  """Base class for time interpolated input types.
+
+  The Pydantic `.model_validate` constructor can accept a variety of input types
+  defined by the `TimeRhoInterpolatedInput` type. See
+  https://torax.readthedocs.io/en/latest/configuration.html#time-varying-arrays
+  for more details.
+
+  Attributes:
+    value: A mapping of the form `{time: (rho_norm, values), ...}`, where
+      `rho_norm` and `values` are 1D NumPy arrays of equal length.
+    rho_interpolation_mode: The interpolation mode to use for the rho axis.
+    time_interpolation_mode: The interpolation mode to use for the time axis.
+  """
+
+  value: Mapping[
+      float, tuple[pydantic_base.NumpyArray1D, pydantic_base.NumpyArray1D]
+  ]
+  rho_interpolation_mode: InterpolationMode = InterpolationMode.PIECEWISE_LINEAR
+  time_interpolation_mode: InterpolationMode = (
+      InterpolationMode.PIECEWISE_LINEAR
+  )
+
+  def __eq__(self, other):
+    """Custom equality check."""
+
+    if self.value.keys() != other.value.keys():
+      return False
+
+    values_check = [
+        np.array_equal(v1[0], v2[0]) and np.array_equal(v1[1], v2[1])
+        for v1, v2 in zip(
+            self.value.values(), other.value.values(), strict=True
+        )
+    ]
+
+    return (
+        all(values_check)
+        and self.rho_interpolation_mode == other.rho_interpolation_mode
+        and self.time_interpolation_mode == other.time_interpolation_mode
+    )
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def conform_data(
+      cls, data: TimeRhoInterpolatedInput | dict[str, Any]
+  ) -> dict[str, Any]:
+
+    # This is the standard constructor input. No conforming required.
+    if isinstance(data, dict):
+      if 'value' in data.keys():  # pytype: disable=attribute-error
+        return data
+
+    # Potentially parse the interpolation modes from the input.
+    time_interpolation_mode = InterpolationMode.PIECEWISE_LINEAR
+    rho_interpolation_mode = InterpolationMode.PIECEWISE_LINEAR
+
+    if isinstance(data, tuple):
+      if len(data) == 2 and isinstance(data[1], dict):
+        time_interpolation_mode = InterpolationMode[
+            data[1]['time_interpolation_mode'].upper()
+        ]
+        rho_interpolation_mode = InterpolationMode[
+            data[1]['rho_interpolation_mode'].upper()
+        ]
+        # First element in tuple assumed to be the input.
+        data = data[0]
+
+    if isinstance(data, xr.DataArray):
+      value = _load_from_xr_array(data)
+    elif isinstance(data, tuple) and all(
+        isinstance(v, chex.Array) for v in data
+    ):
+      value = _load_from_arrays(
+          data,
+      )
+    elif isinstance(data, Mapping) or isinstance(data, (float, int)):
+      value = _load_from_primitives(data)
+    else:
+      raise ValueError('Input for interpolated var not recognised.')
+
+    return dict(
+        value=value,
+        time_interpolation_mode=time_interpolation_mode,
+        rho_interpolation_mode=rho_interpolation_mode,
+    )
+
+  def rhonorm1_defined_in_timerhoinput(self) -> bool:
+    """Checks if the boundary condition at rho=1.0 is always defined."""
+    return 1.0 in self.value
+
+  def get_interpolated_var_2d(
+      self, rho_norm: chex.Array
+  ) -> InterpolatedVarTimeRho:
+    """Constructs an InterpolatedVarTimeRho from the given input."""
+
+    return InterpolatedVarTimeRho(
+        values=self.value,
+        rho_norm=rho_norm,
+        time_interpolation_mode=self.time_interpolation_mode,
+        rho_interpolation_mode=self.rho_interpolation_mode,
+    )
