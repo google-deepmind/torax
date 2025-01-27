@@ -14,6 +14,7 @@
 
 """Unit tests for torax.output."""
 
+import dataclasses
 import os
 
 from absl.testing import absltest
@@ -94,7 +95,7 @@ class StateHistoryTest(parameterized.TestCase):
     # Setup a state history object.
     t = jnp.array(0.0)
     dt = jnp.array(0.1)
-    sim_state = state.ToraxSimState(
+    self.sim_state = state.ToraxSimState(
         core_profiles=self.core_profiles,
         core_transport=self.core_transport,
         core_sources=self.source_profiles,
@@ -107,17 +108,46 @@ class StateHistoryTest(parameterized.TestCase):
             stepper_error_state=1,
             inner_solver_iterations=1,
         ),
+        geometry=self.geo,
     )
     sim_error = state.SimError.NO_ERROR
 
     self.history = output.StateHistory(
-        output.ToraxSimOutputs(sim_error=sim_error, sim_history=(sim_state,)),
+        output.ToraxSimOutputs(
+            sim_error=sim_error, sim_history=(self.sim_state,)
+        ),
         self.source_models,
+    )
+
+  def test_geometry_is_saved(self):
+    """Tests that the geometry is saved correctly."""
+    # Construct a second state with a slightly different geometry.
+    self.sim_state_t2 = dataclasses.replace(
+        self.sim_state,
+        geometry=dataclasses.replace(
+            self.sim_state.geometry, Rmaj=self.sim_state.geometry.Rmaj * 2
+        ),
+    )
+    state_history = output.StateHistory(
+        output.ToraxSimOutputs(
+            sim_error=state.SimError.NO_ERROR,
+            sim_history=(self.sim_state, self.sim_state_t2),
+        ),
+        self.source_models,
+    )
+    output_xr = state_history.simulation_output_to_xr()
+    print(output_xr.children[output.GEOMETRY].dataset.data_vars)
+    saved_rmaj = output_xr.children[output.GEOMETRY].dataset.data_vars['Rmaj']
+    np.testing.assert_allclose(
+        saved_rmaj.values[0, ...], self.sim_state.geometry.Rmaj
+    )
+    np.testing.assert_allclose(
+        saved_rmaj.values[1, ...], self.sim_state_t2.geometry.Rmaj
     )
 
   def test_state_history_saves_ion_el_source(self):
     """Tests that an ion electron source is saved correctly."""
-    output_xr = self.history.simulation_output_to_xr(self.geo)
+    output_xr = self.history.simulation_output_to_xr()
     sources_dataset = output_xr.children[output.CORE_SOURCES].dataset
     self.assertIn('fusion_heat_source_ion', sources_dataset.data_vars)
     self.assertIn('fusion_heat_source_el', sources_dataset.data_vars)
@@ -132,12 +162,12 @@ class StateHistoryTest(parameterized.TestCase):
 
   def test_state_history_to_xr(self):
     """Smoke test the `StateHistory.simulation_output_to_xr` method."""
-    self.history.simulation_output_to_xr(self.geo)
+    self.history.simulation_output_to_xr()
 
   def test_load_core_profiles_from_xr(self):
     """Test serialising and deserialising core profiles consistency."""
     # Output to an xr.DataTree and save to disk.
-    data_tree_to_save = self.history.simulation_output_to_xr(self.geo)
+    data_tree_to_save = self.history.simulation_output_to_xr()
     path = os.path.join(self.create_tempdir().full_path, 'state.nc')
     data_tree_to_save.to_netcdf(path)
 
@@ -145,12 +175,13 @@ class StateHistoryTest(parameterized.TestCase):
     xr.testing.assert_equal(loaded_data_tree, data_tree_to_save)
 
   def test_expected_keys_in_child_nodes(self):
-    data_tree = self.history.simulation_output_to_xr(self.geo)
+    data_tree = self.history.simulation_output_to_xr()
     expected_child_keys = [
         output.CORE_PROFILES,
         output.CORE_TRANSPORT,
         output.CORE_SOURCES,
         output.POST_PROCESSED_OUTPUTS,
+        output.GEOMETRY,
     ]
     for key in expected_child_keys:
       self.assertIn(key, data_tree.children)

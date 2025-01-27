@@ -256,7 +256,7 @@ def main(
   if plot_sim_progress:
     raise NotImplementedError('Plotting progress is temporarily disabled.')
 
-  data_tree = state_history.simulation_output_to_xr(geo, sim.file_restart)
+  data_tree = state_history.simulation_output_to_xr(sim.file_restart)
 
   output_file = write_simulation_output_to_file(output_dir, data_tree)
 

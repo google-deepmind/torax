@@ -96,6 +96,7 @@ class PostProcessingTest(parameterized.TestCase):
             stepper_error_state=1,
             inner_solver_iterations=1,
         ),
+        geometry=self.geo,
     )
 
     updated_sim_state = post_processing.make_outputs(sim_state, self.geo)
