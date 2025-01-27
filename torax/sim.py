@@ -46,6 +46,7 @@ from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
@@ -70,7 +71,7 @@ def get_initial_state(
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
   # inside the loop and will be merged with these implicit source profiles.
-  initial_core_sources = get_initial_source_profiles(
+  initial_core_sources = source_profile_builders.get_initial_source_profiles(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
@@ -630,7 +631,7 @@ def _run_simulation(
           geometry_provider=geometry_provider,
       )
   )
-  explicit_source_profiles = source_models_lib.build_source_profiles(
+  explicit_source_profiles = source_profile_builders.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
@@ -673,61 +674,6 @@ def _run_simulation(
   return output.ToraxSimOutputs(
       sim_error=sim_error, sim_history=tuple(sim_history)
   )
-
-
-def get_initial_source_profiles(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-) -> source_profiles_lib.SourceProfiles:
-  """Returns the source profiles for the initial state in run_simulation().
-
-  Args:
-    static_runtime_params_slice: Runtime parameters which, when they change,
-      trigger recompilations. They should not change within a single run of the
-      sim.
-    dynamic_runtime_params_slice: Runtime parameters which may change from time
-      step to time step without triggering recompilations.
-    geo: The geometry of the torus during this time step of the simulation.
-    core_profiles: Core profiles that may evolve throughout the course of a
-      simulation. These values here are, of course, only the original states.
-    source_models: Source models used to compute core source profiles.
-
-  Returns:
-    Implicit and explicit SourceProfiles from source models based on the core
-    profiles from the starting state.
-  """
-  implicit_profiles = source_models_lib.build_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_models=source_models,
-      explicit=False,
-  )
-  qei = source_models.qei_source.get_qei(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-  implicit_profiles = dataclasses.replace(implicit_profiles, qei=qei)
-  # Also add in the explicit sources to the initial sources.
-  explicit_source_profiles = source_models_lib.build_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_models=source_models,
-      explicit=True,
-  )
-  initial_profiles = source_profiles_lib.SourceProfiles.merge(
-      explicit_source_profiles=explicit_source_profiles,
-      implicit_source_profiles=implicit_profiles,
-  )
-  return initial_profiles
 
 
 def _log_timestep(

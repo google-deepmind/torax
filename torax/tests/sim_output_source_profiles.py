@@ -36,6 +36,7 @@ from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.sources.tests import test_lib
 from torax.tests.test_lib import default_sources
@@ -171,7 +172,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
           dt=dt,
           time_step_calculator_state=(),
           # The returned source profiles include only the implicit sources.
-          core_sources=source_models_lib.build_source_profiles(
+          core_sources=source_profile_builders.build_source_profiles(
               dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
                   t=new_t,
               ),

@@ -35,6 +35,7 @@ from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import fixed_time_step_calculator
@@ -212,7 +213,7 @@ class FakeStepper(stepper_lib.Stepper):
         pedestal_model_output,
     )
     # Use Qei as a hacky way to extract what the combined value was.
-    core_sources = source_models_lib.build_all_zero_profiles(
+    core_sources = source_profile_builders.build_all_zero_profiles(
         geo=geo_t,
         source_models=self.source_models,
     )
