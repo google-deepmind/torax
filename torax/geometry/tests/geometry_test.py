@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 
 
@@ -44,6 +47,23 @@ class GeometryTest(parameterized.TestCase):
     cell_np = _pint_face_to_cell(n_rho, face)
 
     np.testing.assert_allclose(cell_jax, cell_np)
+
+  def test_none_z_magnetic_axis_raises_an_error(self):
+    geo = circular_geometry.build_circular_geometry()
+    geo = dataclasses.replace(geo, _z_magnetic_axis=None)
+
+    with self.subTest('non_jitted_function'):
+      with self.assertRaisesRegex(
+          ValueError, 'Geometry does not have a z magnetic axis.'
+      ):
+        geo.z_magnetic_axis()
+
+    with self.subTest('jitted_function'):
+      with self.assertRaisesRegex(
+          ValueError, 'Geometry does not have a z magnetic axis.'
+      ):
+        foo = jax.jit(geo.z_magnetic_axis)
+        _ = foo()
 
 
 def _pint_face_to_cell(n_rho, face):

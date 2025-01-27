@@ -34,6 +34,7 @@ from torax import interpolated_param
 from torax import jax_utils
 from torax.geometry import geometry
 from torax.geometry import geometry_loader
+from torax.geometry import geometry_provider
 
 
 # Using invalid-name because we are using the same naming convention as the
@@ -59,7 +60,7 @@ class StandardGeometry(geometry.Geometry):
 
 
 @chex.dataclass(frozen=True)
-class StandardGeometryProvider(geometry.GeometryProvider):
+class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   """Values to be interpolated for a Standard Geometry."""
 
   Ip_from_parameters: bool

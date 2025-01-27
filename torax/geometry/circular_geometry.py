@@ -21,6 +21,7 @@ import chex
 import numpy as np
 from torax import interpolated_param
 from torax.geometry import geometry
+from torax.geometry import geometry_provider
 
 
 # Using invalid-name because we are using the same naming convention as the
@@ -39,7 +40,8 @@ class CircularAnalyticalGeometry(geometry.Geometry):
 
 
 @chex.dataclass(frozen=True)
-class CircularAnalyticalGeometryProvider(geometry.GeometryProvider):
+class CircularAnalyticalGeometryProvider(
+    geometry_provider.TimeDependentGeometryProvider):
   """Circular geometry type used for testing only.
 
   Most users should default to using the GeometryProvider class.

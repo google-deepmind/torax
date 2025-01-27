@@ -419,7 +419,7 @@ def icrh_model_func(
       minority_concentration=dynamic_source_runtime_params.minority_concentration,
       gap_inner=gap_inner,
       gap_outer=gap_outer,
-      z0=geo.z_magnetic_axis,
+      z0=geo.z_magnetic_axis(),
       temperature_peaking_factor=temperature_peaking_factor,
       density_peaking_factor=density_peaking_factor,
       B0=geo.B0,

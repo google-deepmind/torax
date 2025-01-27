@@ -70,71 +70,6 @@ class GeometryTest(parameterized.TestCase):
     intermediate = standard_geometry.StandardGeometryIntermediates.from_chease()
     standard_geometry.build_standard_geometry(intermediate)
 
-  def test_build_geometry_provider(self):
-    intermediate_0 = standard_geometry.StandardGeometryIntermediates(
-        geometry_type=geometry.GeometryType.CIRCULAR,
-        Ip_from_parameters=True,
-        n_rho=25,
-        Rmaj=6.2,
-        Rmin=2.0,
-        B=5.3,
-        # Use the same dummy value for the rest.
-        psi=np.arange(0, 1.0, 0.01),
-        Ip_profile=np.arange(0, 1.0, 0.01),
-        Phi=np.arange(0, 1.0, 0.01),
-        Rin=np.arange(0, 1.0, 0.01),
-        Rout=np.arange(0, 1.0, 0.01),
-        F=np.arange(0, 1.0, 0.01),
-        int_dl_over_Bp=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_1_over_R2=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_Bp2=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_RBp=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
-        delta_upper_face=np.arange(0, 1.0, 0.01),
-        delta_lower_face=np.arange(0, 1.0, 0.01),
-        elongation=np.arange(0, 1.0, 0.01),
-        vpr=np.arange(0, 1.0, 0.01),
-        hires_fac=4,
-        z_magnetic_axis=np.array(0.0),
-    )
-    geo_0 = standard_geometry.build_standard_geometry(intermediate_0)
-
-    intermediate_1 = standard_geometry.StandardGeometryIntermediates(
-        geometry_type=geometry.GeometryType.CIRCULAR,
-        Ip_from_parameters=True,
-        n_rho=25,
-        Rmaj=7.4,
-        Rmin=1.0,
-        B=6.5,
-        # Use the same dummy value for the rest.
-        psi=np.arange(0, 1.0, 0.01),
-        Ip_profile=np.arange(0, 2.0, 0.02),
-        Phi=np.arange(0, 1.0, 0.01),
-        Rin=np.arange(0, 1.0, 0.01),
-        Rout=np.arange(0, 1.0, 0.01),
-        F=np.arange(0, 1.0, 0.01),
-        int_dl_over_Bp=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_1_over_R2=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_Bp2=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_RBp=np.arange(0, 1.0, 0.01),
-        flux_surf_avg_R2Bp2=np.arange(0, 1.0, 0.01),
-        delta_upper_face=np.arange(0, 1.0, 0.01),
-        delta_lower_face=np.arange(0, 1.0, 0.01),
-        elongation=np.arange(0, 1.0, 0.01),
-        vpr=np.arange(0, 2.0, 0.02),
-        hires_fac=4,
-        z_magnetic_axis=np.array(0.0),
-    )
-    geo_1 = standard_geometry.build_standard_geometry(intermediate_1)
-
-    provider = standard_geometry.StandardGeometryProvider.create_provider(
-        {0.0: geo_0, 10.0: geo_1}
-    )
-    geo = provider(5.0)
-    np.testing.assert_allclose(geo.Rmaj, 6.8)
-    np.testing.assert_allclose(geo.Rmin, 1.5)
-    np.testing.assert_allclose(geo.B0, 5.9)
-
   @parameterized.parameters([
       dict(geometry_file='eqdsk_cocos02.eqdsk'),
       dict(geometry_file='EQDSK_ITERhybrid_COCOS02.eqdsk'),
@@ -150,19 +85,10 @@ class GeometryTest(parameterized.TestCase):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""
     intermediate = standard_geometry.StandardGeometryIntermediates.from_chease()
     geo = standard_geometry.build_standard_geometry(intermediate)
-    # Check that a runtime error is raised under both JIT and non-JIT.
     with self.assertRaisesRegex(
-        RuntimeError, 'does not have a z magnetic axis'
+        ValueError, 'does not have a z magnetic axis'
     ):
-      _ = geo.z_magnetic_axis
-    with self.assertRaisesRegex(
-        RuntimeError, 'does not have a z magnetic axis'
-    ):
-
-      def f():
-        return geo.z_magnetic_axis
-
-      _ = jax.jit(f)()
+      geo.z_magnetic_axis()
 
   @parameterized.parameters([
       dict(invalid_key='rBt', invalid_shape=(2,)),
