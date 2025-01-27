@@ -28,7 +28,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import circular_geometry
-from torax.geometry import geometry
+from torax.geometry import standard_geometry
 from torax.sources import generic_current_source
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
@@ -147,7 +147,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
       psi = core_profile_setters._update_psi_from_j(
           dynamic_runtime_params_slice, geo, currents.jtot_hires
       ).value
-    elif isinstance(geo, geometry.StandardGeometry):
+    elif isinstance(geo, standard_geometry.StandardGeometry):
       psi = geo.psi_from_Ip
     else:
       raise ValueError(f'Unknown geometry type: {geo.geometry_type}')
@@ -185,7 +185,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
           references.runtime_params.profile_conditions.Ip_tot * 1e6,
       )
     else:
-      assert isinstance(geo, geometry.StandardGeometry)
+      assert isinstance(geo, standard_geometry.StandardGeometry)
       np.testing.assert_allclose(
           Ip_profile_face[-1],
           geo.Ip_profile_face[-1],

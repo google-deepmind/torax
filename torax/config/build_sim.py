@@ -22,8 +22,8 @@ from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
 from torax.geometry import circular_geometry
-from torax.geometry import geometry
 from torax.geometry import geometry_provider
+from torax.geometry import standard_geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import register_source
@@ -59,7 +59,9 @@ def _build_standard_geometry_provider(
   """Constructs a geometry provider for a standard geometry."""
   global_params = {'Ip_from_parameters', 'n_rho', 'geometry_dir'}
   if geometry_type == 'chease':
-    intermediate_builder = geometry.StandardGeometryIntermediates.from_chease
+    intermediate_builder = (
+        standard_geometry.StandardGeometryIntermediates.from_chease
+    )
   elif geometry_type == 'fbt':
     # Check if parameters indicate a bundled FBT file and input validity.
     if 'LY_bundle_object' in kwargs:
@@ -72,20 +74,26 @@ def _build_standard_geometry_provider(
             "Cannot use 'LY_object' together with a bundled FBT file"
         )
       # Build and return the GeometryProvider for the bundled case.
-      intermediates = geometry.StandardGeometryIntermediates.from_fbt_bundle(
-          **kwargs,
+      intermediates = (
+          standard_geometry.StandardGeometryIntermediates.from_fbt_bundle(
+              **kwargs,
+          )
       )
       geometries = {
-          t: geometry.build_standard_geometry(intermediates[t])
+          t: standard_geometry.build_standard_geometry(intermediates[t])
           for t in intermediates
       }
-      return geometry.StandardGeometryProvider.create_provider(geometries)
+      return standard_geometry.StandardGeometryProvider.create_provider(
+          geometries
+      )
     else:
       intermediate_builder = (
-          geometry.StandardGeometryIntermediates.from_fbt_single_slice
+          standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice
       )
   elif geometry_type == 'eqdsk':
-    intermediate_builder = geometry.StandardGeometryIntermediates.from_eqdsk
+    intermediate_builder = (
+        standard_geometry.StandardGeometryIntermediates.from_eqdsk
+    )
   else:
     raise ValueError(f'Unknown geometry type: {geometry_type}')
   if 'geometry_configs' in kwargs:
@@ -101,14 +109,16 @@ def _build_standard_geometry_provider(
             f' {", ".join(x)}'
         )
       config.update(global_kwargs)
-      geometries[time] = geometry.build_standard_geometry(
+      geometries[time] = standard_geometry.build_standard_geometry(
           intermediate_builder(
               **config,
           )
       )
-    return geometry.StandardGeometryProvider.create_provider(geometries)
+    return standard_geometry.StandardGeometryProvider.create_provider(
+        geometries
+    )
   return geometry_provider.ConstantGeometryProvider(
-      geometry.build_standard_geometry(
+      standard_geometry.build_standard_geometry(
           intermediate_builder(
               **kwargs,
           )

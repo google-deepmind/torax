@@ -35,6 +35,7 @@ from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import circular_geometry
 from torax.geometry import geometry
+from torax.geometry import standard_geometry
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -625,7 +626,7 @@ def _init_psi_and_current(
     )
   # Retrieving psi from the standard geometry input.
   elif (
-      isinstance(geo, geometry.StandardGeometry)
+      isinstance(geo, standard_geometry.StandardGeometry)
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     # psi is already provided from a numerical equilibrium, so no need to

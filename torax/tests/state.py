@@ -33,6 +33,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
+from torax.geometry import standard_geometry
 from torax.sources import generic_current_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
@@ -237,8 +238,8 @@ class InitialStatesTest(parameterized.TestCase):
   @parameterized.parameters([
       dict(geo_builder=circular_geometry.build_circular_geometry),
       dict(
-          geo_builder=lambda: geometry.build_standard_geometry(
-              geometry.StandardGeometryIntermediates.from_chease()
+          geo_builder=lambda: standard_geometry.build_standard_geometry(
+              standard_geometry.StandardGeometryIntermediates.from_chease()
           )
       ),
   ])
