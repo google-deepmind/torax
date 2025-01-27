@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Tests for electron_density_sources."""
-
 from absl.testing import absltest
 from torax.sources import electron_density_sources as eds
 from torax.sources.tests import test_lib

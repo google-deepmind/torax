@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Tests for generic_current_source."""
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex

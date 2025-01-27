@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Tests for qei_source."""
 from absl.testing import absltest
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params

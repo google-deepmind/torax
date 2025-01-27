@@ -11,21 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for runtime params for sources."""
 from absl.testing import absltest
-from torax.geometry import circular_geometry
-from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import ohmic_heat_source
+from torax.sources.tests import test_lib
 
 
-class RuntimeParamsTest(absltest.TestCase):
+class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
+  """Tests for OhmicHeatSource."""
 
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = runtime_params_lib.RuntimeParams()
-    geo = circular_geometry.build_circular_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    dynamic_params = provider.build_dynamic_params(t=0.0)
-    self.assertIsInstance(
-        dynamic_params, runtime_params_lib.DynamicRuntimeParams
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass(
+        source_class=ohmic_heat_source.OhmicHeatSource,
+        runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
+        source_name=ohmic_heat_source.OhmicHeatSource.SOURCE_NAME,
+        links_back=True,
+        model_func=ohmic_heat_source.ohmic_model_func,
     )
 
 

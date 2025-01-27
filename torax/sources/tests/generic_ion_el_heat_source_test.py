@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Tests for generic_ion_el_heat_source."""
-
 from absl.testing import absltest
 from torax.sources import generic_ion_el_heat_source
 from torax.sources.tests import test_lib
