@@ -12,8 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for qualikiz transport_model transport model."""
+
+import os
+import subprocess
+from unittest import mock
+
 from absl.testing import absltest
+import numpy as np
+from torax import core_profile_setters
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
 from torax.geometry import circular_geometry
+from torax.pedestal_model import pedestal_model
+from torax.sources import source_models as source_models_lib
+from torax.stepper import runtime_params as stepper_runtime_params
+
+
 # pylint: disable=g-import-not-at-top
 try:
   from torax.transport_model import qualikiz_transport_model
@@ -32,6 +46,71 @@ class RuntimeParamsTest(absltest.TestCase):
     geo = circular_geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
+
+
+class QualikizTransportModelTest(absltest.TestCase):
+  """Tests for qualikiz transport model."""
+
+  def test_call(self):
+    """Tests that the model can be called."""
+    # Test prerequisites
+    if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
+      self.skipTest('Qualikiz transport model is not available.')
+    os.environ['TORAX_COMPILATION_ENABLED'] = '0'
+
+    # Building the model inputs.
+    geo = circular_geometry.build_circular_geometry()
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models = source_models_builder()
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    dynamic_runtime_params_slice = (
+        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+            runtime_params,
+            torax_mesh=geo.torax_mesh,
+            transport=qualikiz_transport_model.RuntimeParams(),
+            sources=source_models_builder.runtime_params,
+        )(
+            t=runtime_params.numerics.t_initial,
+        )
+    )
+    static_runtime_params_slice = (
+        runtime_params_slice.build_static_runtime_params_slice(
+            runtime_params=runtime_params,
+            source_runtime_params=source_models_builder.runtime_params,
+            torax_mesh=geo.torax_mesh,
+            stepper=stepper_runtime_params.RuntimeParams(),
+        )
+    )
+    core_profiles = core_profile_setters.initial_core_profiles(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_runtime_params_slice,
+        geo=geo,
+        source_models=source_models,
+    )
+
+    # Mocking the actual call to QuaLiKiz and its results.
+    mock_process = mock.Mock()
+    mock_process.communicate.return_value = (b'stdout', b'stderr')
+    # The first call is expecting a 2D array, the others should be 1D arrays.
+    num_data = core_profiles.ne.face_value().shape[0]
+    fake_qualikiz_results = [
+        np.ones((num_data, 2)),
+        np.ones(num_data),
+        np.ones(num_data),
+    ]
+    with mock.patch.object(subprocess, 'Popen', return_value=mock_process):
+      with mock.patch.object(np, 'loadtxt', side_effect=fake_qualikiz_results):
+
+        # Calling the model
+        test_model = qualikiz_transport_model.QualikizTransportModel()
+        test_model(
+            dynamic_runtime_params_slice,
+            geo,
+            core_profiles,
+            pedestal_model.PedestalModelOutput(
+                rho_norm_ped_top=0.0, Tiped=0.0, Teped=0.0, neped=0.0
+            ),
+        )
 
 
 if __name__ == '__main__':

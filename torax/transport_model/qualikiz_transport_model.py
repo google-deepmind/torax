@@ -354,7 +354,9 @@ def _extract_qualikiz_plan(
       type=1,
       anis=1,
       danisdr=0,
-      A=np.array(core_profiles.main_ion.avg_A),
+      A=np.array(
+          core_profiles.Ai
+      ),
       Z=1,  # will be a scan variable
   )
 
@@ -368,7 +370,9 @@ def _extract_qualikiz_plan(
       type=1,
       anis=1,
       danisdr=0,
-      A=np.array(core_profiles.impurity.avg_A),
+      A=np.array(
+          core_profiles.Aimp
+      ),
       Z=10,  # will be a scan variable
   )
 
