@@ -378,6 +378,8 @@ class StateHistory:
     xr_dict = {}
     stacked_geometry = geometry_lib.stack_geometries(self.geometry)
     for field_name, data in stacked_geometry.items():
+      if "hires" in field_name:
+        continue
       data_array = self._pack_into_data_array(field_name, data,)
       if data_array is not None:
         xr_dict[field_name] = data_array
