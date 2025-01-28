@@ -515,6 +515,7 @@ class ToraxSimState:
       running `run_simulation()`.
     post_processed_outputs: variables for output or intermediate observations
       for overarching workflows, calculated after each simulation step.
+    geometry: Geometry at this time step used for the simulation.
     time_step_calculator_state: the state of the TimeStepper.
     stepper_numeric_outputs: Numerical quantities related to the stepper.
   """
@@ -530,6 +531,9 @@ class ToraxSimState:
 
   # Post-processed outputs after a step.
   post_processed_outputs: PostProcessedOutputs
+
+  # Geometry used for the simulation.
+  geometry: geometry.Geometry
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.

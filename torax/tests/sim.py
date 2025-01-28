@@ -676,8 +676,7 @@ class SimTest(sim_test_case.SimTestCase):
     sim = self._get_sim(restart_config)
     sim_outputs = sim.run()
     history = output.StateHistory(sim_outputs, sim.source_models)
-    geo = sim.geometry_provider(sim.initial_state.t)
-    data_tree_restart = history.simulation_output_to_xr(geo)
+    data_tree_restart = history.simulation_output_to_xr()
 
     # Load the reference dataset.
     datatree_ref = output.load_state_file(

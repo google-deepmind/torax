@@ -365,6 +365,7 @@ class SimulationStepFn:
         post_processed_outputs=state.PostProcessedOutputs.zeros(geo_t_plus_dt),
         time_step_calculator_state=time_step_calculator_state,
         stepper_numeric_outputs=stepper_numeric_outputs,
+        geometry=geo_t_plus_dt,
     )
 
   def adaptive_step(

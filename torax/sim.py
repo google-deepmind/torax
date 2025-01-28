@@ -92,6 +92,7 @@ def get_initial_state(
           outer_stepper_iterations=0,
           inner_solver_iterations=0,
       ),
+      geometry=geo,
   )
 
 

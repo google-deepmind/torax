@@ -65,6 +65,20 @@ class GeometryTest(parameterized.TestCase):
         foo = jax.jit(geo.z_magnetic_axis)
         _ = foo()
 
+  def test_stack_geometries(self):
+    """Test that geometries can be stacked."""
+    geo_0 = circular_geometry.build_circular_geometry(Rmaj=1, B0=5.3)
+    geo_1 = circular_geometry.build_circular_geometry(Rmaj=2, B0=3.7)
+    stacked_geometries = geometry.stack_geometries([geo_0, geo_1])
+    self.assertNotIn('geometry_type', stacked_geometries.keys())
+    self.assertNotIn('torax_mesh', stacked_geometries.keys())
+
+    for key, value in stacked_geometries.items():
+      self.assertEqual(value.shape, (2,) + getattr(geo_0, key).shape)
+
+    np.testing.assert_allclose(stacked_geometries['Rmaj'], np.array([1, 2]))
+    np.testing.assert_allclose(stacked_geometries['B0'], np.array([5.3, 3.7]))
+
 
 def _pint_face_to_cell(n_rho, face):
   cell = np.zeros(n_rho)
