@@ -300,7 +300,7 @@ def _calculate_integrated_sources(
       else:
         profile = core_sources.profiles[key]
       integrated[f'{value}'] = math_utils.cell_integration(
-          profile * geo.spr_cell, geo
+          profile * geo.spr, geo
       )
 
   integrated['P_sol_tot'] = integrated['P_sol_ion'] + integrated['P_sol_el']

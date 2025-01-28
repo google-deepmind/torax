@@ -146,7 +146,7 @@ def calculate_generic_current(
   Cext = (
       Iext
       * 1e6
-      / math_utils.cell_integration(generic_current_form * geo.spr_cell, geo)
+      / math_utils.cell_integration(generic_current_form * geo.spr, geo)
   )
 
   generic_current_profile = (

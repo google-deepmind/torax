@@ -388,7 +388,7 @@ Geometry
 ``vpr_face`` (time, rho_face) [:math:`m^3`]
   Derivative of plasma volume enclosed by each flux surface at the faces, with respect to the normalized toroidal flux coordinate rho_face_norm.
 
-``spr_cell`` (time, rho_cell) [:math:`m^2`]
+``spr`` (time, rho_cell) [:math:`m^2`]
   Derivative of plasma surface area enclosed by each flux surface, with respect to the normalized toroidal flux coordinate rho_norm.
 
 ``spr_face`` (time, rho_face) [:math:`m^2`]

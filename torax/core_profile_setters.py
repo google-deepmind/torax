@@ -320,7 +320,7 @@ def _prescribe_currents_no_bootstrap(
       core_profiles=core_profiles,
   )
   Iext = (
-      math_utils.cell_integration(external_current * geo.spr_cell, geo) / 10**6
+      math_utils.cell_integration(external_current * geo.spr, geo) / 10**6
   )
   # Total Ohmic current.
   Iohm = Ip - Iext
@@ -330,7 +330,7 @@ def _prescribe_currents_no_bootstrap(
       1 - geo.rho_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
   # calculate total and Ohmic current profiles
-  denom = _trapz(jformula * geo.spr_cell, geo.rho_norm)
+  denom = _trapz(jformula * geo.spr, geo.rho_norm)
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
     jtot = jformula * Ctot
@@ -409,7 +409,7 @@ def _prescribe_currents_with_bootstrap(
       core_profiles=core_profiles,
   )
   Iext = (
-      math_utils.cell_integration(external_current * geo.spr_cell, geo) / 10**6
+      math_utils.cell_integration(external_current * geo.spr, geo) / 10**6
   )
   Iohm = Ip - Iext - f_bootstrap * Ip
 
@@ -417,7 +417,7 @@ def _prescribe_currents_with_bootstrap(
   jformula = (
       1 - geo.rho_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  denom = _trapz(jformula * geo.spr_cell, geo.rho_norm)
+  denom = _trapz(jformula * geo.spr, geo.rho_norm)
   # calculate total and Ohmic current profiles
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom

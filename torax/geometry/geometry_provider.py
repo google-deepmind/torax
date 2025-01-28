@@ -125,7 +125,7 @@ class TimeDependentGeometryProvider:
   area_face: interpolated_param.InterpolatedVarSingleAxis
   vpr: interpolated_param.InterpolatedVarSingleAxis
   vpr_face: interpolated_param.InterpolatedVarSingleAxis
-  spr_cell: interpolated_param.InterpolatedVarSingleAxis
+  spr: interpolated_param.InterpolatedVarSingleAxis
   spr_face: interpolated_param.InterpolatedVarSingleAxis
   delta_face: interpolated_param.InterpolatedVarSingleAxis
   elongation: interpolated_param.InterpolatedVarSingleAxis

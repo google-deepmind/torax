@@ -162,7 +162,7 @@ class MathUtilsTest(parameterized.TestCase):
         )
       case math_utils.IntegralPreservationQuantity.SURFACE:
         np.testing.assert_allclose(
-            math_utils.cell_integration(cell_values * geo.spr_cell, geo),
+            math_utils.cell_integration(cell_values * geo.spr, geo),
             jax.scipy.integrate.trapezoid(
                 face_values * geo.spr_face, geo.rho_face_norm
             ),

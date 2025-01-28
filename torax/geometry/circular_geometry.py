@@ -134,7 +134,7 @@ def build_circular_geometry(
   )
   # pylint: disable=invalid-name
   # S' = dS/drnorm for area integrals on cell grid
-  spr_cell = 2 * np.pi * rho * elongation * rho_b + area / elongation * (
+  spr = 2 * np.pi * rho * elongation * rho_b + area / elongation * (
       elongation_LCFS - 1
   )
   spr_face = (
@@ -233,7 +233,7 @@ def build_circular_geometry(
       area_face=area_face,
       vpr=vpr,
       vpr_face=vpr_face,
-      spr_cell=spr_cell,
+      spr=spr,
       spr_face=spr_face,
       delta_face=delta_face,
       g0=g0,

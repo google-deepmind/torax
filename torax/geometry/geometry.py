@@ -142,7 +142,7 @@ class Geometry:
   area_face: chex.Array
   vpr: chex.Array
   vpr_face: chex.Array
-  spr_cell: chex.Array
+  spr: chex.Array
   spr_face: chex.Array
   delta_face: chex.Array
   elongation: chex.Array

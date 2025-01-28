@@ -1021,7 +1021,7 @@ def build_standard_geometry(
       area_face=area_face,
       vpr=vpr,
       vpr_face=vpr_face,
-      spr_cell=spr_cell,
+      spr=spr_cell,
       spr_face=spr_face,
       delta_face=delta_face,
       g0=g0,
