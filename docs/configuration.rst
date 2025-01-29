@@ -911,7 +911,8 @@ The configurable runtime parameters of each source are as follows:
 
 * ``'PRESCRIBED'``
     Source values are arbitrarily prescribed by the user. The value is set by ``prescribed_values``, and can contain the same
-    data structures as :ref:`Time-varying arrays`.
+    data structures as :ref:`Time-varying arrays`. Currently, this is only supported for sources that have a 1D output
+    along the cell grid or face grid.
 
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purposes, set:
 
