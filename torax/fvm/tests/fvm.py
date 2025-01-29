@@ -36,7 +36,7 @@ from torax.fvm import residual_and_loss
 from torax.geometry import circular_geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
-from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.stepper import runtime_params as stepper_runtime_params
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import torax_refs
@@ -443,7 +443,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         source_models,
     )
     evolving_names = tuple(['temp_ion'])
-    explicit_source_profiles = source_models_lib.build_source_profiles(
+    explicit_source_profiles = source_profile_builders.build_source_profiles(
         source_models=source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
@@ -587,7 +587,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         geo,
         source_models,
     )
-    explicit_source_profiles = source_models_lib.build_source_profiles(
+    explicit_source_profiles = source_profile_builders.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
@@ -740,7 +740,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         geo,
         source_models,
     )
-    explicit_source_profiles = source_models_lib.build_source_profiles(
+    explicit_source_profiles = source_profile_builders.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice_theta0,
         geo=geo,

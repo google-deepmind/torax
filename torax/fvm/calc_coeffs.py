@@ -34,6 +34,8 @@ from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_operations
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -375,7 +377,7 @@ def _calc_coeffs_full(
   # This only calculates sources set to implicit in the config. All other
   # sources are set to 0 (and should have their profiles already calculated in
   # explicit_source_profiles).
-  implicit_source_profiles = source_models_lib.build_source_profiles(
+  implicit_source_profiles = source_profile_builders.build_source_profiles(
       source_models=source_models,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
@@ -427,11 +429,11 @@ def _calc_coeffs_full(
   source_mat_psi = jnp.zeros_like(geo.rho)
 
   # fill source vector based on both original and updated core profiles
-  source_psi = source_models_lib.sum_sources_psi(
+  source_psi = source_operations.sum_sources_psi(
       geo,
       implicit_source_profiles,
       source_models,
-  ) + source_models_lib.sum_sources_psi(
+  ) + source_operations.sum_sources_psi(
       geo,
       explicit_source_profiles,
       source_models,
@@ -622,11 +624,11 @@ def _calc_coeffs_full(
   source_mat_nn = jnp.zeros_like(geo.rho)
 
   # density source vector based both on original and updated core profiles
-  source_ne = source_models_lib.sum_sources_ne(
+  source_ne = source_operations.sum_sources_ne(
       geo,
       explicit_source_profiles,
       source_models,
-  ) + source_models_lib.sum_sources_ne(
+  ) + source_operations.sum_sources_ne(
       geo,
       implicit_source_profiles,
       source_models,
@@ -718,21 +720,21 @@ def _calc_coeffs_full(
   source_mat_ii = jnp.zeros_like(geo.rho)
   source_mat_ee = jnp.zeros_like(geo.rho)
 
-  source_i = source_models_lib.sum_sources_temp_ion(
+  source_i = source_operations.sum_sources_temp_ion(
       geo,
       explicit_source_profiles,
       source_models,
-  ) + source_models_lib.sum_sources_temp_ion(
+  ) + source_operations.sum_sources_temp_ion(
       geo,
       implicit_source_profiles,
       source_models,
   )
 
-  source_e = source_models_lib.sum_sources_temp_el(
+  source_e = source_operations.sum_sources_temp_el(
       geo,
       explicit_source_profiles,
       source_models,
-  ) + source_models_lib.sum_sources_temp_el(
+  ) + source_operations.sum_sources_temp_el(
       geo,
       implicit_source_profiles,
       source_models,

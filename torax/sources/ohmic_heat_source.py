@@ -32,6 +32,7 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_operations
 
 
 @functools.partial(
@@ -70,12 +71,14 @@ def calc_psidot(
   """
   consts = constants.CONSTANTS
 
-  psi_sources, sigma, sigma_face = source_models_lib.calc_and_sum_sources_psi(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      core_profiles,
-      source_models,
+  psi_sources, sigma, sigma_face = (
+      source_operations.calc_and_sum_sources_psi(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice,
+          geo,
+          core_profiles,
+          source_models,
+      )
   )
   # Calculate transient term
   toc_psi = (

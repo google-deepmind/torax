@@ -28,6 +28,7 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -143,7 +144,7 @@ class Stepper(abc.ABC):
       )
     else:
       x_new = tuple()
-      core_sources = source_models_lib.build_all_zero_profiles(
+      core_sources = source_profile_builders.build_all_zero_profiles(
           source_models=self.source_models,
           geo=geo_t,
       )

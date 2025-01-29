@@ -31,6 +31,7 @@ from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import time_step_calculator as ts
@@ -144,7 +145,7 @@ class SimulationStepFn:
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
     # set to 0.
-    explicit_source_profiles = source_models_lib.build_source_profiles(
+    explicit_source_profiles = source_profile_builders.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo_t,

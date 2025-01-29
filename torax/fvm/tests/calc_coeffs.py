@@ -24,7 +24,7 @@ from torax.fvm import calc_coeffs
 from torax.geometry import circular_geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
-from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.tests.test_lib import default_sources
 from torax.transport_model import constant as constant_transport_model
@@ -108,7 +108,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         source_models,
     )
     evolving_names = tuple(['temp_ion'])
-    explicit_source_profiles = source_models_lib.build_source_profiles(
+    explicit_source_profiles = source_profile_builders.build_source_profiles(
         static_runtime_params_slice=static_runtime_params_slice,
         source_models=source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
