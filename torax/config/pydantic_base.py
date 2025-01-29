@@ -16,6 +16,7 @@
 
 from collections.abc import Mapping
 from typing import Annotated, Any, TypeAlias
+import jax
 import numpy as np
 import pydantic
 from typing_extensions import Self
@@ -33,6 +34,9 @@ NestedList: TypeAlias = (
 )
 
 NumpySerialized: TypeAlias = tuple[DtypeName, NestedList]
+
+
+register_jax = jax.tree_util.register_pytree_node_class
 
 
 def _numpy_array_before_validator(
@@ -90,6 +94,25 @@ class Base(pydantic.BaseModel):
 
   def to_dict(self) -> dict[str, Any]:
     return self.model_dump()
+
+  def tree_flatten(self):
+
+    children = tuple(getattr(self, k) for k in self.model_fields.keys())
+    aux_data = None
+    return (children, aux_data)
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    del aux_data
+
+    init = {
+        key: value
+        for key, value in zip(cls.model_fields, children, strict=True)
+    }
+    # The model needs to be reconstructed without validation, as init can
+    # contain JAX tracers inside a JIT, which will fail Pydantic validation. In
+    # addition, validation is unecessary overhead.
+    return cls.model_construct(**init)
 
 
 class BaseFrozen(Base):
