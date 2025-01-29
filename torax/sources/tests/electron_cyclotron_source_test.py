@@ -92,7 +92,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     """Tests that the relevant profile is extracted from the output."""
     geo = circular_geometry.build_circular_geometry()
     source = self._source_class()
-    cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
+    cell = source_lib.get_cell_profile_shape(geo)
     fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
     # Check TEMP_EL and PSI are modified
     np.testing.assert_allclose(

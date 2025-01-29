@@ -158,7 +158,7 @@ class ImpurityRadiationConstantFractionTest(test_lib.SourceTestCase):
     source_models = source_models_builder()
     source = source_models.sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
-    cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
+    cell = source_lib.get_cell_profile_shape(geo)
     fake_profile = jnp.ones(cell)
     # Check TEMP_EL is modified
     np.testing.assert_allclose(

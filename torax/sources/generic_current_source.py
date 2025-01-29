@@ -188,4 +188,4 @@ class GenericCurrentSource(source.Source):
 
   @property
   def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.ProfileType.CELL.get_profile_shape
+    return source.get_cell_profile_shape

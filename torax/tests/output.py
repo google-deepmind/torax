@@ -58,7 +58,7 @@ class StateHistoryTest(parameterized.TestCase):
     source_models = source_models_builder()
     # Make some dummy source profiles that could have come from these sources.
     self.geo = circular_geometry.build_circular_geometry()
-    ones = jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(self.geo))
+    ones = jnp.ones(source_lib.get_cell_profile_shape(self.geo))
     geo_provider = geometry_provider.ConstantGeometryProvider(self.geo)
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(

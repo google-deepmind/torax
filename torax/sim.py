@@ -708,13 +708,6 @@ def get_initial_source_profiles(
       source_models=source_models,
       explicit=False,
   )
-  qei = source_models.qei_source.get_qei(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-  implicit_profiles = dataclasses.replace(implicit_profiles, qei=qei)
   # Also add in the explicit sources to the initial sources.
   explicit_source_profiles = source_models_lib.build_source_profiles(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,

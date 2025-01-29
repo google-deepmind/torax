@@ -125,7 +125,7 @@ class SourceProfilesTest(parameterized.TestCase):
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
     # Make some dummy source profiles that could have come from these sources.
-    ones = jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo))
+    ones = jnp.ones(source_lib.get_cell_profile_shape(geo))
     profiles = source_profiles_lib.SourceProfiles(
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
             geo
@@ -175,8 +175,8 @@ class SourceProfilesTest(parameterized.TestCase):
         unused_source_models,
     ):
       return jnp.stack([
-          jnp.zeros(source_lib.ProfileType.CELL.get_profile_shape(geo)),
-          jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo)),
+          jnp.zeros(source_lib.get_cell_profile_shape(geo)),
+          jnp.ones(source_lib.get_cell_profile_shape(geo)),
       ])
 
     foo_source_builder = source_lib.make_source_builder(
@@ -231,10 +231,10 @@ class SourceProfilesTest(parameterized.TestCase):
       return (ne, temp_el)
 
     expected_ne = (
-        jnp.ones(source_lib.ProfileType.CELL.get_profile_shape(geo)) * geo.vpr
+        jnp.ones(source_lib.get_cell_profile_shape(geo)) * geo.vpr
     )
     expected_temp_el = jnp.zeros(
-        source_lib.ProfileType.CELL.get_profile_shape(geo)
+        source_lib.get_cell_profile_shape(geo)
     )
     with self.subTest('without_jit'):
       (ne, temp_el) = compute_and_sum_profiles()

@@ -14,26 +14,16 @@
 import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import circular_geometry
-from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
-
-
-def get_zero_profile(
-    profile_type: source_lib.ProfileType,
-    geo: geometry.Geometry,
-) -> jax.Array:
-  """Returns a source profile with all zeros."""
-  return jnp.zeros(profile_type.get_profile_shape(geo))
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -201,7 +191,7 @@ class SourceTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(
         profile,
-        get_zero_profile(source_lib.ProfileType.CELL, geo),
+        np.zeros_like(geo.torax_mesh.cell_centers)
     )
 
   @parameterized.parameters(
@@ -214,7 +204,7 @@ class SourceTest(parameterized.TestCase):
     source_builder = source_lib.make_source_builder(
         test_lib.TestSource,
         model_func=lambda _0, _1, _2, _3, _4, _5: jnp.ones(
-            source_lib.ProfileType.CELL.get_profile_shape(geo)
+            source_lib.get_cell_profile_shape(geo)
         ) * 2,
     )()
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -328,13 +318,13 @@ class SourceTest(parameterized.TestCase):
       )
       np.testing.assert_allclose(
           profile,
-          get_zero_profile(source_lib.ProfileType.CELL, geo),
+          np.zeros_like(geo.torax_mesh.cell_centers),
       )
 
   def test_overriding_model(self):
     """The user-specified model should override the default model."""
     geo = circular_geometry.build_circular_geometry()
-    output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
+    output_shape = source_lib.get_cell_profile_shape(geo)
     expected_output = jnp.ones(output_shape)
     source_builder = source_lib.make_source_builder(
         IonElTestSource,
@@ -378,7 +368,7 @@ class SourceTest(parameterized.TestCase):
   def test_overriding_prescribed_values(self):
     """Providing prescribed values results in the correct profile."""
     geo = circular_geometry.build_circular_geometry()
-    output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
+    output_shape = source_lib.get_cell_profile_shape(geo)
     # Define the expected output
     expected_output = jnp.ones(output_shape)
     # Create the source
