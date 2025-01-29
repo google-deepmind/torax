@@ -148,12 +148,9 @@ class TimeDependentGeometryProvider:
   Rin_face: interpolated_param.InterpolatedVarSingleAxis
   Rout: interpolated_param.InterpolatedVarSingleAxis
   Rout_face: interpolated_param.InterpolatedVarSingleAxis
-  volume_hires: interpolated_param.InterpolatedVarSingleAxis
-  area_hires: interpolated_param.InterpolatedVarSingleAxis
   spr_hires: interpolated_param.InterpolatedVarSingleAxis
   rho_hires_norm: interpolated_param.InterpolatedVarSingleAxis
   rho_hires: interpolated_param.InterpolatedVarSingleAxis
-  vpr_hires: interpolated_param.InterpolatedVarSingleAxis
   _z_magnetic_axis: interpolated_param.InterpolatedVarSingleAxis | None
 
   @classmethod
