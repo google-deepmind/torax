@@ -14,6 +14,7 @@
 
 """Unit tests for the `torax.config.pydantic_base` module."""
 
+import functools
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -67,6 +68,42 @@ class PydanticBaseTest(parameterized.TestCase):
     # Fail with 2D array.
     with self.assertRaises(ValueError):
       array.validate_python(np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+  def test_pydantic_base_frozen(self):
+
+    class TestModel(pydantic_base.BaseFrozen):
+      x: float
+      y: float
+
+    m = TestModel(y=4.0, x=2.0)
+
+    with self.subTest('frozen_model_cannot_be_updated'):
+      with self.assertRaises(ValueError):
+        m.x = 2.0
+
+  def test_pydantic_base(self):
+
+    class Test(pydantic_base.Base, validate_assignment=True):
+      name: str
+
+      @functools.cached_property
+      def computed(self):
+        return self.name + '_test'  # pytype: disable=attribute-error
+
+      @pydantic.model_validator(mode='after')
+      def validate(self):
+        if hasattr(self, 'computed'):
+          del self.computed
+        return self
+
+    m = Test(name='test_string')
+    self.assertEqual(m.computed, 'test_string_test')
+
+    with self.subTest('field_is_mutable'):
+      m.name = 'new_test_string'
+
+    with self.subTest('after_model_validator_is_called_on_update'):
+      self.assertEqual(m.computed, 'new_test_string_test')
 
 
 if __name__ == '__main__':

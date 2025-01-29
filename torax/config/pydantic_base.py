@@ -14,9 +14,11 @@
 
 """Pydantic utilities and base classes."""
 
-from typing import Annotated, TypeAlias
+from collections.abc import Mapping
+from typing import Annotated, Any, TypeAlias
 import numpy as np
 import pydantic
+from typing_extensions import Self
 
 DataTypes: TypeAlias = float | int | bool
 
@@ -65,3 +67,40 @@ NumpyArray = Annotated[
 NumpyArray1D = Annotated[
     NumpyArray, pydantic.AfterValidator(_numpy_array_is_rank_1)
 ]
+
+
+class Base(pydantic.BaseModel):
+  """Base config class. Any custom config classes should inherit from this.
+
+  See https://docs.pydantic.dev/latest/ for documentation on pydantic.
+  """
+
+  model_config = pydantic.ConfigDict(
+      frozen=False,
+      # Do not allow attributes not defined in pydantic model.
+      extra='forbid',
+      # Re-run validation if the model is updated.
+      validate_assignment=True,
+      arbitrary_types_allowed=True,
+  )
+
+  @classmethod
+  def from_dict(cls: type[Self], cfg: Mapping[str, Any]) -> Self:
+    return cls.model_validate(cfg)
+
+  def to_dict(self) -> dict[str, Any]:
+    return self.model_dump()
+
+
+class BaseFrozen(Base):
+  """Base config with frozen fields.
+
+  See https://docs.pydantic.dev/latest/ for documentation on pydantic.
+  """
+
+  model_config = pydantic.ConfigDict(
+      frozen=True,
+      # Do not allow attributes not defined in pydantic model.
+      extra='forbid',
+      arbitrary_types_allowed=True,
+  )
