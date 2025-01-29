@@ -392,10 +392,10 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Predictor-corrector solver with simple impurity radiation
+      # Predictor-corrector solver with constant fraction of Pin radiation
       (
-          'test_iterhybrid_predictor_corrector_impurity_radiation',
-          'test_iterhybrid_predictor_corrector_impurity_radiation.py',
+          'test_iterhybrid_predictor_corrector_constant_fraction_impurity_radiation',
+          'test_iterhybrid_predictor_corrector_constant_fraction_impurity_radiation.py',
           _ALL_PROFILES,
           0,
       ),

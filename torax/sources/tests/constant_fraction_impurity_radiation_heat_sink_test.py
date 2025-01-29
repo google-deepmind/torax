@@ -52,7 +52,7 @@ class ImpurityRadiationConstantFractionTest(test_lib.SourceTestCase):
         runtime_params_lib.Mode.MODEL_BASED
     )
     if not source_lib.is_source_builder(impurity_radiation_sink_builder):
-      raise TypeError(f"{type(self)} has a bad _source_class_builder")
+      raise TypeError(f'{type(self)} has a bad _source_class_builder')
 
     # Source builder for generic_ion_el_heat_source
     # We don't test this class, as that should be done in its own test
@@ -180,5 +180,5 @@ class ImpurityRadiationConstantFractionTest(test_lib.SourceTestCase):
     )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   absltest.main()
