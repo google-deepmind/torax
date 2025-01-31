@@ -178,6 +178,7 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
           mock.ANY,
           mock.ANY,
           mock.ANY,
+          None,
       )
 
   def test_raise_error_on_get_source_profile_for_affected_core_profile(self):

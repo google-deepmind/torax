@@ -101,6 +101,7 @@ class SourceOperationsTest(parameterized.TestCase):
         geo: geometry.Geometry,
         unused_source_name: str,
         unused_state,
+        unused_calculated_source_profiles,
         unused_source_models,
     ):
       return jnp.stack([

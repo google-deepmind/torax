@@ -169,6 +169,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     chex.assert_rank(ion_and_el, 2)
 

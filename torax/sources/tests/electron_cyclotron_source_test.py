@@ -80,6 +80,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     # ElectronCyclotronSource provides TEMP_EL and PSI
     chex.assert_rank(value, 2)
