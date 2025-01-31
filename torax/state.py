@@ -276,10 +276,12 @@ class PostProcessedOutputs:
     W_thermal_el: Electron thermal stored energy [J]
     W_thermal_tot: Total thermal stored energy [J]
     tauE: Thermal energy confinement time [s]
+    H89P: L-mode confinement quality factor with respect to the ITER89P scaling
+      law derived from the ITER L-mode confinement database
     H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
       law derived from the ITER H-mode confinement database
     H97L: L-mode confinement quality factor with respect to the ITER97L scaling
-      law derived from the ITER H-mode confinement database
+      law derived from the ITER L-mode confinement database
     H20: H-mode confinement quality factor with respect to the ITER20 scaling
       law derived from the updated (2020) ITER H-mode confinement database
     FFprime_face: FF' on the face grid, where F is the toroidal flux function
@@ -337,6 +339,7 @@ class PostProcessedOutputs:
   W_thermal_el: array_typing.ScalarFloat
   W_thermal_tot: array_typing.ScalarFloat
   tauE: array_typing.ScalarFloat
+  H89P: array_typing.ScalarFloat
   H98: array_typing.ScalarFloat
   H97L: array_typing.ScalarFloat
   H20: array_typing.ScalarFloat
@@ -395,6 +398,7 @@ class PostProcessedOutputs:
         W_thermal_el=jnp.array(0.0),
         W_thermal_tot=jnp.array(0.0),
         tauE=jnp.array(0.0),
+        H89P=jnp.array(0.0),
         H98=jnp.array(0.0),
         H97L=jnp.array(0.0),
         H20=jnp.array(0.0),

@@ -488,8 +488,11 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
             Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
         ),
     )
-    Ploss = jnp.array(50.0)
+    Ploss = jnp.array(50e6)
 
+    H89P = physics.calculate_scaling_law_confinement_time(
+        geo, core_profiles, Ploss, 'H89P'
+    )
     H98 = physics.calculate_scaling_law_confinement_time(
         geo, core_profiles, Ploss, 'H98'
     )
@@ -499,6 +502,19 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     H20 = physics.calculate_scaling_law_confinement_time(
         geo, core_profiles, Ploss, 'H20'
     )
+
+    expected_H89P = (
+        0.038128
+        * 10**0.85
+        * 5**0.2
+        * 20**0.1
+        * 50**-0.5
+        * 6**1.5
+        * (1 / 3) ** 0.3
+        * 3**0.50
+        * elongation_LCFS**0.50
+    )
+
     expected_H98 = (
         0.0562
         * 10**0.93
@@ -535,6 +551,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         * elongation_LCFS**0.80
     )
     # pylint: enable=invalid-name
+    np.testing.assert_allclose(H89P, expected_H89P)
     np.testing.assert_allclose(H98, expected_H98)
     np.testing.assert_allclose(H97L, expected_H97L)
     np.testing.assert_allclose(H20, expected_H20)

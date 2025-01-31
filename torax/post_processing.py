@@ -398,16 +398,20 @@ def make_outputs(
   # TODO(b/380848256): include dW/dt term
   tauE = W_thermal_tot / Ploss
 
+  tauH89P = physics.calculate_scaling_law_confinement_time(
+      geo, sim_state.core_profiles, Ploss, 'H89P'
+  )
   tauH98 = physics.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss / 1e6, 'H98'
+      geo, sim_state.core_profiles, Ploss, 'H98'
   )
   tauH97L = physics.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss / 1e6, 'H97L'
+      geo, sim_state.core_profiles, Ploss, 'H97L'
   )
   tauH20 = physics.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss / 1e6, 'H20'
+      geo, sim_state.core_profiles, Ploss, 'H20'
   )
 
+  H89P = tauE / tauH89P
   H98 = tauE / tauH98
   H97L = tauE / tauH97L
   H20 = tauE / tauH20
@@ -487,6 +491,7 @@ def make_outputs(
       W_thermal_el=W_thermal_el,
       W_thermal_tot=W_thermal_tot,
       tauE=tauE,
+      H89P=H89P,
       H98=H98,
       H97L=H97L,
       H20=H20,

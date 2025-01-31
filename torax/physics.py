@@ -518,13 +518,26 @@ def calculate_scaling_law_confinement_time(
   Args:
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
-    Ploss: Plasma power loss in MW.
+    Ploss: Plasma power loss in W.
     scaling_law: Scaling law to use.
 
   Returns:
     Thermal energy confinement time in s.
   """
   scaling_params = {
+      'H89P': {
+          # From Yushmanov et al, Nuclear Fusion, vol. 30, no. 10, pp. 4-6, 1990
+          'prefactor': 0.038128,
+          'Ip_exponent': 0.85,
+          'B_exponent': 0.2,
+          'line_avg_ne_exponent': 0.1,
+          'Ploss_exponent': -0.5,
+          'R_exponent': 1.5,
+          'inverse_aspect_ratio_exponent': 0.3,
+          'elongation_exponent': 0.5,
+          'effective_mass_exponent': 0.50,
+          'triangularity_exponent': 0.0,
+      },
       'H98': {
           # H98 empirical confinement scaling law:
           # ITER Physics Expert Groups on Confinement and Transport and
@@ -576,7 +589,8 @@ def calculate_scaling_law_confinement_time(
 
   params = scaling_params[scaling_law]
 
-  Ip = core_profiles.currents.Ip_profile_face[-1] / 1e6  # in MA
+  scaled_Ip = core_profiles.currents.Ip_profile_face[-1] / 1e6  # convert to MA
+  scaled_Ploss = Ploss / 1e6  # convert to MW
   B = geo.B0
   line_avg_ne = _calculate_line_avg_density(geo, core_profiles) / 1e19
   R = geo.Rmaj
@@ -591,10 +605,10 @@ def calculate_scaling_law_confinement_time(
 
   tau_scaling = (
       params['prefactor']
-      * Ip ** params['Ip_exponent']
+      * scaled_Ip ** params['Ip_exponent']
       * B ** params['B_exponent']
       * line_avg_ne ** params['line_avg_ne_exponent']
-      * Ploss ** params['Ploss_exponent']
+      * scaled_Ploss ** params['Ploss_exponent']
       * R ** params['R_exponent']
       * inverse_aspect_ratio ** params['inverse_aspect_ratio_exponent']
       * elongation ** params['elongation_exponent']
