@@ -138,7 +138,7 @@ def build_bootstrap_profiles(
   Returns:
     Bootstrap current profile.
   """
-  bootstrap_profile = j_bootstrap_source.get_value(
+  bootstrap_profile = j_bootstrap_source.get_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,

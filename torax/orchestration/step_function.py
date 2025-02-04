@@ -675,7 +675,7 @@ def _update_current_distribution(
 ) -> state.CoreProfiles:
   """Update bootstrap current based on the new core_profiles."""
 
-  bootstrap_profile = source_models.j_bootstrap.get_value(
+  bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,

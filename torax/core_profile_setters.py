@@ -393,7 +393,7 @@ def _prescribe_currents_with_bootstrap(
   # notational conventions rather than on Google Python style
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
 
-  bootstrap_profile = source_models.j_bootstrap.get_value(
+  bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
@@ -481,7 +481,7 @@ def _calculate_currents_from_psi(
       core_profiles.psi,
   )
 
-  bootstrap_profile = source_models.j_bootstrap.get_value(
+  bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,

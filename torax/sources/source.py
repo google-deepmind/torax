@@ -57,7 +57,7 @@ class SourceProfileFunction(Protocol):
       source_name: str,
       core_profiles: state.CoreProfiles,
       source_models: Optional['source_models.SourceModels'],
-  ) -> chex.ArrayTree:
+  ) -> chex.Array:
     ...
 # pytype: enable=name-error
 
@@ -148,7 +148,7 @@ class Source(abc.ABC):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> chex.ArrayTree:
+  ) -> chex.Array:
     """Returns the profile for this source during one time step.
 
     Args:
@@ -185,7 +185,7 @@ class Source(abc.ABC):
 
   def get_source_profile_for_affected_core_profile(
       self,
-      profile: chex.ArrayTree,
+      profile: chex.Array,
       affected_core_profile: int,
       geo: geometry.Geometry,
   ) -> jax.Array:
@@ -262,7 +262,7 @@ def _get_source_profiles(
     prescribed_values: chex.Array,
     output_shape: tuple[int, ...],
     source_models: Optional['source_models.SourceModels'],
-) -> chex.ArrayTree:
+) -> chex.Array:
   """Returns source profiles requested by the runtime_params_lib.
 
   This function handles MODEL_BASED, PRESCRIBED and ZERO sources.
