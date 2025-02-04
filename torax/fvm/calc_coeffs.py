@@ -717,9 +717,6 @@ def _calc_coeffs_full(
 
   # Fill heat transport equation sources. Initialize source matrices to zero
 
-  source_mat_ii = jnp.zeros_like(geo.rho)
-  source_mat_ee = jnp.zeros_like(geo.rho)
-
   source_i = source_operations.sum_sources_temp_ion(
       geo,
       explicit_source_profiles,
@@ -742,9 +739,9 @@ def _calc_coeffs_full(
 
   # Add the Qei effects.
   qei = implicit_source_profiles.qei
-  source_mat_ii += qei.implicit_ii * geo.vpr
+  source_mat_ii = qei.implicit_ii * geo.vpr
   source_i += qei.explicit_i * geo.vpr
-  source_mat_ee += qei.implicit_ee * geo.vpr
+  source_mat_ee = qei.implicit_ee * geo.vpr
   source_e += qei.explicit_e * geo.vpr
   source_mat_ie = qei.implicit_ie * geo.vpr
   source_mat_ei = qei.implicit_ei * geo.vpr
