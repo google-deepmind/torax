@@ -30,7 +30,6 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
-from torax.sources import source as source_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import torax_refs
@@ -58,7 +57,7 @@ class StateHistoryTest(parameterized.TestCase):
     source_models = source_models_builder()
     # Make some dummy source profiles that could have come from these sources.
     self.geo = circular_geometry.build_circular_geometry()
-    ones = jnp.ones(source_lib.get_cell_profile_shape(self.geo))
+    ones = jnp.ones_like(self.geo.rho)
     geo_provider = geometry_provider.ConstantGeometryProvider(self.geo)
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(

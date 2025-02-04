@@ -70,7 +70,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    geo = circular_geometry.build_circular_geometry()
+    torax_mesh = geometry.Grid1D.construct(10, 0.1)
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
     # Technically, the merge_source_profiles() function should be called with
@@ -80,13 +80,13 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # summed in the first place.
     # Build a fake set of source profiles which have all 1s in all the profiles.
     fake_implicit_source_profiles = _build_source_profiles_with_single_value(
-        geo=geo,
+        torax_mesh=torax_mesh,
         source_models=source_models,
         value=1.0,
     )
     # And a fake set of profiles with all 2s.
     fake_explicit_source_profiles = _build_source_profiles_with_single_value(
-        geo=geo,
+        torax_mesh=torax_mesh,
         source_models=source_models,
         value=2.0,
     )
@@ -213,15 +213,15 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
 
 def _build_source_profiles_with_single_value(
-    geo: geometry.Geometry,
+    torax_mesh: geometry.Grid1D,
     source_models: source_models_lib.SourceModels,
     value: float,
 ):
-  cell_1d_arr = jnp.ones_like(geo.rho) * value
-  face_1d_arr = jnp.ones_like(geo.rho_face) * value
+  cell_1d_arr = jnp.ones_like(torax_mesh.cell_centers) * value
+  face_1d_arr = jnp.ones_like(torax_mesh.face_centers) * value
   return source_profiles_lib.SourceProfiles(
       profiles={
-          name: jnp.ones(shape=src.output_shape_getter(geo)) * value
+          name: jnp.ones(shape=src.output_shape(torax_mesh)) * value
           for name, src in source_models.standard_sources.items()
       },
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(

@@ -178,10 +178,6 @@ def calc_heating_and_current(
   return jnp.stack([ec_power_density, j_ec_dot_B])
 
 
-def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
-  return (2,) + source.get_cell_profile_shape(geo)
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
@@ -197,7 +193,3 @@ class ElectronCyclotronSource(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.TEMP_EL, source.AffectedCoreProfile.PSI)
-
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return _get_ec_output_shape

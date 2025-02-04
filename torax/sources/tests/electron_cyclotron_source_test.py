@@ -14,7 +14,6 @@
 from absl.testing import absltest
 import chex
 import jax.numpy as jnp
-import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -87,39 +86,6 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     # ElectronCyclotronSource default model_func provides sane default values
     if jnp.any(jnp.isnan(value)):
       raise AssertionError(f"Source value contains NaNs: {value}")
-
-  def test_extraction_of_relevant_profile_from_output(self):
-    """Tests that the relevant profile is extracted from the output."""
-    geo = circular_geometry.build_circular_geometry()
-    source = self._source_class()
-    cell = source_lib.get_cell_profile_shape(geo)
-    fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
-    # Check TEMP_EL and PSI are modified
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.TEMP_EL.value,
-            geo,
-        ),
-        jnp.ones(cell),
-    )
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.PSI.value,
-            geo,
-        ),
-        2 * jnp.ones(cell),
-    )
-    # For unrelated states, this should just return all 0s.
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.NE.value,
-            geo,
-        ),
-        jnp.zeros(cell),
-    )
 
 
 if __name__ == "__main__":

@@ -123,8 +123,8 @@ class SourceTestCase(parameterized.TestCase):
 class SingleProfileSourceTestCase(SourceTestCase):
   """Base test class for SingleProfileSource subclasses."""
 
-  def test_source_value(self):
-    """Tests that the source can provide a value by default."""
+  def test_source_value_on_the_cell_grid(self):
+    """Tests that the source can provide a value by default on the cell grid."""
     # SingleProfileSource subclasses should have default names and be
     # instantiable without any __init__ arguments.
     # pylint: disable=missing-kwoa
@@ -168,13 +168,14 @@ class SingleProfileSourceTestCase(SourceTestCase):
         core_profiles=core_profiles,
     )
     chex.assert_rank(value, 1)
+    self.assertEqual(value.shape, geo.rho.shape)
 
 
 class IonElSourceTestCase(SourceTestCase):
   """Base test class for IonElSource subclasses."""
 
-  def test_source_value(self):
-    """Tests that the source can provide a value by default."""
+  def test_source_values_on_the_cell_grid(self):
+    """Tests that the source can provide values on the cell grid."""
     # pylint: disable=missing-kwoa
     source_builder = self._source_class_builder()
     # pylint: enable=missing-kwoa
@@ -213,6 +214,7 @@ class IonElSourceTestCase(SourceTestCase):
         core_profiles=core_profiles,
     )
     chex.assert_rank(ion_and_el, 2)
+    self.assertEqual(ion_and_el.shape, (2, geo.torax_mesh.nx))
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
@@ -220,7 +222,7 @@ class IonElSourceTestCase(SourceTestCase):
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
-    cell = source_lib.get_cell_profile_shape(geo)
+    cell = geo.rho.shape
     fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
     np.testing.assert_allclose(
         source.get_source_profile_for_affected_core_profile(

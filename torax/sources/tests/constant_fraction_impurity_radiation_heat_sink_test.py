@@ -13,8 +13,6 @@
 # limitations under the License.
 from absl.testing import absltest
 import chex
-import jax.numpy as jnp
-import numpy as np
 from torax import core_profile_setters
 from torax import math_utils
 from torax.config import runtime_params as general_runtime_params
@@ -146,37 +144,6 @@ class ImpurityRadiationConstantFractionTest(test_lib.SourceTestCase):
         heat_source_dynamic_runtime_params_slice.Ptot
         * -impurity_radiation_sink_dynamic_runtime_params_slice.fraction_of_total_power_density,
         rtol=1e-2,  # TODO(b/382682284): this rtol seems v. high
-    )
-
-  def test_extraction_of_relevant_profile_from_output(self):
-    """Tests that the relevant profile is extracted from the output."""
-    geo = circular_geometry.build_circular_geometry()
-    source_builder = self._source_class_builder()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {self._source_name: source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources[self._source_name]
-    self.assertIsInstance(source, source_lib.Source)
-    cell = source_lib.get_cell_profile_shape(geo)
-    fake_profile = jnp.ones(cell)
-    # Check TEMP_EL is modified
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.TEMP_EL.value,
-            geo,
-        ),
-        jnp.ones(cell),
-    )
-    # For unrelated states, this should just return all 0s.
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.NE.value,
-            geo,
-        ),
-        jnp.zeros(cell),
     )
 
 

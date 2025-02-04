@@ -181,10 +181,6 @@ class FusionHeatSource(source.Source):
         source.AffectedCoreProfile.TEMP_EL,
     )
 
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.get_ion_el_output_shape
-
 
 @dataclasses.dataclass
 class FusionHeatSourceRuntimeParams(runtime_params_lib.RuntimeParams):

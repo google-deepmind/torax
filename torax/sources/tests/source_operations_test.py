@@ -49,10 +49,6 @@ class FooSource(source_lib.Source):
         source_lib.AffectedCoreProfile.NE,
     )
 
-  @property
-  def output_shape_getter(self) -> source_lib.SourceOutputShapeFunction:
-    return source_lib.get_ion_el_output_shape
-
 
 class SourceOperationsTest(parameterized.TestCase):
 
@@ -66,7 +62,7 @@ class SourceOperationsTest(parameterized.TestCase):
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
     # Make some dummy source profiles that could have come from these sources.
-    ones = jnp.ones(source_lib.get_cell_profile_shape(geo))
+    ones = jnp.ones_like(geo.rho)
     profiles = source_profiles_lib.SourceProfiles(
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
             geo
@@ -115,8 +111,8 @@ class SourceOperationsTest(parameterized.TestCase):
         unused_source_models,
     ):
       return jnp.stack([
-          jnp.zeros(source_lib.get_cell_profile_shape(geo)),
-          jnp.ones(source_lib.get_cell_profile_shape(geo)),
+          jnp.zeros_like(geo.rho),
+          jnp.ones_like(geo.rho),
       ])
 
     foo_source_builder = source_lib.make_source_builder(
@@ -170,12 +166,8 @@ class SourceOperationsTest(parameterized.TestCase):
       )
       return (ne, temp_el)
 
-    expected_ne = (
-        jnp.ones(source_lib.get_cell_profile_shape(geo)) * geo.vpr
-    )
-    expected_temp_el = jnp.zeros(
-        source_lib.get_cell_profile_shape(geo)
-    )
+    expected_ne = jnp.full(geo.rho.shape, geo.vpr)
+    expected_temp_el = jnp.zeros_like(geo.rho)
     with self.subTest('without_jit'):
       (ne, temp_el) = compute_and_sum_profiles()
       np.testing.assert_allclose(ne, expected_ne)

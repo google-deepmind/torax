@@ -185,7 +185,3 @@ class GenericCurrentSource(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.PSI,)
-
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.get_cell_profile_shape

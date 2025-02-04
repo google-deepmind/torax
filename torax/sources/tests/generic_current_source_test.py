@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from absl.testing import absltest
-from absl.testing import parameterized
-import chex
-import numpy as np
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import circular_geometry
 from torax.sources import generic_current_source
-from torax.sources import source as source_lib
 from torax.sources.tests import test_lib
 
 
@@ -38,11 +34,12 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
   def test_profile_is_on_cell_grid(self):
     """Tests that the profile is given on the cell grid."""
     geo = circular_geometry.build_circular_geometry()
+    torax_mesh = geo.torax_mesh
     source_builder = self._source_class_builder()
     source = source_builder()
     self.assertEqual(
-        source.output_shape_getter(geo),
-        source_lib.get_cell_profile_shape(geo),
+        source.output_shape(torax_mesh),
+        torax_mesh.cell_centers.shape,
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     dynamic_runtime_params_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
@@ -52,7 +49,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
                 source_builder.runtime_params
             ),
         },
-        torax_mesh=geo.torax_mesh,
+        torax_mesh=torax_mesh,
     )(
         t=runtime_params.numerics.t_initial,
     )
@@ -63,7 +60,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
                 source_builder.runtime_params
             ),
         },
-        torax_mesh=geo.torax_mesh,
+        torax_mesh=torax_mesh,
     )
     self.assertEqual(
         source.get_value(
@@ -72,40 +69,7 @@ class GenericCurrentSourceTest(test_lib.SourceTestCase):
             geo,
             core_profiles=None,
         ).shape,
-        source_lib.get_cell_profile_shape(geo),
-    )
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='psi_profile_yields_profile',
-          affected_core_profile=source_lib.AffectedCoreProfile.PSI,
-          expected_profile=np.array([1.5, 2.5]),
-      ),
-      dict(
-          testcase_name='unaffected_profile_yields_zeros',
-          affected_core_profile=source_lib.AffectedCoreProfile.TEMP_ION,
-          expected_profile=np.array([0.0, 0.0]),
-      ),
-  )
-  def test_get_source_profile_for_affected_core_profile_with(
-      self,
-      affected_core_profile: source_lib.AffectedCoreProfile,
-      expected_profile: chex.Array,
-  ):
-    source_builder = self._source_class_builder()
-    source = source_builder()
-
-    # Build a face profile with 3 values on a 2-cell grid.
-    geo = circular_geometry.build_circular_geometry(n_rho=2)
-    cell_profile = np.array([1.5, 2.5])
-
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            cell_profile,
-            affected_core_profile.value,
-            geo,
-        ),
-        expected_profile,
+        torax_mesh.cell_centers.shape,
     )
 
 

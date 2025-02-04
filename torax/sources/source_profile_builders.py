@@ -209,7 +209,7 @@ def build_standard_source_profiles(
         )
       else:
         computed_source_profiles[source_name] = jnp.zeros(
-            source.output_shape_getter(geo))
+            source.output_shape(static_runtime_params_slice.torax_mesh))
   return computed_source_profiles
 
 
@@ -219,7 +219,7 @@ def build_all_zero_profiles(
 ) -> source_profiles.SourceProfiles:
   """Returns a SourceProfiles object with all zero profiles."""
   profiles = {
-      source_name: jnp.zeros(source_model.output_shape_getter(geo))
+      source_name: jnp.zeros(source_model.output_shape(geo.torax_mesh))
       for source_name, source_model in source_models.standard_sources.items()
   }
   return source_profiles.SourceProfiles(

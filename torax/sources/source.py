@@ -28,7 +28,7 @@ import dataclasses
 import enum
 import types
 import typing
-from typing import Any, Callable, ClassVar, Optional, Protocol, TypeAlias
+from typing import Any, ClassVar, Optional, Protocol
 
 # We use Optional here because | doesn't work with string name types.
 # We use string name 'source_models.SourceModels' in this file to avoid
@@ -60,18 +60,6 @@ class SourceProfileFunction(Protocol):
   ) -> chex.Array:
     ...
 # pytype: enable=name-error
-
-
-# Any callable which takes the dynamic runtime_params, geometry, and optional
-# core profiles, and outputs a shape corresponding to the expected output of a
-# source. See how these types of functions are used in the Source class below.
-SourceOutputShapeFunction: TypeAlias = Callable[
-    [  # Arguments
-        geometry.Geometry,
-    ],
-    # Returns shape of the source's output.
-    tuple[int, ...],
-]
 
 
 @enum.unique
@@ -110,10 +98,7 @@ class Source(abc.ABC):
     affected_core_profiles: Core profiles affected by this source's profile(s).
       This attribute defines which equations the source profiles are terms for.
       By default, the number of affected core profiles should equal the rank of
-      the output shape returned by output_shape_getter. Subclasses may override
-      this requirement.
-    output_shape_getter: Callable which returns the shape of the profiles given
-      by this source.
+      the output shape returned by `output_shape`.
     model_func: The function used when the the runtime type is set to
       "MODEL_BASED". If not provided, then it defaults to returning zeros.
     affected_core_profiles_ints: Derived property from the
@@ -133,10 +118,13 @@ class Source(abc.ABC):
   def affected_core_profiles(self) -> tuple[AffectedCoreProfile, ...]:
     """Returns the core profiles affected by this source."""
 
-  @property
-  def output_shape_getter(self) -> SourceOutputShapeFunction:
-    """Returns a function which returns the shape of the source's output."""
-    return get_cell_profile_shape
+  def output_shape(self, mesh: geometry.Grid1D) -> tuple[int, ...]:
+    """Returns the shape of the source's output."""
+    if len(self.affected_core_profiles) == 1:
+      return mesh.cell_centers.shape
+    else:
+      num_affected_core_profiles = len(self.affected_core_profiles)
+      return (num_affected_core_profiles, mesh.nx)
 
   @property
   def affected_core_profiles_ints(self) -> tuple[int, ...]:
@@ -149,7 +137,7 @@ class Source(abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> chex.Array:
-    """Returns the profile for this source during one time step.
+    """Returns the cell grid profile for this source during one time step.
 
     Args:
       static_runtime_params_slice: Static runtime parameters.
@@ -164,12 +152,15 @@ class Source(abc.ABC):
         the time step as the solver converges.
 
     Returns:
-      Array, arrays, or nested dataclass/dict of arrays for the source profile.
+      An array of shape (num affected core profiles, cell grid length)
+      containing the source profile for each affected core profile.
+      For sources that only affect one core profile, the output will be an
+      array with shape (cell grid length,).
     """
     dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
         self.source_name
     ]
-    output_shape = self.output_shape_getter(geo)
+    output_shape = self.output_shape(static_runtime_params_slice.torax_mesh)
 
     return _get_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -240,16 +231,6 @@ class Source(abc.ABC):
       )
 
 
-def get_cell_profile_shape(geo: geometry.Geometry) -> tuple[int, ...]:
-  """Returns the shape of a source profile on the cell grid."""
-  return geo.torax_mesh.cell_centers.shape
-
-
-def get_face_profile_shape(geo: geometry.Geometry) -> tuple[int, ...]:
-  """Returns the shape of a source profile on the face grid."""
-  return geo.torax_mesh.face_centers.shape
-
-
 # pytype bug: 'source_models.SourceModels' not treated as a forward ref
 # pytype: disable=name-error
 def _get_source_profiles(
@@ -309,10 +290,6 @@ def _get_source_profiles(
       return jnp.zeros(output_shape)
     case _:
       raise ValueError(f'Unknown mode: {mode}')
-
-
-def get_ion_el_output_shape(geo):
-  return (2,) + get_cell_profile_shape(geo)
 
 
 @dataclasses.dataclass(frozen=False, kw_only=True)
