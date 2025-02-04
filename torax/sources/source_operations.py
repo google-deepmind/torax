@@ -25,22 +25,16 @@ from torax.geometry import geometry
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
-from torax.sources import source_profiles
+from torax.sources import source_profiles as source_profiles_lib
 
 
 def sum_sources_psi(
     geo: geometry.Geometry,
-    source_profile: source_profiles.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
+    source_profiles: source_profiles_lib.SourceProfiles,
 ) -> jax.Array:
   """Computes psi source values for sim.calc_coeffs."""
-  total = source_profile.j_bootstrap.j_bootstrap
-  for source_name, source in source_models.psi_sources.items():
-    total += source.get_source_profile_for_affected_core_profile(
-        profile=source_profile.profiles[source_name],
-        affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
-        geo=geo,
-    )
+  total = source_profiles.j_bootstrap.j_bootstrap
+  total += sum(source_profiles.psi.values())
   mu0 = constants.CONSTANTS.mu0
   prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
   scale_source = lambda src: -src * prefactor
@@ -49,49 +43,28 @@ def sum_sources_psi(
 
 def sum_sources_ne(
     geo: geometry.Geometry,
-    source_profile: source_profiles.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
+    source_profiles: source_profiles_lib.SourceProfiles,
 ) -> jax.Array:
   """Computes ne source values for sim.calc_coeffs."""
-  total = jnp.zeros_like(geo.rho)
-  for source_name, source in source_models.ne_sources.items():
-    total += source.get_source_profile_for_affected_core_profile(
-        profile=source_profile.profiles[source_name],
-        affected_core_profile=source_lib.AffectedCoreProfile.NE.value,
-        geo=geo,
-    )
+  total = sum(source_profiles.ne.values())
   return total * geo.vpr
 
 
 def sum_sources_temp_ion(
     geo: geometry.Geometry,
-    source_profile: source_profiles.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
+    source_profiles: source_profiles_lib.SourceProfiles,
 ) -> jax.Array:
   """Computes temp_ion source values for sim.calc_coeffs."""
-  total = jnp.zeros_like(geo.rho)
-  for source_name, source in source_models.temp_ion_sources.items():
-    total += source.get_source_profile_for_affected_core_profile(
-        profile=source_profile.profiles[source_name],
-        affected_core_profile=(source_lib.AffectedCoreProfile.TEMP_ION.value),
-        geo=geo,
-    )
+  total = sum(source_profiles.temp_ion.values())
   return total * geo.vpr
 
 
 def sum_sources_temp_el(
     geo: geometry.Geometry,
-    source_profile: source_profiles.SourceProfiles,
-    source_models: source_models_lib.SourceModels,
+    source_profiles: source_profiles_lib.SourceProfiles,
 ) -> jax.Array:
   """Computes temp_el source values for sim.calc_coeffs."""
-  total = jnp.zeros_like(geo.rho)
-  for source_name, source in source_models.temp_el_sources.items():
-    total += source.get_source_profile_for_affected_core_profile(
-        profile=source_profile.profiles[source_name],
-        affected_core_profile=(source_lib.AffectedCoreProfile.TEMP_EL.value),
-        geo=geo,
-    )
+  total = sum(source_profiles.temp_el.values())
   return total * geo.vpr
 
 
@@ -116,13 +89,7 @@ def calc_and_sum_sources_psi(
       calculate_anyway=True,
       affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
   )
-  total = 0
-  for source_name, source in source_models.psi_sources.items():
-    total += source.get_source_profile_for_affected_core_profile(
-        profile=psi_profiles[source_name],
-        affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
-        geo=geo,
-    )
+  total = sum(psi_profiles[source_lib.AffectedCoreProfile.PSI].values())
   static_bootstrap_runtime_params = static_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]

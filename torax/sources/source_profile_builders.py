@@ -98,9 +98,12 @@ def build_source_profiles(
   else:
     qei = source_profiles.QeiInfo.zeros(geo)
   return source_profiles.SourceProfiles(
-      profiles=other_profiles,
       j_bootstrap=bootstrap_profiles,
       qei=qei,
+      temp_el=other_profiles[source_lib.AffectedCoreProfile.TEMP_EL],
+      temp_ion=other_profiles[source_lib.AffectedCoreProfile.TEMP_ION],
+      ne=other_profiles[source_lib.AffectedCoreProfile.NE],
+      psi=other_profiles[source_lib.AffectedCoreProfile.PSI],
   )
 
 
@@ -164,7 +167,7 @@ def build_standard_source_profiles(
         source_lib.AffectedCoreProfile.TEMP_ION,
         source_lib.AffectedCoreProfile.TEMP_EL,
     ),
-) -> dict[str, chex.ArrayTree]:
+) -> dict[source_lib.AffectedCoreProfile, dict[str, chex.Array]]:
   """Computes sources and builds a kwargs dict for SourceProfiles.
 
   Args:
@@ -187,10 +190,10 @@ def build_standard_source_profiles(
       core profiles.
 
   Returns:
-    dict of source profiles excluding the two special-case sources (bootstrap
-    and qei).
+    nested dict of affected core profiles to source names to profiles excluding
+    the two special-case sources (bootstrap and qei).
   """
-  computed_source_profiles = {}
+  computed_source_profiles = {k: {} for k in affected_core_profiles}
   affected_core_profiles_set = set(affected_core_profiles)
   for source_name, source in source_models.standard_sources.items():
     if affected_core_profiles_set.intersection(source.affected_core_profiles):
@@ -201,15 +204,30 @@ def build_standard_source_profiles(
           explicit
           == static_source_runtime_params.is_explicit | calculate_anyway
       ):
-        computed_source_profiles[source_name] = source.get_value(
+        value = source.get_value(
             static_runtime_params_slice,
             dynamic_runtime_params_slice,
             geo,
             core_profiles,
         )
+        if len(source.affected_core_profiles) == 1:
+          computed_source_profiles[source.affected_core_profiles[0]][
+              source_name
+          ] = value
+        else:
+          for i, affected_core_profile in enumerate(
+              source.affected_core_profiles
+          ):
+            if affected_core_profile in affected_core_profiles_set:
+              computed_source_profiles[affected_core_profile][source_name] = (
+                  value[i]
+              )
       else:
-        computed_source_profiles[source_name] = jnp.zeros(
-            source.output_shape(static_runtime_params_slice.torax_mesh))
+        for affected_core_profile in source.affected_core_profiles:
+          if affected_core_profile in affected_core_profiles_set:
+            computed_source_profiles[affected_core_profile][source_name] = (
+                jnp.zeros_like(geo.rho_norm)
+            )
   return computed_source_profiles
 
 
@@ -219,11 +237,20 @@ def build_all_zero_profiles(
 ) -> source_profiles.SourceProfiles:
   """Returns a SourceProfiles object with all zero profiles."""
   profiles = {
-      source_name: jnp.zeros(source_model.output_shape(geo.torax_mesh))
-      for source_name, source_model in source_models.standard_sources.items()
+      source_lib.AffectedCoreProfile.PSI: {},
+      source_lib.AffectedCoreProfile.NE: {},
+      source_lib.AffectedCoreProfile.TEMP_ION: {},
+      source_lib.AffectedCoreProfile.TEMP_EL: {},
   }
+  for source_name, source in source_models.standard_sources.items():
+    for affected_core_profile in source.affected_core_profiles:
+      profiles[affected_core_profile][source_name] = jnp.zeros_like(
+          geo.rho_norm)
   return source_profiles.SourceProfiles(
-      profiles=profiles,
+      temp_el=profiles[source_lib.AffectedCoreProfile.TEMP_EL],
+      temp_ion=profiles[source_lib.AffectedCoreProfile.TEMP_ION],
+      ne=profiles[source_lib.AffectedCoreProfile.NE],
+      psi=profiles[source_lib.AffectedCoreProfile.PSI],
       j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
       qei=source_profiles.QeiInfo.zeros(geo),
   )

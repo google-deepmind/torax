@@ -95,15 +95,19 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         explicit_source_profiles=fake_explicit_source_profiles,
     )
     # All the profiles in the merged profiles should be a 1D array with all 3s.
-    # Except the Qei profile, which is a special case.
-    for name, profile in merged_profiles.profiles.items():
-      if name != source_models.qei_source_name:
-        np.testing.assert_allclose(profile, 3.0)
-      else:
-        np.testing.assert_allclose(profile, 6.0)
+    for profile in merged_profiles.temp_el.values():
+      np.testing.assert_allclose(profile, 3.0)
+    for profile in merged_profiles.temp_ion.values():
+      np.testing.assert_allclose(profile, 3.0)
+    for profile in merged_profiles.psi.values():
+      np.testing.assert_allclose(profile, 3.0)
+    for profile in merged_profiles.ne.values():
+      np.testing.assert_allclose(profile, 3.0)
+    np.testing.assert_allclose(merged_profiles.qei.qei_coef, 3.0)
     # Make sure the combo ion-el heat sources are present.
     for name in ['generic_ion_el_heat_source', 'fusion_heat_source']:
-      self.assertIn(name, merged_profiles.profiles)
+      self.assertIn(name, merged_profiles.temp_ion)
+      self.assertIn(name, merged_profiles.temp_el)
 
   def test_first_and_last_source_profiles(self):
     """Tests that the first and last source profiles contain correct data."""
@@ -205,10 +209,10 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # because we are using the mock step function defined above).
     for i, sim_state in enumerate(sim_outputs.sim_history):
       np.testing.assert_allclose(
-          sim_state.core_sources.profiles['implicit_ne_source'], i + 1
+          sim_state.core_sources.ne['implicit_ne_source'], i + 1
       )
       np.testing.assert_allclose(
-          sim_state.core_sources.profiles['explicit_ne_source'], i + 1
+          sim_state.core_sources.ne['explicit_ne_source'], i + 1
       )
 
 
@@ -216,19 +220,29 @@ def _build_source_profiles_with_single_value(
     torax_mesh: geometry.Grid1D,
     source_models: source_models_lib.SourceModels,
     value: float,
-):
-  cell_1d_arr = jnp.ones_like(torax_mesh.cell_centers) * value
-  face_1d_arr = jnp.ones_like(torax_mesh.face_centers) * value
+) -> source_profiles_lib.SourceProfiles:
+  """Builds a set of source profiles with all values set to a single value."""
+  cell_1d_arr = jnp.full((torax_mesh.nx,), value)
+  face_1d_arr = jnp.full((torax_mesh.nx + 1), value)
+  profiles = {
+      source_lib.AffectedCoreProfile.PSI: {},
+      source_lib.AffectedCoreProfile.NE: {},
+      source_lib.AffectedCoreProfile.TEMP_ION: {},
+      source_lib.AffectedCoreProfile.TEMP_EL: {},
+  }
+  for source_name, source in source_models.standard_sources.items():
+    for affected_core_profile in source.affected_core_profiles:
+      profiles[affected_core_profile][source_name] = cell_1d_arr
   return source_profiles_lib.SourceProfiles(
-      profiles={
-          name: jnp.ones(shape=src.output_shape(torax_mesh)) * value
-          for name, src in source_models.standard_sources.items()
-      },
+      temp_el=profiles[source_lib.AffectedCoreProfile.TEMP_EL],
+      temp_ion=profiles[source_lib.AffectedCoreProfile.TEMP_ION],
+      ne=profiles[source_lib.AffectedCoreProfile.NE],
+      psi=profiles[source_lib.AffectedCoreProfile.PSI],
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(
-          sigma=cell_1d_arr * value,
-          sigma_face=face_1d_arr * value,
-          j_bootstrap=cell_1d_arr * value,
-          j_bootstrap_face=face_1d_arr * value,
+          sigma=cell_1d_arr,
+          sigma_face=face_1d_arr,
+          j_bootstrap=cell_1d_arr,
+          j_bootstrap_face=face_1d_arr,
           I_bootstrap=jnp.ones(()) * value,
       ),
       qei=source_profiles_lib.QeiInfo(

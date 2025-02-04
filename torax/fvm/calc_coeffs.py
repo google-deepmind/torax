@@ -32,7 +32,6 @@ from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_operations
 from torax.sources import source_profile_builders
@@ -397,18 +396,10 @@ def _calc_coeffs_full(
   else:
     j_bootstrap = implicit_source_profiles.j_bootstrap
 
-  external_current = jnp.zeros_like(geo.rho)
   # Sum over all psi sources (except the bootstrap current).
-  for source_name, source in source_models.psi_sources.items():
-    if static_runtime_params_slice.sources[source_name].is_explicit:
-      profiles = explicit_source_profiles.profiles
-    else:
-      profiles = implicit_source_profiles.profiles
-    external_current += source.get_source_profile_for_affected_core_profile(
-        profile=profiles[source_name],
-        affected_core_profile=source_lib.AffectedCoreProfile.PSI.value,
-        geo=geo,
-    )
+  external_current = sum(explicit_source_profiles.psi.values()) + sum(
+      implicit_source_profiles.psi.values()
+  )
 
   currents = dataclasses.replace(
       core_profiles.currents,
@@ -430,14 +421,8 @@ def _calc_coeffs_full(
 
   # fill source vector based on both original and updated core profiles
   source_psi = source_operations.sum_sources_psi(
-      geo,
-      implicit_source_profiles,
-      source_models,
-  ) + source_operations.sum_sources_psi(
-      geo,
-      explicit_source_profiles,
-      source_models,
-  )
+      geo, implicit_source_profiles
+  ) + source_operations.sum_sources_psi(geo, explicit_source_profiles)
 
   true_ne = core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
   true_ni = core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
@@ -627,11 +612,9 @@ def _calc_coeffs_full(
   source_ne = source_operations.sum_sources_ne(
       geo,
       explicit_source_profiles,
-      source_models,
   ) + source_operations.sum_sources_ne(
       geo,
       implicit_source_profiles,
-      source_models,
   )
 
   source_ne += jnp.where(
@@ -720,21 +703,17 @@ def _calc_coeffs_full(
   source_i = source_operations.sum_sources_temp_ion(
       geo,
       explicit_source_profiles,
-      source_models,
   ) + source_operations.sum_sources_temp_ion(
       geo,
       implicit_source_profiles,
-      source_models,
   )
 
   source_e = source_operations.sum_sources_temp_el(
       geo,
       explicit_source_profiles,
-      source_models,
   ) + source_operations.sum_sources_temp_el(
       geo,
       implicit_source_profiles,
-      source_models,
   )
 
   # Add the Qei effects.

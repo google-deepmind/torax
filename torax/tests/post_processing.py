@@ -60,14 +60,22 @@ class PostProcessingTest(parameterized.TestCase):
             geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
-        profiles={
+        temp_ion={
+            'fusion_heat_source': ones,
+            'generic_ion_el_heat_source': 2 * ones,
+        },
+        temp_el={
             'bremsstrahlung_heat_sink': -ones,
             'ohmic_heat_source': ones * 5,
-            'generic_current_source': ones * 2,
-            'fusion_heat_source': np.stack([ones, ones]),
-            'generic_ion_el_heat_source': np.stack([2 * ones, 3 * ones]),
-            'electron_cyclotron_source': np.stack([7 * ones, 2 * ones]),
+            'fusion_heat_source': ones,
+            'generic_ion_el_heat_source': 3 * ones,
+            'electron_cyclotron_source': 7 * ones,
         },
+        psi={
+            'generic_current_source': 2 * ones,
+            'electron_cyclotron_source': 2 * ones,
+        },
+        ne={},
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
         runtime_params=runtime_params,

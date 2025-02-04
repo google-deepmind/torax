@@ -110,7 +110,6 @@ class ExplicitStepper(stepper_lib.Stepper):
     c += source_operations.sum_sources_temp_ion(
         geo_t,
         explicit_source_profiles,
-        self.source_models,
     )
 
     temp_ion_new = (

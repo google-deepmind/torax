@@ -29,7 +29,6 @@ from torax.sources import source_models as source_models_lib
 from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
-from torax.tests.test_lib import default_sources
 
 
 @dataclasses.dataclass(frozen=True)
@@ -55,12 +54,6 @@ class SourceOperationsTest(parameterized.TestCase):
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
     geo = circular_geometry.build_circular_geometry()
 
-    # Use the default sources where the generic_ion_el_heat_source,
-    # fusion_heat_source, and ohmic_heat_source are included and produce
-    # profiles for ion and electron heat.
-    # temperature.
-    source_models_builder = default_sources.get_default_sources_builder()
-    source_models = source_models_builder()
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones_like(geo.rho)
     profiles = source_profiles_lib.SourceProfiles(
@@ -68,35 +61,35 @@ class SourceOperationsTest(parameterized.TestCase):
             geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
-        profiles={
-            'generic_ion_el_heat_source': jnp.stack([ones, ones * 2]),
-            'fusion_heat_source': jnp.stack([ones * 3, ones * 4]),
-            'bremsstrahlung_heat_sink': -ones,
-            'ohmic_heat_source': ones * 5,  # only used for electron temp.
+        temp_ion={
+            'generic_ion_el_heat_source': ones,
+            'fusion_heat_source': ones * 3,
         },
+        temp_el={
+            'generic_ion_el_heat_source': ones * 2,
+            'fusion_heat_source': ones * 4,
+            'bremsstrahlung_heat_sink': -ones,
+            'ohmic_heat_source': ones * 5,
+        },
+        ne={},
+        psi={},
     )
     with self.subTest('without_jit'):
-      summed_temp_ion = source_operations.sum_sources_temp_ion(
-          geo, profiles, source_models
-      )
+      summed_temp_ion = source_operations.sum_sources_temp_ion(geo, profiles)
       np.testing.assert_allclose(summed_temp_ion, ones * 4 * geo.vpr)
-      summed_temp_el = source_operations.sum_sources_temp_el(
-          geo, profiles, source_models
-      )
+      summed_temp_el = source_operations.sum_sources_temp_el(geo, profiles)
       np.testing.assert_allclose(summed_temp_el, ones * 10 * geo.vpr)
 
     with self.subTest('with_jit'):
       sum_temp_ion = jax.jit(
           source_operations.sum_sources_temp_ion,
-          static_argnames=['source_models'],
       )
-      jitted_temp_ion = sum_temp_ion(geo, profiles, source_models)
+      jitted_temp_ion = sum_temp_ion(geo, profiles)
       np.testing.assert_allclose(jitted_temp_ion, ones * 4 * geo.vpr)
       sum_temp_el = jax.jit(
           source_operations.sum_sources_temp_el,
-          static_argnames=['source_models'],
       )
-      jitted_temp_el = sum_temp_el(geo, profiles, source_models)
+      jitted_temp_el = sum_temp_el(geo, profiles)
       np.testing.assert_allclose(jitted_temp_el, ones * 10 * geo.vpr)
 
   def test_custom_source_profiles_dont_change_when_jitted(self):
@@ -160,9 +153,9 @@ class SourceOperationsTest(parameterized.TestCase):
           # calculate the custom source's profile.
           explicit=False,
       )
-      ne = source_operations.sum_sources_ne(geo, profiles, source_models)
+      ne = source_operations.sum_sources_ne(geo, profiles)
       temp_el = source_operations.sum_sources_temp_el(
-          geo, profiles, source_models
+          geo, profiles
       )
       return (ne, temp_el)
 
@@ -177,7 +170,6 @@ class SourceOperationsTest(parameterized.TestCase):
       (ne, temp_el) = jitted_compute_and_sum()
       np.testing.assert_allclose(ne, expected_ne)
       np.testing.assert_allclose(temp_el, expected_temp_el)
-
 
 if __name__ == '__main__':
   absltest.main()

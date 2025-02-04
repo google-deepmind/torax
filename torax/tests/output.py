@@ -71,11 +71,16 @@ class StateHistoryTest(parameterized.TestCase):
             geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
-        profiles={
+        temp_ion={
+            'fusion_heat_source': ones,
+        },
+        temp_el={
             'bremsstrahlung_heat_sink': -ones,
             'ohmic_heat_source': ones * 5,
-            'fusion_heat_source': jnp.stack([ones, ones]),
+            'fusion_heat_source': ones,
         },
+        ne={},
+        psi={},
     )
     static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
         runtime_params=runtime_params,
@@ -152,11 +157,11 @@ class StateHistoryTest(parameterized.TestCase):
     self.assertIn('fusion_heat_source_el', sources_dataset.data_vars)
     np.testing.assert_allclose(
         sources_dataset.data_vars['fusion_heat_source_ion'].values[0, ...],
-        self.source_profiles.profiles['fusion_heat_source'][0],
+        self.source_profiles.temp_ion['fusion_heat_source'],
     )
     np.testing.assert_allclose(
         sources_dataset.data_vars['fusion_heat_source_el'].values[0, ...],
-        self.source_profiles.profiles['fusion_heat_source'][1],
+        self.source_profiles.temp_el['fusion_heat_source'],
     )
 
   def test_state_history_to_xr(self):

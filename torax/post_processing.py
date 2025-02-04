@@ -255,8 +255,10 @@ def _calculate_integrated_sources(
   # TORAX internal names.
   for key, value in ION_EL_HEAT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
-    if key in core_sources.profiles:
-      profile_ion, profile_el = core_sources.profiles[key]
+    ion_profiles = core_sources.temp_ion
+    el_profiles = core_sources.temp_el
+    if key in ion_profiles and key in el_profiles:
+      profile_ion, profile_el = ion_profiles[key], el_profiles[key]
       integrated[f'{value}_ion'] = math_utils.cell_integration(
           profile_ion * geo.vpr, geo
       )
@@ -274,16 +276,10 @@ def _calculate_integrated_sources(
 
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
-    if key in core_sources.profiles:
-      # TODO(b/376010694): better automation of splitting profiles into
-      # separate variables.
-      # index 0 corresponds to the electron heating source profile.
-      if key == 'electron_cyclotron_source':
-        profile = core_sources.profiles[key][0, :]
-      else:
-        profile = core_sources.profiles[key]
+    profiles = core_sources.temp_el
+    if key in profiles:
       integrated[f'{value}'] = math_utils.cell_integration(
-          profile * geo.vpr, geo
+          profiles[key] * geo.vpr, geo
       )
       integrated['P_sol_el'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
@@ -291,16 +287,10 @@ def _calculate_integrated_sources(
 
   for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
-    if key in core_sources.profiles:
-      # TODO(b/376010694): better automation of splitting profiles into
-      # separate variables.
-      # index 1 corresponds to the current source profile.
-      if key == 'electron_cyclotron_source':
-        profile = core_sources.profiles[key][1, :]
-      else:
-        profile = core_sources.profiles[key]
+    profiles = core_sources.psi
+    if key in profiles:
       integrated[f'{value}'] = math_utils.cell_integration(
-          profile * geo.spr, geo
+          profiles[key] * geo.spr, geo
       )
 
   integrated['P_sol_tot'] = integrated['P_sol_ion'] + integrated['P_sol_el']
