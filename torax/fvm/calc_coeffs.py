@@ -78,7 +78,7 @@ class CoeffsCallback:
       # Checks if reduced calc_coeffs for explicit terms when theta_imp=1
       # should be called
       explicit_call: bool = False,
-  ):
+  ) -> block_1d_coeffs.Block1DCoeffs:
     # Update core_profiles with the subset of new values of evolving variables
     replace = {k: v for k, v in zip(self.evolving_names, x)}
     core_profiles = config_args.recursive_replace(core_profiles, **replace)
