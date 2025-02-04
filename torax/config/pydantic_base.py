@@ -15,6 +15,8 @@
 """Pydantic utilities and base classes."""
 
 from collections.abc import Mapping
+import functools
+import inspect
 from typing import Annotated, Any, TypeAlias
 import numpy as np
 import pydantic
@@ -70,9 +72,14 @@ NumpyArray1D = Annotated[
 
 
 class Base(pydantic.BaseModel):
-  """Base config class. Any custom config classes should inherit from this.
+  """Custom base Pydantic class.
 
-  See https://docs.pydantic.dev/latest/ for documentation on pydantic.
+  All Pydantic models in Torax should inherit from this class.
+
+  This class allows for safe use of `functools.cached_property`, automatically
+  clearing caches when fields are assigned to. Note that accessing field values
+  and mutating them (such as inplace changes to NumPy arrays) will not clear
+  caches, and must be avoided by developers.
   """
 
   model_config = pydantic.ConfigDict(
@@ -91,11 +98,36 @@ class Base(pydantic.BaseModel):
   def to_dict(self) -> dict[str, Any]:
     return self.model_dump()
 
+  # cached_properties can be essential for performance. However, they can
+  # cause issues when the model fields are changed. This
+  # validator is called after any field has a value assigned to it. See:
+  # https://docs.pydantic.dev/2.10/api/config/#pydantic.config.ConfigDict.validate_assignment
+  @pydantic.model_validator(mode='after')
+  def _clear_cached_property(self) -> Self:
+    for name in self._get_cached_properties():
+      try:
+        delattr(self, name)
+      except AttributeError:
+        pass
+    return self
+
+  @classmethod
+  def _get_cached_properties(cls) -> list[str]:
+    return [
+        name
+        for name, value in inspect.getmembers(cls)
+        if isinstance(value, functools.cached_property)
+    ]
+
 
 class BaseFrozen(Base):
-  """Base config with frozen fields.
+  """Base config with faux-immutable fields.
 
-  See https://docs.pydantic.dev/latest/ for documentation on pydantic.
+  Will throw a ValidationError if any field is assigned to after construction.
+  See https://docs.pydantic.dev/2.0/usage/models/#faux-immutability for more
+  details. Note that accessing field values
+  and mutating them (such as inplace changes to NumPy arrays) will not throw an
+  error, and must be avoided by developers.
   """
 
   model_config = pydantic.ConfigDict(

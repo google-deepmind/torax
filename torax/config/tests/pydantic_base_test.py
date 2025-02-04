@@ -90,19 +90,13 @@ class PydanticBaseTest(parameterized.TestCase):
       def computed(self):
         return self.name + '_test'  # pytype: disable=attribute-error
 
-      @pydantic.model_validator(mode='after')
-      def validate(self):
-        if hasattr(self, 'computed'):
-          del self.computed
-        return self
-
     m = Test(name='test_string')
     self.assertEqual(m.computed, 'test_string_test')
 
     with self.subTest('field_is_mutable'):
       m.name = 'new_test_string'
 
-    with self.subTest('after_model_validator_is_called_on_update'):
+    with self.subTest('cached_property_is_cleared'):
       self.assertEqual(m.computed, 'new_test_string_test')
 
 
