@@ -47,7 +47,6 @@ from torax.orchestration import step_function
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
-from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
@@ -621,29 +620,6 @@ def _run_simulation(
   if log_timestep_info and sim_error == state.SimError.NO_ERROR:
     # The "sim_state" here has been updated by the loop above.
     _log_timestep(sim_state)
-
-  # Update the final time step's source profiles based on the explicit source
-  # profiles computed based on the final state.
-  logging.info("Updating last step's source profiles.")
-  dynamic_runtime_params_slice, geo = (
-      runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
-          t=sim_state.t,
-          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-          geometry_provider=geometry_provider,
-      )
-  )
-  explicit_source_profiles = source_profile_builders.build_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=sim_state.core_profiles,
-      source_models=step_fn.stepper.source_models,
-      explicit=True,
-  )
-  sim_state.core_sources = source_profiles_lib.SourceProfiles.merge(
-      explicit_source_profiles=explicit_source_profiles,
-      implicit_source_profiles=sim_state.core_sources,
-  )
 
   # If the first step of the simulation was very long, call it out. It might
   # have to do with tracing the jitted step_fn.

@@ -507,16 +507,12 @@ class ToraxSimState:
     dt: timestep interval.
     core_profiles: Core plasma profiles at time t.
     core_transport: Core plasma transport coefficients computed at time t.
-    core_sources: Profiles for all sources/sinks. For any state-dependent source
-      models, the profiles in this dataclass are computed based on the core
-      profiles at time t, almost. When running `sim.run_simulation()`, any
-      profile from an "explicit" state-dependent source will be computed with
-      the core profiles at time t. Any profile from an "implicit"
-      state-dependent source will be computed with an intermediate state from
-      the previous time step's solver. This should be close to the core profiles
-      at time t, but is not guaranteed to be. In case exact source profiles are
-      required for each time step, they must be recomputed manually after
-      running `run_simulation()`.
+    core_sources: Profiles for all sources/sinks. These are the profiles that
+      are used to calculate the coefficients for the t+dt time step. For the
+      explicit sources, these are calculated at the start of the time step, so
+      are the values at time t. For the implicit sources, these are the most
+      recent guess for time t+dt. The profiles here are the merged version of
+      the explicit and implicit profiles.
     post_processed_outputs: variables for output or intermediate observations
       for overarching workflows, calculated after each simulation step.
     geometry: Geometry at this time step used for the simulation.

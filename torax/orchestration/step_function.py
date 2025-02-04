@@ -154,15 +154,6 @@ class SimulationStepFn:
         explicit=True,
     )
 
-    # The previous time step's state has an incomplete set of source profiles
-    # which was computed based on the previous time step's "guess" of the core
-    # profiles at this time step's t. We can merge those "implicit" source
-    # profiles with the explicit ones computed here.
-    input_state.core_sources = source_profiles_lib.SourceProfiles.merge(
-        explicit_source_profiles=explicit_source_profiles,
-        implicit_source_profiles=input_state.core_sources,
-    )
-
     dt, time_step_calculator_state = self.init_time_step_calculator(
         dynamic_runtime_params_slice_t,
         geo_t,

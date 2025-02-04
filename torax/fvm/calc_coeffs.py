@@ -830,7 +830,7 @@ def _calc_coeffs_full(
       v_face=v_face,
       source_mat_cell=source_mat_cell,
       source_cell=source_cell,
-      auxiliary_outputs=(implicit_source_profiles, transport_coeffs),
+      auxiliary_outputs=(merged_source_profiles, transport_coeffs),
   )
 
   return coeffs
