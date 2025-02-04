@@ -333,28 +333,15 @@ class StateHistory:
         * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
     )
 
-    # Add source profiles
-    # TODO(b/381543891): Simplify this to always add a suffix to remove the
-    # need for special cases.
-    # Current complexity is due to the fact that we want to keep the same
-    # variable names as the previous version of TORAX but this will be changed
-    # in the future.
+    # Add source profiles with suffixes indicating which profile they affect.
     for profile in self.core_sources.temp_ion:
       xr_dict[f"{profile}_ion"] = self.core_sources.temp_ion[profile]
     for profile in self.core_sources.temp_el:
-      if profile == "electron_cyclotron_source":
-        xr_dict[f"{profile}_el"] = self.core_sources.temp_el[profile]
-      elif profile in self.core_sources.temp_ion:
-        xr_dict[f"{profile}_el"] = self.core_sources.temp_el[profile]
-      else:
-        xr_dict[profile] = self.core_sources.temp_el[profile]
+      xr_dict[f"{profile}_el"] = self.core_sources.temp_el[profile]
     for profile in self.core_sources.psi:
-      if profile == "electron_cyclotron_source":
-        xr_dict[f"{profile}_j"] = self.core_sources.psi[profile]
-      else:
-        xr_dict[profile] = self.core_sources.psi[profile]
+      xr_dict[f"{profile}_j"] = self.core_sources.psi[profile]
     for profile in self.core_sources.ne:
-      xr_dict[profile] = self.core_sources.ne[profile]
+      xr_dict[f"{profile}_ne"] = self.core_sources.ne[profile]
 
     xr_dict = {
         name: self._pack_into_data_array(name, data)
