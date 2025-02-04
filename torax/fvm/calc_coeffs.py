@@ -384,22 +384,14 @@ def _calc_coeffs_full(
       core_profiles=core_profiles,
       explicit=False,
   )
-  # The above call calculates the implicit value for the bootstrap current. Note
-  # that this is potentially wasteful in case the source is explicit, but
-  # recalculate here to avoid issues with JAX branching in the logic.
-  # Decide which values to use depending on whether the source is explicit or
-  # implicit.
-  if static_runtime_params_slice.sources[
-      source_models.j_bootstrap_name
-  ].is_explicit:
-    j_bootstrap = explicit_source_profiles.j_bootstrap
-  else:
-    j_bootstrap = implicit_source_profiles.j_bootstrap
+  merged_source_profiles = source_profiles_lib.SourceProfiles.merge(
+      explicit_source_profiles=explicit_source_profiles,
+      implicit_source_profiles=implicit_source_profiles,
+  )
+  j_bootstrap = merged_source_profiles.j_bootstrap
 
   # Sum over all psi sources (except the bootstrap current).
-  external_current = sum(explicit_source_profiles.psi.values()) + sum(
-      implicit_source_profiles.psi.values()
-  )
+  external_current = sum(merged_source_profiles.psi.values())
 
   currents = dataclasses.replace(
       core_profiles.currents,
@@ -420,9 +412,7 @@ def _calc_coeffs_full(
   source_mat_psi = jnp.zeros_like(geo.rho)
 
   # fill source vector based on both original and updated core profiles
-  source_psi = source_operations.sum_sources_psi(
-      geo, implicit_source_profiles
-  ) + source_operations.sum_sources_psi(geo, explicit_source_profiles)
+  source_psi = source_operations.sum_sources_psi(geo, merged_source_profiles)
 
   true_ne = core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
   true_ni = core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
@@ -609,13 +599,7 @@ def _calc_coeffs_full(
   source_mat_nn = jnp.zeros_like(geo.rho)
 
   # density source vector based both on original and updated core profiles
-  source_ne = source_operations.sum_sources_ne(
-      geo,
-      explicit_source_profiles,
-  ) + source_operations.sum_sources_ne(
-      geo,
-      implicit_source_profiles,
-  )
+  source_ne = source_operations.sum_sources_ne(geo, merged_source_profiles)
 
   source_ne += jnp.where(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
@@ -700,24 +684,11 @@ def _calc_coeffs_full(
 
   # Fill heat transport equation sources. Initialize source matrices to zero
 
-  source_i = source_operations.sum_sources_temp_ion(
-      geo,
-      explicit_source_profiles,
-  ) + source_operations.sum_sources_temp_ion(
-      geo,
-      implicit_source_profiles,
-  )
-
-  source_e = source_operations.sum_sources_temp_el(
-      geo,
-      explicit_source_profiles,
-  ) + source_operations.sum_sources_temp_el(
-      geo,
-      implicit_source_profiles,
-  )
+  source_i = source_operations.sum_sources_temp_ion(geo, merged_source_profiles)
+  source_e = source_operations.sum_sources_temp_el(geo, merged_source_profiles)
 
   # Add the Qei effects.
-  qei = implicit_source_profiles.qei
+  qei = merged_source_profiles.qei
   source_mat_ii = qei.implicit_ii * geo.vpr
   source_i += qei.explicit_i * geo.vpr
   source_mat_ee = qei.implicit_ee * geo.vpr
