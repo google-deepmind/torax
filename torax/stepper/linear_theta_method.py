@@ -26,7 +26,6 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
-from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
 from torax.stepper import runtime_params as runtime_params_lib
@@ -70,7 +69,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
     """See Stepper._x_new docstring."""
 
     x_old = tuple([core_profiles_t[name] for name in evolving_names])
-    x_new_init = tuple(
+    x_new_guess = tuple(
         [core_profiles_t_plus_dt[name] for name in evolving_names]
     )
 
@@ -99,34 +98,30 @@ class LinearThetaMethod(stepper_lib.Stepper):
     # standard linear solve if
     # static_runtime_params_slice.predictor_corrector=False.
     # init_val is the initialization for the predictor_corrector loop.
-    # Neither value impacts the final result, but needs to be the correct
-    # type. x_new initialization (index 0) input is x_old for correct typing.
-    # auxiliary_outputs (index 1) is a tuple of dataclasses with correct array
-    # sizes for tracing.
-    init_val = (
-        x_new_init,
-        (
-            source_profile_builders.build_all_zero_profiles(
-                geo_t,
-                self.source_models,
-            ),
-            state.CoreTransport.zeros(geo_t),
-        ),
-    )
-
-    x_new, (core_sources, core_transport) = (
+    x_new, _ = (
         predictor_corrector_method.predictor_corrector_method(
             dt=dt,
             static_runtime_params_slice=static_runtime_params_slice,
-            dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+            dynamic_runtime_params_slice_t_plus_dt=(
+                dynamic_runtime_params_slice_t_plus_dt
+            ),
             geo_t_plus_dt=geo_t_plus_dt,
             x_old=x_old,
+            x_new_guess=x_new_guess,
             core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-            init_val=init_val,
             coeffs_exp=coeffs_exp,
             coeffs_callback=coeffs_callback,
         )
     )
+
+    coeffs_final = coeffs_callback(
+        dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt,
+        core_profiles_t_plus_dt,
+        x_new,
+        allow_pereverzev=True,
+    )
+    core_sources, core_transport = coeffs_final.auxiliary_outputs
 
     stepper_numeric_outputs = state.StepperNumericOutputs(
         inner_solver_iterations=1,

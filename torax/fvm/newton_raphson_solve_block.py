@@ -35,7 +35,6 @@ from torax.fvm import residual_and_loss
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
-from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
 from torax.transport_model import transport_model as transport_model_lib
@@ -219,20 +218,8 @@ def newton_raphson_solve_block(
       )
 
       # See linear_theta_method.py for comments on the predictor_corrector API
-      x_new_init = tuple(
+      x_new_guess = tuple(
           [core_profiles_t_plus_dt[name] for name in evolving_names]
-      )
-      init_val = (
-          x_new_init,
-          # Initialized here with correct shapes to help with tracing in case
-          # this is jitted.
-          (
-              source_profile_builders.build_all_zero_profiles(
-                  geo_t,
-                  source_models,
-              ),
-              state_module.CoreTransport.zeros(geo_t),
-          ),
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
@@ -240,8 +227,8 @@ def newton_raphson_solve_block(
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
           x_old=x_old,
+          x_new_guess=x_new_guess,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          init_val=init_val,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
       )
@@ -350,7 +337,15 @@ def newton_raphson_solve_block(
       outer_stepper_iterations=1,
   )
 
-  return x_new, stepper_numeric_outputs, output_state['aux_output']
+  coeffs_final = coeffs_callback(
+      dynamic_runtime_params_slice_t_plus_dt,
+      geo_t_plus_dt,
+      core_profiles_t_plus_dt,
+      x_new,
+      allow_pereverzev=True,
+  )
+
+  return x_new, stepper_numeric_outputs, coeffs_final.auxiliary_outputs
 
 
 def residual_scalar(x):
