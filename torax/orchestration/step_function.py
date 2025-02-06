@@ -30,7 +30,7 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import ohmic_heat_source
-from torax.sources import source_models as source_models_lib
+from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
@@ -208,7 +208,6 @@ class SimulationStepFn:
         input_state,
         output_state,
         dynamic_runtime_params_slice_t_plus_dt,
-        static_runtime_params_slice,
         geo_t_plus_dt,
     )
     return sim_state, sim_state.check_for_errors()
@@ -506,7 +505,6 @@ class SimulationStepFn:
       input_state: state.ToraxSimState,
       output_state: state.ToraxSimState,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       geo_t_plus_dt: geometry.Geometry,
   ) -> state.ToraxSimState:
     """Finalizes given output state at the end of the simulation step.
@@ -515,7 +513,6 @@ class SimulationStepFn:
       input_state: Previous sim state.
       output_state: State to be finalized.
       dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
-      static_runtime_params_slice: Static runtime parameters.
       geo_t_plus_dt: The geometry of the torus during the next time step of the
         simulation.
 
@@ -533,21 +530,17 @@ class SimulationStepFn:
 
     # Update ohmic and bootstrap current based on the new core profiles.
     output_state.core_profiles = _update_current_distribution(
-        source_models=self._stepper_fn.source_models,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo_t_plus_dt,
+        core_sources=output_state.core_sources,
         core_profiles=output_state.core_profiles,
     )
 
     # Update psidot based on the new core profiles.
     # Will include the phibdot calculation since geo=geo_t_plus_dt.
     output_state.core_profiles = _update_psidot(
-        source_models=self._stepper_fn.source_models,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        static_runtime_params_slice=static_runtime_params_slice,
         geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
+        core_sources=output_state.core_sources,
     )
     output_state = post_processing.make_outputs(
         sim_state=output_state,
@@ -658,29 +651,12 @@ def _add_Phibdot(
 
 
 def _update_current_distribution(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
+    core_sources: source_profiles_lib.SourceProfiles,
 ) -> state.CoreProfiles:
   """Update bootstrap current based on the new core_profiles."""
-
-  bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-
-  # calculate "External" current profile (e.g. ECCD)
-  # form of external current on face grid
-  external_current = source_models.external_current_source(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
+  bootstrap_profile = core_sources.j_bootstrap
+  external_current = sum(core_sources.psi.values())
 
   johm = (
       core_profiles.currents.jtot
@@ -705,23 +681,24 @@ def _update_current_distribution(
 
 
 def _update_psidot(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
+    core_sources: source_profiles_lib.SourceProfiles,
 ) -> state.CoreProfiles:
   """Update psidot based on new core_profiles."""
+  psi_sources = source_operations.sum_sources_psi(geo, core_sources)
 
   psidot = dataclasses.replace(
       core_profiles.psidot,
-      value=ohmic_heat_source.calc_psidot(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles,
-          source_models,
-      ),
+      value=ohmic_heat_source.calculate_psidot_from_psi_sources(
+          psi_sources=psi_sources,
+          sigma=core_sources.j_bootstrap.sigma,
+          sigma_face=core_sources.j_bootstrap.sigma_face,
+          resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+          psi=core_profiles.psi,
+          geo=geo,
+      )
   )
 
   new_core_profiles = dataclasses.replace(
