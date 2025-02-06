@@ -209,6 +209,7 @@ def build_standard_source_profiles(
             dynamic_runtime_params_slice,
             geo,
             core_profiles,
+            None,
         )
         if len(source.affected_core_profiles) == 1:
           computed_source_profiles[source.affected_core_profiles[0]][

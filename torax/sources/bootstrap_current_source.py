@@ -148,6 +148,7 @@ class BootstrapCurrentSource(source.Source):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
   ) -> chex.Array:
     raise NotImplementedError('Call `get_bootstrap` instead.')
 

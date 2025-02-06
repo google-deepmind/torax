@@ -122,6 +122,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         unused_geo,
         source_name,
         unused_state,
+        unused_calculated_source_profiles,
         unused_source_models,
     ):
       dynamic_source_params = dynamic_runtime_params.sources[source_name]

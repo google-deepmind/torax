@@ -37,6 +37,7 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
+from torax.sources import source_profiles
 from typing_extensions import override
 
 # Internal import.
@@ -366,19 +367,16 @@ def _helium3_tail_temperature(
 
 
 def icrh_model_func(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None,
     toric_nn: ToricNNWrapper,
 ) -> jax.Array:
   """Compute ion/electron heat source terms."""
-  del (
-      unused_source_models,
-      static_runtime_params_slice,
-  )  # Unused.
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]

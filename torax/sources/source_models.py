@@ -235,6 +235,7 @@ class SourceModels:
           static_runtime_params_slice=static_runtime_params_slice,
           geo=geo,
           core_profiles=core_profiles,
+          calculated_source_profiles=None,
       )
       total += source.get_source_profile_for_affected_core_profile(
           source_value, source_lib.AffectedCoreProfile.PSI, geo,

@@ -95,6 +95,7 @@ class SourceModelsTest(parameterized.TestCase):
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
+        None,
     )
 
     external_current_source = source_models.external_current_source(
