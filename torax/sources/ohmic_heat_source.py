@@ -26,6 +26,7 @@ from torax import jax_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.fvm import cell_variable
 from torax.fvm import convection_terms
 from torax.fvm import diffusion_terms
 from torax.geometry import geometry
@@ -69,21 +70,39 @@ def calc_psidot(
   Returns:
     psidot: on cell grid
   """
-  consts = constants.CONSTANTS
 
-  psi_sources, sigma, sigma_face = (
-      source_operations.calc_and_sum_sources_psi(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles,
-          source_models,
-      )
+  psi_sources, sigma, sigma_face = source_operations.calc_and_sum_sources_psi(
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
+      geo,
+      core_profiles,
+      source_models,
   )
+  return calculate_psidot_from_psi_sources(
+      psi_sources=psi_sources,
+      sigma=sigma,
+      sigma_face=sigma_face,
+      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+      psi=core_profiles.psi,
+      geo=geo,
+  )
+
+
+def calculate_psidot_from_psi_sources(
+    *,
+    psi_sources: jax.Array,
+    sigma: jax.Array,
+    sigma_face: jax.Array,
+    resistivity_multiplier: float,
+    psi: cell_variable.CellVariable,
+    geo: geometry.Geometry,
+) -> jax.Array:
+  """Calculates psidot (loop voltage) from precalculated sources."""
   # Calculate transient term
+  consts = constants.CONSTANTS
   toc_psi = (
       1.0
-      / dynamic_runtime_params_slice.numerics.resistivity_mult
+      / resistivity_multiplier
       * geo.rho_norm
       * sigma
       * consts.mu0
@@ -121,7 +140,7 @@ def calc_psidot(
   )
 
   diffusion_mat, diffusion_vec = diffusion_terms.make_diffusion_terms(
-      d_face_psi, core_profiles.psi
+      d_face_psi, psi
   )
 
   # Set the psi convection term for psidot used in ohmic power, always with
@@ -131,9 +150,7 @@ def calc_psidot(
   # needing to pass in the mode from the static_runtime_params across multiple
   # functions.
   conv_mat, conv_vec = convection_terms.make_convection_terms(
-      v_face_psi,
-      d_face_psi,
-      core_profiles.psi,
+      v_face_psi, d_face_psi, psi
   )
 
   c_mat = diffusion_mat + conv_mat
@@ -141,7 +158,7 @@ def calc_psidot(
 
   c += psi_sources
 
-  psidot = (jnp.dot(c_mat, core_profiles.psi.value) + c) / toc_psi
+  psidot = (jnp.dot(c_mat, psi.value) + c) / toc_psi
 
   return psidot
 
