@@ -37,8 +37,7 @@ def sum_sources_psi(
   total += sum(source_profiles.psi.values())
   mu0 = constants.CONSTANTS.mu0
   prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
-  scale_source = lambda src: -src * prefactor
-  return scale_source(total)
+  return -total * prefactor
 
 
 def sum_sources_ne(
@@ -89,7 +88,6 @@ def calc_and_sum_sources_psi(
       calculate_anyway=True,
       affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
   )
-  total = sum(psi_profiles[source_lib.AffectedCoreProfile.PSI].values())
   static_bootstrap_runtime_params = static_runtime_params_slice.sources[
       source_models.j_bootstrap_name
   ]
@@ -102,14 +100,17 @@ def calc_and_sum_sources_psi(
       j_bootstrap_source=source_models.j_bootstrap,
       calculate_anyway=True,
   )
-  total += j_bootstrap_profiles.j_bootstrap
-
-  mu0 = constants.CONSTANTS.mu0
-  prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
-  scale_source = lambda src: -src * prefactor
+  source_profiles = source_profiles_lib.SourceProfiles(
+      j_bootstrap=j_bootstrap_profiles,
+      qei=source_profiles_lib.QeiInfo.zeros(geo),
+      temp_el={},
+      temp_ion={},
+      ne={},
+      psi=psi_profiles[source_lib.AffectedCoreProfile.PSI],
+  )
 
   return (
-      scale_source(total),
+      sum_sources_psi(geo, source_profiles=source_profiles),
       j_bootstrap_profiles.sigma,
       j_bootstrap_profiles.sigma_face,
   )
