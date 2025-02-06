@@ -25,6 +25,7 @@ from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
 from torax.geometry import standard_geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import set_pped_tpedratio_nped
 from torax.pedestal_model import set_tped_nped
 from torax.sources import register_source
 from torax.sources import runtime_params as source_runtime_params_lib
@@ -597,6 +598,12 @@ def build_pedestal_model_builder_from_config(
       return set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
           runtime_params=config_args.recursive_replace(
               set_tped_nped.RuntimeParams(), **pedestal_config
+          )
+      )
+    case 'set_pped_tpedratio_nped':
+      return set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModelBuilder(
+          runtime_params=config_args.recursive_replace(
+              set_pped_tpedratio_nped.RuntimeParams(), **pedestal_config
           )
       )
     case _:

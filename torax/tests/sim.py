@@ -399,6 +399,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with constant pressure pedestal model.
+      (
+          'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped',
+          'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Predictor-corrector solver with cyclotron radiation heat sink
       (
           'test_iterhybrid_predictor_corrector_cyclotron',
