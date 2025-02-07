@@ -17,6 +17,7 @@
 import functools
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 import numpy as np
 import pydantic
 from torax.config import pydantic_base
@@ -104,6 +105,34 @@ class PydanticBaseTest(parameterized.TestCase):
 
     with self.subTest('after_model_validator_is_called_on_update'):
       self.assertEqual(m.computed, 'new_test_string_test')
+
+  @parameterized.parameters(True, False)
+  def test_pydantic_base_map_pytree(self, frozen: bool):
+
+    if frozen:
+
+      class TestModel(pydantic_base.BaseFrozen):
+        x: float
+        y: float
+
+    else:
+
+      class TestModel(pydantic_base.Base):
+        x: float
+        y: float
+
+    m = TestModel(x=2.0, y=4.0)
+    m2 = jax.tree_util.tree_map(lambda x: x**2, m)
+
+    self.assertEqual(m2.x, 4.0)
+    self.assertEqual(m2.y, 16.0)
+
+    @jax.jit
+    def f(data):
+      return data.x * data.y
+
+    with self.subTest('jit_works'):
+      self.assertEqual(f(m), m.x * m.y)
 
 
 if __name__ == '__main__':

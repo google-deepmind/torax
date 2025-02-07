@@ -16,6 +16,7 @@
 
 from collections.abc import Mapping
 from typing import Annotated, Any, TypeAlias
+import jax
 import numpy as np
 import pydantic
 from typing_extensions import Self
@@ -73,6 +74,9 @@ class Base(pydantic.BaseModel):
   """Base config class. Any custom config classes should inherit from this.
 
   See https://docs.pydantic.dev/latest/ for documentation on pydantic.
+
+  This class is compatible with JAX, so can be used as an argument to a JITted
+  function.
   """
 
   model_config = pydantic.ConfigDict(
@@ -84,6 +88,32 @@ class Base(pydantic.BaseModel):
       arbitrary_types_allowed=True,
   )
 
+  def __new__(cls, *unused_args, **unused_kwargs):
+    try:
+      registered_cls = jax.tree_util.register_pytree_node_class(cls)
+    except ValueError:
+      registered_cls = cls  # Already registered.
+    return super().__new__(registered_cls)
+
+  def tree_flatten(self):
+
+    children = tuple(getattr(self, k) for k in self.model_fields.keys())
+    aux_data = None
+    return (children, aux_data)
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    del aux_data
+
+    init = {
+        key: value
+        for key, value in zip(cls.model_fields, children, strict=True)
+    }
+    # The model needs to be reconstructed without validation, as init can
+    # contain JAX tracers inside a JIT, which will fail Pydantic validation. In
+    # addition, validation is unecessary overhead.
+    return cls.model_construct(**init)
+
   @classmethod
   def from_dict(cls: type[Self], cfg: Mapping[str, Any]) -> Self:
     return cls.model_validate(cfg)
@@ -92,15 +122,13 @@ class Base(pydantic.BaseModel):
     return self.model_dump()
 
 
-class BaseFrozen(Base):
+class BaseFrozen(Base, frozen=True):
   """Base config with frozen fields.
 
   See https://docs.pydantic.dev/latest/ for documentation on pydantic.
+
+  This class is compatible with JAX, so can be used as an argument to a JITted
+  function.
   """
 
-  model_config = pydantic.ConfigDict(
-      frozen=True,
-      # Do not allow attributes not defined in pydantic model.
-      extra='forbid',
-      arbitrary_types_allowed=True,
-  )
+  ...
