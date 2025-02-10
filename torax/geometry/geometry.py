@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 import dataclasses
 import enum
 
@@ -25,7 +25,6 @@ import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import array_typing
 from torax import jax_utils
 
 
@@ -125,12 +124,14 @@ class Geometry:
 
   Most users should default to using the StandardGeometry class, whether the
   source of their geometry comes from CHEASE, MEQ, etc.
+
+  Properties work for both 1D radial arrays and 2D stacked arrays where the
+  leading dimension is time.
   """
 
   # TODO(b/356356966): extend documentation to define what each attribute is.
   geometry_type: int
   torax_mesh: Grid1D
-  drho_norm: array_typing.ArrayFloat
   Phi: chex.Array
   Phi_face: chex.Array
   Rmaj: chex.Array
@@ -183,12 +184,16 @@ class Geometry:
     return self.torax_mesh.face_centers
 
   @property
+  def drho_norm(self) -> chex.Array:
+    return jnp.array(self.torax_mesh.dx)
+
+  @property
   def rho_face(self) -> chex.Array:
-    return self.rho_face_norm * self.rho_b
+    return self.rho_face_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
   def rho(self) -> chex.Array:
-    return self.rho_norm * self.rho_b
+    return self.rho_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
   def rmid(self) -> chex.Array:
@@ -210,7 +215,7 @@ class Geometry:
   @property
   def Phib(self) -> chex.Array:
     """Toroidal flux at boundary (LCFS)."""
-    return self.Phi_face[-1]
+    return self.Phi_face[..., -1]
 
   @property
   def g1_over_vpr(self) -> chex.Array:
@@ -222,24 +227,33 @@ class Geometry:
 
   @property
   def g0_over_vpr_face(self) -> jax.Array:
-    return jnp.concatenate((
-        jnp.ones(1) / self.rho_b,  # correct value is 1/rho_b on-axis
-        self.g0_face[1:] / self.vpr_face[1:],  # avoid div by zero on-axis
-    ))
+    # Calculate the bulk of the array (excluding the first element)
+    # to avoid division by zero.
+    bulk = self.g0_face[..., 1:] / self.vpr_face[..., 1:]
+    # Correct value on-axis is 1/rho_b
+    first_element = jnp.ones_like(self.rho_b) / self.rho_b
+    # Concatenate to handle both 1D (no leading dim) and 2D cases
+    return jnp.concatenate(
+        [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
+    )
 
   @property
   def g1_over_vpr_face(self) -> jax.Array:
-    return jnp.concatenate((
-        jnp.zeros(1),  # correct value is zero on-axis
-        self.g1_face[1:] / self.vpr_face[1:],  # avoid div by zero on-axis
-    ))
+    bulk = self.g1_face[..., 1:] / self.vpr_face[..., 1:]
+    # Correct value on-axis is 0
+    first_element = jnp.zeros_like(self.rho_b)
+    return jnp.concatenate(
+        [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
+    )
 
   @property
   def g1_over_vpr2_face(self) -> jax.Array:
-    return jnp.concatenate((
-        jnp.ones(1) / self.rho_b**2,  # correct value is 1/rho_b**2 on-axis
-        self.g1_face[1:] / self.vpr_face[1:] ** 2,  # avoid div by zero on-axis
-    ))
+    bulk = self.g1_face[..., 1:] / self.vpr_face[..., 1:]**2
+    # Correct value on-axis is 1/rho_b**2
+    first_element = jnp.ones_like(self.rho_b) / self.rho_b**2
+    return jnp.concatenate(
+        [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
+    )
 
   def z_magnetic_axis(self) -> chex.Numeric:
     z_magnetic_axis = self._z_magnetic_axis
@@ -251,43 +265,40 @@ class Geometry:
       )
 
 
-def stack_geometries(
-    geometries: Sequence[Geometry],
-) -> Mapping[str, chex.Array]:
+def stack_geometries(geometries: Sequence[Geometry]) -> Geometry:
   """Batch together a sequence of geometries.
 
-  The batched geometries are returned as a dictionary of arrays. Any fields
-  that are not arrays are not included in the dictionary and all properties
-  are excluded as well.
-
   Args:
-    geometries: A sequence of geometries to stack. The geometries must have the
-      same mesh, geometry type, and drho_norm.
+    geometries: A sequence of geometries to stack. The geometries must have
+      the same mesh, geometry type.
 
   Returns:
-    A dictionary of arrays, where each array has the same shape as the
-    corresponding attribute in the input geometries, but with an additional
-    leading axis (e.g. for the time dimension).
+    A Geometry object, where each array attribute has an additional
+    leading axis (e.g. for the time dimension) compared to each Geometry in
+    the input sequence.
   """
   if not geometries:
     raise ValueError('No geometries provided.')
-  # Stack the geometries.
-  torax_mesh = geometries[0].torax_mesh
-  geometry_type = geometries[0].geometry_type
-  drho_norm = geometries[0].drho_norm
+  # Ensure that all geometries have same mesh and are of same type.
+  first_geo = geometries[0]
+  torax_mesh = first_geo.torax_mesh
+  geometry_type = first_geo.geometry_type
   for geometry in geometries[1:]:
     if geometry.torax_mesh != torax_mesh:
       raise ValueError('All geometries must have the same mesh.')
     if geometry.geometry_type != geometry_type:
       raise ValueError('All geometries must have the same geometry type.')
-    if geometry.drho_norm != drho_norm:
-      raise ValueError('All geometries must have the same drho_norm.')
-  array_fields = [
-      attr
-      for attr, val in dataclasses.asdict(geometries[0]).items()
-      if isinstance(val, chex.Array)
-  ]
-  return {
-      attr: jnp.stack([getattr(geo, attr) for geo in geometries])
-      for attr in array_fields
-  }
+
+  stacked_data = {}
+  for field in dataclasses.fields(first_geo):
+    field_name = field.name
+    field_value = getattr(first_geo, field_name)
+    # Stack stackable fields. Save first geo's value for non-stackable fields.
+    if isinstance(field_value, chex.Array):
+      field_values = [getattr(geo, field_name) for geo in geometries]
+      stacked_data[field_name] = jnp.stack(field_values)
+    else:
+      stacked_data[field_name] = field_value
+  # Create a new object with the stacked data with the same class (i.e.
+  # could be child classes of Geometry)
+  return first_geo.__class__(**stacked_data)

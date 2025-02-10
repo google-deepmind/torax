@@ -19,7 +19,6 @@ from absl.testing import parameterized
 import jax
 import numpy as np
 from torax.config import build_sim
-from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_loader
 from torax.geometry import standard_geometry
@@ -86,9 +85,7 @@ class GeometryTest(parameterized.TestCase):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""
     intermediate = standard_geometry.StandardGeometryIntermediates.from_chease()
     geo = standard_geometry.build_standard_geometry(intermediate)
-    with self.assertRaisesRegex(
-        ValueError, 'does not have a z magnetic axis'
-    ):
+    with self.assertRaisesRegex(ValueError, 'does not have a z magnetic axis'):
       geo.z_magnetic_axis()
 
   @parameterized.parameters([
@@ -123,8 +120,24 @@ class GeometryTest(parameterized.TestCase):
       standard_geometry._validate_fbt_data(LY, L)
 
   @parameterized.parameters(
-      'rBt', 'aminor', 'rgeom', 'TQ', 'FB', 'FA', 'Q1Q', 'Q2Q', 'Q3Q', 'Q4Q',
-      'Q5Q', 'ItQ', 'deltau', 'deltal', 'kappa', 'FtPQ', 'zA', 't',
+      'rBt',
+      'aminor',
+      'rgeom',
+      'TQ',
+      'FB',
+      'FA',
+      'Q1Q',
+      'Q2Q',
+      'Q3Q',
+      'Q4Q',
+      'Q5Q',
+      'ItQ',
+      'deltau',
+      'deltal',
+      'kappa',
+      'FtPQ',
+      'zA',
+      't',
   )
   def test_validate_fbt_data_missing_LY_key(self, missing_key):
     len_psinorm = 20
@@ -151,43 +164,105 @@ class GeometryTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'Incorrect shape'):
       standard_geometry._validate_fbt_data(LY, L)
 
-  def test_stack_geometries(self):
-    """Test that geometries can be stacked."""
-    geo_0 = circular_geometry.build_circular_geometry(Rmaj=1, B0=5.3)
-    geo_1 = circular_geometry.build_circular_geometry(Rmaj=2, B0=3.7)
-    stacked_geometries = geometry.stack_geometries([geo_0, geo_1])
-    self.assertNotIn('geometry_type', stacked_geometries.keys())
-    self.assertNotIn('torax_mesh', stacked_geometries.keys())
+  def test_stack_geometries_standard_geometries(self):
+    """Test stack_geometries for standard geometries."""
+    # Create a few different geometries
+    L, LY0 = _get_example_L_LY_data(10, 1, prefactor=1.0)
+    _, LY1 = _get_example_L_LY_data(10, 1, prefactor=2.0)
+    _, LY2 = _get_example_L_LY_data(10, 1, prefactor=3.0)
+    geo0_intermediate = (
+        standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice(
+            geometry_dir=None, LY_object=LY0, L_object=L
+        )
+    )
+    geo1_intermediate = (
+        standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice(
+            geometry_dir=None, LY_object=LY1, L_object=L
+        )
+    )
+    geo2_intermediate = (
+        standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice(
+            geometry_dir=None, LY_object=LY2, L_object=L
+        )
+    )
+    geo0 = standard_geometry.build_standard_geometry(geo0_intermediate)
+    geo1 = standard_geometry.build_standard_geometry(geo1_intermediate)
+    geo2 = standard_geometry.build_standard_geometry(geo2_intermediate)
 
-    for key, value in stacked_geometries.items():
-      self.assertEqual(value.shape, (2,) + getattr(geo_0, key).shape)
+    # Stack them
+    stacked_geo = geometry.stack_geometries([geo0, geo1, geo2])
 
-    np.testing.assert_allclose(stacked_geometries['Rmaj'], np.array([1, 2]))
-    np.testing.assert_allclose(stacked_geometries['B0'], np.array([5.3, 3.7]))
+    # Check that the stacked geometry has the correct type and mesh
+    self.assertEqual(stacked_geo.geometry_type, geo0.geometry_type)
+    self.assertEqual(stacked_geo.torax_mesh, geo0.torax_mesh)
+
+    # Check some specific stacked values
+    np.testing.assert_allclose(
+        stacked_geo.g2[:, -1],
+        np.array([geo0.g2[-1], geo1.g2[-1], geo2.g2[-1]]),
+    )
+    np.testing.assert_allclose(
+        stacked_geo.Ip_profile_face[:, -1],
+        np.array([
+            geo0.Ip_profile_face[-1],
+            geo1.Ip_profile_face[-1],
+            geo2.Ip_profile_face[-1],
+        ]),
+    )
+
+    # Check stacking of derived properties
+    np.testing.assert_allclose(
+        stacked_geo.rho_b, np.array([geo0.rho_b, geo1.rho_b, geo2.rho_b])
+    )
+
+    # Check a property that depends on a stacked property (rho depends on rho_b)
+    # Note that rho_norm is the same for all geometries.
+    np.testing.assert_allclose(
+        stacked_geo.rho,
+        np.array([
+            geo0.rho_norm * geo0.rho_b,
+            geo0.rho_norm * geo1.rho_b,
+            geo0.rho_norm * geo2.rho_b,
+        ]),
+    )
+
+    # Check properties with special handling for on-axis values.
+    np.testing.assert_allclose(
+        stacked_geo.g0_over_vpr_face[:, 0], 1 / stacked_geo.rho_b
+    )
+    np.testing.assert_allclose(
+        stacked_geo.g1_over_vpr2_face[:, 0], 1 / stacked_geo.rho_b**2
+    )
 
 
-def _get_example_L_LY_data(len_psinorm: int, len_times: int):
-  LY = {
-      'rBt': np.zeros(len_times),
-      'aminor': np.zeros((len_psinorm, len_times)),
-      'rgeom': np.zeros((len_psinorm, len_times)),
-      'TQ': np.zeros((len_psinorm, len_times)),
-      'FB': np.zeros(len_times),
-      'FA': np.zeros(len_times),
-      'Q1Q': np.zeros((len_psinorm, len_times)),
-      'Q2Q': np.zeros((len_psinorm, len_times)),
-      'Q3Q': np.zeros((len_psinorm, len_times)),
-      'Q4Q': np.zeros((len_psinorm, len_times)),
-      'Q5Q': np.zeros((len_psinorm, len_times)),
-      'ItQ': np.zeros((len_psinorm, len_times)),
-      'deltau': np.zeros((len_psinorm, len_times)),
-      'deltal': np.zeros((len_psinorm, len_times)),
-      'kappa': np.zeros((len_psinorm, len_times)),
-      'FtPQ': np.zeros((len_psinorm, len_times)),
-      'zA': np.zeros(len_times),
-      't': np.zeros(len_times),
+def _get_example_L_LY_data(
+    len_psinorm: int, len_times: int, prefactor: float = 0.0
+):
+  LY = {  # Squeeze when intended for a single time slice.
+      'rBt': np.full(len_times, prefactor).squeeze(),
+      'aminor': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'rgeom': np.full((len_psinorm, len_times), 2.0 * prefactor).squeeze(),
+      'TQ': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'FB': np.full(len_times, prefactor).squeeze(),
+      'FA': np.full(len_times, prefactor).squeeze(),
+      'Q1Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'Q2Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'Q3Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'Q4Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'Q5Q': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'ItQ': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'deltau': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'deltal': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      'kappa': np.full((len_psinorm, len_times), prefactor).squeeze(),
+      # When prefactor != 0 (i.e. intended to generate a standard geometry),
+      # needs to be linspace to avoid drho_norm = 0.
+      'FtPQ': np.array(
+          [np.linspace(0, prefactor, len_psinorm) for _ in range(len_times)]
+      ).squeeze(),
+      'zA': np.zeros(len_times).squeeze(),
+      't': np.zeros(len_times).squeeze(),
   }
-  L = {'pQ': np.zeros(len_psinorm)}
+  L = {'pQ': np.linspace(0, 1, len_psinorm)}
   return L, LY
 
 

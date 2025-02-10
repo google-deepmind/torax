@@ -261,9 +261,9 @@ class StandardGeometryIntermediates:
     return cls(
         geometry_type=geometry.GeometryType.CHEASE,
         Ip_from_parameters=Ip_from_parameters,
-        Rmaj=Rmaj,
-        Rmin=Rmin,
-        B=B0,
+        Rmaj=np.array(Rmaj),
+        Rmin=np.array(Rmin),
+        B=np.array(B0),
         psi=psi,
         Ip_profile=Ip_chease,
         Phi=Phi,
@@ -1008,7 +1008,6 @@ def build_standard_geometry(
 
   return StandardGeometry(
       geometry_type=intermediate.geometry_type.value,
-      drho_norm=np.asarray(drho_norm),
       torax_mesh=mesh,
       Phi=Phi,
       Phi_face=Phi_face,

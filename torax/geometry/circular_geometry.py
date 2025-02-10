@@ -220,7 +220,6 @@ def build_circular_geometry(
   return CircularAnalyticalGeometry(
       # Set the standard geometry params.
       geometry_type=geometry.GeometryType.CIRCULAR.value,
-      drho_norm=np.asarray(drho_norm),
       torax_mesh=mesh,
       Phi=Phi,
       Phi_face=Phi_face,

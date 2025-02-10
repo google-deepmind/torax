@@ -65,19 +65,76 @@ class GeometryTest(parameterized.TestCase):
         foo = jax.jit(geo.z_magnetic_axis)
         _ = foo()
 
-  def test_stack_geometries(self):
-    """Test that geometries can be stacked."""
-    geo_0 = circular_geometry.build_circular_geometry(Rmaj=1, B0=5.3)
-    geo_1 = circular_geometry.build_circular_geometry(Rmaj=2, B0=3.7)
-    stacked_geometries = geometry.stack_geometries([geo_0, geo_1])
-    self.assertNotIn('geometry_type', stacked_geometries.keys())
-    self.assertNotIn('torax_mesh', stacked_geometries.keys())
+  def test_stack_geometries_circular_geometries(self):
+    """Test stack_geometries for circular geometries."""
+    # Create a few different geometries
+    geo0 = circular_geometry.build_circular_geometry(Rmaj=1.0, B0=2.0, n_rho=10)
+    geo1 = circular_geometry.build_circular_geometry(Rmaj=1.5, B0=2.5, n_rho=10)
+    geo2 = circular_geometry.build_circular_geometry(Rmaj=2.0, B0=3.0, n_rho=10)
 
-    for key, value in stacked_geometries.items():
-      self.assertEqual(value.shape, (2,) + getattr(geo_0, key).shape)
+    # Stack them
+    stacked_geo = geometry.stack_geometries([geo0, geo1, geo2])
 
-    np.testing.assert_allclose(stacked_geometries['Rmaj'], np.array([1, 2]))
-    np.testing.assert_allclose(stacked_geometries['B0'], np.array([5.3, 3.7]))
+    # Check that the stacked geometry has the correct type and mesh
+    self.assertEqual(stacked_geo.geometry_type, geo0.geometry_type)
+    self.assertEqual(stacked_geo.torax_mesh, geo0.torax_mesh)
+
+    # Check some specific stacked values
+    np.testing.assert_allclose(stacked_geo.Rmaj, np.array([1.0, 1.5, 2.0]))
+    np.testing.assert_allclose(stacked_geo.B0, np.array([2.0, 2.5, 3.0]))
+    np.testing.assert_allclose(
+        stacked_geo.Phi_face[:, -1],
+        np.array([geo0.Phi_face[-1], geo1.Phi_face[-1], geo2.Phi_face[-1]]),
+    )
+
+    # Check stacking of derived properties
+    np.testing.assert_allclose(
+        stacked_geo.rho_b, np.array([geo0.rho_b, geo1.rho_b, geo2.rho_b])
+    )
+
+    # Check a property that depends on a stacked property (rho depends on rho_b)
+    # Note that rho_norm is the same for all geometries.
+    np.testing.assert_allclose(
+        stacked_geo.rho,
+        np.array([
+            geo0.rho_norm * geo0.rho_b,
+            geo0.rho_norm * geo1.rho_b,
+            geo0.rho_norm * geo2.rho_b,
+        ]),
+    )
+
+    # Check properties with special handling for on-axis values.
+    np.testing.assert_allclose(
+        stacked_geo.g0_over_vpr_face[:, 0], 1 / stacked_geo.rho_b
+    )
+    np.testing.assert_allclose(
+        stacked_geo.g1_over_vpr2_face[:, 0], 1 / stacked_geo.rho_b**2
+    )
+
+  def test_stack_geometries_error_handling_empty_list(self):
+    """Test stacking with an empty list (should raise ValueError)."""
+    with self.assertRaisesRegex(ValueError, 'No geometries provided.'):
+      geometry.stack_geometries([])
+
+  def test_stack_geometries_error_handling_different_mesh_sizes(self):
+    """Test error handling for stack_geometries with different mesh sizes."""
+    geo0 = circular_geometry.build_circular_geometry(Rmaj=1.0, B0=2.0, n_rho=10)
+    geo_diff_mesh = circular_geometry.build_circular_geometry(
+        Rmaj=1.0, B0=2.0, n_rho=20
+    )  # Different n_rho
+    with self.assertRaisesRegex(
+        ValueError, 'All geometries must have the same mesh.'
+    ):
+      geometry.stack_geometries([geo0, geo_diff_mesh])
+
+  def test_stack_geometries_error_handling_different_geometry_types(self):
+    """Test different geometry type error handling for stack_geometries."""
+    geo0 = circular_geometry.build_circular_geometry(Rmaj=1.0, B0=2.0, n_rho=10)
+    geo_diff_geometry_type = dataclasses.replace(geo0, geometry_type=3)
+    with self.assertRaisesRegex(
+        ValueError, 'All geometries must have the same geometry type'
+    ):
+      geometry.stack_geometries([geo0, geo_diff_geometry_type])
 
 
 def _pint_face_to_cell(n_rho, face):

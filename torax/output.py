@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import dataclasses
+import inspect
 
 from absl import logging
 import chex
@@ -109,6 +110,17 @@ SIM_ERROR = "sim_error"
 # Sources.
 CORE_SOURCES = "core_sources"
 
+# Excluded coordinates from geometry since they are at the top DataTree level
+# TODO(b/338033916): consolidate on either rho or rho_cell naming for cell grid
+EXCLUDED_GEOMETRY_NAMES = frozenset({
+    RHO_CELL,
+    RHO_FACE,
+    RHO_CELL_NORM,
+    RHO_FACE_NORM,
+    "rho",
+    "rho_norm",
+})
+
 
 def safe_load_dataset(filepath: str) -> xr.DataTree:
   with open(filepath, "rb") as f:
@@ -199,7 +211,8 @@ class StateHistory:
     post_processed_output = [
         state.post_processed_outputs for state in sim_outputs.sim_history
     ]
-    self.geometry = [state.geometry for state in sim_outputs.sim_history]
+    geometries = [state.geometry for state in sim_outputs.sim_history]
+    self.geometry = geometry_lib.stack_geometries(geometries)
     stack = lambda *ys: jnp.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
@@ -238,6 +251,7 @@ class StateHistory:
         len(self.rho_norm),
     )
     is_scalar = lambda x: x.ndim == 1 and x.shape == (len(self.times),)
+    is_constant = lambda x: x.ndim == 0
 
     match data:
       case data if is_face_var(data):
@@ -246,6 +260,8 @@ class StateHistory:
         dims = [TIME, RHO_CELL]
       case data if is_scalar(data):
         dims = [TIME]
+      case data if is_constant(data):
+        dims = []
       case _:
         logging.warning(
             "Unsupported data shape for %s: %s. Skipping persisting.",
@@ -298,7 +314,10 @@ class StateHistory:
     xr_dict[NREF] = self.core_profiles.nref
 
     xr_dict = {
-        name: self._pack_into_data_array(name, data,)
+        name: self._pack_into_data_array(
+            name,
+            data,
+        )
         for name, data in xr_dict.items()
     }
 
@@ -316,7 +335,10 @@ class StateHistory:
     xr_dict[V_FACE_EL] = self.core_transport.v_face_el
 
     xr_dict = {
-        name: self._pack_into_data_array(name, data,)
+        name: self._pack_into_data_array(
+            name,
+            data,
+        )
         for name, data in xr_dict.items()
     }
 
@@ -358,22 +380,36 @@ class StateHistory:
     for field_name, data in dataclasses.asdict(
         self.post_processed_outputs
     ).items():
-      xr_dict[field_name] = self._pack_into_data_array(field_name, data,)
-
+      xr_dict[field_name] = self._pack_into_data_array(field_name, data)
     return xr_dict
 
   def _save_geometry(
       self,
   ) -> dict[str, xr.DataArray]:
-    """Saves the geometry to a dict. We skip over all hires quantities."""
+    """Save geometry to a dict. We skip over hires and non-array quantities."""
     xr_dict = {}
-    stacked_geometry = geometry_lib.stack_geometries(self.geometry)
-    for field_name, data in stacked_geometry.items():
-      if "hires" in field_name:
+
+    # Get the variables from dataclass fields.
+    for field_name, data in dataclasses.asdict(self.geometry).items():
+      if "hires" in field_name or not isinstance(data, jax.Array):
         continue
-      data_array = self._pack_into_data_array(field_name, data,)
+      data_array = self._pack_into_data_array(
+          field_name,
+          data,
+      )
       if data_array is not None:
         xr_dict[field_name] = data_array
+
+    # Get variables from property methods
+
+    for name, value in inspect.getmembers(type(self.geometry)):
+      if name in EXCLUDED_GEOMETRY_NAMES:
+        continue
+      if isinstance(value, property):
+        property_data = value.fget(self.geometry)
+        data_array = self._pack_into_data_array(name, property_data)
+        if data_array is not None:
+          xr_dict[name] = data_array
 
     return xr_dict
 
@@ -433,7 +469,10 @@ class StateHistory:
     # Update dict with flattened StateHistory dataclass containers
     core_profiles_ds = xr.Dataset(self._get_core_profiles(), coords=coords)
     core_transport_ds = xr.Dataset(self._save_core_transport(), coords=coords)
-    core_sources_ds = xr.Dataset(self._save_core_sources(), coords=coords,)
+    core_sources_ds = xr.Dataset(
+        self._save_core_sources(),
+        coords=coords,
+    )
     post_processed_outputs_ds = xr.Dataset(
         self._save_post_processed_outputs(), coords=coords
     )
