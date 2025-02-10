@@ -282,10 +282,10 @@ def geometry_from_IMAS(
     # Flux surface integrals of various geometry quantities
     # IDS Contour integrals
     if len(IMAS_data.profiles_1d.dvolume_dpsi) > 0:
-        dvoldpsi = -1 * IMAS_data.profiles_1d.dvolume_dpsi
+        dvoldpsi = 1 * IMAS_data.profiles_1d.dvolume_dpsi #Sign changed ddv4
     else:
         dvoldpsi = (
-            -1
+            1
             * np.gradient(IMAS_data.profiles_1d.volume)
             / np.gradient(IMAS_data.profiles_1d.psi)
         )
@@ -317,7 +317,7 @@ def geometry_from_IMAS(
     # spr = vpr / ( 2 * np.pi * Rmaj)
     # -> Ip_profile = integrate(y = spr * jtor, x= rhon, initial = 0.0)
     jtor = -1 * IMAS_data.profiles_1d.j_phi
-    rhon = np.sqrt(Phi / Phi[-1])
+    rhon = IMAS_data.profiles_1d.rho_tor_norm
     vpr = 4 * np.pi * Phi[-1] * rhon / (F * flux_surf_avg_1_over_R2)
     spr = vpr / (2 * np.pi * Rmaj)
     Ip_profile = scipy.integrate.cumulative_trapezoid(y=spr * jtor, x=rhon, initial=0.0)
