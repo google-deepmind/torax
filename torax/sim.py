@@ -51,6 +51,7 @@ from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
+import tqdm
 import xarray as xr
 
 
@@ -508,6 +509,7 @@ def _run_simulation(
     initial_state: state.ToraxSimState,
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
+    progress_bar: bool = True,
 ) -> output.ToraxSimOutputs:
   """Runs the transport simulation over a prescribed time interval.
 
@@ -546,6 +548,7 @@ def _run_simulation(
       ToraxSimState objects.
     log_timestep_info: If True, logs basic timestep info, like time, dt, on
       every step.
+    progress_bar: If True, displays a progress bar.
 
   Returns:
     ToraxSimOutputs, containing information on the sim error state, and the
@@ -588,33 +591,49 @@ def _run_simulation(
   # the appropriate error code.
   sim_error = state.SimError.NO_ERROR
 
-  # Advance the simulation until the time_step_calculator tells us we are done.
-  while step_fn.time_step_calculator.not_done(
-      sim_state.t,
-      dynamic_runtime_params_slice.numerics.t_final,
-      sim_state.time_step_calculator_state,
-  ):
-    # Measure how long in wall clock time each simulation step takes.
-    step_start_time = time.time()
-    if log_timestep_info:
-      _log_timestep(sim_state)
+  with tqdm.tqdm(
+      total=100,  # This makes it so that the progress bar measures a percentage
+      desc='Simulating',
+      disable=not progress_bar,
+      leave=True,
+  ) as pbar:
+    # Advance the simulation until the time_step_calculator tells us we are done
+    while step_fn.time_step_calculator.not_done(
+        sim_state.t,
+        dynamic_runtime_params_slice.numerics.t_final,
+        sim_state.time_step_calculator_state,
+    ):
+      # Measure how long in wall clock time each simulation step takes.
+      step_start_time = time.time()
+      if log_timestep_info:
+        _log_timestep(sim_state)
 
-    sim_state, sim_error = step_fn(
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice_provider,
-        geometry_provider,
-        sim_state,
-    )
-    wall_clock_step_times.append(time.time() - step_start_time)
+      sim_state, sim_error = step_fn(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_provider,
+          geometry_provider,
+          sim_state,
+      )
+      wall_clock_step_times.append(time.time() - step_start_time)
 
-    # Checks if sim_state is valid. If not, exit simulation early.
-    # We don't raise an Exception because we want to return the truncated
-    # simulation history to the user for inspection.
-    if sim_error != state.SimError.NO_ERROR:
-      sim_error.log_error()
-      break
-    else:
-      sim_history.append(sim_state)
+      # Checks if sim_state is valid. If not, exit simulation early.
+      # We don't raise an Exception because we want to return the truncated
+      # simulation history to the user for inspection.
+      if sim_error != state.SimError.NO_ERROR:
+        sim_error.log_error()
+        break
+      else:
+        sim_history.append(sim_state)
+        # Calculate progress ratio and update pbar.n
+        progress_ratio = (
+            float(sim_state.t) - dynamic_runtime_params_slice.numerics.t_initial
+        ) / (
+            dynamic_runtime_params_slice.numerics.t_final
+            - dynamic_runtime_params_slice.numerics.t_initial
+        )
+        pbar.n = int(progress_ratio * pbar.total)
+        pbar.set_description(f'Simulating (t={sim_state.t:.5f})')
+        pbar.refresh()
 
   # Log final timestep
   if log_timestep_info and sim_error == state.SimError.NO_ERROR:
@@ -657,12 +676,10 @@ def _log_timestep(
     sim_state: state.ToraxSimState,
 ) -> None:
   """Logs basic timestep info."""
-  logging.info(
-      '\nSimulation time: %.5f, previous dt: %.6f, previous stepper'
-      ' iterations: %d',
-      sim_state.t,
-      sim_state.dt,
-      sim_state.stepper_numeric_outputs.outer_stepper_iterations,
+  log_str = (
+      f'Simulation time: {sim_state.t:.5f}, previous dt: {sim_state.dt:.6f},'
+      ' previous stepper iterations:'
+      f' {sim_state.stepper_numeric_outputs.outer_stepper_iterations}'
   )
   # TODO(b/330172917): once tol and coarse_tol are configurable in the
   # runtime_params, also log the value of tol and coarse_tol below
@@ -670,8 +687,9 @@ def _log_timestep(
     case 0:
       pass
     case 1:
-      logging.info('Solver did not converge in previous step.')
+      log_str += 'Solver did not converge in previous step.'
     case 2:
-      logging.info(
+      log_str += (
           'Solver converged only within coarse tolerance in previous step.'
       )
+  tqdm.tqdm.write(log_str)
