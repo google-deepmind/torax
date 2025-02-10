@@ -470,6 +470,11 @@ def make_outputs(
       / geo.volume[-1]
   )
 
+  Wpol = physics.calc_Wpol(geo, sim_state.core_profiles.psi)
+  li3 = physics.calc_li3(
+      geo.Rmaj, Wpol, sim_state.core_profiles.currents.Ip_profile_face[-1]
+  )
+
   # pylint: enable=invalid-name
   updated_post_processed_outputs = dataclasses.replace(
       sim_state.post_processed_outputs,
@@ -500,6 +505,8 @@ def make_outputs(
       ne_volume_avg=ne_volume_avg,
       ni_volume_avg=ni_volume_avg,
       q95=q95,
+      Wpol=Wpol,
+      li3=li3,
   )
   # pylint: enable=invalid-name
   return dataclasses.replace(

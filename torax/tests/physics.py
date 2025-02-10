@@ -22,6 +22,7 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax import constants
 from torax import core_profile_setters
 from torax import physics
 from torax import state
@@ -558,6 +559,58 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     np.testing.assert_allclose(H98, expected_H98)
     np.testing.assert_allclose(H97L, expected_H97L)
     np.testing.assert_allclose(H20, expected_H20)
+
+  # pylint: disable=invalid-name
+  def test_calc_Wpol(self):
+    """Compare `calc_Wpol` to an analytical formula in circular geometry."""
+
+    # Small inverse aspect ratio limit of circular geometry, such that we
+    # approximate the simplest form of circular geometry where the analytical
+    # Bpol formula is applicable.
+    geo = circular_geometry.build_circular_geometry(
+        n_rho=25,
+        elongation_LCFS=1.0,
+        Rmaj=100.0,
+        Rmin=1.0,
+        B0=5.0,
+    )
+    Ip_tot = 15
+    # calculate high resolution jtot consistent with total current profile
+    jtot_profile = (1 - geo.rho_hires_norm**2) ** 2
+    denom = _trapz(jtot_profile * geo.spr_hires, geo.rho_hires_norm)
+    Ctot = Ip_tot * 1e6 / denom
+    jtot = jtot_profile * Ctot
+    # pylint: disable=protected-access
+    psi_cell_variable = core_profile_setters._update_psi_from_j(
+        Ip_tot,
+        geo,
+        jtot,
+    )
+    _, _, Ip_profile_face = physics.calc_jtot_from_psi(
+        geo,
+        psi_cell_variable,
+    )
+
+    # Analytical formula for Bpol in circular geometry (Ampere's law)
+    Bpol_bulk = (
+        constants.CONSTANTS.mu0
+        * Ip_profile_face[1:]
+        / (2 * np.pi * geo.rho_face[1:])
+    )
+    Bpol = np.concatenate([np.array([0.0]), Bpol_bulk])
+
+    expected_Wpol = _trapz(Bpol**2 * geo.vpr_face, geo.rho_face_norm) / (
+        2 * constants.CONSTANTS.mu0
+    )
+
+    calculated_Wpol = physics.calc_Wpol(geo, psi_cell_variable)
+
+    # Relatively low tolerence because the analytical formula is not exact for
+    # our circular geometry, but approximates it at low inverse aspect ratio.
+    np.testing.assert_allclose(calculated_Wpol, expected_Wpol, rtol=1e-3)
+
+  # pylint: enable=invalid-name
+  # pylint: enable=protected-access
 
 
 if __name__ == '__main__':

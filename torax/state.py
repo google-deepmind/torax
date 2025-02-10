@@ -328,6 +328,8 @@ class PostProcessedOutputs:
     ne_volume_avg: Volume average electron density [nref m^-3]
     ni_volume_avg: Volume average main ion density [nref m^-3]
     q95: q at 95% of the normalized poloidal flux
+    Wpol: Total magnetic energy [J]
+    li3: Normalized plasma internal inductance, ITER convention [dimensionless]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -384,6 +386,8 @@ class PostProcessedOutputs:
   ne_volume_avg: array_typing.ScalarFloat
   ni_volume_avg: array_typing.ScalarFloat
   q95: array_typing.ScalarFloat
+  Wpol: array_typing.ScalarFloat
+  li3: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -440,6 +444,8 @@ class PostProcessedOutputs:
         ne_volume_avg=jnp.array(0.0),
         ni_volume_avg=jnp.array(0.0),
         q95=jnp.array(0.0),
+        Wpol=jnp.array(0.0),
+        li3=jnp.array(0.0),
     )
 
 

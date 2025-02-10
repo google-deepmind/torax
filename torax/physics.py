@@ -44,7 +44,7 @@ def get_main_ion_dilution_factor(
     Zeff: array_typing.ArrayFloat,
 ) -> jax.Array:
   """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
-  return (Zimp - Zeff) / (Zi*(Zimp - Zi))
+  return (Zimp - Zeff) / (Zi * (Zimp - Zi))
 
 
 @jax_utils.jit
@@ -329,6 +329,73 @@ def calc_s_from_psi_rmid(
   s_face = -rmid_face * jnp.gradient(iota_scaled, rmid_face) / iota_scaled
 
   return s_face
+
+
+def _calc_bpol2(
+    geo: geometry.Geometry, psi: cell_variable.CellVariable
+) -> jax.Array:
+  r"""Calculates square of poloidal field (Bp) from poloidal flux (psi).
+
+  An identity for the poloidal magnetic field is:
+  B_p = 1/R \partial \psi / \partial \rho (\nabla \rho \times e_phi)
+
+  Where e_phi is the unit vector pointing in the toroidal direction.
+
+  Args:
+    geo: Torus geometry.
+    psi: Poloidal flux.
+
+  Returns:
+    bpol2_face: Square of poloidal magnetic field, on the face grid.
+  """
+  bpol2_bulk = (
+      (psi.face_grad()[1:] / (2 * jnp.pi)) ** 2
+      * geo.g2_face[1:]
+      / geo.vpr_face[1:] ** 2
+  )
+  bpol2_axis = jnp.array([0.0])
+  bpol2_face = jnp.concatenate([bpol2_axis, bpol2_bulk])
+  return bpol2_face
+
+
+def calc_Wpol(
+    geo: geometry.Geometry, psi: cell_variable.CellVariable
+) -> jax.Array:
+  """Calculates total magnetic energy (Wpol) from poloidal flux (psi)."""
+  bpol2 = _calc_bpol2(geo, psi)
+  Wpol = _trapz(bpol2 * geo.vpr_face, geo.rho_face_norm) / (
+      2 * constants.CONSTANTS.mu0
+  )
+  return Wpol
+
+
+def calc_li3(
+    Rmaj: jax.Array,
+    Wpol: jax.Array,
+    Ip_total: jax.Array,
+) -> jax.Array:
+  """Calculates li3 based on a formulation using Wpol.
+
+  Normalized internal inductance is defined as:
+  li = <Bpol^2>_V / <Bpol^2>_LCFS where <>_V is a volume average and <>_LCFS is
+  the average at the last closed flux surface.
+
+  We use the ITER convention for normalized internal inductance defined as:
+  li3 = 2*V*<Bpol^2>_V / (mu0^2 Ip^2*Rmaj) = 4 * Wpol / (mu0 Ip^2*Rmaj)
+
+  Ip (total plasma current) enters through the integral form of Ampere's law.
+  Since Wpol also corresponds to a volume integral of the poloidal field, we
+  can define li3 with respect to Wpol.
+
+  Args:
+    Rmaj: Major radius.
+    Wpol: Total magnetic energy.
+    Ip_total: Total plasma current.
+
+  Returns:
+    li3: Normalized internal inductance, ITER convention.
+  """
+  return 4 * Wpol / (constants.CONSTANTS.mu0 * Ip_total**2 * Rmaj)
 
 
 def calc_nu_star(
