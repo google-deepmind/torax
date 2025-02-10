@@ -14,6 +14,8 @@
 
 """Pydantic utilities and base classes."""
 
+from torax.torax_pydantic import interpolated_param_1d
+from torax.torax_pydantic import interpolated_param_2d
 from torax.torax_pydantic import model_base
 
 
@@ -22,3 +24,6 @@ NumpyArray1D = model_base.NumpyArray1D
 
 BaseModelMutable = model_base.BaseModelMutable
 BaseModelFrozen = model_base.BaseModelFrozen
+
+TimeVaryingScalar = interpolated_param_1d.TimeVaryingScalar
+TimeVaryingArray = interpolated_param_2d.TimeVaryingArray
