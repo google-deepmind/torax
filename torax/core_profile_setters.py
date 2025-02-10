@@ -514,7 +514,7 @@ def _calculate_currents_from_psi(
 
 
 def _update_psi_from_j(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    Ip_tot: array_typing.ScalarFloat,
     geo: geometry.Geometry,
     jtot_hires: jax.Array,
 ) -> cell_variable.CellVariable:
@@ -524,15 +524,15 @@ def _update_psi_from_j(
     integration.
 
   Args:
-    dynamic_runtime_params_slice: Dynamic runtime parameters.
+    Ip_tot: Total plasma current [MA].
     geo: Torus geometry.
-    jtot_hires: High resolution version of jtot.
+    jtot_hires: High resolution version of jtot [A/m^2].
 
   Returns:
     psi: Poloidal flux cell variable.
   """
   psi_grad_constraint = _calculate_psi_grad_constraint(
-      dynamic_runtime_params_slice,
+      Ip_tot,
       geo,
   )
 
@@ -567,12 +567,12 @@ def _update_psi_from_j(
 
 
 def _calculate_psi_grad_constraint(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    Ip_tot: array_typing.ScalarFloat,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates the constraint on the poloidal flux (psi)."""
   return (
-      dynamic_runtime_params_slice.profile_conditions.Ip_tot
+      Ip_tot
       * 1e6
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
@@ -611,7 +611,7 @@ def _init_psi_and_current(
     psi = cell_variable.CellVariable(
         value=dynamic_runtime_params_slice.profile_conditions.psi,
         right_face_grad_constraint=_calculate_psi_grad_constraint(
-            dynamic_runtime_params_slice,
+            dynamic_runtime_params_slice.profile_conditions.Ip_tot,
             geo,
         ),
         dr=geo.drho_norm,
@@ -635,7 +635,7 @@ def _init_psi_and_current(
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
         right_face_grad_constraint=_calculate_psi_grad_constraint(
-            dynamic_runtime_params_slice,
+            dynamic_runtime_params_slice.profile_conditions.Ip_tot,
             geo,
         ),
         dr=geo.drho_norm,
@@ -661,7 +661,7 @@ def _init_psi_and_current(
         source_models=source_models,
     )
     psi = _update_psi_from_j(
-        dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
         geo,
         currents.jtot_hires,
     )
@@ -676,7 +676,7 @@ def _init_psi_and_current(
         source_models=source_models,
     )
     psi = _update_psi_from_j(
-        dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
         geo,
         currents.jtot_hires,
     )
@@ -1007,7 +1007,7 @@ def compute_boundary_conditions(
       ),
       'psi': dict(
           right_face_grad_constraint=_calculate_psi_grad_constraint(
-              dynamic_runtime_params_slice,
+              dynamic_runtime_params_slice.profile_conditions.Ip_tot,
               geo,
           ),
       ),

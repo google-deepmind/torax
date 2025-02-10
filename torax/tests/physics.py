@@ -145,7 +145,9 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
           core_profiles=initial_core_profiles,
       )
       psi = core_profile_setters._update_psi_from_j(
-          dynamic_runtime_params_slice, geo, currents.jtot_hires
+          dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+          geo,
+          currents.jtot_hires,
       ).value
     elif isinstance(geo, standard_geometry.StandardGeometry):
       psi = geo.psi_from_Ip
@@ -311,6 +313,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     np.testing.assert_allclose(
         physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff), expected
     )
+
   # pylint: enable=invalid-name
 
   def test_calculate_plh_scaling_factor(self):
