@@ -14,15 +14,14 @@
 
 """Useful functions for handling of IMAS IDSs and converts them into TORAX
 objects"""
-from typing import Dict, Any
-import os
 import datetime
 import importlib
+import os
+from typing import Any, Dict
 
 import numpy as np
-import yaml
 import scipy
-
+import yaml
 
 try:
     import imaspy
@@ -31,7 +30,6 @@ except ImportError:
     IDSToplevel = Any
 
 from torax.geometry import geometry_loader
-from torax.geometry.geometry import Geometry
 from torax.state import ToraxSimState
 
 
@@ -44,9 +42,7 @@ def requires_module(module_name: str):
 
     def decorator(func):
         def wrapper(*args, **kwargs):
-            try:
-                importlib.import_module(module_name)
-            except ImportError:
+            if importlib.util.find_spec(module_name) is None:
                 raise ImportError(
                     f"Required module '{module_name}' is not installed. "
                     "Make sure you install the needed optional dependencies."
@@ -168,7 +164,7 @@ def write_ids_equilibrium_into_config(
 
 @requires_module("imaspy")
 def core_profiles_to_IMAS(
-    ids: IDSToplevel, state: ToraxSimState, geometry: Geometry
+    ids: IDSToplevel, state: ToraxSimState, geometry
 ) -> IDSToplevel:
     """Converts torax core_profiles to IMAS IDS.
     Takes the cell grid as a basis and converts values on face grid to cell.
