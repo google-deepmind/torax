@@ -60,6 +60,11 @@ dev = [
     "sphinx_design",
     "sphinx_remove_toctrees",
 ]
+# Installed through `pip install -e .[tutorial]`
+tutorial = [
+    "seaborn",
+    "notebook",
+]
 
 [tool.pyink]
 # Formatting configuration to follow Google style-guide
