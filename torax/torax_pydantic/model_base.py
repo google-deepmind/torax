@@ -70,7 +70,7 @@ NumpyArray1D = Annotated[
 ]
 
 
-class Base(pydantic.BaseModel):
+class BaseModelMutable(pydantic.BaseModel):
   """Base config class. Any custom config classes should inherit from this.
 
   See https://docs.pydantic.dev/latest/ for documentation on pydantic.
@@ -122,7 +122,7 @@ class Base(pydantic.BaseModel):
     return self.model_dump()
 
 
-class BaseFrozen(Base, frozen=True):
+class BaseModelFrozen(BaseModelMutable, frozen=True):
   """Base config with frozen fields.
 
   See https://docs.pydantic.dev/latest/ for documentation on pydantic.

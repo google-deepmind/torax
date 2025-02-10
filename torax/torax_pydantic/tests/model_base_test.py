@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the `torax.config.pydantic_base` module."""
+"""Unit tests for the `torax.torax_pydantic.model_base` module."""
 
 import functools
 from absl.testing import absltest
@@ -20,7 +20,7 @@ from absl.testing import parameterized
 import jax
 import numpy as np
 import pydantic
-from torax.config import pydantic_base
+from torax.torax_pydantic import model_base
 
 
 class PydanticBaseTest(parameterized.TestCase):
@@ -29,9 +29,9 @@ class PydanticBaseTest(parameterized.TestCase):
     """Tests that interpolated vars are only constructed once."""
 
     class TestModel(pydantic.BaseModel):
-      x: pydantic_base.NumpyArray
-      y: pydantic_base.NumpyArray
-      z: tuple[pydantic_base.NumpyArray1D, float]
+      x: model_base.NumpyArray
+      y: model_base.NumpyArray
+      z: tuple[model_base.NumpyArray1D, float]
 
       model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 
@@ -62,7 +62,7 @@ class PydanticBaseTest(parameterized.TestCase):
 
   def test_1d_array(self):
     array = pydantic.TypeAdapter(
-        pydantic_base.NumpyArray1D,
+        model_base.NumpyArray1D,
         config=pydantic.ConfigDict(arbitrary_types_allowed=True),
     )
 
@@ -70,9 +70,9 @@ class PydanticBaseTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       array.validate_python(np.array([[1.0, 2.0], [3.0, 4.0]]))
 
-  def test_pydantic_base_frozen(self):
+  def test_model_base_frozen(self):
 
-    class TestModel(pydantic_base.BaseFrozen):
+    class TestModel(model_base.BaseModelFrozen):
       x: float
       y: float
 
@@ -82,9 +82,9 @@ class PydanticBaseTest(parameterized.TestCase):
       with self.assertRaises(ValueError):
         m.x = 2.0
 
-  def test_pydantic_base(self):
+  def test_model_base(self):
 
-    class Test(pydantic_base.Base, validate_assignment=True):
+    class Test(model_base.BaseModelMutable, validate_assignment=True):
       name: str
 
       @functools.cached_property
@@ -107,17 +107,17 @@ class PydanticBaseTest(parameterized.TestCase):
       self.assertEqual(m.computed, 'new_test_string_test')
 
   @parameterized.parameters(True, False)
-  def test_pydantic_base_map_pytree(self, frozen: bool):
+  def test_model_base_map_pytree(self, frozen: bool):
 
     if frozen:
 
-      class TestModel(pydantic_base.BaseFrozen):
+      class TestModel(model_base.BaseModelFrozen):
         x: float
         y: float
 
     else:
 
-      class TestModel(pydantic_base.Base):
+      class TestModel(model_base.BaseModelMutable):
         x: float
         y: float
 
