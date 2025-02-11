@@ -33,6 +33,7 @@ from torax.geometry import standard_geometry
 from torax.sources import generic_current_source
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles
 from torax.tests.test_lib import torax_refs
 
 
@@ -138,12 +139,15 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
 
     # pylint: disable=protected-access
     if isinstance(geo, circular_geometry.CircularAnalyticalGeometry):
-      currents = core_profile_setters._prescribe_currents_no_bootstrap(
-          static_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          source_models=source_models,
-          core_profiles=initial_core_profiles,
+      bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
+      external_current = source_models.external_current_source(
+          geo, initial_core_profiles, dynamic_runtime_params_slice, static_slice
+      )
+      currents = core_profile_setters._prescribe_currents(
+          bootstrap_profile=bootstrap,
+          external_current=external_current,
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          geo=geo,
       )
       psi = core_profile_setters._update_psi_from_j(
           dynamic_runtime_params_slice.profile_conditions.Ip_tot,
@@ -155,7 +159,6 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     else:
       raise ValueError(f'Unknown geometry type: {geo.geometry_type}')
     # pylint: enable=protected-access
-    print(psi)
 
     np.testing.assert_allclose(psi, references.psi.value)
 

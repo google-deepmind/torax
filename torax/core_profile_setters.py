@@ -282,132 +282,19 @@ def get_ion_density_and_charge_states(
   return ni, nimp, Zi, Zi_face, Zimp, Zimp_face
 
 
-def _prescribe_currents_no_bootstrap(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+def _prescribe_currents(
+    bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
+    external_current: jax.Array,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
-  """Creates the initial Currents without the bootstrap current.
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: General runtime parameters at t_initial.
-    geo: Geometry of the tokamak.
-    core_profiles: Core profiles.
-    source_models: All TORAX source/sink functions.
-
-  Returns:
-    currents: Initial Currents
-  """
-  # Many variables throughout this function are capitalized based on physics
-  # notational conventions rather than on Google Python style
-
-  # Calculate splitting of currents depending on input runtime params.
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
-
-  # Set zero bootstrap current
-  bootstrap_profile = source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-      geo
-  )
-
-  # calculate "External" current profile (e.g. ECCD)
-  external_current = source_models.external_current_source(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-  Iext = (
-      math_utils.cell_integration(external_current * geo.spr, geo) / 10**6
-  )
-  # Total Ohmic current.
-  Iohm = Ip - Iext
-
-  # construct prescribed current formula on grid.
-  jformula = (
-      1 - geo.rho_norm**2
-  ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  # calculate total and Ohmic current profiles
-  denom = _trapz(jformula * geo.spr, geo.rho_norm)
-  if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
-    Ctot = Ip * 1e6 / denom
-    jtot = jformula * Ctot
-    johm = jtot - external_current
-  else:
-    Cohm = Iohm * 1e6 / denom
-    johm = jformula * Cohm
-    jtot = johm + external_current
-
-  jtot_hires = _get_jtot_hires(
-      dynamic_runtime_params_slice,
-      geo,
-      bootstrap_profile,
-      Iohm,
-      external_current=external_current,
-  )
-
-  currents = state.Currents(
-      jtot=jtot,
-      jtot_face=math_utils.cell_to_face(
-          jtot,
-          geo,
-          preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
-      ),
-      jtot_hires=jtot_hires,
-      johm=johm,
-      external_current_source=external_current,
-      j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
-      I_bootstrap=bootstrap_profile.I_bootstrap,
-      Ip_profile_face=jnp.zeros(geo.rho_face.shape),  # psi not yet calculated
-      sigma=bootstrap_profile.sigma,
-  )
-
-  return currents
-
-
-def _prescribe_currents_with_bootstrap(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-) -> state.Currents:
-  """Creates the initial Currents.
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: General runtime parameters at t_initial.
-    geo: Geometry of the tokamak.
-    core_profiles: Core profiles.
-    source_models: All TORAX source/sink functions. If not provided, uses the
-      default sources.
-
-  Returns:
-    currents: Plasma currents
-  """
+  """Creates the initial Currents from a given bootstrap profile."""
 
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
-
-  bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
-  # calculate "External" current profile (e.g. ECCD)
-  external_current = source_models.external_current_source(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
   Iext = (
       math_utils.cell_integration(external_current * geo.spr, geo) / 10**6
   )
@@ -653,12 +540,21 @@ def _init_psi_and_current(
       isinstance(geo, circular_geometry.CircularAnalyticalGeometry)
       or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
-    currents = _prescribe_currents_no_bootstrap(
+    # First calculate currents without bootstrap.
+    bootstrap = source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+        geo
+    )
+    external_current = source_models.external_current_source(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
-        source_models=source_models,
+    )
+    currents = _prescribe_currents(
+        bootstrap_profile=bootstrap,
+        external_current=external_current,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
     )
     psi = _update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip_tot,
@@ -668,12 +564,18 @@ def _init_psi_and_current(
     core_profiles = dataclasses.replace(
         core_profiles, currents=currents, psi=psi
     )
-    currents = _prescribe_currents_with_bootstrap(
+    # Now calculate currents with bootstrap.
+    bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
-        source_models=source_models,
+    )
+    currents = _prescribe_currents(
+        bootstrap_profile=bootstrap_profile,
+        external_current=external_current,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
     )
     psi = _update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip_tot,
