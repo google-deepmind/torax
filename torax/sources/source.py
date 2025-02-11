@@ -61,6 +61,8 @@ class SourceProfileFunction(Protocol):
       source_models: Optional['source_models.SourceModels'],
   ) -> chex.Array:
     ...
+
+
 # pytype: enable=name-error
 
 
@@ -106,6 +108,7 @@ class Source(abc.ABC):
     affected_core_profiles_ints: Derived property from the
       affected_core_profiles. Integer values of those enums.
   """
+
   SOURCE_NAME: ClassVar[str] = 'source'
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'default'
   model_func: SourceProfileFunction | None = None
@@ -156,9 +159,12 @@ class Source(abc.ABC):
       calculated_source_profiles: The source profiles which have already been
         calculated for this time step if they exist. This is used to avoid
         recalculating profiles that are used as inputs to other sources. These
-        profiles will only exist if the source is implicit and then also
-        depend on the source type as to which profiles are calculated. See
-        source_profile_builders.py for more details.
+        profiles will only exist for Source instances that are implicit. i.e.
+        explicit sources cannot depend on other calculated source profiles. In
+        addition, different source types will have different availability of
+        specific calculated_source_profiles since the calculation order matters.
+        See source_profile_builders.py for more details.
+
     Returns:
       An array of shape (num affected core profiles, cell grid length)
       containing the source profile for each affected core profile.
