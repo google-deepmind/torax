@@ -329,13 +329,14 @@ def _calculate_q95(
 
   return q95
 
+
 @jax_utils.jit
-def _calculate_ne_greenwald_fraction(
-  ne_volume_avg: array_typing.ScalarFloat,
-  core_profiles: state.CoreProfiles,
-  geo: geometry.Geometry,
+def _calculate_greenwald_fraction_from_ne_vol_avg(
+    ne_volume_avg: array_typing.ScalarFloat,
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
 ):
-  """Calculates the electron density Greenwald fraction.
+  """Calculates the Greenwald fraction from the volume-average electron density.
 
   Args:
     ne_volume_avg: Volume-averaged electron density [nref m^-3]
@@ -344,15 +345,17 @@ def _calculate_ne_greenwald_fraction(
     geo: Geometry object
 
   Returns:
-    greenwald_fraction:  Electron density Greenwald fraction
+    fgw_ne_vol_avg: Volume-averaged electron density Greenwald fraction
   """
   # Calculate greenwald density fraction
   # gw_limit is in units of 10^20 m^-3 when Ip is in MA and rmid is in m.
-  gw_limit = core_profiles.currents.Ip_profile_face[-1]*1e-6 / (
-      jnp.pi * geo.rmid[-1]**2
+  gw_limit = (
+      core_profiles.currents.Ip_profile_face[-1]
+      * 1e-6
+      / (jnp.pi * geo.rmid[-1] ** 2)
   )
-  ne_greenwald_fraction = ne_volume_avg * core_profiles.nref / (gw_limit * 1e20)
-  return ne_greenwald_fraction
+  fgw_ne_vol_avg = ne_volume_avg * core_profiles.nref / (gw_limit * 1e20)
+  return fgw_ne_vol_avg
 
 
 def make_outputs(
@@ -502,7 +505,7 @@ def make_outputs(
   )
 
   # Calculate Greenwald density fraction
-  ne_greenwald_fraction = _calculate_ne_greenwald_fraction(
+  fgw_ne_volume_avg = _calculate_greenwald_fraction_from_ne_vol_avg(
       ne_volume_avg, sim_state.core_profiles, geo
   )
 
@@ -534,7 +537,7 @@ def make_outputs(
       ti_volume_avg=ti_volume_avg,
       ne_volume_avg=ne_volume_avg,
       ni_volume_avg=ni_volume_avg,
-      ne_greenwald_fraction=ne_greenwald_fraction,
+      fgw_ne_volume_avg=fgw_ne_volume_avg,
       q95=q95,
   )
   # pylint: enable=invalid-name
