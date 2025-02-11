@@ -37,6 +37,7 @@ from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
+from torax.sources import source_profiles
 from torax.sources.tests import test_lib
 from torax.stepper import linear_theta_method
 from torax.tests.test_lib import default_sources
@@ -103,29 +104,32 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
         geo: geometry.Geometry,
         unused_source_name: str,
-        unused_state: state_lib.CoreProfiles | None,
+        unused_state: state_lib.CoreProfiles,
+        unused_calculated_source_profiles: source_profiles.SourceProfiles,
         unused_source_models: ...,
     ):
       # Combine the outputs.
       # pylint: disable=protected-access
+      kwargs = dict(
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          static_runtime_params_slice=static_runtime_params_slice,
+          geo=geo,
+          unused_state=unused_state,
+          unused_calculated_source_profiles=unused_calculated_source_profiles,
+          unused_source_models=unused_source_models,
+      )
       return (
           electron_density_sources.calc_puff_source(
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              static_runtime_params_slice=static_runtime_params_slice,
-              geo=geo,
               source_name=electron_density_sources.GasPuffSource.SOURCE_NAME,
+              **kwargs
           )
           + electron_density_sources.calc_generic_particle_source(
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              static_runtime_params_slice=static_runtime_params_slice,
-              geo=geo,
               source_name=electron_density_sources.GenericParticleSource.SOURCE_NAME,
+              **kwargs
           )
           + electron_density_sources.calc_pellet_source(
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-              static_runtime_params_slice=static_runtime_params_slice,
-              geo=geo,
               source_name=electron_density_sources.PelletSource.SOURCE_NAME,
+              **kwargs
           )
       )
       # pylint: enable=protected-access

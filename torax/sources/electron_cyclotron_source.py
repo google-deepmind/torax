@@ -32,6 +32,7 @@ from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
+from torax.sources import source_profiles
 
 InterpolatedVarTimeRhoInput = (
     runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
@@ -109,6 +110,7 @@ def calc_heating_and_current(
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Model function for the electron-cyclotron source.
@@ -122,7 +124,8 @@ def calc_heating_and_current(
     geo: Magnetic geometry.
     source_name: Name of the source.
     core_profiles: CoreProfiles component of the state.
-    unused_model_func: (unused) source models used in the simulation.
+    unused_calculated_source_profiles: Unused.
+    unused_source_models: Unused.
 
   Returns:
     2D array of electron cyclotron heating power density and current density.

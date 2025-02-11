@@ -30,6 +30,7 @@ from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
+from torax.sources import source_profiles
 
 
 # pylint: disable=invalid-name
@@ -81,7 +82,8 @@ def calc_puff_source(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    unused_state: state.CoreProfiles | None = None,
+    unused_state: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from puffs."""
@@ -177,7 +179,8 @@ def calc_generic_particle_source(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    unused_state: state.CoreProfiles | None = None,
+    unused_state: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from SBI."""
@@ -266,7 +269,8 @@ def calc_pellet_source(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    unused_state: state.CoreProfiles | None = None,
+    unused_state: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Calculates external source term for n from pellets."""

@@ -34,6 +34,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_operations
+from torax.sources import source_profiles
 
 
 @functools.partial(
@@ -167,12 +168,12 @@ def ohmic_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    source_name: str,
+    unused_source_name: str,
     core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     source_models: source_models_lib.SourceModels,
 ) -> jax.Array:
   """Returns the Ohmic source for electron heat equation."""
-  del source_name  # Unused.
   if source_models is None:
     raise TypeError('source_models is a required argument for ohmic_model_func')
 

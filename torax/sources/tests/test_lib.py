@@ -166,6 +166,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     chex.assert_rank(value, 1)
     self.assertEqual(value.shape, geo.rho.shape)
@@ -212,6 +213,7 @@ class IonElSourceTestCase(SourceTestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     chex.assert_rank(ion_and_el, 2)
     self.assertEqual(ion_and_el.shape, (2, geo.torax_mesh.nx))

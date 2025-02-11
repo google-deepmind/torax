@@ -41,6 +41,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import source_profiles
 
 
 # pytype bug: 'source_models.SourceModels' not treated as forward reference
@@ -56,6 +57,7 @@ class SourceProfileFunction(Protocol):
       geo: geometry.Geometry,
       source_name: str,
       core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
       source_models: Optional['source_models.SourceModels'],
   ) -> chex.Array:
     ...
@@ -136,6 +138,7 @@ class Source(abc.ABC):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
   ) -> chex.Array:
     """Returns the cell grid profile for this source during one time step.
 
@@ -150,7 +153,12 @@ class Source(abc.ABC):
         sources get the core profiles at the start of the time step, implicit
         sources get the "live" profiles that is updated through the course of
         the time step as the solver converges.
-
+      calculated_source_profiles: The source profiles which have already been
+        calculated for this time step if they exist. This is used to avoid
+        recalculating profiles that are used as inputs to other sources. These
+        profiles will only exist if the source is implicit and then also
+        depend on the source type as to which profiles are calculated. See
+        source_profile_builders.py for more details.
     Returns:
       An array of shape (num affected core profiles, cell grid length)
       containing the source profile for each affected core profile.
@@ -167,6 +175,7 @@ class Source(abc.ABC):
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=calculated_source_profiles,
         model_func=self.model_func,
         prescribed_values=dynamic_source_runtime_params.prescribed_values,
         output_shape=output_shape,
@@ -239,6 +248,7 @@ def _get_source_profiles(
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
+    calculated_source_profiles: source_profiles.SourceProfiles | None,
     model_func: SourceProfileFunction | None,
     prescribed_values: chex.Array,
     output_shape: tuple[int, ...],
@@ -259,6 +269,9 @@ def _get_source_profiles(
     source_name: The name of the source.
     core_profiles: Core plasma profiles. Used as input to the source profile
       functions.
+    calculated_source_profiles: The source profiles which have already been
+      calculated for this time step. This is used to avoid recalculating
+      profiles that are used as inputs to other sources.`
     model_func: Model function.
     prescribed_values: Array of values for this timeslice, interpolated onto the
       grid (ie with shape output_shape)
@@ -282,6 +295,7 @@ def _get_source_profiles(
           geo,
           source_name,
           core_profiles,
+          calculated_source_profiles,
           source_models,
       )
     case runtime_params_lib.Mode.PRESCRIBED.value:

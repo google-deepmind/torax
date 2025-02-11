@@ -127,6 +127,7 @@ class ImpurityRadiationConstantFractionTest(test_lib.SourceTestCase):
             dynamic_runtime_params_slice=dynamic_runtime_params_slice,
             geo=geo,
             core_profiles=core_profiles,
+            calculated_source_profiles=None,
         )
     )
 

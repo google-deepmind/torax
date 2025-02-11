@@ -189,6 +189,7 @@ class SourceTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     np.testing.assert_allclose(
         profile,
@@ -214,7 +215,8 @@ class SourceTest(parameterized.TestCase):
   def test_correct_mode_called(self, mode, expected_profile):
     source_builder = source_lib.make_source_builder(
         test_lib.TestSource,
-        model_func=lambda _0, _1, _2, _3, _4, _5: jnp.full(geo.rho.shape, 2),
+        model_func=lambda _0, _1, _2, _3, _4, _5, _6: jnp.full(
+            geo.rho.shape, 2),
     )()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'foo': source_builder},
@@ -254,6 +256,7 @@ class SourceTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     np.testing.assert_allclose(
         profile,
@@ -306,6 +309,7 @@ class SourceTest(parameterized.TestCase):
             static_runtime_params_slice=static_slice,
             geo=geo,
             core_profiles=core_profiles,
+            calculated_source_profiles=None,
         )
     with self.subTest('prescribed'):
       static_slice = runtime_params_slice.build_static_runtime_params_slice(
@@ -323,6 +327,7 @@ class SourceTest(parameterized.TestCase):
           static_runtime_params_slice=static_slice,
           geo=geo,
           core_profiles=core_profiles,
+          calculated_source_profiles=None,
       )
       np.testing.assert_allclose(
           profile,
@@ -335,7 +340,7 @@ class SourceTest(parameterized.TestCase):
     expected_output = jnp.ones_like(geo.rho)
     source_builder = source_lib.make_source_builder(
         IonElTestSource,
-        model_func=lambda _0, _1, _2, _3, _4, _5: expected_output,
+        model_func=lambda _0, _1, _2, _3, _4, _5, _6: expected_output,
     )()
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -369,6 +374,7 @@ class SourceTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     np.testing.assert_allclose(profile, expected_output)
 
@@ -415,6 +421,7 @@ class SourceTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     np.testing.assert_allclose(profile, expected_output)
 

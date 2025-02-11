@@ -28,6 +28,7 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles as source_profiles_lib
 
 MODEL_FUNCTION_NAME = "radially_constant_fraction_of_Pin"
 
@@ -38,6 +39,7 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
+    calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
     source_models: source_models_lib.SourceModels,
 ) -> jax.Array:
   """Model function for radiation heat sink from impurities.
@@ -51,6 +53,8 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     geo: Geometry object.
     source_name: Name of the source.
     core_profiles: Core profiles object.
+    calculated_source_profiles: Source profiles which have already been
+      calculated and can be used to avoid recomputing them.
     source_models: Source models object.
 
   Returns:
@@ -73,6 +77,7 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=calculated_source_profiles,
     )
     return source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.TEMP_EL.value, geo

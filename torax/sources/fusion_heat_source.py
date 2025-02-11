@@ -28,6 +28,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_profiles
 
 
 def calc_fusion(
@@ -144,13 +145,13 @@ def fusion_heat_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    source_name: str,
+    unused_source_name: str,
     core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Model function for fusion heating."""
   # pytype: enable=name-error
-  del source_name
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
       geo,

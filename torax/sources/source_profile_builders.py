@@ -205,10 +205,11 @@ def build_standard_source_profiles(
           == static_source_runtime_params.is_explicit | calculate_anyway
       ):
         value = source.get_value(
-            static_runtime_params_slice,
-            dynamic_runtime_params_slice,
-            geo,
-            core_profiles,
+            static_runtime_params_slice=static_runtime_params_slice,
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+            geo=geo,
+            core_profiles=core_profiles,
+            calculated_source_profiles=None,
         )
         if len(source.affected_core_profiles) == 1:
           computed_source_profiles[source.affected_core_profiles[0]][

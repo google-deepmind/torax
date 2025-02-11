@@ -31,6 +31,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles
 
 MODEL_FUNCTION_NAME = 'impurity_radiation_mavrin_fit'
 
@@ -190,6 +191,7 @@ def impurity_radiation_mavrin_fit(
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models_lib.SourceModels | None = None,
 ) -> jax.Array:
   """Model function for impurity radiation heat sink."""
