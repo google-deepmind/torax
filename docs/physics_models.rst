@@ -212,7 +212,7 @@ TORAX currently offers three transport models:
 
     :math:`c_2 = 0.3`
 
-    :math:`c_v = 0.1`
+    :math:`c_v = -0.1`
 
     Please note that the Bohm-GyroBohm model TORAX implementation is presently
     experimental and subject to ongoing verification against established simulations.

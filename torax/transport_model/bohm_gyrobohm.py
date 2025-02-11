@@ -53,8 +53,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   d_face_c1: runtime_params_lib.TimeInterpolatedInput = 1.0
   d_face_c2: runtime_params_lib.TimeInterpolatedInput = 0.3
   # Prefactor for the electron convectivity
-  v_face_coeff: runtime_params_lib.TimeInterpolatedInput = 0.1
-
+  v_face_coeff: runtime_params_lib.TimeInterpolatedInput = -0.1
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
