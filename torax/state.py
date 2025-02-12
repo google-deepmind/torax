@@ -327,7 +327,8 @@ class PostProcessedOutputs:
     ti_volume_avg: Volume average ion temperature [keV]
     ne_volume_avg: Volume average electron density [nref m^-3]
     ni_volume_avg: Volume average main ion density [nref m^-3]
-    fgw_ne_vol_avg: Greenwald fraction from volume-averaged electron density []
+    fgw_ne_volume_avg: Greenwald fraction from volume-averaged electron density
+      [dimensionless]
     q95: q at 95% of the normalized poloidal flux
     Wpol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]

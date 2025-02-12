@@ -501,6 +501,7 @@ def make_outputs(
   # Calculate Greenwald density fraction
   fgw_ne_volume_avg = _calculate_greenwald_fraction_from_ne_vol_avg(
       ne_volume_avg, sim_state.core_profiles, geo
+      )
   Wpol = physics.calc_Wpol(geo, sim_state.core_profiles.psi)
   li3 = physics.calc_li3(
       geo.Rmaj, Wpol, sim_state.core_profiles.currents.Ip_profile_face[-1]
