@@ -18,7 +18,7 @@ from torax.time_step_calculator import config as time_step_calculator_config
 from torax.torax_pydantic import model_base
 
 
-class ToraxConfig(model_base.BaseModelMutable):
+class ToraxConfig(model_base.BaseModelFrozen):
   """Base config class for Torax.
 
   Attributes:

@@ -19,6 +19,7 @@ from typing import Annotated, Any, TypeAlias
 import jax
 import numpy as np
 import pydantic
+from torax.geometry import geometry
 from typing_extensions import Self
 
 DataTypes: TypeAlias = float | int | bool
@@ -70,8 +71,10 @@ NumpyArray1D = Annotated[
 ]
 
 
-class BaseModelMutable(pydantic.BaseModel):
+class BaseModelFrozen(pydantic.BaseModel):
   """Base config class. Any custom config classes should inherit from this.
+
+  No model fields are allowed to be assigned to after construction.
 
   See https://docs.pydantic.dev/latest/ for documentation on pydantic.
 
@@ -80,11 +83,9 @@ class BaseModelMutable(pydantic.BaseModel):
   """
 
   model_config = pydantic.ConfigDict(
-      frozen=False,
+      frozen=True,
       # Do not allow attributes not defined in pydantic model.
       extra='forbid',
-      # Re-run validation if the model is updated.
-      validate_assignment=True,
       arbitrary_types_allowed=True,
   )
 
@@ -121,14 +122,24 @@ class BaseModelMutable(pydantic.BaseModel):
   def to_dict(self) -> dict[str, Any]:
     return self.model_dump()
 
+  def set_rho_norm_grid(self, grid: NumpyArray | geometry.Grid1D):
+    """Sets the rho_norm_grid field in all TimeVaryingArray fields.
 
-class BaseModelFrozen(BaseModelMutable, frozen=True):
-  """Base config with frozen fields.
+    This will set the grid to all sub-models as well.
 
-  See https://docs.pydantic.dev/latest/ for documentation on pydantic.
+    This function can only be called if the rho_norm_grid field is None.
 
-  This class is compatible with JAX, so can be used as an argument to a JITted
-  function.
-  """
+    Args:
+      grid: The grid to use for interpolation, either as a NumPy array or a
+        geometry.Grid1D object.
 
-  ...
+    Raises:
+      RuntimeError: If the rho_norm_grid field is not None.
+    Returns:
+      No return value.
+    """
+
+    for name in self.model_fields.keys():
+      attr = getattr(self, name)
+      if hasattr(attr, 'set_rho_norm_grid'):
+        attr.set_rho_norm_grid(grid)

@@ -43,8 +43,8 @@ class Grid1D:
 
   nx: int
   dx: float
-  face_centers: chex.Array
-  cell_centers: chex.Array
+  face_centers: np.ndarray
+  cell_centers: np.ndarray
 
   def __post_init__(self):
     jax_utils.assert_rank(self.nx, 0)

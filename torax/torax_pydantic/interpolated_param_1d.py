@@ -26,6 +26,8 @@ from torax.torax_pydantic import model_base
 class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
   """Base class for time interpolated scalar types.
 
+  All fields are frozen after initialization.
+
   The Pydantic `.model_validate` constructor can accept a variety of input types
   defined by the `TimeInterpolatedInput` type. See
   https://torax.readthedocs.io/en/latest/configuration.html#time-varying-scalars
@@ -54,9 +56,6 @@ class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
   ) -> dict[str, Any]:
 
     if isinstance(data, dict):
-      # A workaround for https://github.com/pydantic/pydantic/issues/10477.
-      data.pop('_get_cached_interpolated_param', None)
-
       # This is the standard constructor input. No conforming required.
       if set(data.keys()).issubset(cls.model_fields.keys()):
         return data  # pytype: disable=bad-return-type
