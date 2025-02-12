@@ -52,6 +52,8 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # Constants for the electron diffusivity weighting factor.
   d_face_c1: runtime_params_lib.TimeInterpolatedInput = 1.0
   d_face_c2: runtime_params_lib.TimeInterpolatedInput = 0.3
+  # Proportionality factor between convectivity and diffusivity.
+  v_face_coeff: runtime_params_lib.TimeInterpolatedInput = -0.1
 
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
@@ -70,6 +72,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   chi_i_gyrobohm_coeff: interpolated_param.InterpolatedVarSingleAxis
   d_face_c1: interpolated_param.InterpolatedVarSingleAxis
   d_face_c2: interpolated_param.InterpolatedVarSingleAxis
+  v_face_coeff: interpolated_param.InterpolatedVarSingleAxis
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
@@ -85,6 +88,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   chi_i_gyrobohm_coeff: array_typing.ScalarFloat
   d_face_c1: array_typing.ScalarFloat
   d_face_c2: array_typing.ScalarFloat
+  v_face_coeff: array_typing.ScalarFloat
 
   def sanity_check(self):
     runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
@@ -210,19 +214,8 @@ class BohmGyroBohmModel(transport_model.TransportModel):
         / (chi_e[1:] + chi_i[1:] + constants_module.CONSTANTS.eps),
     ])
 
-    # Convection
-    # v_face_el is also zero on-axis by definition
-    # To avoid 0/0, we set the first element to 0 manually
-    # This definition for pinch velocity is from Tholerus et al.
-    # Pinch velocity = inward = -ve in TORAX
-    v_face_el = -jnp.concatenate([
-        jnp.zeros(1),
-        0.5
-        * d_face_el[1:]
-        * geo.area_face[1:] ** 2
-        * geo.rho_b
-        / (geo.volume_face[1:] * geo.vpr_face[1:]),
-    ])
+    # Electron convectivity set proportional to the electron diffusivity
+    v_face_el = dynamic_runtime_params_slice.transport.v_face_coeff * d_face_el
 
     return state.CoreTransport(
         chi_face_ion=chi_i,
