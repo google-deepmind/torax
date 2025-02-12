@@ -96,7 +96,7 @@ def face_to_cell(face: chex.Array) -> chex.Array:
 
 
 @enum.unique
-class GeometryType(enum.Enum):
+class GeometryType(enum.IntEnum):
   """Integer enum for geometry type.
 
   This type can be used within JAX expressions to access the geometry type
@@ -124,7 +124,7 @@ class Geometry:
   """
 
   # TODO(b/356356966): extend documentation to define what each attribute is.
-  geometry_type: int
+  geometry_type: GeometryType
   torax_mesh: Grid1D
   Phi: chex.Array
   Phi_face: chex.Array

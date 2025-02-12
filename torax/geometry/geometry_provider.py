@@ -111,7 +111,7 @@ class ConstantGeometryProvider(GeometryProvider):
 class TimeDependentGeometryProvider:
   """A geometry provider which holds values to interpolate based on time."""
 
-  geometry_type: int
+  geometry_type: geometry.GeometryType
   torax_mesh: geometry.Grid1D
   drho_norm: interpolated_param.InterpolatedVarSingleAxis
   Phi: interpolated_param.InterpolatedVarSingleAxis

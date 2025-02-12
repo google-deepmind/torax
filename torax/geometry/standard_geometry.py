@@ -1007,7 +1007,7 @@ def build_standard_geometry(
   area = rhon_interpolation_func(rho_norm, area_intermediate)
 
   return StandardGeometry(
-      geometry_type=intermediate.geometry_type.value,
+      geometry_type=intermediate.geometry_type,
       torax_mesh=mesh,
       Phi=Phi,
       Phi_face=Phi_face,

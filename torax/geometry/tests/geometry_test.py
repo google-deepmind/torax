@@ -130,7 +130,9 @@ class GeometryTest(parameterized.TestCase):
   def test_stack_geometries_error_handling_different_geometry_types(self):
     """Test different geometry type error handling for stack_geometries."""
     geo0 = circular_geometry.build_circular_geometry(Rmaj=1.0, B0=2.0, n_rho=10)
-    geo_diff_geometry_type = dataclasses.replace(geo0, geometry_type=3)
+    geo_diff_geometry_type = dataclasses.replace(
+        geo0, geometry_type=geometry.GeometryType(3)
+    )
     with self.assertRaisesRegex(
         ValueError, 'All geometries must have the same geometry type'
     ):
