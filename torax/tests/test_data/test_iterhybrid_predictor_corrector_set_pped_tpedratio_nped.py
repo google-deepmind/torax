@@ -12,14 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Identical to test_iterhybrid_predictor_corrector but simple impurity radiation."""
+"""Like test_iterhybrid_predictor_corrector but with set_pped_tpedratio_nped."""
 
 import copy
-
 from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
 
-CONFIG['sources']['impurity_radiation_heat_sink'] = {
-    'fraction_of_total_power_density': 0.1
+CONFIG['pedestal'] = {
+    'pedestal_model': 'set_pped_tpedratio_nped',
+    'ion_electron_temperature_ratio': 1.0,
+    'Pped': 89300.0,
+    'neped': 0.62,
+    'rho_norm_ped_top': 0.9,  # set ped top location in normalized radius
 }

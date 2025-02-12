@@ -26,29 +26,29 @@ from torax.geometry import geometry
 class SourceProfiles:
   """Collection of profiles for all sources in TORAX.
 
-  Most profiles are stored in the `profiles` attribute, but special-case
-  profiles `j_bootstrap` and `qei` are pulled out into their own attributes as
-  these sources need to exist for a TORAX run (though they could still be set
-  to zero using appropriate runtime params).
-
-  The keys of profiles match the keys of the sources in the Sources object used
-  to compute them.
+  Most profiles are stored in the attributes relating to the core profile they
+  affect, but special-case profiles `j_bootstrap` and `qei` are pulled out into
+  their own attributes as these sources need to be treated differently (though
+  they could still be set to zero using appropriate runtime params).
 
   This dataclass is inspired by the IMAS `core_sources` IDS. It is not a 1:1
   mapping to that schema, but it contains similar profiles as you'd expect in
   that IDS.
   """
 
-  profiles: dict[str, jax.Array]
   # Special-case profiles.
   j_bootstrap: BootstrapCurrentProfile
   qei: QeiInfo
-
-  def get_profile(self, name: str) -> jax.Array:
-    """Returns the profile, returning zeroes if profile name doesn't exist."""
-    if name in self.profiles:
-      return self.profiles[name]
-    return jnp.zeros_like(self.j_bootstrap.j_bootstrap)
+  # Other profiles organised by the affected core profile. These are the
+  # profiles that are used to compute the core profile equations.
+  # The form is a dict of jax.Arrays, keyed by the name of the source. The array
+  # is the profile on the cell grid from that source for that core profile.
+  # For sources that affect multiple core profiles, they will have an entry for
+  # each core profile they affect.
+  temp_el: dict[str, jax.Array]
+  temp_ion: dict[str, jax.Array]
+  ne: dict[str, jax.Array]
+  psi: dict[str, jax.Array]
 
   # This function can be jitted if source_models is a static argument. However,
   # in our tests, jitting this function actually slightly slows down runs, so
@@ -85,24 +85,8 @@ class SourceProfiles:
 
     """
     sum_profiles = lambda a, b: a + b
-    summed_bootstrap_profile = jax.tree_util.tree_map(
-        sum_profiles,
-        explicit_source_profiles.j_bootstrap,
-        implicit_source_profiles.j_bootstrap,
-    )
-    summed_qei_info = jax.tree_util.tree_map(
-        sum_profiles, explicit_source_profiles.qei, implicit_source_profiles.qei
-    )
-    summed_other_profiles = jax.tree_util.tree_map(
-        sum_profiles,
-        explicit_source_profiles.profiles,
-        implicit_source_profiles.profiles,
-    )
-    return cls(
-        profiles=summed_other_profiles,
-        j_bootstrap=summed_bootstrap_profile,
-        qei=summed_qei_info,
-    )
+    return jax.tree_util.tree_map(
+        sum_profiles, explicit_source_profiles, implicit_source_profiles)
 
 
 @chex.dataclass(frozen=True)

@@ -21,7 +21,7 @@ import numpy.testing as npt
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import qlknn_transport_model
@@ -38,7 +38,7 @@ class QlknnTransportModelTest(parameterized.TestCase):
         qlknn_transport_model.get_default_model_path()
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     pedestal_model_builder = (
@@ -171,7 +171,7 @@ class QlknnTransportModelTest(parameterized.TestCase):
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = qlknn_transport_model.RuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
 

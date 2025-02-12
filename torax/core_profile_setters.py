@@ -33,7 +33,9 @@ from torax.config import numerics
 from torax.config import profile_conditions
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
+from torax.geometry import standard_geometry
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
@@ -280,134 +282,21 @@ def get_ion_density_and_charge_states(
   return ni, nimp, Zi, Zi_face, Zimp, Zimp_face
 
 
-def _prescribe_currents_no_bootstrap(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+def _prescribe_currents(
+    bootstrap_profile: source_profiles_lib.BootstrapCurrentProfile,
+    external_current: jax.Array,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
 ) -> state.Currents:
-  """Creates the initial Currents without the bootstrap current.
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: General runtime parameters at t_initial.
-    geo: Geometry of the tokamak.
-    core_profiles: Core profiles.
-    source_models: All TORAX source/sink functions.
-
-  Returns:
-    currents: Initial Currents
-  """
-  # Many variables throughout this function are capitalized based on physics
-  # notational conventions rather than on Google Python style
-
-  # Calculate splitting of currents depending on input runtime params.
-  Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
-
-  # Set zero bootstrap current
-  bootstrap_profile = source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-      geo
-  )
-
-  # calculate "External" current profile (e.g. ECCD)
-  external_current = source_models.external_current_source(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-  Iext = (
-      math_utils.cell_integration(external_current * geo.spr_cell, geo) / 10**6
-  )
-  # Total Ohmic current.
-  Iohm = Ip - Iext
-
-  # construct prescribed current formula on grid.
-  jformula = (
-      1 - geo.rho_norm**2
-  ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  # calculate total and Ohmic current profiles
-  denom = _trapz(jformula * geo.spr_cell, geo.rho_norm)
-  if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
-    Ctot = Ip * 1e6 / denom
-    jtot = jformula * Ctot
-    johm = jtot - external_current
-  else:
-    Cohm = Iohm * 1e6 / denom
-    johm = jformula * Cohm
-    jtot = johm + external_current
-
-  jtot_hires = _get_jtot_hires(
-      dynamic_runtime_params_slice,
-      geo,
-      bootstrap_profile,
-      Iohm,
-      external_current=external_current,
-  )
-
-  currents = state.Currents(
-      jtot=jtot,
-      jtot_face=math_utils.cell_to_face(
-          jtot,
-          geo,
-          preserved_quantity=math_utils.IntegralPreservationQuantity.SURFACE,
-      ),
-      jtot_hires=jtot_hires,
-      johm=johm,
-      external_current_source=external_current,
-      j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
-      I_bootstrap=bootstrap_profile.I_bootstrap,
-      Ip_profile_face=jnp.zeros(geo.rho_face.shape),  # psi not yet calculated
-      sigma=bootstrap_profile.sigma,
-  )
-
-  return currents
-
-
-def _prescribe_currents_with_bootstrap(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-) -> state.Currents:
-  """Creates the initial Currents.
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: General runtime parameters at t_initial.
-    geo: Geometry of the tokamak.
-    core_profiles: Core profiles.
-    source_models: All TORAX source/sink functions. If not provided, uses the
-      default sources.
-
-  Returns:
-    currents: Plasma currents
-  """
+  """Creates the initial Currents from a given bootstrap profile."""
 
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
-
-  bootstrap_profile = source_models.j_bootstrap.get_value(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
-  # calculate "External" current profile (e.g. ECCD)
-  external_current = source_models.external_current_source(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
   Iext = (
-      math_utils.cell_integration(external_current * geo.spr_cell, geo) / 10**6
+      math_utils.cell_integration(external_current * geo.spr, geo) / 10**6
   )
   Iohm = Ip - Iext - f_bootstrap * Ip
 
@@ -415,7 +304,7 @@ def _prescribe_currents_with_bootstrap(
   jformula = (
       1 - geo.rho_norm**2
   ) ** dynamic_runtime_params_slice.profile_conditions.nu
-  denom = _trapz(jformula * geo.spr_cell, geo.rho_norm)
+  denom = _trapz(jformula * geo.spr, geo.rho_norm)
   # calculate total and Ohmic current profiles
   if dynamic_runtime_params_slice.profile_conditions.initial_j_is_total_current:
     Ctot = Ip * 1e6 / denom
@@ -479,7 +368,7 @@ def _calculate_currents_from_psi(
       core_profiles.psi,
   )
 
-  bootstrap_profile = source_models.j_bootstrap.get_value(
+  bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
@@ -512,7 +401,7 @@ def _calculate_currents_from_psi(
 
 
 def _update_psi_from_j(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    Ip_tot: array_typing.ScalarFloat,
     geo: geometry.Geometry,
     jtot_hires: jax.Array,
 ) -> cell_variable.CellVariable:
@@ -522,15 +411,15 @@ def _update_psi_from_j(
     integration.
 
   Args:
-    dynamic_runtime_params_slice: Dynamic runtime parameters.
+    Ip_tot: Total plasma current [MA].
     geo: Torus geometry.
-    jtot_hires: High resolution version of jtot.
+    jtot_hires: High resolution version of jtot [A/m^2].
 
   Returns:
     psi: Poloidal flux cell variable.
   """
   psi_grad_constraint = _calculate_psi_grad_constraint(
-      dynamic_runtime_params_slice,
+      Ip_tot,
       geo,
   )
 
@@ -565,12 +454,12 @@ def _update_psi_from_j(
 
 
 def _calculate_psi_grad_constraint(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    Ip_tot: array_typing.ScalarFloat,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates the constraint on the poloidal flux (psi)."""
   return (
-      dynamic_runtime_params_slice.profile_conditions.Ip_tot
+      Ip_tot
       * 1e6
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
@@ -609,7 +498,7 @@ def _init_psi_and_current(
     psi = cell_variable.CellVariable(
         value=dynamic_runtime_params_slice.profile_conditions.psi,
         right_face_grad_constraint=_calculate_psi_grad_constraint(
-            dynamic_runtime_params_slice,
+            dynamic_runtime_params_slice.profile_conditions.Ip_tot,
             geo,
         ),
         dr=geo.drho_norm,
@@ -624,7 +513,7 @@ def _init_psi_and_current(
     )
   # Retrieving psi from the standard geometry input.
   elif (
-      isinstance(geo, geometry.StandardGeometry)
+      isinstance(geo, standard_geometry.StandardGeometry)
       and not dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     # psi is already provided from a numerical equilibrium, so no need to
@@ -633,7 +522,7 @@ def _init_psi_and_current(
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,
         right_face_grad_constraint=_calculate_psi_grad_constraint(
-            dynamic_runtime_params_slice,
+            dynamic_runtime_params_slice.profile_conditions.Ip_tot,
             geo,
         ),
         dr=geo.drho_norm,
@@ -648,33 +537,48 @@ def _init_psi_and_current(
     )
   # Calculating j according to nu formula and psi from j.
   elif (
-      isinstance(geo, geometry.CircularAnalyticalGeometry)
+      isinstance(geo, circular_geometry.CircularAnalyticalGeometry)
       or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
-    currents = _prescribe_currents_no_bootstrap(
+    # First calculate currents without bootstrap.
+    bootstrap = source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+        geo
+    )
+    external_current = source_models.external_current_source(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
-        source_models=source_models,
+    )
+    currents = _prescribe_currents(
+        bootstrap_profile=bootstrap,
+        external_current=external_current,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
     )
     psi = _update_psi_from_j(
-        dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
         geo,
         currents.jtot_hires,
     )
     core_profiles = dataclasses.replace(
         core_profiles, currents=currents, psi=psi
     )
-    currents = _prescribe_currents_with_bootstrap(
+    # Now calculate currents with bootstrap.
+    bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
-        source_models=source_models,
+    )
+    currents = _prescribe_currents(
+        bootstrap_profile=bootstrap_profile,
+        external_current=external_current,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
     )
     psi = _update_psi_from_j(
-        dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
         geo,
         currents.jtot_hires,
     )
@@ -1005,7 +909,7 @@ def compute_boundary_conditions(
       ),
       'psi': dict(
           right_face_grad_constraint=_calculate_psi_grad_constraint(
-              dynamic_runtime_params_slice,
+              dynamic_runtime_params_slice.profile_conditions.Ip_tot,
               geo,
           ),
       ),

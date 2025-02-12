@@ -32,6 +32,7 @@ from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
+from torax.sources import source_profiles
 
 InterpolatedVarTimeRhoInput = (
     runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
@@ -109,6 +110,7 @@ def calc_heating_and_current(
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None = None,
 ) -> jax.Array:
   """Model function for the electron-cyclotron source.
@@ -122,7 +124,8 @@ def calc_heating_and_current(
     geo: Magnetic geometry.
     source_name: Name of the source.
     core_profiles: CoreProfiles component of the state.
-    unused_model_func: (unused) source models used in the simulation.
+    unused_calculated_source_profiles: Unused.
+    unused_source_models: Unused.
 
   Returns:
     2D array of electron cyclotron heating power density and current density.
@@ -178,10 +181,6 @@ def calc_heating_and_current(
   return jnp.stack([ec_power_density, j_ec_dot_B])
 
 
-def _get_ec_output_shape(geo: geometry.Geometry) -> tuple[int, ...]:
-  return (2,) + source.ProfileType.CELL.get_profile_shape(geo)
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
@@ -197,7 +196,3 @@ class ElectronCyclotronSource(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.TEMP_EL, source.AffectedCoreProfile.PSI)
-
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return _get_ec_output_shape

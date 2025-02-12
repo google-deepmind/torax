@@ -32,6 +32,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_profiles
 # pylint: disable=invalid-name
 
 
@@ -101,33 +102,15 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
 def calculate_generic_current(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    unused_state: state.CoreProfiles | None = None,
+    unused_state: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: Optional['source_models.SourceModels'] = None,
 ) -> jax.Array:
-  """Calculates the external current density profiles.
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: Parameter configuration at present timestep.
-    geo: Tokamak geometry.
-    source_name: Name of the source.
-    unused_state: State argument not used in this function but is present to
-      adhere to the source API.
-    unused_source_models: Source models argument not used in this function but
-      is present to adhere to the source API.
-
-  Returns:
-    External current density profile along the cell grid.
-  """
-  del (
-      static_runtime_params_slice,
-      unused_state,
-      unused_source_models,
-  )  # Unused.
+  """Calculates the external current density profiles on the cell grid."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
@@ -146,7 +129,7 @@ def calculate_generic_current(
   Cext = (
       Iext
       * 1e6
-      / math_utils.cell_integration(generic_current_form * geo.spr_cell, geo)
+      / math_utils.cell_integration(generic_current_form * geo.spr, geo)
   )
 
   generic_current_profile = (
@@ -185,7 +168,3 @@ class GenericCurrentSource(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.PSI,)
-
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.ProfileType.CELL.get_profile_shape

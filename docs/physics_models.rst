@@ -423,8 +423,6 @@ Presently, TORAX provides three built-in formula-based particle sources for the 
 
 Radiation
 ---------
-Currently, TORAX has dedicated models for Bremsstrahlung and cyclotron radiation.
-Models for line radiation are left for future work.
 
 Bremsstrahlung
 ^^^^^^^^^^^^^^
@@ -440,8 +438,31 @@ with a deposition profile from `Artaud NF 2018 <https://doi.org/10.1088/1741-432
 The Albajar model includes a parameterization of the temperature profile which in TORAX is fit by simple
 grid search for computational efficiency.
 
+Impurity Radiation
+^^^^^^^^^^^^^^^^^^
+
+The following models are available:
+
+* Set the impurity radiation to be a constant fraction of the total external input power.
+
+* Polynomial fits to ADAS data from `Mavrin, 2018. <https://doi.org/10.1080/10420150.2018.1462361>`_
+  Provides radiative cooling rates for the following impurity species:
+    - Helium
+    - Lithium
+    - Beryllium
+    - Carbon
+    - Nitrogen
+    - Oxygen
+    - Neon
+    - Argon
+    - Krypton
+    - Xenon
+    - Tungsten
+  These cooling curves are multiplied by the electron density and impurity densities to obtain the impurity radiation power density.
+  The valid temperature range of the fit is [0.1-100] keV.
+
 Ion Cyclotron Resonance Heating
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------
 
 Presently this source is implemented for a SPARC specific ICRH scenario.
 

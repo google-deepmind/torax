@@ -72,21 +72,8 @@ with both ``rho_cell`` and ``rho_cell_norm``.
 
 Top level dataset
 =================
-The top level dataset contains geometry information and a indicator of whether
-the simulation completed successfully. For the geometry output only the final
-time step is output.
-
-``vpr`` (rho_cell)
-  Volume derivative :math:`\frac{dV}{d \rho}`, on the cell grid, in [:math:`m^2`].
-
-``vpr_face`` (rho_face)
-  Volume derivative :math:`\frac{dV}{d \rho}`, on the face grid, in [:math:`m^2`].
-
-``spr`` (rho_cell)
-  Surface derivative :math:`\frac{dS}{d \rho}`, on the cell grid, in [:math:`m`].
-
-``spr_face`` (rho_face)
-  Surface derivative :math:`\frac{dS}{d \rho}`, on the face grid, in [:math:`m`].
+The top level dataset contains an indicator of whether the simulation completed
+successfully.
 
 ``sim_error`` ()
   Indicator if the simulation completed successfully, 0 if successful, 1 if not.
@@ -214,7 +201,7 @@ core_transport
 ``v_face_el`` (time, rho_face)
   Electron particle convection on face grid in :math:`m/s`
 
-Post-processed outputs
+post_processed_outputs
 ----------------------
 
 These outputs are calculated by the post_processing module, for both
@@ -359,6 +346,116 @@ analysis and inspection.
 
 ``E_cumulative_external`` (time) [J]:
   Total external injected energy (Ohmic + auxiliary heating).
+
+geometry
+--------
+
+The geometry dataset contains the following data variables.
+
+Geometry
+--------
+
+``Phi`` (time, rho_cell) [Wb]
+  Toroidal magnetic flux at each radial grid point.
+
+``Phi_face`` (time, rho_face) [Wb]
+  Toroidal magnetic flux at each radial face.
+
+``Rmaj`` (time) [m]
+  Major radius.
+
+``Rmin`` (time) [m]
+  Minor radius.
+
+``B0`` (time) [T]
+  Magnetic field strength at the magnetic axis.
+
+``volume`` (time, rho_cell) [:math:`m^3`]
+  Plasma volume enclosed by each flux surface.
+
+``volume_face`` (time, rho_face) [:math:`m^3`]
+  Plasma volume enclosed by each flux surface at the faces.
+
+``area`` (time, rho_cell) [:math:`m^2`]
+  Poloidal cross-sectional area of each flux surface.
+
+``area_face`` (time, rho_face) [:math:`m^2`]
+  Poloidal cross-sectional area of each flux surface at the faces.
+
+``vpr`` (time, rho_cell) [:math:`m^3`]
+  Derivative of plasma volume enclosed by each flux surface with respect to the normalized toroidal flux coordinate rho_norm.
+
+``vpr_face`` (time, rho_face) [:math:`m^3`]
+  Derivative of plasma volume enclosed by each flux surface at the faces, with respect to the normalized toroidal flux coordinate rho_face_norm.
+
+``spr`` (time, rho_cell) [:math:`m^2`]
+  Derivative of plasma surface area enclosed by each flux surface, with respect to the normalized toroidal flux coordinate rho_norm.
+
+``spr_face`` (time, rho_face) [:math:`m^2`]
+  Derivative of plasma surface area enclosed by each flux surface at the faces, with respect to the normalized toroidal flux coordinate rho_face_norm.
+
+``delta_face`` (time, rho_face) [dimensionless]
+  Average triangularity of each flux surface at the faces.
+
+``elongation``(time, rho_cell) [dimensionless]
+  Elongation of each flux surface.
+
+``elongation_face`` (time, rho_face) [dimensionless]
+  Elongation of each flux surface at the faces.
+
+``g0`` (time, rho_cell) [:math:`m^2`]
+  Flux surface averaged :math:`\nabla V`, the radial derivative of the plasma volume.
+
+``g0_face`` (time, rho_face) [:math:`m^2`]
+  Flux surface averaged :math:`\nabla V` on the faces.
+
+``g1`` (time, rho_cell) [:math:`m^4`]
+  Flux surface averaged :math:`(\nabla V)^2`.
+
+``g1_face`` (time, rho_face) [:math:`m^4`]
+  Flux surface averaged :math:`(\nabla V)^2` at the faces.
+
+``g2`` (time, rho_cell) [:math:`m^2`]
+  Flux surface averaged :math:`\frac{(\nabla V)^2}{R^2}`, where R is the major radius along the flux surface being averaged.
+
+``g2_face`` (time, rho_face) [:math:`m^2`]
+  Flux surface averaged :math:`\frac{(\nabla V)^2}{R^2}` at the faces.
+
+``g3`` (time, rho_cell) [:math:`m^{-2}`]
+  Flux surface averaged :math:`\frac{1}{R^2}`.
+
+``g3_face`` (time, rho_face) [:math:`m^{-2}`]
+  Flux surface averaged :math:`\frac{1}{R^2}` at the faces.
+
+``g2g3_over_rhon`` (time, rho_cell) [dimensionless]
+  Ratio of g2g3 to the normalized toroidal flux coordinate rho_norm.
+
+``g2g3_over_rhon_face`` (time, rho_face) [dimensionless]
+  Ratio of g2g3 to the normalized toroidal flux coordinate rho_norm on the face grid.
+
+``F`` (time, rho_cell) [:math:`T m`]
+  Flux function :math:`F=B_{tor}R` , constant on any given flux surface.
+
+``F_face`` (time, rho_face) [:math:`T m`]
+  Flux function :math:`F=B_{tor}R`  on the face grid.
+
+``Rin`` (time, rho_cell) [m]
+  Inner radius of each flux surface.
+
+``Rin_face`` (time, rho_face) [m]
+  Inner radius of each flux surface at the faces.
+
+``Rout``(time, rho_cell) [m]
+  Outer radius of each flux surface.
+
+``Rout_face`` (time, rho_face) [m]
+  Outer radius of each flux surface at the faces.
+
+``Phibdot`` (time) [Wb/s]
+  Time derivative of the toroidal magnetic flux.
+
+``_z_magnetic_axis`` (time) [m]
+  Vertical position of the magnetic axis.
 
 Examples
 ========

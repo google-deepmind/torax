@@ -21,7 +21,7 @@ from absl.testing import parameterized
 from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 
 
 # pylint: disable=invalid-name
@@ -137,7 +137,7 @@ class RuntimeParamsTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions()
     )
-    torax_mesh = geometry.build_circular_geometry().torax_mesh
+    torax_mesh = circular_geometry.build_circular_geometry().torax_mesh
     runtime_params_provider = runtime_params.make_provider(torax_mesh)
     runtime_params_provider.build_dynamic_params(0.0)
 

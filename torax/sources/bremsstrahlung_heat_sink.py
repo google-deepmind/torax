@@ -30,6 +30,7 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
+from torax.sources import source_profiles
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -121,18 +122,15 @@ def calc_bremsstrahlung(
 
 
 def bremsstrahlung_model_func(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_model_func: source_models.SourceModels | None,
 ) -> jax.Array:
   """Model function for the Bremsstrahlung heat sink."""
-  del (
-      static_runtime_params_slice,
-      unused_model_func,
-  )  # Unused.
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]

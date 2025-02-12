@@ -19,7 +19,6 @@ static_runtime_params_slice.stepper.predictor_corrector is False, reverts to a
 standard linear solution.
 """
 from typing import Any
-import chex
 import jax
 from torax import jax_utils
 from torax import state
@@ -36,8 +35,8 @@ def predictor_corrector_method(
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
     x_old: tuple[cell_variable.CellVariable, ...],
+    x_new_guess: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
-    init_val: tuple[tuple[cell_variable.CellVariable, ...], chex.ArrayTree],
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
     coeffs_callback: block_1d_coeffs.Block1DCoeffsCallback,
 ) -> tuple[tuple[cell_variable.CellVariable, ...], Any]:
@@ -53,8 +52,9 @@ def predictor_corrector_method(
     geo_t_plus_dt: Geometry at the next time step.
     x_old: Tuple of CellVariables correspond to the evolving core profiles at
       time t.
+    x_new_guess: Tuple of CellVariables corresponding to the initial guess for
+      the next time step.
     core_profiles_t_plus_dt: Core profiles at the next time step.
-    init_val: Initial guess for the predictor corrector output.
     coeffs_exp: Block1DCoeffs PDE coefficients at beginning of timestep
     coeffs_callback: coefficient callback function
 
@@ -66,9 +66,7 @@ def predictor_corrector_method(
 
   # predictor-corrector loop. Will only be traversed once if not in
   # predictor-corrector mode
-  def loop_body(i, val):  # pylint: disable=unused-argument
-    x_new_guess = val[0]
-
+  def loop_body(i, x_new_guess):  # pylint: disable=unused-argument
     coeffs_new = coeffs_callback(
         dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt,
@@ -77,7 +75,7 @@ def predictor_corrector_method(
         allow_pereverzev=True,
     )
 
-    x_new = implicit_solve_block.implicit_solve_block(
+    return implicit_solve_block.implicit_solve_block(
         dt=dt,
         x_old=x_old,
         x_new_guess=x_new_guess,
@@ -92,19 +90,26 @@ def predictor_corrector_method(
         ),
     )
 
-    return (x_new, coeffs_new.auxiliary_outputs)
-
   # jax.lax.fori_loop jits the function by default. Need to explicitly avoid
   # compilation and revert to a standard for loop if
   # TORAX_COMPILATION_ENABLED=False. This logic is in jax.utils_py_fori_loop.
   # If the static predictor_corrector=False, then compilation is faster, so
   # we maintain this option.
   if static_runtime_params_slice.stepper.predictor_corrector:
-    return jax_utils.py_fori_loop(
+    x_new = jax_utils.py_fori_loop(
         0,
         dynamic_runtime_params_slice_t_plus_dt.stepper.corrector_steps + 1,
         loop_body,
-        init_val,
+        x_new_guess,
     )
   else:
-    return loop_body(0, init_val)
+    x_new = loop_body(0, x_new_guess)
+
+  coeffs_final = coeffs_callback(
+      dynamic_runtime_params_slice_t_plus_dt,
+      geo_t_plus_dt,
+      core_profiles_t_plus_dt,
+      x_new,
+      allow_pereverzev=True,
+  )
+  return x_new, coeffs_final.auxiliary_outputs

@@ -47,6 +47,7 @@ from torax.config import profile_conditions
 from torax.config import runtime_params as general_runtime_params_lib
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.geometry import standard_geometry
 from torax.pedestal_model import runtime_params as pedestal_model_params
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
@@ -377,7 +378,7 @@ def make_ip_consistent(
     geo: geometry.Geometry,
 ) -> tuple[DynamicRuntimeParamsSlice, geometry.Geometry]:
   """Fixes Ip to be the same across dynamic_runtime_params_slice and geo."""
-  if isinstance(geo, geometry.StandardGeometry):
+  if isinstance(geo, standard_geometry.StandardGeometry):
     if geo.Ip_from_parameters:
       # If Ip is from parameters, renormalise psi etc to match the Ip in the
       # parameters.
