@@ -19,11 +19,11 @@ CONFIG = {
     'runtime_params': {
         'plasma_composition': {
             # physical inputs
-            'Ai': 2.51505,  # amu of main ion (bundled isotope average)
-            'Zeff': 1.74,  # needed for qlknn and fusion power
+            'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
+            'Zeff': 1.74,
             # effective impurity charge state assumed for matching
             # dilution=0.862
-            'Zimp': 6.3623,
+            'Zimp_override': 6.3623,
         },
         'profile_conditions': {
             'Ip_tot': 15,  # total plasma current in MA

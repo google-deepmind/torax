@@ -251,13 +251,19 @@ def theta_method_block_residual(
     residual: Vector residual between LHS and RHS of the theta method equation.
   """
   x_old_vec = jnp.concatenate([var.value for var in x_old])
-  # Create updated CellVariable instances based on core_profiles_t_plus_dt which
-  # has updated boundary conditions and prescribed profiles.
+  # Prepare core_profiles_t_plus_dt for calc_coeffs. Explanation:
+  # 1. The original (before iterative solving) core_profiles_t_plus_dt contained
+  #    updated boundary conditions and prescribed profiles.
+  # 2. Before calling calc_coeffs, we need to update the evolving subset of the
+  #    core_profiles_t_plus_dt CellVariables with the current x_new_guess.
+  # 3. Ion and impurity density and charge states are also updated here, since
+  #    they are state dependent (on ne and temp_el).
   x_new_guess = fvm_conversions.vec_to_cell_variable_tuple(
       x_new_guess_vec, core_profiles_t_plus_dt, evolving_names
   )
   core_profiles_t_plus_dt = core_profile_setters.update_evolving_core_profiles(
       x_new_guess,
+      static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt,
       geo_t_plus_dt,
       core_profiles_t_plus_dt,

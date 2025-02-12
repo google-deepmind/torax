@@ -88,7 +88,7 @@ def cell_to_face(
       ) / geo.vpr_face[-1]
     case IntegralPreservationQuantity.SURFACE:
       diff = jnp.sum(
-          cell_values * geo.spr_cell
+          cell_values * geo.spr
       ) * geo.drho_norm - jax.scipy.integrate.trapezoid(
           face_values_without_right * geo.spr_face[:-1], geo.rho_face_norm[:-1]
       )

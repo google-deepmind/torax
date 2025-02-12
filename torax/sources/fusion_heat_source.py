@@ -28,25 +28,47 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_profiles
 
 
 def calc_fusion(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    nref: float,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
 ) -> tuple[jax.Array, jax.Array, jax.Array]:
-  """Computes fusion power with the Bosch-Hale parameterization NF 1992.
-
-  Assumes that core_profiles.ni is a 50-50% DT mix
+  """Computes DT fusion power with the Bosch-Hale parameterization NF 1992.
 
   Args:
     geo: Magnetic geometry.
     core_profiles: Core plasma profiles.
-    nref: Reference density.
+    static_runtime_params_slice: Static runtime params, used to determine the
+      existence of deuterium and tritium.
+    dynamic_runtime_params_slice: Dynamic runtime params, used to extract nref
+      and the D and T densities.
 
   Returns:
-    Ptot: fusion power in MW.
+    Tuple of Ptot, Pfus_i, Pfus_e: total fusion power in MW, ion and electron
+      fusion power densities in W/m^3.
   """
+
+  # If both D and T not present in the main ion mixture, return zero fusion.
+  # Otherwise, calculate the fusion power.
+  if not {'D', 'T'}.issubset(static_runtime_params_slice.main_ion_names):
+    return (
+        jnp.array(0.0),
+        jnp.zeros_like(core_profiles.temp_ion.value),
+        jnp.zeros_like(core_profiles.temp_ion.value),
+    )
+  else:
+    product = 1.0
+    for fraction, symbol in zip(
+        dynamic_runtime_params_slice.plasma_composition.main_ion.fractions,
+        static_runtime_params_slice.main_ion_names,
+    ):
+      if symbol == 'D' or symbol == 'T':
+        product *= fraction
+    DT_fraction_product = product  # pylint: disable=invalid-name
 
   t_face = core_profiles.temp_ion.face_value()
 
@@ -85,10 +107,10 @@ def calc_fusion(
   )
 
   logPfus = (
-      jnp.log(0.25 * Efus)
+      jnp.log(DT_fraction_product * Efus)
       + 2 * jnp.log(core_profiles.ni.face_value())
       + logsigmav
-      + 2 * jnp.log(nref)
+      + 2 * jnp.log(dynamic_runtime_params_slice.numerics.nref)
   )
 
   # [W/m^3]
@@ -123,16 +145,19 @@ def fusion_heat_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    source_name: str,
+    unused_source_name: str,
     core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: Optional['source_models.SourceModels'],
 ) -> jax.Array:
   """Model function for fusion heating."""
   # pytype: enable=name-error
-  del static_runtime_params_slice, source_name  # Unused.
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
-      geo, core_profiles, dynamic_runtime_params_slice.numerics.nref
+      geo,
+      core_profiles,
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice,
   )
   return jnp.stack((Pfus_i, Pfus_e))
   # pylint: enable=invalid-name
@@ -156,10 +181,6 @@ class FusionHeatSource(source.Source):
         source.AffectedCoreProfile.TEMP_ION,
         source.AffectedCoreProfile.TEMP_EL,
     )
-
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.get_ion_el_output_shape
 
 
 @dataclasses.dataclass

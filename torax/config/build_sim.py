@@ -21,9 +21,11 @@ from typing import Any
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
+from torax.geometry import standard_geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import set_pped_tpedratio_nped
 from torax.pedestal_model import set_tped_nped
 from torax.sources import register_source
 from torax.sources import runtime_params as source_runtime_params_lib
@@ -58,7 +60,9 @@ def _build_standard_geometry_provider(
   """Constructs a geometry provider for a standard geometry."""
   global_params = {'Ip_from_parameters', 'n_rho', 'geometry_dir'}
   if geometry_type == 'chease':
-    intermediate_builder = geometry.StandardGeometryIntermediates.from_chease
+    intermediate_builder = (
+        standard_geometry.StandardGeometryIntermediates.from_chease
+    )
   elif geometry_type == 'fbt':
     # Check if parameters indicate a bundled FBT file and input validity.
     if 'LY_bundle_object' in kwargs:
@@ -71,20 +75,26 @@ def _build_standard_geometry_provider(
             "Cannot use 'LY_object' together with a bundled FBT file"
         )
       # Build and return the GeometryProvider for the bundled case.
-      intermediates = geometry.StandardGeometryIntermediates.from_fbt_bundle(
-          **kwargs,
+      intermediates = (
+          standard_geometry.StandardGeometryIntermediates.from_fbt_bundle(
+              **kwargs,
+          )
       )
       geometries = {
-          t: geometry.build_standard_geometry(intermediates[t])
+          t: standard_geometry.build_standard_geometry(intermediates[t])
           for t in intermediates
       }
-      return geometry.StandardGeometryProvider.create_provider(geometries)
+      return standard_geometry.StandardGeometryProvider.create_provider(
+          geometries
+      )
     else:
       intermediate_builder = (
-          geometry.StandardGeometryIntermediates.from_fbt_single_slice
+          standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice
       )
   elif geometry_type == 'eqdsk':
-    intermediate_builder = geometry.StandardGeometryIntermediates.from_eqdsk
+    intermediate_builder = (
+        standard_geometry.StandardGeometryIntermediates.from_eqdsk
+    )
   else:
     raise ValueError(f'Unknown geometry type: {geometry_type}')
   if 'geometry_configs' in kwargs:
@@ -100,14 +110,16 @@ def _build_standard_geometry_provider(
             f' {", ".join(x)}'
         )
       config.update(global_kwargs)
-      geometries[time] = geometry.build_standard_geometry(
+      geometries[time] = standard_geometry.build_standard_geometry(
           intermediate_builder(
               **config,
           )
       )
-    return geometry.StandardGeometryProvider.create_provider(geometries)
+    return standard_geometry.StandardGeometryProvider.create_provider(
+        geometries
+    )
   return geometry_provider.ConstantGeometryProvider(
-      geometry.build_standard_geometry(
+      standard_geometry.build_standard_geometry(
           intermediate_builder(
               **kwargs,
           )
@@ -126,14 +138,14 @@ def _build_circular_geometry_provider(
       raise ValueError('n_rho must be set in the input config.')
     geometries = {}
     for time, c in kwargs['geometry_configs'].items():
-      geometries[time] = geometry.build_circular_geometry(
+      geometries[time] = circular_geometry.build_circular_geometry(
           n_rho=kwargs['n_rho'], **c
       )
-    return geometry.CircularAnalyticalGeometryProvider.create_provider(
+    return circular_geometry.CircularAnalyticalGeometryProvider.create_provider(
         geometries
     )
   return geometry_provider.ConstantGeometryProvider(
-      geometry.build_circular_geometry(**kwargs)
+      circular_geometry.build_circular_geometry(**kwargs)
   )
 
 
@@ -153,7 +165,7 @@ def build_geometry_provider_from_config(
   expected in the rest of the config. See the following functions to get a full
   list of the arguments exposed:
 
-   -  `geometry.build_circular_geometry()`
+   -  `circular_geometry.build_circular_geometry()`
    -  `geometry.StandardGeometryIntermediates.from_chease()`
    -  `geometry.StandardGeometryIntermediates.from_fbt()`
 
@@ -270,7 +282,7 @@ def build_sim_from_config(
   else:
     file_restart = None
 
-  return sim_lib.build_sim_object(
+  return sim_lib.Sim.create(
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
       source_models_builder=build_sources_builder_from_config(
@@ -586,6 +598,12 @@ def build_pedestal_model_builder_from_config(
       return set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
           runtime_params=config_args.recursive_replace(
               set_tped_nped.RuntimeParams(), **pedestal_config
+          )
+      )
+    case 'set_pped_tpedratio_nped':
+      return set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModelBuilder(
+          runtime_params=config_args.recursive_replace(
+              set_pped_tpedratio_nped.RuntimeParams(), **pedestal_config
           )
       )
     case _:

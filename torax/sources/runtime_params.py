@@ -34,7 +34,7 @@ TimeInterpolatedInput = interpolated_param.TimeInterpolatedInput
 class Mode(enum.Enum):
   """Defines how to compute the source terms for this source/sink."""
 
-  # Source is set to zero always. This is an explicit source by definition.
+  # Source is set to zero always.
   ZERO = 0
 
   # Source values come from a model in code. These terms can be implicit or
@@ -42,8 +42,8 @@ class Mode(enum.Enum):
   MODEL_BASED = 1
 
   # Source values come from a pre-determined set of values, that may evolve in
-  # time. Values can be drawn from a file or an array. These sources are always
-  # explicit.
+  # time. Currently, this is only supported for sources that have a 1D output
+  # along the cell grid or face grid.
   PRESCRIBED = 2
 
 

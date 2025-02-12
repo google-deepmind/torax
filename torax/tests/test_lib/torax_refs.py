@@ -23,12 +23,13 @@ from jax import numpy as jnp
 import numpy as np
 import torax
 from torax import fvm
-from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.geometry import standard_geometry
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
 from torax.transport_model import runtime_params as transport_model_params
@@ -60,16 +61,16 @@ def build_consistent_dynamic_runtime_params_slice_and_geometry(
 ) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
   """Builds a consistent Geometry and a DynamicRuntimeParamsSlice."""
   t = runtime_params.numerics.t_initial if t is None else t
-  return sim_lib.get_consistent_dynamic_runtime_params_slice_and_geometry(
-      t,
-      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+  return runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      t=t,
+      dynamic_runtime_params_slice_provider=runtime_params_slice.DynamicRuntimeParamsSliceProvider(
           runtime_params,
           transport=transport_model_params.RuntimeParams(),
           sources=sources,
           stepper=stepper_params.RuntimeParams(),
           torax_mesh=geometry_provider.torax_mesh,
       ),
-      geometry_provider,
+      geometry_provider=geometry_provider,
   )
 
 
@@ -90,7 +91,7 @@ def circular_references() -> References:
           },
       },
   )
-  geo = geometry.build_circular_geometry(
+  geo = circular_geometry.build_circular_geometry(
       n_rho=25,
       elongation_LCFS=1.72,
       hires_fac=4,
@@ -242,8 +243,8 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
           },
       },
   )
-  geo = geometry.build_standard_geometry(
-      geometry.StandardGeometryIntermediates.from_chease(
+  geo = standard_geometry.build_standard_geometry(
+      standard_geometry.StandardGeometryIntermediates.from_chease(
           geometry_dir=_GEO_DIRECTORY,
           geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
           n_rho=25,
@@ -397,8 +398,8 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
           },
       },
   )
-  geo = geometry.build_standard_geometry(
-      geometry.StandardGeometryIntermediates.from_chease(
+  geo = standard_geometry.build_standard_geometry(
+      standard_geometry.StandardGeometryIntermediates.from_chease(
           geometry_dir=_GEO_DIRECTORY,
           geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
           n_rho=25,

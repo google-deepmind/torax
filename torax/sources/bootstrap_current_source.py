@@ -68,15 +68,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   bootstrap_mult: float
 
 
-def _default_output_shapes(geo) -> tuple[int, int, int, int]:
-  return (
-      source.ProfileType.CELL.get_profile_shape(geo)  # sigmaneo
-      + source.ProfileType.CELL.get_profile_shape(geo)  # bootstrap
-      + source.ProfileType.FACE.get_profile_shape(geo)  # bootstrap face
-      + (1,)  # I_bootstrap
-  )
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BootstrapCurrentSource(source.Source):
   """Bootstrap current density source profile.
@@ -98,14 +89,10 @@ class BootstrapCurrentSource(source.Source):
     return self.SOURCE_NAME
 
   @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return _default_output_shapes
-
-  @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.PSI,)
 
-  def get_value(
+  def get_bootstrap(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
@@ -124,38 +111,46 @@ class BootstrapCurrentSource(source.Source):
           'Expected DynamicRuntimeParams, got '
           f'{type(dynamic_source_runtime_params)}.'
       )
-    bootstrap_current = calc_neoclassical(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        geo=geo,
-        temp_ion=core_profiles.temp_ion,
-        temp_el=core_profiles.temp_el,
+    if (
+        static_source_runtime_params.mode
+        == runtime_params_lib.Mode.PRESCRIBED.value
+    ):
+      raise NotImplementedError(
+          'Prescribed mode not supported for bootstrap current.'
+      )
+
+    bootstrap_current = calc_sauter_model(
+        bootstrap_multiplier=dynamic_source_runtime_params.bootstrap_mult,
+        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
+        nref=dynamic_runtime_params_slice.numerics.nref,
+        Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
+        Zi_face=core_profiles.Zi_face,
         ne=core_profiles.ne,
         ni=core_profiles.ni,
+        temp_el=core_profiles.temp_el,
+        temp_ion=core_profiles.temp_ion,
         psi=core_profiles.psi,
+        geo=geo,
     )
-    zero_profile = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
-    is_zero_mode = (
-        static_source_runtime_params.mode == runtime_params_lib.Mode.ZERO.value
-    )
-    return source_profiles.BootstrapCurrentProfile(
-        sigma=bootstrap_current.sigma,
-        sigma_face=bootstrap_current.sigma_face,
-        j_bootstrap=jax_utils.select(
-            is_zero_mode,
-            zero_profile.j_bootstrap,
-            bootstrap_current.j_bootstrap,
-        ),
-        j_bootstrap_face=jax_utils.select(
-            is_zero_mode,
-            zero_profile.j_bootstrap_face,
-            bootstrap_current.j_bootstrap_face,
-        ),
-        I_bootstrap=jax_utils.select(
-            is_zero_mode,
-            zero_profile.I_bootstrap,
-            bootstrap_current.I_bootstrap,
-        ),
-    )
+    if static_source_runtime_params.mode == runtime_params_lib.Mode.ZERO.value:
+      bootstrap_current = source_profiles.BootstrapCurrentProfile(
+          sigma=bootstrap_current.sigma,
+          sigma_face=bootstrap_current.sigma_face,
+          j_bootstrap=jnp.zeros_like(bootstrap_current.j_bootstrap),
+          j_bootstrap_face=jnp.zeros_like(bootstrap_current.j_bootstrap_face),
+          I_bootstrap=jnp.zeros_like(bootstrap_current.I_bootstrap),
+      )
+    return bootstrap_current
+
+  def get_value(
+      self,
+      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+      geo: geometry.Geometry,
+      core_profiles: state.CoreProfiles,
+      calculated_source_profiles: source_profiles.SourceProfiles | None,
+  ) -> chex.Array:
+    raise NotImplementedError('Call `get_bootstrap` instead.')
 
   def get_source_profile_for_affected_core_profile(
       self,
@@ -163,43 +158,25 @@ class BootstrapCurrentSource(source.Source):
       affected_core_profile: int,
       geo: geometry.Geometry,
   ) -> jax.Array:
-    return jnp.where(
-        affected_core_profile in self.affected_core_profiles_ints,
-        profile[self.SOURCE_NAME],
-        jnp.zeros_like(geo.rho),
-    )
+    raise NotImplementedError('Call `get_bootstrap` instead.')
 
 
 @jax_utils.jit
-def calc_neoclassical(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    temp_ion: cell_variable.CellVariable,
-    temp_el: cell_variable.CellVariable,
+def calc_sauter_model(
+    *,
+    bootstrap_multiplier: float,
+    q_correction_factor: float,
+    nref: float,
+    Zeff_face: chex.Array,
+    Zi_face: chex.Array,
     ne: cell_variable.CellVariable,
     ni: cell_variable.CellVariable,
+    temp_el: cell_variable.CellVariable,
+    temp_ion: cell_variable.CellVariable,
     psi: cell_variable.CellVariable,
+    geo: geometry.Geometry,
 ) -> source_profiles.BootstrapCurrentProfile:
-  """Calculates sigmaneo, j_bootstrap, and I_bootstrap.
-
-  Args:
-    dynamic_runtime_params_slice: General configuration parameters.
-    geo: Torus geometry.
-    temp_ion: Ion temperature. We don't pass in a full `core_profiles` here
-      because this function is used to create the `Currents` in the initial
-      `State`.
-    temp_el: Ion temperature.
-    ne: Electron density.
-    ni: Main ion density.
-    psi: Poloidal flux.
-
-  Returns:
-    A BootstrapCurrentProfile. See that class's docstring for more info.
-  """
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      BootstrapCurrentSource.SOURCE_NAME
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+  """Calculates sigmaneo, j_bootstrap, and I_bootstrap."""
   # Many variables throughout this function are capitalized based on physics
   # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
@@ -207,9 +184,8 @@ def calc_neoclassical(
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
   # corrections.
 
-  true_ne_face = ne.face_value() * dynamic_runtime_params_slice.numerics.nref
-  true_ni_face = ni.face_value() * dynamic_runtime_params_slice.numerics.nref
-  Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
+  true_ne_face = ne.face_value() * nref
+  true_ni_face = ni.face_value() * nref
 
   # # local r/R0 on face grid
   epsilon = (geo.Rout_face - geo.Rin_face) / (geo.Rout_face + geo.Rin_face)
@@ -226,7 +202,7 @@ def calc_neoclassical(
   )
   lnLami = (
       30
-      - 3 * jnp.log(dynamic_runtime_params_slice.plasma_composition.Zi)
+      - 3 * jnp.log(Zi_face)
       - 0.5 * jnp.log(true_ni_face)
       + 1.5 * jnp.log(temp_ion.face_value() * 1e3)
   )
@@ -238,9 +214,7 @@ def calc_neoclassical(
   # We don't store q_cell in the evolving core profiles, so we need to
   # recalculate it.
   q_face, _ = physics.calc_q_from_psi(
-      geo=geo,
-      psi=psi,
-      q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
+      geo=geo, psi=psi, q_correction_factor=q_correction_factor
   )
   nuestar = (
       6.921e-18
@@ -350,11 +324,7 @@ def calc_neoclassical(
 
   # calculate bootstrap current
   prefactor = (
-      -geo.F_face
-      * dynamic_source_runtime_params.bootstrap_mult
-      * 2
-      * jnp.pi
-      / geo.B0
+      -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B0
   )
 
   pe = true_ne_face * (temp_el.face_value()) * 1e3 * 1.6e-19

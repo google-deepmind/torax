@@ -25,7 +25,6 @@ from torax import output
 from torax import sim as sim_lib
 from torax import simulation_app
 from torax.config import build_sim
-from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.tests import test_lib
 from torax.tests.test_lib import paths
@@ -241,24 +240,14 @@ class SimTestCase(parameterized.TestCase):
     if ref_name is None:
       ref_name = test_lib.get_data_file(config_name[:-3])
 
-    # Load reference profiles
     ref_profiles, ref_time = self._get_refs(ref_name, profiles)
-
-    # Build geo needed for output generation
-    geo = sim.geometry_provider(sim.initial_state.t)
-    dynamic_runtime_params_slice = sim.dynamic_runtime_params_slice_provider(
-        t=sim.initial_state.t,
-    )
-    _, geo = runtime_params_slice.make_ip_consistent(
-        dynamic_runtime_params_slice, geo
-    )
 
     # Run full simulation
     sim_outputs = sim.run()
 
     # Extract core profiles history for analysis against references
     history = output.StateHistory(sim_outputs, sim.source_models)
-    ds = history.simulation_output_to_xr(geo, sim.file_restart)
+    ds = history.simulation_output_to_xr(sim.file_restart)
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
 
     self._check_profiles_vs_expected(

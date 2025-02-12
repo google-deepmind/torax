@@ -111,9 +111,11 @@ class CoreProfiles:
   s_face: array_typing.ArrayFloat
   nref: array_typing.ScalarFloat  # Reference density
   # pylint: disable=invalid-name
-  Zi: array_typing.ScalarFloat  # Main ion charge
+  Zi: array_typing.ArrayFloat  # Main ion charge on cell grid [amu]
+  Zi_face: array_typing.ArrayFloat  # Main ion charge on face grid [amu]
   Ai: array_typing.ScalarFloat  # Main ion mass [amu]
-  Zimp: array_typing.ScalarFloat  # Impurity charge
+  Zimp: array_typing.ArrayFloat  # Impurity charge on cell grid [amu]
+  Zimp_face: array_typing.ArrayFloat  # Impurity charge on face grid [amu]
   Aimp: array_typing.ScalarFloat  # Impurity mass [amu]
   # pylint: enable=invalid-name
 
@@ -139,6 +141,12 @@ class CoreProfiles:
         q_face=self.q_face,
         s_face=self.s_face,
         nref=self.nref,
+        Zi=self.Zi,
+        Zi_face=self.Zi_face,
+        Ai=self.Ai,
+        Zimp=self.Zimp,
+        Zimp_face=self.Zimp_face,
+        Aimp=self.Aimp,
     )
 
   def has_nans(self) -> bool:
@@ -185,23 +193,6 @@ class CoreProfiles:
       value = getattr(self, field)
       if hasattr(value, "sanity_check"):
         value.sanity_check()
-
-  def project(self, weights):
-    project = lambda x: jnp.dot(weights, x)
-    proj_currents = jax.tree_util.tree_map(project, self.currents)
-    return dataclasses.replace(
-        self,
-        temp_ion=self.temp_ion.project(weights),
-        temp_el=self.temp_el.project(weights),
-        psi=self.psi.project(weights),
-        psidot=self.psidot.project(weights),
-        ne=self.ne.project(weights),
-        ni=self.ni.project(weights),
-        currents=proj_currents,
-        q_face=project(self.q_face),
-        s_face=project(self.s_face),
-        nref=project(self.nref),
-    )
 
   def __hash__(self):
     """Make CoreProfiles hashable.
@@ -285,10 +276,12 @@ class PostProcessedOutputs:
     W_thermal_el: Electron thermal stored energy [J]
     W_thermal_tot: Total thermal stored energy [J]
     tauE: Thermal energy confinement time [s]
+    H89P: L-mode confinement quality factor with respect to the ITER89P scaling
+      law derived from the ITER L-mode confinement database
     H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
       law derived from the ITER H-mode confinement database
     H97L: L-mode confinement quality factor with respect to the ITER97L scaling
-      law derived from the ITER H-mode confinement database
+      law derived from the ITER L-mode confinement database
     H20: H-mode confinement quality factor with respect to the ITER20 scaling
       law derived from the updated (2020) ITER H-mode confinement database
     FFprime_face: FF' on the face grid, where F is the toroidal flux function
@@ -336,6 +329,8 @@ class PostProcessedOutputs:
     ni_volume_avg: Volume average main ion density [nref m^-3]
     fgw_ne_vol_avg: Greenwald fraction from volume-averaged electron density []
     q95: q at 95% of the normalized poloidal flux
+    Wpol: Total magnetic energy [J]
+    li3: Normalized plasma internal inductance, ITER convention [dimensionless]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -347,6 +342,7 @@ class PostProcessedOutputs:
   W_thermal_el: array_typing.ScalarFloat
   W_thermal_tot: array_typing.ScalarFloat
   tauE: array_typing.ScalarFloat
+  H89P: array_typing.ScalarFloat
   H98: array_typing.ScalarFloat
   H97L: array_typing.ScalarFloat
   H20: array_typing.ScalarFloat
@@ -392,6 +388,8 @@ class PostProcessedOutputs:
   ni_volume_avg: array_typing.ScalarFloat
   fgw_ne_volume_avg: array_typing.ScalarFloat
   q95: array_typing.ScalarFloat
+  Wpol: array_typing.ScalarFloat
+  li3: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -406,6 +404,7 @@ class PostProcessedOutputs:
         W_thermal_el=jnp.array(0.0),
         W_thermal_tot=jnp.array(0.0),
         tauE=jnp.array(0.0),
+        H89P=jnp.array(0.0),
         H98=jnp.array(0.0),
         H97L=jnp.array(0.0),
         H20=jnp.array(0.0),
@@ -448,6 +447,8 @@ class PostProcessedOutputs:
         ni_volume_avg=jnp.array(0.0),
         fgw_ne_volume_avg=jnp.array(0.0),
         q95=jnp.array(0.0),
+        Wpol=jnp.array(0.0),
+        li3=jnp.array(0.0),
     )
 
 
@@ -515,18 +516,15 @@ class ToraxSimState:
     dt: timestep interval.
     core_profiles: Core plasma profiles at time t.
     core_transport: Core plasma transport coefficients computed at time t.
-    core_sources: Profiles for all sources/sinks. For any state-dependent source
-      models, the profiles in this dataclass are computed based on the core
-      profiles at time t, almost. When running `sim.run_simulation()`, any
-      profile from an "explicit" state-dependent source will be computed with
-      the core profiles at time t. Any profile from an "implicit"
-      state-dependent source will be computed with an intermediate state from
-      the previous time step's solver. This should be close to the core profiles
-      at time t, but is not guaranteed to be. In case exact source profiles are
-      required for each time step, they must be recomputed manually after
-      running `run_simulation()`.
+    core_sources: Profiles for all sources/sinks. These are the profiles that
+      are used to calculate the coefficients for the t+dt time step. For the
+      explicit sources, these are calculated at the start of the time step, so
+      are the values at time t. For the implicit sources, these are the most
+      recent guess for time t+dt. The profiles here are the merged version of
+      the explicit and implicit profiles.
     post_processed_outputs: variables for output or intermediate observations
       for overarching workflows, calculated after each simulation step.
+    geometry: Geometry at this time step used for the simulation.
     time_step_calculator_state: the state of the TimeStepper.
     stepper_numeric_outputs: Numerical quantities related to the stepper.
   """
@@ -542,6 +540,9 @@ class ToraxSimState:
 
   # Post-processed outputs after a step.
   post_processed_outputs: PostProcessedOutputs
+
+  # Geometry used for the simulation.
+  geometry: geometry.Geometry
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.

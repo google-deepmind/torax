@@ -29,11 +29,13 @@ from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import fixed_time_step_calculator
@@ -67,7 +69,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
             dt_reduction_factor=1.5,
         ),
     )
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
     transport_builder = FakeTransportModelBuilder()
     source_models_builder = source_models_lib.SourceModelsBuilder()
@@ -77,7 +79,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
-    sim = sim_lib.build_sim_object(
+    sim = sim_lib.Sim.create(
         runtime_params=runtime_params,
         geometry_provider=geometry_provider,
         stepper_builder=FakeStepperBuilder(
@@ -211,7 +213,7 @@ class FakeStepper(stepper_lib.Stepper):
         pedestal_model_output,
     )
     # Use Qei as a hacky way to extract what the combined value was.
-    core_sources = source_models_lib.build_all_zero_profiles(
+    core_sources = source_profile_builders.build_all_zero_profiles(
         geo=geo_t,
         source_models=self.source_models,
     )

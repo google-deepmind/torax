@@ -18,4 +18,7 @@ from torax.tests.test_data import test_iterhybrid_predictor_corrector
 
 
 CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
-CONFIG['runtime_params']['plasma_composition']['Zi'] = 2.0
+
+# Needed to avoid an odd pytype error
+assert(isinstance(CONFIG['runtime_params']['plasma_composition'], dict))
+CONFIG['runtime_params']['plasma_composition']['Zi_override'] = 2.0

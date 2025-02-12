@@ -39,6 +39,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   See base class runtime_params.RuntimeParams docstring for more info.
   """
+
   # The plasma pressure at the pedestal [Pa]
   Pped: interpolated_param.TimeInterpolatedInput = 10.0
   # The electron density at the pedestal in units of nref or fGW.
@@ -124,11 +125,17 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     # Find the value of Zeff at the pedestal top.
     rho_norm_ped_top = dynamic_runtime_params_slice.pedestal.rho_norm_ped_top
     Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
-    Zeff_ped = Zeff[jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()]
-    dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff_ped)
+
+    ped_idx = jnp.abs(geo.rho_norm - rho_norm_ped_top).argmin()
+    Zeff_ped = Zeff[ped_idx]
+    Zi_ped = Zi[ped_idx]
+    Zimp_ped = Zimp[ped_idx]
+    dilution_factor_ped = physics.get_main_ion_dilution_factor(
+        Zi_ped, Zimp_ped, Zeff_ped
+    )
     # Calculate ni and nimp.
-    ni_ped = dilution_factor * neped_ref
-    nimp_ped = (neped_ref - core_profiles.Zi * ni_ped) / Zimp
+    ni_ped = dilution_factor_ped * neped_ref
+    nimp_ped = (neped_ref - Zi_ped * ni_ped) / Zimp_ped
     # Assumption that impurity is at the same temperature as the ion AND
     # the pressure P = P_e + P_i + P_imp.
     # P = T_e*n_e + T_i*n_i + T_i*n_imp.

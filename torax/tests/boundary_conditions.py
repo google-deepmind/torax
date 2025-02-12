@@ -24,7 +24,7 @@ from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import source_models as source_models_lib
 
 
@@ -69,7 +69,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
         ),
     )
 
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     initial_dynamic_runtime_params_slice = (
@@ -103,9 +103,13 @@ class BoundaryConditionsTest(parameterized.TestCase):
     )
 
     bc = core_profile_setters.compute_boundary_conditions(
+        static_slice,
         dynamic_runtime_params_slice,
         geo,
     )
+    # Remove Zi_edge and Zimp_edge which are not used in core_profiles
+    bc.pop('Zi_edge')
+    bc.pop('Zimp_edge')
 
     updated = config_args.recursive_replace(core_profiles, **bc)
 
@@ -115,15 +119,17 @@ class BoundaryConditionsTest(parameterized.TestCase):
         / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
     )
     # pylint: disable=invalid-name
-    Zi = runtime_params.plasma_composition.Zi
-    Zeff = runtime_params.plasma_composition.Zeff
-    Zimp = core_profiles.Zimp
+    Zi_face = core_profiles.Zi_face
+    Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
+    Zimp_face = core_profiles.Zimp_face
     # pylint: enable=invalid-name
-    dilution_factor = (Zimp - Zeff) / (Zi * (Zimp - Zi))
-    expected_ni_bound_right = expected_ne_bound_right * dilution_factor
+    dilution_factor_face = (Zimp_face - Zeff_face) / (
+        Zi_face * (Zimp_face - Zi_face)
+    )
+    expected_ni_bound_right = expected_ne_bound_right * dilution_factor_face[-1]
     expected_nimp_bound_right = (
-        expected_ne_bound_right - expected_ni_bound_right * Zi
-    ) / Zimp
+        expected_ne_bound_right - expected_ni_bound_right * Zi_face[-1]
+    ) / Zimp_face[-1]
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
     np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)
     np.testing.assert_allclose(
