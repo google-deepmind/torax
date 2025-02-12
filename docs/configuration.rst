@@ -539,7 +539,7 @@ geometry
 
 Geometry dicts for all geometry types can contain the following additional keys.
 
-``nrho`` (int = 2500)
+``nrho`` (int = 25000)
   Number of radial grid points
 
 ``hi_res_fac`` (int = 4)
