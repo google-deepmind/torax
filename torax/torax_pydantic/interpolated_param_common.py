@@ -17,13 +17,11 @@
 import abc
 import functools
 import chex
-import pydantic
 from torax import interpolated_param
 from torax.torax_pydantic import model_base
-from typing_extensions import Self
 
 
-class TimeVaryingBase(model_base.BaseModelMutable):
+class TimeVaryingBase(model_base.BaseModelFrozen):
   """Base class for time varying interpolated parameters."""
 
   def get_value(self, x: chex.Numeric) -> chex.Array:
@@ -58,11 +56,3 @@ class TimeVaryingBase(model_base.BaseModelMutable):
   ):
     """Returns the value of this parameter interpolated at x=time."""
     ...
-
-  @pydantic.model_validator(mode='after')
-  def clear_cached_property(self) -> Self:
-    try:
-      del self._get_cached_interpolated_param
-    except AttributeError:
-      pass
-    return self

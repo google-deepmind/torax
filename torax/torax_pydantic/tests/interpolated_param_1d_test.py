@@ -35,7 +35,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
 
     default_value = 1.53
 
-    class TestModel(torax_pydantic.BaseModelMutable):
+    class TestModel(torax_pydantic.BaseModelFrozen):
       a: interpolated_param_1d.TimeVaryingScalar
       b: interpolated_param_1d.TimeVaryingScalar = pydantic.Field(
           default_factory=lambda: default_value, validate_default=True

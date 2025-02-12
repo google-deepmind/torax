@@ -20,6 +20,7 @@ from typing import Any
 import chex
 import pydantic
 from torax import interpolated_param
+from torax.geometry import geometry
 from torax.torax_pydantic import interpolated_param_common
 from torax.torax_pydantic import model_base
 import xarray as xr
@@ -27,6 +28,9 @@ import xarray as xr
 
 class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
   """Base class for time interpolated array types.
+
+  All fields are frozen after initialization, but `rho_norm_grid` can be set
+  after initialization via the `set_rho_norm_grid` method.
 
   The Pydantic `.model_validate` constructor can accept a variety of input types
   defined by the `TimeRhoInterpolatedInput` type. See
@@ -38,7 +42,9 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
       `rho_norm` and `values` are 1D NumPy arrays of equal length.
     rho_interpolation_mode: The interpolation mode to use for the rho axis.
     time_interpolation_mode: The interpolation mode to use for the time axis.
-    rho_norm_grid: The rho norm grid to use for the interpolation.
+    rho_norm_grid: The rho norm grid to use for the interpolation. This is
+      generally not known at initialization time, so it is set separately via
+      the `set_rho_norm_grid` method.
   """
 
   value: Mapping[float, tuple[model_base.NumpyArray1D, model_base.NumpyArray1D]]
@@ -50,6 +56,15 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
   )
   rho_norm_grid: model_base.NumpyArray | None = None
 
+  @functools.cached_property
+  def rhonorm1_defined_in_timerhoinput(self) -> bool:
+    """Checks if the boundary condition at rho=1.0 is always defined."""
+
+    for _, (rho_norm, _) in self.value.items():
+      if 1.0 not in rho_norm:
+        return False
+    return True
+
   @pydantic.model_validator(mode='before')
   @classmethod
   def _conform_data(
@@ -57,9 +72,6 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
   ) -> dict[str, Any]:
 
     if isinstance(data, dict):
-      # A workaround for https://github.com/pydantic/pydantic/issues/10477.
-      data.pop('_get_cached_interpolated_param', None)
-
       # This is the standard constructor input. No conforming required.
       if set(data.keys()).issubset(cls.model_fields.keys()):
         return data
@@ -114,6 +126,34 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
         time_interpolation_mode=self.time_interpolation_mode,
         rho_interpolation_mode=self.rho_interpolation_mode,
     )
+
+  def set_rho_norm_grid(self, grid: model_base.NumpyArray | geometry.Grid1D):
+    """Sets the rho_norm_grid field.
+
+    This function can only be called if the rho_norm_grid field is None.
+
+    Args:
+      grid: The grid to use for interpolation, either as a NumPy array or a
+        geometry.Grid1D object.
+
+    Raises:
+      RuntimeError: If the rho_norm_grid field is not None.
+    Returns:
+      No return value.
+    """
+
+    if self.rho_norm_grid is not None:
+      raise RuntimeError(
+          'set_rho_norm_grid can only be called when the rho_norm_grid field is'
+          ' None.'
+      )
+
+    if isinstance(grid, geometry.Grid1D):
+      grid = grid.cell_centers
+
+    # Bypass the pydantic validator that enforces field immutability by
+    # directly modifying the underlying model dictionary.
+    self.__dict__['rho_norm_grid'] = grid
 
 
 def _load_from_primitives(

@@ -15,6 +15,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax.geometry import circular_geometry
 from torax.torax_pydantic import interpolated_param_2d
 import xarray as xr
 
@@ -214,7 +215,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    interpolated.rho_norm_grid = rho_norm
+    interpolated.set_rho_norm_grid(rho_norm)
 
     np.testing.assert_allclose(
         interpolated.get_value(x=time),
@@ -225,17 +226,26 @@ class InterpolatedParam2dTest(parameterized.TestCase):
 
   def test_mutation_behavior(self):
     v1 = 1.0
-    v2 = 2.0
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(v1)
-    interpolated.rho_norm_grid = np.array([0.0, 0.5, 1.0])
-    out1 = interpolated.get_value(x=0.0)
-    self.assertEqual(out1.tolist(), [v1, v1, v1])
 
-    # Modifying the value should change the output of get_value. This tests
-    # that caching is working correctly.
-    interpolated.value = {0.0: (np.array([0.0]), np.array([v2]))}
-    out2 = interpolated.get_value(x=0.0)
-    self.assertEqual(out2.tolist(), [v2, v2, v2])
+    # Directly setting the grid is banned due to immutability.
+    with self.assertRaises(ValueError):
+      interpolated.rho_norm_grid = np.array([0.0, 0.5, 1.0])
+
+    # The grid is not set, so we should raise an error as there is not enough
+    # information to interpolate.
+    with self.assertRaises(ValueError):
+      interpolated.get_value(x=0.0)
+
+    geo = circular_geometry.build_circular_geometry()
+    interpolated.set_rho_norm_grid(geo.torax_mesh)
+
+    # Setting the grid twice should raise an error.
+    with self.assertRaises(RuntimeError):
+      interpolated.set_rho_norm_grid(geo.torax_mesh)
+
+    out1 = interpolated.get_value(x=0.0)
+    self.assertEqual(out1.tolist(), [v1] * len(interpolated.rho_norm_grid))
 
 
 if __name__ == '__main__':

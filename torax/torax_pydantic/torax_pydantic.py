@@ -22,7 +22,6 @@ from torax.torax_pydantic import model_base
 NumpyArray = model_base.NumpyArray
 NumpyArray1D = model_base.NumpyArray1D
 
-BaseModelMutable = model_base.BaseModelMutable
 BaseModelFrozen = model_base.BaseModelFrozen
 
 TimeVaryingScalar = interpolated_param_1d.TimeVaryingScalar

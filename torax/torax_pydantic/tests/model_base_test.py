@@ -14,12 +14,12 @@
 
 """Unit tests for the `torax.torax_pydantic.model_base` module."""
 
-import functools
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
 import pydantic
+from torax.torax_pydantic import interpolated_param_2d
 from torax.torax_pydantic import model_base
 
 
@@ -82,44 +82,11 @@ class PydanticBaseTest(parameterized.TestCase):
       with self.assertRaises(ValueError):
         m.x = 2.0
 
-  def test_model_base(self):
+  def test_model_base_map_pytree(self):
 
-    class Test(model_base.BaseModelMutable, validate_assignment=True):
-      name: str
-
-      @functools.cached_property
-      def computed(self):
-        return self.name + '_test'  # pytype: disable=attribute-error
-
-      @pydantic.model_validator(mode='after')
-      def validate(self):
-        if hasattr(self, 'computed'):
-          del self.computed
-        return self
-
-    m = Test(name='test_string')
-    self.assertEqual(m.computed, 'test_string_test')
-
-    with self.subTest('field_is_mutable'):
-      m.name = 'new_test_string'
-
-    with self.subTest('after_model_validator_is_called_on_update'):
-      self.assertEqual(m.computed, 'new_test_string_test')
-
-  @parameterized.parameters(True, False)
-  def test_model_base_map_pytree(self, frozen: bool):
-
-    if frozen:
-
-      class TestModel(model_base.BaseModelFrozen):
-        x: float
-        y: float
-
-    else:
-
-      class TestModel(model_base.BaseModelMutable):
-        x: float
-        y: float
+    class TestModel(model_base.BaseModelFrozen):
+      x: float
+      y: float
 
     m = TestModel(x=2.0, y=4.0)
     m2 = jax.tree_util.tree_map(lambda x: x**2, m)
@@ -133,6 +100,36 @@ class PydanticBaseTest(parameterized.TestCase):
 
     with self.subTest('jit_works'):
       self.assertEqual(f(m), m.x * m.y)
+
+  def test_model_set_grid(self):
+
+    class LowerModel(model_base.BaseModelFrozen):
+      x: float
+      y: interpolated_param_2d.TimeVaryingArray
+
+    class TestModel(model_base.BaseModelFrozen):
+      x: int
+      y: interpolated_param_2d.TimeVaryingArray
+      z: LowerModel  # pytype: disable=invalid-annotation
+
+    m = TestModel(
+        x=1,
+        y=interpolated_param_2d.TimeVaryingArray.model_validate(1.0),
+        z=LowerModel(
+            x=1.0, y=interpolated_param_2d.TimeVaryingArray.model_validate(2.0)
+        ),
+    )
+
+    grid = np.array([1.0, 2.0, 3.0])
+    m.set_rho_norm_grid(grid)
+    # This test ensures that the grid is correctly set, and that no copies of
+    # the grid are made.
+    self.assertIs(m.y.rho_norm_grid, grid)
+    self.assertIs(m.z.y.rho_norm_grid, grid)
+
+    with self.subTest('cannot_set_grid_twice'):
+      with self.assertRaises(RuntimeError):
+        m.y.set_rho_norm_grid(grid)
 
 
 if __name__ == '__main__':
