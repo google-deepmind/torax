@@ -204,9 +204,9 @@ class StateHistory:
     post_processed_output = [
         state.post_processed_outputs for state in sim_outputs.sim_history
     ]
-    stack = lambda *ys: jnp.stack(jnp.array(ys))
+    stack = lambda *ys: jnp.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
-        stack, *core_profiles, is_leaf=lambda x: x is None,
+        stack, *core_profiles
     )
     self.core_sources: source_profiles.SourceProfiles = jax.tree_util.tree_map(
         stack, *core_sources
@@ -225,10 +225,13 @@ class StateHistory:
   def _pack_into_data_array(
       self,
       name: str,
-      data: jax.Array,
+      data: jax.Array | None,
       geo: geometry.Geometry,
   ) -> xr.DataArray | None:
     """Packs the data into an xr.DataArray."""
+    if data is None:
+      return None
+
     is_face_var = lambda x: x.ndim == 2 and x.shape == (
         len(self.times),
         len(geo.rho_face_norm),
@@ -253,6 +256,7 @@ class StateHistory:
             data.shape,
         )
         return None
+
     return xr.DataArray(data, dims=dims, name=name)
 
   def _get_core_profiles(
@@ -272,9 +276,7 @@ class StateHistory:
     xr_dict[PSI_RIGHT_GRAD_BC] = (
         self.core_profiles.psi.right_face_grad_constraint
     )
-    xr_dict[PSI_RIGHT_BC] = (
-        self.core_profiles.psi.right_face_constraint
-    )
+    xr_dict[PSI_RIGHT_BC] = self.core_profiles.psi.right_face_constraint
     xr_dict[PSIDOT] = self.core_profiles.psidot.value
     xr_dict[NE] = self.core_profiles.ne.value
     xr_dict[NE_RIGHT_BC] = self.core_profiles.ne.right_face_constraint
