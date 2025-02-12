@@ -513,6 +513,7 @@ def _update_psi_from_j(
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     jtot_hires: jax.Array,
+    use_vloop_lcfs_boundary_condition: bool = False,
 ) -> cell_variable.CellVariable:
   """Calculates poloidal flux (psi) consistent with plasma current.
 
@@ -523,6 +524,7 @@ def _update_psi_from_j(
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Torus geometry.
     jtot_hires: High resolution version of jtot.
+    use_vloop_lcfs_boundary_condition: Whether to set the loop voltage from Ip_tot.
 
   Returns:
     psi: Poloidal flux cell variable.
@@ -554,9 +556,7 @@ def _update_psi_from_j(
       geo,
   )
 
-  if (
-      dynamic_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
-  ):
+  if use_vloop_lcfs_boundary_condition:
     # For vloop_lcfs, we will prescribe a rate of change of psi at the LCFS
     # For the first timestep, we need an initial value for psi at the LCFS, so
     # we set it to match the desired plasma current.
@@ -633,7 +633,7 @@ def _init_psi_and_current(
   Returns:
     Refined core profiles.
   """
-  use_vloop_as_boundary_condition = (
+  use_vloop_bc = (
       dynamic_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
   )
 
@@ -646,7 +646,7 @@ def _init_psi_and_current(
     )
 
     # Set the BCs to ensure the correct Ip_tot
-    if use_vloop_as_boundary_condition:
+    if use_vloop_bc:
       # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
       # to achieve the desired Ip_tot
       right_face_grad_constraint = None
@@ -691,13 +691,13 @@ def _init_psi_and_current(
     )
 
     # Set the BCs, with the option of scaling to the given Ip_tot
-    if use_vloop_as_boundary_condition and geo.Ip_from_parameters:
+    if use_vloop_bc and geo.Ip_from_parameters:
       # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
       right_face_grad_constraint = None
       right_face_constraint = (
           geo.psi_from_Ip[-1] + dpsi_drhonorm_edge * geo.drho_norm / 2
       )
-    elif use_vloop_as_boundary_condition:
+    elif use_vloop_bc:
       # Use the psi from the equilibrium as the right face constraint
       right_face_grad_constraint = None
       right_face_constraint = geo.psi_from_Ip[-1]
@@ -739,6 +739,7 @@ def _init_psi_and_current(
         dynamic_runtime_params_slice,
         geo,
         currents.jtot_hires,
+        use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
     core_profiles = dataclasses.replace(
         core_profiles, currents=currents, psi=psi
@@ -754,6 +755,7 @@ def _init_psi_and_current(
         dynamic_runtime_params_slice,
         geo,
         currents.jtot_hires,
+        use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
     _, _, Ip_profile_face = physics.calc_jtot_from_psi(
         geo,
