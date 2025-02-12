@@ -22,4 +22,4 @@ CONFIG = copy.deepcopy(test_psichease_prescribed_jtot.CONFIG)
 CONFIG['runtime_params']['profile_conditions'][
     'use_vloop_lcfs_boundary_condition'
 ] = True
-CONFIG['runtime_params']['profile_conditions']['vloop_lcfs'] = 6.0
+CONFIG['runtime_params']['profile_conditions']['vloop_lcfs'] = 8.6

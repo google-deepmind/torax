@@ -473,8 +473,8 @@ class SimTest(sim_test_case.SimTestCase):
       # Tests current diffusion with vloop BC.
       # Initial Ip from parameters and psi from nu formula.
       (
-          'test_psichease_ip_parameters_prescribed_jtot_vloop',
-          'test_psichease_ip_parameters_prescribed_jtot_vloop.py',
+          'test_psichease_prescribed_jtot_vloop',
+          'test_psichease_prescribed_jtot_vloop.py',
           _ALL_PROFILES,
           0,
       ),
