@@ -19,7 +19,6 @@ import functools
 from typing import Final, Mapping, Sequence
 import chex
 import immutabledict
-import jax
 import jax.numpy as jnp
 import numpy as np
 from torax import array_typing
@@ -193,7 +192,7 @@ def impurity_radiation_mavrin_fit(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models_lib.SourceModels | None = None,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Model function for impurity radiation heat sink."""
   del (geo, unused_source_models)
   effective_LZ = calculate_total_impurity_radiation(
@@ -215,7 +214,7 @@ def impurity_radiation_mavrin_fit(
 
   # The impurity radiation heat sink is a negative source, so we return a
   # negative profile.
-  return -radiation_profile
+  return (-radiation_profile,)
 
 
 @dataclasses.dataclass(kw_only=True)

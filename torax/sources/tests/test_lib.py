@@ -167,7 +167,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
-    )
+    )[0]
     chex.assert_rank(value, 1)
     self.assertEqual(value.shape, geo.rho.shape)
 
@@ -215,8 +215,9 @@ class IonElSourceTestCase(SourceTestCase):
         core_profiles=core_profiles,
         calculated_source_profiles=None,
     )
-    chex.assert_rank(ion_and_el, 2)
-    self.assertEqual(ion_and_el.shape, (2, geo.torax_mesh.nx))
+    self.assertLen(ion_and_el, 2)
+    self.assertEqual(ion_and_el[0].shape, geo.rho.shape)
+    self.assertEqual(ion_and_el[1].shape, geo.rho.shape)
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
@@ -225,7 +226,7 @@ class IonElSourceTestCase(SourceTestCase):
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     cell = geo.rho.shape
-    fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
+    fake_profile = (jnp.ones(cell), 2 * jnp.ones(cell))
     np.testing.assert_allclose(
         source.get_source_profile_for_affected_core_profile(
             fake_profile,

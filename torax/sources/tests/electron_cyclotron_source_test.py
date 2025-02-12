@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from absl.testing import absltest
-import chex
 import jax.numpy as jnp
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
@@ -83,10 +82,10 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         calculated_source_profiles=None,
     )
     # ElectronCyclotronSource provides TEMP_EL and PSI
-    chex.assert_rank(value, 2)
+    self.assertLen(value, 2)
     # ElectronCyclotronSource default model_func provides sane default values
-    if jnp.any(jnp.isnan(value)):
-      raise AssertionError(f"Source value contains NaNs: {value}")
+    self.assertFalse(jnp.any(jnp.isnan(value[0])))
+    self.assertFalse(jnp.any(jnp.isnan(value[1])))
 
 
 if __name__ == "__main__":

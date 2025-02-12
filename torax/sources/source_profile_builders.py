@@ -211,18 +211,13 @@ def build_standard_source_profiles(
             core_profiles=core_profiles,
             calculated_source_profiles=None,
         )
-        if len(source.affected_core_profiles) == 1:
-          computed_source_profiles[source.affected_core_profiles[0]][
-              source_name
-          ] = value
-        else:
-          for i, affected_core_profile in enumerate(
-              source.affected_core_profiles
-          ):
-            if affected_core_profile in affected_core_profiles_set:
-              computed_source_profiles[affected_core_profile][source_name] = (
-                  value[i]
-              )
+        for i, affected_core_profile in enumerate(
+            source.affected_core_profiles
+        ):
+          if affected_core_profile in affected_core_profiles_set:
+            computed_source_profiles[affected_core_profile][source_name] = (
+                value[i]
+            )
       else:
         for affected_core_profile in source.affected_core_profiles:
           if affected_core_profile in affected_core_profiles_set:

@@ -115,12 +115,12 @@ class QeiSource(source.Source):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> chex.Array:
+  ) -> tuple[chex.Array, ...]:
     raise NotImplementedError('Call get_qei() instead.')
 
   def get_source_profile_for_affected_core_profile(
       self,
-      profile: chex.ArrayTree,
+      profile: tuple[chex.Array, ...],
       affected_mesh_state: int,
       geo: geometry.Geometry,
   ) -> jax.Array:

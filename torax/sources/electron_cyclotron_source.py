@@ -20,7 +20,6 @@ import dataclasses
 from typing import ClassVar
 
 import chex
-import jax
 import jax.numpy as jnp
 from torax import array_typing
 from torax import constants
@@ -112,7 +111,7 @@ def calc_heating_and_current(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None = None,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Model function for the electron-cyclotron source.
 
   Based on Lin-Liu, Y. R., Chan, V. S., & Prater, R. (2003).
@@ -178,7 +177,7 @@ def calc_heating_and_current(
   j_ec_dot_B = jnp.exp(log_j_ec_dot_B)
   # pylint: enable=invalid-name
 
-  return jnp.stack([ec_power_density, j_ec_dot_B])
+  return ec_power_density, j_ec_dot_B
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

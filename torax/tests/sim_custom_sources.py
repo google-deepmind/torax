@@ -109,10 +109,9 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         unused_source_models: ...,
     ):
       # Combine the outputs.
-      # pylint: disable=protected-access
       kwargs = dict(
           dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          static_runtime_params_slice=static_runtime_params_slice,
+          unused_static_runtime_params_slice=static_runtime_params_slice,
           geo=geo,
           unused_state=unused_state,
           unused_calculated_source_profiles=unused_calculated_source_profiles,
@@ -122,17 +121,16 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
           electron_density_sources.calc_puff_source(
               source_name=electron_density_sources.GasPuffSource.SOURCE_NAME,
               **kwargs
-          )
+          )[0]
           + electron_density_sources.calc_generic_particle_source(
               source_name=electron_density_sources.GenericParticleSource.SOURCE_NAME,
               **kwargs
-          )
+          )[0]
           + electron_density_sources.calc_pellet_source(
               source_name=electron_density_sources.PelletSource.SOURCE_NAME,
               **kwargs
-          )
-      )
-      # pylint: enable=protected-access
+          )[0]
+      ),
 
     # First instantiate the same default sources that test_particle_sources
     # constant starts with.

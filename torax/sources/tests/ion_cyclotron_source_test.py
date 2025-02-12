@@ -18,7 +18,6 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
@@ -171,7 +170,9 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         core_profiles=core_profiles,
         calculated_source_profiles=None,
     )
-    chex.assert_rank(ion_and_el, 2)
+    self.assertLen(ion_and_el, 2)
+    self.assertEqual(ion_and_el[0].shape, geo.rho.shape)
+    self.assertEqual(ion_and_el[1].shape, geo.rho.shape)
 
 
 if __name__ == "__main__":

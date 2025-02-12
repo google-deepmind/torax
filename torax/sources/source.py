@@ -35,7 +35,6 @@ from typing import Any, ClassVar, Optional, Protocol
 # circular imports.
 
 import chex
-import jax
 from jax import numpy as jnp
 from torax import state
 from torax.config import runtime_params_slice
@@ -59,7 +58,7 @@ class SourceProfileFunction(Protocol):
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
       source_models: Optional['source_models.SourceModels'],
-  ) -> chex.Array:
+  ) -> tuple[chex.Array, ...]:
     ...
 
 
@@ -123,14 +122,6 @@ class Source(abc.ABC):
   def affected_core_profiles(self) -> tuple[AffectedCoreProfile, ...]:
     """Returns the core profiles affected by this source."""
 
-  def output_shape(self, mesh: geometry.Grid1D) -> tuple[int, ...]:
-    """Returns the shape of the source's output."""
-    if len(self.affected_core_profiles) == 1:
-      return mesh.cell_centers.shape
-    else:
-      num_affected_core_profiles = len(self.affected_core_profiles)
-      return (num_affected_core_profiles, mesh.nx)
-
   @property
   def affected_core_profiles_ints(self) -> tuple[int, ...]:
     return tuple([int(cp) for cp in self.affected_core_profiles])
@@ -142,7 +133,7 @@ class Source(abc.ABC):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
-  ) -> chex.Array:
+  ) -> tuple[chex.Array, ...]:
     """Returns the cell grid profile for this source during one time step.
 
     Args:
@@ -166,35 +157,45 @@ class Source(abc.ABC):
         See source_profile_builders.py for more details.
 
     Returns:
-      An array of shape (num affected core profiles, cell grid length)
-      containing the source profile for each affected core profile.
-      For sources that only affect one core profile, the output will be an
-      array with shape (cell grid length,).
+      A tuple of arrays of shape (cell grid length,) with one array per affected
+      core profile.
     """
     dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
         self.source_name
     ]
-    output_shape = self.output_shape(static_runtime_params_slice.torax_mesh)
 
-    return _get_source_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=calculated_source_profiles,
-        model_func=self.model_func,
-        prescribed_values=dynamic_source_runtime_params.prescribed_values,
-        output_shape=output_shape,
-        source_models=getattr(self, 'source_models', None),
-        source_name=self.source_name,
-    )
+    mode = static_runtime_params_slice.sources[self.source_name].mode
+    match mode:
+      case runtime_params_lib.Mode.MODEL_BASED.value:
+        if self.model_func is None:
+          raise ValueError(
+              'Source is in MODEL_BASED mode but has no model function.'
+          )
+        return self.model_func(
+            static_runtime_params_slice,
+            dynamic_runtime_params_slice,
+            geo,
+            self.source_name,
+            core_profiles,
+            calculated_source_profiles,
+            getattr(self, 'source_models', None),
+        )
+      case runtime_params_lib.Mode.PRESCRIBED.value:
+        # TODO(b/395854896) add support for sources that affect multiple core
+        # profiles.
+        return (dynamic_source_runtime_params.prescribed_values,)
+      case runtime_params_lib.Mode.ZERO.value:
+        zeros = jnp.zeros(geo.rho_norm.shape)
+        return (zeros,) * len(self.affected_core_profiles)
+      case _:
+        raise ValueError(f'Unknown mode: {mode}')
 
   def get_source_profile_for_affected_core_profile(
       self,
-      profile: chex.Array,
+      profile: tuple[chex.Array, ...],
       affected_core_profile: int,
       geo: geometry.Geometry,
-  ) -> jax.Array:
+  ) -> chex.Array:
     """Returns the part of the profile to use for the given core profile.
 
     A single source can output profiles used as terms in more than one equation
@@ -206,14 +207,6 @@ class Source(abc.ABC):
 
     This function helps do that. By default, it returns the input profile as is
     if the requested core profile is valid, otherwise returns zeros.
-
-    NOTE: This function assumes the ArrayTree returned by get_value() is a JAX
-    array with shape (num affected core profiles, cell grid length) and that the
-    order of the arrays in the output match the order of the
-    affected_core_profile attribute.
-
-    Subclasses can override this behavior to fit the type of ArrayTree they
-    output.
 
     Args:
       profile: The profile output from get_value().
@@ -228,88 +221,10 @@ class Source(abc.ABC):
     """
     # Get a valid index that defaults to 0 if not present.
     affected_core_profile_ints = self.affected_core_profiles_ints
-    if len(affected_core_profile_ints) == 1:
-      return jnp.where(
-          affected_core_profile in self.affected_core_profiles_ints,
-          profile,
-          jnp.zeros_like(geo.rho),
-      )
+    if affected_core_profile not in affected_core_profile_ints:
+      return jnp.zeros_like(geo.rho)
     else:
-      idx = jnp.argmax(
-          jnp.asarray(affected_core_profile_ints) == affected_core_profile
-      )
-      chex.assert_rank(profile, 2)
-      return jnp.where(
-          affected_core_profile in affected_core_profile_ints,
-          profile[idx, ...],
-          jnp.zeros_like(geo.rho),
-      )
-
-
-# pytype bug: 'source_models.SourceModels' not treated as a forward ref
-# pytype: disable=name-error
-def _get_source_profiles(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    source_name: str,
-    core_profiles: state.CoreProfiles,
-    calculated_source_profiles: source_profiles.SourceProfiles | None,
-    model_func: SourceProfileFunction | None,
-    prescribed_values: chex.Array,
-    output_shape: tuple[int, ...],
-    source_models: Optional['source_models.SourceModels'],
-) -> chex.Array:
-  """Returns source profiles requested by the runtime_params_lib.
-
-  This function handles MODEL_BASED, PRESCRIBED and ZERO sources.
-  All other source types will be ignored.
-  This function exists to simplify the creation of the profile to a set of
-  jnp.where calls.
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: Slice of the general TORAX config that can be
-      used as input for this time step.
-    geo: Geometry information. Used as input to the source profile functions.
-    source_name: The name of the source.
-    core_profiles: Core plasma profiles. Used as input to the source profile
-      functions.
-    calculated_source_profiles: The source profiles which have already been
-      calculated for this time step. This is used to avoid recalculating
-      profiles that are used as inputs to other sources.`
-    model_func: Model function.
-    prescribed_values: Array of values for this timeslice, interpolated onto the
-      grid (ie with shape output_shape)
-    output_shape: Expected shape of the output array.
-    source_models: The SourceModels if the Source `links_back`.
-
-  Returns:
-    Output array of a profile or concatenated/stacked profiles.
-  """
-  # pytype: enable=name-error
-  mode = static_runtime_params_slice.sources[source_name].mode
-  match mode:
-    case runtime_params_lib.Mode.MODEL_BASED.value:
-      if model_func is None:
-        raise ValueError(
-            'Source is in MODEL_BASED mode but has no model function.'
-        )
-      return model_func(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          source_name,
-          core_profiles,
-          calculated_source_profiles,
-          source_models,
-      )
-    case runtime_params_lib.Mode.PRESCRIBED.value:
-      return prescribed_values
-    case runtime_params_lib.Mode.ZERO.value:
-      return jnp.zeros(output_shape)
-    case _:
-      raise ValueError(f'Unknown mode: {mode}')
+      return profile[affected_core_profile_ints.index(affected_core_profile)]
 
 
 @dataclasses.dataclass(frozen=False, kw_only=True)

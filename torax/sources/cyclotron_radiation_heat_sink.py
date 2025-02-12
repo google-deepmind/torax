@@ -286,7 +286,7 @@ def cyclotron_radiation_albajar(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels,
-) -> array_typing.ArrayFloat:
+) -> tuple[array_typing.ArrayFloat, ...]:
   """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
 
   Total cyclotron radiation is from:
@@ -402,7 +402,7 @@ def cyclotron_radiation_albajar(
   rescaling_factor = P_cycl_total / denom
   Q_cycl = Q_cycl_shape * rescaling_factor
 
-  return -Q_cycl
+  return (-Q_cycl,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

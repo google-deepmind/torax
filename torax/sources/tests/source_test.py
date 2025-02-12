@@ -20,7 +20,6 @@ from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import circular_geometry
-from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -192,20 +191,9 @@ class SourceTest(parameterized.TestCase):
         calculated_source_profiles=None,
     )
     np.testing.assert_allclose(
-        profile,
+        profile[0],
         np.zeros_like(geo.torax_mesh.cell_centers)
     )
-
-  def test_output_shape_works_single_profile(self):
-    source = PsiTestSource()
-    torax_mesh = geometry.Grid1D.construct(10, 0.1)
-    self.assertEqual(source.output_shape(torax_mesh),
-                     torax_mesh.cell_centers.shape)
-
-  def test_output_shape_works_multiple_profiles(self):
-    source = IonElTestSource()
-    torax_mesh = geometry.Grid1D.construct(10, 0.1)
-    self.assertEqual(source.output_shape(torax_mesh), (2, torax_mesh.nx))
 
   @parameterized.parameters(
       (runtime_params_lib.Mode.ZERO, np.array([0, 0, 0, 0])),
@@ -215,8 +203,8 @@ class SourceTest(parameterized.TestCase):
   def test_correct_mode_called(self, mode, expected_profile):
     source_builder = source_lib.make_source_builder(
         test_lib.TestSource,
-        model_func=lambda _0, _1, _2, _3, _4, _5, _6: jnp.full(
-            geo.rho.shape, 2),
+        model_func=lambda _0, _1, _2, _3, _4, _5, _6: (jnp.full(
+            geo.rho.shape, 2),),
     )()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'foo': source_builder},
@@ -259,7 +247,7 @@ class SourceTest(parameterized.TestCase):
         calculated_source_profiles=None,
     )
     np.testing.assert_allclose(
-        profile,
+        profile[0],
         expected_profile,
     )
 
@@ -328,7 +316,7 @@ class SourceTest(parameterized.TestCase):
           geo=geo,
           core_profiles=core_profiles,
           calculated_source_profiles=None,
-      )
+      )[0]
       np.testing.assert_allclose(
           profile,
           np.zeros_like(geo.torax_mesh.cell_centers),
@@ -337,7 +325,7 @@ class SourceTest(parameterized.TestCase):
   def test_overriding_model(self):
     """The user-specified model should override the default model."""
     geo = circular_geometry.build_circular_geometry()
-    expected_output = jnp.ones_like(geo.rho)
+    expected_output = (jnp.ones_like(geo.rho),)
     source_builder = source_lib.make_source_builder(
         IonElTestSource,
         model_func=lambda _0, _1, _2, _3, _4, _5, _6: expected_output,
@@ -382,7 +370,7 @@ class SourceTest(parameterized.TestCase):
     """Providing prescribed values results in the correct profile."""
     geo = circular_geometry.build_circular_geometry()
     # Define the expected output
-    expected_output = jnp.ones_like(geo.rho)
+    expected_output = (jnp.ones_like(geo.rho),)
     # Create the source
     source_builder = IonElTestSourceBuilder()
     # Prescribe the source output to something that should be equal to the
@@ -429,12 +417,12 @@ class SourceTest(parameterized.TestCase):
       self,
   ):
     geo = circular_geometry.build_circular_geometry()
-    profile = jnp.full(geo.rho.shape, 13)
+    profile = (jnp.full(geo.rho.shape, 13),)
     source = PsiTestSource()
     psi_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )
-    np.testing.assert_allclose(psi_profile, profile)
+    np.testing.assert_allclose(psi_profile, profile[0])
 
     ne_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.NE.value, geo
@@ -447,7 +435,7 @@ class SourceTest(parameterized.TestCase):
     geo = circular_geometry.build_circular_geometry()
     ion_profile = jnp.full(geo.rho.shape, 13)
     el_profile = jnp.full(geo.rho.shape, 17)
-    profile = jnp.stack((ion_profile, el_profile))
+    profile = (ion_profile, el_profile)
     source = IonElTestSource()
     temp_ion_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.TEMP_ION.value, geo

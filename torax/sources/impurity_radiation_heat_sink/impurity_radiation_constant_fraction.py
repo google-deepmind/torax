@@ -41,7 +41,7 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
     source_models: source_models_lib.SourceModels,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Model function for radiation heat sink from impurities.
 
   This model represents a sink in the temp_el equation, whose value is a fixed %
@@ -105,8 +105,7 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
       -dynamic_source_runtime_params.fraction_of_total_power_density
       * Ptot_in
       / Vtot
-      * jnp.ones_like(geo.rho)
-  )
+      * jnp.ones_like(geo.rho),)
 
 
 @dataclasses.dataclass(kw_only=True)

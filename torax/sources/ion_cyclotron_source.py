@@ -375,7 +375,7 @@ def icrh_model_func(
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None,
     toric_nn: ToricNNWrapper,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Compute ion/electron heat source terms."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
@@ -483,7 +483,7 @@ def icrh_model_func(
   # Assume that all the power from the tritium power profile goes to ions.
   source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
 
-  return jnp.stack([source_ion, source_el])
+  return (source_ion, source_el)
 # pylint: enable=invalid-name
 
 

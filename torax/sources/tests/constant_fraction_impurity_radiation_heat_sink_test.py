@@ -131,9 +131,10 @@ class ImpurityRadiationConstantFractionTest(test_lib.SourceTestCase):
         )
     )
 
-    # ImpurityRadiationHeatSink provides TEMP_EL only
-    chex.assert_rank(impurity_radiation_heat_sink_power_density, 1)
-
+    self.assertLen(impurity_radiation_heat_sink_power_density, 1)
+    impurity_radiation_heat_sink_power_density = (
+        impurity_radiation_heat_sink_power_density[0]
+    )
     # The value should be equal to fraction * sum of the (TEMP_EL+TEMP_ION)
     # sources, minus P_ei and P_brems.
     # In this case, that is only the generic_ion_el_heat_source.

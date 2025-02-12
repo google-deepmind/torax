@@ -101,7 +101,8 @@ class SourceModelsTest(parameterized.TestCase):
       ) -> tuple[source.AffectedCoreProfile, ...]:
         return (source.AffectedCoreProfile.PSI,)
 
-    test_source = TestSource(model_func=lambda *args: jnp.ones(geo.rho.shape))
+    test_source = TestSource(
+        model_func=lambda *args: (jnp.ones(geo.rho.shape),))
     source_models = mock.create_autospec(source_models_lib.SourceModels)
     source_models.standard_sources = {'foo': test_source}
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
@@ -151,7 +152,7 @@ class SourceModelsTest(parameterized.TestCase):
                 source.AffectedCoreProfile.TEMP_EL)
 
     test_source = TestSource(
-        model_func=lambda *args: jnp.ones((2, geo.torax_mesh.nx)))
+        model_func=lambda *args: (jnp.ones_like(geo.rho),) * 2)
     source_models = mock.create_autospec(source_models_lib.SourceModels)
     source_models.standard_sources = {'foo': test_source}
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(

@@ -19,6 +19,7 @@ import dataclasses
 import functools
 from typing import ClassVar
 
+import chex
 import jax
 import jax.numpy as jnp
 from torax import constants
@@ -172,7 +173,7 @@ def ohmic_model_func(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     source_models: source_models_lib.SourceModels,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Returns the Ohmic source for electron heat equation."""
   if source_models is None:
     raise TypeError('source_models is a required argument for ohmic_model_func')
@@ -191,7 +192,7 @@ def ohmic_model_func(
   )
 
   pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
-  return pohm
+  return (pohm,)
 
 
 @dataclasses.dataclass

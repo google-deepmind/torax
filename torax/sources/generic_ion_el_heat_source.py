@@ -20,8 +20,6 @@ import dataclasses
 from typing import ClassVar, Optional
 
 import chex
-import jax
-from jax import numpy as jnp
 from torax import array_typing
 from torax import interpolated_param
 from torax import state
@@ -89,7 +87,7 @@ def calc_generic_heat_source(
     w: float,
     Ptot: float,
     el_heat_fraction: float,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[chex.Array, chex.Array]:
   """Computes ion/electron heat source terms.
 
   Flexible prescribed heat source term.
@@ -122,7 +120,7 @@ def default_formula(
     unused_core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: Optional['source_models.SourceModels'],
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Returns the default formula-based ion/electron heat source profile."""
   # pytype: enable=name-error
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
@@ -136,7 +134,7 @@ def default_formula(
       dynamic_source_runtime_params.Ptot,
       dynamic_source_runtime_params.el_heat_fraction,
   )
-  return jnp.stack([ion, el])
+  return (ion, el)
 
 
 # pylint: enable=invalid-name

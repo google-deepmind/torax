@@ -20,7 +20,6 @@ import dataclasses
 from typing import ClassVar, Optional
 
 import chex
-import jax
 from jax import numpy as jnp
 from torax import array_typing
 from torax import interpolated_param
@@ -109,7 +108,7 @@ def calculate_generic_current(
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: Optional['source_models.SourceModels'] = None,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Calculates the external current density profiles on the cell grid."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
@@ -135,7 +134,7 @@ def calculate_generic_current(
   generic_current_profile = (
       Cext * generic_current_form
   )
-  return generic_current_profile
+  return (generic_current_profile,)
 
 
 def _calculate_Iext(

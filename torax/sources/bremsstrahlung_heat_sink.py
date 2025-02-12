@@ -129,7 +129,7 @@ def bremsstrahlung_model_func(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_model_func: source_models.SourceModels | None,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Model function for the Bremsstrahlung heat sink."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
@@ -143,7 +143,7 @@ def bremsstrahlung_model_func(
       use_relativistic_correction=dynamic_source_runtime_params.use_relativistic_correction,
   )
   # As a sink, the power is negative.
-  return -1.0 * P_brem_profile
+  return (-1.0 * P_brem_profile,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

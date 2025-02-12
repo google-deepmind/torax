@@ -19,6 +19,7 @@ from __future__ import annotations
 import dataclasses
 from typing import ClassVar, Optional
 
+import chex
 import jax
 from jax import numpy as jnp
 from torax import constants
@@ -149,7 +150,7 @@ def fusion_heat_model_func(
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: Optional['source_models.SourceModels'],
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Model function for fusion heating."""
   # pytype: enable=name-error
   # pylint: disable=invalid-name
@@ -159,7 +160,7 @@ def fusion_heat_model_func(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
   )
-  return jnp.stack((Pfus_i, Pfus_e))
+  return (Pfus_i, Pfus_e)
   # pylint: enable=invalid-name
 
 

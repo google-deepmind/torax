@@ -149,7 +149,7 @@ class BootstrapCurrentSource(source.Source):
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
-  ) -> chex.Array:
+  ) -> tuple[chex.Array, ...]:
     raise NotImplementedError('Call `get_bootstrap` instead.')
 
   def get_source_profile_for_affected_core_profile(
