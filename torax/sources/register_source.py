@@ -162,7 +162,6 @@ _SUPPORTED_SOURCES = {
                 ModelFunction(
                     source_profile_function=ohmic_heat_source.ohmic_model_func,
                     runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
-                    links_back=True,
                 )
             )
         },

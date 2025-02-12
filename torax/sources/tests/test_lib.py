@@ -28,6 +28,7 @@ from torax.geometry import circular_geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles
 
 
 # Most of the checks and computations in TORAX require float64.
@@ -62,6 +63,7 @@ class SourceTestCase(parameterized.TestCase):
   _config_attr_name: str
   _source_name: str
   _runtime_params_class: Type[runtime_params_lib.RuntimeParams]
+  _needs_source_models: bool
 
   @classmethod
   def setUpClass(
@@ -71,6 +73,7 @@ class SourceTestCase(parameterized.TestCase):
       source_name: str,
       model_func: source_lib.SourceProfileFunction | None,
       links_back: bool = False,
+      needs_source_models: bool = False,
       source_class_builder: source_lib.SourceBuilderProtocol | None = None,
   ):
     super().setUpClass()
@@ -87,6 +90,7 @@ class SourceTestCase(parameterized.TestCase):
     cls._runtime_params_class = runtime_params_class
     cls._links_back = links_back
     cls._source_name = source_name
+    cls._needs_source_models = needs_source_models
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = self._runtime_params_class()
@@ -161,12 +165,23 @@ class SingleProfileSourceTestCase(SourceTestCase):
         geo=geo,
         source_models=source_models,
     )
+    if self._needs_source_models:
+      calculated_source_profiles = source_profiles.SourceProfiles(
+          j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
+          psi={'foo': jnp.full(geo.rho.shape, 13.0)},
+          temp_el={'foo_source': jnp.full(geo.rho.shape, 17.0)},
+          temp_ion={'foo_sink': jnp.full(geo.rho.shape, 19.0)},
+          ne={},
+          qei=source_profiles.QeiInfo.zeros(geo)
+      )
+    else:
+      calculated_source_profiles = None
     value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
-        calculated_source_profiles=None,
+        calculated_source_profiles=calculated_source_profiles,
     )[0]
     chex.assert_rank(value, 1)
     self.assertEqual(value.shape, geo.rho.shape)

@@ -166,31 +166,36 @@ def calculate_psidot_from_psi_sources(
 
 
 def ohmic_model_func(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     unused_source_name: str,
     core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    source_models: source_models_lib.SourceModels,
+    calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_source_models: source_models_lib.SourceModels,
 ) -> tuple[chex.Array, ...]:
   """Returns the Ohmic source for electron heat equation."""
-  if source_models is None:
-    raise TypeError('source_models is a required argument for ohmic_model_func')
+  if calculated_source_profiles is None:
+    raise ValueError(
+        'calculated_source_profiles is a required argument for'
+        ' ohmic_model_func. This can occur if this source function is used in'
+        ' an explicit source.'
+    )
 
   jtot, _, _ = physics.calc_jtot_from_psi(
       geo,
       core_profiles.psi,
   )
-
-  psidot = calc_psidot(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      core_profiles,
-      source_models,
+  psidot = calculate_psidot_from_psi_sources(
+      psi_sources=source_operations.sum_sources_psi(
+          geo, calculated_source_profiles
+      ),
+      sigma=calculated_source_profiles.j_bootstrap.sigma,
+      sigma_face=calculated_source_profiles.j_bootstrap.sigma_face,
+      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+      psi=core_profiles.psi,
+      geo=geo,
   )
-
   pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
   return (pohm,)
 
@@ -214,8 +219,6 @@ class OhmicHeatSource(source_lib.Source):
   SOURCE_NAME: ClassVar[str] = 'ohmic_heat_source'
   DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'ohmic_model_func'
   model_func: source_lib.SourceProfileFunction = ohmic_model_func
-  # Users must pass in a pointer to the complete set of sources to this object.
-  source_models: source_models_lib.SourceModels
 
   @property
   def source_name(self) -> str:
