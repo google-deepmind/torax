@@ -146,17 +146,14 @@ class Stepper(abc.ABC):
       x_new = tuple()
       # Calculate implicit source profiles and return the merged version. This
       # is useful for inspecting prescribed sources in the output state.
-      implicit_source_profiles = source_profile_builders.build_source_profiles(
+      core_sources = source_profile_builders.build_source_profiles(
           source_models=self.source_models,
           dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
           static_runtime_params_slice=static_runtime_params_slice,
           geo=geo_t_plus_dt,
           core_profiles=core_profiles_t_plus_dt,
           explicit=False,
-      )
-      core_sources = source_profiles.SourceProfiles.merge(
           explicit_source_profiles=explicit_source_profiles,
-          implicit_source_profiles=implicit_source_profiles,
       )
       core_transport = state.CoreTransport.zeros(geo_t)
       stepper_numeric_output = state.StepperNumericOutputs()

@@ -22,7 +22,6 @@ from torax import constants
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
-from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
@@ -79,38 +78,29 @@ def calc_and_sum_sources_psi(
   # TODO(b/335597108): Revisit how to calculate this once we enable more
   # expensive source functions that might not jittable (like file-based or
   # RPC-based sources).
-  psi_profiles = source_profile_builders.build_standard_source_profiles(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      core_profiles,
-      source_models,
-      calculate_anyway=True,
-      affected_core_profiles=(source_lib.AffectedCoreProfile.PSI,),
-  )
-  static_bootstrap_runtime_params = static_runtime_params_slice.sources[
-      source_models.j_bootstrap_name
-  ]
-  j_bootstrap_profiles = source_profile_builders.build_bootstrap_profiles(
+  j_bootstrap_profiles = source_models.j_bootstrap.get_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
-      static_source_runtime_params=static_bootstrap_runtime_params,
       geo=geo,
       core_profiles=core_profiles,
-      j_bootstrap_source=source_models.j_bootstrap,
-      calculate_anyway=True,
   )
-  source_profiles = source_profiles_lib.SourceProfiles(
+  profiles = source_profiles_lib.SourceProfiles(
       j_bootstrap=j_bootstrap_profiles,
-      qei=source_profiles_lib.QeiInfo.zeros(geo),
-      temp_el={},
-      temp_ion={},
-      ne={},
-      psi=psi_profiles[source_lib.AffectedCoreProfile.PSI],
+      psi={}, temp_el={}, temp_ion={}, ne={},
+      qei=source_profiles_lib.QeiInfo.zeros(geo))
+  source_profile_builders.build_standard_source_profiles(
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_models=source_models,
+      calculate_anyway=True,
+      psi_only=True,
+      calculated_source_profiles=profiles,
   )
 
   return (
-      sum_sources_psi(geo, source_profiles=source_profiles),
+      sum_sources_psi(geo, source_profiles=profiles),
       j_bootstrap_profiles.sigma,
       j_bootstrap_profiles.sigma_face,
   )

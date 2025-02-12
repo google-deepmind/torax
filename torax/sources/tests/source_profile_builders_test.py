@@ -26,6 +26,7 @@ from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
+from torax.sources import source_profiles
 from torax.stepper import runtime_params as stepper_runtime_params_lib
 
 
@@ -66,7 +67,7 @@ class SourceModelsTest(parameterized.TestCase):
             stepper=stepper_params,
         )
     )
-    _ = source_profile_builders.build_source_profiles(
+    explicit_source_profiles = source_profile_builders.build_source_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
@@ -74,13 +75,14 @@ class SourceModelsTest(parameterized.TestCase):
         source_models,
         explicit=True,
     )
-    _ = source_profile_builders.build_source_profiles(
+    source_profile_builders.build_source_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
         core_profiles,
         source_models,
         explicit=False,
+        explicit_source_profiles=explicit_source_profiles,
     )
 
   def test_computing_standard_source_profiles_for_single_affected_core_profile(
@@ -102,7 +104,8 @@ class SourceModelsTest(parameterized.TestCase):
         return (source.AffectedCoreProfile.PSI,)
 
     test_source = TestSource(
-        model_func=lambda *args: (jnp.ones(geo.rho.shape),))
+        model_func=lambda *args: (jnp.ones(geo.rho.shape),)
+    )
     source_models = mock.create_autospec(source_models_lib.SourceModels)
     source_models.standard_sources = {'foo': test_source}
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
@@ -115,19 +118,26 @@ class SourceModelsTest(parameterized.TestCase):
     )
     dynamic_params = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
-        sources={'foo': source_runtime_params.DynamicRuntimeParams(
-            prescribed_values=jnp.ones(geo.rho.shape))},
+        sources={
+            'foo': source_runtime_params.DynamicRuntimeParams(
+                prescribed_values=jnp.ones(geo.rho.shape)
+            )
+        },
     )
-    profiles = source_profile_builders.build_standard_source_profiles(
-        static_params,
-        dynamic_params,
-        geo,
-        mock.ANY,
-        source_models,
+    profiles = source_profiles.SourceProfiles(
+        j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
+        qei=source_profiles.QeiInfo.zeros(geo),
+    )
+    source_profile_builders.build_standard_source_profiles(
+        static_runtime_params_slice=static_params,
+        dynamic_runtime_params_slice=dynamic_params,
+        geo=geo,
+        core_profiles=mock.ANY,
+        source_models=source_models,
         explicit=True,
+        calculated_source_profiles=profiles,
     )
-    self.assertIn(source.AffectedCoreProfile.PSI, profiles)
-    psi_profiles = profiles[source.AffectedCoreProfile.PSI]
+    psi_profiles = profiles.psi
     self.assertLen(psi_profiles, 1)
     self.assertIn('foo', psi_profiles)
     np.testing.assert_equal(psi_profiles['foo'].shape, geo.rho.shape)
@@ -148,11 +158,14 @@ class SourceModelsTest(parameterized.TestCase):
       def affected_core_profiles(
           self,
       ) -> tuple[source.AffectedCoreProfile, ...]:
-        return (source.AffectedCoreProfile.TEMP_ION,
-                source.AffectedCoreProfile.TEMP_EL)
+        return (
+            source.AffectedCoreProfile.TEMP_ION,
+            source.AffectedCoreProfile.TEMP_EL,
+        )
 
     test_source = TestSource(
-        model_func=lambda *args: (jnp.ones_like(geo.rho),) * 2)
+        model_func=lambda *args: (jnp.ones_like(geo.rho),) * 2
+    )
     source_models = mock.create_autospec(source_models_lib.SourceModels)
     source_models.standard_sources = {'foo': test_source}
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
@@ -165,28 +178,34 @@ class SourceModelsTest(parameterized.TestCase):
     )
     dynamic_params = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
-        sources={'foo': source_runtime_params.DynamicRuntimeParams(
-            prescribed_values=jnp.ones(geo.rho.shape))},
+        sources={
+            'foo': source_runtime_params.DynamicRuntimeParams(
+                prescribed_values=jnp.ones(geo.rho.shape)
+            )
+        },
     )
-    profiles = source_profile_builders.build_standard_source_profiles(
-        static_params,
-        dynamic_params,
-        geo,
-        mock.ANY,
-        source_models,
+    profiles = source_profiles.SourceProfiles(
+        j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
+        qei=source_profiles.QeiInfo.zeros(geo),
+    )
+    source_profile_builders.build_standard_source_profiles(
+        static_runtime_params_slice=static_params,
+        dynamic_runtime_params_slice=dynamic_params,
+        geo=geo,
+        core_profiles=mock.ANY,
+        source_models=source_models,
         explicit=True,
+        calculated_source_profiles=profiles,
     )
 
     # Check that a single profile is returned for each affected core profile.
     # These profiles should be the same shape as the geo.rho.
-    self.assertIn(source.AffectedCoreProfile.TEMP_ION, profiles)
-    ion_profiles = profiles[source.AffectedCoreProfile.TEMP_ION]
+    ion_profiles = profiles.temp_ion
     self.assertLen(ion_profiles, 1)
     self.assertIn('foo', ion_profiles)
     np.testing.assert_equal(ion_profiles['foo'].shape, geo.rho.shape)
 
-    self.assertIn(source.AffectedCoreProfile.TEMP_EL, profiles)
-    el_profiles = profiles[source.AffectedCoreProfile.TEMP_EL]
+    el_profiles = profiles.temp_el
     self.assertLen(el_profiles, 1)
     self.assertIn('foo', el_profiles)
     np.testing.assert_equal(el_profiles['foo'].shape, geo.rho.shape)

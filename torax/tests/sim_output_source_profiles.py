@@ -126,7 +126,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         unused_source_models,
     ):
       dynamic_source_params = dynamic_runtime_params.sources[source_name]
-      return dynamic_source_params.prescribed_values
+      return (dynamic_source_params.prescribed_values,)
 
     # Include 2 versions of this source, one implicit and one explicit.
     runtime_params = runtime_params_lib.RuntimeParams(
@@ -176,17 +176,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
           t=new_t,
           dt=dt,
           time_step_calculator_state=(),
-          # The returned source profiles include only the implicit sources.
-          core_sources=source_profile_builders.build_source_profiles(
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-                  t=new_t,
-              ),
-              static_runtime_params_slice=static_runtime_params_slice,
-              geo=geometry_provider(new_t),
-              core_profiles=input_state.core_profiles,  # no state evolution.
-              source_models=source_models,
-              explicit=False,
-          ),
+          core_sources=source_profile_builders.get_initial_source_profiles(
+              static_runtime_params_slice,
+              dynamic_runtime_params_slice_provider(new_t),
+              geometry_provider(new_t),
+              core_profiles=input_state.core_profiles,
+              source_models=source_models),
       ), state_module.SimError.NO_ERROR
 
     sim = sim_lib.Sim.create(

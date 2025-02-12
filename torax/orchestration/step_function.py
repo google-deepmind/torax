@@ -656,7 +656,10 @@ def _update_current_distribution(
 ) -> state.CoreProfiles:
   """Update bootstrap current based on the new core_profiles."""
   bootstrap_profile = core_sources.j_bootstrap
-  external_current = sum(core_sources.psi.values())
+  # Needed for the case where no psi sources are present.
+  external_current = jnp.zeros_like(
+      core_profiles.currents.external_current_source)
+  external_current += sum(core_sources.psi.values())
 
   johm = (
       core_profiles.currents.jtot

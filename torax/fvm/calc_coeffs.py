@@ -373,25 +373,22 @@ def _calc_coeffs_full(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
   )
 
-  # This only calculates sources set to implicit in the config. All other
-  # sources are set to 0 (and should have their profiles already calculated in
-  # explicit_source_profiles).
-  implicit_source_profiles = source_profile_builders.build_source_profiles(
+  # Calculate the implicit source profiles and combines with the explicit
+  merged_source_profiles = source_profile_builders.build_source_profiles(
       source_models=source_models,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       static_runtime_params_slice=static_runtime_params_slice,
       geo=geo,
       core_profiles=core_profiles,
       explicit=False,
-  )
-  merged_source_profiles = source_profiles_lib.SourceProfiles.merge(
       explicit_source_profiles=explicit_source_profiles,
-      implicit_source_profiles=implicit_source_profiles,
   )
   j_bootstrap = merged_source_profiles.j_bootstrap
 
   # Sum over all psi sources (except the bootstrap current).
-  external_current = sum(merged_source_profiles.psi.values())
+  # Needed to ensure the correct shape if no psi sources are present.
+  external_current = jnp.zeros_like(geo.rho)
+  external_current += sum(merged_source_profiles.psi.values())
 
   currents = dataclasses.replace(
       core_profiles.currents,

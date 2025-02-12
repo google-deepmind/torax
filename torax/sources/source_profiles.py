@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import chex
 import jax
 import jax.numpy as jnp
@@ -45,10 +47,10 @@ class SourceProfiles:
   # is the profile on the cell grid from that source for that core profile.
   # For sources that affect multiple core profiles, they will have an entry for
   # each core profile they affect.
-  temp_el: dict[str, jax.Array]
-  temp_ion: dict[str, jax.Array]
-  ne: dict[str, jax.Array]
-  psi: dict[str, jax.Array]
+  temp_el: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
+  temp_ion: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
+  ne: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
+  psi: dict[str, jax.Array] = dataclasses.field(default_factory=dict)
 
   # This function can be jitted if source_models is a static argument. However,
   # in our tests, jitting this function actually slightly slows down runs, so

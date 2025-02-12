@@ -153,9 +153,14 @@ class ExplicitStepper(stepper_lib.Stepper):
             q_face=q_face,
             s_face=s_face,
         ),
-        source_profile_builders.build_all_zero_profiles(
+        source_profile_builders.build_source_profiles(
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
+            static_runtime_params_slice=static_runtime_params_slice,
             geo=geo_t,
+            core_profiles=core_profiles_t,
             source_models=self.source_models,
+            explicit=False,
+            explicit_source_profiles=explicit_source_profiles,
         ),
         state.CoreTransport.zeros(geo_t),
         stepper_numeric_outputs,

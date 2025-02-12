@@ -215,7 +215,6 @@ class FakeStepper(stepper_lib.Stepper):
     # Use Qei as a hacky way to extract what the combined value was.
     core_sources = source_profile_builders.build_all_zero_profiles(
         geo=geo_t,
-        source_models=self.source_models,
     )
     core_sources = dataclasses.replace(
         core_sources,
