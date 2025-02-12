@@ -923,7 +923,7 @@ def update_evolving_core_profiles(
 
 
 def compute_boundary_conditions_for_t_plus_dt(
-    dt: jax.Array,
+    dt: array_typing.ScalarFloat,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
