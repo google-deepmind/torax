@@ -31,7 +31,8 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_models as source_models_lib
+from torax.sources import source_models
+from torax.sources import source_profiles
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -283,8 +284,9 @@ def cyclotron_radiation_albajar(
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-) -> array_typing.ArrayFloat:
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+    unused_source_models: source_models.SourceModels,
+) -> tuple[array_typing.ArrayFloat, ...]:
   """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
 
   Total cyclotron radiation is from:
@@ -311,13 +313,13 @@ def cyclotron_radiation_albajar(
     geo: The geometry object.
     source_name: The name of the source.
     core_profiles: The core profiles object.
-    source_models: Collections of source models.
+    unused_calculated_source_profiles: Unused.
+    unused_source_models: Unused.
 
   Returns:
     The cyclotron radiation heat sink contribution to the electron heat
     equation.
   """
-  del (source_models,)
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
@@ -400,7 +402,7 @@ def cyclotron_radiation_albajar(
   rescaling_factor = P_cycl_total / denom
   Q_cycl = Q_cycl_shape * rescaling_factor
 
-  return -Q_cycl
+  return (-Q_cycl,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

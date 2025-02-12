@@ -20,8 +20,6 @@ import dataclasses
 from typing import ClassVar, Optional
 
 import chex
-import jax
-from jax import numpy as jnp
 from torax import array_typing
 from torax import interpolated_param
 from torax import state
@@ -30,6 +28,7 @@ from torax.geometry import geometry
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_profiles
 # Many variables throughout this function are capitalized based on physics
 # notational conventions rather than on Google Python style
 # pylint: disable=invalid-name
@@ -88,7 +87,7 @@ def calc_generic_heat_source(
     w: float,
     Ptot: float,
     el_heat_fraction: float,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[chex.Array, chex.Array]:
   """Computes ion/electron heat source terms.
 
   Flexible prescribed heat source term.
@@ -114,20 +113,16 @@ def calc_generic_heat_source(
 
 # pytype: disable=name-error
 def default_formula(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    core_profiles: state.CoreProfiles,
+    unused_core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: Optional['source_models.SourceModels'],
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Returns the default formula-based ion/electron heat source profile."""
   # pytype: enable=name-error
-  del (
-      core_profiles,
-      static_runtime_params_slice,
-      unused_source_models,
-  )  # Unused.
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
@@ -139,7 +134,7 @@ def default_formula(
       dynamic_source_runtime_params.Ptot,
       dynamic_source_runtime_params.el_heat_fraction,
   )
-  return jnp.stack([ion, el])
+  return (ion, el)
 
 
 # pylint: enable=invalid-name
@@ -163,7 +158,3 @@ class GenericIonElectronHeatSource(source.Source):
         source.AffectedCoreProfile.TEMP_ION,
         source.AffectedCoreProfile.TEMP_EL,
     )
-
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.get_ion_el_output_shape

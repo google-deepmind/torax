@@ -19,6 +19,7 @@ from __future__ import annotations
 import dataclasses
 from typing import ClassVar, Optional
 
+import chex
 import jax
 from jax import numpy as jnp
 from torax import constants
@@ -28,6 +29,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_profiles
 
 
 def calc_fusion(
@@ -144,13 +146,13 @@ def fusion_heat_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    source_name: str,
+    unused_source_name: str,
     core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: Optional['source_models.SourceModels'],
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Model function for fusion heating."""
   # pytype: enable=name-error
-  del source_name
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
       geo,
@@ -158,7 +160,7 @@ def fusion_heat_model_func(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
   )
-  return jnp.stack((Pfus_i, Pfus_e))
+  return (Pfus_i, Pfus_e)
   # pylint: enable=invalid-name
 
 
@@ -180,10 +182,6 @@ class FusionHeatSource(source.Source):
         source.AffectedCoreProfile.TEMP_ION,
         source.AffectedCoreProfile.TEMP_EL,
     )
-
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.get_ion_el_output_shape
 
 
 @dataclasses.dataclass

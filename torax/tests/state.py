@@ -30,8 +30,10 @@ from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
+from torax.geometry import standard_geometry
 from torax.sources import generic_current_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
@@ -172,7 +174,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     geo_provider = geometry_provider.ConstantGeometryProvider(
-        geometry.build_circular_geometry()
+        circular_geometry.build_circular_geometry()
     )
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -206,7 +208,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     geo_provider = geometry_provider.ConstantGeometryProvider(
-        geometry.build_circular_geometry()
+        circular_geometry.build_circular_geometry()
     )
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -234,10 +236,10 @@ class InitialStatesTest(parameterized.TestCase):
     assert not core_profiles.quasineutrality_satisfied()
 
   @parameterized.parameters([
-      dict(geo_builder=geometry.build_circular_geometry),
+      dict(geo_builder=circular_geometry.build_circular_geometry),
       dict(
-          geo_builder=lambda: geometry.build_standard_geometry(
-              geometry.StandardGeometryIntermediates.from_chease()
+          geo_builder=lambda: standard_geometry.build_standard_geometry(
+              standard_geometry.StandardGeometryIntermediates.from_chease()
           )
       ),
   ])
@@ -367,7 +369,7 @@ class InitialStatesTest(parameterized.TestCase):
 
     # calculate total and Ohmic current profiles arising from nu=2
     jformula = (1 - geo.rho_norm**2) ** 2
-    denom = jax.scipy.integrate.trapezoid(jformula * geo.spr_cell, geo.rho_norm)
+    denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
     ctot = config1.profile_conditions.Ip_tot * 1e6 / denom
     jtot_formula = jformula * ctot
     johm_formula = jtot_formula * (
@@ -376,7 +378,7 @@ class InitialStatesTest(parameterized.TestCase):
 
     # Calculate bootstrap current for config3 which doesn't zero it out
     source_models = source_models_lib.SourceModels({})
-    bootstrap_profile = source_models.j_bootstrap.get_value(
+    bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
         dynamic_runtime_params_slice=dcs3,
         static_runtime_params_slice=static_slice,
         geo=geo,
@@ -441,7 +443,7 @@ class InitialStatesTest(parameterized.TestCase):
             ne_bound_right=0.5,
         ),
     )
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dcs1 = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         config1,
         sources=source_models_builder.runtime_params,
@@ -470,7 +472,7 @@ class InitialStatesTest(parameterized.TestCase):
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
         static_runtime_params_slice=static_slice,
-        geo=geometry.build_circular_geometry(),
+        geo=circular_geometry.build_circular_geometry(),
         source_models=source_models,
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
@@ -481,7 +483,7 @@ class InitialStatesTest(parameterized.TestCase):
     core_profiles2 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,
         static_runtime_params_slice=static_slice,
-        geo=geometry.build_circular_geometry(),
+        geo=circular_geometry.build_circular_geometry(),
         source_models=source_models,
     )
     np.testing.assert_allclose(

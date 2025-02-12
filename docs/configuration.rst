@@ -911,7 +911,8 @@ The configurable runtime parameters of each source are as follows:
 
 * ``'PRESCRIBED'``
     Source values are arbitrarily prescribed by the user. The value is set by ``prescribed_values``, and can contain the same
-    data structures as :ref:`Time-varying arrays`.
+    data structures as :ref:`Time-varying arrays`. Currently, this is only supported for sources that have a 1D output
+    along the cell grid or face grid.
 
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purposes, set:
 
@@ -1072,6 +1073,27 @@ Bremsstrahlung model from Wesson, with an optional correction for relativistic e
 ``mode`` (str = 'model')
 
 ``use_relativistic_correction`` (bool = False)
+
+impurity_radiation_heat_sink
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Various models for impurity radiation. Runtime params for each available model are listed separately
+
+``mode`` (str = 'model')
+
+``model_func`` (str = 'impurity_radiation_mavrin_fit')
+
+The following models are available:
+
+* ``'impurity_radiation_mavrin_fit'``
+    Polynomial fits to ADAS data from `Mavrin, 2018. <https://doi.org/10.1080/10420150.2018.1462361>`_
+
+    ``radiation_multiplier`` (float = 1.0). Multiplication factor for radiation term for testing sensitivities.
+
+* ``'radially_constant_fraction_of_Pin'``
+    Sets impurity radiation to be a constant fraction of the total external input power.
+
+    ``fraction_of_total_power_density`` (float = 1.0). Fraction of total external input power to use for impurity radiation.
 
 cyclotron_radiation_heat_sink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

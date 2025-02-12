@@ -11,21 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for runtime params for sources."""
 from absl.testing import absltest
-from torax.geometry import geometry
-from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import generic_current_source
+from torax.sources.tests import test_lib
 
 
-class RuntimeParamsTest(absltest.TestCase):
+class GenericCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
+  """Tests for GenericCurrentSource."""
 
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = runtime_params_lib.RuntimeParams()
-    geo = geometry.build_circular_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    dynamic_params = provider.build_dynamic_params(t=0.0)
-    self.assertIsInstance(
-        dynamic_params, runtime_params_lib.DynamicRuntimeParams
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass(
+        source_class=generic_current_source.GenericCurrentSource,
+        runtime_params_class=generic_current_source.RuntimeParams,
+        source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
+        model_func=generic_current_source.calculate_generic_current,
     )
 
 

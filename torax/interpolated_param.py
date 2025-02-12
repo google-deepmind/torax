@@ -17,7 +17,7 @@
 import abc
 from collections.abc import Mapping
 import enum
-
+from typing import Final, Literal, TypeAlias
 import chex
 import jax
 import jax.numpy as jnp
@@ -25,24 +25,10 @@ import numpy as np
 from torax import jax_utils
 import xarray as xr
 
-RHO_NORM = 'rho_norm'
+RHO_NORM: Final[str] = 'rho_norm'
 
-interp_fn = jax_utils.jit(jnp.interp)
-interp_fn_vmap = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
-
-
-class InterpolatedParamBase(abc.ABC):
-  """Base class for interpolated params.
-
-  An InterpolatedParamBase child class should implement the interface defined
-  below where, given an x-value for where to interpolate, this object
-  returns a value. The x-value can be either a time or spatial coordinate
-  depending on what we are interpolating over.
-  """
-
-  @abc.abstractmethod
-  def get_value(self, x: chex.Numeric) -> chex.Array:
-    """Returns a value for this parameter interpolated at the given input."""
+_interp_fn = jax_utils.jit(jnp.interp)
+_interp_fn_vmap = jax_utils.jit(jax.vmap(jnp.interp, in_axes=(None, None, 1)))
 
 
 @enum.unique
@@ -66,6 +52,64 @@ class InterpolationMode(enum.Enum):
 
   PIECEWISE_LINEAR = 'piecewise_linear'
   STEP = 'step'
+
+
+InterpolationModeLiteral: TypeAlias = Literal[
+    'step', 'STEP', 'piecewise_linear', 'PIECEWISE_LINEAR'
+]
+
+
+# Config input types convertible to InterpolatedParam objects.
+InterpolatedVarSingleAxisInput: TypeAlias = (
+    float
+    | dict[float, float]
+    | bool
+    | dict[float, bool]
+    | tuple[chex.Array, chex.Array]
+    | xr.DataArray
+)
+InterpolatedVarTimeRhoInput: TypeAlias = (
+    # Mapping from time to rho, value interpolated in rho
+    Mapping[float, InterpolatedVarSingleAxisInput]
+    | float
+    | xr.DataArray
+    | tuple[chex.Array, chex.Array, chex.Array]
+    | tuple[chex.Array, chex.Array]
+)
+
+
+# Type-alias for a variable (in rho_norm) to be interpolated in time.
+# If a string is provided, it is assumed to be an InterpolationMode else, the
+# default piecewise linear interpolation is used.
+TimeInterpolatedInput: TypeAlias = (
+    InterpolatedVarSingleAxisInput
+    | tuple[InterpolatedVarSingleAxisInput, InterpolationModeLiteral]
+)
+# Type-alias for a variable to be interpolated in time and rho_norm.
+TimeRhoInterpolatedInput: TypeAlias = (
+    InterpolatedVarTimeRhoInput
+    | tuple[
+        InterpolatedVarTimeRhoInput,
+        Mapping[
+            Literal['time_interpolation_mode', 'rho_interpolation_mode'],
+            InterpolationModeLiteral,
+        ],
+    ]
+)
+
+
+class InterpolatedParamBase(abc.ABC):
+  """Base class for interpolated params.
+
+  An InterpolatedParamBase child class should implement the interface defined
+  below where, given an x-value for where to interpolate, this object
+  returns a value. The x-value can be either a time or spatial coordinate
+  depending on what we are interpolating over.
+  """
+
+  @abc.abstractmethod
+  def get_value(self, x: chex.Numeric) -> chex.Array:
+    """Returns a value for this parameter interpolated at the given input."""
 
 
 class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
@@ -112,7 +156,7 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
     # This function can be used inside a JITted function, where x are
     # tracers. Thus are required to use the JAX versions of functions in this
     # case.
-    interp = interp_fn if is_jax else np.interp
+    interp = _interp_fn if is_jax else np.interp
     full = jnp.full if is_jax else np.full
 
     match self.ys.ndim:
@@ -133,7 +177,7 @@ class PiecewiseLinearInterpolatedParam(InterpolatedParamBase):
         if len(self.ys) == 1 and x_shape == ():  # pylint: disable=g-explicit-bool-comparison
           return self.ys[0]
         else:
-          return interp_fn_vmap(x, self.xs, self.ys)
+          return _interp_fn_vmap(x, self.xs, self.ys)
       case _:
         raise ValueError(f'ys must be either 1D or 2D. Given: {self.ys.shape}.')
 
@@ -183,25 +227,6 @@ class StepInterpolatedParam(InterpolatedParamBase):
       x: chex.Numeric,
   ) -> chex.Array:
     return step_interpolate(self._padded_xs, self._padded_ys, x)
-
-
-# Config input types convertible to InterpolatedParam objects.
-InterpolatedVarSingleAxisInput = (
-    float
-    | dict[float, float]
-    | bool
-    | dict[float, bool]
-    | tuple[chex.Array, chex.Array]
-    | xr.DataArray
-)
-InterpolatedVarTimeRhoInput = (
-    # Mapping from time to rho, value interpolated in rho
-    Mapping[float, InterpolatedVarSingleAxisInput]
-    | float
-    | xr.DataArray
-    | tuple[chex.Array, chex.Array, chex.Array]
-    | tuple[chex.Array, chex.Array]
-)
 
 
 def rhonorm1_defined_in_timerhoinput(
@@ -266,7 +291,7 @@ def _convert_value_to_floats(
 
 
 def convert_input_to_xs_ys(
-    interp_input: InterpolatedVarSingleAxisInput,
+    interp_input: TimeInterpolatedInput,
 ) -> tuple[chex.Array, chex.Array, InterpolationMode, bool]:
   """Converts config inputs into inputs suitable for constructors.
 
@@ -296,9 +321,7 @@ def convert_input_to_xs_ys(
       interp_input = interp_input[0]
 
   if _is_bool(interp_input):
-    interp_input = _convert_value_to_floats(
-        interp_input
-    )
+    interp_input = _convert_value_to_floats(interp_input)
     is_bool_param = True
   else:
     is_bool_param = False
@@ -478,18 +501,3 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
   def get_value(self, x: chex.Numeric) -> chex.Array:
     """Returns the value of this parameter interpolated at x=time."""
     return self._time_interpolated_var.get_value(x)
-
-
-# Type-alias for a variable (in rho_norm) to be interpolated in time.
-# If a string is provided, it is assumed to be an InterpolationMode else, the
-# default piecewise linear interpolation is used.
-TimeInterpolatedInput = (
-    InterpolatedVarSingleAxisInput | tuple[InterpolatedVarSingleAxisInput, str]
-)
-# Type-alias for a variable to be interpolated in time and rho_norm.
-# If two strings are provided, they are assumed to be an InterpolationMode for
-# time and rho_norm respectively, otherwise the default piecewise linear
-# interpolation is used for both.
-TimeRhoInterpolatedInput = (
-    InterpolatedVarTimeRhoInput | tuple[InterpolatedVarTimeRhoInput, str, str]
-)

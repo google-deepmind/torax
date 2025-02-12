@@ -20,7 +20,6 @@ import dataclasses
 from typing import ClassVar
 
 import chex
-import jax
 from torax import array_typing
 from torax import interpolated_param
 from torax import state
@@ -30,6 +29,7 @@ from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_models
+from torax.sources import source_profiles
 
 
 # pylint: disable=invalid-name
@@ -77,23 +77,20 @@ class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 # Default formula: exponential with nref normalization.
 def calc_puff_source(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    unused_state: state.CoreProfiles | None = None,
+    unused_state: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None = None,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from puffs."""
-  del (
-      unused_source_models,
-      static_runtime_params_slice,
-  )  # Unused.
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
   assert isinstance(dynamic_source_runtime_params, DynamicGasPuffRuntimeParams)
-  return formulas.exponential_profile(
+  return (formulas.exponential_profile(
       c1=1.0,
       c2=dynamic_source_runtime_params.puff_decay_length,
       total=(
@@ -101,7 +98,7 @@ def calc_puff_source(
           / dynamic_runtime_params_slice.numerics.nref
       ),
       geo=geo,
-  )
+  ),)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -173,23 +170,20 @@ class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def calc_generic_particle_source(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    unused_state: state.CoreProfiles | None = None,
+    unused_state: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None = None,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from SBI."""
-  del (
-      unused_source_models,
-      static_runtime_params_slice,
-  )  # Unused.
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
   assert isinstance(dynamic_source_runtime_params, DynamicParticleRuntimeParams)
-  return formulas.gaussian_profile(
+  return (formulas.gaussian_profile(
       c1=dynamic_source_runtime_params.deposition_location,
       c2=dynamic_source_runtime_params.particle_width,
       total=(
@@ -197,7 +191,7 @@ def calc_generic_particle_source(
           / dynamic_runtime_params_slice.numerics.nref
       ),
       geo=geo,
-  )
+  ),)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -262,23 +256,20 @@ class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def calc_pellet_source(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    unused_state: state.CoreProfiles | None = None,
+    unused_state: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     unused_source_models: source_models.SourceModels | None = None,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from pellets."""
-  del (
-      unused_source_models,
-      static_runtime_params_slice,
-  )  # Unused.
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
   assert isinstance(dynamic_source_runtime_params, DynamicPelletRuntimeParams)
-  return formulas.gaussian_profile(
+  return (formulas.gaussian_profile(
       c1=dynamic_source_runtime_params.pellet_deposition_location,
       c2=dynamic_source_runtime_params.pellet_width,
       total=(
@@ -286,7 +277,7 @@ def calc_pellet_source(
           / dynamic_runtime_params_slice.numerics.nref
       ),
       geo=geo,
-  )
+  ),)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

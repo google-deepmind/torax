@@ -26,8 +26,10 @@ from torax import fvm
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.geometry import standard_geometry
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
 from torax.transport_model import runtime_params as transport_model_params
@@ -89,7 +91,7 @@ def circular_references() -> References:
           },
       },
   )
-  geo = geometry.build_circular_geometry(
+  geo = circular_geometry.build_circular_geometry(
       n_rho=25,
       elongation_LCFS=1.72,
       hires_fac=4,
@@ -241,8 +243,8 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
           },
       },
   )
-  geo = geometry.build_standard_geometry(
-      geometry.StandardGeometryIntermediates.from_chease(
+  geo = standard_geometry.build_standard_geometry(
+      standard_geometry.StandardGeometryIntermediates.from_chease(
           geometry_dir=_GEO_DIRECTORY,
           geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
           n_rho=25,
@@ -396,8 +398,8 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
           },
       },
   )
-  geo = geometry.build_standard_geometry(
-      geometry.StandardGeometryIntermediates.from_chease(
+  geo = standard_geometry.build_standard_geometry(
+      standard_geometry.StandardGeometryIntermediates.from_chease(
           geometry_dir=_GEO_DIRECTORY,
           geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
           n_rho=25,

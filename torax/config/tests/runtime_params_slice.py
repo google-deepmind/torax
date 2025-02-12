@@ -23,7 +23,7 @@ import numpy as np
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import generic_current_source
@@ -37,7 +37,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._geo = geometry.build_circular_geometry()
+    self._geo = circular_geometry.build_circular_geometry()
 
   def test_dynamic_slice_can_be_input_to_jitted_function(self):
     """Tests that the slice can be input to a jitted function."""
@@ -351,7 +351,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions,
     )
-    geo = geometry.build_circular_geometry(n_rho=4)
+    geo = circular_geometry.build_circular_geometry(n_rho=4)
     dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -394,7 +394,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             ne_is_fGW=ne_is_fGW,
         ),
     )
-    geo = geometry.build_circular_geometry(n_rho=4)
+    geo = circular_geometry.build_circular_geometry(n_rho=4)
 
     dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
@@ -427,7 +427,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             Ti_bound_right={0.0: 1.0, 1.0: 2.0},
         ),
     )
-    geo = geometry.build_circular_geometry(n_rho=4)
+    geo = circular_geometry.build_circular_geometry(n_rho=4)
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -463,7 +463,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     source_models_builder.runtime_params[
         generic_current_source.GenericCurrentSource.SOURCE_NAME
     ].Iext = 1.0
-    geo = geometry.build_circular_geometry(n_rho=4)
+    geo = circular_geometry.build_circular_geometry(n_rho=4)
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         sources=source_models_builder.runtime_params,
@@ -519,7 +519,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Tests that the dynamic slice provider can be updated."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     transport = transport_params_lib.RuntimeParams(De_inner=1.0)
-    geo = geometry.build_circular_geometry(n_rho=4)
+    geo = circular_geometry.build_circular_geometry(n_rho=4)
     provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,

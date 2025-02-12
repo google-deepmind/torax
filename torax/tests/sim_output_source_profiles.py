@@ -28,6 +28,7 @@ import numpy as np
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.config import runtime_params as general_runtime_params
+from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
@@ -35,6 +36,7 @@ from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.sources.tests import test_lib
 from torax.tests.test_lib import default_sources
@@ -68,7 +70,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    geo = geometry.build_circular_geometry()
+    torax_mesh = geometry.Grid1D.construct(10, 0.1)
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
     # Technically, the merge_source_profiles() function should be called with
@@ -78,13 +80,13 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # summed in the first place.
     # Build a fake set of source profiles which have all 1s in all the profiles.
     fake_implicit_source_profiles = _build_source_profiles_with_single_value(
-        geo=geo,
+        torax_mesh=torax_mesh,
         source_models=source_models,
         value=1.0,
     )
     # And a fake set of profiles with all 2s.
     fake_explicit_source_profiles = _build_source_profiles_with_single_value(
-        geo=geo,
+        torax_mesh=torax_mesh,
         source_models=source_models,
         value=2.0,
     )
@@ -93,15 +95,19 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         explicit_source_profiles=fake_explicit_source_profiles,
     )
     # All the profiles in the merged profiles should be a 1D array with all 3s.
-    # Except the Qei profile, which is a special case.
-    for name, profile in merged_profiles.profiles.items():
-      if name != source_models.qei_source_name:
-        np.testing.assert_allclose(profile, 3.0)
-      else:
-        np.testing.assert_allclose(profile, 6.0)
+    for profile in merged_profiles.temp_el.values():
+      np.testing.assert_allclose(profile, 3.0)
+    for profile in merged_profiles.temp_ion.values():
+      np.testing.assert_allclose(profile, 3.0)
+    for profile in merged_profiles.psi.values():
+      np.testing.assert_allclose(profile, 3.0)
+    for profile in merged_profiles.ne.values():
+      np.testing.assert_allclose(profile, 3.0)
+    np.testing.assert_allclose(merged_profiles.qei.qei_coef, 3.0)
     # Make sure the combo ion-el heat sources are present.
     for name in ['generic_ion_el_heat_source', 'fusion_heat_source']:
-      self.assertIn(name, merged_profiles.profiles)
+      self.assertIn(name, merged_profiles.temp_ion)
+      self.assertIn(name, merged_profiles.temp_el)
 
   def test_first_and_last_source_profiles(self):
     """Tests that the first and last source profiles contain correct data."""
@@ -116,10 +122,11 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         unused_geo,
         source_name,
         unused_state,
+        unused_calculated_source_profiles,
         unused_source_models,
     ):
       dynamic_source_params = dynamic_runtime_params.sources[source_name]
-      return dynamic_source_params.prescribed_values
+      return (dynamic_source_params.prescribed_values,)
 
     # Include 2 versions of this source, one implicit and one explicit.
     runtime_params = runtime_params_lib.RuntimeParams(
@@ -153,7 +160,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     runtime_params.numerics.t_final = 2.
     runtime_params.numerics.fixed_dt = 1.
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     time_stepper = fixed_time_step_calculator.FixedTimeStepCalculator()
     def mock_step_fn(
         _,
@@ -169,17 +176,12 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
           t=new_t,
           dt=dt,
           time_step_calculator_state=(),
-          # The returned source profiles include only the implicit sources.
-          core_sources=source_models_lib.build_source_profiles(
-              dynamic_runtime_params_slice=dynamic_runtime_params_slice_provider(
-                  t=new_t,
-              ),
-              static_runtime_params_slice=static_runtime_params_slice,
-              geo=geometry_provider(new_t),
-              core_profiles=input_state.core_profiles,  # no state evolution.
-              source_models=source_models,
-              explicit=False,
-          ),
+          core_sources=source_profile_builders.get_initial_source_profiles(
+              static_runtime_params_slice,
+              dynamic_runtime_params_slice_provider(new_t),
+              geometry_provider(new_t),
+              core_profiles=input_state.core_profiles,
+              source_models=source_models),
       ), state_module.SimError.NO_ERROR
 
     sim = sim_lib.Sim.create(
@@ -203,30 +205,40 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     # because we are using the mock step function defined above).
     for i, sim_state in enumerate(sim_outputs.sim_history):
       np.testing.assert_allclose(
-          sim_state.core_sources.profiles['implicit_ne_source'], i + 1
+          sim_state.core_sources.ne['implicit_ne_source'], i + 1
       )
       np.testing.assert_allclose(
-          sim_state.core_sources.profiles['explicit_ne_source'], i + 1
+          sim_state.core_sources.ne['explicit_ne_source'], i + 1
       )
 
 
 def _build_source_profiles_with_single_value(
-    geo: geometry.Geometry,
+    torax_mesh: geometry.Grid1D,
     source_models: source_models_lib.SourceModels,
     value: float,
-):
-  cell_1d_arr = jnp.ones_like(geo.rho) * value
-  face_1d_arr = jnp.ones_like(geo.rho_face) * value
+) -> source_profiles_lib.SourceProfiles:
+  """Builds a set of source profiles with all values set to a single value."""
+  cell_1d_arr = jnp.full((torax_mesh.nx,), value)
+  face_1d_arr = jnp.full((torax_mesh.nx + 1), value)
+  profiles = {
+      source_lib.AffectedCoreProfile.PSI: {},
+      source_lib.AffectedCoreProfile.NE: {},
+      source_lib.AffectedCoreProfile.TEMP_ION: {},
+      source_lib.AffectedCoreProfile.TEMP_EL: {},
+  }
+  for source_name, source in source_models.standard_sources.items():
+    for affected_core_profile in source.affected_core_profiles:
+      profiles[affected_core_profile][source_name] = cell_1d_arr
   return source_profiles_lib.SourceProfiles(
-      profiles={
-          name: jnp.ones(shape=src.output_shape_getter(geo)) * value
-          for name, src in source_models.standard_sources.items()
-      },
+      temp_el=profiles[source_lib.AffectedCoreProfile.TEMP_EL],
+      temp_ion=profiles[source_lib.AffectedCoreProfile.TEMP_ION],
+      ne=profiles[source_lib.AffectedCoreProfile.NE],
+      psi=profiles[source_lib.AffectedCoreProfile.PSI],
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile(
-          sigma=cell_1d_arr * value,
-          sigma_face=face_1d_arr * value,
-          j_bootstrap=cell_1d_arr * value,
-          j_bootstrap_face=face_1d_arr * value,
+          sigma=cell_1d_arr,
+          sigma_face=face_1d_arr,
+          j_bootstrap=cell_1d_arr,
+          j_bootstrap_face=face_1d_arr,
           I_bootstrap=jnp.ones(()) * value,
       ),
       qei=source_profiles_lib.QeiInfo(

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import dataclasses
+import inspect
 
 from absl import logging
 import chex
@@ -23,7 +24,7 @@ import jax
 from jax import numpy as jnp
 from torax import state
 from torax.config import runtime_params
-from torax.geometry import geometry
+from torax.geometry import geometry as geometry_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 import xarray as xr
@@ -81,6 +82,7 @@ S_FACE = "s_face"
 NREF = "nref"
 ZIMP = "Zimp"
 NIMP = "nimp"
+IP_PROFILE_FACE = "Ip_profile_face"
 VLOOP_LCFS = "vloop_lcfs"
 
 # Core transport.
@@ -91,11 +93,7 @@ D_FACE_EL = "d_face_el"
 V_FACE_EL = "v_face_el"
 
 # Geometry.
-VPR = "vpr"
-SPR = "spr"
-VPR_FACE = "vpr_face"
-SPR_FACE = "spr_face"
-IP_PROFILE_FACE = "Ip_profile_face"
+GEOMETRY = "geometry"
 
 # Coordinates.
 RHO_FACE_NORM = "rho_face_norm"
@@ -113,6 +111,17 @@ SIM_ERROR = "sim_error"
 
 # Sources.
 CORE_SOURCES = "core_sources"
+
+# Excluded coordinates from geometry since they are at the top DataTree level
+# TODO(b/338033916): consolidate on either rho or rho_cell naming for cell grid
+EXCLUDED_GEOMETRY_NAMES = frozenset({
+    RHO_CELL,
+    RHO_FACE,
+    RHO_CELL_NORM,
+    RHO_FACE_NORM,
+    "rho",
+    "rho_norm",
+})
 
 
 def safe_load_dataset(filepath: str) -> xr.DataTree:
@@ -204,6 +213,8 @@ class StateHistory:
     post_processed_output = [
         state.post_processed_outputs for state in sim_outputs.sim_history
     ]
+    geometries = [state.geometry for state in sim_outputs.sim_history]
+    self.geometry = geometry_lib.stack_geometries(geometries)
     stack = lambda *ys: jnp.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
@@ -218,6 +229,11 @@ class StateHistory:
         jax.tree_util.tree_map(stack, *post_processed_output)
     )
     self.times = jnp.array([state.t for state in sim_outputs.sim_history])
+    # The rho grid does not change in time so we can just take the first one.
+    self.rho_norm = sim_outputs.sim_history[0].geometry.rho_norm
+    self.rho_face_norm = sim_outputs.sim_history[0].geometry.rho_face_norm
+    self.rho_face = sim_outputs.sim_history[0].geometry.rho_face
+    self.rho = sim_outputs.sim_history[0].geometry.rho
     chex.assert_rank(self.times, 1)
     self.sim_error = sim_outputs.sim_error
     self.source_models = source_models
@@ -226,7 +242,6 @@ class StateHistory:
       self,
       name: str,
       data: jax.Array | None,
-      geo: geometry.Geometry,
   ) -> xr.DataArray | None:
     """Packs the data into an xr.DataArray."""
     if data is None:
@@ -234,13 +249,14 @@ class StateHistory:
 
     is_face_var = lambda x: x.ndim == 2 and x.shape == (
         len(self.times),
-        len(geo.rho_face_norm),
+        len(self.rho_face_norm),
     )
     is_cell_var = lambda x: x.ndim == 2 and x.shape == (
         len(self.times),
-        len(geo.rho_norm),
+        len(self.rho_norm),
     )
     is_scalar = lambda x: x.ndim == 1 and x.shape == (len(self.times),)
+    is_constant = lambda x: x.ndim == 0
 
     match data:
       case data if is_face_var(data):
@@ -249,6 +265,8 @@ class StateHistory:
         dims = [TIME, RHO_CELL]
       case data if is_scalar(data):
         dims = [TIME]
+      case data if is_constant(data):
+        dims = []
       case _:
         logging.warning(
             "Unsupported data shape for %s: %s. Skipping persisting.",
@@ -261,7 +279,6 @@ class StateHistory:
 
   def _get_core_profiles(
       self,
-      geo: geometry.Geometry,
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core profiles to a dict."""
     xr_dict = {}
@@ -306,7 +323,10 @@ class StateHistory:
     xr_dict[VLOOP_LCFS] = self.core_profiles.vloop_lcfs
 
     xr_dict = {
-        name: self._pack_into_data_array(name, data, geo)
+        name: self._pack_into_data_array(
+            name,
+            data,
+        )
         for name, data in xr_dict.items()
     }
 
@@ -314,7 +334,6 @@ class StateHistory:
 
   def _save_core_transport(
       self,
-      geo: geometry.Geometry,
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core transport to a dict."""
     xr_dict = {}
@@ -325,7 +344,10 @@ class StateHistory:
     xr_dict[V_FACE_EL] = self.core_transport.v_face_el
 
     xr_dict = {
-        name: self._pack_into_data_array(name, data, geo)
+        name: self._pack_into_data_array(
+            name,
+            data,
+        )
         for name, data in xr_dict.items()
     }
 
@@ -333,7 +355,6 @@ class StateHistory:
 
   def _save_core_sources(
       self,
-      geo: geometry.Geometry,
   ) -> dict[str, xr.DataArray | None]:
     """Saves the core sources to a dict."""
     xr_dict = {}
@@ -343,27 +364,18 @@ class StateHistory:
         * (self.core_profiles.temp_el.value - self.core_profiles.temp_ion.value)
     )
 
-    # Add source profiles
-    for profile in self.core_sources.profiles:
-      if profile in self.source_models.ion_el_sources:
-        xr_dict[f"{profile}_ion"] = self.core_sources.profiles[profile][
-            :, 0, ...
-        ]
-        xr_dict[f"{profile}_el"] = self.core_sources.profiles[profile][
-            :, 1, ...
-        ]
-      # TODO(b/376010694): better automation of splitting profiles into
-      # separate variables.
-      elif profile == "electron_cyclotron_source":
-        xr_dict[f"{profile}_el"] = self.core_sources.profiles[profile][
-            :, 0, ...
-        ]
-        xr_dict[f"{profile}_j"] = self.core_sources.profiles[profile][:, 1, ...]
-      else:
-        xr_dict[profile] = self.core_sources.profiles[profile]
+    # Add source profiles with suffixes indicating which profile they affect.
+    for profile in self.core_sources.temp_ion:
+      xr_dict[f"{profile}_ion"] = self.core_sources.temp_ion[profile]
+    for profile in self.core_sources.temp_el:
+      xr_dict[f"{profile}_el"] = self.core_sources.temp_el[profile]
+    for profile in self.core_sources.psi:
+      xr_dict[f"{profile}_j"] = self.core_sources.psi[profile]
+    for profile in self.core_sources.ne:
+      xr_dict[f"{profile}_ne"] = self.core_sources.ne[profile]
 
     xr_dict = {
-        name: self._pack_into_data_array(name, data, geo)
+        name: self._pack_into_data_array(name, data)
         for name, data in xr_dict.items()
     }
 
@@ -371,27 +383,52 @@ class StateHistory:
 
   def _save_post_processed_outputs(
       self,
-      geo: geometry.Geometry,
   ) -> dict[str, xr.DataArray | None]:
     """Saves the post processed outputs to a dict."""
     xr_dict = {}
     for field_name, data in dataclasses.asdict(
         self.post_processed_outputs
     ).items():
-      xr_dict[field_name] = self._pack_into_data_array(field_name, data, geo)
+      xr_dict[field_name] = self._pack_into_data_array(field_name, data)
+    return xr_dict
+
+  def _save_geometry(
+      self,
+  ) -> dict[str, xr.DataArray]:
+    """Save geometry to a dict. We skip over hires and non-array quantities."""
+    xr_dict = {}
+
+    # Get the variables from dataclass fields.
+    for field_name, data in dataclasses.asdict(self.geometry).items():
+      if "hires" in field_name or not isinstance(data, jax.Array):
+        continue
+      data_array = self._pack_into_data_array(
+          field_name,
+          data,
+      )
+      if data_array is not None:
+        xr_dict[field_name] = data_array
+
+    # Get variables from property methods
+
+    for name, value in inspect.getmembers(type(self.geometry)):
+      if name in EXCLUDED_GEOMETRY_NAMES:
+        continue
+      if isinstance(value, property):
+        property_data = value.fget(self.geometry)
+        data_array = self._pack_into_data_array(name, property_data)
+        if data_array is not None:
+          xr_dict[name] = data_array
 
     return xr_dict
 
   def simulation_output_to_xr(
       self,
-      geo: geometry.Geometry,
       file_restart: runtime_params.FileRestart | None = None,
   ) -> xr.DataTree:
     """Build an xr.DataTree of the simulation output.
 
     Args:
-      geo: The geometry of the simulation. This is used to retrieve the TORAX
-        mesh grid values.
       file_restart: If provided, contains information on a file this sim was
         restarted from, this is useful in case we want to stitch that to the
         beggining of this sim output.
@@ -404,10 +441,6 @@ class StateHistory:
         - rho_cell_norm: The normalized toroidal coordinate on the cell grid.
         - rho_face: The toroidal coordinate on the face grid.
         - rho_cell: The toroidal coordinate on the cell grid.
-        - vpr: The volume derivative w.r.t rho_norm.
-        - spr: The surface derivative w.r.t rho_norm.
-        - vpr_face: The volume derivative w.r.t rho_face_norm.
-        - spr_face: The surface derivative w.r.t rho_face_norm.
         - sim_error: The simulation error state.
       The child datasets contain the following variables:
         - core_profiles: Contains data variables for quantities in the
@@ -418,30 +451,22 @@ class StateHistory:
           CoreSources.
         - post_processed_outputs: Contains data variables for quantities in the
           PostProcessedOutputs.
+        - geometry: Contains data variables for quantities in the Geometry.
     """
-    # TODO(b/338033916). Extend outputs with:
-    # Post-processed integrals, more geo outputs.
     # Cleanup structure by excluding QeiInfo from core_sources altogether.
     # Add attribute to dataset variables with explanation of contents + units.
 
     # Get coordinate variables for dimensions ("time", "rho_face", "rho_cell")
     time = xr.DataArray(self.times, dims=[TIME], name=TIME)
     rho_face_norm = xr.DataArray(
-        geo.rho_face_norm, dims=[RHO_FACE], name=RHO_FACE_NORM
+        self.rho_face_norm, dims=[RHO_FACE], name=RHO_FACE_NORM
     )
     rho_cell_norm = xr.DataArray(
-        geo.rho_norm, dims=[RHO_CELL], name=RHO_CELL_NORM
+        self.rho_norm, dims=[RHO_CELL], name=RHO_CELL_NORM
     )
-    rho_face = xr.DataArray(geo.rho_face, dims=[RHO_FACE], name=RHO_FACE)
-    rho_cell = xr.DataArray(geo.rho, dims=[RHO_CELL], name=RHO_CELL)
+    rho_face = xr.DataArray(self.rho_face, dims=[RHO_FACE], name=RHO_FACE)
+    rho_cell = xr.DataArray(self.rho, dims=[RHO_CELL], name=RHO_CELL)
 
-    # Initialize dict with desired geometry and reference variables
-    xr_dict = {
-        VPR: xr.DataArray(geo.vpr, dims=[RHO_CELL], name=VPR),
-        SPR: xr.DataArray(geo.spr_cell, dims=[RHO_CELL], name=SPR),
-        VPR_FACE: xr.DataArray(geo.vpr_face, dims=[RHO_FACE], name=VPR_FACE),
-        SPR_FACE: xr.DataArray(geo.spr_face, dims=[RHO_FACE], name=SPR_FACE),
-    }
     coords = {
         TIME: time,
         RHO_FACE_NORM: rho_face_norm,
@@ -451,18 +476,17 @@ class StateHistory:
     }
 
     # Update dict with flattened StateHistory dataclass containers
-    core_profiles_ds = xr.Dataset(self._get_core_profiles(geo), coords=coords)
-    core_transport_ds = xr.Dataset(
-        self._save_core_transport(geo), coords=coords
-    )
+    core_profiles_ds = xr.Dataset(self._get_core_profiles(), coords=coords)
+    core_transport_ds = xr.Dataset(self._save_core_transport(), coords=coords)
     core_sources_ds = xr.Dataset(
-        self._save_core_sources(geo),
+        self._save_core_sources(),
         coords=coords,
     )
     post_processed_outputs_ds = xr.Dataset(
-        self._save_post_processed_outputs(geo), coords=coords
+        self._save_post_processed_outputs(), coords=coords
     )
-    xr_dict.update({SIM_ERROR: self.sim_error.value})
+    geometry_ds = xr.Dataset(self._save_geometry(), coords=coords)
+    top_level_xr_dict = {SIM_ERROR: self.sim_error.value}
     data_tree = xr.DataTree(
         children={
             CORE_PROFILES: xr.DataTree(dataset=core_profiles_ds),
@@ -471,8 +495,9 @@ class StateHistory:
             POST_PROCESSED_OUTPUTS: xr.DataTree(
                 dataset=post_processed_outputs_ds
             ),
+            GEOMETRY: xr.DataTree(dataset=geometry_ds),
         },
-        dataset=xr.Dataset(xr_dict, coords=coords),
+        dataset=xr.Dataset(top_level_xr_dict, coords=coords),
     )
 
     if file_restart is not None and file_restart.stitch:

@@ -11,31 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Tests for source_lib.py."""
-
 import dataclasses
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
-
-
-def get_zero_profile(
-    profile_type: source_lib.ProfileType,
-    geo: geometry.Geometry,
-) -> jax.Array:
-  """Returns a source profile with all zeros."""
-  return jnp.zeros(profile_type.get_profile_shape(geo))
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -174,7 +162,7 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -200,10 +188,11 @@ class SourceTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     np.testing.assert_allclose(
-        profile,
-        get_zero_profile(source_lib.ProfileType.CELL, geo),
+        profile[0],
+        np.zeros_like(geo.torax_mesh.cell_centers)
     )
 
   @parameterized.parameters(
@@ -212,12 +201,10 @@ class SourceTest(parameterized.TestCase):
       (runtime_params_lib.Mode.PRESCRIBED, np.array([3, 3, 3, 3])),
   )
   def test_correct_mode_called(self, mode, expected_profile):
-    """The correct mode should be called."""
     source_builder = source_lib.make_source_builder(
         test_lib.TestSource,
-        model_func=lambda _0, _1, _2, _3, _4, _5: jnp.ones(
-            source_lib.ProfileType.CELL.get_profile_shape(geo)
-        ) * 2,
+        model_func=lambda _0, _1, _2, _3, _4, _5, _6: (jnp.full(
+            geo.rho.shape, 2),),
     )()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'foo': source_builder},
@@ -226,7 +213,7 @@ class SourceTest(parameterized.TestCase):
     source = source_models.sources['foo']
     source_runtime_params = source_models_builder.runtime_params
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry(n_rho=4)
+    geo = circular_geometry.build_circular_geometry(n_rho=4)
     source_runtime_params['foo'] = dataclasses.replace(
         source_models_builder.runtime_params['foo'],
         mode=mode,
@@ -257,14 +244,14 @@ class SourceTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     np.testing.assert_allclose(
-        profile,
+        profile[0],
         expected_profile,
     )
 
   def test_defaults_output_zeros(self):
-    """The default model and formula implementations should output zeros."""
     source_builder = test_lib.TestSourceBuilder()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'foo': source_builder},
@@ -272,7 +259,7 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -310,6 +297,7 @@ class SourceTest(parameterized.TestCase):
             static_runtime_params_slice=static_slice,
             geo=geo,
             core_profiles=core_profiles,
+            calculated_source_profiles=None,
         )
     with self.subTest('prescribed'):
       static_slice = runtime_params_slice.build_static_runtime_params_slice(
@@ -327,20 +315,20 @@ class SourceTest(parameterized.TestCase):
           static_runtime_params_slice=static_slice,
           geo=geo,
           core_profiles=core_profiles,
-      )
+          calculated_source_profiles=None,
+      )[0]
       np.testing.assert_allclose(
           profile,
-          get_zero_profile(source_lib.ProfileType.CELL, geo),
+          np.zeros_like(geo.torax_mesh.cell_centers),
       )
 
   def test_overriding_model(self):
     """The user-specified model should override the default model."""
-    geo = geometry.build_circular_geometry()
-    output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
-    expected_output = jnp.ones(output_shape)
+    geo = circular_geometry.build_circular_geometry()
+    expected_output = (jnp.ones_like(geo.rho),)
     source_builder = source_lib.make_source_builder(
         IonElTestSource,
-        model_func=lambda _0, _1, _2, _3, _4, _5: expected_output,
+        model_func=lambda _0, _1, _2, _3, _4, _5, _6: expected_output,
     )()
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -374,15 +362,15 @@ class SourceTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     np.testing.assert_allclose(profile, expected_output)
 
   def test_overriding_prescribed_values(self):
     """Providing prescribed values results in the correct profile."""
-    geo = geometry.build_circular_geometry()
-    output_shape = source_lib.ProfileType.CELL.get_profile_shape(geo)
+    geo = circular_geometry.build_circular_geometry()
     # Define the expected output
-    expected_output = jnp.ones(output_shape)
+    expected_output = (jnp.ones_like(geo.rho),)
     # Create the source
     source_builder = IonElTestSourceBuilder()
     # Prescribe the source output to something that should be equal to the
@@ -421,70 +409,47 @@ class SourceTest(parameterized.TestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
     np.testing.assert_allclose(profile, expected_output)
 
-  def test_retrieving_profile_for_affected_state(self):
-    """Grabbing the correct profile works for all mesh state attributes."""
-    output_shape = (2, 4)  # Some arbitrary shape.
-
-    @dataclasses.dataclass(frozen=True)
-    class TestSource(source_lib.Source):
-      output_shape_getter = lambda _0: output_shape
-
-      @property
-      def source_name(self) -> str:
-        return 'foo'
-
-      @property
-      def affected_core_profiles(self):
-        return (
-            source_lib.AffectedCoreProfile.PSI,
-            source_lib.AffectedCoreProfile.NE,
-        )
-
-    profile = jnp.asarray([[1, 2, 3, 4], [5, 6, 7, 8]])  # from get_value()
-    source = TestSource(
-        model_func=lambda _0, _1, _2, _3, _4, _5: profile,
-    )
-    geo = geometry.build_circular_geometry(n_rho=4)
+  def test_get_source_profile_for_affected_core_profile_works_for_single_profile(
+      self,
+  ):
+    geo = circular_geometry.build_circular_geometry()
+    profile = (jnp.full(geo.rho.shape, 13),)
+    source = PsiTestSource()
     psi_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )
-    np.testing.assert_allclose(psi_profile, [1, 2, 3, 4])
+    np.testing.assert_allclose(psi_profile, profile[0])
+
     ne_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.NE.value, geo
     )
-    np.testing.assert_allclose(ne_profile, [5, 6, 7, 8])
+    np.testing.assert_allclose(ne_profile, jnp.zeros_like(geo.rho))
+
+  def test_get_source_profile_for_affected_core_profile_works_for_multiple_profiles(
+      self,
+  ):
+    geo = circular_geometry.build_circular_geometry()
+    ion_profile = jnp.full(geo.rho.shape, 13)
+    el_profile = jnp.full(geo.rho.shape, 17)
+    profile = (ion_profile, el_profile)
+    source = IonElTestSource()
     temp_ion_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.TEMP_ION.value, geo
     )
-    np.testing.assert_allclose(temp_ion_profile, [0, 0, 0, 0])
+    np.testing.assert_allclose(temp_ion_profile, ion_profile)
     temp_el_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.TEMP_EL.value, geo
     )
-    np.testing.assert_allclose(temp_el_profile, [0, 0, 0, 0])
+    np.testing.assert_allclose(temp_el_profile, el_profile)
 
-
-class SingleProfileSourceTest(parameterized.TestCase):
-  """Tests for SingleProfileSource."""
-
-  def test_retrieving_profile_for_affected_state(self):
-    """Grabbing the correct profile works for all mesh state attributes."""
-    profile = jnp.asarray([1, 2, 3, 4])  # from get_value()
-
-    source = test_lib.TestSource(
-        model_func=lambda _0, _1, _2, _3, _4, _5: profile,
-    )
-    geo = geometry.build_circular_geometry(n_rho=4)
     psi_profile = source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.PSI.value, geo
     )
-    np.testing.assert_allclose(psi_profile, [0, 0, 0, 0])
-    ne_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.NE.value, geo
-    )
-    np.testing.assert_allclose(ne_profile, [1, 2, 3, 4])
+    np.testing.assert_allclose(psi_profile, jnp.zeros_like(geo.rho))
 
 
 if __name__ == '__main__':

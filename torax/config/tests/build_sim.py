@@ -20,8 +20,9 @@ import numpy as np
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
+from torax.geometry import standard_geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
@@ -105,7 +106,7 @@ class BuildSimTest(parameterized.TestCase):
       )
     with self.subTest('geometry'):
       geo = sim.geometry_provider(sim.initial_state.t)
-      self.assertIsInstance(geo, geometry.CircularAnalyticalGeometry)
+      self.assertIsInstance(geo, circular_geometry.CircularAnalyticalGeometry)
       self.assertEqual(geo.torax_mesh.nx, 5)
     with self.subTest('sources'):
       self.assertEqual(
@@ -185,7 +186,7 @@ class BuildSimTest(parameterized.TestCase):
     self.assertEqual(runtime_params.profile_conditions.ne_is_fGW, False)
     self.assertEqual(runtime_params.numerics.q_correction_factor, 0.2)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -218,7 +219,7 @@ class BuildSimTest(parameterized.TestCase):
     )
     geo = geo_provider(t=0)
     np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 5)
-    self.assertIsInstance(geo, geometry.CircularAnalyticalGeometry)
+    self.assertIsInstance(geo, circular_geometry.CircularAnalyticalGeometry)
     np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
 
   def test_build_geometry_from_chease(self):
@@ -231,7 +232,7 @@ class BuildSimTest(parameterized.TestCase):
     self.assertIsInstance(
         geo_provider, geometry_provider.ConstantGeometryProvider
     )
-    self.assertIsInstance(geo_provider(t=0), geometry.StandardGeometry)
+    self.assertIsInstance(geo_provider(t=0), standard_geometry.StandardGeometry)
     np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 5)
 
   def test_build_time_dependent_geometry_from_chease(self):
@@ -259,8 +260,10 @@ class BuildSimTest(parameterized.TestCase):
 
     # Test valid config
     geo_provider = build_sim.build_geometry_provider_from_config(base_config)
-    self.assertIsInstance(geo_provider, geometry.StandardGeometryProvider)
-    self.assertIsInstance(geo_provider(t=0), geometry.StandardGeometry)
+    self.assertIsInstance(
+        geo_provider, standard_geometry.StandardGeometryProvider
+    )
+    self.assertIsInstance(geo_provider(t=0), standard_geometry.StandardGeometry)
     np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 10)
 
     # Test invalid configs:
@@ -300,7 +303,7 @@ class BuildSimTest(parameterized.TestCase):
             geometry_provider=geo_provider,
         )
     )
-    self.assertIsInstance(geo, geometry.StandardGeometry)
+    self.assertIsInstance(geo, standard_geometry.StandardGeometry)
     self.assertIsNotNone(dynamic_slice)
     self.assertNotEqual(
         dynamic_slice.profile_conditions.Ip_tot, original_Ip_tot

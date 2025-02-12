@@ -24,10 +24,11 @@ import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles
 
 
 # Most of the checks and computations in TORAX require float64.
@@ -62,6 +63,7 @@ class SourceTestCase(parameterized.TestCase):
   _config_attr_name: str
   _source_name: str
   _runtime_params_class: Type[runtime_params_lib.RuntimeParams]
+  _needs_source_models: bool
 
   @classmethod
   def setUpClass(
@@ -71,6 +73,7 @@ class SourceTestCase(parameterized.TestCase):
       source_name: str,
       model_func: source_lib.SourceProfileFunction | None,
       links_back: bool = False,
+      needs_source_models: bool = False,
       source_class_builder: source_lib.SourceBuilderProtocol | None = None,
   ):
     super().setUpClass()
@@ -87,11 +90,12 @@ class SourceTestCase(parameterized.TestCase):
     cls._runtime_params_class = runtime_params_class
     cls._links_back = links_back
     cls._source_name = source_name
+    cls._needs_source_models = needs_source_models
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = self._runtime_params_class()
     self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_params = provider.build_dynamic_params(t=0.0)
     self.assertIsInstance(
@@ -123,8 +127,8 @@ class SourceTestCase(parameterized.TestCase):
 class SingleProfileSourceTestCase(SourceTestCase):
   """Base test class for SingleProfileSource subclasses."""
 
-  def test_source_value(self):
-    """Tests that the source can provide a value by default."""
+  def test_source_value_on_the_cell_grid(self):
+    """Tests that the source can provide a value by default on the cell grid."""
     # SingleProfileSource subclasses should have default names and be
     # instantiable without any __init__ arguments.
     # pylint: disable=missing-kwoa
@@ -140,7 +144,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source = source_models.sources[self._source_name]
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -161,25 +165,38 @@ class SingleProfileSourceTestCase(SourceTestCase):
         geo=geo,
         source_models=source_models,
     )
+    if self._needs_source_models:
+      calculated_source_profiles = source_profiles.SourceProfiles(
+          j_bootstrap=source_profiles.BootstrapCurrentProfile.zero_profile(geo),
+          psi={'foo': jnp.full(geo.rho.shape, 13.0)},
+          temp_el={'foo_source': jnp.full(geo.rho.shape, 17.0)},
+          temp_ion={'foo_sink': jnp.full(geo.rho.shape, 19.0)},
+          ne={},
+          qei=source_profiles.QeiInfo.zeros(geo)
+      )
+    else:
+      calculated_source_profiles = None
     value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
-    )
+        calculated_source_profiles=calculated_source_profiles,
+    )[0]
     chex.assert_rank(value, 1)
+    self.assertEqual(value.shape, geo.rho.shape)
 
 
 class IonElSourceTestCase(SourceTestCase):
   """Base test class for IonElSource subclasses."""
 
-  def test_source_value(self):
-    """Tests that the source can provide a value by default."""
+  def test_source_values_on_the_cell_grid(self):
+    """Tests that the source can provide values on the cell grid."""
     # pylint: disable=missing-kwoa
     source_builder = self._source_class_builder()
     # pylint: enable=missing-kwoa
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {self._source_name: source_builder},
     )
@@ -211,17 +228,20 @@ class IonElSourceTestCase(SourceTestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
-    chex.assert_rank(ion_and_el, 2)
+    self.assertLen(ion_and_el, 2)
+    self.assertEqual(ion_and_el[0].shape, geo.rho.shape)
+    self.assertEqual(ion_and_el[1].shape, geo.rho.shape)
 
   def test_extraction_of_relevant_profile_from_output(self):
     """Tests that the relevant profile is extracted from the output."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     # pylint: disable=missing-kwoa
     source = self._source_class()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
-    cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
-    fake_profile = jnp.stack((jnp.ones(cell), 2 * jnp.ones(cell)))
+    cell = geo.rho.shape
+    fake_profile = (jnp.ones(cell), 2 * jnp.ones(cell))
     np.testing.assert_allclose(
         source.get_source_profile_for_affected_core_profile(
             fake_profile,

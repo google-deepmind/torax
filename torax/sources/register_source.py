@@ -47,12 +47,14 @@ from torax.sources import electron_density_sources
 from torax.sources import fusion_heat_source
 from torax.sources import generic_current_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
-from torax.sources import impurity_radiation_heat_sink
 from torax.sources import ion_cyclotron_source
 from torax.sources import ohmic_heat_source
 from torax.sources import qei_source
 from torax.sources import runtime_params
 from torax.sources import source
+from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
+from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
+from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 
 
 @dataclasses.dataclass(frozen=True)
@@ -66,6 +68,7 @@ class ModelFunction:
 @dataclasses.dataclass(frozen=True)
 class SupportedSource:
   """Source that can be used in TORAX and any associated model functions."""
+
   source_class: Type[source.Source]
   model_functions: dict[str, ModelFunction]
 
@@ -159,7 +162,6 @@ _SUPPORTED_SOURCES = {
                 ModelFunction(
                     source_profile_function=ohmic_heat_source.ohmic_model_func,
                     runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
-                    links_back=True,
                 )
             )
         },
@@ -196,10 +198,14 @@ _SUPPORTED_SOURCES = {
         source_class=impurity_radiation_heat_sink.ImpurityRadiationHeatSink,
         model_functions={
             impurity_radiation_heat_sink.ImpurityRadiationHeatSink.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
-                source_profile_function=impurity_radiation_heat_sink.radially_constant_fraction_of_Pin,
-                runtime_params_class=impurity_radiation_heat_sink.RuntimeParams,
+                source_profile_function=impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit,
+                runtime_params_class=impurity_radiation_mavrin_fit.RuntimeParams,
+            ),
+            impurity_radiation_constant_fraction.MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=impurity_radiation_constant_fraction.radially_constant_fraction_of_Pin,
+                runtime_params_class=impurity_radiation_constant_fraction.RuntimeParams,
                 links_back=True,
-            )
+            ),
         },
     ),
 }

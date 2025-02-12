@@ -13,10 +13,9 @@
 # limitations under the License.
 
 
-"""Basic impurity radiation heat sink for electron heat equation.."""
+"""Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
 
 import dataclasses
-from typing import ClassVar
 
 import chex
 import jax
@@ -29,6 +28,9 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles as source_profiles_lib
+
+MODEL_FUNCTION_NAME = "radially_constant_fraction_of_Pin"
 
 
 def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
@@ -37,8 +39,9 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
+    calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
     source_models: source_models_lib.SourceModels,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Model function for radiation heat sink from impurities.
 
   This model represents a sink in the temp_el equation, whose value is a fixed %
@@ -50,6 +53,8 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     geo: Geometry object.
     source_name: Name of the source.
     core_profiles: Core profiles object.
+    calculated_source_profiles: Source profiles which have already been
+      calculated and can be used to avoid recomputing them.
     source_models: Source models object.
 
   Returns:
@@ -72,6 +77,7 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=calculated_source_profiles,
     )
     return source.get_source_profile_for_affected_core_profile(
         profile, source_lib.AffectedCoreProfile.TEMP_EL.value, geo
@@ -99,8 +105,7 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
       -dynamic_source_runtime_params.fraction_of_total_power_density
       * Ptot_in
       / Vtot
-      * jnp.ones_like(geo.rho)
-  )
+      * jnp.ones_like(geo.rho),)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -133,27 +138,3 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   fraction_of_total_power_density: array_typing.ScalarFloat
-
-
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class ImpurityRadiationHeatSink(source_lib.Source):
-  """Impurity radiation heat sink for electron heat equation."""
-
-  SOURCE_NAME = "impurity_radiation_heat_sink"
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = (
-      "radially_constant_fraction_of_Pin"
-  )
-  model_func: source_lib.SourceProfileFunction = (
-      radially_constant_fraction_of_Pin
-  )
-  source_models: source_models_lib.SourceModels
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(
-      self,
-  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
-    return (source_lib.AffectedCoreProfile.TEMP_EL,)

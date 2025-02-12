@@ -11,40 +11,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-"""Tests for impurity_radiation_heat_sink."""
-
 from absl.testing import absltest
 import chex
-import jax.numpy as jnp
-import numpy as np
 from torax import core_profile_setters
 from torax import math_utils
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import generic_ion_el_heat_source
-from torax.sources import (
-    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,
-)
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
+from torax.sources.impurity_radiation_heat_sink import (
+    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,
+)
 from torax.sources.tests import test_lib
 
 
-class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
-  """Tests for ImpurityRadiationHeatSink."""
+class ImpurityRadiationConstantFractionTest(test_lib.SourceTestCase):
+  """Tests impurity_radiation_constant_fraction implementation of ImpurityRadiationHeatSink."""
 
   @classmethod
   def setUpClass(cls):
     super().setUpClass(
         source_class=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink,
-        runtime_params_class=impurity_radiation_heat_sink_lib.RuntimeParams,
+        runtime_params_class=impurity_radiation_constant_fraction.RuntimeParams,
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
         links_back=True,
-        model_func=impurity_radiation_heat_sink_lib.radially_constant_fraction_of_Pin
+        model_func=impurity_radiation_constant_fraction.radially_constant_fraction_of_Pin,
     )
 
   def test_source_value(self):
@@ -55,7 +50,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         runtime_params_lib.Mode.MODEL_BASED
     )
     if not source_lib.is_source_builder(impurity_radiation_sink_builder):
-      raise TypeError(f"{type(self)} has a bad _source_class_builder")
+      raise TypeError(f'{type(self)} has a bad _source_class_builder')
 
     # Source builder for generic_ion_el_heat_source
     # We don't test this class, as that should be done in its own test
@@ -87,7 +82,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
     self.assertIsInstance(impurity_radiation_sink, source_lib.Source)
 
     # Geometry, profiles, and dynamic runtime params
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -120,7 +115,7 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
 
     assert isinstance(
         impurity_radiation_sink_dynamic_runtime_params_slice,
-        impurity_radiation_heat_sink_lib.DynamicRuntimeParams,
+        impurity_radiation_constant_fraction.DynamicRuntimeParams,
     )
     assert isinstance(
         heat_source_dynamic_runtime_params_slice,
@@ -132,12 +127,14 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
             dynamic_runtime_params_slice=dynamic_runtime_params_slice,
             geo=geo,
             core_profiles=core_profiles,
+            calculated_source_profiles=None,
         )
     )
 
-    # ImpurityRadiationHeatSink provides TEMP_EL only
-    chex.assert_rank(impurity_radiation_heat_sink_power_density, 1)
-
+    self.assertLen(impurity_radiation_heat_sink_power_density, 1)
+    impurity_radiation_heat_sink_power_density = (
+        impurity_radiation_heat_sink_power_density[0]
+    )
     # The value should be equal to fraction * sum of the (TEMP_EL+TEMP_ION)
     # sources, minus P_ei and P_brems.
     # In this case, that is only the generic_ion_el_heat_source.
@@ -151,37 +148,6 @@ class ImpurityRadiationHeatSinkTest(test_lib.SourceTestCase):
         rtol=1e-2,  # TODO(b/382682284): this rtol seems v. high
     )
 
-  def test_extraction_of_relevant_profile_from_output(self):
-    """Tests that the relevant profile is extracted from the output."""
-    geo = geometry.build_circular_geometry()
-    source_builder = self._source_class_builder()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {self._source_name: source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources[self._source_name]
-    self.assertIsInstance(source, source_lib.Source)
-    cell = source_lib.ProfileType.CELL.get_profile_shape(geo)
-    fake_profile = jnp.ones(cell)
-    # Check TEMP_EL is modified
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.TEMP_EL.value,
-            geo,
-        ),
-        jnp.ones(cell),
-    )
-    # For unrelated states, this should just return all 0s.
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.NE.value,
-            geo,
-        ),
-        jnp.zeros(cell),
-    )
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
   absltest.main()

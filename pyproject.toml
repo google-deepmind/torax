@@ -36,7 +36,9 @@ dependencies = [
     "scipy>=1.12.0",
     "jaxtyping>=0.2.28",
     "contourpy>=1.2.1",
-    "eqdsk>=0.4.0"
+    "eqdsk>=0.4.0",
+    "pydantic>=2.10.5",
+    "tqdm>=4.67.0"
 ]
 
 [project.urls]
@@ -58,6 +60,11 @@ dev = [
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx_remove_toctrees",
+]
+# Installed through `pip install -e .[tutorial]`
+tutorial = [
+    "seaborn",
+    "notebook",
 ]
 
 [tool.pyink]

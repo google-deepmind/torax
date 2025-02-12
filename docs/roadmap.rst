@@ -3,23 +3,17 @@
 Development Roadmap
 ###################
 
-Short term development plans include:
+Ongoing developments include:
 
 * Implementation of forward sensitivity calculations w.r.t. control inputs and parameters
 * More extensive tutorials
-* Extended sinks
-
-  * Cyclotron radiation
-  * Impurity line radiation
-
 * Sawtooth model (Porcelli + reconnection)
-* Multi-ion and impurity prescribed profiles
 * IMAS coupling
 
 Longer term desired features include:
 
-* Neoclassical tearing modes (modified Rutherford equation)
 * Neoclassical transport + multi-ion transport, with a focus on heavy impurities
+* Neoclassical tearing modes (modified Rutherford equation)
 * Stationary-state solver
 * Momentum transport
 

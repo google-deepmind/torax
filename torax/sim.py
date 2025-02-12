@@ -46,11 +46,12 @@ from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
-from torax.sources import source_profiles as source_profiles_lib
+from torax.sources import source_profile_builders
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
+import tqdm
 import xarray as xr
 
 
@@ -70,7 +71,7 @@ def get_initial_state(
   # Populate the starting state with source profiles from the implicit sources
   # before starting the run-loop. The explicit source profiles will be computed
   # inside the loop and will be merged with these implicit source profiles.
-  initial_core_sources = get_initial_source_profiles(
+  initial_core_sources = source_profile_builders.get_initial_source_profiles(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
       geo=geo,
@@ -92,6 +93,7 @@ def get_initial_state(
           outer_stepper_iterations=0,
           inner_solver_iterations=0,
       ),
+      geometry=geo,
   )
 
 
@@ -507,6 +509,7 @@ def _run_simulation(
     initial_state: state.ToraxSimState,
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
+    progress_bar: bool = True,
 ) -> output.ToraxSimOutputs:
   """Runs the transport simulation over a prescribed time interval.
 
@@ -545,6 +548,7 @@ def _run_simulation(
       ToraxSimState objects.
     log_timestep_info: If True, logs basic timestep info, like time, dt, on
       every step.
+    progress_bar: If True, displays a progress bar.
 
   Returns:
     ToraxSimOutputs, containing information on the sim error state, and the
@@ -587,61 +591,54 @@ def _run_simulation(
   # the appropriate error code.
   sim_error = state.SimError.NO_ERROR
 
-  # Advance the simulation until the time_step_calculator tells us we are done.
-  while step_fn.time_step_calculator.not_done(
-      sim_state.t,
-      dynamic_runtime_params_slice.numerics.t_final,
-      sim_state.time_step_calculator_state,
-  ):
-    # Measure how long in wall clock time each simulation step takes.
-    step_start_time = time.time()
-    if log_timestep_info:
-      _log_timestep(sim_state)
+  with tqdm.tqdm(
+      total=100,  # This makes it so that the progress bar measures a percentage
+      desc='Simulating',
+      disable=not progress_bar,
+      leave=True,
+  ) as pbar:
+    # Advance the simulation until the time_step_calculator tells us we are done
+    while step_fn.time_step_calculator.not_done(
+        sim_state.t,
+        dynamic_runtime_params_slice.numerics.t_final,
+        sim_state.time_step_calculator_state,
+    ):
+      # Measure how long in wall clock time each simulation step takes.
+      step_start_time = time.time()
+      if log_timestep_info:
+        _log_timestep(sim_state)
 
-    sim_state, sim_error = step_fn(
-        static_runtime_params_slice,
-        dynamic_runtime_params_slice_provider,
-        geometry_provider,
-        sim_state,
-    )
-    wall_clock_step_times.append(time.time() - step_start_time)
+      sim_state, sim_error = step_fn(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_provider,
+          geometry_provider,
+          sim_state,
+      )
+      wall_clock_step_times.append(time.time() - step_start_time)
 
-    # Checks if sim_state is valid. If not, exit simulation early.
-    # We don't raise an Exception because we want to return the truncated
-    # simulation history to the user for inspection.
-    if sim_error != state.SimError.NO_ERROR:
-      sim_error.log_error()
-      break
-    else:
-      sim_history.append(sim_state)
+      # Checks if sim_state is valid. If not, exit simulation early.
+      # We don't raise an Exception because we want to return the truncated
+      # simulation history to the user for inspection.
+      if sim_error != state.SimError.NO_ERROR:
+        sim_error.log_error()
+        break
+      else:
+        sim_history.append(sim_state)
+        # Calculate progress ratio and update pbar.n
+        progress_ratio = (
+            float(sim_state.t) - dynamic_runtime_params_slice.numerics.t_initial
+        ) / (
+            dynamic_runtime_params_slice.numerics.t_final
+            - dynamic_runtime_params_slice.numerics.t_initial
+        )
+        pbar.n = int(progress_ratio * pbar.total)
+        pbar.set_description(f'Simulating (t={sim_state.t:.5f})')
+        pbar.refresh()
 
   # Log final timestep
   if log_timestep_info and sim_error == state.SimError.NO_ERROR:
     # The "sim_state" here has been updated by the loop above.
     _log_timestep(sim_state)
-
-  # Update the final time step's source profiles based on the explicit source
-  # profiles computed based on the final state.
-  logging.info("Updating last step's source profiles.")
-  dynamic_runtime_params_slice, geo = (
-      runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
-          t=sim_state.t,
-          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-          geometry_provider=geometry_provider,
-      )
-  )
-  explicit_source_profiles = source_models_lib.build_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=sim_state.core_profiles,
-      source_models=step_fn.stepper.source_models,
-      explicit=True,
-  )
-  sim_state.core_sources = source_profiles_lib.SourceProfiles.merge(
-      explicit_source_profiles=explicit_source_profiles,
-      implicit_source_profiles=sim_state.core_sources,
-  )
 
   # If the first step of the simulation was very long, call it out. It might
   # have to do with tracing the jitted step_fn.
@@ -675,71 +672,14 @@ def _run_simulation(
   )
 
 
-def get_initial_source_profiles(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-) -> source_profiles_lib.SourceProfiles:
-  """Returns the source profiles for the initial state in run_simulation().
-
-  Args:
-    static_runtime_params_slice: Runtime parameters which, when they change,
-      trigger recompilations. They should not change within a single run of the
-      sim.
-    dynamic_runtime_params_slice: Runtime parameters which may change from time
-      step to time step without triggering recompilations.
-    geo: The geometry of the torus during this time step of the simulation.
-    core_profiles: Core profiles that may evolve throughout the course of a
-      simulation. These values here are, of course, only the original states.
-    source_models: Source models used to compute core source profiles.
-
-  Returns:
-    Implicit and explicit SourceProfiles from source models based on the core
-    profiles from the starting state.
-  """
-  implicit_profiles = source_models_lib.build_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_models=source_models,
-      explicit=False,
-  )
-  qei = source_models.qei_source.get_qei(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-  implicit_profiles = dataclasses.replace(implicit_profiles, qei=qei)
-  # Also add in the explicit sources to the initial sources.
-  explicit_source_profiles = source_models_lib.build_source_profiles(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-      source_models=source_models,
-      explicit=True,
-  )
-  initial_profiles = source_profiles_lib.SourceProfiles.merge(
-      explicit_source_profiles=explicit_source_profiles,
-      implicit_source_profiles=implicit_profiles,
-  )
-  return initial_profiles
-
-
 def _log_timestep(
     sim_state: state.ToraxSimState,
 ) -> None:
   """Logs basic timestep info."""
-  logging.info(
-      '\nSimulation time: %.5f, previous dt: %.6f, previous stepper'
-      ' iterations: %d',
-      sim_state.t,
-      sim_state.dt,
-      sim_state.stepper_numeric_outputs.outer_stepper_iterations,
+  log_str = (
+      f'Simulation time: {sim_state.t:.5f}, previous dt: {sim_state.dt:.6f},'
+      ' previous stepper iterations:'
+      f' {sim_state.stepper_numeric_outputs.outer_stepper_iterations}'
   )
   # TODO(b/330172917): once tol and coarse_tol are configurable in the
   # runtime_params, also log the value of tol and coarse_tol below
@@ -747,8 +687,9 @@ def _log_timestep(
     case 0:
       pass
     case 1:
-      logging.info('Solver did not converge in previous step.')
+      log_str += 'Solver did not converge in previous step.'
     case 2:
-      logging.info(
+      log_str += (
           'Solver converged only within coarse tolerance in previous step.'
       )
+  tqdm.tqdm.write(log_str)

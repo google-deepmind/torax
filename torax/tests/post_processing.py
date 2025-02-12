@@ -28,7 +28,7 @@ from torax import state
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
@@ -42,7 +42,7 @@ class PostProcessingTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    self.geo = geometry.build_circular_geometry()
+    self.geo = circular_geometry.build_circular_geometry()
     geo_provider = geometry_provider.ConstantGeometryProvider(self.geo)
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
@@ -60,14 +60,22 @@ class PostProcessingTest(parameterized.TestCase):
             geo
         ),
         qei=source_profiles_lib.QeiInfo.zeros(geo),
-        profiles={
+        temp_ion={
+            'fusion_heat_source': ones,
+            'generic_ion_el_heat_source': 2 * ones,
+        },
+        temp_el={
             'bremsstrahlung_heat_sink': -ones,
             'ohmic_heat_source': ones * 5,
-            'generic_current_source': ones * 2,
-            'fusion_heat_source': np.stack([ones, ones]),
-            'generic_ion_el_heat_source': np.stack([2 * ones, 3 * ones]),
-            'electron_cyclotron_source': np.stack([7 * ones, 2 * ones]),
+            'fusion_heat_source': ones,
+            'generic_ion_el_heat_source': 3 * ones,
+            'electron_cyclotron_source': 7 * ones,
         },
+        psi={
+            'generic_current_source': 2 * ones,
+            'electron_cyclotron_source': 2 * ones,
+        },
+        ne={},
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
         runtime_params=runtime_params,
@@ -96,6 +104,7 @@ class PostProcessingTest(parameterized.TestCase):
             stepper_error_state=1,
             inner_solver_iterations=1,
         ),
+        geometry=self.geo,
     )
 
     updated_sim_state = post_processing.make_outputs(sim_state, self.geo)
@@ -159,7 +168,7 @@ class PostProcessingTest(parameterized.TestCase):
 
   def test_compute_stored_thermal_energy(self):
     """Test that stored thermal energy is computed correctly."""
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     p_el = np.ones_like(geo.rho_face)
     p_ion = 2 * np.ones_like(geo.rho_face)
     p_tot = p_el + p_ion

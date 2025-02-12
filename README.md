@@ -128,6 +128,21 @@ Enter the TORAX directory and pip install the dependencies.
 cd torax; pip install -e .
 ```
 
+From within the top level directory where you `pip install` from, also set the
+geometry data directory.
+
+```shell
+export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo
+```
+
+As with the QLKNN dependencies, we recommend automating the variable export. If
+using bash, run:
+
+```shell
+echo export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo >> ~/.bashrc
+```
+The above command only needs to be run once on a given system.
+
 If you want to install with the dev dependencies (useful for running `pytest`
 and installing `pyink` for lint checking), then run with the `[dev]`:
 

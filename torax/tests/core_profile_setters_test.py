@@ -24,7 +24,7 @@ from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.fvm import cell_variable
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_params_lib
 from torax.transport_model import runtime_params as transport_params_lib
@@ -40,7 +40,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     jax_utils.enable_errors(True)
-    self.geo = geometry.build_circular_geometry(n_rho=4)
+    self.geo = circular_geometry.build_circular_geometry(n_rho=4)
 
   def test_updated_ion_temperature(self):
     bound = np.array(42.0)

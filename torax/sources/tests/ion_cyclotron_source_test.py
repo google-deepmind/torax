@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for ICRH heat source."""
-
 import dataclasses
 import json
 import os
@@ -20,14 +18,13 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import chex
 import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
 from torax.sources import ion_cyclotron_source
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -137,7 +134,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     source_builder = self._source_class_builder()  # pytype: disable=missing-parameter
     # pylint: enable=missing-kwoa
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME: source_builder},
     )
@@ -171,8 +168,11 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
+        calculated_source_profiles=None,
     )
-    chex.assert_rank(ion_and_el, 2)
+    self.assertLen(ion_and_el, 2)
+    self.assertEqual(ion_and_el[0].shape, geo.rho.shape)
+    self.assertEqual(ion_and_el[1].shape, geo.rho.shape)
 
 
 if __name__ == "__main__":

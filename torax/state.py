@@ -276,10 +276,12 @@ class PostProcessedOutputs:
     W_thermal_el: Electron thermal stored energy [J]
     W_thermal_tot: Total thermal stored energy [J]
     tauE: Thermal energy confinement time [s]
+    H89P: L-mode confinement quality factor with respect to the ITER89P scaling
+      law derived from the ITER L-mode confinement database
     H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
       law derived from the ITER H-mode confinement database
     H97L: L-mode confinement quality factor with respect to the ITER97L scaling
-      law derived from the ITER H-mode confinement database
+      law derived from the ITER L-mode confinement database
     H20: H-mode confinement quality factor with respect to the ITER20 scaling
       law derived from the updated (2020) ITER H-mode confinement database
     FFprime_face: FF' on the face grid, where F is the toroidal flux function
@@ -326,6 +328,8 @@ class PostProcessedOutputs:
     ne_volume_avg: Volume average electron density [nref m^-3]
     ni_volume_avg: Volume average main ion density [nref m^-3]
     q95: q at 95% of the normalized poloidal flux
+    Wpol: Total magnetic energy [J]
+    li3: Normalized plasma internal inductance, ITER convention [dimensionless]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -337,6 +341,7 @@ class PostProcessedOutputs:
   W_thermal_el: array_typing.ScalarFloat
   W_thermal_tot: array_typing.ScalarFloat
   tauE: array_typing.ScalarFloat
+  H89P: array_typing.ScalarFloat
   H98: array_typing.ScalarFloat
   H97L: array_typing.ScalarFloat
   H20: array_typing.ScalarFloat
@@ -381,6 +386,8 @@ class PostProcessedOutputs:
   ne_volume_avg: array_typing.ScalarFloat
   ni_volume_avg: array_typing.ScalarFloat
   q95: array_typing.ScalarFloat
+  Wpol: array_typing.ScalarFloat
+  li3: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -395,6 +402,7 @@ class PostProcessedOutputs:
         W_thermal_el=jnp.array(0.0),
         W_thermal_tot=jnp.array(0.0),
         tauE=jnp.array(0.0),
+        H89P=jnp.array(0.0),
         H98=jnp.array(0.0),
         H97L=jnp.array(0.0),
         H20=jnp.array(0.0),
@@ -436,6 +444,8 @@ class PostProcessedOutputs:
         ne_volume_avg=jnp.array(0.0),
         ni_volume_avg=jnp.array(0.0),
         q95=jnp.array(0.0),
+        Wpol=jnp.array(0.0),
+        li3=jnp.array(0.0),
     )
 
 
@@ -503,18 +513,15 @@ class ToraxSimState:
     dt: timestep interval.
     core_profiles: Core plasma profiles at time t.
     core_transport: Core plasma transport coefficients computed at time t.
-    core_sources: Profiles for all sources/sinks. For any state-dependent source
-      models, the profiles in this dataclass are computed based on the core
-      profiles at time t, almost. When running `sim.run_simulation()`, any
-      profile from an "explicit" state-dependent source will be computed with
-      the core profiles at time t. Any profile from an "implicit"
-      state-dependent source will be computed with an intermediate state from
-      the previous time step's solver. This should be close to the core profiles
-      at time t, but is not guaranteed to be. In case exact source profiles are
-      required for each time step, they must be recomputed manually after
-      running `run_simulation()`.
+    core_sources: Profiles for all sources/sinks. These are the profiles that
+      are used to calculate the coefficients for the t+dt time step. For the
+      explicit sources, these are calculated at the start of the time step, so
+      are the values at time t. For the implicit sources, these are the most
+      recent guess for time t+dt. The profiles here are the merged version of
+      the explicit and implicit profiles.
     post_processed_outputs: variables for output or intermediate observations
       for overarching workflows, calculated after each simulation step.
+    geometry: Geometry at this time step used for the simulation.
     time_step_calculator_state: the state of the TimeStepper.
     stepper_numeric_outputs: Numerical quantities related to the stepper.
   """
@@ -530,6 +537,9 @@ class ToraxSimState:
 
   # Post-processed outputs after a step.
   post_processed_outputs: PostProcessedOutputs
+
+  # Geometry used for the simulation.
+  geometry: geometry.Geometry
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.

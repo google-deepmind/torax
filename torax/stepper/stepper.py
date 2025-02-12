@@ -28,6 +28,7 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -103,11 +104,11 @@ class Stepper(abc.ABC):
 
     Returns:
       new_core_profiles: Updated core profiles.
-      core_sources: Source profiles of the implicit sources, computed at the
-        most recent guess for time t+dt. Any state-dependent source profiles
-        will not be computed based on the exact state of the core profiles at
-        time t+dt, but rather they will be computed based on the final guess the
-        solver used while calculating coeffs in the solver.
+      core_sources: Merged source profiles of all sources, including explicit
+        and implicit. This is the version of the source profiles that is used
+        to calculate the coefficients for the t+dt time step. For the explicit
+        sources, this is the same as the explicit_source_profiles input. For
+        the implicit sources, this is the most recent guess for time t+dt.
       core_transport: Transport coefficients for time t+dt.
       stepper_numeric_output: Error and iteration info.
     """
@@ -143,9 +144,16 @@ class Stepper(abc.ABC):
       )
     else:
       x_new = tuple()
-      core_sources = source_models_lib.build_all_zero_profiles(
+      # Calculate implicit source profiles and return the merged version. This
+      # is useful for inspecting prescribed sources in the output state.
+      core_sources = source_profile_builders.build_source_profiles(
           source_models=self.source_models,
-          geo=geo_t,
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+          static_runtime_params_slice=static_runtime_params_slice,
+          geo=geo_t_plus_dt,
+          core_profiles=core_profiles_t_plus_dt,
+          explicit=False,
+          explicit_source_profiles=explicit_source_profiles,
       )
       core_transport = state.CoreTransport.zeros(geo_t)
       stepper_numeric_output = state.StepperNumericOutputs()

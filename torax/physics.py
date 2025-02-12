@@ -44,7 +44,7 @@ def get_main_ion_dilution_factor(
     Zeff: array_typing.ArrayFloat,
 ) -> jax.Array:
   """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
-  return (Zimp - Zeff) / (Zi*(Zimp - Zi))
+  return (Zimp - Zeff) / (Zi * (Zimp - Zi))
 
 
 @jax_utils.jit
@@ -331,6 +331,73 @@ def calc_s_from_psi_rmid(
   return s_face
 
 
+def _calc_bpol2(
+    geo: geometry.Geometry, psi: cell_variable.CellVariable
+) -> jax.Array:
+  r"""Calculates square of poloidal field (Bp) from poloidal flux (psi).
+
+  An identity for the poloidal magnetic field is:
+  B_p = 1/R \partial \psi / \partial \rho (\nabla \rho \times e_phi)
+
+  Where e_phi is the unit vector pointing in the toroidal direction.
+
+  Args:
+    geo: Torus geometry.
+    psi: Poloidal flux.
+
+  Returns:
+    bpol2_face: Square of poloidal magnetic field, on the face grid.
+  """
+  bpol2_bulk = (
+      (psi.face_grad()[1:] / (2 * jnp.pi)) ** 2
+      * geo.g2_face[1:]
+      / geo.vpr_face[1:] ** 2
+  )
+  bpol2_axis = jnp.array([0.0])
+  bpol2_face = jnp.concatenate([bpol2_axis, bpol2_bulk])
+  return bpol2_face
+
+
+def calc_Wpol(
+    geo: geometry.Geometry, psi: cell_variable.CellVariable
+) -> jax.Array:
+  """Calculates total magnetic energy (Wpol) from poloidal flux (psi)."""
+  bpol2 = _calc_bpol2(geo, psi)
+  Wpol = _trapz(bpol2 * geo.vpr_face, geo.rho_face_norm) / (
+      2 * constants.CONSTANTS.mu0
+  )
+  return Wpol
+
+
+def calc_li3(
+    Rmaj: jax.Array,
+    Wpol: jax.Array,
+    Ip_total: jax.Array,
+) -> jax.Array:
+  """Calculates li3 based on a formulation using Wpol.
+
+  Normalized internal inductance is defined as:
+  li = <Bpol^2>_V / <Bpol^2>_LCFS where <>_V is a volume average and <>_LCFS is
+  the average at the last closed flux surface.
+
+  We use the ITER convention for normalized internal inductance defined as:
+  li3 = 2*V*<Bpol^2>_V / (mu0^2 Ip^2*Rmaj) = 4 * Wpol / (mu0 Ip^2*Rmaj)
+
+  Ip (total plasma current) enters through the integral form of Ampere's law.
+  Since Wpol also corresponds to a volume integral of the poloidal field, we
+  can define li3 with respect to Wpol.
+
+  Args:
+    Rmaj: Major radius.
+    Wpol: Total magnetic energy.
+    Ip_total: Total plasma current.
+
+  Returns:
+    li3: Normalized internal inductance, ITER convention.
+  """
+  return 4 * Wpol / (constants.CONSTANTS.mu0 * Ip_total**2 * Rmaj)
+
+
 def calc_nu_star(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -518,13 +585,26 @@ def calculate_scaling_law_confinement_time(
   Args:
     geo: Torus geometry.
     core_profiles: Core plasma profiles.
-    Ploss: Plasma power loss in MW.
+    Ploss: Plasma power loss in W.
     scaling_law: Scaling law to use.
 
   Returns:
     Thermal energy confinement time in s.
   """
   scaling_params = {
+      'H89P': {
+          # From Yushmanov et al, Nuclear Fusion, vol. 30, no. 10, pp. 4-6, 1990
+          'prefactor': 0.038128,
+          'Ip_exponent': 0.85,
+          'B_exponent': 0.2,
+          'line_avg_ne_exponent': 0.1,
+          'Ploss_exponent': -0.5,
+          'R_exponent': 1.5,
+          'inverse_aspect_ratio_exponent': 0.3,
+          'elongation_exponent': 0.5,
+          'effective_mass_exponent': 0.50,
+          'triangularity_exponent': 0.0,
+      },
       'H98': {
           # H98 empirical confinement scaling law:
           # ITER Physics Expert Groups on Confinement and Transport and
@@ -576,7 +656,8 @@ def calculate_scaling_law_confinement_time(
 
   params = scaling_params[scaling_law]
 
-  Ip = core_profiles.currents.Ip_profile_face[-1] / 1e6  # in MA
+  scaled_Ip = core_profiles.currents.Ip_profile_face[-1] / 1e6  # convert to MA
+  scaled_Ploss = Ploss / 1e6  # convert to MW
   B = geo.B0
   line_avg_ne = _calculate_line_avg_density(geo, core_profiles) / 1e19
   R = geo.Rmaj
@@ -591,10 +672,10 @@ def calculate_scaling_law_confinement_time(
 
   tau_scaling = (
       params['prefactor']
-      * Ip ** params['Ip_exponent']
+      * scaled_Ip ** params['Ip_exponent']
       * B ** params['B_exponent']
       * line_avg_ne ** params['line_avg_ne_exponent']
-      * Ploss ** params['Ploss_exponent']
+      * scaled_Ploss ** params['Ploss_exponent']
       * R ** params['R_exponent']
       * inverse_aspect_ratio ** params['inverse_aspect_ratio_exponent']
       * elongation ** params['elongation_exponent']

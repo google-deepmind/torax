@@ -22,15 +22,18 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
+from torax import constants
 from torax import core_profile_setters
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
-from torax.geometry import geometry
+from torax.geometry import circular_geometry
+from torax.geometry import standard_geometry
 from torax.sources import generic_current_source
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles
 from torax.tests.test_lib import torax_refs
 
 
@@ -135,23 +138,27 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     )
 
     # pylint: disable=protected-access
-    if isinstance(geo, geometry.CircularAnalyticalGeometry):
-      currents = core_profile_setters._prescribe_currents_no_bootstrap(
-          static_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          source_models=source_models,
-          core_profiles=initial_core_profiles,
+    if isinstance(geo, circular_geometry.CircularAnalyticalGeometry):
+      bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
+      external_current = source_models.external_current_source(
+          geo, initial_core_profiles, dynamic_runtime_params_slice, static_slice
+      )
+      currents = core_profile_setters._prescribe_currents(
+          bootstrap_profile=bootstrap,
+          external_current=external_current,
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          geo=geo,
       )
       psi = core_profile_setters._update_psi_from_j(
-          dynamic_runtime_params_slice, geo, currents.jtot_hires
+          dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+          geo,
+          currents.jtot_hires,
       ).value
-    elif isinstance(geo, geometry.StandardGeometry):
+    elif isinstance(geo, standard_geometry.StandardGeometry):
       psi = geo.psi_from_Ip
     else:
       raise ValueError(f'Unknown geometry type: {geo.geometry_type}')
     # pylint: enable=protected-access
-    print(psi)
 
     np.testing.assert_allclose(psi, references.psi.value)
 
@@ -184,7 +191,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
           references.runtime_params.profile_conditions.Ip_tot * 1e6,
       )
     else:
-      assert isinstance(geo, geometry.StandardGeometry)
+      assert isinstance(geo, standard_geometry.StandardGeometry)
       np.testing.assert_allclose(
           Ip_profile_face[-1],
           geo.Ip_profile_face[-1],
@@ -311,11 +318,12 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     np.testing.assert_allclose(
         physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff), expected
     )
+
   # pylint: enable=invalid-name
 
   def test_calculate_plh_scaling_factor(self):
     """Compare `calculate_plh_scaling_factor` to a reference value."""
-    geo = geometry.build_circular_geometry(
+    geo = circular_geometry.build_circular_geometry(
         n_rho=25,
         elongation_LCFS=1.0,
         hires_fac=4,
@@ -413,7 +421,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
   # pylint: disable=invalid-name
   def test_calculate_scaling_law_confinement_time(self, elongation_LCFS):
     """Compare `calculate_scaling_law_confinement_time` to reference values."""
-    geo = geometry.build_circular_geometry(
+    geo = circular_geometry.build_circular_geometry(
         n_rho=25,
         elongation_LCFS=elongation_LCFS,
         hires_fac=4,
@@ -490,8 +498,11 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
             Ip_profile_face=jnp.ones_like(geo.rho_face_norm) * 10e6,
         ),
     )
-    Ploss = jnp.array(50.0)
+    Ploss = jnp.array(50e6)
 
+    H89P = physics.calculate_scaling_law_confinement_time(
+        geo, core_profiles, Ploss, 'H89P'
+    )
     H98 = physics.calculate_scaling_law_confinement_time(
         geo, core_profiles, Ploss, 'H98'
     )
@@ -501,6 +512,19 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     H20 = physics.calculate_scaling_law_confinement_time(
         geo, core_profiles, Ploss, 'H20'
     )
+
+    expected_H89P = (
+        0.038128
+        * 10**0.85
+        * 5**0.2
+        * 20**0.1
+        * 50**-0.5
+        * 6**1.5
+        * (1 / 3) ** 0.3
+        * 3**0.50
+        * elongation_LCFS**0.50
+    )
+
     expected_H98 = (
         0.0562
         * 10**0.93
@@ -537,9 +561,62 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         * elongation_LCFS**0.80
     )
     # pylint: enable=invalid-name
+    np.testing.assert_allclose(H89P, expected_H89P)
     np.testing.assert_allclose(H98, expected_H98)
     np.testing.assert_allclose(H97L, expected_H97L)
     np.testing.assert_allclose(H20, expected_H20)
+
+  # pylint: disable=invalid-name
+  def test_calc_Wpol(self):
+    """Compare `calc_Wpol` to an analytical formula in circular geometry."""
+
+    # Small inverse aspect ratio limit of circular geometry, such that we
+    # approximate the simplest form of circular geometry where the analytical
+    # Bpol formula is applicable.
+    geo = circular_geometry.build_circular_geometry(
+        n_rho=25,
+        elongation_LCFS=1.0,
+        Rmaj=100.0,
+        Rmin=1.0,
+        B0=5.0,
+    )
+    Ip_tot = 15
+    # calculate high resolution jtot consistent with total current profile
+    jtot_profile = (1 - geo.rho_hires_norm**2) ** 2
+    denom = _trapz(jtot_profile * geo.spr_hires, geo.rho_hires_norm)
+    Ctot = Ip_tot * 1e6 / denom
+    jtot = jtot_profile * Ctot
+    # pylint: disable=protected-access
+    psi_cell_variable = core_profile_setters._update_psi_from_j(
+        Ip_tot,
+        geo,
+        jtot,
+    )
+    _, _, Ip_profile_face = physics.calc_jtot_from_psi(
+        geo,
+        psi_cell_variable,
+    )
+
+    # Analytical formula for Bpol in circular geometry (Ampere's law)
+    Bpol_bulk = (
+        constants.CONSTANTS.mu0
+        * Ip_profile_face[1:]
+        / (2 * np.pi * geo.rho_face[1:])
+    )
+    Bpol = np.concatenate([np.array([0.0]), Bpol_bulk])
+
+    expected_Wpol = _trapz(Bpol**2 * geo.vpr_face, geo.rho_face_norm) / (
+        2 * constants.CONSTANTS.mu0
+    )
+
+    calculated_Wpol = physics.calc_Wpol(geo, psi_cell_variable)
+
+    # Relatively low tolerence because the analytical formula is not exact for
+    # our circular geometry, but approximates it at low inverse aspect ratio.
+    np.testing.assert_allclose(calculated_Wpol, expected_Wpol, rtol=1e-3)
+
+  # pylint: enable=invalid-name
+  # pylint: enable=protected-access
 
 
 if __name__ == '__main__':
