@@ -16,7 +16,7 @@
 import chex
 from jax import numpy as jnp
 
-from torax import geometry
+from torax.geometry import geometry
 from torax import physics
 from torax import state
 from torax.constants import CONSTANTS
@@ -60,8 +60,8 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
 
   # Ti/Te
   Ti_over_Te: chex.Array
-  # dRmaj/dr
-  dRmaj: chex.Array
+  # drmaj/dr (flux surface centroid major radius gradient)
+  drmaj: chex.Array
   # q
   q: chex.Array
   # r/q dq/dr
@@ -88,17 +88,18 @@ class TGLFBasedTransportModel(
   """Base class for TGLF-based transport models."""
 
   def _prepare_tglf_inputs(
+      self,
       Zeff_face: chex.Array,
       q_correction_factor: chex.Numeric,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> TGLFInputs:
-    ## Shorthand 'standard' variables
+    # Shorthand 'standard' variables
     Te_keV = core_profiles.temp_el.face_value()
     Te_eV = Te_keV * 1e3
     Te_J = Te_keV * CONSTANTS.keV2J
     Ti_keV = core_profiles.temp_ion.face_value()
-    ne = core_profiles.ne * core_profiles.nref
+    ne = core_profiles.ne.face_value() * core_profiles.nref
     # q must be recalculated since in the nonlinear solver psi has intermediate
     # states in the iterative solve
     q, _ = physics.calc_q_from_psi(
@@ -107,29 +108,33 @@ class TGLFBasedTransportModel(
         q_correction_factor=q_correction_factor,
     )
 
-    ## Reference values used for TGLF-specific normalisation
-    # https://gafusion.github.io/doc/cgyro/outputs.html#output-normalization
-    # https://gafusion.github.io/doc/geometry.html#effective-field
-    # B_unit = 1/r d(psi_tor)/dr = q/r dpsi/dr
-    # Note: TGLF uses geo.rmid = (Rmax - Rmin)/2 as the radial coordinate
-    # This means all gradients are calculated w.r.t. rmid
-    m_D_amu = 2.014  # Mass of deuterium
+    # Reference values used for TGLF-specific normalisation
+    # - 'a' in TGLF means the minor radius at the LCFS
+    # - 'r' in TGLF means the flux surface centroid minor radius. Gradients are
+    #   taken w.r.t. r
+    #   https://gafusion.github.io/doc/tglf/tglf_list.html#rmin-loc
+    # - B_unit = 1/r d(psi_tor)/dr = q/r dpsi/dr
+    #   https://gafusion.github.io/doc/geometry.html#effective-field
+    # - c_s (ion sound speed)
+    #   https://gafusion.github.io/doc/cgyro/outputs.html#output-normalization
+    m_D_amu = 2.014  # Mass of deuterium - TODO: load from lookup table
     m_D = m_D_amu * CONSTANTS.mp  # Mass of deuterium
     c_s = (Te_J / m_D) ** 0.5
-    a = geo.Rmin[-1]  # Minor radius at LCFS
-    B_unit = q / (geo.rmid) * jnp.gradient(core_profiles.psi, geo.rmid)
+    a = geo.Rmin  # Device minor radius at LCFS
+    r = geo.rmid_face  # Flux surface centroid minor radius
+    B_unit = q / r * jnp.gradient(core_profiles.psi.face_value(), r)
 
-    ## Dimensionless gradients, eg lref_over_lti where lref=amin, lti = -ti / (dti/dr)
+    # Dimensionless gradients
     normalized_log_gradients = quasilinear_transport_model.NormalizedLogarithmicGradients.from_profiles(
         core_profiles=core_profiles,
-        radial_coordinate=geo.rmid,
+        radial_coordinate=geo.rmid,  # TODO: Why does this have to be a variable on the cell grid?
         reference_length=a,
     )
 
-    ## Dimensionless temperature ratio
+    # Dimensionless temperature ratio
     Ti_over_Te = Ti_keV / Te_keV
 
-    ## Dimensionless electron-electron collision frequency = nu_ee / (c_s/a)
+    # Dimensionless electron-electron collision frequency = nu_ee / (c_s/a)
     # https://gafusion.github.io/doc/tglf/tglf_list.html#xnue
     # https://gafusion.github.io/doc/cgyro/cgyro_list.html#cgyro-nu-ee
     # Note: In the TGLF docs, XNUE is mislabelled as electron-ion collision frequency.
@@ -143,35 +148,39 @@ class TGLFBasedTransportModel(
     )
     nu_ee = normalised_nu_ee / (c_s / a)
 
-    ## Safety factor, q
+    # Safety factor, q
     # https://gafusion.github.io/doc/tglf/tglf_list.html#q-sa
     # defined before
 
-    ## Safety factor shear, s_hat = r/q dq/dr
+    # Safety factor shear, s_hat = r/q dq/dr
     # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-shat-sa
     # Note: calc_s_from_psi_rmid gives rq dq/dr, so we divide by q**2
+    # r_mid = r
     s_hat = physics.calc_s_from_psi_rmid(geo, core_profiles.psi) / q**2
 
-    ## Electron beta
+    # Electron beta
     # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-betae
     # Note: Te in eV
     beta_e = 8 * jnp.pi * ne * Te_eV / B_unit**2
 
-    ## Major radius shear = dRmaj/dr
+    # Major radius shear = drmaj/drmin, where 'rmaj' is the flux surface centroid
+    # major radius and 'rmin' the flux surface centroid minor radius
     # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-drmajdx-loc
-    dRmaj = jnp.gradient(geo.Rmaj, geo.rmid)
+    rmaj = (
+        geo.Rin_face + geo.Rout_face
+    ) / 2  # Flux surface centroid maj radius
+    drmaj = jnp.gradient(rmaj, r)
 
-    ## Elongation shear = r/kappa dkappa/dr
+    # Elongation shear = r/kappa dkappa/dr
     # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-s-kappa-loc
     kappa = geo.elongation_face
-    kappa_shear = geo.rmid_face / kappa * jnp.gradient(kappa, geo.rmid_face)
+    kappa_shear = geo.rmid_face / kappa * jnp.gradient(kappa, r)
 
-    ## Triangularity shear = r ddelta/dr
+    # Triangularity shear = r ddelta/dr
     # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-s-delta-loc
-    delta = geo.delta_face
-    delta_shear = geo.rmid_face * jnp.gradient(delta, geo.rmid_face)
+    delta_shear = r * jnp.gradient(geo.delta_face, r)
 
-    ## Gyrobohm diffusivity
+    # Gyrobohm diffusivity
     # https://gafusion.github.io/doc/tglf/tglf_table.html#id7
     # https://gafusion.github.io/doc/cgyro/outputs.html#output-normalization
     # Note: TGLF uses the same normalisation as CGYRO
@@ -198,13 +207,13 @@ class TGLFBasedTransportModel(
         lref_over_lni1=normalized_log_gradients.lref_over_lni1,
         # From TGLFInputs
         Ti_over_Te=Ti_over_Te,
-        dRmaj=dRmaj,
+        drmaj=drmaj,
         q=q,
         s_hat=s_hat,
         nu_ee=nu_ee,
         kappa=kappa,
         kappa_shear=kappa_shear,
-        delta=delta,
+        delta=geo.delta_face,
         delta_shear=delta_shear,
         beta_e=beta_e,
         Zeff=Zeff_face,
