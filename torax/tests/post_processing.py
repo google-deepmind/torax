@@ -15,6 +15,7 @@
 """Tests for post_processing.py."""
 
 import dataclasses
+from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -29,6 +30,7 @@ from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import circular_geometry
+from torax.geometry import geometry
 from torax.geometry import geometry_provider
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
@@ -183,6 +185,40 @@ class PostProcessingTest(parameterized.TestCase):
     np.testing.assert_allclose(wth_el, 1.5 * p_el[0] * volume)
     np.testing.assert_allclose(wth_ion, 1.5 * p_ion[0] * volume)
     np.testing.assert_allclose(wth_tot, 1.5 * p_tot[0] * volume)
+
+  def test_calculate_greenwald_fraction_from_ne_vol_avg(self):
+    """Test that Greenwald fraction is calculated correctly."""
+    ne_volume_avg = 1.0
+
+    core_profiles = mock.create_autospec(
+        state.CoreProfiles,
+        instance=True,
+        nref=1e20,
+        currents=mock.create_autospec(
+            state.Currents,
+            instance=True,
+            Ip_profile_face=np.array([0, np.pi * 1e6]),
+        ),
+    )
+    geo = mock.create_autospec(
+        geometry.Geometry,
+        instance=True,
+        Rmin=1.0,
+    )
+
+    # pylint: disable=protected-access
+    fgw_ne_volume_avg_calculated = (
+        post_processing._calculate_greenwald_fraction_from_ne_vol_avg(
+            ne_volume_avg, core_profiles, geo
+        )
+    )
+
+    fgw_ne_volume_avg_expected = 1.0
+
+    np.testing.assert_allclose(
+        fgw_ne_volume_avg_calculated, fgw_ne_volume_avg_expected
+    )
+    # pylint: enable=protected-access
 
   def test_calculate_integrated_sources(self):
     """Checks integrated quantities match expectations."""

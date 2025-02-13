@@ -314,6 +314,32 @@ def _calculate_q95(
   return q95
 
 
+def _calculate_greenwald_fraction_from_ne_vol_avg(
+    ne_volume_avg: array_typing.ScalarFloat,
+    core_profiles: state.CoreProfiles,
+    geo: geometry.Geometry,
+) -> array_typing.ScalarFloat:
+  """Calculates the Greenwald fraction from the volume-average electron density.
+
+  Args:
+    ne_volume_avg: Volume-averaged electron density [nref m^-3]
+    core_profiles: CoreProfiles object containing information on currents
+      and densities.
+    geo: Geometry object
+
+  Returns:
+    fgw_ne_vol_avg: Volume-averaged electron density Greenwald fraction
+  """
+  # gw_limit is in units of 10^20 m^-3 when Ip is in MA and rmid is in m.
+  gw_limit = (
+      core_profiles.currents.Ip_profile_face[-1]
+      * 1e-6
+      / (jnp.pi * geo.Rmin ** 2)
+  )
+  fgw_ne_vol_avg = ne_volume_avg * core_profiles.nref / (gw_limit * 1e20)
+  return fgw_ne_vol_avg
+
+
 @jax_utils.jit
 def make_outputs(
     sim_state: state.ToraxSimState,
@@ -465,6 +491,9 @@ def make_outputs(
       / geo.volume[-1]
   )
 
+  fgw_ne_volume_avg = _calculate_greenwald_fraction_from_ne_vol_avg(
+      ne_volume_avg, sim_state.core_profiles, geo
+      )
   Wpol = physics.calc_Wpol(geo, sim_state.core_profiles.psi)
   li3 = physics.calc_li3(
       geo.Rmaj, Wpol, sim_state.core_profiles.currents.Ip_profile_face[-1]
@@ -499,6 +528,7 @@ def make_outputs(
       ti_volume_avg=ti_volume_avg,
       ne_volume_avg=ne_volume_avg,
       ni_volume_avg=ni_volume_avg,
+      fgw_ne_volume_avg=fgw_ne_volume_avg,
       q95=q95,
       Wpol=Wpol,
       li3=li3,
