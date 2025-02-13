@@ -30,7 +30,6 @@ from torax.geometry import geometry
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_models
 from torax.sources import source_profiles
 
 InterpolatedVarTimeRhoInput = (
@@ -104,13 +103,12 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 def calc_heating_and_current(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_source_models: source_models.SourceModels | None = None,
 ) -> tuple[chex.Array, ...]:
   """Model function for the electron-cyclotron source.
 
@@ -118,21 +116,16 @@ def calc_heating_and_current(
   See https://torax.readthedocs.io/en/latest/electron-cyclotron-derivation.html
 
   Args:
-    static_runtime_params_slice: Static runtime parameters.
+    unused_static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Global runtime parameters
     geo: Magnetic geometry.
     source_name: Name of the source.
     core_profiles: CoreProfiles component of the state.
     unused_calculated_source_profiles: Unused.
-    unused_source_models: Unused.
 
   Returns:
     2D array of electron cyclotron heating power density and current density.
   """
-  del (
-      unused_source_models,
-      static_runtime_params_slice,
-  )  # Unused.
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]

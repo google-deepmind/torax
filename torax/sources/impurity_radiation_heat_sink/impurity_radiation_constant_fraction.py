@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
 from __future__ import annotations
 
@@ -27,7 +25,6 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 
 MODEL_FUNCTION_NAME = 'radially_constant_fraction_of_Pin'
@@ -40,7 +37,6 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     source_name: str,
     unused_core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
-    unused_source_models: source_models_lib.SourceModels | None,
 ) -> tuple[chex.Array, ...]:
   """Model function for radiation heat sink from impurities.
 
@@ -55,7 +51,6 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     unused_core_profiles: Core profiles object.
     calculated_source_profiles: Source profiles which have already been
       calculated and can be used to avoid recomputing them.
-    unused_source_models: Source models object.
 
   Returns:
     The heat sink profile.

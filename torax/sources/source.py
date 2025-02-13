@@ -28,11 +28,7 @@ import dataclasses
 import enum
 import types
 import typing
-from typing import Any, ClassVar, Optional, Protocol
-
-# We use Optional here because | doesn't work with string name types.
-# We use string name 'source_models.SourceModels' in this file to avoid
-# circular imports.
+from typing import Any, ClassVar, Protocol
 
 import chex
 from jax import numpy as jnp
@@ -43,8 +39,6 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_profiles
 
 
-# pytype bug: 'source_models.SourceModels' not treated as forward reference
-# pytype: disable=name-error
 @typing.runtime_checkable
 class SourceProfileFunction(Protocol):
   """Sources implement these functions to be able to provide source profiles."""
@@ -57,12 +51,8 @@ class SourceProfileFunction(Protocol):
       source_name: str,
       core_profiles: state.CoreProfiles,
       calculated_source_profiles: source_profiles.SourceProfiles | None,
-      source_models: Optional['source_models.SourceModels'],
   ) -> tuple[chex.Array, ...]:
     ...
-
-
-# pytype: enable=name-error
 
 
 @enum.unique
@@ -178,7 +168,6 @@ class Source(abc.ABC):
             self.source_name,
             core_profiles,
             calculated_source_profiles,
-            getattr(self, 'source_models', None),
         )
       case runtime_params_lib.Mode.PRESCRIBED.value:
         # TODO(b/395854896) add support for sources that affect multiple core
@@ -237,20 +226,16 @@ class SourceBuilderProtocol(Protocol):
   Attributes:
     runtime_params: Mutable runtime params that will continue to control the
       immutable Source after the Source has been built.
-    links_back: If True, the Source will have a `source_models` field linking
-      back to its SourceModels.
   """
 
   runtime_params: runtime_params_lib.RuntimeParams
-  links_back: bool
 
   def __call__(self, *args: Any, **kwargs: Any) -> Any:
     # pylint: disable = g-doc-args
     """When called, the SourceBuilder builds a Source.
 
     This signature is used just to make pytype recognize SourceBuilders are
-    callable. Actual SourceBuilders take either no args or if `links_back`
-    they take a `source_models` argument.
+    callable.
     """
     ...
 
@@ -303,7 +288,6 @@ def make_source_builder(
     source_type: ...,
     runtime_params_type: ... = runtime_params_lib.RuntimeParams,
     model_func: SourceProfileFunction | None = None,
-    links_back=False,
 ) -> SourceBuilderProtocol:
   """Given a Source type, returns a Builder for that type.
 
@@ -314,9 +298,6 @@ def make_source_builder(
     runtime_params_type: The type of `runtime_params` field which will be added
       to the builder dataclass.
     model_func: The model function to pass to the source.
-    links_back: If True, the Source class has a `source_models` field linking
-      back to the SourceModels object. This must be passed to the builder's
-      __call__ method.
 
   Returns:
     builder: a Builder dataclass for the given Source dataclass.
@@ -336,10 +317,6 @@ def make_source_builder(
 
   # Filter out fields that shouldn't be passed to constructor
   source_fields = [f for f in source_fields if f.init]
-
-  if links_back:
-    assert sum([f.name == 'source_models' for f in source_fields]) == 1
-    source_fields = [f for f in source_fields if f.name != 'source_models']
 
   name_type_field_tuples = [
       (field.name, field.type, field) for field in source_fields
@@ -461,37 +438,21 @@ def make_source_builder(
     if not getattr(source, '__dataclass_params__').frozen:
       raise TypeError(f'{source_type} needs frozen=True')
 
-  if links_back:
-
-    def build_source(self, source_models):
-      source_init_kwargs = _convert_source_builder_to_init_kwargs(
-          self,
-          model_func,
-      )
-      source_init_kwargs['source_models'] = source_models
-      check_kwargs(source_init_kwargs, 'building')
-      source = source_type(**source_init_kwargs)
-      check_source(source)
-      return source
-
-  else:
-
-    def build_source(self):
-      source_init_kwargs = _convert_source_builder_to_init_kwargs(
-          self,
-          model_func,
-      )
-      check_kwargs(source_init_kwargs, 'building')
-      source = source_type(**source_init_kwargs)
-      check_source(source)
-      return source
+  def build_source(self):
+    source_init_kwargs = _convert_source_builder_to_init_kwargs(
+        self,
+        model_func,
+    )
+    check_kwargs(source_init_kwargs, 'building')
+    source = source_type(**source_init_kwargs)
+    check_source(source)
+    return source
 
   return dataclasses.make_dataclass(
       builder_type_name,
       builder_ntfs,
       namespace={
           '__call__': build_source,
-          'links_back': links_back,
           '__post_init__': __post_init__,
       },
       frozen=False,  # One role of the Builder class is to hold

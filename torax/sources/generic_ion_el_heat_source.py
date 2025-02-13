@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 import chex
 from torax import array_typing
@@ -111,7 +111,6 @@ def calc_generic_heat_source(
   return source_ion, source_el
 
 
-# pytype: disable=name-error
 def default_formula(
     unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -119,10 +118,8 @@ def default_formula(
     source_name: str,
     unused_core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_source_models: Optional['source_models.SourceModels'],
 ) -> tuple[chex.Array, ...]:
   """Returns the default formula-based ion/electron heat source profile."""
-  # pytype: enable=name-error
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
@@ -135,9 +132,6 @@ def default_formula(
       dynamic_source_runtime_params.el_heat_fraction,
   )
   return (ion, el)
-
-
-# pylint: enable=invalid-name
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

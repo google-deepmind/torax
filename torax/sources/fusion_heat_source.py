@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 import chex
 import jax
@@ -149,7 +149,6 @@ def fusion_heat_model_func(
     unused_source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_source_models: Optional['source_models.SourceModels'],
 ) -> tuple[chex.Array, ...]:
   """Model function for fusion heating."""
   # pytype: enable=name-error

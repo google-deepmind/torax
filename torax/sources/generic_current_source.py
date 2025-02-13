@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 import chex
 from jax import numpy as jnp
@@ -107,7 +107,6 @@ def calculate_generic_current(
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_source_models: Optional['source_models.SourceModels'] = None,
 ) -> tuple[chex.Array, ...]:
   """Calculates the external current density profiles on the cell grid."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[

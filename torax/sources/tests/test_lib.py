@@ -72,7 +72,6 @@ class SourceTestCase(parameterized.TestCase):
       runtime_params_class: Type[runtime_params_lib.RuntimeParams],
       source_name: str,
       model_func: source_lib.SourceProfileFunction | None,
-      links_back: bool = False,
       needs_source_models: bool = False,
       source_class_builder: source_lib.SourceBuilderProtocol | None = None,
   ):
@@ -82,13 +81,11 @@ class SourceTestCase(parameterized.TestCase):
       cls._source_class_builder = source_lib.make_source_builder(
           source_type=source_class,
           runtime_params_type=runtime_params_class,
-          links_back=links_back,
           model_func=model_func,
       )
     else:
       cls._source_class_builder = source_class_builder
     cls._runtime_params_class = runtime_params_class
-    cls._links_back = links_back
     cls._source_name = source_name
     cls._needs_source_models = needs_source_models
 

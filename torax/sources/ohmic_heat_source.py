@@ -172,7 +172,6 @@ def ohmic_model_func(
     unused_source_name: str,
     core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_source_models: source_models_lib.SourceModels,
 ) -> tuple[chex.Array, ...]:
   """Returns the Ohmic source for electron heat equation."""
   if calculated_source_profiles is None:

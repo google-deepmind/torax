@@ -62,7 +62,6 @@ class ModelFunction:
   source_profile_function: source.SourceProfileFunction | None
   runtime_params_class: Type[runtime_params.RuntimeParams]
   source_builder_class: source.SourceBuilderProtocol | None = None
-  links_back: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -224,7 +223,6 @@ def register_model_function(
     model_function: source.SourceProfileFunction,
     runtime_params_class: Type[runtime_params.RuntimeParams],
     source_builder_class: source.SourceBuilderProtocol | None = None,
-    links_back: bool = False,
 ) -> None:
   """Register a model function by adding to one of the supported sources in the registry."""
   if source_name not in _SUPPORTED_SOURCES:
@@ -239,5 +237,4 @@ def register_model_function(
       source_profile_function=model_function,
       runtime_params_class=runtime_params_class,
       source_builder_class=source_builder_class,
-      links_back=links_back,
   )
