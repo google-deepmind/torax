@@ -55,7 +55,6 @@ CURRENT_SOURCE_TRANSFORMATIONS = {
 }
 
 
-@jax_utils.jit
 def _compute_pressure(
     core_profiles: state.CoreProfiles,
 ) -> tuple[array_typing.ArrayFloat, ...]:
@@ -88,7 +87,6 @@ def _compute_pressure(
   )
 
 
-@jax_utils.jit
 def _compute_pprime(
     core_profiles: state.CoreProfiles,
 ) -> array_typing.ArrayFloat:
@@ -137,7 +135,6 @@ def _compute_pprime(
 
 
 # pylint: disable=invalid-name
-@jax_utils.jit
 def _compute_FFprime(
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
@@ -178,7 +175,6 @@ def _compute_FFprime(
 # pylint: enable=invalid-name
 
 
-@jax_utils.jit
 def _compute_stored_thermal_energy(
     p_el: array_typing.ArrayFloat,
     p_ion: array_typing.ArrayFloat,
@@ -205,7 +201,6 @@ def _compute_stored_thermal_energy(
   return wth_el, wth_ion, wth_tot
 
 
-@jax_utils.jit
 def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
@@ -301,7 +296,6 @@ def _calculate_integrated_sources(
   return integrated
 
 
-@jax_utils.jit
 def _calculate_q95(
     psi_norm_face: array_typing.ArrayFloat,
     core_profiles: state.CoreProfiles,
@@ -320,6 +314,7 @@ def _calculate_q95(
   return q95
 
 
+@jax_utils.jit
 def make_outputs(
     sim_state: state.ToraxSimState,
     geo: geometry.Geometry,
