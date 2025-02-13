@@ -204,7 +204,6 @@ _SUPPORTED_SOURCES = {
             impurity_radiation_constant_fraction.MODEL_FUNCTION_NAME: ModelFunction(
                 source_profile_function=impurity_radiation_constant_fraction.radially_constant_fraction_of_Pin,
                 runtime_params_class=impurity_radiation_constant_fraction.RuntimeParams,
-                links_back=True,
             ),
         },
     ),
