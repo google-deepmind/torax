@@ -410,7 +410,6 @@ def _build_single_source_builder_from_config(
     source_builder_class = source_lib.make_source_builder(
         supported_source.source_class,
         runtime_params_type=model_function.runtime_params_class,
-        links_back=model_function.links_back,
         model_func=model_function.source_profile_function,
     )
 

@@ -20,7 +20,6 @@ from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
-import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -72,7 +71,6 @@ class SourceTestCase(parameterized.TestCase):
       runtime_params_class: Type[runtime_params_lib.RuntimeParams],
       source_name: str,
       model_func: source_lib.SourceProfileFunction | None,
-      links_back: bool = False,
       needs_source_models: bool = False,
       source_class_builder: source_lib.SourceBuilderProtocol | None = None,
   ):
@@ -82,13 +80,11 @@ class SourceTestCase(parameterized.TestCase):
       cls._source_class_builder = source_lib.make_source_builder(
           source_type=source_class,
           runtime_params_type=runtime_params_class,
-          links_back=links_back,
           model_func=model_func,
       )
     else:
       cls._source_class_builder = source_class_builder
     cls._runtime_params_class = runtime_params_class
-    cls._links_back = links_back
     cls._source_name = source_name
     cls._needs_source_models = needs_source_models
 
@@ -233,37 +229,3 @@ class IonElSourceTestCase(SourceTestCase):
     self.assertLen(ion_and_el, 2)
     self.assertEqual(ion_and_el[0].shape, geo.rho.shape)
     self.assertEqual(ion_and_el[1].shape, geo.rho.shape)
-
-  def test_extraction_of_relevant_profile_from_output(self):
-    """Tests that the relevant profile is extracted from the output."""
-    geo = circular_geometry.build_circular_geometry()
-    # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
-    # pylint: enable=missing-kwoa
-    cell = geo.rho.shape
-    fake_profile = (jnp.ones(cell), 2 * jnp.ones(cell))
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.TEMP_ION.value,
-            geo,
-        ),
-        jnp.ones(cell),
-    )
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.TEMP_EL.value,
-            geo,
-        ),
-        2 * jnp.ones(cell),
-    )
-    # For unrelated states, this should just return all 0s.
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.NE.value,
-            geo,
-        ),
-        jnp.zeros(cell),
-    )

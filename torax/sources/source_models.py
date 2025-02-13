@@ -18,11 +18,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-import jax.numpy as jnp
-from torax import array_typing
-from torax import state
-from torax.config import runtime_params_slice
-from torax.geometry import geometry
 from torax.sources import bootstrap_current_source
 from torax.sources import generic_current_source
 from torax.sources import qei_source as qei_source_lib
@@ -89,19 +84,12 @@ class SourceModels:
       ValueError if there is a naming collision with the reserved names as
       described above.
     """
-
-    # Begin initial construction with sources that don't link back to the
-    # SourceModels
-    sources = {
-        name: builder()
-        for name, builder in source_builders.items()
-        if not builder.links_back
-    }
+    sources = {name: builder() for name, builder in source_builders.items()}
 
     # Some sources are accessed for specific use cases, so we extract those
     # ones and expose them directly.
     self._j_bootstrap = None
-    self._generic_current = None
+    generic_current = None
     self._qei_source = None
     # The rest of the sources are "standard".
     self._standard_sources = {}
@@ -117,7 +105,7 @@ class SourceModels:
       if isinstance(source, bootstrap_current_source.BootstrapCurrentSource):
         self._j_bootstrap = source
       elif isinstance(source, generic_current_source.GenericCurrentSource):
-        self._generic_current = source
+        generic_current = source
       elif isinstance(source, qei_source_lib.QeiSource):
         self._qei_source = source
 
@@ -128,11 +116,11 @@ class SourceModels:
       self._qei_source = qei_source_lib.QeiSource()
     # If the generic current source wasn't provided, create a default one and
     # add to standard sources.
-    if self._generic_current is None:
-      self._generic_current = generic_current_source.GenericCurrentSource()
+    if generic_current is None:
+      generic_current = generic_current_source.GenericCurrentSource()
       self._add_standard_source(
           generic_current_source.GenericCurrentSource.SOURCE_NAME,
-          self._generic_current,
+          generic_current,
       )
 
     # Then add all the "standard" sources.
@@ -143,11 +131,6 @@ class SourceModels:
         continue
       else:
         self._add_standard_source(source_name, source)
-
-    # Now add the sources that link back
-    for name, builder in source_builders.items():
-      if builder.links_back:
-        self._add_standard_source(name, builder(self))
 
     # The instance is constructed, now freeze it
     self._frozen = True
@@ -220,33 +203,6 @@ class SourceModels:
   def j_bootstrap_name(self) -> str:
     return bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
 
-  def external_current_source(
-      self,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-  ) -> array_typing.ArrayFloat:
-    """Returns contributions to external current from all psi sources."""
-    total = jnp.zeros_like(geo.rho)
-    for source in self.psi_sources.values():
-      source_value = source.get_value(
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          static_runtime_params_slice=static_runtime_params_slice,
-          geo=geo,
-          core_profiles=core_profiles,
-          calculated_source_profiles=None,
-      )
-      total += source.get_source_profile_for_affected_core_profile(
-          source_value, source_lib.AffectedCoreProfile.PSI, geo,
-      )
-
-    return total
-
-  @property
-  def generic_current_source_name(self) -> str:
-    return generic_current_source.GenericCurrentSource.SOURCE_NAME
-
   @property
   def qei_source(self) -> qei_source_lib.QeiSource:
     if self._qei_source is None:
@@ -260,31 +216,6 @@ class SourceModels:
   @property
   def psi_sources(self) -> dict[str, source_lib.Source]:
     return self._psi_sources
-
-  @property
-  def ne_sources(self) -> dict[str, source_lib.Source]:
-    return self._ne_sources
-
-  @property
-  def temp_ion_sources(self) -> dict[str, source_lib.Source]:
-    return self._temp_ion_sources
-
-  @property
-  def temp_el_sources(self) -> dict[str, source_lib.Source]:
-    return self._temp_el_sources
-
-  @property
-  def ion_el_sources(self) -> dict[str, source_lib.Source]:
-    """Returns all source models which output both ion and el temp profiles."""
-    return {
-        name: source
-        for name, source in self._standard_sources.items()
-        if source.affected_core_profiles
-        == (
-            source_lib.AffectedCoreProfile.TEMP_ION,
-            source_lib.AffectedCoreProfile.TEMP_EL,
-        )
-    }
 
   @property
   def standard_sources(self) -> dict[str, source_lib.Source]:

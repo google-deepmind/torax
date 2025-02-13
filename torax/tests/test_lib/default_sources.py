@@ -72,7 +72,6 @@ def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
       source_builder_class = source_lib.make_source_builder(
           registered_source.source_class,
           runtime_params_type=model_function.runtime_params_class,
-          links_back=model_function.links_back,
           model_func=model_function.source_profile_function,
       )
     source_builders[name] = source_builder_class(runtime_params=runtime_params)

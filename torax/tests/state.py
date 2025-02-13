@@ -373,7 +373,9 @@ class InitialStatesTest(parameterized.TestCase):
     ctot = config1.profile_conditions.Ip_tot * 1e6 / denom
     jtot_formula = jformula * ctot
     johm_formula = jtot_formula * (
-        1 - dcs1.sources[source_models.generic_current_source_name].fext  # pytype: disable=attribute-error
+        1 - dcs1.sources[
+            generic_current_source.GenericCurrentSource.SOURCE_NAME
+        ].fext  # pytype: disable=attribute-error
     )
 
     # Calculate bootstrap current for config3 which doesn't zero it out

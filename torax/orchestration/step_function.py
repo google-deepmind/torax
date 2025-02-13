@@ -31,7 +31,6 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import ohmic_heat_source
-from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
@@ -695,14 +694,10 @@ def _update_psidot(
     core_sources: source_profiles_lib.SourceProfiles,
 ) -> state.CoreProfiles:
   """Update psidot based on new core_profiles."""
-  psi_sources = source_operations.sum_sources_psi(geo, core_sources)
-
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=ohmic_heat_source.calculate_psidot_from_psi_sources(
-          psi_sources=psi_sources,
-          sigma=core_sources.j_bootstrap.sigma,
-          sigma_face=core_sources.j_bootstrap.sigma_face,
+          source_profiles=core_sources,
           resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
           psi=core_profiles.psi,
           geo=geo,

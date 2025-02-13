@@ -22,7 +22,6 @@ import dataclasses
 from typing import ClassVar
 
 from torax.sources import source as source_lib
-from torax.sources import source_models as source_models_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 
 
@@ -35,7 +34,6 @@ class ImpurityRadiationHeatSink(source_lib.Source):
       impurity_radiation_mavrin_fit.MODEL_FUNCTION_NAME
   )
   model_func: source_lib.SourceProfileFunction
-  source_models: source_models_lib.SourceModels | None = None
 
   @property
   def source_name(self) -> str:

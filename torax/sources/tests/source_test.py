@@ -107,7 +107,6 @@ class SourceTest(parameterized.TestCase):
     with self.assertRaises(TypeError):
       source_lib.make_source_builder(
           NotDataclass,
-          links_back=False,
           runtime_params_type=int,
       )()
 
@@ -118,7 +117,6 @@ class SourceTest(parameterized.TestCase):
     with self.assertRaises(TypeError):
       source_lib.make_source_builder(
           NotFrozen,
-          links_back=False,
           runtime_params_type=int,
       )()
 
@@ -129,7 +127,6 @@ class SourceTest(parameterized.TestCase):
     with self.assertRaises(TypeError):
       source_lib.make_source_builder(
           NotEq,
-          links_back=False,
           runtime_params_type=int,
       )()
 
@@ -141,7 +138,6 @@ class SourceTest(parameterized.TestCase):
     # pylint doesn't realize this is a class
     MySourceBuilder = source_lib.make_source_builder(  # pylint: disable=invalid-name
         MySource,
-        links_back=False,
         runtime_params_type=int,
     )
 
@@ -203,8 +199,7 @@ class SourceTest(parameterized.TestCase):
   def test_correct_mode_called(self, mode, expected_profile):
     source_builder = source_lib.make_source_builder(
         test_lib.TestSource,
-        model_func=lambda _0, _1, _2, _3, _4, _5, _6: (jnp.full(
-            geo.rho.shape, 2),),
+        model_func=lambda _0, _1, _2, _3, _4, _5: (jnp.full(geo.rho.shape, 2),),
     )()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {'foo': source_builder},
@@ -328,7 +323,7 @@ class SourceTest(parameterized.TestCase):
     expected_output = (jnp.ones_like(geo.rho),)
     source_builder = source_lib.make_source_builder(
         IonElTestSource,
-        model_func=lambda _0, _1, _2, _3, _4, _5, _6: expected_output,
+        model_func=lambda _0, _1, _2, _3, _4, _5: expected_output,
     )()
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     source_models_builder = source_models_lib.SourceModelsBuilder(
@@ -412,44 +407,6 @@ class SourceTest(parameterized.TestCase):
         calculated_source_profiles=None,
     )
     np.testing.assert_allclose(profile, expected_output)
-
-  def test_get_source_profile_for_affected_core_profile_works_for_single_profile(
-      self,
-  ):
-    geo = circular_geometry.build_circular_geometry()
-    profile = (jnp.full(geo.rho.shape, 13),)
-    source = PsiTestSource()
-    psi_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.PSI.value, geo
-    )
-    np.testing.assert_allclose(psi_profile, profile[0])
-
-    ne_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.NE.value, geo
-    )
-    np.testing.assert_allclose(ne_profile, jnp.zeros_like(geo.rho))
-
-  def test_get_source_profile_for_affected_core_profile_works_for_multiple_profiles(
-      self,
-  ):
-    geo = circular_geometry.build_circular_geometry()
-    ion_profile = jnp.full(geo.rho.shape, 13)
-    el_profile = jnp.full(geo.rho.shape, 17)
-    profile = (ion_profile, el_profile)
-    source = IonElTestSource()
-    temp_ion_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.TEMP_ION.value, geo
-    )
-    np.testing.assert_allclose(temp_ion_profile, ion_profile)
-    temp_el_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.TEMP_EL.value, geo
-    )
-    np.testing.assert_allclose(temp_el_profile, el_profile)
-
-    psi_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.PSI.value, geo
-    )
-    np.testing.assert_allclose(psi_profile, jnp.zeros_like(geo.rho))
 
 
 if __name__ == '__main__':

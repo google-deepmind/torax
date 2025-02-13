@@ -28,7 +28,6 @@ from torax.geometry import geometry
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_models
 from torax.sources import source_profiles
 
 
@@ -83,7 +82,6 @@ def calc_puff_source(
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_source_models: source_models.SourceModels | None = None,
 ) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from puffs."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
@@ -176,7 +174,6 @@ def calc_generic_particle_source(
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_source_models: source_models.SourceModels | None = None,
 ) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from SBI."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
@@ -262,7 +259,6 @@ def calc_pellet_source(
     source_name: str,
     unused_state: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_source_models: source_models.SourceModels | None = None,
 ) -> tuple[chex.Array, ...]:
   """Calculates external source term for n from pellets."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[

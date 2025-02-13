@@ -11,36 +11,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
+from __future__ import annotations
 
 import dataclasses
 
 import chex
-import jax
 import jax.numpy as jnp
 from torax import array_typing
+from torax import interpolated_param
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source as source_lib
-from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 
-MODEL_FUNCTION_NAME = "radially_constant_fraction_of_Pin"
+MODEL_FUNCTION_NAME = 'radially_constant_fraction_of_Pin'
 
 
 def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    core_profiles: state.CoreProfiles,
+    unused_core_profiles: state.CoreProfiles,
     calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
-    source_models: source_models_lib.SourceModels,
 ) -> tuple[chex.Array, ...]:
   """Model function for radiation heat sink from impurities.
 
@@ -48,14 +44,13 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
   of the total heating power input.
 
   Args:
-    static_runtime_params_slice: Static runtime parameters.
+    unused_static_runtime_params_slice: Static runtime parameters.
     dynamic_runtime_params_slice: Dynamic runtime parameters.
     geo: Geometry object.
     source_name: Name of the source.
-    core_profiles: Core profiles object.
+    unused_core_profiles: Core profiles object.
     calculated_source_profiles: Source profiles which have already been
       calculated and can be used to avoid recomputing them.
-    source_models: Source models object.
 
   Returns:
     The heat sink profile.
@@ -65,38 +60,28 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
   ]
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
+  if calculated_source_profiles is None:
+    raise ValueError(
+        'calculated_source_profiles is a required argument for'
+        ' `radially_constant_fraction_of_Pin`. This can occur if this source'
+        ' function is used in an explicit source.'
+    )
+
   # Based on source_models.sum_sources_temp_el and source_models.calc_and_sum
   # sources_psi, but only summing over heating *input* sources
   # (Pohm + Paux + Palpha + ...) and summing over *both* ion + electron heating
 
-  def get_heat_source_profile(source: source_lib.Source) -> jax.Array:
-    # TODO(b/381543891): Currently this recomputes the profile for each source,
-    # which is inefficient. Refactor to avoid this.
-    profile = source.get_value(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo,
-        core_profiles=core_profiles,
-        calculated_source_profiles=calculated_source_profiles,
-    )
-    return source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.TEMP_EL.value, geo
-    ) + source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.TEMP_ION.value, geo
-    )
+  # TODO(b/383061556) Move away from using brittle source names to identify
+  # sinks/sources.
+  source_profiles = jnp.zeros_like(geo.rho)
+  for source_name in calculated_source_profiles.temp_el:
+    if 'sink' not in source_name:
+      source_profiles += calculated_source_profiles.temp_el[source_name]
+  for source_name in calculated_source_profiles.temp_ion:
+    if 'sink' not in source_name:
+      source_profiles += calculated_source_profiles.temp_ion[source_name]
 
-  # Calculate the total power input to the heat equations
-  heat_sources_and_sinks = (
-      source_models.temp_el_sources | source_models.temp_ion_sources
-  )
-  heat_sources = {
-      k: v for k, v in heat_sources_and_sinks.items() if "sink" not in k
-  }
-  source_profiles = jax.tree.map(
-      get_heat_source_profile,
-      list(heat_sources.values()),
-  )
-  Qtot_in = jnp.sum(jnp.stack(source_profiles), axis=0)
+  Qtot_in = source_profiles
   Ptot_in = math_utils.cell_integration(Qtot_in * geo.vpr, geo)
   Vtot = geo.volume_face[-1]
 
@@ -118,7 +103,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   def make_provider(
       self,
       torax_mesh: geometry.Grid1D | None = None,
-  ) -> "RuntimeParamsProvider":
+  ) -> RuntimeParamsProvider:
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
@@ -126,12 +111,12 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   """Provides runtime parameters for a given time and geometry."""
 
-  runtime_params_config: RuntimeParams
+  fraction_of_total_power_density: interpolated_param.InterpolatedVarSingleAxis
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) -> "DynamicRuntimeParams":
+  ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 

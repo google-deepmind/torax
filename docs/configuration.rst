@@ -539,10 +539,10 @@ geometry
 
 Geometry dicts for all geometry types can contain the following additional keys.
 
-``nrho`` (int = 25)
+``n_rho`` (int = 25)
   Number of radial grid points
 
-``hi_res_fac`` (int = 4)
+``hires_fac`` (int = 4)
   Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
   with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
 

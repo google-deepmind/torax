@@ -29,7 +29,6 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_models
 from torax.sources import source_profiles
 
 
@@ -128,7 +127,6 @@ def bremsstrahlung_model_func(
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_model_func: source_models.SourceModels | None,
 ) -> tuple[chex.Array, ...]:
   """Model function for the Bremsstrahlung heat sink."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[

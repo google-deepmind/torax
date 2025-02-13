@@ -36,7 +36,6 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_models
 from torax.sources import source_profiles
 from typing_extensions import override
 
@@ -373,7 +372,6 @@ def icrh_model_func(
     source_name: str,
     core_profiles: state.CoreProfiles,
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-    unused_source_models: source_models.SourceModels | None,
     toric_nn: ToricNNWrapper,
 ) -> tuple[chex.Array, ...]:
   """Compute ion/electron heat source terms."""
@@ -513,7 +511,6 @@ class IonCyclotronSourceBuilder:
   runtime_params: RuntimeParams = dataclasses.field(
       default_factory=RuntimeParams
   )
-  links_back: bool = False
   model_func: source.SourceProfileFunction | None = None
 
   def __post_init__(self):

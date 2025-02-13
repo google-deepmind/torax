@@ -123,7 +123,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         source_name,
         unused_state,
         unused_calculated_source_profiles,
-        unused_source_models,
     ):
       dynamic_source_params = dynamic_runtime_params.sources[source_name]
       return (dynamic_source_params.prescribed_values,)

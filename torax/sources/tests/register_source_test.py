@@ -25,7 +25,6 @@ from torax.sources import ohmic_heat_source
 from torax.sources import qei_source
 from torax.sources import register_source
 from torax.sources import source as source_lib
-from torax.sources import source_models as source_models_lib
 
 
 class SourceTest(parameterized.TestCase):
@@ -57,7 +56,6 @@ class SourceTest(parameterized.TestCase):
       source_builder_class = source_lib.make_source_builder(
           registered_source.source_class,
           runtime_params_type=source_runtime_params_class,
-          links_back=model_function.links_back,
           model_func=model_function.source_profile_function,
       )
     source_runtime_params_class = model_function.runtime_params_class
@@ -65,18 +63,7 @@ class SourceTest(parameterized.TestCase):
     self.assertIsInstance(
         source_builder.runtime_params, source_runtime_params_class
     )
-    if not source_builder.links_back:
-      source = source_builder()
-      self.assertIsInstance(source, source_class)
-    else:
-      # If the source links back, we need to create a `SourceModels` object to
-      # pass to the source builder.
-      source_models = source_models_lib.SourceModels(
-          source_builders={
-              source_name: source_builder,
-          }
-      )
-      source = source_builder(source_models)
+    source = source_builder()
     self.assertIsInstance(source, source_class)
 
 

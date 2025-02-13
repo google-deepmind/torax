@@ -106,7 +106,6 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         unused_source_name: str,
         unused_state: state_lib.CoreProfiles,
         unused_calculated_source_profiles: source_profiles.SourceProfiles,
-        unused_source_models: ...,
     ):
       # Combine the outputs.
       kwargs = dict(
@@ -115,7 +114,6 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
           geo=geo,
           unused_state=unused_state,
           unused_calculated_source_profiles=unused_calculated_source_profiles,
-          unused_source_models=unused_source_models,
       )
       return (
           electron_density_sources.calc_puff_source(
