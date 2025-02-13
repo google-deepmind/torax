@@ -51,6 +51,7 @@ class Constants:
   epsilon0: chex.Numeric
   mu0: chex.Numeric
   eps: chex.Numeric
+  c: chex.Numeric
 
 
 CONSTANTS: Final[Constants] = Constants(
