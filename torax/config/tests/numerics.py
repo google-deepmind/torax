@@ -16,9 +16,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax import interpolated_param
 from torax.config import numerics
-from torax.geometry import circular_geometry
 
 
 class NumericsTest(parameterized.TestCase):
@@ -26,29 +24,7 @@ class NumericsTest(parameterized.TestCase):
 
   def test_numerics_make_provider(self):
     nums = numerics.Numerics()
-    geo = circular_geometry.build_circular_geometry()
-    provider = nums.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
-
-  def test_interpolated_vars_are_only_constructed_once(
-      self,
-  ):
-    """Tests that interpolated vars are only constructed once."""
-    nums = numerics.Numerics()
-    geo = circular_geometry.build_circular_geometry()
-    provider = nums.make_provider(geo.torax_mesh)
-    interpolated_params = {}
-    for field in provider:
-      value = getattr(provider, field)
-      if isinstance(value, interpolated_param.InterpolatedParamBase):
-        interpolated_params[field] = value
-
-    # Check we don't make any additional calls to construct interpolated vars.
-    provider.build_dynamic_params(t=1.0)
-    for field in provider:
-      value = getattr(provider, field)
-      if isinstance(value, interpolated_param.InterpolatedParamBase):
-        self.assertIs(value, interpolated_params[field])
+    nums.build_dynamic_params(t=0.0)
 
 
 if __name__ == "__main__":
