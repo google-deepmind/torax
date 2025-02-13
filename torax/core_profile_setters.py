@@ -687,13 +687,16 @@ def _init_psi_psidot_vloop_and_current(
       geo=geo,
   )
   psidot_cell_var = dataclasses.replace(core_profiles.psidot, value=psidot)
+  # TODO: For Ip_tot BC, introduce a feature for calculating vloop_lcfs in
+  # final post-processing and test to check vloop equivalence between vloop BC
+  # and Ip_tot BC
   core_profiles = dataclasses.replace(
       core_profiles,
       psidot=psidot_cell_var,
       vloop_lcfs=(
           dynamic_runtime_params_slice.profile_conditions.vloop_lcfs
           if use_vloop_bc
-          else None
+          else 0.0
       ),
   )
 
