@@ -479,7 +479,7 @@ def _calculate_psi_value_constraint_from_vloop(
   return psi_lcfs_t + theta_weighted_vloop_lcfs * dt
 
 
-def _init_psi_psidot_and_current(
+def _init_psi_psidot_vloop_and_current(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -687,7 +687,15 @@ def _init_psi_psidot_and_current(
       geo=geo,
   )
   psidot_cell_var = dataclasses.replace(core_profiles.psidot, value=psidot)
-  core_profiles = dataclasses.replace(core_profiles, psidot=psidot_cell_var)
+  core_profiles = dataclasses.replace(
+      core_profiles,
+      psidot=psidot_cell_var,
+      vloop_lcfs=(
+          dynamic_runtime_params_slice.profile_conditions.vloop_lcfs
+          if use_vloop_bc
+          else None
+      ),
+  )
 
   return core_profiles
 
@@ -774,31 +782,12 @@ def initial_core_profiles(
       vloop_lcfs=vloop_lcfs,
   )
 
-  core_profiles = _init_psi_psidot_and_current(
+  core_profiles = _init_psi_psidot_vloop_and_current(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
       source_models,
-  )
-
-  # psidot calculated here with phibdot=0 in geo, since this is initial
-  # conditions and we don't yet have information on geo_t_plus_dt for the
-  # phibdot calculation.
-  psidot = dataclasses.replace(
-      core_profiles.psidot,
-      value=ohmic_heat_source.calc_psidot(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles,
-          source_models,
-      ),
-  )
-  core_profiles = dataclasses.replace(
-      core_profiles,
-      psidot=psidot,
-      vloop_lcfs=psidot.face_value()[-1],
   )
 
   # Set psi as source of truth and recalculate jtot, q, s
