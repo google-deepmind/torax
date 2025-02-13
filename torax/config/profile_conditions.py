@@ -38,6 +38,7 @@ class ProfileConditions(
   # Total plasma current in MA
   # Note that if Ip_from_parameters=False in geometry, then this Ip will be
   # overwritten by values from the geometry data.
+  # If use_vloop_lcfs_boundary_condition, only used as an initial condition.
   Ip_tot: interpolated_param.TimeInterpolatedInput = 15.0
 
   # Boundary condition at LCFS for Vloop ( = dpsi_lcfs/dt )
