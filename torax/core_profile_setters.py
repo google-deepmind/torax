@@ -38,6 +38,7 @@ from torax.geometry import geometry
 from torax.geometry import standard_geometry
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -341,48 +342,19 @@ def _prescribe_currents(
 
 
 def _calculate_currents_from_psi(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
+    source_profiles: source_profiles_lib.SourceProfiles,
 ) -> state.Currents:
-  """Creates the initial Currents using psi to calculate jtot.
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: General runtime parameters at t_initial.
-    geo: Geometry of the tokamak.
-    core_profiles: Core profiles.
-    source_models: All TORAX source/sink functions. If not provided, uses the
-      default sources.
-
-  Returns:
-    currents: Plasma currents
-  """
-
-  # Many variables throughout this function are capitalized based on physics
-  # notational conventions rather than on Google Python style
+  """Creates the initial Currents using psi to calculate jtot."""
   jtot, jtot_face, Ip_profile_face = physics.calc_jtot_from_psi(
       geo,
       core_profiles.psi,
   )
-
-  bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-
-  # calculate "External" current profile (e.g. ECCD)
-  # form of external current on face grid
-  external_current = source_models.external_current_source(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
+  bootstrap_profile = source_profiles.j_bootstrap
+  # Note that the psi sources here are the standard sources and don't include
+  # the bootstrap current.
+  external_current = sum(source_profiles.psi.values())
   johm = jtot - external_current - bootstrap_profile.j_bootstrap
   currents = state.Currents(
       jtot=jtot,
@@ -466,7 +438,7 @@ def _calculate_psi_grad_constraint(
   )
 
 
-def _init_psi_and_current(
+def _init_psi_psidot_and_current(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -493,6 +465,22 @@ def _init_psi_and_current(
   Returns:
     Refined core profiles.
   """
+  source_profiles = source_profiles_lib.SourceProfiles(
+      j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(geo),
+      qei=source_profiles_lib.QeiInfo.zeros(geo),
+  )
+  # Updates the calculated source profiles with the standard source profiles.
+  source_profile_builders.build_standard_source_profiles(
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      geo=geo,
+      core_profiles=core_profiles,
+      source_models=source_models,
+      psi_only=True,
+      calculate_anyway=True,
+      calculated_source_profiles=source_profiles,
+  )
+
   # Retrieving psi from the profile conditions.
   if dynamic_runtime_params_slice.profile_conditions.psi is not None:
     psi = cell_variable.CellVariable(
@@ -504,12 +492,19 @@ def _init_psi_and_current(
         dr=geo.drho_norm,
     )
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
-    currents = _calculate_currents_from_psi(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+    bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
         static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
-        source_models=source_models,
+    )
+    source_profiles = dataclasses.replace(
+        source_profiles, j_bootstrap=bootstrap_profile
+    )
+    currents = _calculate_currents_from_psi(
+        geo=geo,
+        core_profiles=core_profiles,
+        source_profiles=source_profiles,
     )
   # Retrieving psi from the standard geometry input.
   elif (
@@ -528,12 +523,19 @@ def _init_psi_and_current(
         dr=geo.drho_norm,
     )
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
-    currents = _calculate_currents_from_psi(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+    bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
         static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
         core_profiles=core_profiles,
-        source_models=source_models,
+    )
+    source_profiles = dataclasses.replace(
+        source_profiles, j_bootstrap=bootstrap_profile
+    )
+    currents = _calculate_currents_from_psi(
+        geo=geo,
+        core_profiles=core_profiles,
+        source_profiles=source_profiles,
     )
   # Calculating j according to nu formula and psi from j.
   elif (
@@ -541,17 +543,9 @@ def _init_psi_and_current(
       or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
   ):
     # First calculate currents without bootstrap.
-    bootstrap = source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-        geo
-    )
-    external_current = source_models.external_current_source(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo,
-        core_profiles=core_profiles,
-    )
+    external_current = sum(source_profiles.psi.values())
     currents = _prescribe_currents(
-        bootstrap_profile=bootstrap,
+        bootstrap_profile=source_profiles.j_bootstrap,
         external_current=external_current,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
@@ -590,7 +584,28 @@ def _init_psi_and_current(
   else:
     raise ValueError('Cannot compute psi for given config.')
 
-  core_profiles = dataclasses.replace(core_profiles, psi=psi, currents=currents)
+  core_profiles = dataclasses.replace(
+      core_profiles, psi=psi, currents=currents)
+  bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+      static_runtime_params_slice=static_runtime_params_slice,
+      geo=geo,
+      core_profiles=core_profiles,
+  )
+  source_profiles = dataclasses.replace(
+      source_profiles, j_bootstrap=bootstrap_profile
+  )
+  # psidot calculated here with phibdot=0 in geo, since this is initial
+  # conditions and we don't yet have information on geo_t_plus_dt for the
+  # phibdot calculation.
+  psidot = ohmic_heat_source.calculate_psidot_from_psi_sources(
+      source_profiles=source_profiles,
+      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+      psi=psi,
+      geo=geo,
+  )
+  psidot_cell_var = dataclasses.replace(core_profiles.psidot, value=psidot)
+  core_profiles = dataclasses.replace(core_profiles, psidot=psidot_cell_var)
 
   return core_profiles
 
@@ -667,28 +682,13 @@ def initial_core_profiles(
       nref=jnp.asarray(dynamic_runtime_params_slice.numerics.nref),
   )
 
-  core_profiles = _init_psi_and_current(
+  core_profiles = _init_psi_psidot_and_current(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
       core_profiles,
       source_models,
   )
-
-  # psidot calculated here with phibdot=0 in geo, since this is initial
-  # conditions and we don't yet have information on geo_t_plus_dt for the
-  # phibdot calculation.
-  psidot = dataclasses.replace(
-      core_profiles.psidot,
-      value=ohmic_heat_source.calc_psidot(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles,
-          source_models,
-      ),
-  )
-  core_profiles = dataclasses.replace(core_profiles, psidot=psidot)
 
   # Set psi as source of truth and recalculate jtot, q, s
   return physics.update_jtot_q_face_s_face(

@@ -16,6 +16,7 @@
 
 import dataclasses
 from typing import Callable
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -26,13 +27,10 @@ from torax import constants
 from torax import core_profile_setters
 from torax import physics
 from torax import state
-from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import circular_geometry
 from torax.geometry import standard_geometry
 from torax.sources import generic_current_source
-from torax.sources import runtime_params as source_runtime_params
-from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.tests.test_lib import torax_refs
 
@@ -112,37 +110,31 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     runtime_params = references.runtime_params
-    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_runtime_params = generic_current_source.RuntimeParams()
     # Turn on the external current source.
-    source_models_builder.runtime_params[
-        generic_current_source.GenericCurrentSource.SOURCE_NAME
-    ].mode = source_runtime_params.Mode.MODEL_BASED
-    source_models = source_models_builder()
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
             references.geometry_provider,
-            sources=source_models_builder.runtime_params,
+            sources={
+                generic_current_source.GenericCurrentSource.SOURCE_NAME: (
+                    source_runtime_params
+                )
+            },
         )
-    )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
-        torax_mesh=geo.torax_mesh,
-    )
-    initial_core_profiles = core_profile_setters.initial_core_profiles(
-        static_slice,
-        dynamic_runtime_params_slice,
-        geo,
-        source_models=source_models,
     )
 
     # pylint: disable=protected-access
     if isinstance(geo, circular_geometry.CircularAnalyticalGeometry):
       bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
-      external_current = source_models.external_current_source(
-          geo, initial_core_profiles, dynamic_runtime_params_slice, static_slice
-      )
+      external_current = generic_current_source.calculate_generic_current(
+          mock.ANY,
+          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+          geo=geo,
+          source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
+          unused_state=mock.ANY,
+          unused_calculated_source_profiles=mock.ANY,
+      )[0]
       currents = core_profile_setters._prescribe_currents(
           bootstrap_profile=bootstrap,
           external_current=external_current,

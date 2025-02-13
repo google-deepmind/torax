@@ -18,11 +18,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-import jax.numpy as jnp
-from torax import array_typing
-from torax import state
-from torax.config import runtime_params_slice
-from torax.geometry import geometry
 from torax.sources import bootstrap_current_source
 from torax.sources import generic_current_source
 from torax.sources import qei_source as qei_source_lib
@@ -207,29 +202,6 @@ class SourceModels:
   @property
   def j_bootstrap_name(self) -> str:
     return bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
-
-  def external_current_source(
-      self,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-  ) -> array_typing.ArrayFloat:
-    """Returns contributions to external current from all psi sources."""
-    total = jnp.zeros_like(geo.rho)
-    for source in self.psi_sources.values():
-      source_value = source.get_value(
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          static_runtime_params_slice=static_runtime_params_slice,
-          geo=geo,
-          core_profiles=core_profiles,
-          calculated_source_profiles=None,
-      )
-      total += source.get_source_profile_for_affected_core_profile(
-          source_value, source_lib.AffectedCoreProfile.PSI, geo,
-      )
-
-    return total
 
   @property
   def qei_source(self) -> qei_source_lib.QeiSource:

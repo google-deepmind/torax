@@ -408,44 +408,6 @@ class SourceTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(profile, expected_output)
 
-  def test_get_source_profile_for_affected_core_profile_works_for_single_profile(
-      self,
-  ):
-    geo = circular_geometry.build_circular_geometry()
-    profile = (jnp.full(geo.rho.shape, 13),)
-    source = PsiTestSource()
-    psi_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.PSI.value, geo
-    )
-    np.testing.assert_allclose(psi_profile, profile[0])
-
-    ne_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.NE.value, geo
-    )
-    np.testing.assert_allclose(ne_profile, jnp.zeros_like(geo.rho))
-
-  def test_get_source_profile_for_affected_core_profile_works_for_multiple_profiles(
-      self,
-  ):
-    geo = circular_geometry.build_circular_geometry()
-    ion_profile = jnp.full(geo.rho.shape, 13)
-    el_profile = jnp.full(geo.rho.shape, 17)
-    profile = (ion_profile, el_profile)
-    source = IonElTestSource()
-    temp_ion_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.TEMP_ION.value, geo
-    )
-    np.testing.assert_allclose(temp_ion_profile, ion_profile)
-    temp_el_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.TEMP_EL.value, geo
-    )
-    np.testing.assert_allclose(temp_el_profile, el_profile)
-
-    psi_profile = source.get_source_profile_for_affected_core_profile(
-        profile, source_lib.AffectedCoreProfile.PSI.value, geo
-    )
-    np.testing.assert_allclose(psi_profile, jnp.zeros_like(geo.rho))
-
 
 if __name__ == '__main__':
   absltest.main()

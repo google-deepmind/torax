@@ -179,42 +179,6 @@ class Source(abc.ABC):
       case _:
         raise ValueError(f'Unknown mode: {mode}')
 
-  def get_source_profile_for_affected_core_profile(
-      self,
-      profile: tuple[chex.Array, ...],
-      affected_core_profile: int,
-      geo: geometry.Geometry,
-  ) -> chex.Array:
-    """Returns the part of the profile to use for the given core profile.
-
-    A single source can output profiles used as terms in more than one equation
-    while evolving the core profiles (for instance, it can output profiles for
-    both the ion temperature and electron temperature equations).
-
-    Users of this source, though, may need to grab the specific parts of the
-    output (from get_value()) that relate to a specific core profile.
-
-    This function helps do that. By default, it returns the input profile as is
-    if the requested core profile is valid, otherwise returns zeros.
-
-    Args:
-      profile: The profile output from get_value().
-      affected_core_profile: The specific core profile we want to pull the
-        profile for. This is the integer value of the enum AffectedCoreProfile
-        because enums are not JAX-friendly as function arguments. If it is not
-        one of the core profiles this source actually affects, this will return
-        zeros.
-      geo: Geometry of the torus.
-
-    Returns: The source profile on the cell grid for the requested core profile.
-    """
-    # Get a valid index that defaults to 0 if not present.
-    affected_core_profile_ints = self.affected_core_profiles_ints
-    if affected_core_profile not in affected_core_profile_ints:
-      return jnp.zeros_like(geo.rho)
-    else:
-      return profile[affected_core_profile_ints.index(affected_core_profile)]
-
 
 @dataclasses.dataclass(frozen=False, kw_only=True)
 class SourceBuilderProtocol(Protocol):

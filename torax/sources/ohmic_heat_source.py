@@ -16,14 +16,12 @@
 from __future__ import annotations
 
 import dataclasses
-import functools
 from typing import ClassVar
 
 import chex
 import jax
 import jax.numpy as jnp
 from torax import constants
-from torax import jax_utils
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
@@ -33,73 +31,22 @@ from torax.fvm import diffusion_terms
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
-from torax.sources import source_models as source_models_lib
 from torax.sources import source_operations
-from torax.sources import source_profiles
-
-
-@functools.partial(
-    jax_utils.jit,
-    static_argnames=[
-        'source_models',
-        'static_runtime_params_slice',
-    ],
-)
-def calc_psidot(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-) -> jax.Array:
-  r"""Calculates psidot (loop voltage). Used for the Ohmic electron heat source.
-
-  psidot is an interesting TORAX output, and is thus also saved in
-  core_profiles.
-
-  psidot = \partial psi / \partial t, and is derived from the same components
-  that form the psi block in the coupled PDE equations. Thus, a similar
-  (but abridged) formulation as in sim.calc_coeffs and fvm._calc_c is used here
-
-  Args:
-    static_runtime_params_slice: Simulation configuration that does not change
-      from timestep to timestep.
-    dynamic_runtime_params_slice: Simulation configuration at this timestep
-    geo: Torus geometry
-    core_profiles: Core plasma profiles.
-    source_models: All TORAX source/sinks.
-
-  Returns:
-    psidot: on cell grid
-  """
-
-  psi_sources, sigma, sigma_face = source_operations.calc_and_sum_sources_psi(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      core_profiles,
-      source_models,
-  )
-  return calculate_psidot_from_psi_sources(
-      psi_sources=psi_sources,
-      sigma=sigma,
-      sigma_face=sigma_face,
-      resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
-      psi=core_profiles.psi,
-      geo=geo,
-  )
+from torax.sources import source_profiles as source_profiles_lib
 
 
 def calculate_psidot_from_psi_sources(
     *,
-    psi_sources: jax.Array,
-    sigma: jax.Array,
-    sigma_face: jax.Array,
+    source_profiles: source_profiles_lib.SourceProfiles,
     resistivity_multiplier: float,
     psi: cell_variable.CellVariable,
     geo: geometry.Geometry,
 ) -> jax.Array:
   """Calculates psidot (loop voltage) from precalculated sources."""
+  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
+  sigma = source_profiles.j_bootstrap.sigma
+  sigma_face = source_profiles.j_bootstrap.sigma_face
+
   # Calculate transient term
   consts = constants.CONSTANTS
   toc_psi = (
@@ -171,7 +118,7 @@ def ohmic_model_func(
     geo: geometry.Geometry,
     unused_source_name: str,
     core_profiles: state.CoreProfiles,
-    calculated_source_profiles: source_profiles.SourceProfiles | None,
+    calculated_source_profiles: source_profiles_lib.SourceProfiles | None,
 ) -> tuple[chex.Array, ...]:
   """Returns the Ohmic source for electron heat equation."""
   if calculated_source_profiles is None:
@@ -186,11 +133,7 @@ def ohmic_model_func(
       core_profiles.psi,
   )
   psidot = calculate_psidot_from_psi_sources(
-      psi_sources=source_operations.sum_sources_psi(
-          geo, calculated_source_profiles
-      ),
-      sigma=calculated_source_profiles.j_bootstrap.sigma,
-      sigma_face=calculated_source_profiles.j_bootstrap.sigma_face,
+      source_profiles=calculated_source_profiles,
       resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
       psi=core_profiles.psi,
       geo=geo,

@@ -20,7 +20,6 @@ from absl.testing import parameterized
 import chex
 import jax
 import jax.numpy as jnp
-import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -230,37 +229,3 @@ class IonElSourceTestCase(SourceTestCase):
     self.assertLen(ion_and_el, 2)
     self.assertEqual(ion_and_el[0].shape, geo.rho.shape)
     self.assertEqual(ion_and_el[1].shape, geo.rho.shape)
-
-  def test_extraction_of_relevant_profile_from_output(self):
-    """Tests that the relevant profile is extracted from the output."""
-    geo = circular_geometry.build_circular_geometry()
-    # pylint: disable=missing-kwoa
-    source = self._source_class()  # pytype: disable=missing-parameter
-    # pylint: enable=missing-kwoa
-    cell = geo.rho.shape
-    fake_profile = (jnp.ones(cell), 2 * jnp.ones(cell))
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.TEMP_ION.value,
-            geo,
-        ),
-        jnp.ones(cell),
-    )
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.TEMP_EL.value,
-            geo,
-        ),
-        2 * jnp.ones(cell),
-    )
-    # For unrelated states, this should just return all 0s.
-    np.testing.assert_allclose(
-        source.get_source_profile_for_affected_core_profile(
-            fake_profile,
-            source_lib.AffectedCoreProfile.NE.value,
-            geo,
-        ),
-        jnp.zeros(cell),
-    )
