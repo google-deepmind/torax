@@ -577,26 +577,13 @@ def _init_psi_and_current(
         geo,
     )
 
-    # Set the BCs, with the option of scaling to the given Ip_tot
-    if use_vloop_bc and geo.Ip_from_parameters:
-      # Extrapolate the value of psi at the LCFS from the dpsi/drho constraint
-      right_face_grad_constraint = None
-      right_face_constraint = (
-          geo.psi_from_Ip[-1] + dpsi_drhonorm_edge * geo.drho_norm / 2
-      )
-    elif use_vloop_bc:
-      # Use the psi from the equilibrium as the right face constraint
-      right_face_grad_constraint = None
-      right_face_constraint = geo.psi_from_Ip[-1]
-    else:
-      # Use the dpsi/drho calculated above as the right face gradient constraint
-      right_face_grad_constraint = dpsi_drhonorm_edge
-      right_face_constraint = None
-
+    # Use the psi from the equilibrium as the right face constraint
+    # This has already been made consistent with the desired Ip_tot
+    # by make_ip_consistent
     psi = cell_variable.CellVariable(
         value=geo.psi_from_Ip,  # Use psi from equilibrium
-        right_face_grad_constraint=right_face_grad_constraint,
-        right_face_constraint=right_face_constraint,
+        right_face_grad_constraint=None if use_vloop_bc else dpsi_drhonorm_edge,
+        right_face_constraint=geo.psi_from_Ip[-1] if use_vloop_bc else None,
         dr=geo.drho_norm,
     )
     core_profiles = dataclasses.replace(core_profiles, psi=psi)
