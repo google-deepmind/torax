@@ -216,6 +216,21 @@ analysis and inspection.
 ``pressure_thermal_tot_face`` (time, rho_face) [Pa]:
   Total thermal pressure on the face grid.
 
+``te_volume_avg`` (time) [keV]:
+  Volume average electron temperature.
+
+``ti_volume_avg`` (time) [keV]:
+  Volume average ion temperature.
+
+``ne_volume_avg`` (time) [nref m^-3]:
+  Volume average electron density.
+
+``ni_volume_avg`` (time) [nref m^-3]:
+  Volume average ion density.
+
+``fgw_ne_volume_avg`` (time) [dimensionless]:
+  Greenwald fraction from volume-averaged electron density.
+
 ``pprime_face`` (time, rho_face) [Pa/Wb]:
   Derivative of total pressure with respect to poloidal flux on the face grid.
 
@@ -227,6 +242,15 @@ analysis and inspection.
 
 ``W_thermal_tot`` (time) [J]:
   Total thermal stored energy.
+
+``Wpol`` (time) [J]
+  Total magnetic energy
+
+``q95`` (time) [dimensionless]
+  Safety-factor at 95% of the normalized poloidal flux coordinate.
+
+``li3`` (time) [dimensionless]:
+  Normalized plasma internal inductance, ITER convention
 
 ``tauE`` (time) [s]:
   Thermal confinement time defined as ``W_thermal_tot`` / ``P_heating``, where
