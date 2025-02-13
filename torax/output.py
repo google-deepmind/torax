@@ -400,7 +400,12 @@ class StateHistory:
 
     # Get the variables from dataclass fields.
     for field_name, data in dataclasses.asdict(self.geometry).items():
-      if "hires" in field_name or not isinstance(data, jax.Array):
+      if (
+          "hires" in field_name
+          or field_name == "geometry_type"
+          or field_name == "Ip_from_parameters"
+          or not isinstance(data, jax.Array)
+      ):
         continue
       data_array = self._pack_into_data_array(
           field_name,

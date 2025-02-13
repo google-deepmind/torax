@@ -517,8 +517,8 @@ total pressure at the pedestal and the ratio of ion to electron temperature.
 geometry
 --------
 
-``geometry_type`` (str = 'chease')
-  Geometry model used, from the following options.
+``geometry_type`` (str)
+  Geometry model used. A string must be provided from the following options.
 
 * ``'circular'``
     An ad-hoc circular geometry model. Includes elongation corrections.
