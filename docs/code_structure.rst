@@ -218,7 +218,7 @@ inside |torax.sim.run_simulation()|_.
 .. |torax.state.ToraxSimState| replace:: ``torax.state.ToraxSimState``
 .. _torax.state.ToraxSimState: https://github.com/google-deepmind/torax/blob/main/torax/state.py
 .. |torax.geometry.Geometry| replace:: ``torax.geometry.Geometry``
-.. _torax.geometry.Geometry: https://github.com/google-deepmind/torax/blob/main/torax/geometry.py
+.. _torax.geometry.Geometry: https://github.com/google-deepmind/torax/blob/main/torax/geometry/geometry.py
 .. |torax.config.build_sim| replace:: ``torax.config.build_sim``
 .. _torax.config.build_sim: https://github.com/google-deepmind/torax/blob/main/torax/config/build_sim.py
 .. |torax.config.runtime_params| replace:: ``torax.config.runtime_params``
