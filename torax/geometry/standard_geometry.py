@@ -53,6 +53,7 @@ class StandardGeometry(geometry.Geometry):
   Ip_profile_face: chex.Array
   psi: chex.Array
   psi_from_Ip: chex.Array
+  psi_from_Ip_face: chex.Array
   jtot: chex.Array
   jtot_face: chex.Array
   delta_upper_face: chex.Array
@@ -67,6 +68,7 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
   Ip_profile_face: interpolated_param.InterpolatedVarSingleAxis
   psi: interpolated_param.InterpolatedVarSingleAxis
   psi_from_Ip: interpolated_param.InterpolatedVarSingleAxis
+  psi_from_Ip_face: interpolated_param.InterpolatedVarSingleAxis
   jtot: interpolated_param.InterpolatedVarSingleAxis
   jtot_face: interpolated_param.InterpolatedVarSingleAxis
   delta_upper_face: interpolated_param.InterpolatedVarSingleAxis
@@ -952,9 +954,7 @@ def build_standard_geometry(
   delta_face = 0.5 * (delta_upper_face + delta_lower_face)
 
   # elongation
-  elongation = rhon_interpolation_func(
-      rho_norm, intermediate.elongation
-  )
+  elongation = rhon_interpolation_func(rho_norm, intermediate.elongation)
   elongation_face = rhon_interpolation_func(
       rho_face_norm, intermediate.elongation
   )
@@ -967,6 +967,7 @@ def build_standard_geometry(
   F_hires = rhon_interpolation_func(rho_hires_norm, intermediate.F)
 
   psi = rhon_interpolation_func(rho_norm, intermediate.psi)
+  psi_from_Ip_face = rhon_interpolation_func(rho_face_norm, psi_from_Ip)
   psi_from_Ip = rhon_interpolation_func(rho_norm, psi_from_Ip)
 
   jtot_face = rhon_interpolation_func(rho_face_norm, jtot)
@@ -1045,6 +1046,7 @@ def build_standard_geometry(
       Ip_profile_face=Ip_profile_face,
       psi=psi,
       psi_from_Ip=psi_from_Ip,
+      psi_from_Ip_face=psi_from_Ip_face,
       jtot=jtot,
       jtot_face=jtot_face,
       delta_upper_face=delta_upper_face,

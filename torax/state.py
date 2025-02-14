@@ -94,29 +94,47 @@ class CoreProfiles:
   Many of the profiles in this class are evolved by the PDE system in TORAX, and
   therefore are stored as CellVariables. Other profiles are computed outside the
   internal PDE system, and are simple JAX arrays.
+
+  Attributes:
+      temp_ion: Ion temperature [keV].
+      temp_el: Electron temperature [keV].
+      psi: Poloidal flux [Wb].
+      psidot: Time derivative of poloidal flux (loop voltage) [V].
+      ne: Electron density [nref m^-3].
+      ni: Main ion density [nref m^-3].
+      nimp: Impurity density [nref m^-3].
+      currents: Instance of the Currents dataclass.
+      q_face: Safety factor.
+      s_face: Magnetic shear.
+      nref: Reference density [m^-3].
+      vloop_lcfs: Loop voltage at LCFS (V).
+      Zi: Main ion charge on cell grid [amu].
+      Zi_face: Main ion charge on face grid [amu].
+      Ai: Main ion mass [amu].
+      Zimp: Impurity charge on cell grid [amu].
+      Zimp_face: Impurity charge on face grid [amu].
+      Aimp: Impurity mass [amu].
   """
 
-  temp_ion: cell_variable.CellVariable  # Ion temperature
-  temp_el: cell_variable.CellVariable  # Electron temperature
-  psi: cell_variable.CellVariable  # Poloidal flux
-  psidot: (
-      cell_variable.CellVariable
-  )  # Time derivative of poloidal flux (loop voltage)
-  ne: cell_variable.CellVariable  # Electron density
-  ni: cell_variable.CellVariable  # Main ion density
-  # Impurity density (currently only 1 supported)
+  temp_ion: cell_variable.CellVariable
+  temp_el: cell_variable.CellVariable
+  psi: cell_variable.CellVariable
+  psidot: cell_variable.CellVariable
+  ne: cell_variable.CellVariable
+  ni: cell_variable.CellVariable
   nimp: cell_variable.CellVariable
   currents: Currents
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
-  nref: array_typing.ScalarFloat  # Reference density
+  nref: array_typing.ScalarFloat
+  vloop_lcfs: array_typing.ScalarFloat
   # pylint: disable=invalid-name
-  Zi: array_typing.ArrayFloat  # Main ion charge on cell grid [amu]
-  Zi_face: array_typing.ArrayFloat  # Main ion charge on face grid [amu]
-  Ai: array_typing.ScalarFloat  # Main ion mass [amu]
-  Zimp: array_typing.ArrayFloat  # Impurity charge on cell grid [amu]
-  Zimp_face: array_typing.ArrayFloat  # Impurity charge on face grid [amu]
-  Aimp: array_typing.ScalarFloat  # Impurity mass [amu]
+  Zi: array_typing.ArrayFloat
+  Zi_face: array_typing.ArrayFloat
+  Ai: array_typing.ScalarFloat
+  Zimp: array_typing.ArrayFloat
+  Zimp_face: array_typing.ArrayFloat
+  Aimp: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   def history_elem(self) -> CoreProfiles:

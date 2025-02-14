@@ -237,6 +237,9 @@ class RunSimulationMainTest(parameterized.TestCase):
               # for other tests.
               # rtol=0.0,
               atol=5.0e-5,
+              # This is required to allow one of psi_right_grad_constraint and
+              # psi_right_constraint to be None
+              equal_nan=True,
           ):
             diff = ov - gv
             max_diff = np.abs(diff).max()

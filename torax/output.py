@@ -61,6 +61,7 @@ TEMP_ION_RIGHT_BC = "temp_ion_right_bc"
 PSI = "psi"
 PSIDOT = "psidot"
 PSI_RIGHT_GRAD_BC = "psi_right_grad_bc"
+PSI_RIGHT_BC = "psi_right_bc"
 NE = "ne"
 NE_RIGHT_BC = "ne_right_bc"
 NI = "ni"
@@ -82,6 +83,7 @@ NREF = "nref"
 ZIMP = "Zimp"
 NIMP = "nimp"
 IP_PROFILE_FACE = "Ip_profile_face"
+VLOOP_LCFS = "vloop_lcfs"
 
 # Core transport.
 CORE_TRANSPORT = "core_transport"
@@ -239,9 +241,12 @@ class StateHistory:
   def _pack_into_data_array(
       self,
       name: str,
-      data: jax.Array,
+      data: jax.Array | None,
   ) -> xr.DataArray | None:
     """Packs the data into an xr.DataArray."""
+    if data is None:
+      return None
+
     is_face_var = lambda x: x.ndim == 2 and x.shape == (
         len(self.times),
         len(self.rho_face_norm),
@@ -269,6 +274,7 @@ class StateHistory:
             data.shape,
         )
         return None
+
     return xr.DataArray(data, dims=dims, name=name)
 
   def _get_core_profiles(
@@ -287,6 +293,7 @@ class StateHistory:
     xr_dict[PSI_RIGHT_GRAD_BC] = (
         self.core_profiles.psi.right_face_grad_constraint
     )
+    xr_dict[PSI_RIGHT_BC] = self.core_profiles.psi.right_face_constraint
     xr_dict[PSIDOT] = self.core_profiles.psidot.value
     xr_dict[NE] = self.core_profiles.ne.value
     xr_dict[NE_RIGHT_BC] = self.core_profiles.ne.right_face_constraint
@@ -312,6 +319,8 @@ class StateHistory:
     xr_dict[Q_FACE] = self.core_profiles.q_face
     xr_dict[S_FACE] = self.core_profiles.s_face
     xr_dict[NREF] = self.core_profiles.nref
+
+    xr_dict[VLOOP_LCFS] = self.core_profiles.vloop_lcfs
 
     xr_dict = {
         name: self._pack_into_data_array(

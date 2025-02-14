@@ -18,7 +18,6 @@ The explicit stepper is not intended to perform well; it is included only for
 testing purposes. The implementation is intentionally flat with relatively
 few configuration options, etc., to ensure reliability for testing purposes.
 """
-
 import dataclasses
 
 import jax
@@ -117,12 +116,13 @@ class ExplicitStepper(stepper_lib.Stepper):
         + dt * (jnp.dot(c_mat, core_profiles_t.temp_ion.value) + c) / cti
     )
     # Update the potentially time-dependent boundary conditions as well.
-    updated_boundary_conditions = (
-        core_profile_setters.compute_boundary_conditions(
-            static_runtime_params_slice,
-            dynamic_runtime_params_slice_t_plus_dt,
-            geo_t,
-        )
+    updated_boundary_conditions = core_profile_setters.compute_boundary_conditions_for_t_plus_dt(
+        dt=dynamic_runtime_params_slice_t_plus_dt.numerics.fixed_dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t_plus_dt,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt=geo_t_plus_dt,
+        core_profiles_t=core_profiles_t,
     )
     temp_ion_new = dataclasses.replace(
         core_profiles_t.temp_ion,
