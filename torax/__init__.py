@@ -22,6 +22,7 @@ import jax
 from torax.config.build_sim import build_sim_from_config
 from torax.config.config_loader import import_module
 from torax.interpolated_param import InterpolatedVarSingleAxis
+from torax.interpolated_param import InterpolatedVarTimeRho
 from torax.interpolated_param import InterpolationMode
 from torax.output import ToraxSimOutputs
 from torax.sim import Sim
@@ -35,6 +36,8 @@ __all__ = [
     'build_sim_from_config',
     'import_module',
     'InterpolatedVarSingleAxis',
+    'InterpolatedVarTimeRho',
+    'InterpolationMode',
     'Sim',
     'SimError',
     'ToraxSimOutputs',

@@ -484,6 +484,8 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
     """
     self.rho_norm = rho_norm
     self.sorted_indices = np.array(sorted(values.keys()))
+    self._rho_interpolation_mode = rho_interpolation_mode
+    self._time_interpolation_mode = time_interpolation_mode
     rho_norm_interpolated_values = np.stack(
         [
             InterpolatedVarSingleAxis(
@@ -497,6 +499,16 @@ class InterpolatedVarTimeRho(InterpolatedParamBase):
         value=(self.sorted_indices, rho_norm_interpolated_values),
         interpolation_mode=time_interpolation_mode,
     )
+
+  @property
+  def time_interpolation_mode(self) -> InterpolationMode:
+    """Returns the time interpolation mode used by this param."""
+    return self._time_interpolation_mode
+
+  @property
+  def rho_interpolation_mode(self) -> InterpolationMode:
+    """Returns the rho interpolation mode used by this param."""
+    return self._rho_interpolation_mode
 
   def get_value(self, x: chex.Numeric) -> chex.Array:
     """Returns the value of this parameter interpolated at x=time."""

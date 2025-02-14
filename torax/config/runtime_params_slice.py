@@ -300,6 +300,18 @@ class DynamicRuntimeParamsSliceProvider:
   def sources(self) -> dict[str, sources_params.RuntimeParams]:
     return self._sources
 
+  @property
+  def sources_providers(
+      self,
+  ) -> dict[str, sources_params.RuntimeParamsProvider]:
+    return self._sources_providers
+
+  @property
+  def pedestal_runtime_params_provider(
+      self,
+  ) -> pedestal_model_params.RuntimeParamsProvider:
+    return self._pedestal_runtime_params_provider
+
   def validate_new(
       self,
       new_provider: DynamicRuntimeParamsSliceProvider,
