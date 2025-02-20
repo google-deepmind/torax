@@ -15,14 +15,15 @@
 """Pydantic utilities and base classes."""
 
 from collections.abc import Mapping
-from typing import Annotated, Any, TypeAlias
+from typing import Annotated, Any, Final, TypeAlias
 import jax
 import numpy as np
 import pydantic
 from typing_extensions import Self
 
-DataTypes: TypeAlias = float | int | bool
+TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
 
+DataTypes: TypeAlias = float | int | bool
 DtypeName: TypeAlias = str
 
 
@@ -120,6 +121,13 @@ class BaseModelMutable(pydantic.BaseModel):
 
   def to_dict(self) -> dict[str, Any]:
     return self.model_dump()
+
+  @classmethod
+  def time_invariant_fields(cls) -> tuple[str, ...]:
+    """Returns the names of the time invariant fields in the model."""
+    return tuple(
+        k for k, v in cls.model_fields.items() if TIME_INVARIANT in v.metadata
+    )
 
 
 class BaseModelFrozen(BaseModelMutable, frozen=True):

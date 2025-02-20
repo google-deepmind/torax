@@ -15,12 +15,14 @@
 """Unit tests for the `torax.torax_pydantic.model_base` module."""
 
 import functools
+from typing import Annotated
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
 import pydantic
 from torax.torax_pydantic import model_base
+from torax.torax_pydantic import torax_pydantic
 
 
 class PydanticBaseTest(parameterized.TestCase):
@@ -133,6 +135,31 @@ class PydanticBaseTest(parameterized.TestCase):
 
     with self.subTest('jit_works'):
       self.assertEqual(f(m), m.x * m.y)
+
+  def test_model_field_metadata(self):
+
+    class TestModel(model_base.BaseModelFrozen):
+      x: torax_pydantic.Second
+      y: Annotated[
+          torax_pydantic.Meter, 'other_metadata', model_base.TIME_INVARIANT
+      ]
+      z: Annotated[
+          Annotated[torax_pydantic.OpenUnitInterval, model_base.TIME_INVARIANT],
+          'other_metadata',
+      ]
+
+    m = TestModel(x=2.0, y=4.0, z=0.1)
+
+    with self.subTest('time_invariant_fields'):
+      self.assertEqual(('y', 'z'), m.time_invariant_fields())
+
+    with self.subTest('invalid_meter'):
+      with self.assertRaises(ValueError):
+        TestModel(x=2.0, y=-4.0, z=0.1)
+
+    with self.subTest('invalid_open_unit_interval'):
+      with self.assertRaises(ValueError):
+        TestModel(x=2.0, y=4.0, z=1.0)
 
 
 if __name__ == '__main__':
