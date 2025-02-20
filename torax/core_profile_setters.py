@@ -33,7 +33,6 @@ from torax.config import numerics
 from torax.config import profile_conditions
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
-from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import standard_geometry
 from torax.sources import ohmic_heat_source
@@ -606,10 +605,7 @@ def _init_psi_psidot_vloop_and_current(
     )
 
   # Case 3: calculating j according to nu formula and psi from j.
-  elif (
-      isinstance(geo, circular_geometry.CircularAnalyticalGeometry)
-      or dynamic_runtime_params_slice.profile_conditions.initial_psi_from_j
-  ):
+  else:
     # First calculate currents without bootstrap.
     external_current = sum(source_profiles.psi.values())
     currents = _prescribe_currents(
@@ -651,8 +647,6 @@ def _init_psi_psidot_vloop_and_current(
         psi,
     )
     currents = dataclasses.replace(currents, Ip_profile_face=Ip_profile_face)
-  else:
-    raise ValueError('Cannot compute psi for given config.')
 
   core_profiles = dataclasses.replace(
       core_profiles,

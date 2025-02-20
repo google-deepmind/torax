@@ -106,7 +106,6 @@ class BuildSimTest(parameterized.TestCase):
       )
     with self.subTest('geometry'):
       geo = sim.geometry_provider(sim.initial_state.t)
-      self.assertIsInstance(geo, circular_geometry.CircularAnalyticalGeometry)
       self.assertEqual(geo.torax_mesh.nx, 5)
     with self.subTest('sources'):
       self.assertEqual(
@@ -219,7 +218,6 @@ class BuildSimTest(parameterized.TestCase):
     )
     geo = geo_provider(t=0)
     np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 5)
-    self.assertIsInstance(geo, circular_geometry.CircularAnalyticalGeometry)
     np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
 
   def test_build_geometry_from_chease(self):

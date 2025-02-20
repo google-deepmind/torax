@@ -141,7 +141,7 @@ def _build_circular_geometry_provider(
       geometries[time] = circular_geometry.build_circular_geometry(
           n_rho=kwargs['n_rho'], **c
       )
-    return circular_geometry.CircularAnalyticalGeometryProvider.create_provider(
+    return geometry_provider.TimeDependentGeometryProvider.create_provider(
         geometries
     )
   return geometry_provider.ConstantGeometryProvider(

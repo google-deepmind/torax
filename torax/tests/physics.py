@@ -123,9 +123,10 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
             },
         )
     )
-
     # pylint: disable=protected-access
-    if isinstance(geo, circular_geometry.CircularAnalyticalGeometry):
+    if isinstance(geo, standard_geometry.StandardGeometry):
+      psi = geo.psi_from_Ip
+    else:
       bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
       external_current = generic_current_source.calculate_generic_current(
           mock.ANY,
@@ -146,12 +147,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
           geo,
           currents.jtot_hires,
       ).value
-    elif isinstance(geo, standard_geometry.StandardGeometry):
-      psi = geo.psi_from_Ip
-    else:
-      raise ValueError(f'Unknown geometry type: {geo.geometry_type}')
     # pylint: enable=protected-access
-
     np.testing.assert_allclose(psi, references.psi.value)
 
   @parameterized.parameters([

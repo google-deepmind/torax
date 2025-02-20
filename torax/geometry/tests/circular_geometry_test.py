@@ -17,6 +17,7 @@ import jax
 import numpy as np
 from torax.geometry import circular_geometry
 from torax.geometry import geometry
+from torax.geometry import geometry_provider
 
 
 class CircularGeometryTest(absltest.TestCase):
@@ -40,7 +41,7 @@ class CircularGeometryTest(absltest.TestCase):
         hires_fac=4,
     )
     provider = (
-        circular_geometry.CircularAnalyticalGeometryProvider.create_provider(
+        geometry_provider.TimeDependentGeometryProvider.create_provider(
             {0.0: geo_0, 10.0: geo_1}
         )
     )

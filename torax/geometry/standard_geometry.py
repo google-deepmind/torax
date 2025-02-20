@@ -933,7 +933,6 @@ def build_standard_geometry(
   # V' for volume integrations on face grid
   vpr_face = rhon_interpolation_func(rho_face_norm, vpr)
   # V' for volume integrations on cell grid
-  vpr_hires = rhon_interpolation_func(rho_hires_norm, vpr)
   vpr = rhon_interpolation_func(rho_norm, vpr)
 
   # S' for area integrals on face grid
@@ -1000,11 +999,9 @@ def build_standard_geometry(
   g2g3_over_rhon = rhon_interpolation_func(rho_norm, g2g3_over_rhon)
 
   volume_face = rhon_interpolation_func(rho_face_norm, volume_intermediate)
-  volume_hires = rhon_interpolation_func(rho_hires_norm, volume_intermediate)
   volume = rhon_interpolation_func(rho_norm, volume_intermediate)
 
   area_face = rhon_interpolation_func(rho_face_norm, area_intermediate)
-  area_hires = rhon_interpolation_func(rho_hires_norm, area_intermediate)
   area = rhon_interpolation_func(rho_norm, area_intermediate)
 
   return StandardGeometry(
@@ -1053,12 +1050,9 @@ def build_standard_geometry(
       delta_lower_face=delta_lower_face,
       elongation=elongation,
       elongation_face=elongation_face,
-      volume_hires=volume_hires,
-      area_hires=area_hires,
       spr_hires=spr_hires,
       rho_hires_norm=rho_hires_norm,
       rho_hires=rho_hires,
-      vpr_hires=vpr_hires,
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.

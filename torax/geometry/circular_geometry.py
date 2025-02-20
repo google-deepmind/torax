@@ -17,43 +17,13 @@
 
 from __future__ import annotations
 
-import chex
 import numpy as np
-from torax import interpolated_param
 from torax.geometry import geometry
-from torax.geometry import geometry_provider
 
 
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations
 # pylint: disable=invalid-name
-
-
-@chex.dataclass(frozen=True)
-class CircularAnalyticalGeometry(geometry.Geometry):
-  """Circular geometry type used for testing only.
-
-  Most users should default to using the Geometry class.
-  """
-
-  elongation_hires: chex.Array
-
-
-@chex.dataclass(frozen=True)
-class CircularAnalyticalGeometryProvider(
-    geometry_provider.TimeDependentGeometryProvider):
-  """Circular geometry type used for testing only.
-
-  Most users should default to using the GeometryProvider class.
-  """
-
-  elongation_hires: interpolated_param.InterpolatedVarSingleAxis
-
-  def __call__(self, t: chex.Numeric) -> geometry.Geometry:
-    """Returns a Geometry instance at the given time."""
-    return self._get_geometry_base(t, CircularAnalyticalGeometry)
-
-
 def build_circular_geometry(
     n_rho: int = 25,
     elongation_LCFS: float = 1.72,
@@ -61,13 +31,8 @@ def build_circular_geometry(
     Rmin: float = 2.0,
     B0: float = 5.3,
     hires_fac: int = 4,
-) -> CircularAnalyticalGeometry:
-  """Constructs a CircularAnalyticalGeometry.
-
-  This is the standard entrypoint for building a circular geometry, not
-  CircularAnalyticalGeometry.__init__(). chex.dataclasses do not allow
-  overriding __init__ functions with different parameters than the attributes of
-  the dataclass, so this builder function lives outside the class.
+) -> geometry.Geometry:
+  """Constructs a circular Geometry instance used for testing only.
 
   Args:
     n_rho: Radial grid points (num cells)
@@ -81,7 +46,7 @@ def build_circular_geometry(
       calculations.
 
   Returns:
-    A CircularAnalyticalGeometry instance.
+    A Geometry instance.
   """
   # circular geometry assumption of r/Rmin = rho_norm, the normalized
   # toroidal flux coordinate.
@@ -217,7 +182,7 @@ def build_circular_geometry(
   F_hires = np.ones(len(rho_hires)) * B0 * Rmaj
   g2g3_over_rhon_hires = 4 * np.pi**2 * vpr_hires * g3_hires * B0 / F_hires
 
-  return CircularAnalyticalGeometry(
+  return geometry.Geometry(
       # Set the standard geometry params.
       geometry_type=geometry.GeometryType.CIRCULAR,
       torax_mesh=mesh,
@@ -256,13 +221,9 @@ def build_circular_geometry(
       # Set the circular geometry-specific params.
       elongation=elongation,
       elongation_face=elongation_face,
-      volume_hires=volume_hires,
-      area_hires=area_hires,
       spr_hires=spr_hires,
       rho_hires_norm=rho_hires_norm,
       rho_hires=rho_hires,
-      elongation_hires=elongation_hires,
-      vpr_hires=vpr_hires,
       # always initialize Phibdot as zero. It will be replaced once both geo_t
       # and geo_t_plus_dt are provided, and set to be the same for geo_t and
       # geo_t_plus_dt for each given time interval.

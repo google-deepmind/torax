@@ -160,12 +160,9 @@ class Geometry:
   Rin_face: chex.Array
   Rout: chex.Array
   Rout_face: chex.Array
-  volume_hires: chex.Array
-  area_hires: chex.Array
   spr_hires: chex.Array
   rho_hires_norm: chex.Array
   rho_hires: chex.Array
-  vpr_hires: chex.Array
   Phibdot: chex.Array
   _z_magnetic_axis: chex.Array | None
 
