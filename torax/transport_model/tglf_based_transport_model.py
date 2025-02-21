@@ -81,6 +81,62 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   # Effective charge
   Zeff: chex.Array
 
+  @property
+  def TAUS(self):
+    return self.Ti_over_Te
+
+  @property
+  def DRMAJDX_LOC(self):
+    return self.drmaj
+
+  @property
+  def SHAT(self):
+    return self.s_hat
+
+  @property
+  def XNUE(self):
+    return self.nu_ee
+
+  @property
+  def KAPPA_LOC(self):
+    return self.kappa
+
+  @property
+  def S_KAPPA_LOC(self):
+    return self.kappa_shear
+
+  @property
+  def DELTA_LOC(self):
+    return self.delta
+
+  @property
+  def S_DELTA_LOC(self):
+    return self.delta_shear
+
+  @property
+  def BETAE(self):
+    return self.beta_e
+
+  @property
+  def ZEFF(self):
+    return self.Zeff
+
+  @property
+  def RLNS_1(self):
+    return self.lref_over_lne
+
+  @property
+  def RLTS_1(self):
+    return self.lref_over_lte
+
+  @property
+  def RLTS_2(self):
+    return self.lref_over_lti
+
+  @property
+  def RMIN_LOC(self):
+    return self.Rmin
+
 
 class TGLFBasedTransportModel(
     quasilinear_transport_model.QuasilinearTransportModel
