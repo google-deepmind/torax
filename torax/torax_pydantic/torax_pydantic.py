@@ -24,12 +24,17 @@ from typing_extensions import Annotated
 TIME_INVARIANT = model_base.TIME_INVARIANT
 
 # Physical units.
-Tesla: TypeAlias = pydantic.PositiveFloat
+# keep-sorted start
+GreenwaldFraction: TypeAlias = pydantic.PositiveFloat
+KiloElectronVolt: TypeAlias = pydantic.PositiveFloat
 Meter: TypeAlias = pydantic.PositiveFloat
+Pascal: TypeAlias = pydantic.PositiveFloat
+ReferenceDensity: TypeAlias = pydantic.PositiveFloat  # nref
 # Time can sometimes be 0, eg. for the start of an interval.
 Second: TypeAlias = pydantic.NonNegativeFloat
-ElectronVolt: TypeAlias = pydantic.PositiveFloat
-ReferenceDensity: TypeAlias = pydantic.PositiveFloat  # nref
+Tesla: TypeAlias = pydantic.PositiveFloat
+# keep-sorted end
+Density: TypeAlias = GreenwaldFraction | ReferenceDensity
 
 UnitInterval: TypeAlias = Annotated[float, pydantic.Field(ge=0.0, le=1.0)]
 OpenUnitInterval: TypeAlias = Annotated[float, pydantic.Field(gt=0.0, lt=1.0)]

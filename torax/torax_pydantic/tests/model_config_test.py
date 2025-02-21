@@ -42,6 +42,12 @@ class ConfigTest(parameterized.TestCase):
         config_pydantic.time_step_calculator.calculator_type.value,
         module_config["time_step_calculator"]["calculator_type"],
     )
+    self.assertEqual(
+        config_pydantic.pedestal.pedestal_model.value,
+        module_config["pedestal"]["pedestal_model"]
+        if "pedestal_model" in module_config["pedestal"]
+        else "set_tped_nped",
+    )
 
     # The full model should always be serializable.
     with self.subTest("json_serialization"):
