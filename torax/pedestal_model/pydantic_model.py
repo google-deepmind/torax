@@ -42,7 +42,7 @@ class SetPpedTpedRatioNped(torax_pydantic.BaseModelMutable):
       the pedestal [dimensionless].
     rho_norm_ped_top: The location of the pedestal top.
   """
-  Pped: torax_pydantic.Pascal = 10.0
+  Pped: torax_pydantic.Pascal = 1e5
   neped: torax_pydantic.Density = 0.7
   neped_is_fGW: bool = False
   ion_electron_temperature_ratio: torax_pydantic.OpenUnitInterval = 1.0
