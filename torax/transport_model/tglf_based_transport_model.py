@@ -82,7 +82,7 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   Zeff: chex.Array
 
   @property
-  def TAUS(self):
+  def TAUS_2(self):
     return self.Ti_over_Te
 
   @property
@@ -92,6 +92,10 @@ class TGLFInputs(quasilinear_transport_model.QuasilinearInputs):
   @property
   def SHAT(self):
     return self.s_hat
+
+  @property
+  def Q_LOC(self):
+    return self.q
 
   @property
   def XNUE(self):
