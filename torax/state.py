@@ -336,8 +336,9 @@ class PostProcessedOutputs:
     P_icrh_ion: Ion cyclotron resonance heating to ions [W]
     P_icrh_tot: Total ion cyclotron resonance heating power [W]
     P_LH_hi_dens: H-mode transition power for high density branch [W]
-    P_LH_low_dens: H-mode transition power for low density branch [W]
-    ne_min_P_LH: Density corresponding to the minimum P_LH [nref]
+    P_LH_min: Minimum H-mode transition power for at ne_min_P_LH [W]
+    P_LH: H-mode transition power from maximum of P_LH_hi_dens and P_LH_min [W]
+    ne_min_P_LH: Density corresponding to the P_LH_min [nref]
     E_cumulative_fusion: Total cumulative fusion energy [J]
     E_cumulative_external: Total external injected energy (Ohmic + auxiliary
       heating) [J]
@@ -397,7 +398,8 @@ class PostProcessedOutputs:
   P_icrh_ion: array_typing.ScalarFloat
   P_icrh_tot: array_typing.ScalarFloat
   P_LH_hi_dens: array_typing.ScalarFloat
-  P_LH_low_dens: array_typing.ScalarFloat
+  P_LH_min: array_typing.ScalarFloat
+  P_LH: array_typing.ScalarFloat
   ne_min_P_LH: array_typing.ScalarFloat
   E_cumulative_fusion: array_typing.ScalarFloat
   E_cumulative_external: array_typing.ScalarFloat
@@ -456,7 +458,8 @@ class PostProcessedOutputs:
         P_icrh_el=jnp.array(0.0),
         P_icrh_tot=jnp.array(0.0),
         P_LH_hi_dens=jnp.array(0.0),
-        P_LH_low_dens=jnp.array(0.0),
+        P_LH_min=jnp.array(0.0),
+        P_LH=jnp.array(0.0),
         ne_min_P_LH=jnp.array(0.0),
         E_cumulative_fusion=jnp.array(0.0),
         E_cumulative_external=jnp.array(0.0),

@@ -392,7 +392,7 @@ def make_outputs(
       / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
   )
 
-  P_LH_hi_dens, P_LH_low_dens, ne_min_P_LH = (
+  P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (
       physics.calculate_plh_scaling_factor(geo, sim_state.core_profiles)
   )
 
@@ -519,7 +519,8 @@ def make_outputs(
       psi_face=sim_state.core_profiles.psi.face_value(),
       **integrated_sources,
       Q_fusion=Q_fusion,
-      P_LH_low_dens=P_LH_low_dens,
+      P_LH=P_LH,
+      P_LH_min=P_LH_min,
       P_LH_hi_dens=P_LH_hi_dens,
       ne_min_P_LH=ne_min_P_LH,
       E_cumulative_fusion=E_cumulative_fusion,

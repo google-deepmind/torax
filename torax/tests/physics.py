@@ -389,18 +389,21 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
         ),
     )
     # pylint: disable=invalid-name
-    P_LH_hi_dens, P_LH_low_dens, ne_min_P_LH = (
+    P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (
         physics.calculate_plh_scaling_factor(geo, core_profiles)
     )
     expected_PLH_hi_dens = (
         2.15 * 2**0.782 * 5**0.772 * 2**0.975 * 6**0.999 * (2.0141 / 3)
     )
-    expected_PLH_low_dens = 0.36 * 10**0.27 * 5**1.25 * 6**1.23 * 3**0.08
+    expected_PLH_min = (
+        0.36 * 10**0.27 * 5**1.25 * 6**1.23 * 3**0.08 * (2.0141 / 3)
+    )
     expected_ne_min_P_LH = 0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 / 10
     # pylint: enable=invalid-name
     np.testing.assert_allclose(P_LH_hi_dens / 1e6, expected_PLH_hi_dens)
-    np.testing.assert_allclose(P_LH_low_dens / 1e6, expected_PLH_low_dens)
+    np.testing.assert_allclose(P_LH_min / 1e6, expected_PLH_min)
     np.testing.assert_allclose(ne_min_P_LH, expected_ne_min_P_LH)
+    np.testing.assert_allclose(P_LH, P_LH_hi_dens)
 
   @parameterized.parameters([
       dict(elongation_LCFS=1.0),

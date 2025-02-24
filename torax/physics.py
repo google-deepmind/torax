@@ -515,8 +515,8 @@ def fast_ion_fractional_heating_formula(
 def calculate_plh_scaling_factor(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-) -> tuple[jax.Array, jax.Array, jax.Array]:
-  """Calculates the H-mode transition power scaling in low and high density branches.
+) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
+  """Calculates the H-mode transition power scalings.
 
   See Y.R. Martin and Tomonori Takizuka.
   "Power requirement for accessing the H-mode in ITER."
@@ -534,8 +534,9 @@ def calculate_plh_scaling_factor(
     core_profiles: Core plasma profiles.
 
   Returns:
-    Tuple of: P_LH scaling factor for high and low density branches, and the
-      density corresponding to the P_LH minimum.
+    Tuple of: P_LH scaling factor for high density branch, minimum P_LH,
+      P_LH = max(P_LH_min, P_LH_hi_dens) for practical use, and the density
+      corresponding to the P_LH_min.
   """
 
   line_avg_ne = _calculate_line_avg_density(geo, core_profiles)
@@ -553,7 +554,7 @@ def calculate_plh_scaling_factor(
   A_deuterium = constants.ION_PROPERTIES_DICT['D']['A']
   P_LH_hi_dens = P_LH_hi_dens_D * A_deuterium / core_profiles.Ai
 
-  # Calculate low density branch of P_LH (in units of nref) from Eq 3 Ryter 2014
+  # Calculate density (in nref) corresponding to P_LH_min from Eq 3 Ryter 2014
   ne_min_P_LH = (
       0.7
       * (core_profiles.currents.Ip_profile_face[-1] / 1e6) ** 0.34
@@ -563,7 +564,8 @@ def calculate_plh_scaling_factor(
       * 1e19
       / core_profiles.nref
   )
-  P_LH_low_dens = (
+  # Calculate P_LH_min at ne_min from Eq 4 Ryter 2014
+  P_LH_min_D = (
       0.36
       * (core_profiles.currents.Ip_profile_face[-1] / 1e6) ** 0.27
       * geo.B0**1.25
@@ -571,7 +573,9 @@ def calculate_plh_scaling_factor(
       * (geo.Rmaj / geo.Rmin) ** 0.08
       * 1e6
   )
-  return P_LH_hi_dens, P_LH_low_dens, ne_min_P_LH
+  P_LH_min = P_LH_min_D * A_deuterium / core_profiles.Ai
+  P_LH = jnp.maximum(P_LH_min, P_LH_hi_dens)
+  return P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH
 
 
 def calculate_scaling_law_confinement_time(

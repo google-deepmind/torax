@@ -359,8 +359,12 @@ analysis and inspection.
 ``P_LH_hi_dens`` (time) [W]: H-mode transition power for high density branch,
   according to Eq 3 from Martin 2008.
 
-``P_LH_low_dens`` (time) [W]: H-mode transition power for low density branch,
-  according to Eq 4 from Ryter 2014.
+``P_LH_min`` (time) [W]: Minimum H-mode transition power at the minimum density
+  ``ne_min_P_LH``, according to Eq 4 from Ryter 2014.
+
+``P_LH`` (time) [W]: H-mode transition power taken as the maximum of
+  ``P_LH_min`` and ``P_LH_hi_dens``. ``P_LH_min`` and ``P_LH_hi_dens`` are kept
+  in output for increased introspectability.
 
 ``ne_min_P_LH`` (time) [nref]:  Density corresponding to the minimum P_LH,
   according to Eq 3 from Ryter 2014.
