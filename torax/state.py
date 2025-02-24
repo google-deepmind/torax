@@ -108,11 +108,11 @@ class CoreProfiles:
       s_face: Magnetic shear.
       nref: Reference density [m^-3].
       vloop_lcfs: Loop voltage at LCFS (V).
-      Zi: Main ion charge on cell grid [amu].
-      Zi_face: Main ion charge on face grid [amu].
+      Zi: Main ion charge on cell grid [dimensionless].
+      Zi_face: Main ion charge on face grid [dimensionless].
       Ai: Main ion mass [amu].
-      Zimp: Impurity charge on cell grid [amu].
-      Zimp_face: Impurity charge on face grid [amu].
+      Zimp: Impurity charge on cell grid [dimensionless].
+      Zimp_face: Impurity charge on face grid [dimensionless].
       Aimp: Impurity mass [amu].
   """
 
