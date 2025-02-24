@@ -38,14 +38,14 @@ from torax.sources import source_profiles
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for the generic heat source."""
 
-  # external heat source parameters
+  # External heat source parameters
   # Gaussian width in normalized radial coordinate
   w: runtime_params_lib.TimeInterpolatedInput = 0.25
   # Source Gaussian central location (in normalized r)
   rsource: runtime_params_lib.TimeInterpolatedInput = 0.0
-  # total heating
+  # Total heating: high default based on total ITER power including alphas
   Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
-  # electron heating fraction
+  # Electron heating fraction
   el_heat_fraction: runtime_params_lib.TimeInterpolatedInput = 0.66666
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

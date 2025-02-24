@@ -304,7 +304,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # He3 minority concentration relative to the electron density in %.
   minority_concentration: runtime_params_lib.TimeInterpolatedInput = 3.0
   # Total heating power [W].
-  Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
+  Ptot: runtime_params_lib.TimeInterpolatedInput = 10e6
   # Mode of the source.
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

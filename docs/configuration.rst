@@ -958,7 +958,7 @@ A utility source module that allows for a time dependent Gaussian ion and electr
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
 ``Ptot`` (float = 120e6), **time-varying-scalar**
-  Total injected source power in W.
+  Total source power in W. High default based on total ITER power including alphas
 
 ``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
@@ -1170,7 +1170,7 @@ environment variable which should point to a compatible JSON file.
 ``minority_concentration`` (float = 3.0) **time-varying-scalar**
   Helium-3 minority concentration relative to the electron density in %.
 
-``Ptot`` (float = 120e6), **time-varying-scalar**
+``Ptot`` (float = 10e6), **time-varying-scalar**
   Total injected source power in W.
 
 See :ref:`physics_models` for more detail.
