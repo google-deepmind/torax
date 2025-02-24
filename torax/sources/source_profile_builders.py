@@ -156,7 +156,9 @@ def build_standard_source_profiles(
     static_source_runtime_params = static_runtime_params_slice.sources[
         source_name
     ]
-    if explicit == static_source_runtime_params.is_explicit | calculate_anyway:
+    if (
+        explicit == static_source_runtime_params.is_explicit
+    ) | calculate_anyway:
       value = source.get_value(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
