@@ -136,10 +136,10 @@ core_profiles
   Total current density on face grid in :math:`[A/m^2]`.
 
 ``Ip_profile_face`` (time, rho_face)
-  Current profile on face grid, in :math:`[A/m^2]`.
+  Current profile on face grid, in :math:`[A]`.
 
 ``I_bootstrap`` (time)
-  Total bootstrap current, in :math:`[MA]`.
+  Total bootstrap current, in :math:`[A]`.
 
 core_sources
 ------------
