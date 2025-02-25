@@ -1,8 +1,11 @@
 [![Unittests](https://github.com/google-deepmind/torax/actions/workflows/pytest.yml/badge.svg)](https://github.com/google-deepmind/torax/actions/workflows/pytest.yml)
 
-# What is TORAX?
+## What is TORAX?
 
-TORAX is a differentiable tokamak core transport simulator aimed for fast and accurate forward modelling, pulse-design, trajectory optimization, and controller design workflows. TORAX is written in Python using JAX, with the following motivations:
+TORAX is a differentiable tokamak core transport simulator aimed for fast
+and accurate forward modelling, pulse-design, trajectory optimization, and
+controller design workflows. TORAX is written in Python using JAX, with
+the following motivations:
 
 - Open-source and extensible, aiding with flexible workflow coupling
 - JAX provides auto-differentiation capabilities and code compilation for fast runtimes. Differentiability allows for gradient-based nonlinear PDE solvers for fast and accurate modelling, and for sensitivity analysis of simulation results to arbitrary parameter inputs, enabling applications such as trajectory optimization and data-driven parameter identification for semi-empirical models. Auto-differentiability allows for these applications to be easily extended with the addition of new physics models, or new parameter inputs, by avoiding the need to hand-derive Jacobians
@@ -22,9 +25,13 @@ TORAX now has the following physics feature set:
     - For testing and demonstration purposes, a single CHEASE equilibrium file is available in the data/geo directory. It corresponds to an ITER hybrid scenario equilibrium based on simulations in [[Citrin et al, Nucl. Fusion 2010]](https://doi.org/10.1088/0029-5515/50/11/115007), and was obtained from [PINT](https://gitlab.com/qualikiz-group/pyntegrated_model). A PINT license file is available in data/geo.
     - Time dependent geometry is supported by provided a time series of geometry files
 
-Additional heating and current drive sources can be provided by prescribed formulas, user-provided analytical models, or user-provided prescribed data.
+Additional heating and current drive sources can be provided by prescribed
+formulas, user-provided analytical models, or user-provided prescribed data.
 
-Model implementation was verified through direct comparison of simulation outputs to the RAPTOR [[Felici et al, Plasma Phys. Control. Fusion 2012]](https://iopscience.iop.org/article/10.1088/0741-3335/54/2/025002) tokamak transport simulator.
+Model implementation was verified through direct comparison of simulation
+outputs to the RAPTOR
+[[Felici et al, Plasma Phys. Control. Fusion 2012]](https://iopscience.iop.org/article/10.1088/0741-3335/54/2/025002)
+tokamak transport simulator.
 
 This is not an officially supported Google product.
 
@@ -32,28 +39,28 @@ This is not an officially supported Google product.
 
 Short term development plans include:
 
-- Extension of and more flexible data structures for prescribed input data
 - Implementation of forward sensitivity calculations w.r.t. control inputs and parameters
 - More extensive documentation and tutorials
 - Visualisation improvements
 
-Longer term desired features include:
+Longer term planned features include:
 
 - Sawtooth model (Porcelli + reconnection)
 - Neoclassical tearing modes (modified Rutherford equation)
-- Radiation sinks
-    - Cyclotron radiation
-    - Line radiation
 - Neoclassical transport + multi-ion transport, with a focus on heavy impurities
 - IMAS coupling
 - Stationary-state solver
 - Momentum transport
 
-Contributions in line with the roadmap are welcome. In particular, TORAX is envisaged as a natural framework for coupling of various ML-surrogates of physics models. These could include surrogates for turbulent transport, neoclassical transport, heat and particle sources, line radiation, pedestal physics, and core-edge integration, MHD, among others.
+Contributions in line with the roadmap are welcome. In particular, TORAX
+is envisaged as a natural framework for coupling of various ML-surrogates of
+physics models. These could include surrogates for turbulent transport,
+neoclassical transport, heat and particle sources, line radiation, pedestal
+physics, and core-edge integration, MHD, among others.
 
-# Installation guide
+## Installation guide
 
-## Requirements
+### Requirements
 
 Install Python 3.10 or greater.
 
@@ -63,7 +70,7 @@ Make sure that tkinter is installed:
 sudo apt-get install python3-tk
 ```
 
-## How to install
+### How to install
 
 Install virtualenv (if not already installed):
 
@@ -105,7 +112,8 @@ git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
 export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
 ```
 
-It is recommended to automate the environment variable export. For example, if using bash, run:
+It is recommended to automate the environment variable export. For example, if
+using bash, run:
 
 ```shell
 echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
@@ -153,53 +161,68 @@ cd torax; pip install -e .[dev]
 Optional: Install additional GPU support for JAX if your machine has a GPU:
 https://jax.readthedocs.io/en/latest/installation.html#supported-platforms
 
-## Running an example
+### Running an example
 
 The following command will run TORAX using the default configuration file
 `examples/basic_config.py`.
 
 ```shell
-python3 run_simulation_main.py \
-   --config='torax.examples.basic_config' --log_progress
+python3 run_simulation_main.py --config='torax.examples.basic_config'
 ```
+
+Simulation progress is shown by a progress bar in the terminal, displaying
+the current simulation time, and the percentage of the total simulation time
+completed.
 
 To run more involved, ITER-inspired simulations, run:
 
 ```shell
-python3 run_simulation_main.py \
-   --config='torax.examples.iterhybrid_rampup' --log_progress
+python3 run_simulation_main.py
+   --config='torax.examples.iterhybrid_rampup'
 ```
 
 and
 
 ```shell
-python3 run_simulation_main.py \
-   --config='torax.examples.iterhybrid_predictor_corrector' --log_progress
+python3 run_simulation_main.py --config='torax.examples.iterhybrid_predictor_corrector'
 ```
 
-Additional configuration is provided through flags which append the above run command, and environment variables:
+Additional configuration is provided through flags which append the above
+run command, and environment variables. For example, for increased output
+verbosity, can run with the `--log_progress` flag.
 
-### Set environment variables
+```shell
+python3 run_simulation_main.py
+   --config='torax.examples.iterhybrid_rampup' --log_progress
+```
 
-Path to the QuaLiKiz-neural-network parameters. Note: if installation instructions above were followed, this may already be set.
+#### Set environment variables
+
+Path to the QuaLiKiz-neural-network parameters. Note: if installation
+instructions above were followed, this may already be set.
 
 ```shell
 $ export TORAX_QLKNN_MODEL_PATH="<myqlknnmodelpath>"
 ```
 
-Path to the geometry file directory. This prefixes the path and filename provided in the `geometry_file` geometry constructor argument in the run config file. If not set, `TORAX_GEOMETRY_DIR` defaults to the relative path `torax/data/third_party/geo`.
+Path to the geometry file directory. This prefixes the path and filename
+provided in the `geometry_file` geometry constructor argument in the run
+config file. If not set, `TORAX_GEOMETRY_DIR` defaults to the relative path
+`torax/data/third_party/geo`.
 
 ```shell
 $ export TORAX_GEOMETRY_DIR="<mygeodir>"
 ```
 
-If true, error checking is enabled in internal routines. Used for debugging. Default is false since it is incompatible with the persistent compilation cache.
+If true, error checking is enabled in internal routines. Used for debugging.
+Default is false since it is incompatible with the persistent compilation cache.
 
 ```shell
 $ export TORAX_ERRORS_ENABLED=<True/False>
 ```
 
-If false, JAX does not compile internal TORAX functions. Used for debugging. Default is true.
+If false, JAX does not compile internal TORAX functions. Used for debugging.
+Default is true.
 
 ```shell
 $ export TORAX_COMPILATION_ENABLED=<True/False>
@@ -214,8 +237,9 @@ $ export JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES=-1
 $ export JAX_PERSISTENT_CACHE_MIN_COMPILE_TIME_SECS=0.0
 ```
 
-### Set flags
-Output simulation time, dt, and number of stepper iterations (dt backtracking with nonlinear solver) carried out at each timestep.
+#### Set flags
+Output simulation time, dt, and number of stepper iterations (dt backtracking
+with nonlinear solver) carried out at each timestep.
 
 ```shell
 python3 run_simulation_main.py \
@@ -241,16 +265,19 @@ python3 run_simulation_main.py \
 
 ### Post-simulation
 
-Once complete, the time history of a simulation state and derived quantities is written to `state_history.nc`. The output path is written to stdout.
+Once complete, the time history of a simulation state and derived quantities
+is written to `state_history.nc`. The output path is written to stdout.
 
-To take advantage of the in-memory (non-persistent) cache, the process does not end upon simulation termination. It is possible to modify the runtime_params, toggle the `log_progress` and `plot_progress` flags, and rerun the simulation. Only the following modifications will then trigger a recompilation:
+To take advantage of the in-memory (non-persistent) cache, the process does not
+end upon simulation termination. It is possible to modify the runtime_params,
+toggle the `log_progress` and `plot_progress` flags, and rerun the simulation.
+Only the following modifications will then trigger a recompilation:
 
 - Grid resolution
 - Evolved variables (equations being solved)
 - Changing internal functions used, e.g. transport model, or time_step_calculator
 
-
-## Cleaning up
+### Cleaning up
 
 You can get out of the Python virtual env by deactivating it:
 
@@ -258,12 +285,11 @@ You can get out of the Python virtual env by deactivating it:
 deactivate
 ```
 
-# Simulation tutorials
+## Simulation tutorials
 
 Under construction
 
-
-# Citing TORAX
+## Citing TORAX
 
 A TORAX paper is [available on arXiv](https://arxiv.org/abs/2406.06718). Cite this paper to cite TORAX:
 

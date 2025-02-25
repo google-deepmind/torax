@@ -193,7 +193,7 @@ CONFIG = {
         # use_pereverzev is only used for the linear solver
         'use_pereverzev': True,
         'newton_raphson_params': {
-            'log_iterations': True,
+            'log_iterations': False,
         },
     },
     'time_step_calculator': {

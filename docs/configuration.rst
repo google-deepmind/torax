@@ -1231,8 +1231,17 @@ newton_raphson
 
 ``newton_raphson_params`` dict containing the following configuration parameters for the Newton Raphson stepper.
 
+.. _log_iterations:
+
 ``log_iterations`` (bool = False)
-  Log the internal iterations in the Newton-Raphson solver.
+  If True, logs information about the internal state of the Newton-Raphson
+  solver. For the first iteration, this contains the initial residual value and
+  time-step size. For subsequent iterations, this contains the iteration step
+  number, the current value of the residual, and the current value of ``tau``,
+  which is the relative reduction in Newton step size compared to the original
+  Newton step size. If the solver does not converge, then these inner iterations
+  will restart at a smaller timestep size if ``adaptive_dt=True`` in the
+  ``stepper`` config dict.
 
 ``initial_guess_mode`` (str = 'linear_step')
   Sets the approach taken for the initial guess into the Newton-Raphson solver for the first iteration.
@@ -1446,7 +1455,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'chi_per': 30,
           'd_per': 15,
           'use_pereverzev': True,
-          'log_iterations': True,
+          'log_iterations': False,
       },
       'time_step_calculator': {
           'calculator_type': 'fixed',
