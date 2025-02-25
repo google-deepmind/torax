@@ -43,7 +43,7 @@ class ConfigTest(parameterized.TestCase):
         module_config["time_step_calculator"]["calculator_type"],
     )
     self.assertEqual(
-        config_pydantic.pedestal.pedestal_model.value,
+        config_pydantic.pedestal.pedestal_config.pedestal_model,
         module_config["pedestal"]["pedestal_model"]
         if "pedestal_model" in module_config["pedestal"]
         else "set_tped_nped",

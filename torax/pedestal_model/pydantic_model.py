@@ -14,22 +14,14 @@
 
 """Pydantic config for Pedestal."""
 
-import enum
-from typing import Any
+import copy
+from typing import Any, Literal
 
 import pydantic
 from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-@enum.unique
-class PedestalType(enum.Enum):
-  """Types of time step calculators."""
-
-  SET_PPED_TPEDRATIO_NPED = 'set_pped_tpedratio_nped'
-  SET_TPED_NPED = 'set_tped_nped'
-
-
 class SetPpedTpedRatioNped(torax_pydantic.BaseModelMutable):
   """Model for direct specification of pressure, temperature ratio, and density.
 
@@ -42,6 +34,7 @@ class SetPpedTpedRatioNped(torax_pydantic.BaseModelMutable):
       the pedestal [dimensionless].
     rho_norm_ped_top: The location of the pedestal top.
   """
+  pedestal_model: Literal['set_pped_tpedratio_nped']
   Pped: torax_pydantic.Pascal = 1e5
   neped: torax_pydantic.Density = 0.7
   neped_is_fGW: bool = False
@@ -60,6 +53,7 @@ class SetTpedNped(torax_pydantic.BaseModelMutable):
     Teped: Electron temperature at the pedestal [keV].
     rho_norm_ped_top: The location of the pedestal top.
   """
+  pedestal_model: Literal['set_tped_nped']
   neped: torax_pydantic.Density = 0.7
   neped_is_fGW: bool = False
   Tiped: torax_pydantic.KiloElectronVolt = 5.0
@@ -69,43 +63,20 @@ class SetTpedNped(torax_pydantic.BaseModelMutable):
 
 class PedestalModel(torax_pydantic.BaseModelMutable):
   """Config for a time step calculator."""
-
-  pedestal_model: PedestalType
-  pedestal_config: SetPpedTpedRatioNped | SetTpedNped
+  pedestal_config: SetPpedTpedRatioNped | SetTpedNped = pydantic.Field(
+      discriminator='pedestal_model', default_factory=SetTpedNped,
+  )
 
   @pydantic.model_validator(mode='before')
   @classmethod
   def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
     # If we are running with the standard class constructor we don't need to do
     # any custom validation.
-    if 'pedestal_model' in data and isinstance(
-        data['pedestal_model'], PedestalType
-    ):
+    if 'pedestal_config' in data:
       return data
 
-    if 'pedestal_model' in data:
-      pedestal_model = data['pedestal_model']
-      pedestal_config = {
-          k: v
-          for k, v in data['pedestal_config'].items()
-          if k != 'pedestal_model'
-      }
-    else:
-      # If the pedestal model is not specified, use set_tped_nped by default.
-      pedestal_model = PedestalType.SET_TPED_NPED.value
-      pedestal_config = data
+    pedestal_config = copy.deepcopy(data)
+    if 'pedestal_model' not in data:
+      pedestal_config['pedestal_model'] = 'set_tped_nped'
 
-    constructor_args = {'pedestal_model': PedestalType(pedestal_model)}
-    match pedestal_model:
-      case PedestalType.SET_PPED_TPEDRATIO_NPED.value:
-        constructor_args['pedestal_config'] = SetPpedTpedRatioNped.from_dict(
-            pedestal_config
-        )
-      case PedestalType.SET_TPED_NPED.value:
-        constructor_args['pedestal_config'] = SetTpedNped.from_dict(
-            pedestal_config
-        )
-      case _:
-        raise ValueError(f'Unknown pedestal model: {pedestal_model}')
-
-    return constructor_args
+    return {'pedestal_config': pedestal_config}
