@@ -425,12 +425,6 @@ Configures simulation control such as time settings and timestep calculation, eq
 ``dens_eq`` (bool = False)
   Solve the electron density equation in the time-dependent PDE.
 
-``enable_prescribed_profile_evolution`` (bool = True)
-  Enable time-dependent prescribed profiles. If False, then time-dependent ``numerics``
-  quantities such as ``nbar`` and ``Ti`` will be ignored, even if their respective core_profile equation is not being solved by the PDE.
-  This option is provided to allow initialization of density profiles scaled to a Greenwald fraction, and freeze this density even if the current
-  is time evolving. Otherwise the density will evolve to always maintain that GW fraction.
-
 ``q_correction_factor`` (float = 1.38)
   q-profile correction factor used only in the ad-hoc circular geometry model
 

@@ -808,19 +808,13 @@ def get_prescribed_core_profile_values(
   """
   # If profiles are not evolved, they can still potential be time-evolving,
   # depending on the runtime params. If so, they are updated below.
-  if (
-      not static_runtime_params_slice.ion_heat_eq
-      and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
-  ):
+  if not static_runtime_params_slice.ion_heat_eq:
     temp_ion = _updated_ion_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     ).value
   else:
     temp_ion = core_profiles.temp_ion.value
-  if (
-      not static_runtime_params_slice.el_heat_eq
-      and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
-  ):
+  if not static_runtime_params_slice.el_heat_eq:
     temp_el_cell_variable = _updated_electron_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     )
@@ -828,10 +822,7 @@ def get_prescribed_core_profile_values(
   else:
     temp_el_cell_variable = core_profiles.temp_el
     temp_el = temp_el_cell_variable.value
-  if (
-      not static_runtime_params_slice.dens_eq
-      and dynamic_runtime_params_slice.numerics.enable_prescribed_profile_evolution
-  ):
+  if not static_runtime_params_slice.dens_eq:
     ne_cell_variable = _get_ne(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,

@@ -65,11 +65,6 @@ class Numerics(base.RuntimeParametersConfig):
   current_eq: bool = False
   # Solve the density equation (n evolves over time)
   dens_eq: bool = False
-  # Enable time-dependent prescribed profiles.
-  # This option is provided to allow initialization of density profiles scaled
-  # to a Greenwald fraction, and freeze this density even if the current is time
-  # evolving. Otherwise the density will evolve to always maintain that GW frac.
-  enable_prescribed_profile_evolution: bool = True
 
   # Calculate Phibdot in the geometry dataclasses. This is used in calc_coeffs
   # to calculate terms related to time-dependent geometry. Can set to false to
@@ -127,7 +122,6 @@ class NumericsProvider(base.RuntimeParametersProvider['DynamicNumerics']):
         dtmult=self.runtime_params_config.dtmult,
         fixed_dt=self.runtime_params_config.fixed_dt,
         dt_reduction_factor=self.runtime_params_config.dt_reduction_factor,
-        enable_prescribed_profile_evolution=self.runtime_params_config.enable_prescribed_profile_evolution,
         calcphibdot=self.runtime_params_config.calcphibdot,
         q_correction_factor=self.runtime_params_config.q_correction_factor,
         resistivity_mult=self.resistivity_mult.get_value(t),
@@ -154,5 +148,4 @@ class DynamicNumerics:
   nref: float
   largeValue_T: float
   largeValue_n: float
-  enable_prescribed_profile_evolution: bool
   calcphibdot: bool
