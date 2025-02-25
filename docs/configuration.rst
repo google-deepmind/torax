@@ -900,8 +900,9 @@ The configurable runtime parameters of each source are as follows:
     Source is set to zero.
 
 * ``'MODEL'``
-    Source values come from a model in code. Specific model selection is not yet available in TORAX since there are no source components with more than one
-    physics model. However, this will be straightforward to develop when that occurs.
+    Source values come from a model in code. Specific model selection where more
+    than one model is available can be done by specifying a ``model_func``.
+    This is documented in the individual source sections.
 
 * ``'PRESCRIBED'``
     Source values are arbitrarily prescribed by the user. The value is set by ``prescribed_values``, and can contain the same
