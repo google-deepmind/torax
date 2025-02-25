@@ -23,34 +23,33 @@ from torax.geometry import geometry
 
 def exponential_profile(
     geo: geometry.Geometry,
-    c1: float,
-    c2: float,
+    *,
+    decay_start: float,
+    width: float,
     total: float,
 ) -> jax.Array:
   """Returns an exponential profile on the cell grid.
 
-  The profile is parameterized by (c1, c2, c3) like so:
+  The profile is parameterized by (decay_start, width, total) like so:
 
-    | cell = exp(-(c1 - r) / c2)
-    | face = exp(-(c1 - r_face) / c2)
+    | cell = exp(-(decay_start - r) / width)
+    | face = exp(-(decay_start - r_face) / width)
     | C = total / trapz(vpr_face * face, r_face_norm)
     | profile = C * cell
 
-  The formula can use the normalized r and r_face for c1 + c2 if specified.
-
   Args:
     geo: Geometry constants of torus.
-    c1: Constant. See description above.
-    c2: Constant. See description above.
-    total: Constant. See description above.
+    decay_start: See description above. In normalized radial coordinate.
+    width: See description above. In normalized radial coordinate.
+    total: See description above.
 
   Returns:
     Exponential profile on the cell grid.
   """
   r = geo.rho_norm
   r_face = geo.rho_face_norm
-  S = jnp.exp(-(c1 - r) / c2)
-  S_face = jnp.exp(-(c1 - r_face) / c2)
+  S = jnp.exp(-(decay_start - r) / width)
+  S_face = jnp.exp(-(decay_start - r_face) / width)
   # calculate constant prefactor
   C = total / jax.scipy.integrate.trapezoid(
       geo.vpr_face * S_face, geo.rho_face_norm
@@ -61,34 +60,32 @@ def exponential_profile(
 def gaussian_profile(
     geo: geometry.Geometry,
     *,
-    c1: float,
-    c2: float,
+    center: float,
+    width: float,
     total: float,
 ) -> jax.Array:
   """Returns a gaussian profile on the cell grid.
 
-  The profile is parameterized by (c1, c2, c3) like so:
+  The profile is parameterized by (center, width, total) like so:
 
-    | cell = exp(-( (r - c1)**2 / (2 * c2**2) ))
-    | face = exp(-( (r_face - c1)**2 / (2 * c2**2) ))
+    | cell = exp(-( (r - center)**2 / (2 * width**2) ))
+    | face = exp(-( (r_face - center)**2 / (2 * width**2) ))
     | C = total / trapz( vpr_face * face, r_face_norm)
     | profile = C * cell
 
-  The formula can use the normalized r and r_face for c1 + c2 if specified.
-
   Args:
     geo: Geometry constants of torus.
-    c1: Constant. See description above.
-    c2: Constant. See description above.
-    total: Constant. See description above.
+    center: See description above. In normalized radial coordinate.
+    width: See description above. In normalized radial coordinate.
+    total: See description above.
 
   Returns:
     Gaussian profile on the cell grid.
   """
   r = geo.rho_norm
   r_face = geo.rho_face_norm
-  S = jnp.exp(-((r - c1) ** 2) / (2 * c2**2))
-  S_face = jnp.exp(-((r_face - c1) ** 2) / (2 * c2**2))
+  S = jnp.exp(-((r - center) ** 2) / (2 * width**2))
+  S_face = jnp.exp(-((r_face - center) ** 2) / (2 * width**2))
   # calculate constant prefactor
   C = total / jax.scipy.integrate.trapezoid(
       geo.vpr_face * S_face, geo.rho_face_norm

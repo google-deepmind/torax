@@ -89,8 +89,8 @@ def calc_puff_source(
   ]
   assert isinstance(dynamic_source_runtime_params, DynamicGasPuffRuntimeParams)
   return (formulas.exponential_profile(
-      c1=1.0,
-      c2=dynamic_source_runtime_params.puff_decay_length,
+      decay_start=1.0,
+      width=dynamic_source_runtime_params.puff_decay_length,
       total=(
           dynamic_source_runtime_params.S_puff_tot
           / dynamic_runtime_params_slice.numerics.nref
@@ -181,8 +181,8 @@ def calc_generic_particle_source(
   ]
   assert isinstance(dynamic_source_runtime_params, DynamicParticleRuntimeParams)
   return (formulas.gaussian_profile(
-      c1=dynamic_source_runtime_params.deposition_location,
-      c2=dynamic_source_runtime_params.particle_width,
+      center=dynamic_source_runtime_params.deposition_location,
+      width=dynamic_source_runtime_params.particle_width,
       total=(
           dynamic_source_runtime_params.S_tot
           / dynamic_runtime_params_slice.numerics.nref
@@ -266,8 +266,8 @@ def calc_pellet_source(
   ]
   assert isinstance(dynamic_source_runtime_params, DynamicPelletRuntimeParams)
   return (formulas.gaussian_profile(
-      c1=dynamic_source_runtime_params.pellet_deposition_location,
-      c2=dynamic_source_runtime_params.pellet_width,
+      center=dynamic_source_runtime_params.pellet_deposition_location,
+      width=dynamic_source_runtime_params.pellet_width,
       total=(
           dynamic_source_runtime_params.S_pellet_tot
           / dynamic_runtime_params_slice.numerics.nref

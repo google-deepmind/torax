@@ -104,7 +104,7 @@ def calc_generic_heat_source(
     source_el: source term for electrons.
   """
   # Calculate heat profile.
-  profile = formulas.gaussian_profile(geo, c1=rsource, c2=w, total=Ptot)
+  profile = formulas.gaussian_profile(geo, center=rsource, width=w, total=Ptot)
   source_ion = profile * (1 - el_heat_fraction)
   source_el = profile * el_heat_fraction
 

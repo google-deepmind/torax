@@ -135,8 +135,8 @@ def calc_heating_and_current(
   ec_power_density = (
       dynamic_source_runtime_params.manual_ec_power_density
       + formulas.gaussian_profile(
-          c1=dynamic_source_runtime_params.gaussian_ec_power_density_location,
-          c2=dynamic_source_runtime_params.gaussian_ec_power_density_width,
+          center=dynamic_source_runtime_params.gaussian_ec_power_density_location,
+          width=dynamic_source_runtime_params.gaussian_ec_power_density_width,
           total=dynamic_source_runtime_params.gaussian_ec_total_power,
           geo=geo,
       )
