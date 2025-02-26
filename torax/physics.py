@@ -51,7 +51,6 @@ def get_main_ion_dilution_factor(
 def update_jtot_q_face_s_face(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
-    q_correction_factor: float,
 ) -> state.CoreProfiles:
   """Updates jtot, jtot_face, q_face, and s_face."""
 
@@ -62,7 +61,6 @@ def update_jtot_q_face_s_face(
   q_face, _ = calc_q_from_psi(
       geo=geo,
       psi=core_profiles.psi,
-      q_correction_factor=q_correction_factor,
   )
   s_face = calc_s_from_psi(
       geo,
@@ -179,7 +177,6 @@ def internal_boundary(
 def calc_q_from_psi(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
-    q_correction_factor: float,
 ) -> tuple[chex.Array, chex.Array]:
   """Calculates the q-profile (q) given current (jtot) and poloidal flux (psi).
 
@@ -190,8 +187,6 @@ def calc_q_from_psi(
   Args:
     geo: Magnetic geometry.
     psi: Poloidal flux.
-    q_correction_factor: ad-hoc fix for non-physical circular geometry model
-      such that q(r=a) = 3 for standard ITER parameters;
 
   Returns:
     q_face: q at faces.
@@ -211,11 +206,7 @@ def calc_q_from_psi(
   )
 
   q_face = jnp.concatenate([inv_iota0, inv_iota])
-  q_face *= jnp.where(
-      geo.geometry_type == geometry.GeometryType.CIRCULAR.value,
-      q_correction_factor,
-      1,
-  )
+  q_face *= geo.q_correction_factor
   q = geometry.face_to_cell(q_face)
 
   return q_face, q

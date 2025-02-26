@@ -112,7 +112,8 @@ SIM_ERROR = "sim_error"
 # Sources.
 CORE_SOURCES = "core_sources"
 
-# Excluded coordinates from geometry since they are at the top DataTree level
+# Excluded coordinates from geometry since they are at the top DataTree level.
+# Exclude q_correction_factor as it is not an interesting quantity to save.
 # TODO(b/338033916): consolidate on either rho or rho_cell naming for cell grid
 EXCLUDED_GEOMETRY_NAMES = frozenset({
     RHO_CELL,
@@ -121,6 +122,7 @@ EXCLUDED_GEOMETRY_NAMES = frozenset({
     RHO_FACE_NORM,
     "rho",
     "rho_norm",
+    "q_correction_factor",
 })
 
 

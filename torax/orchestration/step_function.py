@@ -525,11 +525,9 @@ class SimulationStepFn:
     """
 
     # Update total current, q, and s profiles based on new psi
-    q_corr = dynamic_runtime_params_slice_t_plus_dt.numerics.q_correction_factor
     output_state.core_profiles = physics.update_jtot_q_face_s_face(
         geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
-        q_correction_factor=q_corr,
     )
 
     # Update ohmic and bootstrap current based on the new core profiles.

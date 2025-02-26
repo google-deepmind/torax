@@ -152,7 +152,6 @@ class QLKNNRuntimeConfigInputs:
   transport: DynamicRuntimeParams
   Ped_top: float
   set_pedestal: bool
-  q_correction_factor: float
   # pylint: enable=invalid-name
 
   @staticmethod
@@ -169,7 +168,6 @@ class QLKNNRuntimeConfigInputs:
         transport=dynamic_runtime_params_slice.transport,
         Ped_top=pedestal_model_output.rho_norm_ped_top,
         set_pedestal=dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
     )
 
 
@@ -304,7 +302,6 @@ class QLKNNTransportModel(
     qualikiz_inputs = self._prepare_qualikiz_inputs(
         Zeff_face=runtime_config_inputs.Zeff_face,
         nref=runtime_config_inputs.nref,
-        q_correction_factor=runtime_config_inputs.q_correction_factor,
         transport=runtime_config_inputs.transport,
         geo=geo,
         core_profiles=core_profiles,

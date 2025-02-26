@@ -86,9 +86,6 @@ def circular_references() -> References:
               'Ip_tot': 15,
               'nu': 3,
           },
-          'numerics': {
-              'q_correction_factor': 1.0,
-          },
       },
   )
   geo = circular_geometry.build_circular_geometry(
@@ -237,9 +234,6 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
           'profile_conditions': {
               'Ip_tot': 15,
               'nu': 3,
-          },
-          'numerics': {
-              'q_correction_factor': 1.0,
           },
       },
   )
@@ -392,9 +386,6 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
           'profile_conditions': {
               'Ip_tot': 15,
               'nu': 3,
-          },
-          'numerics': {
-              'q_correction_factor': 1.0,
           },
       },
   )

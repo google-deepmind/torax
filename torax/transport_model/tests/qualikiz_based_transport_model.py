@@ -113,7 +113,6 @@ class QualikizTransportModelTest(parameterized.TestCase):
     qualikiz_inputs = transport_model.prepare_qualikiz_inputs(
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         nref=dynamic_runtime_params_slice.numerics.nref,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
         transport=dynamic_runtime_params_slice.transport,
         geo=geo,
         core_profiles=core_profiles,
@@ -159,14 +158,13 @@ class FakeQualikizBasedTransportModel(
       self,
       Zeff_face: chex.Array,
       nref: chex.Numeric,
-      q_correction_factor: chex.Numeric,
       transport: qualikiz_based_transport_model.DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> qualikiz_based_transport_model.QualikizInputs:
     """Exposing prepare_qualikiz_inputs for testing."""
     return self._prepare_qualikiz_inputs(
-        Zeff_face, nref, q_correction_factor, transport, geo, core_profiles
+        Zeff_face, nref, transport, geo, core_profiles
     )
 
   # pylint: enable=invalid-name
@@ -187,7 +185,6 @@ class FakeQualikizBasedTransportModel(
     qualikiz_inputs = self._prepare_qualikiz_inputs(
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         nref=dynamic_runtime_params_slice.numerics.nref,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
         transport=dynamic_runtime_params_slice.transport,
         geo=geo,
         core_profiles=core_profiles,

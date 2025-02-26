@@ -70,9 +70,6 @@ class Numerics(base.RuntimeParametersConfig):
   # to calculate terms related to time-dependent geometry. Can set to false to
   # zero out for testing purposes.
   calcphibdot: bool = True
-
-  # q-profile correction factor. Used only in ad-hoc circular geometry model
-  q_correction_factor: float = 1.25
   # 1/multiplication factor for sigma (conductivity) to reduce current
   # diffusion timescale to be closer to heat diffusion timescale
   resistivity_mult: interpolated_param.TimeInterpolatedInput = 1.0
@@ -123,7 +120,6 @@ class NumericsProvider(base.RuntimeParametersProvider['DynamicNumerics']):
         fixed_dt=self.runtime_params_config.fixed_dt,
         dt_reduction_factor=self.runtime_params_config.dt_reduction_factor,
         calcphibdot=self.runtime_params_config.calcphibdot,
-        q_correction_factor=self.runtime_params_config.q_correction_factor,
         resistivity_mult=self.resistivity_mult.get_value(t),
         nref=self.runtime_params_config.nref,
         largeValue_T=self.runtime_params_config.largeValue_T,
@@ -143,7 +139,6 @@ class DynamicNumerics:
   dtmult: float
   fixed_dt: float
   dt_reduction_factor: float
-  q_correction_factor: float
   resistivity_mult: array_typing.ScalarFloat
   nref: float
   largeValue_T: float

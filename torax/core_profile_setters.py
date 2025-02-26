@@ -783,7 +783,6 @@ def initial_core_profiles(
   return physics.update_jtot_q_face_s_face(
       geo=geo,
       core_profiles=core_profiles,
-      q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
   )
 
 

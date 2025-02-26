@@ -167,6 +167,18 @@ class Geometry:
   _z_magnetic_axis: chex.Array | None
 
   @property
+  def q_correction_factor(self) -> chex.Numeric:
+    """Ad-hoc fix for non-physical circular geometry model.
+
+    Set such that q(r=a) = 3 for standard ITER parameters.
+    """
+    return jnp.where(
+        self.geometry_type == GeometryType.CIRCULAR.value,
+        1.25,
+        1,
+    )
+
+  @property
   def rho_norm(self) -> chex.Array:
     return self.torax_mesh.cell_centers
 

@@ -55,7 +55,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     runtime_params = references.runtime_params
-    dynamic_runtime_params_slice, geo = (
+    _, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
             references.geometry_provider,
@@ -65,11 +65,10 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     q_face_jax, q_cell_jax = physics.calc_q_from_psi(
         geo,
         references.psi,
-        dynamic_runtime_params_slice.numerics.q_correction_factor,
     )
 
     # Make ground truth
-    def calc_q_from_psi(runtime_params, geo):
+    def calc_q_from_psi(geo):
       """Reference implementation from PINT."""
       iota = np.zeros(geo.torax_mesh.nx + 1)  # on face grid
       # We use the reference value of psi here because the original code
@@ -81,7 +80,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
           references.psi_face_grad[1] / (2 * geo.Phib * geo.drho_norm)
       )
       q = 1 / iota
-      q *= runtime_params.numerics.q_correction_factor
+      q *= geo.q_correction_factor
 
       def face_to_cell(face):
         cell = np.zeros(geo.torax_mesh.nx)
@@ -91,7 +90,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
       q_cell = face_to_cell(q)
       return q, q_cell
 
-    q_face_np, q_cell_np = calc_q_from_psi(runtime_params, geo)
+    q_face_np, q_cell_np = calc_q_from_psi(geo)
 
     np.testing.assert_allclose(q_face_jax, q_face_np)
     np.testing.assert_allclose(q_cell_jax, q_cell_np)

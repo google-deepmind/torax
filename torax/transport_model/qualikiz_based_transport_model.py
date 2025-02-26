@@ -108,7 +108,6 @@ class QualikizBasedTransportModel(
       self,
       Zeff_face: chex.Array,
       nref: chex.Numeric,
-      q_correction_factor: chex.Numeric,
       transport: DynamicRuntimeParams,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
@@ -148,7 +147,6 @@ class QualikizBasedTransportModel(
     q, _ = physics.calc_q_from_psi(
         geo=geo,
         psi=core_profiles.psi,
-        q_correction_factor=q_correction_factor,
     )
     smag = physics.calc_s_from_psi_rmid(
         geo,

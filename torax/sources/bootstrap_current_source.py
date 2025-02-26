@@ -121,7 +121,6 @@ class BootstrapCurrentSource(source.Source):
 
     bootstrap_current = calc_sauter_model(
         bootstrap_multiplier=dynamic_source_runtime_params.bootstrap_mult,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
         nref=dynamic_runtime_params_slice.numerics.nref,
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         Zi_face=core_profiles.Zi_face,
@@ -165,7 +164,6 @@ class BootstrapCurrentSource(source.Source):
 def calc_sauter_model(
     *,
     bootstrap_multiplier: float,
-    q_correction_factor: float,
     nref: float,
     Zeff_face: chex.Array,
     Zi_face: chex.Array,
@@ -214,7 +212,7 @@ def calc_sauter_model(
   # We don't store q_cell in the evolving core profiles, so we need to
   # recalculate it.
   q_face, _ = physics.calc_q_from_psi(
-      geo=geo, psi=psi, q_correction_factor=q_correction_factor
+      geo=geo, psi=psi,
   )
   nuestar = (
       6.921e-18

@@ -53,7 +53,6 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
             numerics.Numerics,
             instance=True,
             nref=100,
-            q_correction_factor=1.0,
         ),
     )
     self.core_profiles = mock.create_autospec(

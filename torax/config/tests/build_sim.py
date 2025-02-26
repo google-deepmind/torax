@@ -54,9 +54,6 @@ class BuildSimTest(parameterized.TestCase):
                 profile_conditions=dict(
                     ne_is_fGW=False,
                 ),
-                numerics=dict(
-                    q_correction_factor=0.2,
-                ),
             ),
             geometry=dict(
                 geometry_type='circular',
@@ -99,10 +96,6 @@ class BuildSimTest(parameterized.TestCase):
       self.assertEqual(
           dynamic_runtime_params_slice.profile_conditions.ne_is_fGW,
           False,
-      )
-      self.assertEqual(
-          dynamic_runtime_params_slice.numerics.q_correction_factor,
-          0.2,
       )
     with self.subTest('geometry'):
       geo = sim.geometry_provider(sim.initial_state.t)
@@ -175,7 +168,6 @@ class BuildSimTest(parameterized.TestCase):
             'Ip_tot': {0: 0.2, 1: 0.4, 2: 0.6},  # time-dependent.
         },
         'numerics': {
-            'q_correction_factor': 0.2,  # scalar fields.
             # Designate the interpolation mode, as well, setting to "step".
             'resistivity_mult': ({0: 0.3, 1: 0.6, 2: 0.9}, 'step'),
         },
@@ -183,7 +175,6 @@ class BuildSimTest(parameterized.TestCase):
     })
     self.assertEqual(runtime_params.plasma_composition.main_ion, 'D')
     self.assertEqual(runtime_params.profile_conditions.ne_is_fGW, False)
-    self.assertEqual(runtime_params.numerics.q_correction_factor, 0.2)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
     geo = circular_geometry.build_circular_geometry()
     dynamic_runtime_params_slice = (

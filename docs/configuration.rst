@@ -425,9 +425,6 @@ Configures simulation control such as time settings and timestep calculation, eq
 ``dens_eq`` (bool = False)
   Solve the electron density equation in the time-dependent PDE.
 
-``q_correction_factor`` (float = 1.38)
-  q-profile correction factor used only in the ad-hoc circular geometry model
-
 ``resistivity_mult`` (float = 1.0)
   1/multiplication factor for :math:`\sigma` (conductivity) to reduce the current
   diffusion timescale to be closer to the energy confinement timescale, for testing purposes.

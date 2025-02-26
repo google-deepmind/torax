@@ -145,7 +145,6 @@ class QualikizTransportModel(
     qualikiz_inputs = self._prepare_qualikiz_inputs(
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
         nref=dynamic_runtime_params_slice.numerics.nref,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
         transport=transport,
         geo=geo,
         core_profiles=core_profiles,
