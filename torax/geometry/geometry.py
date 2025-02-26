@@ -114,16 +114,111 @@ class GeometryType(enum.IntEnum):
 
 @chex.dataclass(frozen=True)
 class Geometry:
-  """Describes the magnetic geometry.
+  r"""Describes the magnetic geometry.
 
   Most users should default to using the StandardGeometry class, whether the
-  source of their geometry comes from CHEASE, MEQ, etc.
+  source of their geometry comes from CHEASE, MEQ, EQDSK, etc.
 
   Properties work for both 1D radial arrays and 2D stacked arrays where the
   leading dimension is time.
+
+  Attributes:
+    geometry_type: Type of geometry model used. See `GeometryType` for options.
+    torax_mesh: `Grid1D` object representing the radial mesh used by TORAX.
+    Phi: Toroidal magnetic flux at each radial grid point
+      [:math:`\mathrm{Wb}`].
+    Phi_face: Toroidal magnetic flux at each radial face [:math:`\mathrm{Wb}`].
+    Rmaj: Tokamak major radius (geometric center) [:math:`\mathrm{m}`].
+    Rmin: Tokamak minor radius [:math:`\mathrm{m}`].
+    B0: Vacuum toroidal magnetic field on axis [:math:`\mathrm{T}`].
+    volume: Plasma volume enclosed by each flux surface on cell grid
+      [:math:`\mathrm{m}^3`].
+    volume_face: Plasma volume enclosed by each flux surface on face grid
+      [:math:`\mathrm{m}^3`].
+    area: Poloidal cross-sectional area of each flux surface on cell grid
+      [:math:`\mathrm{m}^2`].
+    area_face: Poloidal cross-sectional area of each flux surface on face grid
+      [:math:`\mathrm{m}^2`].
+    vpr: Derivative of plasma volume enclosed by each flux surface with respect
+      to the normalized toroidal flux coordinate rho_norm on cell grid
+      [:math:`\mathrm{m}^3`].
+    vpr_face: Derivative of plasma volume enclosed by each flux surface with
+      respect to the normalized toroidal flux coordinate rho_face_norm, on face
+      grid [:math:`\mathrm{m}^3`].
+    spr: Derivative of plasma surface area enclosed by each flux surface, with
+      respect to the normalized toroidal flux coordinate rho_norm on cell grid
+      [:math:`\mathrm{m}^2`]. Equal to vpr / (:math:`2 \pi` Rmaj).
+    spr_face: Derivative of plasma surface area enclosed by each flux surface,
+      with respect to the normalized toroidal flux coordinate rho_face_norm on
+      face grid [:math:`\mathrm{m}^2`]. Equal to
+      vpr_face / (:math:`2 \pi` Rmaj).
+    spr_hires: Derivative of plasma surface area enclosed by each flux surface
+      on a higher resolution grid, with respect to the normalized toroidal flux
+      coordinate rho_norm. [:math:`\mathrm{m}^2`].
+    rho_hires: Toroidal flux coordinate on a higher resolution grid
+      [:math:`\mathrm{m}`].
+    rho_hires_norm: Normalized toroidal flux coordinate on a higher resolution
+      grid [dimensionless].
+    g0: Flux surface averaged radial derivative of the plasma volume:
+      :math:`\langle \nabla V \rangle` on cell grid [:math:`\mathrm{m}^2`].
+    g0_face: Flux surface averaged :math:`\langle \nabla V \rangle` on the
+      faces [:math:`\mathrm{m}^2`].
+    g1: Flux surface averaged :math:`\langle (\nabla V)^2 \rangle` on cell grid
+      [:math:`\mathrm{m}^4`].
+    g1_face: Flux surface averaged :math:`\langle (\nabla V)^2 \rangle` on the
+      faces [:math:`\mathrm{m}^4`].
+    g2: Flux surface averaged :math:`\langle (\nabla V)^2 / R^2 \rangle` on
+      cell grid [:math:`\mathrm{m}^2`], where R is the major radius along the
+      flux surface being averaged.
+    g2_face: Flux surface averaged :math:`\langle (\nabla V)^2 / R^2 \rangle`
+      on the faces [:math:`\mathrm{m}^2`].
+    g3: Flux surface averaged :math:`\langle 1 / R^2 \rangle` on cell grid
+      [:math:`\mathrm{m}^{-2}`].
+    g3_face: Flux surface averaged :math:`\langle 1 / R^2 \rangle` on the faces
+      [:math:`\mathrm{m}^{-2}`].
+    g2g3_over_rhon: Ratio of g2g3 to the normalized toroidal flux coordinate
+      rho_norm on cell grid [dimensionless].
+    g2g3_over_rhon_face: Ratio of g2g3 to the normalized toroidal flux
+      coordinate rho_norm on face grid [dimensionless].
+    g2g3_over_rhon_hires: Ratio of g2g3 to the normalized toroidal flux
+      coordinate rho_norm on a higher resolution grid [dimensionless].
+    F: Toroidal field flux function, :math:`F \equiv RB_\phi` on cell grid,
+      where :math:`R` is major radius, and :math:`B_\phi` is the toroidal
+      magnetic field [:math:`\mathrm{T m}`].
+    F_face: Toroidal field flux function, :math:`F \equiv RB_\phi` on face grid
+      [:math:`\mathrm{T m}`].
+    F_hires: Toroidal field flux function, :math:`F \equiv RB_\phi` on the high
+      resolution grid [:math:`\mathrm{T m}`].
+    Rin: Radius of the flux surface at the inboard side at midplane
+      [:math:`\mathrm{m}`] on cell grid. Inboard side is defined as the minimum
+      radial extent of the flux surface.
+    Rin_face: Radius of the flux surface at the inboard side at midplane
+      [:math:`\mathrm{m}`] on face grid.
+    Rout: Radius of the flux surface at the outboard side at midplane
+      [:math:`\mathrm{m}`] on cell grid. Outboard side is defined as the
+      maximum radial extent of the flux surface.
+    Rout_face: Radius of the flux surface at the outboard side at midplane
+      [:math:`\mathrm{m}`] on face grid.
+    delta_face: Average of upper and lower triangularity of each flux surface
+      at the faces [dimensionless]. Upper triangularity is defined as
+      (Rmaj_local - R_upper) / Rmin_local, where Rmaj_local = (Rout+Rin)/2,
+      Rmin_local = (Rout-Rin)/2, and R_upper is the radial location of the
+      upper extent of the flux surface. Lower triangularity is defined as
+      (Rmaj_local - R_lower) / Rmin_local, where R_lower is the radial
+      location of the lower extent of the flux surface.
+    elongation: Plasma elongation profile on cell grid [dimensionless].
+      Elongation is defined as (Z_upper - Z_lower) / (2.0 * Rmin_local),
+      where Z_upper and Z_lower are the Z coordinates of the upper and lower
+      extent of the flux surface.
+    elongation_face: Plasma elongation profile on face grid [dimensionless].
+    Phibdot: Time derivative of the toroidal magnetic flux
+      [:math:`\mathrm{Wb/s}`]. Calculated across a time interval using ``Phi``
+      from the Geometry objects at time t and t + dt.
+      See ``torax.orchestration.step_function`` for more details.
+    _z_magnetic_axis: Vertical position of the magnetic axis
+      [:math:`\mathrm{m}`].
   """
 
-  # TODO(b/356356966): extend documentation to define what each attribute is.
   geometry_type: GeometryType
   torax_mesh: Grid1D
   Phi: chex.Array
@@ -180,60 +275,76 @@ class Geometry:
 
   @property
   def rho_norm(self) -> chex.Array:
+    r"""Normalized toroidal flux coordinate on cell grid [dimensionless]."""
     return self.torax_mesh.cell_centers
 
   @property
   def rho_face_norm(self) -> chex.Array:
+    r"""Normalized toroidal flux coordinate on face grid [dimensionless]."""
     return self.torax_mesh.face_centers
 
   @property
   def drho_norm(self) -> chex.Array:
+    r"""Grid size for rho_norm [dimensionless]."""
     return jnp.array(self.torax_mesh.dx)
 
   @property
   def rho_face(self) -> chex.Array:
+    r"""Toroidal flux coordinate on face grid :math:`\mathrm{m}`."""
     return self.rho_face_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
   def rho(self) -> chex.Array:
+    r"""Toroidal flux coordinate on cell grid :math:`\mathrm{m}`.
+
+    The toroidal flux coordinate is defined as
+    :math:`\rho=\sqrt{\frac{\Phi}{\pi B_0}}`, where :math:`\Phi` is the
+    toroidal flux enclosed by the flux surface, and :math:`B_0` the magnetic
+    field on the magnetic axis.
+    """
     return self.rho_norm * jnp.expand_dims(self.rho_b, axis=-1)
 
   @property
   def rmid(self) -> chex.Array:
+    """Midplane radius of the plasma [m], defined as (Rout-Rin)/2."""
     return (self.Rout - self.Rin) / 2
 
   @property
   def rmid_face(self) -> chex.Array:
+    """Midplane radius of the plasma on the face grid [m]."""
     return (self.Rout_face - self.Rin_face) / 2
 
   @property
   def drho(self) -> chex.Array:
+    """Grid size for rho [m]."""
     return self.drho_norm * self.rho_b
 
   @property
   def rho_b(self) -> chex.Array:
-    """Toroidal flux coordinate at boundary (LCFS)."""
+    """Toroidal flux coordinate [m] at boundary (LCFS)."""
     return jnp.sqrt(self.Phib / np.pi / self.B0)
 
   @property
   def Phib(self) -> chex.Array:
-    """Toroidal flux at boundary (LCFS)."""
+    r"""Toroidal flux at boundary (LCFS) :math:`\mathrm{Wb}`."""
     return self.Phi_face[..., -1]
 
   @property
   def g1_over_vpr(self) -> chex.Array:
+    r"""g1/vpr [:math:`\mathrm{m}`]."""
     return self.g1 / self.vpr
 
   @property
   def g1_over_vpr2(self) -> chex.Array:
+    r"""g1/vpr**2 [:math:`\mathrm{m}^{-2}`]."""
     return self.g1 / self.vpr**2
 
   @property
   def g0_over_vpr_face(self) -> jax.Array:
+    """g0_face/vpr_face [:math:`m^{-1}`], equal to 1/rho_b on-axis."""
     # Calculate the bulk of the array (excluding the first element)
     # to avoid division by zero.
     bulk = self.g0_face[..., 1:] / self.vpr_face[..., 1:]
-    # Correct value on-axis is 1/rho_b
     first_element = jnp.ones_like(self.rho_b) / self.rho_b
     # Concatenate to handle both 1D (no leading dim) and 2D cases
     return jnp.concatenate(
@@ -242,8 +353,8 @@ class Geometry:
 
   @property
   def g1_over_vpr_face(self) -> jax.Array:
+    r"""g1_face/vpr_face [:math:`\mathrm{m}`]. Zero on-axis."""
     bulk = self.g1_face[..., 1:] / self.vpr_face[..., 1:]
-    # Correct value on-axis is 0
     first_element = jnp.zeros_like(self.rho_b)
     return jnp.concatenate(
         [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
@@ -251,14 +362,15 @@ class Geometry:
 
   @property
   def g1_over_vpr2_face(self) -> jax.Array:
+    """g1_face/vpr_face**2 [:math:`m^{-2}`], equal to 1/rho_b**2 on-axis."""
     bulk = self.g1_face[..., 1:] / self.vpr_face[..., 1:] ** 2
-    # Correct value on-axis is 1/rho_b**2
     first_element = jnp.ones_like(self.rho_b) / self.rho_b**2
     return jnp.concatenate(
         [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
     )
 
   def z_magnetic_axis(self) -> chex.Numeric:
+    """z position of magnetic axis [m]."""
     z_magnetic_axis = self._z_magnetic_axis
     if z_magnetic_axis is not None:
       return z_magnetic_axis

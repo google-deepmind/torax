@@ -44,9 +44,31 @@ from torax.geometry import geometry_provider
 
 @chex.dataclass(frozen=True)
 class StandardGeometry(geometry.Geometry):
-  """Standard geometry object including additional useful attributes, like psi.
+  r"""Standard geometry object including additional useful attributes, like psi.
 
-  Most instances of Geometry should be of this type.
+  Most instances of Geometry should be of this type.  This class extends
+  the base `Geometry` class with attributes that are commonly computed
+  from various equilibrium data sources (CHEASE, FBT, EQDSK, etc.).
+
+  Attributes:
+    Ip_from_parameters: Boolean indicating whether the total plasma current
+      (`Ip_tot`) is determined by the config parameters (True) or read from the
+      geometry file (False).
+    Ip_profile_face: Plasma current profile on the face grid
+      [:math:`\mathrm{A}`].
+    psi: 1D poloidal flux profile on the cell grid [:math:`\mathrm{Wb}`].
+    psi_from_Ip: Poloidal flux profile on the cell grid  [:math:`\mathrm{Wb}`],
+      calculated from the plasma current profile in the geometry file.
+    psi_from_Ip_face: Poloidal flux profile on the face grid [Wb], calculated
+      from the plasma current profile in the geometry file.
+    jtot: Total toroidal current density profile on the cell grid
+      [:math:`\mathrm{A/m^2}`].
+    jtot_face: Total toroidal current density profile on the face grid
+      [:math:`\mathrm{A/m^2}`].
+    delta_upper_face: Upper triangularity on the face grid [dimensionless].
+      See `Geometry` docstring for definition.
+    delta_lower_face: Lower triangularity on the face grid [dimensionless].
+      See `Geometry` docstring for definition.
   """
 
   Ip_from_parameters: bool
@@ -84,43 +106,61 @@ class StandardGeometryProvider(geometry_provider.TimeDependentGeometryProvider):
 
 @dataclasses.dataclass(frozen=True)
 class StandardGeometryIntermediates:
-  """Holds the intermediate values used to build a StandardGeometry.
+  r"""Holds the intermediate values used to build a StandardGeometry.
 
   In particular these are the values that are used when interpolating different
-  geometries.
+  geometries.  These intermediates are typically extracted directly from
+  equilibrium solver outputs (like CHEASE, FBT, or EQDSK) and then used to
+  construct a `StandardGeometry` instance.
 
   TODO(b/335204606): Specify the expected COCOS format.
   NOTE: Right now, TORAX does not have a specified COCOS format. Our team is
-  working on adding this and updating documentation to make that clear. Of
-  course, the CHEASE input data is COCOS 2, still.
+  working on adding this and updating documentation to make that clear. The
+  CHEASE input data is still COCOS 2.
 
   All inputs are 1D profiles vs normalized rho toroidal (rhon).
 
-  Ip_from_parameters: If True, the Ip is taken from the parameters and the
-    values in the Geometry are resacled to match the new Ip.
-  Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so this
-    is used as an unnormalization factor.
-  Rmin: minor radius (a) in meters
-  B: Toroidal magnetic field on axis [T].
-  psi: Poloidal flux profile
-  Ip_profile: Plasma current profile
-  Phi: Toroidal flux profile
-  Rin: Radius of the flux surface at the inboard side at midplane
-  Rout: Radius of the flux surface at the outboard side at midplane
-  F: Toroidal field flux function
-  int_dl_over_Bp: 1/ oint (dl / Bp) (contour integral)
-  flux_surf_avg_1_over_R2: <1/R**2>
-  flux_surf_avg_Bp2: <Bp**2>
-  flux_surf_avg_RBp: <R Bp>
-  flux_surf_avg_R2Bp2: <R**2 Bp**2>
-  delta_upper_face: Triangularity on upper face
-  delta_lower_face: Triangularity on lower face
-  elongation: Plasma elongation profile
-  vpr: dVolume/drhonorm profile
-  n_rho: Radial grid points (num cells)
-  hires_fac: Grid refinement factor for poloidal flux <--> plasma current
-    calculations.
-  z_magnetic_axis: z position of magnetic axis [m]
+  Attributes:
+    geometry_type:  The type of geometry being represented
+      (e.g., CHEASE, FBT, EQDSK).
+    Ip_from_parameters: If True, the Ip is taken from the parameters and the
+      values in the Geometry are rescaled to match the new Ip.
+    Rmaj: major radius on the magnetic axis in [:math:`\mathrm{m}`].
+    Rmin: minor radius (a) in [:math:`\mathrm{m}`].
+    B: Toroidal magnetic field on axis [:math:`\mathrm{T}`].
+    psi: Poloidal flux profile [:math:`\mathrm{Wb}`].
+    Ip_profile: Plasma current profile [:math:`\mathrm{A}`].
+    Phi: Toroidal flux profile [:math:`\mathrm{Wb}`].
+    Rin: Radius of the flux surface at the inboard side at midplane
+      [:math:`\mathrm{m}`]. Inboard side is defined as the innermost radius.
+    Rout: Radius of the flux surface at the outboard side at midplane
+      [:math:`\mathrm{m}`]. Outboard side is defined as the outermost radius.
+    F: Toroidal field flux function (:math:`F = R B_{\phi}`)
+      [:math:`\mathrm{m T}`].
+    int_dl_over_Bp: :math:`\oint dl/B_p` (field-line contour integral
+      on the flux surface) [:math:`\mathrm{m / T}`], where :math:`B_p` is the
+      poloidal magnetic field.
+    flux_surf_avg_1_over_R2: Flux surface average of :math:`1/R^2`
+      [:math:`\mathrm{m^{-2}}`].
+    flux_surf_avg_Bp2: Flux surface average of :math:`B_p^2`
+      [:math:`\mathrm{T^2}`].
+    flux_surf_avg_RBp: Flux surface average of :math:`R B_p`
+      [:math:`\mathrm{m T}`].
+    flux_surf_avg_R2Bp2: Flux surface average of :math:`R^2 B_p^2`
+      [:math:`\mathrm{m^2 T^2}`].
+    delta_upper_face: Upper triangularity [dimensionless].
+      See `Geometry` docstring for definition.
+    delta_lower_face: Lower triangularity [dimensionless].
+      See `Geometry` docstring for definition.
+    elongation: Plasma elongation profile [dimensionless].
+      See `Geometry` docstring for definition.
+    vpr:  Profile of dVolume/d(rho_norm), where rho_norm is the normalized
+      toroidal flux coordinate [:math:`\mathrm{m^3}`].
+    n_rho: Radial grid points (number of cells).
+    hires_fac: Grid refinement factor for poloidal flux <--> plasma current
+      calculations. Used to create a higher-resolution grid to improve
+      accuracy when initializing psi from a plasma current profile.
+    z_magnetic_axis: z position of magnetic axis [:math:`\mathrm{m}`].
   """
 
   geometry_type: geometry.GeometryType
@@ -213,7 +253,7 @@ class StandardGeometryIntermediates:
         implementation.
       geometry_file: CHEASE file name.
       Ip_from_parameters: If True, the Ip is taken from the parameters and the
-        values in the Geometry are resacled to match the new Ip.
+        values in the Geometry are rescaled to match the new Ip.
       n_rho: Radial grid points (num cells)
       Rmaj: major radius (R) in meters. CHEASE geometries are normalized, so
         this is used as an unnormalization factor.
