@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for calc_coeffs."""
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -31,7 +30,6 @@ from torax.transport_model import constant as constant_transport_model
 
 
 class CoreProfileSettersTest(parameterized.TestCase):
-  """Unit tests for calc_coeffs."""
 
   @parameterized.parameters([
       dict(num_cells=2, theta_imp=0, set_pedestal=False),
@@ -42,7 +40,6 @@ class CoreProfileSettersTest(parameterized.TestCase):
   def test_calc_coeffs_smoke_test(
       self, num_cells, theta_imp, set_pedestal
   ):
-    """Smoke test for calc_coeffs both with and without pedestal."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=set_pedestal,

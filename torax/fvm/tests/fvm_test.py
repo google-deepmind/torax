@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.fvm."""
-
 import copy
 import dataclasses
 from typing import Callable
@@ -44,7 +42,6 @@ from torax.transport_model import constant as constant_transport_model
 
 
 class FVMTest(torax_refs.ReferenceValueTest):
-  """Unit tests for the `torax.fvm` module."""
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -53,7 +50,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
           references_getter=torax_refs.chease_references_Ip_from_runtime_params
       ),
   ])
-  def test_face_grad(
+  def test_face_grad_matches_reference_values(
       self,
       references_getter: Callable[[], torax_refs.References],
   ):
