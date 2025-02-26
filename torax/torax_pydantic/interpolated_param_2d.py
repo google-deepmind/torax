@@ -50,6 +50,15 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
   )
   rho_norm_grid: model_base.NumpyArray | None = None
 
+  @functools.cached_property
+  def right_boundary_conditions_defined(self) -> bool:
+    """Checks if the boundary condition at rho=1.0 is always defined."""
+
+    for rho_norm, _ in self.value.values():
+      if 1.0 not in rho_norm:
+        return False
+    return True
+
   @pydantic.model_validator(mode='before')
   @classmethod
   def _conform_data(

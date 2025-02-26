@@ -237,6 +237,28 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     out2 = interpolated.get_value(x=0.0)
     self.assertEqual(out2.tolist(), [v2, v2, v2])
 
+  def test_right_boundary_conditions_defined(self):
+    """Tests that right_boundary_conditions_defined works correctly."""
+
+    with self.subTest('float_input'):
+      # A single float is interpreted as defined at rho=0.
+      self.assertFalse(
+          interpolated_param_2d.TimeVaryingArray.model_validate(
+              1.0
+          ).right_boundary_conditions_defined
+      )
+
+    with self.subTest('xarray'):
+      value = xr.DataArray(
+          data=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+          coords={'time': [0.0, 1.0], 'rho_norm': [0.25, 0.5, 1.0]},
+      )
+      self.assertTrue(
+          interpolated_param_2d.TimeVaryingArray.model_validate(
+              value
+          ).right_boundary_conditions_defined
+      )
+
 
 if __name__ == '__main__':
   absltest.main()
