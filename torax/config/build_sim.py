@@ -21,9 +21,8 @@ from typing import Any
 from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
-from torax.geometry import circular_geometry
-from torax.geometry import geometry_provider
-from torax.geometry import standard_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
+
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_pped_tpedratio_nped
 from torax.pedestal_model import set_tped_nped
@@ -51,149 +50,6 @@ except ImportError:
 from torax.transport_model import transport_model as transport_model_lib
 # pylint: enable=g-import-not-at-top
 # pylint: disable=invalid-name
-
-
-def _build_standard_geometry_provider(
-    geometry_type: str,
-    **kwargs,
-) -> geometry_provider.GeometryProvider:
-  """Constructs a geometry provider for a standard geometry."""
-  global_params = {'Ip_from_parameters', 'n_rho', 'geometry_dir'}
-  if geometry_type == 'chease':
-    intermediate_builder = (
-        standard_geometry.StandardGeometryIntermediates.from_chease
-    )
-  elif geometry_type == 'fbt':
-    # Check if parameters indicate a bundled FBT file and input validity.
-    if 'LY_bundle_object' in kwargs:
-      if 'geometry_configs' in kwargs:
-        raise ValueError(
-            "Cannot use 'geometry_configs' together with a bundled FBT file"
-        )
-      if 'LY_object' in kwargs:
-        raise ValueError(
-            "Cannot use 'LY_object' together with a bundled FBT file"
-        )
-      # Build and return the GeometryProvider for the bundled case.
-      intermediates = (
-          standard_geometry.StandardGeometryIntermediates.from_fbt_bundle(
-              **kwargs,
-          )
-      )
-      geometries = {
-          t: standard_geometry.build_standard_geometry(intermediates[t])
-          for t in intermediates
-      }
-      return standard_geometry.StandardGeometryProvider.create_provider(
-          geometries
-      )
-    else:
-      intermediate_builder = (
-          standard_geometry.StandardGeometryIntermediates.from_fbt_single_slice
-      )
-  elif geometry_type == 'eqdsk':
-    intermediate_builder = (
-        standard_geometry.StandardGeometryIntermediates.from_eqdsk
-    )
-  else:
-    raise ValueError(f'Unknown geometry type: {geometry_type}')
-  if 'geometry_configs' in kwargs:
-    # geometry config has sequence of standalone geometry files.
-    if not isinstance(kwargs['geometry_configs'], dict):
-      raise ValueError('geometry_configs must be a dict.')
-    geometries = {}
-    global_kwargs = {key: kwargs[key] for key in global_params if key in kwargs}
-    for time, config in kwargs['geometry_configs'].items():
-      if x := global_params.intersection(config):
-        raise ValueError(
-            'The following parameters cannot be set per geometry_config:'
-            f' {", ".join(x)}'
-        )
-      config.update(global_kwargs)
-      geometries[time] = standard_geometry.build_standard_geometry(
-          intermediate_builder(
-              **config,
-          )
-      )
-    return standard_geometry.StandardGeometryProvider.create_provider(
-        geometries
-    )
-  return geometry_provider.ConstantGeometryProvider(
-      standard_geometry.build_standard_geometry(
-          intermediate_builder(
-              **kwargs,
-          )
-      )
-  )
-
-
-def _build_circular_geometry_provider(
-    **kwargs,
-) -> geometry_provider.GeometryProvider:
-  """Builds a `GeometryProvider` from the input config."""
-  if 'geometry_configs' in kwargs:
-    if not isinstance(kwargs['geometry_configs'], dict):
-      raise ValueError('geometry_configs must be a dict.')
-    if 'n_rho' not in kwargs:
-      raise ValueError('n_rho must be set in the input config.')
-    geometries = {}
-    for time, c in kwargs['geometry_configs'].items():
-      geometries[time] = circular_geometry.build_circular_geometry(
-          n_rho=kwargs['n_rho'], **c
-      )
-    return geometry_provider.TimeDependentGeometryProvider.create_provider(
-        geometries
-    )
-  return geometry_provider.ConstantGeometryProvider(
-      circular_geometry.build_circular_geometry(**kwargs)
-  )
-
-
-def build_geometry_provider_from_config(
-    geometry_config: Mapping[str, Any],
-) -> geometry_provider.GeometryProvider:
-  """Builds a `Geometry` from the input config.
-
-  The input config has one required key: `geometry_type`. Its value must be one
-  of:
-
-   -  "circular"
-   -  "chease"
-   -  "fbt"
-
-  Depending on the `geometry_type` given, there are different keys/values
-  expected in the rest of the config. See the following functions to get a full
-  list of the arguments exposed:
-
-   -  `circular_geometry.build_circular_geometry()`
-   -  `geometry.StandardGeometryIntermediates.from_chease()`
-   -  `geometry.StandardGeometryIntermediates.from_fbt()`
-
-   For time dependent geometries, the input config should have a key
-  `geometry_configs` which maps times to a dict of geometry config args.
-
-  Args:
-    geometry_config: Python dictionary containing keys/values that map onto a
-      `geometry` module function that builds a `Geometry` object.
-
-  Returns:
-    A `GeometryProvider` based on the input config.
-  """
-  if 'geometry_type' not in geometry_config:
-    raise ValueError('geometry_type must be set in the input config.')
-  # Do a shallow copy to keep references to the original objects while not
-  # modifying the original config dict with the pop-statement below.
-  kwargs = dict(geometry_config)
-  geometry_type = kwargs.pop('geometry_type').lower()  # Remove from kwargs.
-  if geometry_type == 'circular':
-    return _build_circular_geometry_provider(**kwargs)
-  # elif geometry_type == 'chease' or geometry_type == 'fbt':
-  elif geometry_type in ['chease', 'fbt', 'eqdsk']:
-    return _build_standard_geometry_provider(
-        geometry_type=geometry_type, **kwargs
-    )
-
-  raise ValueError(f'Unknown geometry type: {geometry_type}')
 
 
 def build_sim_from_config(
@@ -275,7 +131,9 @@ def build_sim_from_config(
         ' for more info.'
     )
   runtime_params = build_runtime_params_from_config(config['runtime_params'])
-  geo_provider = build_geometry_provider_from_config(config['geometry'])
+  geo_provider = geometry_pydantic_model.Geometry.from_dict(
+      config['geometry']
+  ).build_provider()
 
   if 'restart' in config:
     file_restart = runtime_params_lib.FileRestart(**config['restart'])

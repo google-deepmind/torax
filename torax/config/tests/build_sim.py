@@ -21,19 +21,15 @@ from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.geometry import circular_geometry
-from torax.geometry import geometry_provider
-from torax.geometry import standard_geometry
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
-from torax.stepper import runtime_params as stepper_params
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_transport_model
-from torax.transport_model import runtime_params as transport_model_params
 
 
 class BuildSimTest(parameterized.TestCase):
@@ -194,110 +190,6 @@ class BuildSimTest(parameterized.TestCase):
     np.testing.assert_allclose(
         dynamic_runtime_params_slice.numerics.resistivity_mult, 0.6
     )
-
-  def test_missing_geometry_type_raises_error(self):
-    with self.assertRaises(ValueError):
-      build_sim.build_geometry_provider_from_config({})
-
-  def test_build_circular_geometry(self):
-    geo_provider = build_sim.build_geometry_provider_from_config({
-        'geometry_type': 'circular',
-        'n_rho': 5,  # override a default.
-    })
-    self.assertIsInstance(
-        geo_provider, geometry_provider.ConstantGeometryProvider
-    )
-    geo = geo_provider(t=0)
-    np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 5)
-    np.testing.assert_array_equal(geo.B0, 5.3)  # test a default.
-
-  def test_build_geometry_from_chease(self):
-    geo_provider = build_sim.build_geometry_provider_from_config(
-        {
-            'geometry_type': 'chease',
-            'n_rho': 5,  # override a default.
-        },
-    )
-    self.assertIsInstance(
-        geo_provider, geometry_provider.ConstantGeometryProvider
-    )
-    self.assertIsInstance(geo_provider(t=0), standard_geometry.StandardGeometry)
-    np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 5)
-
-  def test_build_time_dependent_geometry_from_chease(self):
-    """Tests correctness of config constraints with time-dependent geometry."""
-
-    base_config = {
-        'geometry_type': 'chease',
-        'Ip_from_parameters': True,
-        'n_rho': 10,  # overrides the default
-        'geometry_configs': {
-            0.0: {
-                'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-                'Rmaj': 6.2,
-                'Rmin': 2.0,
-                'B0': 5.3,
-            },
-            1.0: {
-                'geometry_file': 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-                'Rmaj': 6.2,
-                'Rmin': 2.0,
-                'B0': 5.3,
-            },
-        },
-    }
-
-    # Test valid config
-    geo_provider = build_sim.build_geometry_provider_from_config(base_config)
-    self.assertIsInstance(
-        geo_provider, standard_geometry.StandardGeometryProvider
-    )
-    self.assertIsInstance(geo_provider(t=0), standard_geometry.StandardGeometry)
-    np.testing.assert_array_equal(geo_provider.torax_mesh.nx, 10)
-
-    # Test invalid configs:
-    for param, value in zip(
-        ['n_rho', 'Ip_from_parameters', 'geometry_dir'], [5, True, '.']
-    ):
-      for time_key in [0.0, 1.0]:
-        invalid_config = base_config.copy()
-        invalid_config['geometry_configs'][time_key][param] = value
-        with self.assertRaises(ValueError):
-          build_sim.build_geometry_provider_from_config(invalid_config)
-
-  # pylint: disable=invalid-name
-  def test_chease_geometry_updates_Ip(self):
-    """Tests that the Ip is updated when using chease geometry."""
-    runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    original_Ip_tot = runtime_params.profile_conditions.Ip_tot
-    geo_provider = build_sim.build_geometry_provider_from_config({
-        'geometry_type': 'chease',
-        'Ip_from_parameters': (
-            False
-        ),  # this will force update runtime_params.Ip_tot
-    })
-    runtime_params_provider = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            transport=transport_model_params.RuntimeParams(),
-            sources={},
-            stepper=stepper_params.RuntimeParams(),
-            torax_mesh=geo_provider.torax_mesh,
-        )
-    )
-    dynamic_slice, geo = (
-        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
-            t=0,
-            dynamic_runtime_params_slice_provider=runtime_params_provider,
-            geometry_provider=geo_provider,
-        )
-    )
-    self.assertIsInstance(geo, standard_geometry.StandardGeometry)
-    self.assertIsNotNone(dynamic_slice)
-    self.assertNotEqual(
-        dynamic_slice.profile_conditions.Ip_tot, original_Ip_tot
-    )
-    # pylint: enable=invalid-name
 
   def test_empty_source_config_only_has_defaults_turned_off(self):
     """Tests that an empty source config has all sources turned off."""
@@ -503,6 +395,7 @@ class BuildSimTest(parameterized.TestCase):
         calculator_type
     )
     self.assertIsInstance(time_stepper, expected_type)
+
 
 if __name__ == '__main__':
   absltest.main()

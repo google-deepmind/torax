@@ -18,9 +18,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
-from torax.config import build_sim
 from torax.geometry import geometry
 from torax.geometry import geometry_loader
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.geometry import standard_geometry
 
 # Internal import.
@@ -67,8 +67,7 @@ class GeometryTest(parameterized.TestCase):
     foo(geo)
 
   def test_build_geometry_from_chease(self):
-    intermediate = standard_geometry.StandardGeometryIntermediates.from_chease()
-    standard_geometry.build_standard_geometry(intermediate)
+    geometry_pydantic_model.CheaseConfig().build_geometry()
 
   @parameterized.parameters([
       dict(geometry_file='eqdsk_cocos02.eqdsk'),
@@ -76,10 +75,8 @@ class GeometryTest(parameterized.TestCase):
   ])
   def test_build_geometry_from_eqdsk(self, geometry_file):
     """Test that EQDSK geometries can be built."""
-    intermediate = standard_geometry.StandardGeometryIntermediates.from_eqdsk(
-        geometry_file=geometry_file
-    )
-    standard_geometry.build_standard_geometry(intermediate)
+    config = geometry_pydantic_model.EQDSKConfig(geometry_file=geometry_file)
+    config.build_geometry()
 
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""

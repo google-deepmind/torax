@@ -34,8 +34,8 @@ from torax import simulation_app
 from torax.config import build_sim
 from torax.config import config_loader
 from torax.config import runtime_params
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.plotting import plotruns_lib
-
 
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '
@@ -246,9 +246,9 @@ def change_config(
     new_runtime_params = build_sim.build_runtime_params_from_config(
         sim_config['runtime_params']
     )
-    new_geo_provider = build_sim.build_geometry_provider_from_config(
-        sim_config['geometry'],
-    )
+    new_geo_provider = geometry_pydantic_model.Geometry.from_dict(
+        sim_config['geometry']
+    ).build_provider()
     new_transport_model_builder = (
         build_sim.build_transport_model_builder_from_config(
             sim_config['transport']
@@ -299,7 +299,7 @@ def change_config(
 
 
 def change_sim_obj(
-    config_module_str: str
+    config_module_str: str,
 ) -> tuple[sim_lib.Sim, runtime_params.GeneralRuntimeParams, str]:
   """Builds a new Sim from the config module.
 
@@ -554,7 +554,8 @@ def main(_):
           try:
             start_time = time.time()
             sim_and_runtime_params_or_none = change_config(
-                sim, config_module_str)
+                sim, config_module_str
+            )
             if sim_and_runtime_params_or_none is not None:
               sim, new_runtime_params = sim_and_runtime_params_or_none
             config_change_time = time.time() - start_time

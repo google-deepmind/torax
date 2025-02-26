@@ -575,13 +575,13 @@ class StandardGeometryIntermediates:
   @classmethod
   def from_eqdsk(
       cls,
-      geometry_dir: str | None = None,
-      geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk',
-      hires_fac: int = 4,
-      Ip_from_parameters: bool = True,
-      n_rho: int = 25,
-      n_surfaces: int = 100,
-      last_surface_factor: float = 0.99,
+      geometry_dir: str | None,
+      geometry_file: str,
+      hires_fac: int,
+      Ip_from_parameters: bool,
+      n_rho: int,
+      n_surfaces: int,
+      last_surface_factor: float,
   ) -> StandardGeometryIntermediates:
     """Constructs a StandardGeometryIntermediates from EQDSK.
 
