@@ -47,10 +47,16 @@ Testing
 
 TORAX's tests are written in the `[pytest] <https://docs.pytest.org/en/stable/>`_ framework
 
-While all tests are run automatically on GitHub when you push a pull request, it is a good
-idea to run them locally while you are developing your feature.
+While all tests are run automatically on GitHub when you push a pull request, it
+is a good idea to run them locally while you are developing your feature. Ensure
+that you have installed the required developer dependencies (including pytest)
+by having run the following command from the TORAX root directory:
 
-To run all tests, run the following command from the root of the TORAX repository:
+.. code-block:: console
+
+  pip install -e .[dev]
+
+To run all tests, run the following command from the TORAX root directory:
 
 .. code-block:: console
 
@@ -62,7 +68,7 @@ It is recommended to run tests with the environment variable ``TORAX_ERRORS_ENAB
 enable full test coverage. However, it is then recommended to revert back to ``TORAX_ERRORS_ENABLED=False``
 when running TORAX in production mode, to enable the persistent JAX cache.
 
-To run a specific test, run the following command from the root of the TORAX repository,
+To run a specific test, run the following command from the TORAX root directory,
 in this case running all the geometry tests.
 
 .. code-block:: console
@@ -82,7 +88,7 @@ Where appropiate, please add tests for your changes.
 An important class of test is the sim test. These are integration tests running
 the configs in the ``torax/tests/test_data/`` directory, and comparing to the ground-truth
 ``.nc`` TORAX outputs found in the same directory. Sim tests can be triggered separately
-by a command (from the root of the TORAX repository) such as:
+by a command (from the TORAX root directory) such as:
 
 .. code-block:: console
 
@@ -93,7 +99,7 @@ This is useful for debugging, and also to stage new output files for replacing t
 if you expect that your change to the code produces different outputs.
 
 To compare the absolute and relative differences between the failed sim tests
-to the ground-truth files, run the following command from the root of the TORAX repository:
+to the ground-truth files, run the following command from the TORAX root directory:
 
 .. code-block:: console
 
@@ -127,7 +133,7 @@ directory ``/tmp/torax_failed_sim_test_outputs``.
 Finally, there are use-cases where it is desirable to rerun all the sim tests,
 even if the tests are passing. An example is when the output API changes and we
 wish to keep all the test ``.nc`` files up-to-date. In this case, run the following
-command from the root of the TORAX repository:
+command from the TORAX root directory:
 
 .. code-block:: console
 
@@ -142,3 +148,17 @@ The ``compare_sim_tests.py`` can be used for sanity checking the outputs, and th
 ``copy_sim_tests.py`` can be used to replace the ground-truth files. Note that the
 ``--failed_test_output_dir`` flag in the compare and copy scripts needs to be set
 to the same output directory as the ``run_and_save_all_benchmarks.py`` script.
+
+.. important::
+  When making changes to the output structure, e.g. adding or removing fields,
+  a subset of the sim tests will fail. To pass these specific tests, it is
+  required to update ``implicit.nc``, ``test_changing_config_before.nc``, and
+  ``test_changing_config_after.nc``. However, the recommended workflow when
+  changing   output API is to run the ``run_and_save_all_benchmarks.py`` script,
+  which also updates the aforementioned files. When doing so, it is further
+  strongly recommended to afterwards run the ``compare_sim_tests.py`` script to
+  verify that the changes to the ground-truth files are as expected. For pure
+  output API changes, these should be zero. Results of ``compare_sim_tests.py``
+  should be shared in the pull request discussion.
+
+
