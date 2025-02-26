@@ -80,8 +80,7 @@ class GeometryTest(parameterized.TestCase):
 
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
     """Test that accessing z_magnetic_axis raises error for CHEASE geometry."""
-    intermediate = standard_geometry.StandardGeometryIntermediates.from_chease()
-    geo = standard_geometry.build_standard_geometry(intermediate)
+    geo = geometry_pydantic_model.CheaseConfig().build_geometry()
     with self.assertRaisesRegex(ValueError, 'does not have a z magnetic axis'):
       geo.z_magnetic_axis()
 
