@@ -40,7 +40,7 @@ from torax.transport_model import transport_model as transport_model_lib
 
 
 class CoeffsCallback:
-  """Implements fvm.Block1DCoeffsCallback using calc_coeffs.
+  """Calculates Block1DCoeffs for a state.
 
   Attributes:
     static_runtime_params_slice: See the docstring for `stepper.Stepper`.
@@ -78,6 +78,39 @@ class CoeffsCallback:
       # should be called
       explicit_call: bool = False,
   ) -> block_1d_coeffs.Block1DCoeffs:
+    """Returns coefficients given a state. Can be called in various modes.
+
+    The typical sequence is:
+    call 1: x=x_old
+    call 2 (optional): x=x_old, allow_pereverzev=True
+    Subsequent calls until iterations are finished: x=x_new
+
+    x_old is the initial state at the beginning of the iterations.
+    The optional call 2 is done when a linear step is used for the initial
+    guess for the nonlinear iterations, and may involve the transport coeffs
+    including the Pereverzev Corrigan terms.
+    All subsequent calls are within the nonlinear iteration loops, where
+    x_new is a solution from within the iterations and may not yet be the
+    final output x_new.
+
+    Args:
+      dynamic_runtime_params_slice: Runtime configuration parameters. These
+        values are potentially time-dependent and should correspond to the time
+        step of the state x.
+      geo: The geometry of the system at this time step.
+      core_profiles: The core profiles of the system at this time step.
+      x: The state.
+      allow_pereverzev: If True, then the coeffs are being called for an initial
+        guess based on a linear step as opposed to just passing the iniitial
+        state. This is a special case which may lead to the pereverzev-corrigan
+        terms being included in calc_coeffs.
+      explicit_call: If True, then if theta_imp=1, only a reduced Block1DCoeffs
+        is calculated since most explicit coefficients will not be used.
+
+    Returns:
+      coeffs: The diffusion, convection, etc. coefficients for this state.
+    """
+
     # Update core_profiles with the subset of new values of evolving variables
     replace = {k: v for k, v in zip(self.evolving_names, x)}
     core_profiles = config_args.recursive_replace(core_profiles, **replace)

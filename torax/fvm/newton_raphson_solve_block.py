@@ -28,6 +28,7 @@ from torax import jax_utils
 from torax import state as state_module
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
+from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import enums
 from torax.fvm import fvm_conversions
@@ -38,9 +39,6 @@ from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
 from torax.transport_model import transport_model as transport_model_lib
-
-AuxiliaryOutput = block_1d_coeffs.AuxiliaryOutput
-Block1DCoeffsCallback = block_1d_coeffs.Block1DCoeffsCallback
 
 
 # Delta is a vector. If no entry of delta is above this magnitude, we terminate
@@ -96,7 +94,7 @@ def newton_raphson_solve_block(
     explicit_source_profiles: source_profiles.SourceProfiles,
     source_models: source_models_lib.SourceModels,
     pedestal_model: pedestal_model_lib.PedestalModel,
-    coeffs_callback: Block1DCoeffsCallback,
+    coeffs_callback: calc_coeffs.CoeffsCallback,
     evolving_names: tuple[str, ...],
     initial_guess_mode: enums.InitialGuessMode,
     maxiter: int,
@@ -108,7 +106,7 @@ def newton_raphson_solve_block(
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state_module.StepperNumericOutputs,
-    AuxiliaryOutput,
+    block_1d_coeffs.AuxiliaryOutput,
 ]:
   # pyformat: disable  # pyformat removes line breaks needed for reability
   """Runs one time step of a Newton-Raphson based root-finding on the equation defined by `coeffs`.

@@ -24,6 +24,7 @@ from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
+from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import implicit_solve_block
 from torax.geometry import geometry
@@ -38,7 +39,7 @@ def predictor_corrector_method(
     x_new_guess: tuple[cell_variable.CellVariable, ...],
     core_profiles_t_plus_dt: state.CoreProfiles,
     coeffs_exp: block_1d_coeffs.Block1DCoeffs,
-    coeffs_callback: block_1d_coeffs.Block1DCoeffsCallback,
+    coeffs_callback: calc_coeffs.CoeffsCallback,
 ) -> tuple[tuple[cell_variable.CellVariable, ...], Any]:
   """Predictor-corrector method.
 

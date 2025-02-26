@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""The Block1DCoeffs dataclass and a callback protocol for communicating it.
+"""The Block1DCoeffs dataclass.
 
 This is the key interface between the `fvm` module, which is abstracted to the
 level of a coupled 1D fluid dynamics PDE, and the rest of `torax`, which
@@ -20,14 +20,10 @@ includes
 calculations specific to plasma physics to provide these coefficients.
 """
 
-from typing import Any, Optional, Protocol, TypeAlias
+from typing import Any, Optional, TypeAlias
 
 import chex
 import jax
-from torax import state
-from torax.config import runtime_params_slice
-from torax.fvm import cell_variable
-from torax.geometry import geometry
 
 
 # An optional argument, consisting of a 2D matrix of nested tuples, with each
@@ -100,50 +96,3 @@ class Block1DCoeffs:
   source_mat_cell: OptionalTupleMatrix = None
   source_cell: Optional[tuple[Optional[jax.Array], ...]] = None
   auxiliary_outputs: Optional[AuxiliaryOutput] = None
-
-
-class Block1DCoeffsCallback(Protocol):
-  """Protocol for calculating the Block1DCoeffs for a state."""
-
-  def __call__(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
-      core_profiles: state.CoreProfiles,
-      x: tuple[cell_variable.CellVariable, ...],
-      allow_pereverzev: bool = False,
-      explicit_call: bool = False,
-  ) -> Block1DCoeffs:
-    """Returns coefficients given a state. Can be called in various modes.
-
-    The typical sequence is:
-    call 1: x=x_old
-    call 2 (optional): x=x_old, allow_pereverzev=True
-    Subsequent calls until iterations are finished: x=x_new
-
-    x_old is the initial state at the beginning of the iterations.
-    The optional call 2 is done when a linear step is used for the initial
-    guess for the nonlinear iterations, and may involve the transport coeffs
-    including the Pereverzev Corrigan terms.
-    All subsequent calls are within the nonlinear iteration loops, where
-    x_new is a solution from within the iterations and may not yet be the
-    final output x_new.
-
-    Args:
-      dynamic_runtime_params_slice: Runtime configuration parameters. These
-        values are potentially time-dependent and should correspond to the time
-        step of the state x.
-      geo: The geometry of the system at this time step.
-      core_profiles: The core profiles of the system at this time step.
-      x: The state.
-      allow_pereverzev: If True, then the coeffs are being called for an initial
-        guess based on a linear step as opposed to just passing the iniitial
-        state. This is a special case which may lead to the pereverzev-corrigan
-        terms being included in calc_coeffs.
-      explicit_call: If True, then if theta_imp=1, only a reduced Block1DCoeffs
-        is calculated since most explicit coefficients will not be used.
-
-    Returns:
-      coeffs: The diffusion, convection, etc. coefficients for this state.
-    """
-    ...

@@ -22,6 +22,7 @@ import jax
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
+from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import enums
 from torax.fvm import fvm_conversions
@@ -35,7 +36,6 @@ from torax.transport_model import transport_model as transport_model_lib
 
 
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
-Block1DCoeffsCallback: TypeAlias = block_1d_coeffs.Block1DCoeffsCallback
 
 
 def optimizer_solve_block(
@@ -52,7 +52,7 @@ def optimizer_solve_block(
     explicit_source_profiles: source_profiles.SourceProfiles,
     source_models: source_models_lib.SourceModels,
     pedestal_model: pedestal_model_lib.PedestalModel,
-    coeffs_callback: Block1DCoeffsCallback,
+    coeffs_callback: calc_coeffs.CoeffsCallback,
     evolving_names: tuple[str, ...],
     initial_guess_mode: enums.InitialGuessMode,
     maxiter: int,
@@ -60,7 +60,7 @@ def optimizer_solve_block(
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state.StepperNumericOutputs,
-    AuxiliaryOutput,
+    block_1d_coeffs.AuxiliaryOutput,
 ]:
   # pyformat: disable  # pyformat removes line breaks needed for readability
   """Runs one time step of an optimization-based solver on the equation defined by `coeffs`.

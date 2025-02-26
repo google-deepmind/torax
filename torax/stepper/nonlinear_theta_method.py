@@ -19,7 +19,6 @@ from __future__ import annotations
 import abc
 from collections.abc import Callable
 import dataclasses
-from typing import Type
 
 import chex
 import jax
@@ -50,21 +49,7 @@ class NonlinearThetaMethod(stepper.Stepper):
       call to Stepper, the same sources should be used to compute those. The
       Sources are exposed here to provide a single source of truth for which
       sources are used during a run.
-    callback_class: Which class should be used to calculate the PDE coefficients
-      for the linear and predictor-corrector initial guess routines.
   """
-
-  def __init__(
-      self,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      callback_class: Type[
-          calc_coeffs.CoeffsCallback
-      ] = calc_coeffs.CoeffsCallback,
-  ):
-    super().__init__(transport_model, source_models, pedestal_model)
-    self.callback_class = callback_class
 
   def _x_new(
       self,
@@ -86,7 +71,7 @@ class NonlinearThetaMethod(stepper.Stepper):
   ]:
     """See Stepper._x_new docstring."""
 
-    coeffs_callback = self.callback_class(
+    coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,

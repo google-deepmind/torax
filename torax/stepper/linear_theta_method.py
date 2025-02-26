@@ -16,7 +16,7 @@
 
 from collections.abc import Callable
 import dataclasses
-from typing import Type, TypeAlias
+from typing import TypeAlias
 
 import jax
 from torax import state
@@ -35,18 +35,6 @@ from torax.transport_model import transport_model as transport_model_lib
 
 class LinearThetaMethod(stepper_lib.Stepper):
   """Time step update using theta method, linearized on coefficients at t."""
-
-  def __init__(
-      self,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-      callback_class: Type[
-          calc_coeffs.CoeffsCallback
-      ] = calc_coeffs.CoeffsCallback,
-  ):
-    super().__init__(transport_model, source_models, pedestal_model)
-    self.callback_class = callback_class
 
   def _x_new(
       self,
@@ -73,8 +61,7 @@ class LinearThetaMethod(stepper_lib.Stepper):
         [core_profiles_t_plus_dt[name] for name in evolving_names]
     )
 
-    # Instantiate coeffs_callback class
-    coeffs_callback = self.callback_class(
+    coeffs_callback = calc_coeffs.CoeffsCallback(
         static_runtime_params_slice=static_runtime_params_slice,
         transport_model=self.transport_model,
         explicit_source_profiles=explicit_source_profiles,
