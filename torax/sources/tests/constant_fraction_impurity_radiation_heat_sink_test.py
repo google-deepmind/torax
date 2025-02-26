@@ -17,7 +17,7 @@ from absl.testing import absltest
 import chex
 from torax import math_utils
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_ion_el_heat_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_profiles
@@ -29,7 +29,8 @@ from torax.sources.tests import test_lib
 
 
 class ImpurityRadiationConstantFractionTest(
-    test_lib.SingleProfileSourceTestCase):
+    test_lib.SingleProfileSourceTestCase
+):
 
   @classmethod
   def setUpClass(cls):
@@ -71,19 +72,22 @@ class ImpurityRadiationConstantFractionTest(
 
     dynamic_slice = mock.create_autospec(
         runtime_params_slice.DynamicRuntimeParamsSlice,
-        sources={heat_name: heat_dynamic,
-                 impurity_name: impurity_radiation_dynamic})
+        sources={
+            heat_name: heat_dynamic,
+            impurity_name: impurity_radiation_dynamic,
+        },
+    )
 
     static_slice = mock.create_autospec(
         runtime_params_slice.StaticRuntimeParamsSlice,
-        sources={heat_name: static, impurity_name: static}
+        sources={heat_name: static, impurity_name: static},
     )
 
     heat_source = generic_ion_el_heat_source.GenericIonElectronHeatSource(
         model_func=generic_ion_el_heat_source.default_formula,
     )
 
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     el, ion = heat_source.get_value(
         static_slice,
         dynamic_slice,
@@ -107,7 +111,7 @@ class ImpurityRadiationConstantFractionTest(
                 qei=mock.ANY,
                 temp_el={'foo': el},
                 temp_ion={'foo_source': ion},
-            )
+            ),
         )
     )
 

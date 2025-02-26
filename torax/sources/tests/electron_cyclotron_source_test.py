@@ -16,7 +16,7 @@ import jax.numpy as jnp
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import electron_cyclotron_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -50,7 +50,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     source = source_models.sources[self._source_name]
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,

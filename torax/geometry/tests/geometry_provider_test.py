@@ -16,27 +16,27 @@ import dataclasses
 
 from absl.testing import absltest
 import numpy as np
-from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
+from torax.geometry import pydantic_model as geometry_pydantic_model
 
 
 class GeometryProviderTest(absltest.TestCase):
 
   def test_constant_geometry_return_same_value(self):
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = geometry_provider.ConstantGeometryProvider(geo)
     self.assertEqual(provider(0.0), geo)
     self.assertEqual(provider(1.0), geo)
     self.assertEqual(provider(2.0), geo)
 
   def test_time_dependent_geometry_return_different_values(self):
-    geo_0 = circular_geometry.build_circular_geometry(
+    geo_0 = geometry_pydantic_model.CircularConfig(
         Rmaj=6.2, Rmin=2.0, B0=5.3
-    )
-    geo_1 = circular_geometry.build_circular_geometry(
+    ).build_geometry()
+    geo_1 = geometry_pydantic_model.CircularConfig(
         Rmaj=7.4, Rmin=1.0, B0=6.5
-    )
+    ).build_geometry()
     provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
         {0.0: geo_0, 10.0: geo_1}
     )
@@ -46,7 +46,7 @@ class GeometryProviderTest(absltest.TestCase):
     np.testing.assert_allclose(geo.B0, 5.9)
 
   def test_time_dependent_different_types(self):
-    geo_0 = circular_geometry.build_circular_geometry()
+    geo_0 = geometry_pydantic_model.CircularConfig().build_geometry()
     geo_1 = dataclasses.replace(geo_0, geometry_type=geometry.GeometryType.FBT)
     with self.assertRaisesRegex(
         ValueError, "All geometries must have the same geometry type."
@@ -56,8 +56,8 @@ class GeometryProviderTest(absltest.TestCase):
       )
 
   def test_time_dependent_different_meshes(self):
-    geo_0 = circular_geometry.build_circular_geometry(n_rho=25)
-    geo_1 = circular_geometry.build_circular_geometry(n_rho=50)
+    geo_0 = geometry_pydantic_model.CircularConfig(n_rho=25).build_geometry()
+    geo_1 = geometry_pydantic_model.CircularConfig(n_rho=50).build_geometry()
     with self.assertRaisesRegex(
         ValueError, "All geometries must have the same mesh."
     ):
@@ -66,7 +66,7 @@ class GeometryProviderTest(absltest.TestCase):
       )
 
   def test_none_z_magnetic_axis_stays_none_time_dependent(self):
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     geo = dataclasses.replace(geo, _z_magnetic_axis=None)
     provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
         {0.0: geo, 10.0: geo}

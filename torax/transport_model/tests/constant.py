@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tests for constant transport model."""
 from absl.testing import absltest
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.transport_model import constant
 
 
@@ -21,7 +21,7 @@ class RuntimeParamsTest(absltest.TestCase):
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = constant.RuntimeParams()
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
 

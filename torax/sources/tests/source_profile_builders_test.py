@@ -21,7 +21,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source
 from torax.sources import source_models as source_models_lib
@@ -34,7 +34,7 @@ class SourceModelsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.geo = circular_geometry.build_circular_geometry()
+    self.geo = geometry_pydantic_model.CircularConfig().build_geometry()
 
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""

@@ -28,7 +28,7 @@ from torax import core_profile_setters
 from torax import physics
 from torax import state
 from torax.fvm import cell_variable
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.geometry import standard_geometry
 from torax.sources import generic_current_source
 from torax.sources import source_profiles
@@ -310,14 +310,14 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
 
   def test_calculate_plh_scaling_factor(self):
     """Compare `calculate_plh_scaling_factor` to a reference value."""
-    geo = circular_geometry.build_circular_geometry(
+    geo = geometry_pydantic_model.CircularConfig(
         n_rho=25,
         elongation_LCFS=1.0,
         hires_fac=4,
         Rmaj=6.0,
         Rmin=2.0,
         B0=5.0,
-    )
+    ).build_geometry()
     core_profiles = state.CoreProfiles(
         ne=cell_variable.CellVariable(
             value=jnp.ones_like(geo.rho_norm) * 2,
@@ -411,14 +411,14 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
   # pylint: disable=invalid-name
   def test_calculate_scaling_law_confinement_time(self, elongation_LCFS):
     """Compare `calculate_scaling_law_confinement_time` to reference values."""
-    geo = circular_geometry.build_circular_geometry(
+    geo = geometry_pydantic_model.CircularConfig(
         n_rho=25,
         elongation_LCFS=elongation_LCFS,
         hires_fac=4,
         Rmaj=6.0,
         Rmin=2.0,
         B0=5.0,
-    )
+    ).build_geometry()
     core_profiles = state.CoreProfiles(
         ne=cell_variable.CellVariable(
             value=jnp.ones_like(geo.rho_norm) * 2,
@@ -563,13 +563,13 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     # Small inverse aspect ratio limit of circular geometry, such that we
     # approximate the simplest form of circular geometry where the analytical
     # Bpol formula is applicable.
-    geo = circular_geometry.build_circular_geometry(
+    geo = geometry_pydantic_model.CircularConfig(
         n_rho=25,
         elongation_LCFS=1.0,
         Rmaj=100.0,
         Rmin=1.0,
         B0=5.0,
-    )
+    ).build_geometry()
     Ip_tot = 15
     # calculate high resolution jtot consistent with total current profile
     jtot_profile = (1 - geo.rho_hires_norm**2) ** 2

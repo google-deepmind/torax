@@ -24,7 +24,7 @@ from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_models as source_models_lib
 
 
@@ -69,7 +69,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
         ),
     )
 
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     initial_dynamic_runtime_params_slice = (

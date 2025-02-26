@@ -23,7 +23,7 @@ import jax.numpy as jnp
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -91,7 +91,7 @@ class SourceTestCase(parameterized.TestCase):
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = self._runtime_params_class()
     self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_params = provider.build_dynamic_params(t=0.0)
     self.assertIsInstance(
@@ -140,7 +140,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     source = source_models.sources[self._source_name]
     source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
     self.assertIsInstance(source, source_lib.Source)
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
@@ -168,7 +168,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
           temp_el={'foo_source': jnp.full(geo.rho.shape, 17.0)},
           temp_ion={'foo_sink': jnp.full(geo.rho.shape, 19.0)},
           ne={},
-          qei=source_profiles.QeiInfo.zeros(geo)
+          qei=source_profiles.QeiInfo.zeros(geo),
       )
     else:
       calculated_source_profiles = None
@@ -192,7 +192,7 @@ class IonElSourceTestCase(SourceTestCase):
     source_builder = self._source_class_builder()
     # pylint: enable=missing-kwoa
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder(
         {self._source_name: source_builder},
     )
