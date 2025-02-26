@@ -354,15 +354,16 @@ def _helium3_tail_temperature(
   helium3_charge = 2
   helium3_fraction = minority_concentration / 100  # Min conc provided in %.
   absorbed_power_density = power_deposition_he3 * Ptot
+  ne20 = core_profiles.ne.value * core_profiles.nref / 1e20
   # Use a "Stix distribution" [Stix, Nuc. Fus. 1975] to model the non-thermal
   # He3 distribution based on an analytic solution to the FP equation.
-  epsilon = (
+  xi = (
       0.24
       * jnp.sqrt(core_profiles.temp_el.value)
       * helium3_mass
       * absorbed_power_density
-  ) / (core_profiles.ne.value**2 * helium3_charge**2 * helium3_fraction)
-  return core_profiles.temp_el.value * (1 + epsilon)
+  ) / (ne20**2 * helium3_charge**2 * helium3_fraction)
+  return core_profiles.temp_el.value * (1 + xi)
 
 
 def icrh_model_func(
