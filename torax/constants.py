@@ -51,6 +51,7 @@ class Constants:
   epsilon0: chex.Numeric
   mu0: chex.Numeric
   eps: chex.Numeric
+  c: chex.Numeric
 
 
 CONSTANTS: Final[Constants] = Constants(
@@ -61,6 +62,7 @@ CONSTANTS: Final[Constants] = Constants(
     epsilon0=8.854e-12,
     mu0=4 * jnp.pi * 1e-7,
     eps=1e-7,
+    c=2.99792458e8,
 )
 
 # Taken from
