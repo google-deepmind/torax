@@ -18,7 +18,7 @@ from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source as source_lib
 from torax.sources import source_operations
 from torax.sources import source_profiles as source_profiles_lib
@@ -45,7 +45,7 @@ class FooSource(source_lib.Source):
 class SourceOperationsTest(parameterized.TestCase):
 
   def test_summed_temp_ion_profiles_dont_change_when_jitting(self):
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
 
     # Make some dummy source profiles that could have come from these sources.
     ones = jnp.ones_like(geo.rho)
@@ -84,6 +84,7 @@ class SourceOperationsTest(parameterized.TestCase):
       )
       jitted_temp_el = sum_temp_el(geo, profiles)
       np.testing.assert_allclose(jitted_temp_el, ones * 10 * geo.vpr)
+
 
 if __name__ == '__main__':
   absltest.main()

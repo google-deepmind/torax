@@ -1,4 +1,3 @@
-
 # Copyright 2024 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +17,7 @@ import numpy as np
 from torax.config import plasma_composition
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_ion_el_heat_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -82,7 +81,7 @@ class ImpurityRadiationMavrinFitTest(test_lib.SourceTestCase):
     self.assertIsInstance(impurity_radiation_sink, source_lib.Source)
 
     # Geometry, profiles, and dynamic runtime params
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
 
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(

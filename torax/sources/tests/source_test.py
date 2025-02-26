@@ -19,7 +19,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
@@ -158,7 +158,7 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -187,8 +187,7 @@ class SourceTest(parameterized.TestCase):
         calculated_source_profiles=None,
     )
     np.testing.assert_allclose(
-        profile[0],
-        np.zeros_like(geo.torax_mesh.cell_centers)
+        profile[0], np.zeros_like(geo.torax_mesh.cell_centers)
     )
 
   @parameterized.parameters(
@@ -208,7 +207,7 @@ class SourceTest(parameterized.TestCase):
     source = source_models.sources['foo']
     source_runtime_params = source_models_builder.runtime_params
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = circular_geometry.build_circular_geometry(n_rho=4)
+    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
     source_runtime_params['foo'] = dataclasses.replace(
         source_models_builder.runtime_params['foo'],
         mode=mode,
@@ -254,7 +253,7 @@ class SourceTest(parameterized.TestCase):
     source_models = source_models_builder()
     source = source_models.sources['foo']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -319,7 +318,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_overriding_model(self):
     """The user-specified model should override the default model."""
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     expected_output = (jnp.ones_like(geo.rho),)
     source_builder = source_lib.make_source_builder(
         IonElTestSource,
@@ -363,7 +362,7 @@ class SourceTest(parameterized.TestCase):
 
   def test_overriding_prescribed_values(self):
     """Providing prescribed values results in the correct profile."""
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     # Define the expected output
     expected_output = (jnp.ones_like(geo.rho),)
     # Create the source

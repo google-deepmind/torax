@@ -40,10 +40,8 @@ class CircularGeometryTest(absltest.TestCase):
         B0=5.3,
         hires_fac=4,
     )
-    provider = (
-        geometry_provider.TimeDependentGeometryProvider.create_provider(
-            {0.0: geo_0, 10.0: geo_1}
-        )
+    provider = geometry_provider.TimeDependentGeometryProvider.create_provider(
+        {0.0: geo_0, 10.0: geo_1}
     )
     geo = provider(5.0)
     np.testing.assert_allclose(geo.Rmaj, 6.7)
@@ -55,7 +53,14 @@ class CircularGeometryTest(absltest.TestCase):
     def foo(geo: geometry.Geometry):
       return geo.Rmaj
 
-    geo = circular_geometry.build_circular_geometry()
+    geo = circular_geometry.build_circular_geometry(
+        n_rho=25,
+        elongation_LCFS=1.72,
+        Rmaj=6.2,
+        Rmin=2.0,
+        B0=5.3,
+        hires_fac=4,
+    )
     # Make sure you can call the function with geo as an arg.
     foo(geo)
 

@@ -22,7 +22,7 @@ import numpy as np
 from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model
 from torax.sources import source_models as source_models_lib
 from torax.stepper import runtime_params as stepper_runtime_params
@@ -31,6 +31,7 @@ from torax.stepper import runtime_params as stepper_runtime_params
 # pylint: disable=g-import-not-at-top
 try:
   from torax.transport_model import qualikiz_transport_model
+
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
 except ImportError:
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
@@ -43,7 +44,7 @@ class RuntimeParamsTest(absltest.TestCase):
     if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
       self.skipTest('Qualikiz transport model is not available.')
     runtime_params = qualikiz_transport_model.RuntimeParams()
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
 
@@ -59,7 +60,7 @@ class QualikizTransportModelTest(absltest.TestCase):
     os.environ['TORAX_COMPILATION_ENABLED'] = '0'
 
     # Building the model inputs.
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()

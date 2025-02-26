@@ -30,8 +30,8 @@ from torax import state
 from torax.config import build_sim as build_sim_lib
 from torax.config import numerics as numerics_lib
 from torax.config import runtime_params as runtime_params_lib
-from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
@@ -39,7 +39,6 @@ from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
 import xarray as xr
-
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
@@ -523,7 +522,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
     geo_provider = geometry_provider.ConstantGeometryProvider(
-        circular_geometry.build_circular_geometry()
+        geometry_pydantic_model.CircularConfig().build_geometry()
     )
 
     sim = sim_lib.Sim.create(
@@ -738,9 +737,9 @@ class SimTest(sim_test_case.SimTestCase):
         'test_iterhybrid_predictor_corrector_eqdsk.py'
     ).CONFIG
     sim.update_base_components(
-        geometry_provider=build_sim_lib.build_geometry_provider_from_config(
+        geometry_provider=geometry_pydantic_model.Geometry.from_dict(
             new_config['geometry']
-        )
+        ).build_provider()
     )
     sim_outputs = sim.run()
 
@@ -763,9 +762,9 @@ class SimTest(sim_test_case.SimTestCase):
     sim = self._get_sim('test_iterhybrid_rampup.py')
     with self.assertRaisesRegex(ValueError, 'different mesh'):
       sim.update_base_components(
-          geometry_provider=geometry_provider.ConstantGeometryProvider(
-              circular_geometry.build_circular_geometry(n_rho=10)
-          )
+          geometry_provider=geometry_pydantic_model.Geometry.from_dict(
+              {'geometry_type': 'circular', 'n_rho': 10}
+          ).build_provider()
       )
 
 

@@ -234,14 +234,14 @@ class StandardGeometryIntermediates:
   @classmethod
   def from_chease(
       cls,
-      geometry_dir: str | None = None,
-      geometry_file: str = 'ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-      Ip_from_parameters: bool = True,
-      n_rho: int = 25,
-      Rmaj: float = 6.2,
-      Rmin: float = 2.0,
-      B0: float = 5.3,
-      hires_fac: int = 4,
+      geometry_dir: str | None,
+      geometry_file: str,
+      Ip_from_parameters: bool,
+      n_rho: int,
+      Rmaj: float,
+      Rmin: float,
+      B0: float,
+      hires_fac: int,
   ) -> StandardGeometryIntermediates:
     """Constructs a StandardGeometryIntermediates from a CHEASE file.
 
@@ -575,13 +575,13 @@ class StandardGeometryIntermediates:
   @classmethod
   def from_eqdsk(
       cls,
-      geometry_dir: str | None = None,
-      geometry_file: str = 'EQDSK_ITERhybrid_COCOS02.eqdsk',
-      hires_fac: int = 4,
-      Ip_from_parameters: bool = True,
-      n_rho: int = 25,
-      n_surfaces: int = 100,
-      last_surface_factor: float = 0.99,
+      geometry_dir: str | None,
+      geometry_file: str,
+      hires_fac: int,
+      Ip_from_parameters: bool,
+      n_rho: int,
+      n_surfaces: int,
+      last_surface_factor: float,
   ) -> StandardGeometryIntermediates:
     """Constructs a StandardGeometryIntermediates from EQDSK.
 
