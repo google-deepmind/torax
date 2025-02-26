@@ -14,6 +14,7 @@
 
 """Pydantic config for Torax."""
 
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_model_config
 from torax.time_step_calculator import config as time_step_calculator_config
 from torax.torax_pydantic import model_base
@@ -27,5 +28,6 @@ class ToraxConfig(model_base.BaseModelMutable):
     pedestal: Config for the pedestal model.
   """
 
-  time_step_calculator: time_step_calculator_config.TimeStepCalculator
+  geometry: geometry_pydantic_model.Geometry
   pedestal: pedestal_model_config.PedestalModel
+  time_step_calculator: time_step_calculator_config.TimeStepCalculator
