@@ -15,12 +15,12 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax.config import build_runtime_params
 from torax.config import runtime_params as runtime_params_lib
-from torax.config import runtime_params_slice
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model
 from torax.geometry import standard_geometry
-from torax.stepper import runtime_params as stepper_params
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_model_params
 
 
@@ -141,16 +141,16 @@ class PydanticModelTest(parameterized.TestCase):
         ),  # this will force update runtime_params.Ip_tot
     }).build_provider()
     runtime_params_provider = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             transport=transport_model_params.RuntimeParams(),
             sources={},
-            stepper=stepper_params.RuntimeParams(),
+            stepper=stepper_pydantic_model.Stepper(),
             torax_mesh=geo_provider.torax_mesh,
         )
     )
     dynamic_slice, geo = (
-        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=0,
             dynamic_runtime_params_slice_provider=runtime_params_provider,
             geometry_provider=geo_provider,

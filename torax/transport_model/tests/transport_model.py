@@ -21,6 +21,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import state
+from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -64,7 +65,7 @@ class TransportSmoothingTest(parameterized.TestCase):
     )
     pedestal_model = pedestal_model_builder()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
@@ -74,7 +75,7 @@ class TransportSmoothingTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -242,7 +243,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
     )
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
@@ -252,7 +253,7 @@ class TransportSmoothingTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,

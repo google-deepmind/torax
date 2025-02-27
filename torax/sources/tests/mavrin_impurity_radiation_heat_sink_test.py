@@ -14,9 +14,9 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax.config import build_runtime_params
 from torax.config import plasma_composition
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_ion_el_heat_source
 from torax.sources import runtime_params as runtime_params_lib
@@ -84,7 +84,7 @@ class ImpurityRadiationMavrinFitTest(test_lib.SourceTestCase):
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
 
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,

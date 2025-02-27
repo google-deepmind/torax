@@ -34,7 +34,7 @@ from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
-from torax.stepper import linear_theta_method
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.transport_model import constant as constant_transport_model
@@ -528,7 +528,7 @@ class SimTest(sim_test_case.SimTestCase):
     sim = sim_lib.Sim.create(
         runtime_params=runtime_params,
         geometry_provider=geo_provider,
-        stepper_builder=linear_theta_method.LinearThetaMethodBuilder(),
+        stepper=stepper_pydantic_model.Stepper(),
         transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
         source_models_builder=source_models_lib.SourceModelsBuilder(),
         time_step_calculator=time_step_calculator,
