@@ -16,8 +16,8 @@
 
 import copy
 from typing import Any, Literal
-
 import pydantic
+from torax.torax_pydantic import interpolated_param_1d
 from torax.torax_pydantic import torax_pydantic
 
 
@@ -35,11 +35,19 @@ class SetPpedTpedRatioNped(torax_pydantic.BaseModelMutable):
     rho_norm_ped_top: The location of the pedestal top.
   """
   pedestal_model: Literal['set_pped_tpedratio_nped']
-  Pped: torax_pydantic.Pascal = 1e5
-  neped: torax_pydantic.Density = 0.7
+  Pped: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1e5)
+  )
+  neped: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.7)
+  )
   neped_is_fGW: bool = False
-  ion_electron_temperature_ratio: torax_pydantic.OpenUnitInterval = 1.0
-  rho_norm_ped_top: torax_pydantic.UnitInterval = 0.91
+  ion_electron_temperature_ratio: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  rho_norm_ped_top: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.91)
+  )
 
 
 class SetTpedNped(torax_pydantic.BaseModelMutable):
@@ -53,16 +61,25 @@ class SetTpedNped(torax_pydantic.BaseModelMutable):
     Teped: Electron temperature at the pedestal [keV].
     rho_norm_ped_top: The location of the pedestal top.
   """
+
   pedestal_model: Literal['set_tped_nped']
-  neped: torax_pydantic.Density = 0.7
+  neped: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.7)
+  )
   neped_is_fGW: bool = False
-  Tiped: torax_pydantic.KiloElectronVolt = 5.0
-  Teped: torax_pydantic.KiloElectronVolt = 5.0
-  rho_norm_ped_top: torax_pydantic.UnitInterval = 0.91
+  Tiped: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(5.0)
+  )
+  Teped: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(5.0)
+  )
+  rho_norm_ped_top: interpolated_param_1d.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.91)
+  )
 
 
 class PedestalModel(torax_pydantic.BaseModelMutable):
-  """Config for a time step calculator."""
+  """Config for a pedestal model."""
   pedestal_config: SetPpedTpedRatioNped | SetTpedNped = pydantic.Field(
       discriminator='pedestal_model', default_factory=SetTpedNped,
   )
