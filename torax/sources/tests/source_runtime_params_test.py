@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from absl.testing import absltest
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
 
 
@@ -20,7 +20,7 @@ class RuntimeParamsTest(absltest.TestCase):
 
   def test_runtime_params_builds_dynamic_params(self):
     runtime_params = runtime_params_lib.RuntimeParams()
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     dynamic_params = provider.build_dynamic_params(t=0.0)
     self.assertIsInstance(

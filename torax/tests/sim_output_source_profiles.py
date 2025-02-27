@@ -28,9 +28,9 @@ import numpy as np
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.config import runtime_params as general_runtime_params
-from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.orchestration import step_function
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as runtime_params_lib
@@ -157,10 +157,11 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     })
     source_models = source_models_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    runtime_params.numerics.t_final = 2.
-    runtime_params.numerics.fixed_dt = 1.
-    geo = circular_geometry.build_circular_geometry()
+    runtime_params.numerics.t_final = 2.0
+    runtime_params.numerics.fixed_dt = 1.0
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     time_stepper = fixed_time_step_calculator.FixedTimeStepCalculator()
+
     def mock_step_fn(
         _,
         static_runtime_params_slice,
@@ -170,18 +171,22 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     ):
       dt = 1.0
       new_t = input_state.t + dt
-      return dataclasses.replace(
-          input_state,
-          t=new_t,
-          dt=dt,
-          time_step_calculator_state=(),
-          core_sources=source_profile_builders.get_initial_source_profiles(
-              static_runtime_params_slice,
-              dynamic_runtime_params_slice_provider(new_t),
-              geometry_provider(new_t),
-              core_profiles=input_state.core_profiles,
-              source_models=source_models),
-      ), state_module.SimError.NO_ERROR
+      return (
+          dataclasses.replace(
+              input_state,
+              t=new_t,
+              dt=dt,
+              time_step_calculator_state=(),
+              core_sources=source_profile_builders.get_initial_source_profiles(
+                  static_runtime_params_slice,
+                  dynamic_runtime_params_slice_provider(new_t),
+                  geometry_provider(new_t),
+                  core_profiles=input_state.core_profiles,
+                  source_models=source_models,
+              ),
+          ),
+          state_module.SimError.NO_ERROR,
+      )
 
     sim = sim_lib.Sim.create(
         runtime_params=runtime_params,

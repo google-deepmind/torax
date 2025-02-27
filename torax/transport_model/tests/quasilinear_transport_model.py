@@ -25,8 +25,8 @@ from torax import state
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
-from torax.geometry import circular_geometry
 from torax.geometry import geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
@@ -40,7 +40,7 @@ jax.config.update('jax_enable_x64', True)
 def _get_model_inputs(transport: quasilinear_transport_model.RuntimeParams):
   """Returns the model inputs for testing."""
   runtime_params = general_runtime_params.GeneralRuntimeParams()
-  geo = circular_geometry.build_circular_geometry()
+  geo = geometry_pydantic_model.CircularConfig().build_geometry()
   source_models_builder = source_models_lib.SourceModelsBuilder()
   source_models = source_models_builder()
   pedestal_model_builder = (
@@ -266,7 +266,7 @@ class FakeQuasilinearTransportModel(
 
 def _get_dummy_core_profiles(value, right_face_constraint):
   """Returns dummy core profiles for testing."""
-  geo = circular_geometry.build_circular_geometry()
+  geo = geometry_pydantic_model.CircularConfig().build_geometry()
   currents = state.Currents.zeros(geo)
   dummy_cell_variable = cell_variable.CellVariable(
       value=value,

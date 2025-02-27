@@ -29,7 +29,7 @@ from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_profile_builders
@@ -224,7 +224,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
         predictor_corrector=False,
         theta_imp=theta_imp,
     )
-    geo = circular_geometry.build_circular_geometry(n_rho=num_cells)
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=num_cells
+    ).build_geometry()
     transport_model_builder = (
         constant_transport_model.ConstantTransportModelBuilder(
             runtime_params=constant_transport_model.RuntimeParams(
@@ -392,7 +394,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
     pedestal_model_builder = (
         set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
     )
-    geo = circular_geometry.build_circular_geometry(n_rho=num_cells)
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=num_cells
+    ).build_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -413,7 +417,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
             stepper=stepper_params,
         )
     )
-    geo = circular_geometry.build_circular_geometry(n_rho=num_cells)
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=num_cells
+    ).build_geometry()
     source_models = source_models_builder()
     initial_core_profiles = core_profile_setters.initial_core_profiles(
         static_runtime_params_slice,
@@ -515,7 +521,9 @@ class FVMTest(torax_refs.ReferenceValueTest):
         predictor_corrector=False,
         theta_imp=0.0,
     )
-    geo = circular_geometry.build_circular_geometry(n_rho=num_cells)
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=num_cells
+    ).build_geometry()
     transport_model_builder = (
         constant_transport_model.ConstantTransportModelBuilder(
             runtime_params=constant_transport_model.RuntimeParams(

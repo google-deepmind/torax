@@ -21,8 +21,8 @@ import jax.numpy as jnp
 import numpy as np
 import scipy.integrate
 from torax import math_utils
-from torax.geometry import circular_geometry
 from torax.geometry import geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 
 jax.config.update('jax_enable_x64', True)
 
@@ -31,7 +31,7 @@ class MathUtilsTest(parameterized.TestCase):
   """Unit tests for the `torax.math_utils` module."""
 
   @parameterized.product(
-      initial=(None, 0.),
+      initial=(None, 0.0),
       axis=(-1, 1, -1),
       array_x=(False, True),
       dtype=(jnp.float32, jnp.float64),
@@ -73,7 +73,9 @@ class MathUtilsTest(parameterized.TestCase):
     x = jax.random.uniform(
         jax.random.PRNGKey(0), shape=(num_cell_grid_points + 1,)
     )
-    geo = circular_geometry.build_circular_geometry(n_rho=num_cell_grid_points)
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=num_cell_grid_points
+    ).build_geometry()
 
     np.testing.assert_allclose(
         math_utils.cell_integration(geometry.face_to_cell(x), geo),
@@ -144,7 +146,9 @@ class MathUtilsTest(parameterized.TestCase):
       preserved_quantity: math_utils.IntegralPreservationQuantity,
   ):
     """Test that the cell_to_face method works as expected."""
-    geo = circular_geometry.build_circular_geometry(n_rho=len(cell_values))
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=len(cell_values)
+    ).build_geometry()
     cell_values = jnp.array(cell_values, dtype=jnp.float32)
 
     face_values = math_utils.cell_to_face(cell_values, geo, preserved_quantity)
@@ -175,9 +179,11 @@ class MathUtilsTest(parameterized.TestCase):
             ),
         )
 
-  def test_cell_to_face_raises_when_too_few_values(self,):
+  def test_cell_to_face_raises_when_too_few_values(
+      self,
+  ):
     """Test that the cell_to_face method raises when too few values are provided."""
-    geo = circular_geometry.build_circular_geometry(n_rho=1)
+    geo = geometry_pydantic_model.CircularConfig(n_rho=1).build_geometry()
     with self.assertRaises(ValueError):
       math_utils.cell_to_face(jnp.array([1.0], dtype=np.float32), geo)
 

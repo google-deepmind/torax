@@ -20,7 +20,7 @@ import numpy as np
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
@@ -172,7 +172,7 @@ class BuildSimTest(parameterized.TestCase):
     self.assertEqual(runtime_params.plasma_composition.main_ion, 'D')
     self.assertEqual(runtime_params.profile_conditions.ne_is_fGW, False)
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
         runtime_params_slice.DynamicRuntimeParamsSliceProvider(
             runtime_params,

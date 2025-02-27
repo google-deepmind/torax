@@ -20,7 +20,7 @@ import numpy as np
 from torax import interpolated_param
 from torax.config import config_args
 from torax.config import profile_conditions
-from torax.geometry import circular_geometry
+from torax.geometry import pydantic_model as geometry_pydantic_model
 import xarray as xr
 
 
@@ -30,7 +30,7 @@ class ProfileConditionsTest(parameterized.TestCase):
 
   def test_profile_conditions_make_provider(self):
     pc = profile_conditions.ProfileConditions()
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = pc.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)
 
@@ -46,7 +46,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         Te={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         Te_bound_right=Te_bound_right,
     )
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = pc.make_provider(geo.torax_mesh)
     dcs = provider.build_dynamic_params(t=0.0)
     self.assertEqual(dcs.Te_bound_right, expected_initial_value)
@@ -65,7 +65,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         Ti={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         Ti_bound_right=Ti_bound_right,
     )
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = pc.make_provider(geo.torax_mesh)
     dcs = provider.build_dynamic_params(t=0.0)
     self.assertEqual(dcs.Ti_bound_right, expected_initial_value)
@@ -84,7 +84,7 @@ class ProfileConditionsTest(parameterized.TestCase):
         ne={0: {0: 1.0, 1: 2.0}, 1.5: {0: 100.0, 1: 200.0}},
         ne_bound_right=ne_bound_right,
     )
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = pc.make_provider(geo.torax_mesh)
     dcs = provider.build_dynamic_params(t=0.0)
     self.assertEqual(dcs.ne_bound_right, expected_initial_value)
@@ -126,7 +126,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       self, psi, expected_initial_value, expected_second_value
   ):
     """Tests that psi is set correctly."""
-    geo = circular_geometry.build_circular_geometry(n_rho=4)
+    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
     pc = profile_conditions.ProfileConditions(
         psi=psi,
     )
@@ -147,7 +147,7 @@ class ProfileConditionsTest(parameterized.TestCase):
   ):
     """Tests that interpolated vars are only constructed once."""
     pc = profile_conditions.ProfileConditions()
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = pc.make_provider(geo.torax_mesh)
     interpolated_params = {}
     for field in provider:

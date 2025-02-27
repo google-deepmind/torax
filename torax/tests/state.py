@@ -30,7 +30,6 @@ from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
@@ -173,7 +172,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     geo_provider = geometry_provider.ConstantGeometryProvider(
-        circular_geometry.build_circular_geometry()
+        geometry_pydantic_model.CircularConfig().build_geometry()
     )
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -207,7 +206,7 @@ class InitialStatesTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     geo_provider = geometry_provider.ConstantGeometryProvider(
-        circular_geometry.build_circular_geometry()
+        geometry_pydantic_model.CircularConfig().build_geometry()
     )
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -443,7 +442,7 @@ class InitialStatesTest(parameterized.TestCase):
             ne_bound_right=0.5,
         ),
     )
-    geo = circular_geometry.build_circular_geometry()
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dcs1 = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
         config1,
         sources=source_models_builder.runtime_params,
@@ -472,7 +471,7 @@ class InitialStatesTest(parameterized.TestCase):
     core_profiles1 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
         static_runtime_params_slice=static_slice,
-        geo=circular_geometry.build_circular_geometry(),
+        geo=geometry_pydantic_model.CircularConfig().build_geometry(),
         source_models=source_models,
     )
     static_slice = runtime_params_slice.build_static_runtime_params_slice(
@@ -483,7 +482,7 @@ class InitialStatesTest(parameterized.TestCase):
     core_profiles2 = core_profile_setters.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,
         static_runtime_params_slice=static_slice,
-        geo=circular_geometry.build_circular_geometry(),
+        geo=geometry_pydantic_model.CircularConfig().build_geometry(),
         source_models=source_models,
     )
     np.testing.assert_allclose(

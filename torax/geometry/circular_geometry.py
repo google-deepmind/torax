@@ -25,20 +25,18 @@ from torax.geometry import geometry
 # external physics implementations
 # pylint: disable=invalid-name
 def build_circular_geometry(
-    n_rho: int = 25,
-    elongation_LCFS: float = 1.72,
-    Rmaj: float = 6.2,
-    Rmin: float = 2.0,
-    B0: float = 5.3,
-    hires_fac: int = 4,
+    n_rho: int,
+    elongation_LCFS: float,
+    Rmaj: float,
+    Rmin: float,
+    B0: float,
+    hires_fac: int,
 ) -> geometry.Geometry:
   """Constructs a circular Geometry instance used for testing only.
 
   Args:
     n_rho: Radial grid points (num cells)
-    elongation_LCFS: Elongation at last closed flux surface. Defaults to 1.72
-      for the ITER elongation, to approximately correct volume and area integral
-      Jacobians.
+    elongation_LCFS: Elongation at last closed flux surface.
     Rmaj: major radius (R) in meters
     Rmin: minor radius (a) in meters
     B0: Toroidal magnetic field on axis [T]

@@ -26,7 +26,6 @@ from torax import fvm
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
@@ -88,14 +87,14 @@ def circular_references() -> References:
           },
       },
   )
-  geo = circular_geometry.build_circular_geometry(
+  geo = geometry_pydantic_model.CircularConfig(
       n_rho=25,
       elongation_LCFS=1.72,
       hires_fac=4,
       Rmaj=6.2,
       Rmin=2.0,
       B0=5.3,
-  )
+  ).build_geometry()
   # ground truth values copied from example executions using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.cell_variable.CellVariable(

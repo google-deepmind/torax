@@ -30,9 +30,9 @@ from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
-from torax.geometry import circular_geometry
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import runtime_params as runtime_params_lib
@@ -116,19 +116,21 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
           unused_calculated_source_profiles=unused_calculated_source_profiles,
       )
       return (
-          electron_density_sources.calc_puff_source(
-              source_name=electron_density_sources.GasPuffSource.SOURCE_NAME,
-              **kwargs
-          )[0]
-          + electron_density_sources.calc_generic_particle_source(
-              source_name=electron_density_sources.GenericParticleSource.SOURCE_NAME,
-              **kwargs
-          )[0]
-          + electron_density_sources.calc_pellet_source(
-              source_name=electron_density_sources.PelletSource.SOURCE_NAME,
-              **kwargs
-          )[0]
-      ),
+          (
+              electron_density_sources.calc_puff_source(
+                  source_name=electron_density_sources.GasPuffSource.SOURCE_NAME,
+                  **kwargs,
+              )[0]
+              + electron_density_sources.calc_generic_particle_source(
+                  source_name=electron_density_sources.GenericParticleSource.SOURCE_NAME,
+                  **kwargs,
+              )[0]
+              + electron_density_sources.calc_pellet_source(
+                  source_name=electron_density_sources.PelletSource.SOURCE_NAME,
+                  **kwargs,
+              )[0]
+          ),
+      )
 
     # First instantiate the same default sources that test_particle_sources
     # constant starts with.
@@ -179,10 +181,8 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         pellet_deposition_location=pellet_params.pellet_deposition_location,
         S_pellet_tot=pellet_params.S_pellet_tot,
     )
-    source_models_builder.source_builders[custom_source_name] = (
-        source_builder(
-            runtime_params=runtime_params,
-        )
+    source_models_builder.source_builders[custom_source_name] = source_builder(
+        runtime_params=runtime_params,
     )
 
     # Load reference profiles
@@ -190,7 +190,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         'test_particle_sources_constant.nc', _ALL_PROFILES
     )
     geo_provider = geometry_provider.ConstantGeometryProvider(
-        circular_geometry.build_circular_geometry()
+        geometry_pydantic_model.CircularConfig().build_geometry()
     )
     sim = sim_lib.Sim.create(
         runtime_params=self.test_particle_sources_constant_runtime_params,

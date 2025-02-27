@@ -19,8 +19,8 @@ from torax import sim as sim_lib
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.geometry import circular_geometry
 from torax.geometry import geometry_provider
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
@@ -49,7 +49,7 @@ def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
 
 def get_geometry_provider() -> geometry_provider.ConstantGeometryProvider:
   return geometry_provider.ConstantGeometryProvider(
-      circular_geometry.build_circular_geometry()
+      geometry_pydantic_model.CircularConfig().build_geometry()
   )
 
 
