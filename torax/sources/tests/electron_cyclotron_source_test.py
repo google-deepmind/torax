@@ -14,15 +14,15 @@
 from absl.testing import absltest
 import jax.numpy as jnp
 from torax import core_profile_setters
+from torax.config import build_simulation_params
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import electron_cyclotron_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
-from torax.stepper import runtime_params as stepper_runtime_params
+from torax.stepper import pydantic_model as stepper_pydantic_model
 
 
 class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
@@ -52,7 +52,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
     self.assertIsInstance(source, source_lib.Source)
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_simulation_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
@@ -61,11 +61,11 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
         )
     )
     static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
+        build_simulation_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
-            stepper=stepper_runtime_params.RuntimeParams(),
+            stepper=stepper_pydantic_model.Stepper(),
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(

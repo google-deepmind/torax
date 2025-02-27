@@ -14,23 +14,73 @@
 
 """The LinearThetaMethodStepper class."""
 
-from collections.abc import Callable
-import dataclasses
-from typing import TypeAlias
+from __future__ import annotations
+
+from typing import Literal
 
 import jax
+import pydantic
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.geometry import geometry
-from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import predictor_corrector_method
-from torax.stepper import runtime_params as runtime_params_lib
+from torax.stepper import runtime_params
 from torax.stepper import stepper as stepper_lib
-from torax.transport_model import transport_model as transport_model_lib
+from torax.torax_pydantic import torax_pydantic
+
+
+# pylint: disable=invalid-name
+class Linear(torax_pydantic.BaseModelMutable):
+  """Model for linear stepper.
+
+  Attributes:
+    stepper_type: The type of stepper to use, hardcoded to 'linear'.
+    theta_imp: The theta value in the theta method 0 = explicit, 1 = fully
+      implicit, 0.5 = Crank-Nicolson.
+    predictor_corrector: Enables predictor_corrector iterations with the linear
+      solver. If False, compilation is faster.
+    corrector_steps: The number of corrector steps for the predictor-corrector
+      linear solver. 0 means a pure linear solve with no corrector steps.
+    convection_dirichlet_mode: See `fvm.convection_terms` docstring,
+      `dirichlet_mode` argument.
+    convection_neumann_mode: See `fvm.convection_terms` docstring,
+      `neumann_mode` argument.
+    use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
+      the nonlinear solver for the optional initial guess from the linear solver
+    chi_per: (deliberately) large heat conductivity for Pereverzev rule.
+    d_per: (deliberately) large particle diffusion for Pereverzev rule.
+  """
+
+  stepper_type: Literal['linear'] = 'linear'
+  theta_imp: torax_pydantic.UnitInterval = 1.0
+  predictor_corrector: bool = True
+  corrector_steps: pydantic.NonNegativeInt = 1
+  convection_dirichlet_mode: Literal['ghost', 'direct', 'semi-implicit'] = (
+      'ghost'
+  )
+  convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
+  use_pereverzev: bool = False
+  chi_per: float = 20.0
+  d_per: float = 10.0
+
+  def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
+    return runtime_params.DynamicRuntimeParams(
+        chi_per=self.chi_per,
+        d_per=self.d_per,
+        corrector_steps=self.corrector_steps,
+    )
+
+  def build_stepper(
+      self, transport_model, source_models, pedestal_model
+  ) -> LinearThetaMethod:
+    return LinearThetaMethod(
+        transport_model=transport_model,
+        source_models=source_models,
+        pedestal_model=pedestal_model,
+    )
 
 
 class LinearThetaMethod(stepper_lib.Stepper):
@@ -116,37 +166,3 @@ class LinearThetaMethod(stepper_lib.Stepper):
     )
 
     return x_new, core_sources, core_transport, stepper_numeric_outputs
-
-
-def _default_linear_builder(
-    transport_model: transport_model_lib.TransportModel,
-    source_models: source_models_lib.SourceModels,
-    pedestal_model: pedestal_model_lib.PedestalModel,
-) -> LinearThetaMethod:
-  return LinearThetaMethod(transport_model, source_models, pedestal_model)
-
-
-# Type-alias so that users only need to import this file.
-LinearRuntimeParams: TypeAlias = runtime_params_lib.RuntimeParams
-
-
-@dataclasses.dataclass(kw_only=True)
-class LinearThetaMethodBuilder(stepper_lib.StepperBuilder):
-  """Builds a LinearThetaMethod."""
-
-  builder: Callable[
-      [
-          transport_model_lib.TransportModel,
-          source_models_lib.SourceModels,
-          pedestal_model_lib.PedestalModel,
-      ],
-      LinearThetaMethod,
-  ] = _default_linear_builder
-
-  def __call__(
-      self,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-  ) -> LinearThetaMethod:
-    return self.builder(transport_model, source_models, pedestal_model)

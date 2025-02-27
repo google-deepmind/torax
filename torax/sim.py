@@ -38,6 +38,7 @@ from torax import core_profile_setters
 from torax import output
 from torax import post_processing
 from torax import state
+from torax.config import build_simulation_params
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -47,6 +48,7 @@ from torax.orchestration import step_function
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
@@ -112,7 +114,7 @@ class Sim:
   def __init__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+      dynamic_runtime_params_slice_provider: build_simulation_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       initial_state: state.ToraxSimState,
       step_fn: step_function.SimulationStepFn,
@@ -146,7 +148,7 @@ class Sim:
   @property
   def dynamic_runtime_params_slice_provider(
       self,
-  ) -> runtime_params_slice.DynamicRuntimeParamsSliceProvider:
+  ) -> build_simulation_params.DynamicRuntimeParamsSliceProvider:
     return self._dynamic_runtime_params_slice_provider
 
   @property
@@ -183,7 +185,7 @@ class Sim:
           runtime_params_slice.StaticRuntimeParamsSlice | None
       ) = None,
       dynamic_runtime_params_slice_provider: (
-          runtime_params_slice.DynamicRuntimeParamsSliceProvider | None
+          build_simulation_params.DynamicRuntimeParamsSliceProvider | None
       ) = None,
       geometry_provider: geometry_provider_lib.GeometryProvider | None = None,
   ):
@@ -232,7 +234,7 @@ class Sim:
     if dynamic_runtime_params_slice_provider is not None:
       assert isinstance(  # Avoid pytype error.
           self._dynamic_runtime_params_slice_provider,
-          runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+          build_simulation_params.DynamicRuntimeParamsSliceProvider,
       )
       self._dynamic_runtime_params_slice_provider.validate_new(
           dynamic_runtime_params_slice_provider
@@ -249,7 +251,7 @@ class Sim:
       self._geometry_provider = geometry_provider
 
     dynamic_runtime_params_slice_for_init, geo_for_init = (
-        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        build_simulation_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=self._dynamic_runtime_params_slice_provider.runtime_params_provider.numerics.runtime_params_config.t_initial,
             dynamic_runtime_params_slice_provider=self._dynamic_runtime_params_slice_provider,
             geometry_provider=self._geometry_provider,
@@ -292,7 +294,7 @@ class Sim:
       *,
       runtime_params: general_runtime_params.GeneralRuntimeParams,
       geometry_provider: geometry_provider_lib.GeometryProvider,
-      stepper_builder: stepper_lib.StepperBuilder,
+      stepper_builder: stepper_pydantic_model.Stepper,
       transport_model_builder: transport_model_lib.TransportModelBuilder,
       source_models_builder: source_models_lib.SourceModelsBuilder,
       pedestal_model_builder: pedestal_model_lib.PedestalModelBuilder,
@@ -328,32 +330,36 @@ class Sim:
 
     # TODO(b/385788907): Document all changes that lead to recompilations.
     static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
+        build_simulation_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
             torax_mesh=geometry_provider.torax_mesh,
-            stepper=stepper_builder.runtime_params,
+            stepper=stepper_builder,
         )
     )
     dynamic_runtime_params_slice_provider = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_simulation_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
-            stepper=stepper_builder.runtime_params,
+            stepper=stepper_builder,
             torax_mesh=geometry_provider.torax_mesh,
             pedestal=pedestal_model_builder.runtime_params,
         )
     )
     source_models = source_models_builder()
-    stepper = stepper_builder(transport_model, source_models, pedestal_model)
+    stepper = stepper_builder.stepper_config.build_stepper(
+        transport_model=transport_model,
+        source_models=source_models,
+        pedestal_model=pedestal_model,
+    )
 
     if time_step_calculator is None:
       time_step_calculator = chi_time_step_calculator.ChiTimeStepCalculator()
 
     # Build dynamic_runtime_params_slice at t_initial for initial conditions.
     dynamic_runtime_params_slice_for_init, geo_for_init = (
-        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        build_simulation_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=runtime_params.numerics.t_initial,
             dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
             geometry_provider=geometry_provider,
@@ -504,7 +510,7 @@ def _override_initial_state_post_processed_outputs_from_file(
 
 def _run_simulation(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+    dynamic_runtime_params_slice_provider: build_simulation_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     initial_state: state.ToraxSimState,
     step_fn: step_function.SimulationStepFn,
@@ -575,7 +581,7 @@ def _run_simulation(
   wall_clock_step_times = []
 
   dynamic_runtime_params_slice, geo = (
-      runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      build_simulation_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
           t=initial_state.t,
           dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
           geometry_provider=geometry_provider,

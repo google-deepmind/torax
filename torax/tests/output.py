@@ -25,9 +25,9 @@ import numpy as np
 from torax import core_profile_setters
 from torax import output
 from torax import state
+from torax.config import build_simulation_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_profiles as source_profiles_lib
@@ -82,7 +82,7 @@ class StateHistoryTest(parameterized.TestCase):
         ne={},
         psi={},
     )
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,

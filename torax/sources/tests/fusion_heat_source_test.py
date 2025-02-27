@@ -19,8 +19,8 @@ import numpy as np
 from torax import constants
 from torax import core_profile_setters
 from torax import interpolated_param
+from torax.config import build_simulation_params
 from torax.config import plasma_composition
-from torax.config import runtime_params_slice
 from torax.sources import fusion_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
@@ -62,7 +62,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
             sources=source_models_builder.runtime_params,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -120,7 +120,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
             t=0.0,  # arbitrary since we don't use time-dependent params
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
