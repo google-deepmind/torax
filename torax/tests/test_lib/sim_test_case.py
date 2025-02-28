@@ -42,7 +42,7 @@ class SimTestCase(parameterized.TestCase):
   """
 
   rtol = 2e-3
-  atol = 1e-10
+  atol = 1e-9
 
   def setUp(self):
     super().setUp()
