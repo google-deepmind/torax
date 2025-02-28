@@ -14,18 +14,21 @@
 
 """Pydantic utilities and base classes."""
 
-from collections.abc import Mapping
-from typing import Annotated, Any, Final, TypeAlias
+from collections.abc import Set
+import functools
+import inspect
+from typing import Annotated, Any, Final, Mapping, Sequence, TypeAlias
 import jax
 import numpy as np
 import pydantic
+import treelib
 from typing_extensions import Self
+
 
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
 
 DataTypes: TypeAlias = float | int | bool
 DtypeName: TypeAlias = str
-
 
 NestedList: TypeAlias = (
     DataTypes
@@ -79,8 +82,8 @@ NumpyArray1D = Annotated[
 ]
 
 
-class BaseModelMutable(pydantic.BaseModel):
-  """Base config class. Any custom config classes should inherit from this.
+class BaseModelFrozen(pydantic.BaseModel):
+  """Base config with frozen fields.
 
   See https://docs.pydantic.dev/latest/ for documentation on pydantic.
 
@@ -89,11 +92,9 @@ class BaseModelMutable(pydantic.BaseModel):
   """
 
   model_config = pydantic.ConfigDict(
-      frozen=False,
+      frozen=True,
       # Do not allow attributes not defined in pydantic model.
       extra='forbid',
-      # Re-run validation if the model is updated.
-      validate_assignment=True,
       arbitrary_types_allowed=True,
   )
 
@@ -137,14 +138,140 @@ class BaseModelMutable(pydantic.BaseModel):
         k for k, v in cls.model_fields.items() if TIME_INVARIANT in v.metadata
     )
 
+  @functools.cached_property
+  def _get_direct_submodels(self) -> tuple[Self, ...]:
+    """Return all direct submodels in the model."""
 
-class BaseModelFrozen(BaseModelMutable, frozen=True):
-  """Base config with frozen fields.
+    def is_leaf(x):
+      if isinstance(x, Mapping):
+        return False
+      if isinstance(x, Sequence):
+        return False
+      if isinstance(x, Set):
+        return False
+      return True
 
-  See https://docs.pydantic.dev/latest/ for documentation on pydantic.
+    leaves = jax.tree.flatten(self.__dict__, is_leaf=is_leaf)[0]
+    return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))
 
-  This class is compatible with JAX, so can be used as an argument to a JITted
-  function.
-  """
+  @functools.cached_property
+  def _get_submodels(self) -> tuple[pydantic.BaseModel, ...]:
+    """Return all submodels in the model.
 
-  ...
+    This will return all Pydantic models directly inside model fields, and
+    inside container types: mappings, sequences, and sets.
+
+    Returns:
+      A tuple of all submodels in the model.
+    """
+
+    all_submodels = []
+    new_submodels = self._get_direct_submodels
+    while new_submodels:
+      new_submodels_temp = []
+      for model in new_submodels:
+        # assert isinstance(model, BaseModelFrozen)
+        all_submodels.append(model)
+        new_submodels_temp += model._get_direct_submodels  # pylint: disable=protected-access
+      new_submodels = new_submodels_temp
+    return tuple(all_submodels)
+
+  @functools.cached_property
+  def _has_unique_submodels(self) -> bool:
+    """Returns True if all submodels are different instances of models."""
+    submodels = self._get_submodels
+    unique_ids = set(id(m) for m in submodels)
+    return len(submodels) == len(unique_ids)
+
+  def tree_build(self) -> treelib.Tree:
+    """Returns a treelib.Tree representation of a nested Pydantic model."""
+
+    # The tree nodes are object IDs, which also allows easy node lookup. This
+    # causes problems when the user creates a Pydantic model with shared objects
+    # for different fields. As this cannot happen with the standard dict
+    # constructor, we simply disallow this case. An alternative is to
+    # automatically 'fix' the user model by making copies of duplicated
+    # submodels. This could be implemented if a need arises.
+    if not self._has_unique_submodels:
+      raise ValueError(
+          'Cannot build a `treelib.Tree` for a model with non-unique submodels.'
+      )
+
+    model_tree = treelib.Tree()
+    model_tree.create_node(
+        tag=self.__class__.__name__,
+        identifier=id(self),
+        data=self,
+    )
+    for model in self._get_direct_submodels:
+      if model.__class__ is not BaseModelFrozen:
+        model_tree.paste(id(self), model.tree_build())
+    return model_tree
+
+  def clear_cached_properties(self, exceptions: Sequence[str] | None = None):
+    """Clears all cached properties in the model."""
+    cached_properties = []
+    for name, value in inspect.getmembers(self.__class__):
+      if isinstance(value, functools.cached_property):
+        cached_properties.append(name)
+    exceptions = {} if exceptions is None else exceptions
+    cached_properties = set(cached_properties) - set(exceptions)
+    for prop in cached_properties:
+      # Note: this is not the idiomatic way to clear a cached property, which
+      # is `del self.some_property`. This doesn't work with `del getattr(...)`
+      # and Pydantic frozen models band `delattr`.
+      if prop in self.__dict__:
+        del self.__dict__[prop]
+
+  def _update_fields(self, x: Mapping[str, Any]):
+    """Safely update fields in the config.
+
+    This works with Frozen models.
+
+    This method will invalidate all `functools.cached_property` caches of
+    all ancestral models in the nested tree, as these could have a dependency
+    on the updated model. In addition, these nodes will be re-validated.
+
+    Args:
+      x: A dictionary whose key is a path `'some.path.to.field_name'` and the
+        value is the new value for that field.
+
+    Raises:
+      ValueError: all submodels must be unique object instances. A `ValueError`
+        will be raised if this is not the case.
+    """
+    model_tree = self.tree_build()
+    value_models = []
+
+    for path, value in x.items():
+      path = path.split('.')
+      value_name = path.pop()
+      model = self._lookup_path(path)
+      value_models.append(model)
+      # Mutate even frozen models.
+      if value_name not in model.__dict__:
+        raise ValueError(
+            f'Cannot update field {value_name} in {model} as field not found.'
+        )
+
+      model.__dict__[value_name] = value
+
+    for model in value_models:
+      for model_ancestral in model_tree.rsearch(id(model)):
+        node = model_tree.get_node(model_ancestral)
+        node.data.clear_cached_properties()
+
+  def _lookup_path(self, paths):
+    """Returns the model at the given path."""
+    # The last path is the actual value name to update.
+    value = self
+    for path in paths:
+      if isinstance(value, BaseModelFrozen):
+        value = getattr(value, path)
+      elif isinstance(value, dict):
+        value = value[path]
+      else:
+        raise ValueError(f'Cannot look up path {path} in {value}')
+    if not isinstance(value, BaseModelFrozen):
+      raise ValueError(f'The value at path {paths} is not a Pydantic model.')
+    return value
