@@ -32,6 +32,7 @@ from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
@@ -505,48 +506,29 @@ def build_stepper_builder_from_config(
   Raises:
     ValueError if the `stepper_type` is unknown.
   """
-  if isinstance(stepper_config, str):
-    stepper_config = {'stepper_type': stepper_config}
-  else:
-    if 'stepper_type' not in stepper_config:
-      raise ValueError('stepper_type must be set in the input config.')
-    # Deep copy so we don't modify the input config.
-    stepper_config = copy.deepcopy(stepper_config)
-  stepper_type = stepper_config.pop('stepper_type')
+  stepper_model = stepper_pydantic_model.Stepper.from_dict(stepper_config)
+  stepper_model = stepper_model.to_dict()
+  stepper_type = stepper_model['stepper_config'].pop('stepper_type')
+
   if stepper_type == 'linear':
-    # Remove params from steppers with nested configs, if present.
-    stepper_config.pop('newton_raphson_params', None)
-    stepper_config.pop('optimizer_params', None)
     return linear_theta_method.LinearThetaMethodBuilder(
         runtime_params=config_args.recursive_replace(
             linear_theta_method.LinearRuntimeParams(),
-            **stepper_config,
+            **stepper_model['stepper_config'],
         )
     )
   elif stepper_type == 'newton_raphson':
-    newton_raphson_params = stepper_config.pop('newton_raphson_params', {})
-    if not isinstance(newton_raphson_params, dict):
-      raise ValueError('newton_raphson_params must be a dict.')
-    newton_raphson_params.update(stepper_config)
-    # Remove params from other steppers with nested configs, if present.
-    newton_raphson_params.pop('optimizer_params', None)
     return nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder(
         runtime_params=config_args.recursive_replace(
             nonlinear_theta_method.NewtonRaphsonRuntimeParams(),
-            **newton_raphson_params,
+            **stepper_model['stepper_config'],
         )
     )
   elif stepper_type == 'optimizer':
-    optimizer_params = stepper_config.pop('optimizer_params', {})
-    if not isinstance(optimizer_params, dict):
-      raise ValueError('optimizer_params must be a dict.')
-    optimizer_params.update(stepper_config)
-    # Remove params from other steppers with nested configs, if present.
-    optimizer_params.pop('newton_raphson_params', None)
     return nonlinear_theta_method.OptimizerThetaMethodBuilder(
         runtime_params=config_args.recursive_replace(
             nonlinear_theta_method.OptimizerRuntimeParams(),
-            **optimizer_params,
+            **stepper_model['stepper_config'],
         )
     )
   raise ValueError(f'Unknown stepper type: {stepper_type}')
