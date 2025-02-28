@@ -265,7 +265,7 @@ def load_data(filename: str) -> PlotData:
         output.JTOT: 1e6,  # A/m^2 to MA/m^2
         output.JOHM: 1e6,  # A/m^2 to MA/m^2
         output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
-        output.CORE_PROFILES_EXTERNAL_CURRENT: 1e6,  # A/m^2 to MA/m^2
+        output.EXTERNAL_CURRENT: 1e6,  # A/m^2 to MA/m^2
         'generic_current_source': 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
         output.IP_PROFILE_FACE: 1e6,  # A to MA
@@ -331,7 +331,7 @@ def load_data(filename: str) -> PlotData:
       johm=core_profiles_dataset[output.JOHM].to_numpy(),
       j_bootstrap=core_profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
       external_current_source=core_profiles_dataset[
-          output.CORE_PROFILES_EXTERNAL_CURRENT
+          output.EXTERNAL_CURRENT
       ].to_numpy(),
       j_ecrh=get_optional_data(
           core_sources_dataset, 'electron_cyclotron_source_j', 'cell'
