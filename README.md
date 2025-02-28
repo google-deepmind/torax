@@ -72,6 +72,8 @@ sudo apt-get install python3-tk
 
 ### How to install
 
+#### Prepare a virtual Environment
+
 Install virtualenv (if not already installed):
 
 ```shell
@@ -102,23 +104,25 @@ Activate the virtual env:
 source toraxvenv/bin/activate
 ```
 
-Download QLKNN dependencies:
+#### Install QLKNN_7_11
 
 ```shell
-git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
+git clone https://github.com/google-deepmind/fusion_transport_surrogates.git
+pip install -e ./fusion_transport_surrogates
+export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn
 ```
+
+We recommend automating the variable export. If using bash, run:
 
 ```shell
-export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
+echo export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn >> ~/.bashrc
 ```
 
-It is recommended to automate the environment variable export. For example, if
-using bash, run:
-
-```shell
-echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
-```
 The above command only needs to be run once on a given system.
+
+An alternative to QLKNN_7_11 is [QLKNN-hyper](#optional-install-qlknn-hyper)
+
+#### Install TORAX
 
 Download and install the TORAX codebase via http:
 
@@ -177,8 +181,7 @@ completed.
 To run more involved, ITER-inspired simulations, run:
 
 ```shell
-python3 run_simulation_main.py
-   --config='torax.examples.iterhybrid_rampup'
+python3 run_simulation_main.py --config='torax.examples.iterhybrid_rampup'
 ```
 
 and
@@ -192,7 +195,7 @@ run command, and environment variables. For example, for increased output
 verbosity, can run with the `--log_progress` flag.
 
 ```shell
-python3 run_simulation_main.py
+python3 run_simulation_main.py \
    --config='torax.examples.iterhybrid_rampup' --log_progress
 ```
 
@@ -284,6 +287,34 @@ You can get out of the Python virtual env by deactivating it:
 ```shell
 deactivate
 ```
+
+#### (Optional) Install QLKNN-hyper
+
+An alternative to QLKNN_7_11 is to use QLKNN-hyper (also known as QLKNN10D)
+instead. QLKNN_7_11 was trained on more recent data that includes more
+information about impurities, and better coverage of the edge region compared
+to QLKNN-hyper. However, it is still widely used in other simulators, so it can
+be useful for comparative studies for instance.
+
+Download QLKNN-hyper dependencies:
+
+```shell
+git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
+```
+
+Make QLKNN-hyper the default QLKNN model.
+
+```shell
+export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
+```
+
+It is recommended to automate the environment variable export. For example, if
+using bash, run:
+
+```shell
+echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
+```
+The above command only needs to be run once on a given system.
 
 ## Simulation tutorials
 
