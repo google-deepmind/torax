@@ -94,16 +94,42 @@ class TransportSmoothingTest(parameterized.TestCase):
         core_profiles,
         pedestal_model_outputs,
     )
-    chi_face_ion_orig = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
-    chi_face_el_orig = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
-    d_face_el_orig = np.linspace(2, 3, geo.rho_face_norm.shape[0])
-    v_face_el_orig = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
     inner_patch_idx = np.searchsorted(
         geo.rho_face_norm, dynamic_runtime_params_slice.transport.rho_inner
     )
     outer_patch_idx = np.searchsorted(
         geo.rho_face_norm, dynamic_runtime_params_slice.transport.rho_outer
     )
+    inner_patch_ones = np.ones(inner_patch_idx)
+    outer_patch_ones = np.ones(geo.rho_face_norm.shape[0] - outer_patch_idx)
+    chi_face_ion_orig = np.concatenate([
+        inner_patch_ones * dynamic_runtime_params_slice.transport.chii_inner,
+        np.linspace(0.5, 2, geo.rho_face_norm.shape[0])[
+            inner_patch_idx:outer_patch_idx
+        ],
+        outer_patch_ones * dynamic_runtime_params_slice.transport.chii_outer,
+    ])
+    chi_face_el_orig = np.concatenate([
+        inner_patch_ones * dynamic_runtime_params_slice.transport.chie_inner,
+        np.linspace(0.25, 1, geo.rho_face_norm.shape[0])[
+            inner_patch_idx:outer_patch_idx
+        ],
+        outer_patch_ones * dynamic_runtime_params_slice.transport.chie_outer,
+    ])
+    d_face_el_orig = np.concatenate([
+        inner_patch_ones * dynamic_runtime_params_slice.transport.De_inner,
+        np.linspace(2, 3, geo.rho_face_norm.shape[0])[
+            inner_patch_idx:outer_patch_idx
+        ],
+        outer_patch_ones * dynamic_runtime_params_slice.transport.De_outer,
+    ])
+    v_face_el_orig = np.concatenate([
+        inner_patch_ones * dynamic_runtime_params_slice.transport.Ve_inner,
+        np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])[
+            inner_patch_idx:outer_patch_idx
+        ],
+        outer_patch_ones * dynamic_runtime_params_slice.transport.Ve_outer,
+    ])
 
     # assert that the smoothing did not impact the zones inside/outside the
     # inner/outer transport patch locations
@@ -247,16 +273,44 @@ class TransportSmoothingTest(parameterized.TestCase):
         core_profiles,
         pedestal_model_outputs,
     )
-    chi_face_ion_orig = np.linspace(0.5, 2, geo.rho_face_norm.shape[0])
-    chi_face_el_orig = np.linspace(0.25, 1, geo.rho_face_norm.shape[0])
-    d_face_el_orig = np.linspace(2, 3, geo.rho_face_norm.shape[0])
-    v_face_el_orig = np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])
     inner_patch_idx = np.searchsorted(
         geo.rho_face_norm, dynamic_runtime_params_slice.transport.rho_inner
     )
+    # set to mimic pedestal zone minimization
     outer_patch_idx = np.searchsorted(
-        geo.rho_face_norm, dynamic_runtime_params_slice.transport.rho_outer
+        geo.rho_face_norm,
+        pedestal_model_outputs.rho_norm_ped_top,
     )
+    inner_patch_ones = np.ones(inner_patch_idx)
+    outer_patch_ones = np.ones(geo.rho_face_norm.shape[0] - outer_patch_idx)
+    chi_face_ion_orig = np.concatenate([
+        inner_patch_ones * dynamic_runtime_params_slice.transport.chii_inner,
+        np.linspace(0.5, 2, geo.rho_face_norm.shape[0])[
+            inner_patch_idx:outer_patch_idx
+        ],
+        outer_patch_ones * dynamic_runtime_params_slice.transport.chimin,
+    ])
+    chi_face_el_orig = np.concatenate([
+        inner_patch_ones * dynamic_runtime_params_slice.transport.chie_inner,
+        np.linspace(0.25, 1, geo.rho_face_norm.shape[0])[
+            inner_patch_idx:outer_patch_idx
+        ],
+        outer_patch_ones * dynamic_runtime_params_slice.transport.chimin,
+    ])
+    d_face_el_orig = np.concatenate([
+        inner_patch_ones * dynamic_runtime_params_slice.transport.De_inner,
+        np.linspace(2, 3, geo.rho_face_norm.shape[0])[
+            inner_patch_idx:outer_patch_idx
+        ],
+        outer_patch_ones * dynamic_runtime_params_slice.transport.Demin,
+    ])
+    v_face_el_orig = np.concatenate([
+        inner_patch_ones * dynamic_runtime_params_slice.transport.Ve_inner,
+        np.linspace(-0.2, -2, geo.rho_face_norm.shape[0])[
+            inner_patch_idx:outer_patch_idx
+        ],
+        outer_patch_ones * dynamic_runtime_params_slice.transport.Vemin,
+    ])
 
     # assert that the smoothing did impact the zones inside/outside the
     # inner/outer transport patch locations
@@ -318,9 +372,9 @@ class TransportSmoothingTest(parameterized.TestCase):
 
     # carry out smoothing by hand for a representative middle location.
     # Check that behaviour is as expected
-    test_idx = 5
+    test_idx = 12
     eps = 1e-7
-    lower_cutoff = 1e-6
+    lower_cutoff = 0.01
     r = geo.rho_face_norm
     test_r = r[test_idx]
     smoothing_array = np.exp(
