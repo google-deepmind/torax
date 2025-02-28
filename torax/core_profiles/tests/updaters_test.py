@@ -18,7 +18,6 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax import jax_utils
-from torax import physics
 from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
@@ -91,7 +90,7 @@ class UpdatersTest(parameterized.TestCase):
 
     Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
 
-    dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
+    dilution_factor = formulas.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
     np.testing.assert_allclose(
         ni.value,
         expected_value * dilution_factor,
@@ -354,6 +353,25 @@ class UpdatersTest(parameterized.TestCase):
         boundary_conditions['temp_ion']['right_face_constraint'],
         expected_Ti_bound_right,
     )
+
+  # TODO(b/377225415): generalize to arbitrary number of ions.
+  # pylint: disable=invalid-name
+  @parameterized.parameters([
+      dict(Zi=1.0, Zimp=10.0, Zeff=1.0, expected=1.0),
+      dict(Zi=1.0, Zimp=5.0, Zeff=1.0, expected=1.0),
+      dict(Zi=2.0, Zimp=10.0, Zeff=2.0, expected=0.5),
+      dict(Zi=2.0, Zimp=5.0, Zeff=2.0, expected=0.5),
+      dict(Zi=1.0, Zimp=10.0, Zeff=1.9, expected=0.9),
+      dict(Zi=2.0, Zimp=10.0, Zeff=3.6, expected=0.4),
+  ])
+  def test_get_main_ion_dilution_factor(self, Zi, Zimp, Zeff, expected):
+    """Unit test of `get_main_ion_dilution_factor`."""
+    np.testing.assert_allclose(
+        formulas.get_main_ion_dilution_factor(Zi, Zimp, Zeff),
+        expected,
+    )
+
+  # pylint: enable=invalid-name
 
 
 if __name__ == '__main__':

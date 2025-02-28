@@ -20,7 +20,6 @@ from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
 from torax import math_utils
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import formulas
@@ -28,6 +27,7 @@ from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import standard_geometry
+from torax.physics import psi_calculations
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
@@ -35,8 +35,6 @@ from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
 
-# Using capitalized variables for physics notational conventions rather than
-# Python style.
 # pylint: disable=invalid-name
 
 
@@ -133,7 +131,7 @@ def initial_core_profiles(
   )
 
   # Set psi as source of truth and recalculate jtot, q, s
-  return physics.update_jtot_q_face_s_face(
+  return psi_calculations.update_jtot_q_face_s_face(
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -147,8 +145,6 @@ def _prescribe_currents(
 ) -> state.Currents:
   """Creates the initial Currents from a given bootstrap profile."""
 
-  # Many variables throughout this function are capitalized based on physics
-  # notational conventions rather than on Google Python style
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
@@ -201,7 +197,7 @@ def _calculate_currents_from_psi(
     source_profiles: source_profiles_lib.SourceProfiles,
 ) -> state.Currents:
   """Creates the initial Currents using psi to calculate jtot."""
-  jtot, jtot_face, Ip_profile_face = physics.calc_jtot_from_psi(
+  jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(
       geo,
       core_profiles.psi,
   )
@@ -474,7 +470,7 @@ def _init_psi_psidot_vloop_and_current(
         currents.jtot_hires,
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
-    _, _, Ip_profile_face = physics.calc_jtot_from_psi(
+    _, _, Ip_profile_face = psi_calculations.calc_jtot(
         geo,
         psi,
     )

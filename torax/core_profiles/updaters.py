@@ -22,20 +22,17 @@ import functools
 import jax
 from jax import numpy as jnp
 from torax import array_typing
-from torax import charge_states
 from torax import jax_utils
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import formulas
 from torax.fvm import cell_variable
 from torax.geometry import geometry
+from torax.physics import charge_states
 
 _trapz = jax.scipy.integrate.trapezoid
 
 
-# Using capitalized variables for physics notational conventions rather than
-# Python style.
 # pylint: disable=invalid-name
 def _get_charge_states(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
@@ -128,8 +125,8 @@ def get_ion_density_and_charge_states(
   Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
   Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
 
-  dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
-  dilution_factor_edge = physics.get_main_ion_dilution_factor(
+  dilution_factor = formulas.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
+  dilution_factor_edge = formulas.get_main_ion_dilution_factor(
       Zi_face[-1], Zimp_face[-1], Zeff_face[-1]
   )
 
@@ -347,7 +344,7 @@ def compute_boundary_conditions_for_t_plus_dt(
       Te=Te_bound_right,
   )
 
-  dilution_factor_edge = physics.get_main_ion_dilution_factor(
+  dilution_factor_edge = formulas.get_main_ion_dilution_factor(
       Zi_edge,
       Zimp_edge,
       dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zeff_face[-1],

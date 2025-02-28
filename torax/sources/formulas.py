@@ -16,8 +16,6 @@
 import jax
 from jax import numpy as jnp
 from torax.geometry import geometry
-# Many variables throughout this function are capitalized based on physics
-# notational conventions rather than on Google Python style
 # pylint: disable=invalid-name
 
 

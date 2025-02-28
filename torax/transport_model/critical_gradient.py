@@ -107,7 +107,14 @@ class CriticalGradientModel(transport_model.TransportModel):
       core_profiles: state.CoreProfiles,
       pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
-    """Calculates transport coefficients using the Critical Gradient Model.
+    r"""Calculates transport coefficients using the Critical Gradient Model.
+
+    Uses critical normalized logarithmic ion temperature gradient
+    :math:`R/L_{Ti}|_crit` from Guo Romanelli 1993:
+    :math:`\chi_i = \chi_{GB} \chi_{stiff} H(R/L_{Ti} - R/L_{Ti})`
+    where :math:`\chi_{GB}` is the GyroBohm diffusivity,
+    :math:`\chi_{stiff}` is the stiffness parameter, and
+    :math:`H` is the Heaviside function.
 
     Args:
       dynamic_runtime_params_slice: Input runtime parameters that can change
@@ -120,13 +127,7 @@ class CriticalGradientModel(transport_model.TransportModel):
       coeffs: The transport coefficients
     """
 
-    # Many variables throughout this function are capitalized based on physics
-    # notational conventions rather than on Google Python style
     # pylint: disable=invalid-name
-
-    # ITG critical gradient model. R/LTi_crit from Guo Romanelli 1993
-    # chi_i = chiGB * chistiff * H(R/LTi -
-    #  R/LTi_crit)*(R/LTi - R/LTi_crit)^alpha
 
     constants = constants_module.CONSTANTS
     assert isinstance(
