@@ -1,7 +1,7 @@
 import json
 from copy import deepcopy
 from pathlib import Path
-
+import dataclasses
 import chex
 import jax.numpy as jnp
 from flax import linen as nn
@@ -12,7 +12,9 @@ from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import tglf_based_transport_model
 from warnings import warn
-from torax.transport_model.tglf_based_transport_model import TGLFInputs
+from torax.transport_model.tglf_based_transport_model import TGLFInputs, RuntimeParams
+from torax.transport_model import transport_model
+from typing import Callable
 
 
 class TGLFNNSurrogate(nn.Module):
@@ -118,9 +120,7 @@ class EnsembleTGLFNNSurrogate(nn.Module):
     return params
 
 
-class TGLFSurrogateTransportModel(
-    tglf_based_transport_model.TGLFBasedTransportModel
-):
+class TGLFNNTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
   """Calculate turbulent transport coefficients using a TGLF surrogate model."""
 
   def __init__(
@@ -238,4 +238,25 @@ class TGLFSurrogateTransportModel(
         core_profiles=core_profiles,
         gradient_reference_length=geo.Rmin,  # Device minor radius at LCFS
         gyrobohm_flux_reference_length=geo.Rmin,  # TODO: Check
+    )
+
+
+@dataclasses.dataclass(kw_only=True)
+class TGLFNNTransportModelBuilder(transport_model.TransportModelBuilder):
+  """When called, instantiates a TGLFSurrogateTransportModel."""
+
+  runtime_params: RuntimeParams = dataclasses.field(
+      default_factory=RuntimeParams
+  )
+  weights_path: str = (
+      "/home/theo/documents/ukaea/torax/tglfnn/1.0.0/tglfnn_checkpoint.json"
+  )
+  scaling_path: str = "/home/theo/documents/ukaea/torax/tglfnn/1.0.0/stats.json"
+
+  def __call__(
+      self,
+  ) -> TGLFNNTransportModel:
+    return TGLFNNTransportModel(
+        path_to_model_weights_json=(self.weights_path),
+        path_to_model_scaling_json=(self.scaling_path),
     )

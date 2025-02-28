@@ -41,6 +41,7 @@ from torax.transport_model import bohm_gyrobohm as bohm_gyrobohm_transport
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_transport_model
+from torax.transport_model import tglfnn_transport_model
 # pylint: disable=g-import-not-at-top
 try:
   from torax.transport_model import qualikiz_transport_model
@@ -443,6 +444,16 @@ def build_transport_model_builder_from_config(
             **qualikiz_params,
         )
     )
+  elif transport_model == 'tglfnn':
+    tglfnn_params = dict(transport_config.pop('tglfnn_params', {}))
+    tglfnn_params.update(transport_config)
+    return tglfnn_transport_model.TGLFNNTransportModelBuilder(
+        runtime_params=config_args.recursive_replace(
+            tglfnn_transport_model.RuntimeParams(),
+            **tglfnn_params,
+        )
+    )
+
   # pylint: enable=undefined-variable
   raise ValueError(f'Unknown transport model: {transport_model}')
 
