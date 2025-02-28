@@ -16,6 +16,7 @@
 import importlib
 import os
 
+from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import build_sim
 from torax.tests.test_lib import paths
@@ -41,3 +42,7 @@ class ExamplesTest(parameterized.TestCase):
         python_config_module, PYTHON_CONFIG_PACKAGE
     )
     _ = build_sim.build_sim_from_config(config_module.CONFIG)
+
+
+if __name__ == '__main__':
+  absltest.main()
