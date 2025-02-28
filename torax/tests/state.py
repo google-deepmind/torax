@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.state and torax.core_profile_setters."""
+"""Unit tests for torax.state and torax.updaters."""
 
 import dataclasses
 import functools
@@ -23,13 +23,13 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import core_profile_setters
 from torax import math_utils
 from torax import state
 from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
@@ -53,7 +53,7 @@ class StateTest(torax_refs.ReferenceValueTest):
       initial_counter = jnp.array(0)
 
       def scan_f(counter: jax.Array, _) -> tuple[jax.Array, state.CoreProfiles]:
-        core_profiles = core_profile_setters.initial_core_profiles(
+        core_profiles = initialization.initial_core_profiles(
             dynamic_runtime_params_slice=dynamic_runtime_params_slice,
             static_runtime_params_slice=static_slice,
             geo=geo,
@@ -125,7 +125,7 @@ class StateTest(torax_refs.ReferenceValueTest):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    basic_core_profiles = core_profile_setters.initial_core_profiles(
+    basic_core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
@@ -155,7 +155,7 @@ class StateTest(torax_refs.ReferenceValueTest):
 
 
 class InitialStatesTest(parameterized.TestCase):
-  """Unit tests for the `torax.core_profile_setters` module."""
+  """Unit tests for the `torax.updaters` module."""
 
   def test_initial_boundary_condition_from_time_dependent_params(self):
     """Tests that the initial boundary conditions are set from the config."""
@@ -186,7 +186,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
@@ -220,7 +220,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
@@ -296,7 +296,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles1 = core_profile_setters.initial_core_profiles(
+    core_profiles1 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
         static_runtime_params_slice=static_slice,
         geo=geo,
@@ -315,7 +315,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles2 = core_profile_setters.initial_core_profiles(
+    core_profiles2 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,
         static_runtime_params_slice=static_slice,
         geo=geo,
@@ -336,7 +336,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles3 = core_profile_setters.initial_core_profiles(
+    core_profiles3 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3,
         static_runtime_params_slice=static_slice,
         geo=geo,
@@ -356,7 +356,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles3_helper = core_profile_setters.initial_core_profiles(
+    core_profiles3_helper = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs3_helper,
         static_runtime_params_slice=static_slice,
         geo=geo,
@@ -468,7 +468,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles1 = core_profile_setters.initial_core_profiles(
+    core_profiles1 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs1,
         static_runtime_params_slice=static_slice,
         geo=geometry_pydantic_model.CircularConfig().build_geometry(),
@@ -479,7 +479,7 @@ class InitialStatesTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles2 = core_profile_setters.initial_core_profiles(
+    core_profiles2 = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dcs2,
         static_runtime_params_slice=static_slice,
         geo=geometry_pydantic_model.CircularConfig().build_geometry(),

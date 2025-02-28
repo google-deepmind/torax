@@ -27,10 +27,10 @@ import chex
 import jax
 from jax import numpy as jnp
 import jaxopt
-from torax import core_profile_setters
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
+from torax.core_profiles import updaters
 from torax.fvm import block_1d_coeffs
 from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
@@ -260,7 +260,7 @@ def theta_method_block_residual(
   x_new_guess = fvm_conversions.vec_to_cell_variable_tuple(
       x_new_guess_vec, core_profiles_t_plus_dt, evolving_names
   )
-  core_profiles_t_plus_dt = core_profile_setters.update_evolving_core_profiles(
+  core_profiles_t_plus_dt = updaters.update_evolving_core_profiles(
       x_new_guess,
       static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt,

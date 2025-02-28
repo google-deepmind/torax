@@ -22,12 +22,12 @@ import jax
 import numpy as np
 import scipy
 from torax import constants
-from torax import core_profile_setters
 from torax import output
 from torax import post_processing
 from torax import state
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
@@ -84,7 +84,7 @@ class PostProcessingTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    self.core_profiles = core_profile_setters.initial_core_profiles(
+    self.core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,

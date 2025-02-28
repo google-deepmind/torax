@@ -21,9 +21,9 @@ import abc
 import dataclasses
 
 import jax
-from torax import core_profile_setters
 from torax import state
 from torax.config import runtime_params_slice
+from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
@@ -158,15 +158,13 @@ class Stepper(abc.ABC):
       core_transport = state.CoreTransport.zeros(geo_t)
       stepper_numeric_output = state.StepperNumericOutputs()
 
-    core_profiles_t_plus_dt = (
-        core_profile_setters.update_evolving_core_profiles(
-            x_new,
-            static_runtime_params_slice,
-            dynamic_runtime_params_slice_t_plus_dt,
-            geo_t_plus_dt,
-            core_profiles_t_plus_dt,
-            evolving_names,
-        )
+    core_profiles_t_plus_dt = updaters.update_evolving_core_profiles(
+        x_new,
+        static_runtime_params_slice,
+        dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt,
+        core_profiles_t_plus_dt,
+        evolving_names,
     )
 
     return (

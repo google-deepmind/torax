@@ -19,9 +19,9 @@ from unittest import mock
 
 from absl.testing import absltest
 import numpy as np
-from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model
 from torax.sources import source_models as source_models_lib
@@ -82,7 +82,7 @@ class QualikizTransportModelTest(absltest.TestCase):
             stepper=stepper_runtime_params.RuntimeParams(),
         )
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,
