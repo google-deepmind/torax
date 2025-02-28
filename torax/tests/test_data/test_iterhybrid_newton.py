@@ -188,7 +188,6 @@ CONFIG = {
         # (deliberately) large particle diffusion for Pereverzev rule
         'd_per': 15,
         'use_pereverzev': True,
-        'newton_raphson_params': {},
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

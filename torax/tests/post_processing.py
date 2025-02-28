@@ -26,8 +26,8 @@ from torax import core_profile_setters
 from torax import output
 from torax import post_processing
 from torax import state
+from torax.config import build_simulation_params
 from torax.config import runtime_params as runtime_params_lib
-from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
@@ -79,7 +79,7 @@ class PostProcessingTest(parameterized.TestCase):
         },
         ne={},
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
