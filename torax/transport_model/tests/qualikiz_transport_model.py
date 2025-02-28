@@ -20,12 +20,12 @@ from unittest import mock
 from absl.testing import absltest
 import numpy as np
 from torax import core_profile_setters
+from torax.config import build_simulation_params
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model
 from torax.sources import source_models as source_models_lib
-from torax.stepper import runtime_params as stepper_runtime_params
+from torax.stepper import pydantic_model as stepper_pydantic_model
 
 
 # pylint: disable=g-import-not-at-top
@@ -65,7 +65,7 @@ class QualikizTransportModelTest(absltest.TestCase):
     source_models = source_models_builder()
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_simulation_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             torax_mesh=geo.torax_mesh,
             transport=qualikiz_transport_model.RuntimeParams(),
@@ -75,11 +75,11 @@ class QualikizTransportModelTest(absltest.TestCase):
         )
     )
     static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
+        build_simulation_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
-            stepper=stepper_runtime_params.RuntimeParams(),
+            stepper=stepper_pydantic_model.Stepper(),
         )
     )
     core_profiles = core_profile_setters.initial_core_profiles(

@@ -23,6 +23,7 @@ from jax import numpy as jnp
 import numpy as np
 import torax
 from torax import fvm
+from torax.config import build_simulation_params
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -30,7 +31,7 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import runtime_params as sources_params
-from torax.stepper import runtime_params as stepper_params
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_model_params
 
 # Internal import.
@@ -60,13 +61,13 @@ def build_consistent_dynamic_runtime_params_slice_and_geometry(
 ) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
   """Builds a consistent Geometry and a DynamicRuntimeParamsSlice."""
   t = runtime_params.numerics.t_initial if t is None else t
-  return runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+  return build_simulation_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
       t=t,
-      dynamic_runtime_params_slice_provider=runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+      dynamic_runtime_params_slice_provider=build_simulation_params.DynamicRuntimeParamsSliceProvider(
           runtime_params,
           transport=transport_model_params.RuntimeParams(),
           sources=sources,
-          stepper=stepper_params.RuntimeParams(),
+          stepper=stepper_pydantic_model.Stepper(),
           torax_mesh=geometry_provider.torax_mesh,
       ),
       geometry_provider=geometry_provider,

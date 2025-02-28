@@ -20,6 +20,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import numpy as np
+from torax.config import build_simulation_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
@@ -27,7 +28,7 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import generic_current_source
-from torax.stepper import runtime_params as stepper_params_lib
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.transport_model import runtime_params as transport_params_lib
 
@@ -49,7 +50,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
     foo_jitted = jax.jit(foo)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    dynamic_slice = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    dynamic_slice = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         torax_mesh=self._geo.torax_mesh,
     )(
@@ -65,11 +66,11 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             Ti_bound_right={0.0: 2.0, 4.0: 4.0},
         ),
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(
@@ -97,7 +98,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         ),
     )
     np.testing.assert_allclose(
-        runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        build_simulation_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             torax_mesh=self._geo.torax_mesh,
         )(
@@ -106,7 +107,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         3.0,
     )
     np.testing.assert_allclose(
-        runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        build_simulation_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             torax_mesh=self._geo.torax_mesh,
         )(
@@ -115,7 +116,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         4.5,
     )
     np.testing.assert_allclose(
-        runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        build_simulation_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             torax_mesh=self._geo.torax_mesh,
         )(
@@ -138,7 +139,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         rho_norm_ped_top={0.0: 3.0, 1.0: 5.0},
     )
     # Check at time 0.
-    dcs_provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    dcs_provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         pedestal=pedestal_runtime_params,
         torax_mesh=self._geo.torax_mesh,
@@ -184,7 +185,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       # Check that the runtime params for the default ne sources are
       # time-dependent.
       runtime_params = general_runtime_params.GeneralRuntimeParams()
-      dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+      dcs = build_simulation_params.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources={
               electron_density_sources.GasPuffSource.SOURCE_NAME: (
@@ -249,7 +250,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   def test_wext_in_dynamic_runtime_params_cannot_be_negative(self):
     """Tests that wext cannot be negative."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    dcs_provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    dcs_provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={
@@ -257,7 +258,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
                 generic_current_source.RuntimeParams(wext={0.0: 1.0, 1.0: -1.0})
             ),
         },
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
     )
     # While wext is positive, this should be fine.
@@ -352,7 +353,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         profile_conditions=profile_conditions,
     )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-    dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    dcs = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
     )(
@@ -396,7 +397,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
 
-    dcs = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    dcs = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
     )(
@@ -428,7 +429,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         ),
     )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
     )
@@ -445,7 +446,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     self.assertEqual(dcs.profile_conditions.Ti_bound_right, 1.0)
     # Check post-update that the change is reflected.
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
     )
@@ -464,7 +465,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         generic_current_source.GenericCurrentSource.SOURCE_NAME
     ].Iext = 1.0
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -495,7 +496,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     self.assertEqual(generic_current.Iext, 1.0)
 
     # Update any interpolated variables and check that the change is reflected.
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -520,7 +521,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     transport = transport_params_lib.RuntimeParams(De_inner=1.0)
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
         transport=transport,
@@ -538,7 +539,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     self.assertEqual(dcs.transport.De_inner, 1.0)
     # Check post-update that the change is reflected.
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
         transport=transport,
@@ -552,12 +553,12 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Tests that the hash is the same for the same static params."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = default_sources.get_default_sources_builder()
-    static_slice1 = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice1 = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self._geo.torax_mesh,
     )
-    static_slice2 = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice2 = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self._geo.torax_mesh,
@@ -570,7 +571,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Test that the hash changes when the static params change."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = default_sources.get_default_sources_builder()
-    static_slice1 = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice1 = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self._geo.torax_mesh,
@@ -582,7 +583,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             ion_heat_eq=not runtime_params.numerics.ion_heat_eq,
         ),
     )
-    static_slice2 = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice2 = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params_mod,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self._geo.torax_mesh,

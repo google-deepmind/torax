@@ -21,13 +21,13 @@ from torax import core_profile_setters
 from torax import jax_utils
 from torax import physics
 from torax import state
+from torax.config import build_simulation_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_models as source_models_lib
-from torax.stepper import runtime_params as stepper_params_lib
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_params_lib
 
 SMALL_VALUE = 1e-6
@@ -120,14 +120,14 @@ class CoreProfileSettersTest(parameterized.TestCase):
         )
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
@@ -207,11 +207,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
         )
     )
 
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(
@@ -243,11 +243,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
             ne_bound_right=0.5,
         ),
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice_normalized = provider(
@@ -295,11 +295,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
             ne_bound_right=0.5,
         ),
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice_fGW = provider(
@@ -421,16 +421,16 @@ class CoreProfileSettersTest(parameterized.TestCase):
         ),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(
@@ -491,17 +491,17 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources=source_models_builder.runtime_params,
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(
         t=1.0,
     )
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
@@ -533,16 +533,16 @@ class CoreProfileSettersTest(parameterized.TestCase):
         ),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(
@@ -585,16 +585,16 @@ class CoreProfileSettersTest(parameterized.TestCase):
         ),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_simulation_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_simulation_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(
