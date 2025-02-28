@@ -65,8 +65,8 @@ class LinearThetaMethod(torax_pydantic.BaseModelFrozen):
   )
   convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
   use_pereverzev: bool = False
-  chi_per: pydantic.PositiveFloat = 20.0
-  d_per: pydantic.NonNegativeFloat = 10.0
+  chi_per: pydantic.PositiveFloat = 60.0
+  d_per: pydantic.NonNegativeFloat = 30.0
 
   def build_dynamic_params(self) -> runtime_params.DynamicRuntimeParams:
     return runtime_params.DynamicRuntimeParams(
