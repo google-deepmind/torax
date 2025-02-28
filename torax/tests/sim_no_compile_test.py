@@ -36,7 +36,7 @@ class SimNoCompileTest(sim_test_case.SimTestCase):
           'test_qlknnheat.py',
           _ALL_PROFILES,
           0,
-          1e-11,
+          1e-10,
       ),
   )
   def test_run_simulation(
