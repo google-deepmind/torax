@@ -32,6 +32,11 @@ from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
+# Define explicit multipliers for Bohm and GyroBohm terms
+DEFAULT_CHI_E_BOHM_COEFF = 8e-5
+DEFAULT_CHI_E_GYROBOHM_COEFF = 5e-6
+DEFAULT_CHI_I_BOHM_COEFF = 8e-5
+DEFAULT_CHI_I_GYROBOHM_COEFF = 5e-6
 
 # pylint: disable=invalid-name
 @chex.dataclass
@@ -42,13 +47,13 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   """
 
   # Prefactor for Bohm term for electron heat conductivity.
-  chi_e_bohm_coeff: runtime_params_lib.TimeInterpolatedInput = 8e-5
+  chi_e_bohm_coeff: TimeInterpolatedInput = DEFAULT_CHI_E_BOHM_COEFF
   # Prefactor for GyroBohm term for electron heat conductivity.
-  chi_e_gyrobohm_coeff: runtime_params_lib.TimeInterpolatedInput = 5e-6
+  chi_e_gyrobohm_coeff: TimeInterpolatedInput = DEFAULT_CHI_E_GYROBOHM_COEFF
   # Prefactor for Bohm term for ion heat conductivity.
-  chi_i_bohm_coeff: runtime_params_lib.TimeInterpolatedInput = 8e-5
+  chi_i_bohm_coeff: TimeInterpolatedInput = DEFAULT_CHI_I_BOHM_COEFF
   # Prefactor for GyroBohm term for ion heat conductivity.
-  chi_i_gyrobohm_coeff: runtime_params_lib.TimeInterpolatedInput = 5e-6
+  chi_i_gyrobohm_coeff: TimeInterpolatedInput = DEFAULT_CHI_I_GYROBOHM_COEFF
   # Constants for the electron diffusivity weighting factor.
   d_face_c1: runtime_params_lib.TimeInterpolatedInput = 1.0
   d_face_c2: runtime_params_lib.TimeInterpolatedInput = 0.3
@@ -179,13 +184,16 @@ class BohmGyroBohmModel(transport_model.TransportModel):
         / geo.rho_b
     )
 
-    chi_i_B = 2 * chi_e_B
-    chi_i_gB = 0.5 * chi_e_gB
+    BOHM_MULTIPLIER = 2.0  # Explicit multiplier for Bohm term
+    GYROBOHM_MULTIPLIER = 0.5  # Explicit multiplier for GyroBohm term
+
+    chi_i_B = BOHM_MULTIPLIER * chi_e_B
+    chi_i_gB = GYROBOHM_MULTIPLIER * chi_e_gB
 
     # Total heat transport
     chi_i = (
-        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff * chi_i_B
-        + dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff * chi_i_gB
+        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff * BOHM_MULTIPLIER * chi_i_B
+        + dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff * GYROBOHM_MULTIPLIER * chi_i_gB
     )
     chi_e = (
         dynamic_runtime_params_slice.transport.chi_e_bohm_coeff * chi_e_B
