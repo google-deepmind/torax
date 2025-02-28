@@ -1437,9 +1437,6 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'smoothing_sigma': 0.1,
           'qlknn_params': {
               'DVeff': True,
-              'include_ITG': True,
-              'include_TEM': True,
-              'include_ETG': True,
               'avoid_big_negative_s': True,
               'An_min': 0.05,
               'ITG_flux_ratio_correction': 1,
