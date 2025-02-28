@@ -22,10 +22,10 @@ import inspect
 from absl.testing import absltest
 from absl.testing import parameterized
 import torax
-from torax import core_profile_setters
 from torax import physics
 from torax import sim
 from torax import state
+from torax.core_profiles import updaters
 from torax.fvm import block_1d_coeffs
 from torax.fvm import calc_coeffs
 from torax.fvm import discrete_system
@@ -55,7 +55,7 @@ class ArgOrderTest(parameterized.TestCase):
   @parameterized.parameters([
       dict(module=calc_coeffs),
       dict(module=sim),
-      dict(module=core_profile_setters),
+      dict(module=updaters),
       dict(module=physics),
       dict(module=sim),
       dict(module=state),

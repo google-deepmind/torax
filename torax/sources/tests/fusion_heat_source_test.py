@@ -17,10 +17,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import constants
-from torax import core_profile_setters
 from torax import interpolated_param
 from torax.config import plasma_composition
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.sources import fusion_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
@@ -68,7 +68,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         torax_mesh=geo.torax_mesh,
     )
     source_models = source_models_builder()
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
@@ -126,7 +126,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         torax_mesh=geo.torax_mesh,
     )
     source_models = source_models_builder()
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
         static_runtime_params_slice=static_slice,
         geo=geo,

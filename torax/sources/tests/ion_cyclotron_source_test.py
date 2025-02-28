@@ -21,9 +21,9 @@ from absl.testing import parameterized
 import jax
 from jax import numpy as jnp
 import numpy as np
-from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import ion_cyclotron_source
 from torax.sources import source as source_lib
@@ -157,7 +157,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,

@@ -22,12 +22,12 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 from jax import tree_util
 import numpy as np
-from torax import core_profile_setters
 from torax import output
 from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
+from torax.core_profiles import initialization
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_profiles as source_profiles_lib
@@ -88,7 +88,7 @@ class StateHistoryTest(parameterized.TestCase):
         torax_mesh=geo.torax_mesh,
     )
 
-    self.core_profiles = core_profile_setters.initial_core_profiles(
+    self.core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,

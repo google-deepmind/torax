@@ -13,9 +13,9 @@
 # limitations under the License.
 from absl.testing import absltest
 import jax.numpy as jnp
-from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import electron_cyclotron_source
 from torax.sources import runtime_params as runtime_params_lib
@@ -68,7 +68,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
             stepper=stepper_runtime_params.RuntimeParams(),
         )
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,

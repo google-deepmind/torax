@@ -15,8 +15,8 @@ from typing import Callable
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax import core_profile_setters
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
@@ -70,7 +70,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
         )
     )
     source_models = source_models_builder()
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo,

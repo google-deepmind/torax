@@ -21,12 +21,12 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
-from torax import core_profile_setters
 from torax import jax_utils
 from torax import physics
 from torax import post_processing
 from torax import state
 from torax.config import runtime_params_slice
+from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
@@ -718,7 +718,7 @@ def _provide_core_profiles_t_plus_dt(
     core_profiles_t: state.CoreProfiles,
 ) -> state.CoreProfiles:
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
-  updated_boundary_conditions = core_profile_setters.compute_boundary_conditions_for_t_plus_dt(
+  updated_boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
       dt=dt,
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
@@ -726,7 +726,7 @@ def _provide_core_profiles_t_plus_dt(
       geo_t_plus_dt=geo_t_plus_dt,
       core_profiles_t=core_profiles_t,
   )
-  updated_values = core_profile_setters.get_prescribed_core_profile_values(
+  updated_values = updaters.get_prescribed_core_profile_values(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo_t_plus_dt,

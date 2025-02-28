@@ -20,11 +20,11 @@ from typing import Callable
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax import core_profile_setters
 from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
@@ -79,7 +79,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
         geo,
@@ -257,7 +257,7 @@ class TransportSmoothingTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         static_slice,
         dynamic_runtime_params_slice,
         geo,

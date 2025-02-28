@@ -14,11 +14,11 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax import core_profile_setters
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
+from torax.core_profiles import initialization
 from torax.fvm import calc_coeffs
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
@@ -100,7 +100,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
             stepper=stepper_params,
         )
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
