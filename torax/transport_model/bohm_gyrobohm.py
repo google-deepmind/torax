@@ -55,6 +55,12 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   # Proportionality factor between convectivity and diffusivity.
   v_face_coeff: runtime_params_lib.TimeInterpolatedInput = -0.1
 
+  # Multipliers for Bohm and GyroBohm terms
+  chi_e_bohm_multiplier: runtime_params_lib.TimeInterpolatedInput = 1.0
+  chi_e_gyrobohm_multiplier: runtime_params_lib.TimeInterpolatedInput = 1.0
+  chi_i_bohm_multiplier: runtime_params_lib.TimeInterpolatedInput = 1.0
+  chi_i_gyrobohm_multiplier: runtime_params_lib.TimeInterpolatedInput = 1.0
+
   def make_provider(
       self, torax_mesh: geometry.Grid1D | None = None
   ) -> RuntimeParamsProvider:
@@ -73,6 +79,10 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   d_face_c1: interpolated_param.InterpolatedVarSingleAxis
   d_face_c2: interpolated_param.InterpolatedVarSingleAxis
   v_face_coeff: interpolated_param.InterpolatedVarSingleAxis
+  chi_e_bohm_multiplier: interpolated_param.InterpolatedVarSingleAxis
+  chi_e_gyrobohm_multiplier: interpolated_param.InterpolatedVarSingleAxis
+  chi_i_bohm_multiplier: interpolated_param.InterpolatedVarSingleAxis
+  chi_i_gyrobohm_multiplier: interpolated_param.InterpolatedVarSingleAxis
 
   def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
@@ -89,6 +99,11 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   d_face_c1: array_typing.ScalarFloat
   d_face_c2: array_typing.ScalarFloat
   v_face_coeff: array_typing.ScalarFloat
+  chi_e_bohm_multiplier: array_typing.ScalarFloat
+  chi_e_gyrobohm_multiplier: array_typing.ScalarFloat
+  chi_i_bohm_multiplier: array_typing.ScalarFloat
+  chi_i_gyrobohm_multiplier: array_typing.ScalarFloat
+
 
   def sanity_check(self):
     runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
@@ -184,12 +199,21 @@ class BohmGyroBohmModel(transport_model.TransportModel):
 
     # Total heat transport
     chi_i = (
-        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff * chi_i_B
-        + dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff * chi_i_gB
+        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_i_bohm_multiplier
+        * chi_i_B
+        + dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_i_gyrobohm_multiplier
+        * chi_i_gB
     )
+
     chi_e = (
-        dynamic_runtime_params_slice.transport.chi_e_bohm_coeff * chi_e_B
-        + dynamic_runtime_params_slice.transport.chi_e_gyrobohm_coeff * chi_e_gB
+        dynamic_runtime_params_slice.transport.chi_e_bohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_e_bohm_multiplier
+        * chi_e_B
+        + dynamic_runtime_params_slice.transport.chi_e_gyrobohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_e_gyrobohm_multiplier
+        * chi_e_gB
     )
 
     # Electron diffusivity
