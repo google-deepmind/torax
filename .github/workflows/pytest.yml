@@ -52,7 +52,7 @@ jobs:
         # Can't reference env variables in matrix
         num-shards: ${{ fromJson(needs.shards-job.outputs.num-shards) }}
         shard-id: ${{ fromJson(needs.shards-job.outputs.shard-ids) }}
-        python-version: ['3.10']
+        python-version: ['3.11']
         os-version: [ubuntu-latest]
 
     steps:
@@ -63,10 +63,12 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - run: git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
-    - run: echo "TORAX_QLKNN_MODEL_PATH=$PWD/qlknn-hyper" >> "$GITHUB_ENV"
-
     - run: pip --version
+
+    - run: git clone https://github.com/google-deepmind/fusion_transport_surrogates.git
+    - run: pip install -e ./fusion_transport_surrogates
+    - run: echo "TORAX_QLKNN_MODEL_PATH=$PWD/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn" >> "$GITHUB_ENV"
+
     - run: pip install -e .[dev]
     - run: pip freeze
 
