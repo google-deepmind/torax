@@ -242,6 +242,7 @@ def _build_single_source_builder_from_config(
 ) -> source_lib.SourceBuilderProtocol:
   """Builds a source builder from the input config."""
   supported_source = register_source.get_supported_source(source_name)
+  source_config = copy.deepcopy(source_config)
   if 'model_func' in source_config:
     # If the user has specified a model function, try to retrive that from the
     # registered source model functions.
@@ -348,7 +349,7 @@ def build_transport_model_builder_from_config(
   else:
     if 'transport_model' not in transport_config:
       raise ValueError('transport_model must be set in the input config.')
-    transport_config = copy.copy(transport_config)
+    transport_config = copy.deepcopy(transport_config)
   transport_model = transport_config.pop('transport_model')
   if transport_model == 'qlknn':
     qlknn_params = transport_config.pop('qlknn_params', {})
@@ -449,6 +450,7 @@ def build_pedestal_model_builder_from_config(
     pedestal_config: dict[str, Any],
 ) -> pedestal_model_lib.PedestalModelBuilder:
   """Builds a `PedestalModelBuilder` from the input config."""
+  pedestal_config = copy.deepcopy(pedestal_config)
   pedestal_model = pedestal_config.pop('pedestal_model', 'set_tped_nped')
   match pedestal_model:
     case 'set_tped_nped':
@@ -508,8 +510,8 @@ def build_stepper_builder_from_config(
   else:
     if 'stepper_type' not in stepper_config:
       raise ValueError('stepper_type must be set in the input config.')
-    # Shallow copy so we don't modify the input config.
-    stepper_config = copy.copy(stepper_config)
+    # Deep copy so we don't modify the input config.
+    stepper_config = copy.deepcopy(stepper_config)
   stepper_type = stepper_config.pop('stepper_type')
   if stepper_type == 'linear':
     # Remove params from steppers with nested configs, if present.
@@ -592,7 +594,7 @@ def build_time_step_calculator_from_config(
   else:
     if 'calculator_type' not in time_step_calculator_config:
       raise ValueError('calculator_type must be set in the input config.')
-    time_step_calculator_config = copy.copy(time_step_calculator_config)
+    time_step_calculator_config = copy.deepcopy(time_step_calculator_config)
   calculator_type = time_step_calculator_config.pop('calculator_type')
   init_args = time_step_calculator_config.pop('init_kwargs', {})
   if calculator_type == 'fixed':
