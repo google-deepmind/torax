@@ -186,9 +186,9 @@ class PostProcessingTest(parameterized.TestCase):
     np.testing.assert_allclose(wth_ion, 1.5 * p_ion[0] * volume)
     np.testing.assert_allclose(wth_tot, 1.5 * p_tot[0] * volume)
 
-  def test_calculate_greenwald_fraction_from_ne_vol_avg(self):
+  def test_calculate_greenwald_fraction(self):
     """Test that Greenwald fraction is calculated correctly."""
-    ne_volume_avg = 1.0
+    ne = 1.0
 
     core_profiles = mock.create_autospec(
         state.CoreProfiles,
@@ -197,7 +197,7 @@ class PostProcessingTest(parameterized.TestCase):
         currents=mock.create_autospec(
             state.Currents,
             instance=True,
-            Ip_profile_face=np.array([0, np.pi * 1e6]),
+            Ip_total=np.pi * 1e6,
         ),
     )
     geo = mock.create_autospec(
@@ -208,8 +208,8 @@ class PostProcessingTest(parameterized.TestCase):
 
     # pylint: disable=protected-access
     fgw_ne_volume_avg_calculated = (
-        post_processing._calculate_greenwald_fraction_from_ne_vol_avg(
-            ne_volume_avg, core_profiles, geo
+        post_processing._calculate_greenwald_fraction(
+            ne, core_profiles, geo
         )
     )
 

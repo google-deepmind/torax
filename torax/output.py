@@ -80,6 +80,7 @@ NREF = "nref"
 ZIMP = "Zimp"
 NIMP = "nimp"
 IP_PROFILE_FACE = "Ip_profile_face"
+IP_TOTAL = "Ip_total"
 VLOOP_LCFS = "vloop_lcfs"
 
 # Core transport.
@@ -312,6 +313,7 @@ class StateHistory:
     xr_dict[J_BOOTSTRAP] = self.core_profiles.currents.j_bootstrap
     xr_dict[J_BOOTSTRAP_FACE] = self.core_profiles.currents.j_bootstrap_face
     xr_dict[IP_PROFILE_FACE] = self.core_profiles.currents.Ip_profile_face
+    xr_dict[IP_TOTAL] = self.core_profiles.currents.Ip_total
     xr_dict[I_BOOTSTRAP] = self.core_profiles.currents.I_bootstrap
     xr_dict[SIGMA] = self.core_profiles.currents.sigma
 
