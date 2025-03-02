@@ -22,8 +22,8 @@ import chex
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
+from torax import core_profile_setters
 from torax import interpolated_param
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -130,7 +130,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
     Zeff_ped = Zeff[ped_idx]
     Zi_ped = Zi[ped_idx]
     Zimp_ped = Zimp[ped_idx]
-    dilution_factor_ped = physics.get_main_ion_dilution_factor(
+    dilution_factor_ped = core_profile_setters.get_main_ion_dilution_factor(
         Zi_ped, Zimp_ped, Zeff_ped
     )
     # Calculate ni and nimp.
