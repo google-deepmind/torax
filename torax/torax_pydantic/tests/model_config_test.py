@@ -11,23 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Unit tests for the `torax.config` module."""
-
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 from torax.config import config_loader
 from torax.torax_pydantic import model_config
 
 
 class ConfigTest(parameterized.TestCase):
-  """Unit tests for the `torax.config` module."""
 
-  def test_full_config_construction(self):
+  @parameterized.parameters(
+      "test_implicit",
+      "test_bohmgyrobohm_all",
+      "test_iterhybrid_predictor_corrector",
+      "test_iterhybrid_rampup",
+  )
+  def test_full_config_construction(self, config_name):
     """Test for basic config construction."""
 
     module = config_loader.import_module(
-        ".tests.test_data.test_iterhybrid_newton",
+        f".tests.test_data.{config_name}",
         config_package="torax",
     )
 
@@ -48,14 +51,13 @@ class ConfigTest(parameterized.TestCase):
         if "pedestal_model" in module_config["pedestal"]
         else "set_tped_nped",
     )
-
     # The full model should always be serializable.
     with self.subTest("json_serialization"):
       config_json = config_pydantic.model_dump_json()
       config_pydantic_roundtrip = model_config.ToraxConfig.model_validate_json(
           config_json
       )
-      self.assertEqual(config_pydantic, config_pydantic_roundtrip)
+      chex.assert_trees_all_equal(config_pydantic, config_pydantic_roundtrip)
 
 
 if __name__ == "__main__":
