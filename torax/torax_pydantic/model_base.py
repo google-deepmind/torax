@@ -14,11 +14,11 @@
 
 """Pydantic utilities and base classes."""
 
-from collections.abc import Mapping
-from typing import Annotated, Any, Final, TypeAlias
+from typing import Annotated, Any, Final, Mapping, Sequence, TypeAlias
 import jax
 import numpy as np
 import pydantic
+import treelib
 from typing_extensions import Self
 
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
@@ -136,6 +136,62 @@ class BaseModelMutable(pydantic.BaseModel):
     return tuple(
         k for k, v in cls.model_fields.items() if TIME_INVARIANT in v.metadata
     )
+
+  def _get_direct_submodels(self) -> tuple[pydantic.BaseModel, ...]:
+    """Return all direct submodels in the model."""
+
+    def is_leaf(x):
+      if isinstance(x, Mapping):
+        return False
+      if isinstance(x, Sequence):
+        return False
+      return True
+
+    leaves = jax.tree.flatten(self.__dict__, is_leaf=is_leaf)[0]
+    return tuple(i for i in leaves if isinstance(i, pydantic.BaseModel))
+
+  def _get_submodels(self) -> tuple[pydantic.BaseModel, ...]:
+    """Return all submodels in the model."""
+
+    all_submodels = []
+    new_submodels = self._get_direct_submodels()  # pylint: disable=protected-access
+    new_submodels_temp = []
+    while new_submodels:
+      for model in new_submodels:
+        all_submodels.append(model)
+        # pylint: disable=protected-access
+        new_submodels_temp += model._get_direct_submodels()  # pytype: disable=attribute-error
+        # pylint: enable=protected-access
+      new_submodels = new_submodels_temp
+      new_submodels_temp = []
+    return tuple(all_submodels)
+
+  def _has_unique_submodels(self) -> bool:
+    """Returns True if all submodels are different instances of models."""
+    submodels = self._get_submodels()
+    unique_ids = set(id(m) for m in submodels)
+    return len(submodels) == len(unique_ids)
+
+  def tree_build(self) -> treelib.Tree:
+    """Returns a treelib.Tree representation of a nested Pydantic model."""
+
+    # An alternative is to automatically 'fix' the user model by making copies
+    # of duplicated submodels. This is chosen for simplicity.
+    if not self._has_unique_submodels():
+      raise ValueError(
+          'Cannot build a `treelib.Tree` for a model with non-unique submodels.'
+      )
+
+    model_tree = treelib.Tree()
+    model_tree.create_node(
+        tag=self.__class__.__name__,
+        identifier=id(self),
+        data=self,
+    )
+    for model in self._get_direct_submodels():  # pylint: disable=protected-access
+      if model.__class__ is not BaseModelMutable:
+        model_tree.paste(id(self), model.tree_build())  # pytype: disable=attribute-error
+    return model_tree
 
 
 class BaseModelFrozen(BaseModelMutable, frozen=True):
