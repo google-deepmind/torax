@@ -16,9 +16,10 @@
 import chex
 from jax import numpy as jnp
 from torax import constants as constants_module
-from torax import physics
 from torax import state
 from torax.geometry import geometry
+from torax.physics import collisions
+from torax.physics import psi_calculations
 from torax.transport_model import quasilinear_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 
@@ -144,11 +145,11 @@ class QualikizBasedTransportModel(
     # Calculate q and s.
     # Need to recalculate since in the nonlinear solver psi has intermediate
     # states in the iterative solve.
-    q, _ = physics.calc_q_from_psi(
+    q, _ = psi_calculations.calc_q(
         geo=geo,
         psi=core_profiles.psi,
     )
-    smag = physics.calc_s_from_psi_rmid(
+    smag = psi_calculations.calc_s_rmid(
         geo,
         core_profiles.psi,
     )
@@ -165,7 +166,7 @@ class QualikizBasedTransportModel(
     )
 
     # logarithm of normalized collisionality
-    nu_star = physics.calc_nu_star(
+    nu_star = collisions.calc_nu_star(
         geo=geo,
         core_profiles=core_profiles,
         nref=nref,

@@ -23,11 +23,9 @@ import functools
 import jax
 from jax import numpy as jnp
 from torax import array_typing
-from torax import charge_states
 from torax import constants
 from torax import jax_utils
 from torax import math_utils
-from torax import physics
 from torax import state
 from torax.config import numerics
 from torax.config import profile_conditions
@@ -35,6 +33,8 @@ from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import standard_geometry
+from torax.physics import charge_states
+from torax.physics import psi_calculations
 from torax.sources import ohmic_heat_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
@@ -42,8 +42,6 @@ from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
 
-# Using capitalized variables for physics notational conventions rather than
-# Python style.
 # pylint: disable=invalid-name
 
 
@@ -254,8 +252,8 @@ def get_ion_density_and_charge_states(
   Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
   Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
 
-  dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
-  dilution_factor_edge = physics.get_main_ion_dilution_factor(
+  dilution_factor = get_main_ion_dilution_factor(Zi, Zimp, Zeff)
+  dilution_factor_edge = get_main_ion_dilution_factor(
       Zi_face[-1], Zimp_face[-1], Zeff_face[-1]
   )
 
@@ -288,8 +286,6 @@ def _prescribe_currents(
 ) -> state.Currents:
   """Creates the initial Currents from a given bootstrap profile."""
 
-  # Many variables throughout this function are capitalized based on physics
-  # notational conventions rather than on Google Python style
   Ip = dynamic_runtime_params_slice.profile_conditions.Ip_tot
   f_bootstrap = bootstrap_profile.I_bootstrap / (Ip * 1e6)
 
@@ -342,7 +338,7 @@ def _calculate_currents_from_psi(
     source_profiles: source_profiles_lib.SourceProfiles,
 ) -> state.Currents:
   """Creates the initial Currents using psi to calculate jtot."""
-  jtot, jtot_face, Ip_profile_face = physics.calc_jtot_from_psi(
+  jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(
       geo,
       core_profiles.psi,
   )
@@ -642,7 +638,7 @@ def _init_psi_psidot_vloop_and_current(
         currents.jtot_hires,
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
-    _, _, Ip_profile_face = physics.calc_jtot_from_psi(
+    _, _, Ip_profile_face = psi_calculations.calc_jtot(
         geo,
         psi,
     )
@@ -780,7 +776,7 @@ def initial_core_profiles(
   )
 
   # Set psi as source of truth and recalculate jtot, q, s
-  return physics.update_jtot_q_face_s_face(
+  return psi_calculations.update_jtot_q_face_s_face(
       geo=geo,
       core_profiles=core_profiles,
   )
@@ -965,7 +961,7 @@ def compute_boundary_conditions_for_t_plus_dt(
       Te=Te_bound_right,
   )
 
-  dilution_factor_edge = physics.get_main_ion_dilution_factor(
+  dilution_factor_edge = get_main_ion_dilution_factor(
       Zi_edge,
       Zimp_edge,
       dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zeff_face[-1],
@@ -1063,3 +1059,13 @@ def _get_jtot_hires(
     johm_hires = jformula_hires * Cohm_hires
     jtot_hires = johm_hires + external_current_hires + j_bootstrap_hires
   return jtot_hires
+
+
+# TODO(b/377225415): generalize to arbitrary number of ions.
+def get_main_ion_dilution_factor(
+    Zi: array_typing.ScalarFloat,
+    Zimp: array_typing.ArrayFloat,
+    Zeff: array_typing.ArrayFloat,
+) -> jax.Array:
+  """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
+  return (Zimp - Zeff) / (Zi * (Zimp - Zi))

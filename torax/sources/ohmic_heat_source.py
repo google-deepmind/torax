@@ -22,13 +22,13 @@ import chex
 import jax
 import jax.numpy as jnp
 from torax import constants
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.fvm import convection_terms
 from torax.fvm import diffusion_terms
 from torax.geometry import geometry
+from torax.physics import psi_calculations
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_operations
@@ -128,7 +128,7 @@ def ohmic_model_func(
         ' an explicit source.'
     )
 
-  jtot, _, _ = physics.calc_jtot_from_psi(
+  jtot, _, _ = psi_calculations.calc_jtot(
       geo,
       core_profiles.psi,
   )
