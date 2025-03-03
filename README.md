@@ -72,6 +72,8 @@ sudo apt-get install python3-tk
 
 ### How to install
 
+#### Prepare a virtual environment
+
 Install virtualenv (if not already installed):
 
 ```shell
@@ -102,7 +104,9 @@ Activate the virtual env:
 source toraxvenv/bin/activate
 ```
 
-Download QLKNN dependencies:
+#### Install QLKNN-hyper
+
+Download QLKNN-hyper dependencies:
 
 ```shell
 git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
@@ -119,6 +123,24 @@ using bash, run:
 echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
 ```
 The above command only needs to be run once on a given system.
+
+#### (Optional) Install QLKNN_7_11
+
+Optionally, you can instead use QLKNN_7_11, a more recent surrogate model:
+
+```shell
+git clone https://github.com/google-deepmind/fusion_transport_surrogates.git
+pip install -e ./fusion_transport_surrogates
+export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn
+```
+
+We recommend automating the variable export. If using bash, run:
+
+```shell
+echo export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn >> ~/.bashrc
+```
+
+#### Install TORAX
 
 Download and install the TORAX codebase via http:
 
@@ -177,8 +199,7 @@ completed.
 To run more involved, ITER-inspired simulations, run:
 
 ```shell
-python3 run_simulation_main.py
-   --config='torax.examples.iterhybrid_rampup'
+python3 run_simulation_main.py --config='torax.examples.iterhybrid_rampup'
 ```
 
 and
@@ -192,7 +213,7 @@ run command, and environment variables. For example, for increased output
 verbosity, can run with the `--log_progress` flag.
 
 ```shell
-python3 run_simulation_main.py
+python3 run_simulation_main.py \
    --config='torax.examples.iterhybrid_rampup' --log_progress
 ```
 
