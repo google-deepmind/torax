@@ -314,30 +314,32 @@ def _calculate_q95(
   return q95
 
 
-def _calculate_greenwald_fraction_from_ne_vol_avg(
-    ne_volume_avg: array_typing.ScalarFloat,
+def _calculate_greenwald_fraction(
+    ne_avg: array_typing.ScalarFloat,
     core_profiles: state.CoreProfiles,
     geo: geometry.Geometry,
 ) -> array_typing.ScalarFloat:
-  """Calculates the Greenwald fraction from the volume-average electron density.
+  """Calculates the Greenwald fraction from the averaged electron density.
+
+  Different averaging can be used, e.g. volume-averaged or line-averaged.
 
   Args:
-    ne_volume_avg: Volume-averaged electron density [nref m^-3]
+    ne_avg: Averaged electron density [nref m^-3]
     core_profiles: CoreProfiles object containing information on currents
       and densities.
     geo: Geometry object
 
   Returns:
-    fgw_ne_vol_avg: Volume-averaged electron density Greenwald fraction
+    fgw: Greenwald density fraction
   """
-  # gw_limit is in units of 10^20 m^-3 when Ip is in MA and rmid is in m.
+  # gw_limit is in units of 10^20 m^-3 when Ip is in MA and Rmin is in m.
   gw_limit = (
-      core_profiles.currents.Ip_profile_face[-1]
+      core_profiles.currents.Ip_total
       * 1e-6
       / (jnp.pi * geo.Rmin ** 2)
   )
-  fgw_ne_vol_avg = ne_volume_avg * core_profiles.nref / (gw_limit * 1e20)
-  return fgw_ne_vol_avg
+  fgw = ne_avg * core_profiles.nref / (gw_limit * 1e20)
+  return fgw
 
 
 @jax_utils.jit
@@ -477,7 +479,7 @@ def make_outputs(
       / geo.volume[-1]
   )
 
-  # Calculate ne and ni (main ion) volume average [nref m^-3]
+  # Calculate ne and ni (main ion) volume and line averages [nref m^-3]
   ne_volume_avg = (
       math_utils.cell_integration(
           sim_state.core_profiles.ne.value * geo.vpr, geo
@@ -490,9 +492,17 @@ def make_outputs(
       )
       / geo.volume[-1]
   )
-
-  fgw_ne_volume_avg = _calculate_greenwald_fraction_from_ne_vol_avg(
+  ne_line_avg = (
+      math_utils.cell_integration(sim_state.core_profiles.ne.value, geo)
+  )
+  ni_line_avg = (
+      math_utils.cell_integration(sim_state.core_profiles.ni.value, geo)
+  )
+  fgw_ne_volume_avg = _calculate_greenwald_fraction(
       ne_volume_avg, sim_state.core_profiles, geo
+      )
+  fgw_ne_line_avg = _calculate_greenwald_fraction(
+      ne_line_avg, sim_state.core_profiles, geo
       )
   Wpol = physics.calc_Wpol(geo, sim_state.core_profiles.psi)
   li3 = physics.calc_li3(
@@ -529,7 +539,10 @@ def make_outputs(
       ti_volume_avg=ti_volume_avg,
       ne_volume_avg=ne_volume_avg,
       ni_volume_avg=ni_volume_avg,
+      ne_line_avg=ne_line_avg,
+      ni_line_avg=ni_line_avg,
       fgw_ne_volume_avg=fgw_ne_volume_avg,
+      fgw_ne_line_avg=fgw_ne_line_avg,
       q95=q95,
       Wpol=Wpol,
       li3=li3,

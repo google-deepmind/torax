@@ -54,6 +54,11 @@ class Currents:
   sigma: array_typing.ArrayFloat
   jtot_hires: Optional[array_typing.ArrayFloat] = None
 
+  @property
+  def Ip_total(self) -> array_typing.ScalarFloat:
+    """Returns the total plasma current [A]."""
+    return self.Ip_profile_face[..., -1]
+
   def has_nans(self) -> bool:
     """Checks for NaNs in all attributes of Currents."""
 
@@ -346,7 +351,11 @@ class PostProcessedOutputs:
     ti_volume_avg: Volume average ion temperature [keV]
     ne_volume_avg: Volume average electron density [nref m^-3]
     ni_volume_avg: Volume average main ion density [nref m^-3]
+    ne_line_avg: Line averaged electron density [nref m^-3]
+    ni_line_avg: Line averaged main ion density [nref m^-3]
     fgw_ne_volume_avg: Greenwald fraction from volume-averaged electron density
+      [dimensionless]
+    fgw_ne_line_avg: Greenwald fraction from line-averaged electron density
       [dimensionless]
     q95: q at 95% of the normalized poloidal flux
     Wpol: Total magnetic energy [J]
@@ -407,7 +416,10 @@ class PostProcessedOutputs:
   ti_volume_avg: array_typing.ScalarFloat
   ne_volume_avg: array_typing.ScalarFloat
   ni_volume_avg: array_typing.ScalarFloat
+  ne_line_avg: array_typing.ScalarFloat
+  ni_line_avg: array_typing.ScalarFloat
   fgw_ne_volume_avg: array_typing.ScalarFloat
+  fgw_ne_line_avg: array_typing.ScalarFloat
   q95: array_typing.ScalarFloat
   Wpol: array_typing.ScalarFloat
   li3: array_typing.ScalarFloat
@@ -467,7 +479,10 @@ class PostProcessedOutputs:
         ti_volume_avg=jnp.array(0.0),
         ne_volume_avg=jnp.array(0.0),
         ni_volume_avg=jnp.array(0.0),
+        ne_line_avg=jnp.array(0.0),
+        ni_line_avg=jnp.array(0.0),
         fgw_ne_volume_avg=jnp.array(0.0),
+        fgw_ne_line_avg=jnp.array(0.0),
         q95=jnp.array(0.0),
         Wpol=jnp.array(0.0),
         li3=jnp.array(0.0),
