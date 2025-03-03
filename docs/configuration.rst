@@ -1171,7 +1171,8 @@ stepper
 -------
 
 Select and configure the ``Stepper`` object, which evolves the PDE system by one timestep. See :ref:`solver_details` for further details.
-The dictionary consists of keys common to all steppers, and additional nested dictionaries where parameters pertaining to a specific stepper are defined.
+The dictionary consists of keys common to all steppers. Additional fields for
+parameters pertaining to a specific stepper are defined in the relevant section below.
 
 ``stepper_type`` (str = 'linear')
   Selected PDE solver algorithm. The current options are:
@@ -1226,8 +1227,6 @@ parent ``Stepper`` class.
 newton_raphson
 ^^^^^^^^^^^^^^
 
-``newton_raphson_params`` dict containing the following configuration parameters for the Newton Raphson stepper.
-
 .. _log_iterations:
 
 ``log_iterations`` (bool = False)
@@ -1249,6 +1248,9 @@ newton_raphson
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear solver.
+    If used, is recommended to do so with the predictor_corrector solver and
+    several corrector steps. It is also strongly recommended to
+    use_pereverzev=True if a stiff transport model like qlknn is used.
 
 ``tol`` (float = 1e-5)
   PDE residual magnitude tolerance for successfully exiting the iterative solver.
@@ -1275,8 +1277,6 @@ newton_raphson
 optimizer
 ^^^^^^^^^
 
-``optimizer_params`` dict containing the following configuration parameters for the Optimizer stepper.
-
 ``initial_guess_mode`` (str = 'linear_step')
   Sets the approach taken for the initial guess into the Newton-Raphson solver for the first iteration.
   Two options are available:
@@ -1286,9 +1286,15 @@ optimizer
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear solver.
+    If used, is recommended to do so with the predictor_corrector solver and
+    several corrector steps. It is also strongly recommended to
+    use_pereverzev=True if a stiff transport model like qlknn is used.
 
 ``tol`` (float = 1e-12)
   PDE loss magnitude tolerance for successfully exiting the iterative solver.
+  Note: the default tolerance here is smaller than the default tolerance for
+  the Newton-Raphson solver because it's a tolerance on the loss (square of the
+  residual).
 
 ``maxiter`` (int = 100)
   Maximum number of allowed optimizer iterations.

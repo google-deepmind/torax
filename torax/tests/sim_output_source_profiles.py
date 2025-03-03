@@ -191,7 +191,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     sim = sim_lib.Sim.create(
         runtime_params=runtime_params,
         geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
-        stepper_builder=explicit_stepper.ExplicitStepperBuilder(),
+        stepper=explicit_stepper.ExplicitStepperModel(),
         transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
         source_models_builder=source_models_builder,
         pedestal_model_builder=set_tped_nped.SetTemperatureDensityPedestalModelBuilder(),
