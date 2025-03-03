@@ -23,10 +23,10 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import core_profile_setters
 from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.core_profiles import updaters
 from torax.fvm import diffusion_terms
 from torax.geometry import geometry
 from torax.sources import source_operations
@@ -116,7 +116,7 @@ class ExplicitStepper(stepper_lib.Stepper):
         + dt * (jnp.dot(c_mat, core_profiles_t.temp_ion.value) + c) / cti
     )
     # Update the potentially time-dependent boundary conditions as well.
-    updated_boundary_conditions = core_profile_setters.compute_boundary_conditions_for_t_plus_dt(
+    updated_boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
         dt=dynamic_runtime_params_slice_t_plus_dt.numerics.fixed_dt,
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t_plus_dt,

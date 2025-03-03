@@ -16,7 +16,6 @@
 
 import dataclasses
 from typing import Callable
-from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -24,14 +23,12 @@ import jax
 from jax import numpy as jnp
 import numpy as np
 from torax import constants
-from torax import core_profile_setters
 from torax import physics
 from torax import state
+from torax.core_profiles import initialization
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.geometry import standard_geometry
-from torax.sources import generic_current_source
-from torax.sources import source_profiles
 from torax.tests.test_lib import torax_refs
 
 
@@ -94,60 +91,6 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
 
     np.testing.assert_allclose(q_face_jax, q_face_np)
     np.testing.assert_allclose(q_cell_jax, q_cell_np)
-
-  @parameterized.parameters([
-      dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
-      ),
-  ])
-  def test_update_psi_from_j(
-      self, references_getter: Callable[[], torax_refs.References]
-  ):
-    """Compare `update_psi_from_j` function to a reference implementation."""
-    references = references_getter()
-
-    runtime_params = references.runtime_params
-    source_runtime_params = generic_current_source.RuntimeParams()
-    # Turn on the external current source.
-    dynamic_runtime_params_slice, geo = (
-        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
-            runtime_params,
-            references.geometry_provider,
-            sources={
-                generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-                    source_runtime_params
-                )
-            },
-        )
-    )
-    # pylint: disable=protected-access
-    if isinstance(geo, standard_geometry.StandardGeometry):
-      psi = geo.psi_from_Ip
-    else:
-      bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
-      external_current = generic_current_source.calculate_generic_current(
-          mock.ANY,
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          geo=geo,
-          source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
-          unused_state=mock.ANY,
-          unused_calculated_source_profiles=mock.ANY,
-      )[0]
-      currents = core_profile_setters._prescribe_currents(
-          bootstrap_profile=bootstrap,
-          external_current=external_current,
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          geo=geo,
-      )
-      psi = core_profile_setters._update_psi_from_j(
-          dynamic_runtime_params_slice.profile_conditions.Ip_tot,
-          geo,
-          currents.jtot_hires,
-      ).value
-    # pylint: enable=protected-access
-    np.testing.assert_allclose(psi, references.psi.value)
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -577,7 +520,7 @@ class PhysicsTest(torax_refs.ReferenceValueTest):
     Ctot = Ip_tot * 1e6 / denom
     jtot = jtot_profile * Ctot
     # pylint: disable=protected-access
-    psi_cell_variable = core_profile_setters._update_psi_from_j(
+    psi_cell_variable = initialization._update_psi_from_j(
         Ip_tot,
         geo,
         jtot,

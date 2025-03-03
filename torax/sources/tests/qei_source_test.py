@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from absl.testing import absltest
-from torax import core_profile_setters
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import qei_source
 from torax.sources import source_models as source_models_lib
@@ -55,7 +55,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
     )(
         t=runtime_params.numerics.t_initial,
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,

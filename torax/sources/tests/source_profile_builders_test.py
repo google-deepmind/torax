@@ -18,9 +18,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
-from torax import core_profile_setters
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source
@@ -55,7 +55,7 @@ class SourceModelsTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=self.geo,

@@ -19,11 +19,12 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import constants
-from torax import core_profile_setters
 from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
+from torax.core_profiles import updaters
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import source_models as source_models_lib
 
@@ -86,7 +87,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         static_slice,
         initial_dynamic_runtime_params_slice,
         geo,
@@ -102,7 +103,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
         )
     )
 
-    bc = core_profile_setters.compute_boundary_conditions_for_t_plus_dt(
+    bc = updaters.compute_boundary_conditions_for_t_plus_dt(
         dt=runtime_params.numerics.fixed_dt,
         dynamic_runtime_params_slice_t=dynamic_runtime_params_slice,  # Not used
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice,

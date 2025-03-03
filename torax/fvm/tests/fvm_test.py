@@ -19,11 +19,11 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
-from torax import core_profile_setters
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.fvm import block_1d_coeffs
 from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
@@ -272,7 +272,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             stepper=stepper_params,
         )
     )
-    core_profiles = core_profile_setters.initial_core_profiles(
+    core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
@@ -421,7 +421,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         n_rho=num_cells
     ).build_geometry()
     source_models = source_models_builder()
-    initial_core_profiles = core_profile_setters.initial_core_profiles(
+    initial_core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         geo,
@@ -576,7 +576,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
 
     source_models = source_models_builder()
     pedestal_model = set_tped_nped.SetTemperatureDensityPedestalModel()
-    initial_core_profiles = core_profile_setters.initial_core_profiles(
+    initial_core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice_theta0,
         dynamic_runtime_params_slice,
         geo,
@@ -614,7 +614,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         right_face_grad_constraint=None,
         right_face_constraint=initial_right_boundary,
     )
-    core_profiles_t_plus_dt = core_profile_setters.initial_core_profiles(
+    core_profiles_t_plus_dt = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice_theta05,
         geo=geo,

@@ -34,13 +34,13 @@ from absl import logging
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import core_profile_setters
 from torax import output
 from torax import post_processing
 from torax import state
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
@@ -62,7 +62,7 @@ def get_initial_state(
     step_fn: step_function.SimulationStepFn,
 ) -> state.ToraxSimState:
   """Returns the initial state to be used by run_simulation()."""
-  initial_core_profiles = core_profile_setters.initial_core_profiles(
+  initial_core_profiles = initialization.initial_core_profiles(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
