@@ -78,7 +78,7 @@ class SetTpedNped(torax_pydantic.BaseModelMutable):
   )
 
 
-class PedestalModel(torax_pydantic.BaseModelMutable):
+class Pedestal(torax_pydantic.BaseModelMutable):
   """Config for a pedestal model."""
   pedestal_config: SetPpedTpedRatioNped | SetTpedNped = pydantic.Field(
       discriminator='pedestal_model', default_factory=SetTpedNped,
