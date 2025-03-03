@@ -25,8 +25,6 @@ from torax.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid
 
-# Using capitalized variables for physics notational conventions rather than
-# Python style.
 # pylint: disable=invalid-name
 
 
@@ -157,3 +155,14 @@ def calculate_psi_grad_constraint_from_Ip_tot(
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )
+
+
+# TODO(b/377225415): generalize to arbitrary number of ions.
+def get_main_ion_dilution_factor(
+    Zi: array_typing.ScalarFloat,
+    Zimp: array_typing.ArrayFloat,
+    Zeff: array_typing.ArrayFloat,
+) -> jax.Array:
+  """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
+  return (Zimp - Zeff) / (Zi * (Zimp - Zi))
+

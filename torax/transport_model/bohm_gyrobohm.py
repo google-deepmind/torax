@@ -139,8 +139,6 @@ class BohmGyroBohmModel(transport_model.TransportModel):
       coeffs: The transport coefficients
     """
     del pedestal_model_outputs  # Unused.
-    # Many variables throughout this function are capitalized based on physics
-    # notational conventions rather than on Google Python style
     # pylint: disable=invalid-name
     assert isinstance(
         dynamic_runtime_params_slice.transport, DynamicRuntimeParams

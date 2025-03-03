@@ -180,7 +180,7 @@ class PostProcessingTest(parameterized.TestCase):
     )
     # pylint: enable=protected-access
 
-    volume = np.trapz(geo.vpr_face, geo.rho_face_norm)
+    volume = np.trapezoid(geo.vpr_face, geo.rho_face_norm)
 
     np.testing.assert_allclose(wth_el, 1.5 * p_el[0] * volume)
     np.testing.assert_allclose(wth_ion, 1.5 * p_ion[0] * volume)

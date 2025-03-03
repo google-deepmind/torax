@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for module torax.charge_states."""
+"""Unit tests for module torax.physics.charge_states."""
 
 from absl.testing import parameterized
 import numpy as np
-from torax import charge_states
 from torax import constants
 from torax.config import plasma_composition
+from torax.physics import charge_states
 
 
 # pylint: disable=invalid-name
 class ChargeStatesTest(parameterized.TestCase):
-  """Tests for impurity charge states."""
+  """Tests for torax.physics.charge_states."""
 
   @parameterized.product(
       ion_symbol=[

@@ -23,12 +23,12 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
 from torax.fvm import diffusion_terms
 from torax.geometry import geometry
+from torax.physics import psi_calculations
 from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
@@ -67,8 +67,6 @@ class ExplicitStepper(stepper_lib.Stepper):
   ]:
     """Applies a time step update. See Stepper.__call__ docstring."""
 
-    # Many variables throughout this function are capitalized based on physics
-    # notational conventions rather than on Google Python style
     # pylint: disable=invalid-name
 
     # The explicit method is for testing purposes and
@@ -130,11 +128,11 @@ class ExplicitStepper(stepper_lib.Stepper):
         **updated_boundary_conditions['temp_ion'],
     )
 
-    q_face, _ = physics.calc_q_from_psi(
+    q_face, _ = psi_calculations.calc_q(
         geo=geo_t,
         psi=core_profiles_t.psi,
     )
-    s_face = physics.calc_s_from_psi(geo_t, core_profiles_t.psi)
+    s_face = psi_calculations.calc_s(geo_t, core_profiles_t.psi)
 
     # error isn't used for timestep adaptation for this method.
     # However, too large a timestep will lead to numerical instabilities.

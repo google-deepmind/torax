@@ -23,7 +23,6 @@ import jax
 import jax.numpy as jnp
 from torax import constants
 from torax import jax_utils
-from torax import physics
 from torax import state
 from torax.config import config_args
 from torax.config import runtime_params_slice
@@ -400,7 +399,7 @@ def _calc_coeffs_full(
 
   # Boolean mask for enforcing internal temperature boundary conditions to
   # model the pedestal.
-  mask = physics.internal_boundary(
+  mask = _internal_boundary(
       geo,
       pedestal_model_output.rho_norm_ped_top,
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
@@ -784,3 +783,18 @@ def _calc_coeffs_reduced(
       transient_in_cell=transient_in_cell,
   )
   return coeffs
+
+
+# pylint: disable=invalid-name
+def _internal_boundary(
+    geo: geometry.Geometry,
+    Ped_top: jax.Array,
+    set_pedestal: jax.Array,
+) -> jax.Array:
+  # Create Boolean mask FiPy CellVariable with True where the internal boundary
+  # condition is
+  # find index closest to pedestal top.
+  idx = jnp.abs(geo.rho_norm - Ped_top).argmin()
+  mask_np = jnp.zeros(len(geo.rho), dtype=bool)
+  mask_np = jnp.where(set_pedestal, mask_np.at[idx].set(True), mask_np)
+  return mask_np
