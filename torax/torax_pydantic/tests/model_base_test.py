@@ -15,7 +15,7 @@
 """Unit tests for the `torax.torax_pydantic.model_base` module."""
 
 import functools
-from typing import Annotated
+from typing import Annotated, Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -160,6 +160,84 @@ class PydanticBaseTest(parameterized.TestCase):
     with self.subTest('invalid_open_unit_interval'):
       with self.assertRaises(ValueError):
         TestModel(x=2.0, y=4.0, z=1.0)
+
+  def test_nested_model_graph(self):
+
+    class Test1(model_base.BaseModelMutable):
+      x: bool = False
+
+    class Test2(model_base.BaseModelMutable):
+      x: dict[str, Any]
+      y: int
+      z: list[tuple[Test1, Test1, int]]  # pytype: disable=invalid-annotation
+
+    class Test3(model_base.BaseModelMutable):
+      x: tuple[Test1, Test2, Test1]  # pytype: disable=invalid-annotation
+      y: dict[str, int]
+
+    t1 = Test1(x=True)
+    t2 = Test2(x=dict(t1=Test1(), t2='dd'), y=2, z=[(Test1(), Test1(), 34)])
+    t3 = Test3(x=(t1, t2, Test1()), y={'test': 2})
+
+    model_tree_1 = t1.tree_build()
+    model_tree_2 = t2.tree_build()
+    model_tree_3 = t3.tree_build()
+
+    with self.subTest('tree_size'):
+      self.assertEqual(model_tree_1.size(), 1)
+      self.assertEqual(model_tree_2.size(), 4)
+      self.assertEqual(model_tree_3.size(), 7)
+
+    with self.subTest('tree_depth'):
+      self.assertEqual(model_tree_1.depth(), 0)
+      self.assertEqual(model_tree_2.depth(), 1)
+      self.assertEqual(model_tree_3.depth(), 2)
+
+    with self.subTest('tree_depth'):
+      self.assertEqual(model_tree_1.depth(), 0)
+      self.assertEqual(model_tree_2.depth(), 1)
+      self.assertEqual(model_tree_3.depth(), 2)
+
+    # Test that data is correctly associated with nodes.
+    with self.subTest('tree_3_leaves'):
+      leaves = model_tree_3.leaves()
+      self.assertLen(leaves, 5)
+      leaf_ids = set(id(l.data) for l in leaves)
+      leaf_ids_expected = {
+          id(t1),
+          id(t3.x[2]),
+          id(t2.x['t1']),
+          id(t2.z[0][0]),
+          id(t2.z[0][1]),
+      }
+      self.assertEqual(leaf_ids, leaf_ids_expected)
+
+    with self.subTest('tree_json'):
+      json_1 = '"Test1"'
+      json_2 = '{"Test2": {"children": ["Test1", "Test1", "Test1"]}}'
+      json_3 = (
+          '{"Test3": {"children": ["Test1", "Test1", {"Test2": {"children":'
+          ' ["Test1", "Test1", "Test1"]}}]}}'
+      )
+
+      self.assertEqual(model_tree_1.to_json(), json_1)
+      self.assertEqual(model_tree_2.to_json(), json_2)
+      self.assertEqual(model_tree_3.to_json(), json_3)
+
+  def test_nested_model_non_unique_submodels(self):
+
+    class Test1(model_base.BaseModelMutable):
+      x: bool = False
+
+    class Test2(model_base.BaseModelMutable):
+      x: Test1  # pytype: disable=invalid-annotation
+      y: Test1  # pytype: disable=invalid-annotation
+
+    t1 = Test1(x=True)
+    t2 = Test2(x=t1, y=t1)
+
+    with self.assertRaisesRegex(ValueError, 'model with non-unique submodels'):
+      t2.tree_build()
 
 
 if __name__ == '__main__':
