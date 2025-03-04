@@ -16,7 +16,6 @@
 from collections.abc import Callable, Mapping
 import inspect
 from typing import Annotated, Any, Literal, TypeAlias, TypeVar
-
 import pydantic
 from torax.geometry import circular_geometry
 from torax.geometry import geometry
