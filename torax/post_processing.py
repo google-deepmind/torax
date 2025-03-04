@@ -23,9 +23,10 @@ from torax import array_typing
 from torax import constants
 from torax import jax_utils
 from torax import math_utils
-from torax import physics
 from torax import state
 from torax.geometry import geometry
+from torax.physics import psi_calculations
+from torax.physics import scaling_laws
 from torax.sources import source_profiles
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -325,8 +326,8 @@ def _calculate_greenwald_fraction(
 
   Args:
     ne_avg: Averaged electron density [nref m^-3]
-    core_profiles: CoreProfiles object containing information on currents
-      and densities.
+    core_profiles: CoreProfiles object containing information on currents and
+      densities.
     geo: Geometry object
 
   Returns:
@@ -334,9 +335,7 @@ def _calculate_greenwald_fraction(
   """
   # gw_limit is in units of 10^20 m^-3 when Ip is in MA and Rmin is in m.
   gw_limit = (
-      core_profiles.currents.Ip_total
-      * 1e-6
-      / (jnp.pi * geo.Rmin ** 2)
+      core_profiles.currents.Ip_total * 1e-6 / (jnp.pi * geo.Rmin**2)
   )
   fgw = ne_avg * core_profiles.nref / (gw_limit * 1e20)
   return fgw
@@ -395,7 +394,7 @@ def make_outputs(
   )
 
   P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (
-      physics.calculate_plh_scaling_factor(geo, sim_state.core_profiles)
+      scaling_laws.calculate_plh_scaling_factor(geo, sim_state.core_profiles)
   )
 
   # Thermal energy confinement time is the stored energy divided by the total
@@ -411,16 +410,16 @@ def make_outputs(
   # TODO(b/380848256): include dW/dt term
   tauE = W_thermal_tot / Ploss
 
-  tauH89P = physics.calculate_scaling_law_confinement_time(
+  tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
       geo, sim_state.core_profiles, Ploss, 'H89P'
   )
-  tauH98 = physics.calculate_scaling_law_confinement_time(
+  tauH98 = scaling_laws.calculate_scaling_law_confinement_time(
       geo, sim_state.core_profiles, Ploss, 'H98'
   )
-  tauH97L = physics.calculate_scaling_law_confinement_time(
+  tauH97L = scaling_laws.calculate_scaling_law_confinement_time(
       geo, sim_state.core_profiles, Ploss, 'H97L'
   )
-  tauH20 = physics.calculate_scaling_law_confinement_time(
+  tauH20 = scaling_laws.calculate_scaling_law_confinement_time(
       geo, sim_state.core_profiles, Ploss, 'H20'
   )
 
@@ -500,12 +499,12 @@ def make_outputs(
   )
   fgw_ne_volume_avg = _calculate_greenwald_fraction(
       ne_volume_avg, sim_state.core_profiles, geo
-      )
+  )
   fgw_ne_line_avg = _calculate_greenwald_fraction(
       ne_line_avg, sim_state.core_profiles, geo
       )
-  Wpol = physics.calc_Wpol(geo, sim_state.core_profiles.psi)
-  li3 = physics.calc_li3(
+  Wpol = psi_calculations.calc_Wpol(geo, sim_state.core_profiles.psi)
+  li3 = psi_calculations.calc_li3(
       geo.Rmaj, Wpol, sim_state.core_profiles.currents.Ip_profile_face[-1]
   )
 

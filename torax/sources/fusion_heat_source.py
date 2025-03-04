@@ -23,10 +23,10 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.physics import collisions
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -77,8 +77,6 @@ def calc_fusion(
   # <sigma*v> for DT calculated with the Bosch-Hale parameterization NF 1992.
   # T is in keV for the formula
 
-  # Many variables throughout this function are capitalized based on physics
-  # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
   Efus = 17.6 * 1e3 * constants.CONSTANTS.keV2J
   mrc2 = 1124656
@@ -129,7 +127,7 @@ def calc_fusion(
   # Fractional fusion power ions/electrons.
   birth_energy = 3520  # Birth energy of alpha particles is 3.52MeV.
   alpha_mass = 4.002602
-  frac_i = physics.fast_ion_fractional_heating_formula(
+  frac_i = collisions.fast_ion_fractional_heating_formula(
       birth_energy,
       core_profiles.temp_el.value,
       alpha_mass,

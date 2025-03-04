@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Many variables throughout this function are capitalized based on physics
-# notational conventions rather than on Google Python style
 # pylint: disable=invalid-name
 
 """Bremsstrahlung heat sink for electron heat equation.."""

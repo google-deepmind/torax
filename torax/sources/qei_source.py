@@ -22,10 +22,10 @@ from typing import ClassVar
 import chex
 import jax
 from jax import numpy as jnp
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.physics import collisions
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -137,7 +137,7 @@ def _model_based_qei(
   """Computes Qei via the coll_exchange model."""
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
   zeros = jnp.zeros_like(geo.rho_norm)
-  qei_coef = physics.coll_exchange(
+  qei_coef = collisions.coll_exchange(
       core_profiles=core_profiles,
       nref=dynamic_runtime_params_slice.numerics.nref,
       Qei_mult=dynamic_source_runtime_params.Qei_mult,

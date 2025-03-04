@@ -22,7 +22,6 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 from torax import jax_utils
-from torax import physics
 from torax import post_processing
 from torax import state
 from torax.config import runtime_params_slice
@@ -30,6 +29,7 @@ from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.physics import psi_calculations
 from torax.sources import ohmic_heat_source
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
@@ -525,7 +525,7 @@ class SimulationStepFn:
     """
 
     # Update total current, q, and s profiles based on new psi
-    output_state.core_profiles = physics.update_jtot_q_face_s_face(
+    output_state.core_profiles = psi_calculations.update_jtot_q_face_s_face(
         geo=geo_t_plus_dt,
         core_profiles=output_state.core_profiles,
     )
@@ -660,7 +660,8 @@ def _update_current_distribution(
   bootstrap_profile = core_sources.j_bootstrap
   # Needed for the case where no psi sources are present.
   external_current = jnp.zeros_like(
-      core_profiles.currents.external_current_source)
+      core_profiles.currents.external_current_source
+  )
   external_current += sum(core_sources.psi.values())
 
   johm = (
@@ -699,7 +700,7 @@ def _update_psidot(
           resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
           psi=core_profiles.psi,
           geo=geo,
-      )
+      ),
   )
 
   new_core_profiles = dataclasses.replace(

@@ -25,11 +25,11 @@ from jax import numpy as jnp
 from jax.scipy import integrate
 from torax import constants
 from torax import jax_utils
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
+from torax.physics import psi_calculations
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -175,8 +175,6 @@ def calc_sauter_model(
     geo: geometry.Geometry,
 ) -> source_profiles.BootstrapCurrentProfile:
   """Calculates sigmaneo, j_bootstrap, and I_bootstrap."""
-  # Many variables throughout this function are capitalized based on physics
-  # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
 
   # Formulas from Sauter PoP 1999. Future work can include Redl PoP 2021
@@ -211,8 +209,9 @@ def calc_sauter_model(
 
   # We don't store q_cell in the evolving core profiles, so we need to
   # recalculate it.
-  q_face, _ = physics.calc_q_from_psi(
-      geo=geo, psi=psi,
+  q_face, _ = psi_calculations.calc_q(
+      geo=geo,
+      psi=psi,
   )
   nuestar = (
       6.921e-18
@@ -321,9 +320,7 @@ def calc_sauter_model(
   ) / (1 + 0.15 * nuistar**2 * ftrap**6)
 
   # calculate bootstrap current
-  prefactor = (
-      -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B0
-  )
+  prefactor = -geo.F_face * bootstrap_multiplier * 2 * jnp.pi / geo.B0
 
   pe = true_ne_face * (temp_el.face_value()) * 1e3 * 1.6e-19
   pi = true_ni_face * (temp_ion.face_value()) * 1e3 * 1.6e-19

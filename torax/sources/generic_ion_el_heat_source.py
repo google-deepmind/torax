@@ -29,8 +29,6 @@ from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
-# Many variables throughout this function are capitalized based on physics
-# notational conventions rather than on Google Python style
 # pylint: disable=invalid-name
 
 

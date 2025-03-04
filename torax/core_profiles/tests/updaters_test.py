@@ -18,7 +18,6 @@ from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
 from torax import jax_utils
-from torax import physics
 from torax import state
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
@@ -91,7 +90,7 @@ class UpdatersTest(parameterized.TestCase):
 
     Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
 
-    dilution_factor = physics.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
+    dilution_factor = formulas.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
     np.testing.assert_allclose(
         ni.value,
         expected_value * dilution_factor,
@@ -234,7 +233,6 @@ class UpdatersTest(parameterized.TestCase):
         ne_bound_right_is_fGW and ne_bound_right is not None
     ):
       # Then we expect the boundary condition to be in fGW.
-      # pylint: disable=invalid-name
       nGW = (
           dynamic_runtime_params_slice.profile_conditions.Ip_tot
           / (np.pi * self.geo.Rmin**2)
@@ -354,7 +352,6 @@ class UpdatersTest(parameterized.TestCase):
         boundary_conditions['temp_ion']['right_face_constraint'],
         expected_Ti_bound_right,
     )
-
 
 if __name__ == '__main__':
   absltest.main()

@@ -279,6 +279,24 @@ class UpdatersTest(parameterized.TestCase):
     np.all(np.isclose(ratio, ratio[0]))
     self.assertNotEqual(ratio[0], 1.0)
 
+  # TODO(b/377225415): generalize to arbitrary number of ions.
+  @parameterized.parameters([
+      dict(Zi=1.0, Zimp=10.0, Zeff=1.0, expected=1.0),
+      dict(Zi=1.0, Zimp=5.0, Zeff=1.0, expected=1.0),
+      dict(Zi=2.0, Zimp=10.0, Zeff=2.0, expected=0.5),
+      dict(Zi=2.0, Zimp=5.0, Zeff=2.0, expected=0.5),
+      dict(Zi=1.0, Zimp=10.0, Zeff=1.9, expected=0.9),
+      dict(Zi=2.0, Zimp=10.0, Zeff=3.6, expected=0.4),
+  ])
+  def test_get_main_ion_dilution_factor(self, Zi, Zimp, Zeff, expected):
+    """Unit test of `get_main_ion_dilution_factor`."""
+    np.testing.assert_allclose(
+        formulas.get_main_ion_dilution_factor(Zi, Zimp, Zeff),
+        expected,
+    )
+
+  # pylint: enable=invalid-name
+
 
 if __name__ == '__main__':
   absltest.main()

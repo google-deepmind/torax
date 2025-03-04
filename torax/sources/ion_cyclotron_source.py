@@ -30,10 +30,10 @@ import jaxtyping as jt
 import numpy as np
 from torax import array_typing
 from torax import interpolated_param
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.physics import collisions
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -289,8 +289,6 @@ class _ToricNN(nn.Module):
 
 
 # pylint: disable=invalid-name
-# Several variable names below follow physics notation matching so don't adhere
-# to the lint guide.
 @dataclasses.dataclass
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for the ion cyclotron resonance source."""
@@ -460,7 +458,7 @@ def icrh_model_func(
       dynamic_source_runtime_params.Ptot / 1e6,  # required in MW.
   )
   helium3_mass = 3.016
-  frac_ion_heating = physics.fast_ion_fractional_heating_formula(
+  frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
       helium3_birth_energy,
       core_profiles.temp_el.value,
       helium3_mass,
@@ -483,6 +481,8 @@ def icrh_model_func(
   source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
 
   return (source_ion, source_el)
+
+
 # pylint: enable=invalid-name
 
 

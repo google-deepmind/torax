@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
 from unittest import mock
 
 from absl.testing import absltest
@@ -24,7 +23,6 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.geometry import standard_geometry
 from torax.sources import generic_current_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
@@ -40,18 +38,9 @@ class InitializationTest(torax_refs.ReferenceValueTest):
     jax_utils.enable_errors(True)
     self.geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
 
-  @parameterized.parameters([
-      dict(references_getter=torax_refs.circular_references),
-      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
-      dict(
-          references_getter=torax_refs.chease_references_Ip_from_runtime_params
-      ),
-  ])
-  def test_update_psi_from_j(
-      self, references_getter: Callable[[], torax_refs.References]
-  ):
+  def test_update_psi_from_j(self):
     """Compare `update_psi_from_j` function to a reference implementation."""
-    references = references_getter()
+    references = torax_refs.circular_references()
 
     runtime_params = references.runtime_params
     source_runtime_params = generic_current_source.RuntimeParams()
@@ -67,29 +56,26 @@ class InitializationTest(torax_refs.ReferenceValueTest):
             },
         )
     )
-    if isinstance(geo, standard_geometry.StandardGeometry):
-      psi = geo.psi_from_Ip
-    else:
-      bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
-      external_current = generic_current_source.calculate_generic_current(
-          mock.ANY,
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          geo=geo,
-          source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
-          unused_state=mock.ANY,
-          unused_calculated_source_profiles=mock.ANY,
-      )[0]
-      currents = initialization._prescribe_currents(
-          bootstrap_profile=bootstrap,
-          external_current=external_current,
-          dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-          geo=geo,
-      )
-      psi = initialization._update_psi_from_j(
-          dynamic_runtime_params_slice.profile_conditions.Ip_tot,
-          geo,
-          currents.jtot_hires,
-      ).value
+    bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
+    external_current = generic_current_source.calculate_generic_current(
+        mock.ANY,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
+        unused_state=mock.ANY,
+        unused_calculated_source_profiles=mock.ANY,
+    )[0]
+    currents = initialization._prescribe_currents(
+        bootstrap_profile=bootstrap,
+        external_current=external_current,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+    )
+    psi = initialization._update_psi_from_j(
+        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+        geo,
+        currents.jtot_hires,
+    ).value
     np.testing.assert_allclose(psi, references.psi.value)
 
   @parameterized.parameters(
