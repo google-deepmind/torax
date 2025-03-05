@@ -32,10 +32,10 @@ from torax.transport_model import constant as constant_transport_model
 class CoreProfileSettersTest(parameterized.TestCase):
 
   @parameterized.parameters([
-      dict(num_cells=2, theta_imp=0, set_pedestal=False),
-      dict(num_cells=2, theta_imp=0, set_pedestal=True),
-      dict(num_cells=3, theta_imp=0.5, set_pedestal=False),
-      dict(num_cells=3, theta_imp=0.5, set_pedestal=True),
+      dict(num_cells=3, theta_imp=0, set_pedestal=False),
+      dict(num_cells=3, theta_imp=0, set_pedestal=True),
+      dict(num_cells=4, theta_imp=0.5, set_pedestal=False),
+      dict(num_cells=4, theta_imp=0.5, set_pedestal=True),
   ])
   def test_calc_coeffs_smoke_test(
       self, num_cells, theta_imp, set_pedestal

@@ -88,15 +88,26 @@ def calc_jtot(
       / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
   )
 
-  dI_tot_drhon = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
+  Ip_profile = (
+      psi.grad()
+      * geo.g2g3_over_rhon
+      * geo.F
+      / geo.Phib
+      / (16 * jnp.pi**3 * constants.CONSTANTS.mu0)
+  )
 
-  jtot_face_bulk = dI_tot_drhon[1:] / geo.spr_face[1:]
+  dI_drhon_face = jnp.gradient(Ip_profile_face, geo.rho_face_norm)
+  dI_drhon = jnp.gradient(Ip_profile, geo.rho_norm)
 
-  # Set on-axis jtot according to L'Hôpital's rule, noting that I[0]=S[0]=0.
-  jtot_face_axis = Ip_profile_face[1] / geo.area_face[1]
+  jtot_bulk = dI_drhon[1:] / geo.spr[1:]
+  jtot_face_bulk = dI_drhon_face[1:] / geo.spr_face[1:]
 
-  jtot_face = jnp.concatenate([jnp.array([jtot_face_axis]), jtot_face_bulk])
-  jtot = geometry.face_to_cell(jtot_face)
+  # Extrapolate the axis term from the bulk term due to strong sensitivities
+  # of near-axis numerical derivatives. Set zero boundary condition on-axis
+  jtot_axis = jtot_bulk[0] - (jtot_bulk[1] - jtot_bulk[0])
+
+  jtot = jnp.concatenate([jnp.array([jtot_axis]), jtot_bulk])
+  jtot_face = jnp.concatenate([jnp.array([jtot_axis]), jtot_face_bulk])
 
   return jtot, jtot_face, Ip_profile_face
 
