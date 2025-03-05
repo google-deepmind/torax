@@ -36,7 +36,7 @@ class PydanticModelTest(parameterized.TestCase):
     geo_provider = pydantic_model.Geometry.from_dict({
         'geometry_type': 'circular',
         'n_rho': 5,  # override a default.
-    }).build_provider()
+    }).build_provider
 
     self.assertIsInstance(
         geo_provider, geometry_provider.ConstantGeometryProvider
@@ -51,7 +51,7 @@ class PydanticModelTest(parameterized.TestCase):
             'geometry_type': 'chease',
             'n_rho': 5,  # override a default.
         },
-    ).build_provider()
+    ).build_provider
     self.assertIsInstance(
         geo_provider, geometry_provider.ConstantGeometryProvider
     )
@@ -82,9 +82,7 @@ class PydanticModelTest(parameterized.TestCase):
     }
 
     # Test valid config
-    geo_provider = pydantic_model.Geometry.from_dict(
-        base_config
-    ).build_provider()
+    geo_provider = pydantic_model.Geometry.from_dict(base_config).build_provider
     self.assertIsInstance(
         geo_provider, standard_geometry.StandardGeometryProvider
     )
@@ -139,7 +137,7 @@ class PydanticModelTest(parameterized.TestCase):
         'Ip_from_parameters': (
             False
         ),  # this will force update runtime_params.Ip_tot
-    }).build_provider()
+    }).build_provider
     runtime_params_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,

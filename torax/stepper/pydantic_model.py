@@ -21,7 +21,7 @@ from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class LinearThetaMethod(torax_pydantic.BaseModelMutable):
+class LinearThetaMethod(torax_pydantic.BaseModelFrozen):
   """Model for the linear stepper.
 
   This is also the base model for the Newton-Raphson and Optimizer steppers as
@@ -100,7 +100,7 @@ StepperConfig = Union[
 ]
 
 
-class Stepper(torax_pydantic.BaseModelMutable):
+class Stepper(torax_pydantic.BaseModelFrozen):
   """Config for a stepper.
 
   The `from_dict` method of constructing this class supports the config
