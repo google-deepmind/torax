@@ -221,15 +221,15 @@ class TGLFNNModel:
 
     with open(efe_gb_checkpoint_path, "rb") as f:
       efe_gb_params = _convert_pytorch_state_dict(
-          torch.load(f, *args, **kwargs), config
+          torch.load(f, *args, map_location="cpu", **kwargs), config
       )
     with open(efi_gb_checkpoint_path, "rb") as f:
       efi_gb_params = _convert_pytorch_state_dict(
-          torch.load(f, *args, **kwargs), config
+          torch.load(f, *args, map_location="cpu", **kwargs), config
       )
     with open(pfi_gb_checkpoint_path, "rb") as f:
       pfi_gb_params = _convert_pytorch_state_dict(
-          torch.load(f, *args, **kwargs), config
+          torch.load(f, *args, map_location="cpu", **kwargs), config
       )
 
     params = {
