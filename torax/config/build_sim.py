@@ -376,6 +376,28 @@ def build_transport_model_builder_from_config(
         ),
         model_path=model_path,
     )
+  elif transport_model == 'tglfnn':
+    tglfnn_params = transport_config.pop('tglfnn_params', {})
+    if not isinstance(tglfnn_params, dict):
+      raise ValueError('tglfnn_params must be a dict.')
+    tglfnn_params.update(transport_config)
+    # Remove params from the other models, if present.
+    tglfnn_params.pop('qlknn_params', None)
+    tglfnn_params.pop('constant_params', None)
+    tglfnn_params.pop('cgm_params', None)
+    tglfnn_params.pop('bohm-gyrobohm_params', None)
+    model_dir = tglfnn_params.pop('model_dir', None)
+    model_version = tglfnn_params.pop('version', '1.0.0')
+    if model_dir is not None:
+      return tglfnn_transport_model.TGLFNNTransportModelBuilder(
+          runtime_params=tglfnn_transport_model.RuntimeParams(),
+          model_dir=model_dir,
+          model_version=model_version,
+      )
+    else:
+      return tglfnn_transport_model.TGLFNNTransportModelBuilder(
+          runtime_params=tglfnn_transport_model.RuntimeParams(),
+      )
   elif transport_model == 'constant':
     constant_params = transport_config.pop('constant_params', {})
     if not isinstance(constant_params, dict):
