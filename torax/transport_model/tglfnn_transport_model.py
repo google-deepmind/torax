@@ -1,32 +1,118 @@
-import json
-from copy import deepcopy
-from pathlib import Path
 import dataclasses
-import chex
-import jax.numpy as jnp
-from flax import linen as nn
+import json
+from pathlib import Path
+from typing import Callable, Final, Mapping
+
+import immutabledict
 import jax
+import jax.numpy as jnp
+import optax
+import yaml
+from flax import linen as nn
+
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.transport_model import tglf_based_transport_model
-from warnings import warn
-from torax.transport_model.tglf_based_transport_model import TGLFInputs, RuntimeParams
-from torax.transport_model import transport_model
-from typing import Callable
+from torax.transport_model import tglf_based_transport_model, transport_model
+from torax.transport_model.tglf_based_transport_model import RuntimeParams, TGLFInputs
+
+_ACTIVATION_FNS: Final[Mapping[str, Callable[[jax.Array], jax.Array]]] = (
+    immutabledict.immutabledict({
+        "relu": nn.relu,
+        "tanh": nn.tanh,
+        "sigmoid": nn.sigmoid,
+    })
+)
 
 
-class TGLFNNSurrogate(nn.Module):
-  """A simple MLP with i/o scaling, dropout, ReLU activation, outputting mean and variance."""
+def normalize(
+    data: jax.Array, *, mean: jax.Array, stddev: jax.Array
+) -> jax.Array:
+  """Normalizes data to have mean 0 and stddev 1."""
+  return (data - mean) / jnp.where(stddev == 0, 1, stddev)
 
-  hidden_dimension: int
+
+def unnormalize(
+    data: jax.Array, *, mean: jax.Array, stddev: jax.Array
+) -> jax.Array:
+  """Unnormalizes data to the orginal distribution."""
+  return data * jnp.where(stddev == 0, 1, stddev) + mean
+
+
+INPUT_LABELS: Final[list[str]] = [
+    "RLNS_1",
+    "RLTS_1",
+    "RLTS_2",
+    "TAUS_2",
+    "RMIN_LOC",
+    "DRMAJDX_LOC",
+    "Q_LOC",
+    "SHAT",
+    "XNUE",
+    "KAPPA_LOC",
+    "S_KAPPA_LOC",
+    "DELTA_LOC",
+    "S_DELTA_LOC",
+    "BETAE",
+    "ZEFF",
+]
+OUTPUT_LABELS: Final[list[str]] = ["efe_gb", "efi_gb", "pfi_gb"]
+
+
+@dataclasses.dataclass
+class TGLFNNModelConfig:
+  n_ensemble: int
+  hidden_size: int
   n_hidden_layers: int
   dropout: float
-  input_means: jax.Array
-  input_stds: jax.Array
-  output_mean: float
-  output_std: float
+  scale: bool
+  denormalise: bool
+
+  @classmethod
+  def load(cls, config_path: str) -> "TGLFNNModelConfig":
+    with open(config_path, "r") as f:
+      config = yaml.safe_load(f)
+
+    return cls(
+        n_ensemble=config["num_estimators"],
+        hidden_size=512,
+        n_hidden_layers=config["model_size"],
+        dropout=config["dropout"],
+        scale=config["scale"],
+        denormalise=config["denormalise"],
+    )
+
+
+@dataclasses.dataclass
+class TGLFNNModelStats:
+  input_mean: jax.Array
+  input_std: jax.Array
+  output_mean: jax.Array
+  output_std: jax.Array
+
+  @classmethod
+  def load(cls, stats_path: str) -> "TGLFNNModelStats":
+    with open(stats_path, "r") as f:
+      stats = json.load(f)
+
+    return cls(
+        input_mean=jnp.array([stats[label]["mean"] for label in INPUT_LABELS]),
+        input_std=jnp.array([stats[label]["std"] for label in INPUT_LABELS]),
+        output_mean=jnp.array(
+            [stats[label]["mean"] for label in OUTPUT_LABELS]
+        ),
+        output_std=jnp.array([stats[label]["std"] for label in OUTPUT_LABELS]),
+    )
+
+
+class GaussianMLP(nn.Module):
+  """An MLP with dropout, outputting a mean and variance."""
+
+  num_hiddens: int
+  hidden_size: int
+  dropout: float
+  activation: str
 
   @nn.compact
   def __call__(
@@ -34,90 +120,149 @@ class TGLFNNSurrogate(nn.Module):
       x,
       deterministic: bool = False,
   ):
-    # Rescale inputs
-    x = (x - self.input_means) / self.input_stds
-
-    # MLP
-    x = nn.Dense(self.hidden_dimension)(x)
-    x = nn.Dropout(rate=self.dropout, deterministic=deterministic)(x)
-    x = nn.relu(x)
-    for _ in range(self.n_hidden_layers):
-      x = nn.Dense(self.hidden_dimension)(x)
+    for _ in range(self.num_hiddens - 1):
+      x = nn.Dense(self.hidden_size)(x)
       x = nn.Dropout(rate=self.dropout, deterministic=deterministic)(x)
-      x = nn.relu(x)
+      x = _ACTIVATION_FNS[self.activation](x)
     mean_and_var = nn.Dense(2)(x)
     mean = mean_and_var[..., 0]
     var = mean_and_var[..., 1]
     var = nn.softplus(var)
 
-    # Rescale outputs
-    rescaled_mean = mean * self.output_std + self.output_mean
-    rescaled_var = var * self.output_std**2
-
-    return jnp.stack([rescaled_mean, rescaled_var], axis=-1)
+    return jnp.stack([mean, var], axis=-1)
 
 
-class EnsembleTGLFNNSurrogate(nn.Module):
-  """An ensemble of TGLFNNSurrogate models."""
+class GaussianMLPEnsemble(nn.Module):
+  """An ensemble of GaussianMLPs."""
 
-  input_means: jax.Array
-  input_stds: jax.Array
-  output_mean: float
-  output_std: float
-  n_models: int = 5
-  hidden_dimension: int = 512
-  n_hidden_layers: int = 4
-  dropout: float = 0.05
+  n_ensemble: int
+  num_hiddens: int
+  hidden_size: int
+  dropout: float
+  activation: str
 
-  def setup(
+  @nn.compact
+  def __call__(
       self,
+      x,
+      deterministic: bool = False,
   ):
-    self.models = [
-        TGLFNNSurrogate(
-            hidden_dimension=self.hidden_dimension,
-            n_hidden_layers=self.n_hidden_layers,
-            dropout=self.dropout,
-            input_means=self.input_means,
-            input_stds=self.input_stds,
-            output_mean=self.output_mean,
-            output_std=self.output_std,
-        )
-        for i in range(self.n_models)
-    ]
-
-  def __call__(self, x, *args, **kwargs):
-    # Shape is batch size x 2 x n_models
-    outputs = jnp.stack(
-        [model(x, *args, **kwargs) for model in self.models], axis=-1
+    ensemble_output = jnp.stack(
+        [
+            GaussianMLP(
+                self.num_hiddens,
+                self.hidden_size,
+                self.dropout,
+                self.activation,
+            )(x, deterministic=deterministic)
+            for _ in range(self.n_ensemble)
+        ],
+        axis=0,
     )
-    # Shape is batch_size
-    mean = jnp.mean(outputs[:, 0, :], axis=-1)
-    aleatoric_uncertainty = jnp.mean(outputs[:, 1, :], axis=-1)
-    epistemic_uncertainty = jnp.var(outputs[:, 0, :], axis=-1)
-    return jnp.stack(
-        [mean, aleatoric_uncertainty + epistemic_uncertainty], axis=-1
+    mean = jnp.mean(ensemble_output[..., 0], axis=0)
+    aleatoric = jnp.mean(ensemble_output[..., 1], axis=0)
+    epistemic = jnp.var(ensemble_output[..., 0], axis=0)
+    return jnp.stack([mean, aleatoric + epistemic], axis=-1)
+
+
+class TGLFNNModel:
+
+  def __init__(
+      self,
+      config: TGLFNNModelConfig,
+      stats: TGLFNNModelStats,
+      params: optax.Params | None,
+  ):
+    self.config = config
+    self.stats = stats
+    self.params = params
+    self.network = GaussianMLPEnsemble(
+        n_ensemble=config.n_ensemble,
+        hidden_size=config.hidden_size,
+        num_hiddens=config.n_hidden_layers,
+        dropout=config.dropout,
+        activation="relu",
     )
 
-  def get_params_from_pytorch_state_dict(self, pytorch_state_dict: dict):
-    params = {}
-    for i in range(self.n_models):
-      model_dict = {}
-      for j in range(
-          self.n_hidden_layers + 2
-      ):  # +2 for input and output layers
-        # j*3 to skip dropout and activation
-        layer_dict = {
-            "kernel": jnp.array(
-                pytorch_state_dict[f"models.{i}.model.{j*3}.weight"]
-            ).T,
-            "bias": jnp.array(
-                pytorch_state_dict[f"models.{i}.model.{j*3}.bias"]
-            ).T,
-        }
-        model_dict[f"Dense_{j}"] = layer_dict
-      params[f"models_{i}"] = model_dict
+  @classmethod
+  def load_from_pytorch(
+      cls,
+      config_path: str,
+      stats_path: str,
+      efe_gb_checkpoint_path: str,
+      efi_gb_checkpoint_path: str,
+      pfi_gb_checkpoint_path: str,
+      *args,
+      **kwargs,
+  ) -> "TGLFNNModel":
+    import torch
 
-    return params
+    def _convert_pytorch_state_dict(
+        pytorch_state_dict: dict, config: TGLFNNModelConfig
+    ) -> optax.Params:
+      params = {}
+      for i in range(config.n_ensemble):
+        model_dict = {}
+        for j in range(config.n_hidden_layers):
+          layer_dict = {
+              "kernel": jnp.array(
+                  pytorch_state_dict[f"models.{i}.model.{j * 3}.weight"]
+              ).T,
+              "bias": jnp.array(
+                  pytorch_state_dict[f"models.{i}.model.{j * 3}.bias"]
+              ).T,
+          }
+          model_dict[f"Dense_{j}"] = layer_dict
+        params[f"GaussianMLP_{i}"] = model_dict
+      return {"params": params}
+
+    config = TGLFNNModelConfig.load(config_path)
+    stats = TGLFNNModelStats.load(stats_path)
+
+    with open(efe_gb_checkpoint_path, "rb") as f:
+      efe_gb_params = _convert_pytorch_state_dict(
+          torch.load(f, *args, **kwargs), config
+      )
+    with open(efi_gb_checkpoint_path, "rb") as f:
+      efi_gb_params = _convert_pytorch_state_dict(
+          torch.load(f, *args, **kwargs), config
+      )
+    with open(pfi_gb_checkpoint_path, "rb") as f:
+      pfi_gb_params = _convert_pytorch_state_dict(
+          torch.load(f, *args, **kwargs), config
+      )
+
+    params = {
+        "efe_gb": efe_gb_params,
+        "efi_gb": efi_gb_params,
+        "pfi_gb": pfi_gb_params,
+    }
+
+    return cls(config, stats, params)
+
+  def predict(
+      self,
+      inputs: jax.Array,
+  ) -> dict[str, jax.Array]:
+    if self.config.scale:
+      inputs = normalize(
+          inputs, mean=self.stats.input_mean, stddev=self.stats.input_std
+      )
+
+    output = jnp.stack(
+        [
+            self.network.apply(self.params[label], inputs, deterministic=True)
+            for label in OUTPUT_LABELS
+        ],
+        axis=-2,
+    )
+
+    if self.config.denormalise:
+      output = unnormalize(
+          output, mean=self.stats.output_mean, stddev=self.stats.output_std
+      )
+
+    return output
 
 
 class TGLFNNTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
@@ -125,73 +270,21 @@ class TGLFNNTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
 
   def __init__(
       self,
-      path_to_model_weights_json: str | Path,
-      path_to_model_scaling_json: str | Path,
+      config_path: str,
+      stats_path: str,
+      efe_gb_checkpoint_path: str,
+      efi_gb_checkpoint_path: str,
+      pfi_gb_checkpoint_path: str,
   ):
     super().__init__()
 
-    # NN surrogate expects inputs to be stacked in this order
-    self.inputs = [
-        "RLNS_1",
-        "RLTS_1",
-        "RLTS_2",
-        "TAUS_2",
-        "RMIN_LOC",
-        "DRMAJDX_LOC",
-        "Q_LOC",
-        "SHAT",
-        "XNUE",
-        "KAPPA_LOC",
-        "S_KAPPA_LOC",
-        "DELTA_LOC",
-        "S_DELTA_LOC",
-        "BETAE",
-        "ZEFF",
-    ]
-
-    with open(path_to_model_scaling_json, "r") as f:
-      scaling_dict = json.load(f)
-      input_means = jnp.stack(
-          [scaling_dict[i]["mean"] for i in self.inputs],
-          axis=-1,
-      )
-      input_stds = jnp.stack(
-          [scaling_dict[i]["std"] for i in self.inputs],
-          axis=-1,
-      )
-
-    # TODO: In future, TGLFNN models will be saved in distinct files, so we will
-    # have to load separate state dicts for each model. For the time being, we
-    # only load once, in order to to speed things up
-    with open(path_to_model_weights_json, "r") as f:
-      state_dict = json.load(f)
-
-    self.models = {}
-    self.params = {}
-    for model in ["efi_gb", "efe_gb", "pfi_gb"]:
-      self.models[model] = EnsembleTGLFNNSurrogate(
-          input_means=input_means,
-          input_stds=input_stds,
-          # TODO: Load output scaling from scaling_dict, once it is saved there
-          output_mean=0,
-          output_std=1,
-          n_models=state_dict["num_estimators"],
-          # TODO: Load hidden_dimension from state_dict, once it is saved there
-          hidden_dimension=512,
-          # Subtract 2 from model size to account for input and output layers
-          n_hidden_layers=state_dict["model_size"] - 2,
-          dropout=state_dict["dropout"],
-      )
-      self.params[model] = self.models[
-          model
-      ].get_params_from_pytorch_state_dict(state_dict[f"regressor_{model}"])
-
-    warn(
-        "TGLFSurrogateTransportModel currently operates with the assumption"
-        " that electron particle flux = ion particle flux. This might produce"
-        " incorrect results for non-Deuterium plasmas."
+    self.model = TGLFNNModel.load_from_pytorch(
+        config_path,
+        stats_path,
+        efe_gb_checkpoint_path,
+        efi_gb_checkpoint_path,
+        pfi_gb_checkpoint_path,
     )
-
     self._frozen = True
 
   def _call_implementation(
@@ -216,22 +309,13 @@ class TGLFNNTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
         axis=-1,
     )
 
-    # Apply the model
-    efi_gb_mean_and_var = self.models["efi_gb"].apply(
-        {"params": self.params["efi_gb"]}, tglf_inputs_array, deterministic=True
-    )
-    efe_gb_mean_and_var = self.models["efe_gb"].apply(
-        {"params": self.params["efe_gb"]}, tglf_inputs_array, deterministic=True
-    )
-    pfi_gb_mean_and_var = self.models["pfi_gb"].apply(
-        {"params": self.params["pfi_gb"]}, tglf_inputs_array, deterministic=True
-    )
+    output = self.model.predict(tglf_inputs_array)
 
     # Curently, we just use the mean prediction and discard the variance
     return self._make_core_transport(
-        qi=efi_gb_mean_and_var[:, 0],
-        qe=efe_gb_mean_and_var[:, 0],
-        pfe=pfi_gb_mean_and_var[:, 0],
+        qi=output[..., 1, 0],  # TODO: Get the ordering from OUTPUT_LABELS
+        qe=output[..., 0, 0],
+        pfe=output[..., 2, 0],
         quasilinear_inputs=tglf_inputs,
         transport=dynamic_runtime_params_slice.transport,
         geo=geo,
@@ -248,15 +332,17 @@ class TGLFNNTransportModelBuilder(transport_model.TransportModelBuilder):
   runtime_params: RuntimeParams = dataclasses.field(
       default_factory=RuntimeParams
   )
-  weights_path: str = (
-      "/home/theo/documents/ukaea/torax/tglfnn/1.0.0/tglfnn_checkpoint.json"
-  )
-  scaling_path: str = "/home/theo/documents/ukaea/torax/tglfnn/1.0.0/stats.json"
+  model_dir: str = "~/tglfnn"
+  model_version: str = "1.0.0"
 
   def __call__(
       self,
   ) -> TGLFNNTransportModel:
+    model_dir_with_version = Path(self.model_dir) / self.model_version
     return TGLFNNTransportModel(
-        path_to_model_weights_json=(self.weights_path),
-        path_to_model_scaling_json=(self.scaling_path),
+        config_path=model_dir_with_version / "config.yaml",
+        stats_path=model_dir_with_version / "stats.json",
+        efe_gb_checkpoint_path=model_dir_with_version / "regressor_efe_gb.pt",
+        efi_gb_checkpoint_path=model_dir_with_version / "regressor_efi_gb.pt",
+        pfi_gb_checkpoint_path=model_dir_with_version / "regressor_pfi_gb.pt",
     )
