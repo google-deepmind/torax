@@ -59,6 +59,48 @@ class ConfigTest(parameterized.TestCase):
       )
       chex.assert_trees_all_equal(config_pydantic, config_pydantic_roundtrip)
 
+    with self.subTest("geometry_grid_set"):
+      mesh = config_pydantic.geometry.build_provider.torax_mesh
+      mesh_set = config_pydantic.runtime_params.plasma_composition.Zeff
+      chex.assert_trees_all_equal(mesh.face_centers, mesh_set.grid_face_centers)
+      chex.assert_trees_all_equal(mesh.cell_centers, mesh_set.grid_cell_centers)
+
+  def test_config_safe_update(self):
+
+    module = config_loader.import_module(
+        ".tests.test_data.test_iterhybrid_newton",
+        config_package="torax",
+    )
+
+    # Test only the subset of config fields that are currently supported.
+    module_config = {
+        key: module.CONFIG[key]
+        for key in model_config.ToraxConfig.model_fields.keys()
+    }
+    config_pydantic = model_config.ToraxConfig.from_dict(module_config)
+
+    new_n_rho = 99
+    assert new_n_rho != config_pydantic.geometry.geometry_configs.config.n_rho  # pytype: disable=attribute-error
+    new_hires_fac = 120
+    assert (
+        new_hires_fac
+        != config_pydantic.geometry.geometry_configs.config.hires_fac  # pytype: disable=attribute-error
+    )
+
+    config_pydantic.update_fields({
+        "geometry.geometry_configs.config.n_rho": new_n_rho,
+        "geometry.geometry_configs.config.hires_fac": new_hires_fac,
+    })
+
+    self.assertEqual(
+        config_pydantic.geometry.geometry_configs.config.n_rho,  # pytype: disable=attribute-error
+        new_n_rho,
+    )
+    self.assertEqual(
+        config_pydantic.geometry.geometry_configs.config.hires_fac,  # pytype: disable=attribute-error
+        new_hires_fac,
+    )
+
 
 if __name__ == "__main__":
   absltest.main()

@@ -13,10 +13,11 @@
 # limitations under the License.
 
 """Pydantic model for geometry."""
+
 from collections.abc import Callable, Mapping
+import functools
 import inspect
 from typing import Annotated, Any, Literal, TypeAlias, TypeVar
-
 import pydantic
 from torax.geometry import circular_geometry
 from torax.geometry import geometry
@@ -291,6 +292,7 @@ class Geometry(torax_pydantic.BaseModelFrozen):
     else:
       raise ValueError(f'Invalid value for geometry: {geometry_type}')
 
+  @functools.cached_property
   def build_provider(self) -> geometry_provider.GeometryProvider:
     # TODO(b/398191165): Remove this branch once the FBT bundle logic is
     # redesigned.

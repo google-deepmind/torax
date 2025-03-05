@@ -20,12 +20,12 @@ from typing import Any
 import chex
 import pydantic
 from torax import interpolated_param
-from torax.torax_pydantic import interpolated_param_common
 from torax.torax_pydantic import model_base
+from torax.torax_pydantic import pydantic_types
 import xarray as xr
 
 
-class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
+class TimeVaryingArray(model_base.BaseModelFrozen):
   """Base class for time interpolated array types.
 
   The Pydantic `.model_validate` constructor can accept a variety of input types
@@ -38,17 +38,23 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
       `rho_norm` and `values` are 1D NumPy arrays of equal length.
     rho_interpolation_mode: The interpolation mode to use for the rho axis.
     time_interpolation_mode: The interpolation mode to use for the time axis.
-    rho_norm_grid: The rho norm grid to use for the interpolation.
+    grid_face_centers: The face centers of the grid to use for the
+      interpolation.
+    grid_cell_centers: The cell centers of the grid to use for the
+      interpolation.
   """
 
-  value: Mapping[float, tuple[model_base.NumpyArray1D, model_base.NumpyArray1D]]
+  value: Mapping[
+      float, tuple[pydantic_types.NumpyArray1D, pydantic_types.NumpyArray1D]
+  ]
   rho_interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   )
   time_interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   )
-  rho_norm_grid: model_base.NumpyArray | None = None
+  grid_face_centers: pydantic_types.NumpyArray1D | None = None
+  grid_cell_centers: pydantic_types.NumpyArray1D | None = None
 
   @functools.cached_property
   def right_boundary_conditions_defined(self) -> bool:
@@ -59,6 +65,36 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
         return False
     return True
 
+  def get_value(
+      self, x: chex.Numeric, use_cell_centers: bool = True
+  ) -> chex.Array:
+    """Returns the value of this parameter interpolated at x=time.
+
+    Requires `self.grid_cell_centers` to be set if `use_cell_centers=True` and
+    `self.grid_face_centers` to be set if `use_cell_centers=False`.
+
+    Args:
+      x: An array of times to interpolate at.
+      use_cell_centers: Will interpolate with cell centers if True (default),
+        otherwise will interpolate with face centers.
+
+    Returns:
+      An array of interpolated values.
+    """
+    if use_cell_centers:
+      return self._get_cached_interpolated_param_cell_centers.get_value(x)
+    else:
+      return self._get_cached_interpolated_param_face_centers.get_value(x)
+
+  def __eq__(self, other):
+    """Custom equality check."""
+
+    try:
+      chex.assert_trees_all_equal(vars(self), vars(other))
+      return True
+    except AssertionError:
+      return False
+
   @pydantic.model_validator(mode='before')
   @classmethod
   def _conform_data(
@@ -67,7 +103,8 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
 
     if isinstance(data, dict):
       # A workaround for https://github.com/pydantic/pydantic/issues/10477.
-      data.pop('_get_cached_interpolated_param', None)
+      data.pop('_get_cached_interpolated_param_cell_centers', None)
+      data.pop('_get_cached_interpolated_param_face_centers', None)
 
       # This is the standard constructor input. No conforming required.
       if set(data.keys()).issubset(cls.model_fields.keys()):
@@ -112,14 +149,29 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
     )
 
   @functools.cached_property
-  def _get_cached_interpolated_param(
+  def _get_cached_interpolated_param_cell_centers(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
-    if self.rho_norm_grid is None:
-      raise ValueError('grid must be set.')
+    if self.grid_cell_centers is None:
+      raise ValueError('grid_cell_centers must be set.')
+
     return interpolated_param.InterpolatedVarTimeRho(
         self.value,
-        rho_norm=self.rho_norm_grid,
+        rho_norm=self.grid_cell_centers,
+        time_interpolation_mode=self.time_interpolation_mode,
+        rho_interpolation_mode=self.rho_interpolation_mode,
+    )
+
+  @functools.cached_property
+  def _get_cached_interpolated_param_face_centers(
+      self,
+  ) -> interpolated_param.InterpolatedVarTimeRho:
+    if self.grid_face_centers is None:
+      raise ValueError('grid_face_centers must be set.')
+
+    return interpolated_param.InterpolatedVarTimeRho(
+        self.value,
+        rho_norm=self.grid_face_centers,
         time_interpolation_mode=self.time_interpolation_mode,
         rho_interpolation_mode=self.rho_interpolation_mode,
     )

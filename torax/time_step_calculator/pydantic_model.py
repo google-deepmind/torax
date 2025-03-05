@@ -29,7 +29,7 @@ class TimeStepCalculatorType(enum.Enum):
   FIXED = 'fixed'
 
 
-class TimeStepCalculator(torax_pydantic.BaseModelMutable):
+class TimeStepCalculator(torax_pydantic.BaseModelFrozen):
   """Config for a time step calculator."""
 
   calculator_type: TimeStepCalculatorType = TimeStepCalculatorType.CHI
