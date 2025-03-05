@@ -150,7 +150,6 @@ class TGLFBasedTransportModel(
   def _prepare_tglf_inputs(
       self,
       Zeff_face: chex.Array,
-      q_correction_factor: chex.Numeric,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
   ) -> TGLFInputs:
@@ -162,10 +161,9 @@ class TGLFBasedTransportModel(
     ne = core_profiles.ne.face_value() * core_profiles.nref
     # q must be recalculated since in the nonlinear solver psi has intermediate
     # states in the iterative solve
-    q, _ = physics.calc_q_from_psi(
+    q, _ = physics.psi_calculations.calc_q(
         geo=geo,
         psi=core_profiles.psi,
-        q_correction_factor=q_correction_factor,
     )
 
     # Reference values used for TGLF-specific normalisation
@@ -202,7 +200,7 @@ class TGLFBasedTransportModel(
     # See https://pyrokinetics.readthedocs.io/en/latest/user_guide/collisions.html#tglf
     # Lambda_ee is computed with keV and m^-3 units
     # normalised_nu_ee is computed with SI units (ie J rather than keV)
-    Lambda_ee = physics._calculate_lambda_ee(Te_keV, ne)
+    Lambda_ee = physics.collisions._calculate_lambda_ee(Te_keV, ne)
     normalised_nu_ee = (4 * jnp.pi * ne * CONSTANTS.qe**4 * Lambda_ee) / (
         CONSTANTS.me**0.5 * (2 * Te_J) ** 1.5
     )
@@ -216,7 +214,7 @@ class TGLFBasedTransportModel(
     # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-shat-sa
     # Note: calc_s_from_psi_rmid gives rq dq/dr, so we divide by q**2
     # r_mid = r
-    s_hat = physics.calc_s_from_psi_rmid(geo, core_profiles.psi) / q**2
+    s_hat = physics.psi_calculations.calc_s(geo, core_profiles.psi) / q**2
 
     # Electron beta
     # https://gafusion.github.io/doc/tglf/tglf_list.html#tglf-betae

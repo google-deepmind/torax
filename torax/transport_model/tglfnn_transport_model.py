@@ -296,7 +296,6 @@ class TGLFNNTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
   ) -> state.CoreTransport:
     tglf_inputs = self._prepare_tglf_inputs(
         Zeff_face=dynamic_runtime_params_slice.plasma_composition.Zeff_face,
-        q_correction_factor=dynamic_runtime_params_slice.numerics.q_correction_factor,
         geo=geo,
         core_profiles=core_profiles,
     )
