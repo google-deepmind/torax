@@ -59,6 +59,12 @@ class ConfigTest(parameterized.TestCase):
       )
       chex.assert_trees_all_equal(config_pydantic, config_pydantic_roundtrip)
 
+    with self.subTest("geometry_grid_set"):
+      mesh = config_pydantic.geometry.build_provider.torax_mesh
+      mesh_set = config_pydantic.runtime_params.plasma_composition.Zeff
+      chex.assert_trees_all_equal(mesh.face_centers, mesh_set.grid_face_centers)
+      chex.assert_trees_all_equal(mesh.cell_centers, mesh_set.grid_cell_centers)
+
   def test_config_safe_update(self):
 
     module = config_loader.import_module(

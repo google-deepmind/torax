@@ -17,12 +17,13 @@
 from collections.abc import Set
 import functools
 import inspect
-from typing import Any, Final, Mapping, Sequence
+from typing import Any, Final, Mapping, Sequence, TypeAlias
 import jax
 import pydantic
 import treelib
 from typing_extensions import Self
 
+Grid1D: TypeAlias = Any
 
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
 
@@ -221,3 +222,51 @@ class BaseModelFrozen(pydantic.BaseModel):
     if not isinstance(value, BaseModelFrozen):
       raise ValueError(f'The value at path {paths} is not a Pydantic model.')
     return value
+
+  def set_geometry_mesh(self, mesh: Grid1D):
+    """Sets the geometry mesh for all submodels.
+
+    This sets the `grid_face_centers` and `grid_cell_centers` for all
+    `TimeVaryingArray` submodels using the `mesh` if they are not yet set (ie.
+    of value `None`).
+
+    Args:
+      mesh: A `geometry.Grid1D` object.
+    """
+
+    # Principled type checking for TimeVaryingArray and geometry.Grid1D is
+    # not available as this would cause a circular dependency. Use ducktyping.
+    def _is_time_varying_array(model):
+      if hasattr(model, '__class__'):
+        check = model.__class__.__name__ == 'TimeVaryingArray'
+        return (
+            check
+            and hasattr(model, 'value')
+            and hasattr(model, 'time_interpolation_mode')
+            and hasattr(model, 'rho_interpolation_mode')
+            and hasattr(model, 'grid_face_centers')
+            and hasattr(model, 'grid_cell_centers')
+        )
+      return False
+
+    def _is_grid1d(model):
+      if hasattr(model, '__class__'):
+        check = model.__class__.__name__ == 'Grid1D'
+        return (
+            check
+            and hasattr(model, 'nx')
+            and hasattr(model, 'dx')
+            and hasattr(model, 'face_centers')
+            and hasattr(model, 'cell_centers')
+        )
+      return False
+
+    if not _is_grid1d(mesh):
+      raise ValueError(f'Mesh {mesh} is not a geometry.Grid1D.')
+
+    for model in self.submodels:
+      if _is_time_varying_array(model):
+        if model.__dict__['grid_face_centers'] is None:
+          model.__dict__['grid_face_centers'] = mesh.face_centers
+        if model.__dict__['grid_cell_centers'] is None:
+          model.__dict__['grid_cell_centers'] = mesh.cell_centers

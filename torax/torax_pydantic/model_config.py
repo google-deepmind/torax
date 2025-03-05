@@ -16,19 +16,19 @@
 
 import logging
 from typing import Any, Mapping
-
 import pydantic
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
-from torax.torax_pydantic import model_base
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import pydantic_model as transport_model_pydantic_model
 import typing_extensions
+from typing_extensions import Self
 
 
-class ToraxConfig(model_base.BaseModelFrozen):
+class ToraxConfig(torax_pydantic.BaseModelFrozen):
   """Base config class for Torax.
 
   Attributes:
@@ -86,3 +86,11 @@ class ToraxConfig(model_base.BaseModelFrozen):
         will be raised if this is not the case.
     """
     self._update_fields(x)
+
+  @pydantic.model_validator(mode='after')
+  def after_validator(self) -> Self:
+    # Interpolated `TimeVaryingArray` objects require a mesh, only available
+    # once the geometry provider is built. This could be done in the before
+    # validator, but is harder than setting it after construction.
+    self.set_geometry_mesh(self.geometry.build_provider.torax_mesh)
+    return self

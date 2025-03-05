@@ -131,7 +131,7 @@ def build_sim_from_config(
   runtime_params = build_runtime_params_from_config(config['runtime_params'])
   geo_provider = geometry_pydantic_model.Geometry.from_dict(
       config['geometry']
-  ).build_provider()
+  ).build_provider
 
   if 'restart' in config:
     file_restart = runtime_params_lib.FileRestart(**config['restart'])
