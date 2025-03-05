@@ -202,7 +202,7 @@ class TGLFBasedTransportModel(
     # See https://pyrokinetics.readthedocs.io/en/latest/user_guide/collisions.html#tglf
     # Lambda_ee is computed with keV and m^-3 units
     # normalised_nu_ee is computed with SI units (ie J rather than keV)
-    Lambda_ee = physics._calculate_lambda_ee(Te_keV, ne)
+    Lambda_ee = physics.collisions._calculate_lambda_ee(Te_keV, ne)
     normalised_nu_ee = (4 * jnp.pi * ne * CONSTANTS.qe**4 * Lambda_ee) / (
         CONSTANTS.me**0.5 * (2 * Te_J) ** 1.5
     )
