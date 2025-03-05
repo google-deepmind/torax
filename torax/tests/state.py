@@ -25,10 +25,10 @@ from jax import numpy as jnp
 import numpy as np
 from torax import math_utils
 from torax import state
+from torax.config import build_runtime_params
 from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
@@ -82,7 +82,7 @@ class StateTest(torax_refs.ReferenceValueTest):
               sources=source_models_builder.runtime_params,
           )
       )
-      static_slice = runtime_params_slice.build_static_runtime_params_slice(
+      static_slice = build_runtime_params.build_static_runtime_params_slice(
           runtime_params=runtime_params,
           source_runtime_params=source_models_builder.runtime_params,
           torax_mesh=geo.torax_mesh,
@@ -120,7 +120,7 @@ class StateTest(torax_refs.ReferenceValueTest):
             sources=source_models_builder.runtime_params,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=references.runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -181,7 +181,7 @@ class InitialStatesTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -215,7 +215,7 @@ class InitialStatesTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -291,7 +291,7 @@ class InitialStatesTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=config1,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -310,7 +310,7 @@ class InitialStatesTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=config2,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -331,7 +331,7 @@ class InitialStatesTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=config3,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -351,7 +351,7 @@ class InitialStatesTest(parameterized.TestCase):
             sources=source_models_builder.runtime_params,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=config3_helper,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -443,7 +443,7 @@ class InitialStatesTest(parameterized.TestCase):
         ),
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    dcs1 = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+    dcs1 = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         config1,
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -456,14 +456,14 @@ class InitialStatesTest(parameterized.TestCase):
             ne_bound_right=0.5,
         ),
     )
-    dcs2 = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+    dcs2 = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         config2,
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )(
         t=config2.numerics.t_initial,
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=config1,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -474,7 +474,7 @@ class InitialStatesTest(parameterized.TestCase):
         geo=geometry_pydantic_model.CircularConfig().build_geometry(),
         source_models=source_models,
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=config2,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,

@@ -18,6 +18,7 @@ from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
 from torax import state
+from torax.config import build_runtime_params
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
@@ -41,7 +42,7 @@ def _get_model_inputs(transport: qualikiz_based_transport_model.RuntimeParams):
       set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
   )
   dynamic_runtime_params_slice = (
-      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+      build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           transport=transport,
           sources=source_models_builder.runtime_params,
@@ -51,7 +52,7 @@ def _get_model_inputs(transport: qualikiz_based_transport_model.RuntimeParams):
           t=runtime_params.numerics.t_initial,
       )
   )
-  static_slice = runtime_params_slice.build_static_runtime_params_slice(
+  static_slice = build_runtime_params.build_static_runtime_params_slice(
       runtime_params=runtime_params,
       source_runtime_params=source_models_builder.runtime_params,
       torax_mesh=geo.torax_mesh,

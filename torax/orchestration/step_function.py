@@ -24,6 +24,7 @@ import jax.numpy as jnp
 from torax import jax_utils
 from torax import post_processing
 from torax import state
+from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
 from torax.geometry import geometry
@@ -97,7 +98,7 @@ class SimulationStepFn:
   def __call__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
   ) -> tuple[state.ToraxSimState, state.SimError]:
@@ -135,7 +136,7 @@ class SimulationStepFn:
       SimError indicating if an error has occurred during simulation.
     """
     dynamic_runtime_params_slice_t, geo_t = (
-        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=input_state.t,
             dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
             geometry_provider=geometry_provider,
@@ -366,7 +367,7 @@ class SimulationStepFn:
       output_state: state.ToraxSimState,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geo_t: geometry.Geometry,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
@@ -556,7 +557,7 @@ class SimulationStepFn:
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
     t: jnp.ndarray,
     dt: jnp.ndarray,
-    dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+    dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.GeometryProvider,
 ) -> tuple[
@@ -584,7 +585,7 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
       - The geometry of the torus during the next time step of the simulation.
   """
   dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
-      runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
           t=t + dt,
           dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
           geometry_provider=geometry_provider,

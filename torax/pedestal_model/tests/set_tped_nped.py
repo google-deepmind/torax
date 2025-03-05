@@ -15,8 +15,8 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
+from torax.config import build_runtime_params
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
@@ -63,7 +63,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -76,7 +76,7 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
     dynamic_runtime_params_slice = provider(t=time)
     pedestal_model = builder()
     static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
+        build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,

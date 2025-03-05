@@ -18,9 +18,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import jax_utils
+from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
@@ -97,7 +97,7 @@ class InitializationTest(torax_refs.ReferenceValueTest):
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources=source_models_builder.runtime_params,
@@ -107,7 +107,7 @@ class InitializationTest(torax_refs.ReferenceValueTest):
     dynamic_runtime_params_slice = provider(
         t=1.0,
     )
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,

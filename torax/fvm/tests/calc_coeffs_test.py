@@ -14,10 +14,10 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from torax.config import build_runtime_params
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.core_profiles import initialization
 from torax.fvm import calc_coeffs
 from torax.geometry import pydantic_model as geometry_pydantic_model
@@ -81,7 +81,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     )
     source_models = source_models_builder()
     dynamic_runtime_params_slice = (
-        runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
@@ -93,7 +93,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
         )
     )
     static_runtime_params_slice = (
-        runtime_params_slice_lib.build_static_runtime_params_slice(
+        build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,

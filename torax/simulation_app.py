@@ -62,8 +62,8 @@ import jax
 from torax import output
 from torax import sim as sim_lib
 from torax import state
+from torax.config import build_runtime_params
 from torax.config import runtime_params as runtime_params_lib
-from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
 from torax.pedestal_model import runtime_params as pedestal_runtime_params_lib
@@ -176,7 +176,7 @@ def update_sim(
   #  - time step calculator
   #  - source objects (runtime params are updated)
   static_runtime_params_slice = (
-      runtime_params_slice.build_static_runtime_params_slice(
+      build_runtime_params.build_static_runtime_params_slice(
           runtime_params=runtime_params,
           source_runtime_params=source_runtime_params,
           torax_mesh=geo_provider.torax_mesh,
@@ -184,7 +184,7 @@ def update_sim(
       )
   )
   dynamic_runtime_params_slice_provider = (
-      runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+      build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           transport=transport_runtime_params,
           sources=source_runtime_params,

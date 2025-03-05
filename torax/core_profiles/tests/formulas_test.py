@@ -17,9 +17,9 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import jax_utils
+from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.core_profiles import formulas
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.stepper import runtime_params as stepper_params_lib
@@ -112,7 +112,7 @@ class UpdatersTest(parameterized.TestCase):
             normalize_to_nbar=False,
         )
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
@@ -160,7 +160,7 @@ class UpdatersTest(parameterized.TestCase):
         )
     )
 
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
@@ -196,7 +196,7 @@ class UpdatersTest(parameterized.TestCase):
             ne_bound_right=0.5,
         ),
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
@@ -248,7 +248,7 @@ class UpdatersTest(parameterized.TestCase):
             ne_bound_right=0.5,
         ),
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},

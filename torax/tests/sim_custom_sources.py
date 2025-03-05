@@ -25,6 +25,7 @@ from torax import interpolated_param
 from torax import output
 from torax import sim as sim_lib
 from torax import state as state_lib
+from torax.config import build_runtime_params
 from torax.config import config_args
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
@@ -237,7 +238,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
   ):
     """Runs sim with new runtime params and checks the profiles vs. expected."""
     static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
+        build_runtime_params.build_static_runtime_params_slice(
             runtime_params=self.test_particle_sources_constant_runtime_params,
             source_runtime_params=self.source_models_builder.runtime_params,
             torax_mesh=sim.geometry_provider.torax_mesh,

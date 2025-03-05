@@ -19,10 +19,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
 import numpy as np
+from torax.config import build_runtime_params
 from torax.config import numerics as numerics_lib
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.fvm import block_1d_coeffs
 from torax.fvm import calc_coeffs
@@ -253,7 +253,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     )
     source_models = source_models_builder()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
@@ -265,7 +265,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
+        build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
             torax_mesh=geo.torax_mesh,
             source_runtime_params=source_models_builder.runtime_params,
@@ -398,7 +398,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         n_rho=num_cells
     ).build_geometry()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
@@ -410,7 +410,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
+        build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
             torax_mesh=geo.torax_mesh,
             source_runtime_params=source_models_builder.runtime_params,
@@ -548,7 +548,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         source_runtime_params.Mode.ZERO
     )
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
@@ -560,7 +560,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     static_runtime_params_slice_theta0 = (
-        runtime_params_slice.build_static_runtime_params_slice(
+        build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
             torax_mesh=geo.torax_mesh,
             source_runtime_params=source_models_builder.runtime_params,

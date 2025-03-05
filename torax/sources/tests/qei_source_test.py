@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from absl.testing import absltest
+from torax.config import build_runtime_params
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import qei_source
@@ -43,12 +43,12 @@ class QeiSourceTest(test_lib.SourceTestCase):
     source = source_models.sources['qei_source']
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
     )
-    dynamic_slice = runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+    dynamic_slice = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,

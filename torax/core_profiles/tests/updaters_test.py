@@ -19,9 +19,9 @@ from jax import numpy as jnp
 import numpy as np
 from torax import jax_utils
 from torax import state
+from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.core_profiles import formulas
 from torax.core_profiles import updaters
 from torax.fvm import cell_variable
@@ -53,14 +53,14 @@ class UpdatersTest(parameterized.TestCase):
         )
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
         stepper=stepper_params_lib.RuntimeParams(),
         torax_mesh=self.geo.torax_mesh,
     )
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
@@ -199,12 +199,12 @@ class UpdatersTest(parameterized.TestCase):
         ),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
@@ -265,12 +265,12 @@ class UpdatersTest(parameterized.TestCase):
         ),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
@@ -317,12 +317,12 @@ class UpdatersTest(parameterized.TestCase):
         ),
     )
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    static_slice = runtime_params_slice_lib.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
     )
-    provider = runtime_params_slice_lib.DynamicRuntimeParamsSliceProvider(
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},

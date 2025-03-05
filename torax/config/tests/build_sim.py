@@ -17,9 +17,9 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax.config import build_runtime_params
 from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
-from torax.config import runtime_params_slice
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params_lib
@@ -174,7 +174,7 @@ class BuildSimTest(parameterized.TestCase):
     self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             torax_mesh=geo.torax_mesh,
         )(

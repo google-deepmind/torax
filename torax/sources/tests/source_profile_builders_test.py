@@ -18,6 +18,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
+from torax.config import build_runtime_params
 from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
@@ -42,7 +43,7 @@ class SourceModelsTest(parameterized.TestCase):
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     dynamic_runtime_params_slice = (
-        runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             sources=source_models_builder.runtime_params,
             torax_mesh=self.geo.torax_mesh,
@@ -50,7 +51,7 @@ class SourceModelsTest(parameterized.TestCase):
             t=runtime_params.numerics.t_initial,
         )
     )
-    static_slice = runtime_params_slice.build_static_runtime_params_slice(
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         source_runtime_params=source_models_builder.runtime_params,
         torax_mesh=self.geo.torax_mesh,
@@ -63,7 +64,7 @@ class SourceModelsTest(parameterized.TestCase):
     )
     stepper_params = stepper_runtime_params_lib.RuntimeParams()
     static_runtime_params_slice = (
-        runtime_params_slice.build_static_runtime_params_slice(
+        build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
             torax_mesh=self.geo.torax_mesh,

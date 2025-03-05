@@ -23,6 +23,7 @@ from jax import numpy as jnp
 import numpy as np
 import torax
 from torax import fvm
+from torax.config import build_runtime_params
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
@@ -61,9 +62,9 @@ def build_consistent_dynamic_runtime_params_slice_and_geometry(
 ) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
   """Builds a consistent Geometry and a DynamicRuntimeParamsSlice."""
   t = runtime_params.numerics.t_initial if t is None else t
-  return runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+  return build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
       t=t,
-      dynamic_runtime_params_slice_provider=runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+      dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params,
           transport=transport_model_params.RuntimeParams(),
           sources=sources,
