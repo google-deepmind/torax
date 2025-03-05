@@ -68,7 +68,7 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider
 from torax.pedestal_model import runtime_params as pedestal_runtime_params_lib
 from torax.sources import runtime_params as source_runtime_params_lib
-from torax.stepper import runtime_params as stepper_runtime_params_lib
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_runtime_params_lib
 import xarray as xr
 
@@ -165,7 +165,7 @@ def update_sim(
     geo_provider: geometry_provider.GeometryProvider,
     transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
     source_runtime_params: dict[str, source_runtime_params_lib.RuntimeParams],
-    stepper_runtime_params: stepper_runtime_params_lib.RuntimeParams,
+    stepper_runtime_params: stepper_pydantic_model.Stepper,
     pedestal_runtime_params: pedestal_runtime_params_lib.RuntimeParams,
 ) -> None:
   """Updates the sim with a new set of runtime params and geometry."""

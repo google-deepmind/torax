@@ -31,7 +31,7 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import runtime_params as pedestal_model_params
 from torax.sources import runtime_params as sources_params
-from torax.stepper import runtime_params as stepper_params
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_model_params
 
 
@@ -40,7 +40,7 @@ def build_static_runtime_params_slice(
     runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
     source_runtime_params: dict[str, sources_params.RuntimeParams],
     torax_mesh: geometry.Grid1D,
-    stepper: stepper_params.RuntimeParams | None = None,
+    stepper: stepper_pydantic_model.Stepper | None = None,
 ) -> runtime_params_slice.StaticRuntimeParamsSlice:
   """Builds a StaticRuntimeParamsSlice.
 
@@ -61,7 +61,7 @@ def build_static_runtime_params_slice(
   Returns:
     A runtime_params_slice.StaticRuntimeParamsSlice.
   """
-  stepper = stepper or stepper_params.RuntimeParams()
+  stepper = stepper or stepper_pydantic_model.Stepper()
   return runtime_params_slice.StaticRuntimeParamsSlice(
       sources={
           source_name: specific_source_runtime_params.build_static_params()
@@ -143,7 +143,7 @@ class DynamicRuntimeParamsSliceProvider:
       pedestal: pedestal_model_params.RuntimeParams | None = None,
       transport: transport_model_params.RuntimeParams | None = None,
       sources: dict[str, sources_params.RuntimeParams] | None = None,
-      stepper: stepper_params.RuntimeParams | None = None,
+      stepper: stepper_pydantic_model.Stepper | None = None,
       torax_mesh: geometry.Grid1D | None = None,
   ):
     """Constructs a build_simulation_params.DynamicRuntimeParamsSliceProvider.
@@ -164,7 +164,7 @@ class DynamicRuntimeParamsSliceProvider:
     """
     transport = transport or transport_model_params.RuntimeParams()
     sources = sources or {}
-    stepper = stepper or stepper_params.RuntimeParams()
+    stepper = stepper or stepper_pydantic_model.Stepper()
     pedestal = pedestal or pedestal_model_params.RuntimeParams()
     self._torax_mesh = torax_mesh
     self._sources = sources
@@ -234,7 +234,7 @@ class DynamicRuntimeParamsSliceProvider:
         transport=self._transport_runtime_params_provider.build_dynamic_params(
             t
         ),
-        stepper=self._stepper.build_dynamic_params(t),
+        stepper=self._stepper.build_dynamic_params,
         sources={
             source_name: input_source_config.build_dynamic_params(t,)
             for source_name, input_source_config in self._sources_providers.items()

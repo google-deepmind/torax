@@ -36,6 +36,7 @@ from torax.config import config_loader
 from torax.config import runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.plotting import plotruns_lib
+from torax.stepper import pydantic_model as stepper_pydantic_model
 
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '
@@ -257,7 +258,7 @@ def change_config(
     source_models_builder = build_sim.build_sources_builder_from_config(
         sim_config['sources']
     )
-    new_stepper_builder = build_sim.build_stepper_builder_from_config(
+    new_stepper = stepper_pydantic_model.Stepper.from_dict(
         sim_config['stepper']
     )
     new_pedestal_model_builder = (
@@ -272,7 +273,7 @@ def change_config(
     new_geo_provider = config_module.get_geometry_provider()
     new_transport_model_builder = config_module.get_transport_model_builder()
     source_models_builder = config_module.get_sources_builder()
-    new_stepper_builder = config_module.get_stepper_builder()
+    new_stepper = config_module.get_stepper()
     new_pedestal_model_builder = config_module.get_pedestal_model_builder()
   new_source_params = {
       name: runtime_params
@@ -292,7 +293,7 @@ def change_config(
       geo_provider=new_geo_provider,
       transport_runtime_params=new_transport_model_builder.runtime_params,
       source_runtime_params=new_source_params,
-      stepper_runtime_params=new_stepper_builder.runtime_params,
+      stepper_runtime_params=new_stepper,
       pedestal_runtime_params=new_pedestal_model_builder.runtime_params,
   )
   return sim, new_runtime_params

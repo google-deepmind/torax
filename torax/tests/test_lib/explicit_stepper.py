@@ -18,7 +18,9 @@ The explicit stepper is not intended to perform well; it is included only for
 testing purposes. The implementation is intentionally flat with relatively
 few configuration options, etc., to ensure reliability for testing purposes.
 """
+
 import dataclasses
+from typing import Literal
 
 import jax
 from jax import numpy as jnp
@@ -32,11 +34,12 @@ from torax.physics import psi_calculations
 from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
-from torax.stepper import stepper as stepper_lib
+from torax.stepper import linear_theta_method
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import constant as constant_transport_model
 
 
-class ExplicitStepper(stepper_lib.Stepper):
+class ExplicitStepper(linear_theta_method.LinearThetaMethod):
   """Explicit time step update.
 
   Coefficients of the various terms are computed at each timestep even though it
@@ -164,11 +167,22 @@ class ExplicitStepper(stepper_lib.Stepper):
     )
 
 
-@dataclasses.dataclass(kw_only=True)
-class ExplicitStepperBuilder(stepper_lib.StepperBuilder):
-  """Builds an ExplicitStepper."""
+class ExplicitStepperConfig(stepper_pydantic_model.LinearThetaMethod):
+  """Fake stepper config that allows us to hook into the error logic."""
 
-  def __call__(
-      self, transport_model, sources, pedestal_model
-  ) -> ExplicitStepper:
-    return ExplicitStepper(transport_model, sources, pedestal_model)
+  stepper_type: Literal['explicit'] = 'explicit'
+
+  def build_stepper(
+      self, transport_model, source_models, pedestal_model
+  ) -> 'ExplicitStepper':
+    return ExplicitStepper(
+        transport_model=transport_model,
+        source_models=source_models,
+        pedestal_model=pedestal_model,
+    )
+
+
+class ExplicitStepperModel(stepper_pydantic_model.Stepper):
+  """Config for a stepper."""
+
+  stepper_config: ExplicitStepperConfig

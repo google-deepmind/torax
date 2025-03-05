@@ -24,7 +24,7 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_profile_builders
-from torax.stepper import runtime_params as stepper_params_lib
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.transport_model import constant as constant_transport_model
 
@@ -48,9 +48,11 @@ class CoreProfileSettersTest(parameterized.TestCase):
             el_heat_eq=False,
         ),
     )
-    stepper_params = stepper_params_lib.RuntimeParams(
-        predictor_corrector=False,
-        theta_imp=theta_imp,
+    stepper_params = stepper_pydantic_model.Stepper.from_dict(
+        dict(
+            predictor_corrector=False,
+            theta_imp=theta_imp,
+        )
     )
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=num_cells

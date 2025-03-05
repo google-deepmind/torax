@@ -22,7 +22,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
-from torax.stepper import runtime_params as stepper_runtime_params
+from torax.stepper import pydantic_model as stepper_pydantic_model
 
 
 class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
@@ -65,7 +65,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
             runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
-            stepper=stepper_runtime_params.RuntimeParams(),
+            stepper=stepper_pydantic_model.Stepper(),
         )
     )
     core_profiles = initialization.initial_core_profiles(

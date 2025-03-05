@@ -17,8 +17,6 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Callable
-import dataclasses
 
 import chex
 import jax
@@ -30,12 +28,27 @@ from torax.fvm import enums
 from torax.fvm import newton_raphson_solve_block
 from torax.fvm import optimizer_solve_block
 from torax.geometry import geometry
-from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
-from torax.stepper import runtime_params as runtime_params_lib
+from torax.stepper import runtime_params
 from torax.stepper import stepper
-from torax.transport_model import transport_model as transport_model_lib
+
+
+@chex.dataclass(frozen=True)
+class DynamicOptimizerRuntimeParams(runtime_params.DynamicRuntimeParams):
+  initial_guess_mode: int
+  maxiter: int
+  tol: float
+
+
+@chex.dataclass(frozen=True)
+class DynamicNewtonRaphsonRuntimeParams(runtime_params.DynamicRuntimeParams):
+  log_iterations: bool
+  initial_guess_mode: int
+  maxiter: int
+  tol: float
+  coarse_tol: float
+  delta_reduction_factor: float
+  tau_min: float
 
 
 class NonlinearThetaMethod(stepper.Stepper):
@@ -119,35 +132,6 @@ class NonlinearThetaMethod(stepper.Stepper):
     ...
 
 
-@dataclasses.dataclass(kw_only=True)
-class OptimizerRuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters used inside the OptimizerThetaMethod stepper."""
-
-  initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
-  maxiter: int = 100
-  tol: float = 1e-12
-
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ) -> DynamicOptimizerRuntimeParams:
-    del t  # Unused.
-    return DynamicOptimizerRuntimeParams(
-        chi_per=self.chi_per,
-        d_per=self.d_per,
-        corrector_steps=self.corrector_steps,
-        initial_guess_mode=self.initial_guess_mode.value,
-        maxiter=self.maxiter,
-        tol=self.tol,
-    )
-
-
-@chex.dataclass(frozen=True)
-class DynamicOptimizerRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  initial_guess_mode: int
-  maxiter: int
-  tol: float
-
-
 class OptimizerThetaMethod(NonlinearThetaMethod):
   """Minimize the squared norm of the residual of the theta method equation.
 
@@ -207,83 +191,6 @@ class OptimizerThetaMethod(NonlinearThetaMethod):
         )
     )
     return x_new, core_sources, core_transport, stepper_numeric_outputs
-
-
-def _default_optimizer_builder(
-    transport_model: transport_model_lib.TransportModel,
-    source_models: source_models_lib.SourceModels,
-    pedestal_model: pedestal_model_lib.PedestalModel,
-) -> OptimizerThetaMethod:
-  return OptimizerThetaMethod(transport_model, source_models, pedestal_model)
-
-
-@dataclasses.dataclass(kw_only=True)
-class OptimizerThetaMethodBuilder(stepper.StepperBuilder):
-  """Builds an OptimizerThetaMethod."""
-
-  runtime_params: OptimizerRuntimeParams = dataclasses.field(
-      default_factory=OptimizerRuntimeParams
-  )
-
-  builder: Callable[
-      [
-          transport_model_lib.TransportModel,
-          source_models_lib.SourceModels,
-          pedestal_model_lib.PedestalModel,
-      ],
-      OptimizerThetaMethod,
-  ] = _default_optimizer_builder
-
-  def __call__(
-      self,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-  ) -> OptimizerThetaMethod:
-    return self.builder(transport_model, source_models, pedestal_model)
-
-
-@dataclasses.dataclass(kw_only=True)
-class NewtonRaphsonRuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters used inside the NewtonRaphsonThetaMethod stepper."""
-
-  # If True, log internal iterations in Newton-Raphson solver.
-  log_iterations: bool = False
-  initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
-  maxiter: int = 30
-  tol: float = 1e-5
-  coarse_tol: float = 1e-2
-  delta_reduction_factor: float = 0.5
-  tau_min: float = 0.01
-
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ) -> DynamicNewtonRaphsonRuntimeParams:
-    return DynamicNewtonRaphsonRuntimeParams(
-        chi_per=self.chi_per,
-        d_per=self.d_per,
-        log_iterations=self.log_iterations,
-        initial_guess_mode=self.initial_guess_mode.value,
-        maxiter=self.maxiter,
-        tol=self.tol,
-        coarse_tol=self.coarse_tol,
-        delta_reduction_factor=self.delta_reduction_factor,
-        tau_min=self.tau_min,
-        corrector_steps=self.corrector_steps,
-    )
-
-
-@chex.dataclass(frozen=True)
-class DynamicNewtonRaphsonRuntimeParams(
-    runtime_params_lib.DynamicRuntimeParams
-):
-  log_iterations: bool
-  initial_guess_mode: int
-  maxiter: int
-  tol: float
-  coarse_tol: float
-  delta_reduction_factor: float
-  tau_min: float
 
 
 class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
@@ -349,39 +256,3 @@ class NewtonRaphsonThetaMethod(NonlinearThetaMethod):
         )
     )
     return x_new, core_sources, core_transport, stepper_numeric_outputs
-
-
-def _default_newton_raphson_builder(
-    transport_model: transport_model_lib.TransportModel,
-    source_models: source_models_lib.SourceModels,
-    pedestal_model: pedestal_model_lib.PedestalModel,
-) -> NewtonRaphsonThetaMethod:
-  return NewtonRaphsonThetaMethod(
-      transport_model, source_models, pedestal_model
-  )
-
-
-@dataclasses.dataclass(kw_only=True)
-class NewtonRaphsonThetaMethodBuilder(stepper.StepperBuilder):
-  """Builds a NewtonRaphsonThetaMethod."""
-
-  runtime_params: NewtonRaphsonRuntimeParams = dataclasses.field(
-      default_factory=NewtonRaphsonRuntimeParams
-  )
-
-  builder: Callable[
-      [
-          transport_model_lib.TransportModel,
-          source_models_lib.SourceModels,
-          pedestal_model_lib.PedestalModel,
-      ],
-      NewtonRaphsonThetaMethod,
-  ] = _default_newton_raphson_builder
-
-  def __call__(
-      self,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-  ) -> NewtonRaphsonThetaMethod:
-    return self.builder(transport_model, source_models, pedestal_model)

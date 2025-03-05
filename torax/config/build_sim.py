@@ -30,10 +30,7 @@ from torax.sources import register_source
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
-from torax.stepper import linear_theta_method
-from torax.stepper import nonlinear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as time_step_calculator_lib
@@ -84,11 +81,11 @@ def build_sim_from_config(
   See the following functions' docstrings to learn more about their expected
   input config structures and what parameters are available to use.
 
-   -  `runtime_params`: `build_runtime_params_from_config()`
+   -  `runtime_params`: geometry_pydantic_model.Geometry
    -  `geometry`: `build_geometry_from_config()`
    -  `sources`: `build_sources_from_config()`
    -  `transport`: `build_transport_model_builder_from_config()`
-   -  `stepper`: `build_stepper_builder_from_config()`
+   -  `stepper`: stepper_pydantic_model.Stepper
    -  `time_step_calculator`: `build_time_step_calculator_from_config()`
 
   To learn more about the Sim object and its components, see `sim.Sim`'s class
@@ -150,7 +147,9 @@ def build_sim_from_config(
       transport_model_builder=build_transport_model_builder_from_config(
           config['transport']
       ),
-      stepper_builder=build_stepper_builder_from_config(config['stepper']),
+      stepper=stepper_pydantic_model.Stepper.from_dict(
+          config['stepper']
+      ),
       pedestal_model_builder=build_pedestal_model_builder_from_config(
           config['pedestal'] if 'pedestal' in config else {}
       ),
@@ -468,70 +467,6 @@ def build_pedestal_model_builder_from_config(
       )
     case _:
       raise ValueError(f'Unknown pedestal model: {pedestal_model}')
-
-
-def build_stepper_builder_from_config(
-    stepper_config: dict[str, Any],
-) -> stepper_lib.StepperBuilder:
-  """Builds a `StepperBuilder` from the input config.
-
-  `Stepper` objects evolve the core profile state of the system. The input
-  config has one required key, `stepper_type`, which must be one of the
-  following values:
-
-  -  `linear`: Linear theta method.
-
-    - Additional config parameters are defined in `LinearRuntimeParams`.
-
-  -  `newton_raphson`: Newton-Raphson nonlinear stepper.
-
-    - Additional config parameters are defined in `NewtonRaphsonRuntimeParams`.
-
-  - `optimizer`: jaxopt-based nonlinear stepper.
-
-    - Additional config parameters are defined in `OptimizerRuntimeParams`.
-
-  All steppers share some common config parameters defined in
-  `stepper.runtime_params.RuntimeParams`. Stepper-specific params are defined in
-  the dataclasses listed above.
-
-  Args:
-    stepper_config: Python dictionary containing arguments to build a stepper
-      object and its runtime parameters, with the structure outlined above.
-
-  Returns:
-    A `StepperBuilder` object, configured with RuntimeParams defined based on
-    the input config.
-
-  Raises:
-    ValueError if the `stepper_type` is unknown.
-  """
-  stepper_model = stepper_pydantic_model.Stepper.from_dict(stepper_config)
-  stepper_model = stepper_model.to_dict()
-  stepper_type = stepper_model['stepper_config'].pop('stepper_type')
-
-  if stepper_type == 'linear':
-    return linear_theta_method.LinearThetaMethodBuilder(
-        runtime_params=config_args.recursive_replace(
-            linear_theta_method.LinearRuntimeParams(),
-            **stepper_model['stepper_config'],
-        )
-    )
-  elif stepper_type == 'newton_raphson':
-    return nonlinear_theta_method.NewtonRaphsonThetaMethodBuilder(
-        runtime_params=config_args.recursive_replace(
-            nonlinear_theta_method.NewtonRaphsonRuntimeParams(),
-            **stepper_model['stepper_config'],
-        )
-    )
-  elif stepper_type == 'optimizer':
-    return nonlinear_theta_method.OptimizerThetaMethodBuilder(
-        runtime_params=config_args.recursive_replace(
-            nonlinear_theta_method.OptimizerRuntimeParams(),
-            **stepper_model['stepper_config'],
-        )
-    )
-  raise ValueError(f'Unknown stepper type: {stepper_type}')
 
 
 def build_time_step_calculator_from_config(

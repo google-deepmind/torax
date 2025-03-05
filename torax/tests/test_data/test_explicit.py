@@ -25,7 +25,6 @@ from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
-from torax.stepper import runtime_params as stepper_runtime_params
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
 from torax.transport_model import constant as constant_transport_model
@@ -85,10 +84,10 @@ def get_sources_builder() -> source_models_lib.SourceModelsBuilder:
   return source_models_builder
 
 
-def get_stepper_builder() -> explicit_stepper.ExplicitStepperBuilder:
+def get_stepper() -> explicit_stepper.ExplicitStepperModel:
   """Returns a builder for the stepper that includes its runtime params."""
-  builder = explicit_stepper.ExplicitStepperBuilder(
-      runtime_params=stepper_runtime_params.RuntimeParams(
+  builder = explicit_stepper.ExplicitStepperModel.from_dict(
+      dict(
           predictor_corrector=False,
           use_pereverzev=False,
       )
@@ -111,6 +110,6 @@ def get_sim() -> sim_lib.Sim:
       geometry_provider=geo_provider,
       source_models_builder=get_sources_builder(),
       transport_model_builder=get_transport_model_builder(),
-      stepper_builder=get_stepper_builder(),
+      stepper=get_stepper(),
       pedestal_model_builder=get_pedestal_model_builder(),
   )

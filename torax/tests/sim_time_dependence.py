@@ -16,7 +16,7 @@
 
 import copy
 import dataclasses
-from typing import Callable
+from typing import Callable, Literal
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -37,7 +37,8 @@ from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
-from torax.stepper import stepper as stepper_lib
+from torax.stepper import linear_theta_method
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import transport_model as transport_model_lib
 
@@ -82,10 +83,12 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     sim = sim_lib.Sim.create(
         runtime_params=runtime_params,
         geometry_provider=geometry_provider,
-        stepper_builder=FakeStepperBuilder(
-            param='Ti_bound_right',
-            max_value=2.5,
-            inner_solver_iterations=inner_solver_iterations,
+        stepper=FakeStepperModel.from_dict(
+            dict(
+                param='Ti_bound_right',
+                max_value=2.5,
+                inner_solver_iterations=inner_solver_iterations,
+            )
         ),
         transport_model_builder=transport_builder,
         source_models_builder=source_models_builder,
@@ -119,31 +122,33 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     )
 
 
-@dataclasses.dataclass(kw_only=True)
-class FakeStepperBuilder(stepper_lib.StepperBuilder):
-  """Builds a FakeStepper."""
+class FakeStepperConfig(stepper_pydantic_model.LinearThetaMethod):
+  """Fake stepper config that allows us to hook into the error logic."""
+  stepper_type: Literal['fake'] = 'fake'
+  param: str = 'Ti_bound_right'
+  max_value: float = 2.5
+  inner_solver_iterations: list[int] | None = None
 
-  param: str
-  max_value: float
-  inner_solver_iterations: list[int] | None
-
-  def __call__(
-      self,
-      transport_model: transport_model_lib.TransportModel,
-      source_models: source_models_lib.SourceModels,
-      pedestal_model: pedestal_model_lib.PedestalModel,
-  ):
+  def build_stepper(
+      self, transport_model, source_models, pedestal_model
+  ) -> 'FakeStepper':
     return FakeStepper(
         param=self.param,
         max_value=self.max_value,
+        inner_solver_iterations=self.inner_solver_iterations,
         transport_model=transport_model,
         source_models=source_models,
         pedestal_model=pedestal_model,
-        inner_solver_iterations=self.inner_solver_iterations,
     )
 
 
-class FakeStepper(stepper_lib.Stepper):
+class FakeStepperModel(stepper_pydantic_model.Stepper):
+  """Config for a stepper."""
+
+  stepper_config: FakeStepperConfig
+
+
+class FakeStepper(linear_theta_method.LinearThetaMethod):
   """Fake stepper that allows us to hook into the error logic.
 
   Given the name of a time-dependent param in the runtime_params, and a max

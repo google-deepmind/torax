@@ -20,7 +20,7 @@ from torax.config import runtime_params as runtime_params_lib
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model
 from torax.geometry import standard_geometry
-from torax.stepper import runtime_params as stepper_params
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_model_params
 
 
@@ -145,7 +145,7 @@ class PydanticModelTest(parameterized.TestCase):
             runtime_params=runtime_params,
             transport=transport_model_params.RuntimeParams(),
             sources={},
-            stepper=stepper_params.RuntimeParams(),
+            stepper=stepper_pydantic_model.Stepper(),
             torax_mesh=geo_provider.torax_mesh,
         )
     )

@@ -23,7 +23,7 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import generic_current_source
-from torax.stepper import runtime_params as stepper_params_lib
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.transport_model import runtime_params as transport_params_lib
 
@@ -45,7 +45,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(
@@ -233,7 +233,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
                 generic_current_source.RuntimeParams(wext={0.0: 1.0, 1.0: -1.0})
             ),
         },
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
     )
     # While wext is positive, this should be fine.

@@ -22,7 +22,7 @@ from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import formulas
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.stepper import runtime_params as stepper_params_lib
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_params_lib
 
 SMALL_VALUE = 1e-6
@@ -116,7 +116,7 @@ class UpdatersTest(parameterized.TestCase):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0)
@@ -164,7 +164,7 @@ class UpdatersTest(parameterized.TestCase):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(
@@ -200,7 +200,7 @@ class UpdatersTest(parameterized.TestCase):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice_normalized = provider(
@@ -252,7 +252,7 @@ class UpdatersTest(parameterized.TestCase):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources={},
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice_fGW = provider(

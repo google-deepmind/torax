@@ -26,7 +26,7 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
-from torax.stepper import runtime_params as stepper_params_lib
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import torax_refs
 from torax.transport_model import runtime_params as transport_params_lib
 
@@ -101,7 +101,7 @@ class InitializationTest(torax_refs.ReferenceValueTest):
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
         sources=source_models_builder.runtime_params,
-        stepper=stepper_params_lib.RuntimeParams(),
+        stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(

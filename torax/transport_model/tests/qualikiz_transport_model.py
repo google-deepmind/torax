@@ -25,7 +25,7 @@ from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model
 from torax.sources import source_models as source_models_lib
-from torax.stepper import runtime_params as stepper_runtime_params
+from torax.stepper import pydantic_model as stepper_pydantic_model
 
 
 # pylint: disable=g-import-not-at-top
@@ -79,7 +79,7 @@ class QualikizTransportModelTest(absltest.TestCase):
             runtime_params=runtime_params,
             source_runtime_params=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
-            stepper=stepper_runtime_params.RuntimeParams(),
+            stepper=stepper_pydantic_model.Stepper(),
         )
     )
     core_profiles = initialization.initial_core_profiles(

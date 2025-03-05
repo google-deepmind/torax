@@ -33,7 +33,7 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_profile_builders
-from torax.stepper import runtime_params as stepper_runtime_params
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import torax_refs
 from torax.transport_model import constant as constant_transport_model
@@ -220,9 +220,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
             el_heat_eq=False,
         ),
     )
-    stepper_params = stepper_runtime_params.RuntimeParams(
-        predictor_corrector=False,
-        theta_imp=theta_imp,
+    stepper_params = stepper_pydantic_model.Stepper.from_dict(
+        dict(
+            predictor_corrector=False,
+            theta_imp=theta_imp,
+        )
     )
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=num_cells
@@ -367,9 +369,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
             el_heat_eq=False,
         ),
     )
-    stepper_params = stepper_runtime_params.RuntimeParams(
-        predictor_corrector=False,
-        theta_imp=1.0,
+    stepper_params = stepper_pydantic_model.Stepper.from_dict(
+        dict(
+            predictor_corrector=False,
+            theta_imp=1.0,
+        )
     )
     transport_model_builder = (
         constant_transport_model.ConstantTransportModelBuilder(
@@ -517,9 +521,11 @@ class FVMTest(torax_refs.ReferenceValueTest):
             el_heat_eq=False,
         ),
     )
-    stepper_params = stepper_runtime_params.RuntimeParams(
-        predictor_corrector=False,
-        theta_imp=0.0,
+    stepper_params = stepper_pydantic_model.Stepper.from_dict(
+        dict(
+            predictor_corrector=False,
+            theta_imp=0.0,
+        )
     )
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=num_cells

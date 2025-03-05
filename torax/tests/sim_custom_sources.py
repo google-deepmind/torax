@@ -40,7 +40,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_profiles
 from torax.sources.tests import test_lib
-from torax.stepper import linear_theta_method
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import sim_test_case
 from torax.transport_model import constant as constant_transport_model
@@ -69,11 +69,9 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
             ),
         )
     )
-    self.stepper_builder = linear_theta_method.LinearThetaMethodBuilder(
-        runtime_params=linear_theta_method.LinearRuntimeParams(
-            predictor_corrector=False,
-        )
-    )
+    self.stepper = stepper_pydantic_model.Stepper.from_dict({
+        'predictor_corrector': False,
+    })
     # Copy the test_particle_sources_constant config in here for clarity.
     # These are the common kwargs without any of the sources.
     self.test_particle_sources_constant_runtime_params = general_runtime_params.GeneralRuntimeParams(
@@ -196,7 +194,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     sim = sim_lib.Sim.create(
         runtime_params=self.test_particle_sources_constant_runtime_params,
         geometry_provider=geo_provider,
-        stepper_builder=self.stepper_builder,
+        stepper=self.stepper,
         transport_model_builder=self.constant_transport_model_builder,
         source_models_builder=source_models_builder,
         pedestal_model_builder=self.basic_pedestal_model_builder,
@@ -242,7 +240,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
             runtime_params=self.test_particle_sources_constant_runtime_params,
             source_runtime_params=self.source_models_builder.runtime_params,
             torax_mesh=sim.geometry_provider.torax_mesh,
-            stepper=self.stepper_builder.runtime_params,
+            stepper=self.stepper,
         )
     )
     sim._static_runtime_params_slice = static_runtime_params_slice  # pylint: disable=protected-access

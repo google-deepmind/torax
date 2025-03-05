@@ -24,7 +24,7 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
-from torax.stepper import nonlinear_theta_method
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import constant as constant_transport
@@ -318,54 +318,9 @@ class BuildSimTest(parameterized.TestCase):
     else:
       self.fail(f'Unknown transport model: {name}')
 
-  def test_missing_stepper_type_raises_error(self):
-    with self.assertRaises(ValueError):
-      build_sim.build_stepper_builder_from_config({})
-
   def test_unknown_stepper_type_raises_error(self):
     with self.assertRaises(ValueError):
-      build_sim.build_stepper_builder_from_config({'stepper_type': 'foo'})
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='linear',
-          stepper_type='linear',
-          expected_type=linear_theta_method.LinearThetaMethod,
-      ),
-      dict(
-          testcase_name='newton_raphson',
-          stepper_type='newton_raphson',
-          expected_type=nonlinear_theta_method.NewtonRaphsonThetaMethod,
-      ),
-      dict(
-          testcase_name='optimizer',
-          stepper_type='optimizer',
-          expected_type=nonlinear_theta_method.OptimizerThetaMethod,
-      ),
-  )
-  def test_build_stepper_builder_from_config(self, stepper_type, expected_type):
-    """Builds a stepper from the config."""
-    stepper_builder = build_sim.build_stepper_builder_from_config({
-        'stepper_type': stepper_type,
-        'theta_imp': 0.5,
-    })
-    transport_model_builder = (
-        build_sim.build_transport_model_builder_from_config('constant')
-    )
-    transport_model = transport_model_builder()
-    pedestal_model_builder = build_sim.build_pedestal_model_builder_from_config(
-        {}
-    )
-    pedestal_model = pedestal_model_builder()
-    source_models_builder = build_sim.build_sources_builder_from_config({})
-    source_models = source_models_builder()
-    stepper = stepper_builder(
-        transport_model=transport_model,
-        source_models=source_models,
-        pedestal_model=pedestal_model,
-    )
-    self.assertIsInstance(stepper, expected_type)
-    self.assertEqual(stepper_builder.runtime_params.theta_imp, 0.5)
+      stepper_pydantic_model.Stepper.from_dict({'stepper_type': 'foo'})
 
   def test_missing_time_step_calculator_type_raises_error(self):
     with self.assertRaises(ValueError):
