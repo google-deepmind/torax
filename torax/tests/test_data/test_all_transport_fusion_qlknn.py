@@ -71,9 +71,7 @@ CONFIG = {
     },
     'transport': {
         'transport_model': 'qlknn',
-        'qlknn_params': {
-            'DVeff': False,
-        },
+        'DVeff': False,
     },
     'stepper': {
         'stepper_type': 'linear',

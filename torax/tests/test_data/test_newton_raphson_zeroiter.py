@@ -61,9 +61,8 @@ CONFIG = {
     'pedestal': {},
     'transport': {
         'transport_model': 'qlknn',
-        'qlknn_params': {
-            'DVeff': False,
-        },
+        # qlknn params.
+        'DVeff': False,
     },
     'stepper': {
         'stepper_type': 'newton_raphson',

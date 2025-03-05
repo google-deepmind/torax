@@ -104,7 +104,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     jax_utils.error_if_negative(self.d_face_c2, 'd_face_c2')
 
 
-class BohmGyroBohmModel(transport_model.TransportModel):
+class BohmGyroBohmTransportModel(transport_model.TransportModel):
   """Calculates various coefficients related to particle transport according to the Bohm + gyro-Bohm Model."""
 
   def __init__(
@@ -227,11 +227,11 @@ class BohmGyroBohmModel(transport_model.TransportModel):
     return hash('BohmGyroBohmModel')
 
   def __eq__(self, other):
-    return isinstance(other, BohmGyroBohmModel)
+    return isinstance(other, BohmGyroBohmTransportModel)
 
 
-def _default_bgb_builder() -> BohmGyroBohmModel:
-  return BohmGyroBohmModel()
+def _default_bgb_builder() -> BohmGyroBohmTransportModel:
+  return BohmGyroBohmTransportModel()
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -244,10 +244,10 @@ class BohmGyroBohmModelBuilder(transport_model.TransportModelBuilder):
 
   builder: Callable[
       [],
-      BohmGyroBohmModel,
+      BohmGyroBohmTransportModel,
   ] = _default_bgb_builder
 
   def __call__(
       self,
-  ) -> BohmGyroBohmModel:
+  ) -> BohmGyroBohmTransportModel:
     return self.builder()

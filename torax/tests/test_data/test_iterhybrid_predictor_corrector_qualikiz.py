@@ -162,13 +162,12 @@ CONFIG = {
         'chimin': 0.05,  # minimum chi
         'chimax': 100,  # maximum chi (can be helpful for stability)
         'Demin': 0.05,  # minimum electron diffusivity
-        'qualikiz_params': {
-            'DVeff': True,
-            'avoid_big_negative_s': True,
-            'An_min': 0.05,
-            'maxruns': 2,
-            'numprocs': 24,
-        },
+        # qualikiz params.
+        'DVeff': True,
+        'avoid_big_negative_s': True,
+        'An_min': 0.05,
+        'maxruns': 2,
+        'numprocs': 24,
     },
     'stepper': {
         'stepper_type': 'linear',

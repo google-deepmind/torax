@@ -91,7 +91,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     self.sanity_check()
 
 
-class CriticalGradientModel(transport_model.TransportModel):
+class CriticalGradientTransportModel(transport_model.TransportModel):
   """Calculates various coefficients related to particle transport."""
 
   def __init__(
@@ -211,11 +211,11 @@ class CriticalGradientModel(transport_model.TransportModel):
     return hash('CriticalGradientModel')
 
   def __eq__(self, other):
-    return isinstance(other, CriticalGradientModel)
+    return isinstance(other, CriticalGradientTransportModel)
 
 
-def _default_cgm_builder() -> CriticalGradientModel:
-  return CriticalGradientModel()
+def _default_cgm_builder() -> CriticalGradientTransportModel:
+  return CriticalGradientTransportModel()
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -228,10 +228,10 @@ class CriticalGradientModelBuilder(transport_model.TransportModelBuilder):
 
   builder: Callable[
       [],
-      CriticalGradientModel,
+      CriticalGradientTransportModel,
   ] = _default_cgm_builder
 
   def __call__(
       self,
-  ) -> CriticalGradientModel:
+  ) -> CriticalGradientTransportModel:
     return self.builder()

@@ -19,6 +19,7 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import config as time_step_calculator_config
 from torax.torax_pydantic import model_base
+from torax.transport_model import pydantic_model as transport_model_pydantic_model
 
 
 class ToraxConfig(model_base.BaseModelMutable):
@@ -34,3 +35,4 @@ class ToraxConfig(model_base.BaseModelMutable):
   pedestal: pedestal_pydantic_model.Pedestal
   stepper: stepper_pydantic_model.Stepper
   time_step_calculator: time_step_calculator_config.TimeStepCalculator
+  transport: transport_model_pydantic_model.Transport

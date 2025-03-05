@@ -269,7 +269,7 @@ class BuildSimTest(parameterized.TestCase):
       dict(
           testcase_name='critical_gradient',
           name='CGM',
-          expected_type=critical_gradient_transport.CriticalGradientModel,
+          expected_type=critical_gradient_transport.CriticalGradientTransportModel,
       ),
       dict(
           testcase_name='qlknn',

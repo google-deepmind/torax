@@ -60,7 +60,9 @@ CONFIG = {
     },
     'transport': {
         'transport_model': 'CGM',
-        'cgm_params': {'chi_D_ratio': 8, 'VR_D_ratio': {0: -3.0, 1: 0.0}},
+        # cgm params.
+        'chi_D_ratio': 8,
+        'VR_D_ratio': {0: -3.0, 1: 0.0}
     },
     'stepper': {
         'stepper_type': 'linear',

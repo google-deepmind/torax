@@ -29,7 +29,10 @@ TIME_INVARIANT = model_base.TIME_INVARIANT
 GreenwaldFraction: TypeAlias = pydantic.PositiveFloat
 KiloElectronVolt: TypeAlias = pydantic.PositiveFloat
 Meter: TypeAlias = pydantic.PositiveFloat
+MeterPerSecond: TypeAlias = float
+MeterSquaredPerSecond: TypeAlias = pydantic.PositiveFloat
 Pascal: TypeAlias = pydantic.PositiveFloat
+PositiveMeterSquaredPerSecond: TypeAlias = pydantic.PositiveFloat
 ReferenceDensity: TypeAlias = pydantic.PositiveFloat  # nref
 # Time can sometimes be 0, eg. for the start of an interval.
 Second: TypeAlias = pydantic.NonNegativeFloat

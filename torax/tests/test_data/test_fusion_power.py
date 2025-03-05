@@ -76,10 +76,9 @@ CONFIG = {
     },
     'transport': {
         'transport_model': 'CGM',
-        'cgm_params': {
-            # CGM model ratio of ion heat conductivity to particle diffusion
-            'chi_D_ratio': 8,
-        },
+        # cgm params.
+        # CGM model ratio of ion heat conductivity to particle diffusion
+        'chi_D_ratio': 8,
     },
     'stepper': {
         'stepper_type': 'linear',
