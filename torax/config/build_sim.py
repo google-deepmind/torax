@@ -292,6 +292,8 @@ def build_transport_model_builder_from_config(
     -  See `transport_model.qlknn_transport_model.RuntimeParams` for
        model-specific params.
 
+  - `tglfnn`: TGLFNN transport.
+
   -  `constant`: Constant transport
 
     -  See `transport_model.constant.RuntimeParams` for model-specific
