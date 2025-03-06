@@ -118,6 +118,9 @@ class PydanticBaseTest(parameterized.TestCase):
       self.assertEqual(model_tree_2.size(), 4)
       self.assertEqual(model_tree_3.size(), 7)
 
+    with self.subTest('tree_consistency_get_submodels'):
+      self.assertTrue(model_tree_3.size(), len(t3.submodels))
+
     with self.subTest('tree_depth'):
       self.assertEqual(model_tree_1.depth(), 0)
       self.assertEqual(model_tree_2.depth(), 1)
@@ -255,6 +258,26 @@ class PydanticBaseTest(parameterized.TestCase):
     new_val = 9.0
     model._update_fields({'y.test1.test2.x': new_val})
     self.assertEqual(model.y['test1']['test2'].x, new_val)
+
+  def test_unique_submodels(self):
+    class Test1(model_base.BaseModelFrozen):
+      x: float
+
+    class Test2(model_base.BaseModelFrozen):
+      x: list[Test1]  # pytype: disable=invalid-annotation
+      y: float
+      z: Test1  # pytype: disable=invalid-annotation
+
+    t1_1 = Test1(x=1.0)
+    t1_2 = Test1(x=2.0)
+    t2 = Test2(x=[t1_1, t1_2], y=3.0, z=t1_2)
+
+    with self.subTest('number_of_submodels'):
+      self.assertLen(t2.submodels, 4)
+
+    with self.subTest('unique_submodels'):
+      submodels_set = set(id(m) for m in t2.submodels)
+      self.assertSetEqual(submodels_set, {id(t2), id(t1_2), id(t1_1)})
 
 
 if __name__ == '__main__':

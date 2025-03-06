@@ -84,8 +84,8 @@ class BaseModelFrozen(pydantic.BaseModel):
     )
 
   @functools.cached_property
-  def _get_direct_submodels(self) -> tuple[Self, ...]:
-    """Return all direct submodels in the model."""
+  def _direct_submodels(self) -> tuple[Self, ...]:
+    """Direct submodels in the model."""
 
     def is_leaf(x):
       if isinstance(x, (Mapping, Sequence, Set)):
@@ -96,30 +96,30 @@ class BaseModelFrozen(pydantic.BaseModel):
     return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))
 
   @functools.cached_property
-  def _get_submodels(self) -> tuple[pydantic.BaseModel, ...]:
-    """Return all submodels in the model.
+  def submodels(self) -> tuple[pydantic.BaseModel, ...]:
+    """A tuple of the model and all submodels.
 
     This will return all Pydantic models directly inside model fields, and
     inside container types: mappings, sequences, and sets.
 
     Returns:
-      A tuple of all submodels in the model.
+      A tuple of the model and all model submodels.
     """
 
-    all_submodels = []
-    new_submodels = self._get_direct_submodels
+    all_submodels = [self]
+    new_submodels = self._direct_submodels
     while new_submodels:
       new_submodels_temp = []
       for model in new_submodels:
         all_submodels.append(model)
-        new_submodels_temp += model._get_direct_submodels  # pylint: disable=protected-access
+        new_submodels_temp += model._direct_submodels  # pylint: disable=protected-access
       new_submodels = new_submodels_temp
     return tuple(all_submodels)
 
   @functools.cached_property
   def _has_unique_submodels(self) -> bool:
     """Returns True if all submodels are different instances of models."""
-    submodels = self._get_submodels
+    submodels = self.submodels
     unique_ids = set(id(m) for m in submodels)
     return len(submodels) == len(unique_ids)
 
@@ -143,7 +143,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         identifier=id(self),
         data=self,
     )
-    for model in self._get_direct_submodels:
+    for model in self._direct_submodels:
       if model.__class__ is not BaseModelFrozen:
         model_tree.paste(id(self), model.tree_build())
     return model_tree
