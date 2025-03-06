@@ -87,6 +87,10 @@ class LinearThetaMethod(torax_pydantic.BaseModelFrozen):
         pedestal_model=pedestal_model,
     )
 
+  @property
+  def linear_solver(self) -> bool:
+    return True
+
 
 class NewtonRaphsonThetaMethod(LinearThetaMethod):
   """Model for nonlinear Newton-Raphson stepper.
@@ -110,6 +114,10 @@ class NewtonRaphsonThetaMethod(LinearThetaMethod):
   coarse_tol: float = 1e-2
   delta_reduction_factor: float = 0.5
   tau_min: float = 0.01
+
+  @property
+  def linear_solver(self) -> bool:
+    return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
 
   def build_dynamic_params(
       self,
@@ -154,6 +162,10 @@ class OptimizerThetaMethod(LinearThetaMethod):
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   maxiter: pydantic.NonNegativeInt = 100
   tol: float = 1e-12
+
+  @property
+  def linear_solver(self) -> bool:
+    return self.initial_guess_mode == enums.InitialGuessMode.LINEAR
 
   def build_dynamic_params(
       self,

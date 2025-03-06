@@ -14,7 +14,10 @@
 
 """Pydantic config for Torax."""
 
+import logging
 from typing import Any, Mapping
+
+import pydantic
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
@@ -22,6 +25,7 @@ from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax.torax_pydantic import model_base
 from torax.transport_model import pydantic_model as transport_model_pydantic_model
+import typing_extensions
 
 
 class ToraxConfig(model_base.BaseModelFrozen):
@@ -43,6 +47,24 @@ class ToraxConfig(model_base.BaseModelFrozen):
   stepper: stepper_pydantic_model.Stepper
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
   transport: transport_model_pydantic_model.Transport
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> typing_extensions.Self:
+    if (
+        self.transport.transport_model_config.transport_model
+        in ['qlknn', 'CGM']
+        and self.stepper.stepper_config.use_pereverzev
+        and self.stepper.stepper_config.linear_solver
+    ):
+      logging.warning(
+          'The linear solver is being used: either directly, or to provide an'
+          ' initial guess for a nonlinear solver. Additionally, a stiff'
+          ' nonlinear transport model is being used. For this configuration, it'
+          ' is strongly recommended to set use_pereverzev=True to avoid'
+          ' numerical instability in the linear solver. Furthermore, it is'
+          ' recommend to apply several predictor_corrector steps.'
+      )
+    return self
 
   def update_fields(self, x: Mapping[str, Any]):
     """Safely update fields in the config.
