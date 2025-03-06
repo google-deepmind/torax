@@ -33,7 +33,7 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.pedestal_model import set_tped_nped
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
@@ -74,9 +74,6 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
     transport_builder = FakeTransportModelBuilder()
     source_models_builder = source_models_lib.SourceModelsBuilder()
-    pedestal_model_builder = (
-        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
-    )
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
@@ -92,7 +89,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         ),
         transport_model_builder=transport_builder,
         source_models_builder=source_models_builder,
-        pedestal_model_builder=pedestal_model_builder,
+        pedestal=pedestal_pydantic_model.Pedestal(),
         time_step_calculator=time_calculator,
     )
     sim_step_fn = sim.step_fn

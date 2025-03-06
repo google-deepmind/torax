@@ -34,7 +34,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import set_tped_nped
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import electron_density_sources
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
@@ -55,12 +55,6 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
   def setUp(self):
     super().setUp()
     self.source_models_builder = default_sources.get_default_sources_builder()
-    pedestal_runtime_params = set_tped_nped.RuntimeParams()
-    self.basic_pedestal_model_builder = (
-        set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
-            runtime_params=pedestal_runtime_params
-        )
-    )
     self.constant_transport_model_builder = (
         constant_transport_model.ConstantTransportModelBuilder(
             runtime_params=constant_transport_model.RuntimeParams(
@@ -197,7 +191,7 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
         stepper=self.stepper,
         transport_model_builder=self.constant_transport_model_builder,
         source_models_builder=source_models_builder,
-        pedestal_model_builder=self.basic_pedestal_model_builder,
+        pedestal=pedestal_pydantic_model.Pedestal(),
     )
 
     # Make sure the config copied here works with these references.

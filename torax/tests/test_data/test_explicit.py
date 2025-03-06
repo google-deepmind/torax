@@ -21,8 +21,7 @@ from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.pedestal_model import set_tped_nped
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import default_sources
@@ -95,10 +94,6 @@ def get_stepper() -> explicit_stepper.ExplicitStepperModel:
   return builder
 
 
-def get_pedestal_model_builder() -> pedestal_model_lib.PedestalModelBuilder:
-  return set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
-
-
 def get_sim() -> sim_lib.Sim:
   # This approach is currently lightweight because so many objects require
   # config for construction, but over time we expect to transition to most
@@ -111,5 +106,5 @@ def get_sim() -> sim_lib.Sim:
       source_models_builder=get_sources_builder(),
       transport_model_builder=get_transport_model_builder(),
       stepper=get_stepper(),
-      pedestal_model_builder=get_pedestal_model_builder(),
+      pedestal=pedestal_pydantic_model.Pedestal(),
   )

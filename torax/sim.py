@@ -46,6 +46,7 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -297,7 +298,7 @@ class Sim:
       stepper: stepper_pydantic_model.Stepper,
       transport_model_builder: transport_model_lib.TransportModelBuilder,
       source_models_builder: source_models_lib.SourceModelsBuilder,
-      pedestal_model_builder: pedestal_model_lib.PedestalModelBuilder,
+      pedestal: pedestal_pydantic_model.Pedestal,
       time_step_calculator: Optional[ts.TimeStepCalculator] = None,
       file_restart: Optional[general_runtime_params.FileRestart] = None,
   ) -> Sim:
@@ -311,7 +312,7 @@ class Sim:
       transport_model_builder: A callable to build the transport model.
       source_models_builder: Builds the SourceModels and holds its
         runtime_params.
-      pedestal_model_builder: A callable to build the pedestal model.
+      pedestal: The pedestal config that can be used to build the pedestal.
       time_step_calculator: The time_step_calculator, if built, otherwise a
         ChiTimeStepCalculator will be built by default.
       file_restart: If provided we will reconstruct the initial state from the
@@ -325,7 +326,7 @@ class Sim:
     """
 
     transport_model = transport_model_builder()
-    pedestal_model = pedestal_model_builder()
+    pedestal_model = pedestal.build_pedestal_model()
 
     # TODO(b/385788907): Document all changes that lead to recompilations.
     static_runtime_params_slice = (
@@ -343,7 +344,7 @@ class Sim:
             sources=source_models_builder.runtime_params,
             stepper=stepper,
             torax_mesh=geometry_provider.torax_mesh,
-            pedestal=pedestal_model_builder.runtime_params,
+            pedestal=pedestal,
         )
     )
     source_models = source_models_builder()

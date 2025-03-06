@@ -22,10 +22,7 @@ from torax import sim as sim_lib
 from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
-
-from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.pedestal_model import set_pped_tpedratio_nped
-from torax.pedestal_model import set_tped_nped
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import register_source
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.sources import source as source_lib
@@ -38,6 +35,9 @@ from torax.transport_model import bohm_gyrobohm as bohm_gyrobohm_transport
 from torax.transport_model import constant as constant_transport
 from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_transport_model
+from torax.transport_model import transport_model as transport_model_lib
+
+
 # pylint: disable=g-import-not-at-top
 try:
   from torax.transport_model import qualikiz_transport_model
@@ -45,7 +45,6 @@ try:
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
 except ImportError:
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
-from torax.transport_model import transport_model as transport_model_lib
 # pylint: enable=g-import-not-at-top
 # pylint: disable=invalid-name
 
@@ -147,10 +146,8 @@ def build_sim_from_config(
       transport_model_builder=build_transport_model_builder_from_config(
           config['transport']
       ),
-      stepper=stepper_pydantic_model.Stepper.from_dict(
-          config['stepper']
-      ),
-      pedestal_model_builder=build_pedestal_model_builder_from_config(
+      stepper=stepper_pydantic_model.Stepper.from_dict(config['stepper']),
+      pedestal=pedestal_pydantic_model.Pedestal.from_dict(
           config['pedestal'] if 'pedestal' in config else {}
       ),
       time_step_calculator=build_time_step_calculator_from_config(
@@ -444,29 +441,6 @@ def build_transport_model_builder_from_config(
     )
   # pylint: enable=undefined-variable
   raise ValueError(f'Unknown transport model: {transport_model}')
-
-
-def build_pedestal_model_builder_from_config(
-    pedestal_config: dict[str, Any],
-) -> pedestal_model_lib.PedestalModelBuilder:
-  """Builds a `PedestalModelBuilder` from the input config."""
-  pedestal_config = copy.deepcopy(pedestal_config)
-  pedestal_model = pedestal_config.pop('pedestal_model', 'set_tped_nped')
-  match pedestal_model:
-    case 'set_tped_nped':
-      return set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
-          runtime_params=config_args.recursive_replace(
-              set_tped_nped.RuntimeParams(), **pedestal_config
-          )
-      )
-    case 'set_pped_tpedratio_nped':
-      return set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModelBuilder(
-          runtime_params=config_args.recursive_replace(
-              set_pped_tpedratio_nped.RuntimeParams(), **pedestal_config
-          )
-      )
-    case _:
-      raise ValueError(f'Unknown pedestal model: {pedestal_model}')
 
 
 def build_time_step_calculator_from_config(

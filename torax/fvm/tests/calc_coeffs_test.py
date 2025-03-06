@@ -21,7 +21,7 @@ from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import calc_coeffs
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import set_tped_nped
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_profile_builders
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -65,10 +65,8 @@ class CoreProfileSettersTest(parameterized.TestCase):
             ),
         )
     )
-    pedestal_model_builder = (
-        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
-    )
-    pedestal_model = pedestal_model_builder()
+    pedestal = pedestal_pydantic_model.Pedestal()
+    pedestal_model = pedestal.build_pedestal_model()
     transport_model = transport_model_builder()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
@@ -88,7 +86,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
-            pedestal=pedestal_model_builder.runtime_params,
+            pedestal=pedestal,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,

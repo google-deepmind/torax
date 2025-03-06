@@ -20,6 +20,7 @@ from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import electron_density_sources
 from torax.sources import generic_current_source
@@ -107,16 +108,18 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             set_pedestal={0.0: True, 1.0: False},
         )
     )
-    pedestal_runtime_params = set_tped_nped.RuntimeParams(
-        Tiped={0.0: 0.0, 1.0: 1.0},
-        Teped={0.0: 1.0, 1.0: 2.0},
-        neped={0.0: 2.0, 1.0: 3.0},
-        rho_norm_ped_top={0.0: 3.0, 1.0: 5.0},
+    pedestal = pedestal_pydantic_model.Pedestal.from_dict(
+        dict(
+            Tiped={0.0: 0.0, 1.0: 1.0},
+            Teped={0.0: 1.0, 1.0: 2.0},
+            neped={0.0: 2.0, 1.0: 3.0},
+            rho_norm_ped_top={0.0: 3.0, 1.0: 5.0},
+        )
     )
     # Check at time 0.
     dcs_provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params,
-        pedestal=pedestal_runtime_params,
+        pedestal=pedestal,
         torax_mesh=self._geo.torax_mesh,
     )
 

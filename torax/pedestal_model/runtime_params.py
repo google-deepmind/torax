@@ -12,43 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Dataclass representing runtime parameter inputs to the pedestal models.
-
-This is the dataclass runtime config exposed to the user. The actual model gets
-a time-interpolated version of this config via the DynamicRuntimeParams.
-"""
-
-from __future__ import annotations
-
+"""Dataclass representing runtime parameter inputs to the pedestal models."""
 import chex
-from torax.config import base
-from torax.geometry import geometry
-
-
-@chex.dataclass
-class RuntimeParams(base.RuntimeParametersConfig['RuntimeParamsProvider']):
-  """Runtime parameters for the pedestal model.
-
-  This is the dataclass runtime config exposed to the user. The actual model
-  gets a time-interpolated version of this config via the DynamicConfigSlice.
-  """
-
-  def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(
-    base.RuntimeParametersProvider['DynamicRuntimeParams']
-):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)

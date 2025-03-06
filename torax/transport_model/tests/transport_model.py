@@ -29,6 +29,7 @@ from torax.core_profiles import initialization
 from torax.geometry import geometry
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import runtime_params as runtime_params_lib
@@ -60,17 +61,15 @@ class TransportSmoothingTest(parameterized.TestCase):
         )
     )
     transport_model = transport_model_builder()
-    pedestal_model_builder = (
-        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
-    )
-    pedestal_model = pedestal_model_builder()
+    pedestal = pedestal_pydantic_model.Pedestal()
+    pedestal_model = pedestal.build_pedestal_model()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
-            pedestal=pedestal_model_builder.runtime_params,
+            pedestal=pedestal,
         )(
             t=runtime_params.numerics.t_initial,
         )
@@ -239,16 +238,14 @@ class TransportSmoothingTest(parameterized.TestCase):
         )
     )
     transport_model = transport_model_builder()
-    pedestal_model_builder = (
-        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
-    )
+    pedestal = pedestal_pydantic_model.Pedestal()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             torax_mesh=geo.torax_mesh,
-            pedestal=pedestal_model_builder.runtime_params,
+            pedestal=pedestal,
         )(
             t=runtime_params.numerics.t_initial,
         )

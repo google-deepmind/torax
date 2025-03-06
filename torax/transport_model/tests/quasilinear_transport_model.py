@@ -29,6 +29,7 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import quasilinear_transport_model
@@ -44,16 +45,14 @@ def _get_model_inputs(transport: quasilinear_transport_model.RuntimeParams):
   geo = geometry_pydantic_model.CircularConfig().build_geometry()
   source_models_builder = source_models_lib.SourceModelsBuilder()
   source_models = source_models_builder()
-  pedestal_model_builder = (
-      set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
-  )
+  pedestal = pedestal_pydantic_model.Pedestal()
   dynamic_runtime_params_slice = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           transport=transport,
           sources=source_models_builder.runtime_params,
           torax_mesh=geo.torax_mesh,
-          pedestal=pedestal_model_builder.runtime_params,
+          pedestal=pedestal,
       )(
           t=runtime_params.numerics.t_initial,
       )

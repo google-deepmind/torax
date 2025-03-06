@@ -30,6 +30,7 @@ from torax.fvm import cell_variable
 from torax.fvm import implicit_solve_block
 from torax.fvm import residual_and_loss
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_profile_builders
@@ -237,10 +238,8 @@ class FVMTest(torax_refs.ReferenceValueTest):
             ),
         )
     )
-    pedestal_model_builder = (
-        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
-    )
-    pedestal_model = pedestal_model_builder()
+    pedestal = pedestal_pydantic_model.Pedestal()
+    pedestal_model = pedestal.build_pedestal_model()
     transport_model = transport_model_builder()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
@@ -260,7 +259,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
-            pedestal=pedestal_model_builder.runtime_params,
+            pedestal=pedestal,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,
@@ -395,9 +394,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     source_models_builder.runtime_params['ohmic_heat_source'].mode = (
         source_runtime_params.Mode.ZERO
     )
-    pedestal_model_builder = (
-        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
-    )
+    pedestal = pedestal_pydantic_model.Pedestal()
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=num_cells
     ).build_geometry()
@@ -407,7 +404,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
-            pedestal=pedestal_model_builder.runtime_params,
+            pedestal=pedestal,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,
@@ -442,7 +439,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
 
     dt = jnp.array(1.0)
     evolving_names = tuple(['temp_ion'])
-    pedestal_model = pedestal_model_builder()
+    pedestal_model = pedestal.build_pedestal_model()
 
     coeffs = calc_coeffs.calc_coeffs(
         static_runtime_params_slice=static_runtime_params_slice,
@@ -539,9 +536,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         )
     )
     transport_model = transport_model_builder()
-    pedestal_model_builder = (
-        set_tped_nped.SetTemperatureDensityPedestalModelBuilder()
-    )
+    pedestal = pedestal_pydantic_model.Pedestal()
     source_models_builder = default_sources.get_default_sources_builder()
     source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
     source_models_builder.runtime_params['generic_ion_el_heat_source'].Ptot = (
@@ -559,7 +554,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
             transport=transport_model_builder.runtime_params,
             sources=source_models_builder.runtime_params,
             stepper=stepper_params,
-            pedestal=pedestal_model_builder.runtime_params,
+            pedestal=pedestal,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,

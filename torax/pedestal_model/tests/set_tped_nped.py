@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for basic pedestal model."""
+
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
@@ -19,18 +20,12 @@ from torax.config import build_runtime_params
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import set_tped_nped
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import source_models as source_models_lib
 
 
 class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
   """Tests for the `torax.pedestal_model.set_tped_nped` module."""
-
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = set_tped_nped.RuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
 
   @parameterized.product(
       Tiped=[5, {0.0: 5.0, 1.0: 10.0}],
@@ -52,12 +47,15 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
       # pylint: enable=invalid-name
   ):
     """Test we can build and call the pedestal model with expected outputs."""
-    pedestal_runtime_params = set_tped_nped.RuntimeParams(
-        Tiped=Tiped,
-        Teped=Teped,
-        rho_norm_ped_top=rho_norm_ped_top,
-        neped=neped,
-        neped_is_fGW=neped_is_fGW,
+    pedestal = pedestal_pydantic_model.Pedestal.from_dict(
+        dict(
+            pedestal_model='set_tped_nped',
+            Tiped=Tiped,
+            Teped=Teped,
+            rho_norm_ped_top=rho_norm_ped_top,
+            neped=neped,
+            neped_is_fGW=neped_is_fGW,
+        )
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     source_models_builder = source_models_lib.SourceModelsBuilder()
@@ -67,14 +65,11 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
         runtime_params,
         sources=source_models_builder.runtime_params,
         torax_mesh=geo.torax_mesh,
-        pedestal=pedestal_runtime_params,
+        pedestal=pedestal,
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    builder = set_tped_nped.SetTemperatureDensityPedestalModelBuilder(
-        runtime_params=pedestal_runtime_params
-    )
     dynamic_runtime_params_slice = provider(t=time)
-    pedestal_model = builder()
+    pedestal_model = pedestal.build_pedestal_model()
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,

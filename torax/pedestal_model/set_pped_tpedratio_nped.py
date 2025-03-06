@@ -15,14 +15,10 @@
 
 from __future__ import annotations
 
-import dataclasses
-from typing import Callable
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
-from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -33,44 +29,6 @@ from typing_extensions import override
 
 
 # pylint: disable=invalid-name
-@chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Extends the base runtime params with additional params for this model.
-
-  See base class runtime_params.RuntimeParams docstring for more info.
-  """
-
-  # The plasma pressure at the pedestal [Pa]
-  Pped: interpolated_param.TimeInterpolatedInput = 10.0
-  # The electron density at the pedestal in units of nref or fGW.
-  neped: interpolated_param.TimeInterpolatedInput = 0.7
-  # Whether the electron density at the pedestal is in units of fGW.
-  neped_is_fGW: bool = False
-  # Ratio of the ion and electron temperature at the pedestal [dimensionless].
-  ion_electron_temperature_ratio: interpolated_param.TimeInterpolatedInput = 1.0
-  # The location of the pedestal.
-  rho_norm_ped_top: interpolated_param.TimeInterpolatedInput = 0.91
-
-  def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-  Pped: interpolated_param.InterpolatedVarSingleAxis
-  neped: interpolated_param.InterpolatedVarSingleAxis
-  ion_electron_temperature_ratio: interpolated_param.InterpolatedVarSingleAxis
-  rho_norm_ped_top: interpolated_param.InterpolatedVarSingleAxis
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
@@ -159,30 +117,3 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         Teped=Teped,
         rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,
     )
-
-
-def _default_pedestal_builder() -> (
-    SetPressureTemperatureRatioAndDensityPedestalModel
-):
-  return SetPressureTemperatureRatioAndDensityPedestalModel()
-
-
-@dataclasses.dataclass(kw_only=True)
-class SetPressureTemperatureRatioAndDensityPedestalModelBuilder(
-    pedestal_model.PedestalModelBuilder
-):
-  """Builds a class SetPressureTemperatureRatioAndDensityPedestalModel."""
-
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-
-  builder: Callable[
-      [],
-      SetPressureTemperatureRatioAndDensityPedestalModel,
-  ] = _default_pedestal_builder
-
-  def __call__(
-      self,
-  ) -> SetPressureTemperatureRatioAndDensityPedestalModel:
-    return self.builder()

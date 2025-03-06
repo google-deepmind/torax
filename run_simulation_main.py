@@ -19,6 +19,7 @@ python3 run_simulation_main.py \
  --config='torax.tests.test_data.default_config' \
  --log_progress
 """
+
 from collections.abc import Sequence
 import enum
 import functools
@@ -35,8 +36,10 @@ from torax.config import build_sim
 from torax.config import config_loader
 from torax.config import runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.plotting import plotruns_lib
 from torax.stepper import pydantic_model as stepper_pydantic_model
+
 
 # String used when prompting the user to make a choice of command
 CHOICE_PROMPT = 'Your choice: '
@@ -261,10 +264,8 @@ def change_config(
     new_stepper = stepper_pydantic_model.Stepper.from_dict(
         sim_config['stepper']
     )
-    new_pedestal_model_builder = (
-        build_sim.build_pedestal_model_builder_from_config(
-            sim_config['pedestal'] if 'pedestal' in sim_config else {}
-        )
+    new_pedestal = pedestal_pydantic_model.Pedestal.from_dict(
+        sim_config['pedestal'] if 'pedestal' in sim_config else {}
     )
   else:
     # Assume the config module has several methods to define the individual Sim
@@ -274,7 +275,7 @@ def change_config(
     new_transport_model_builder = config_module.get_transport_model_builder()
     source_models_builder = config_module.get_sources_builder()
     new_stepper = config_module.get_stepper()
-    new_pedestal_model_builder = config_module.get_pedestal_model_builder()
+    new_pedestal = config_module.get_pedestal_model_builder()
   new_source_params = {
       name: runtime_params
       for name, runtime_params in source_models_builder.runtime_params.items()
@@ -293,8 +294,8 @@ def change_config(
       geo_provider=new_geo_provider,
       transport_runtime_params=new_transport_model_builder.runtime_params,
       source_runtime_params=new_source_params,
-      stepper_runtime_params=new_stepper,
-      pedestal_runtime_params=new_pedestal_model_builder.runtime_params,
+      stepper=new_stepper,
+      pedestal=new_pedestal,
   )
   return sim, new_runtime_params
 

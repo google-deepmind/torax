@@ -13,10 +13,14 @@
 # limitations under the License.
 
 """Pydantic config for Pedestal."""
-
 import copy
 from typing import Any, Literal
+import chex
 import pydantic
+from torax.pedestal_model import pedestal_model
+from torax.pedestal_model import runtime_params
+from torax.pedestal_model import set_pped_tpedratio_nped
+from torax.pedestal_model import set_tped_nped
 from torax.torax_pydantic import interpolated_param_1d
 from torax.torax_pydantic import torax_pydantic
 
@@ -49,6 +53,28 @@ class SetPpedTpedRatioNped(torax_pydantic.BaseModelFrozen):
       torax_pydantic.ValidatedDefault(0.91)
   )
 
+  def build_pedestal_model(
+      self,
+  ) -> (
+      set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel
+  ):
+    return (
+        set_pped_tpedratio_nped.SetPressureTemperatureRatioAndDensityPedestalModel()
+    )
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> set_pped_tpedratio_nped.DynamicRuntimeParams:
+    return set_pped_tpedratio_nped.DynamicRuntimeParams(
+        Pped=self.Pped.get_value(t),
+        neped=self.neped.get_value(t),
+        neped_is_fGW=self.neped_is_fGW,
+        ion_electron_temperature_ratio=self.ion_electron_temperature_ratio.get_value(
+            t
+        ),
+        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+    )
+
 
 class SetTpedNped(torax_pydantic.BaseModelFrozen):
   """A basic version of the pedestal model that uses direct specification.
@@ -77,6 +103,22 @@ class SetTpedNped(torax_pydantic.BaseModelFrozen):
       torax_pydantic.ValidatedDefault(0.91)
   )
 
+  def build_pedestal_model(
+      self,
+  ) -> set_tped_nped.SetTemperatureDensityPedestalModel:
+    return set_tped_nped.SetTemperatureDensityPedestalModel()
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> set_tped_nped.DynamicRuntimeParams:
+    return set_tped_nped.DynamicRuntimeParams(
+        neped=self.neped.get_value(t),
+        neped_is_fGW=self.neped_is_fGW,
+        Tiped=self.Tiped.get_value(t),
+        Teped=self.Teped.get_value(t),
+        rho_norm_ped_top=self.rho_norm_ped_top.get_value(t),
+    )
+
 
 class Pedestal(torax_pydantic.BaseModelFrozen):
   """Config for a pedestal model."""
@@ -97,3 +139,13 @@ class Pedestal(torax_pydantic.BaseModelFrozen):
       pedestal_config['pedestal_model'] = 'set_tped_nped'
 
     return {'pedestal_config': pedestal_config}
+
+  def build_pedestal_model(
+      self,
+  ) -> pedestal_model.PedestalModel:
+    return self.pedestal_config.build_pedestal_model()
+
+  def build_dynamic_params(
+      self, t: chex.Numeric
+  ) -> runtime_params.DynamicRuntimeParams:
+    return self.pedestal_config.build_dynamic_params(t)

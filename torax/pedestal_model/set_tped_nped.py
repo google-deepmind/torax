@@ -15,13 +15,9 @@
 
 from __future__ import annotations
 
-import dataclasses
-from typing import Callable
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing
-from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -31,39 +27,6 @@ from typing_extensions import override
 
 
 # pylint: disable=invalid-name
-@chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Extends the base runtime params with additional params for this model.
-
-  See base class runtime_params.RuntimeParams docstring for more info.
-  """
-
-  neped: interpolated_param.TimeInterpolatedInput = 0.7
-  neped_is_fGW: bool = False
-  Tiped: interpolated_param.TimeInterpolatedInput = 5.0
-  Teped: interpolated_param.TimeInterpolatedInput = 5.0
-  rho_norm_ped_top: interpolated_param.TimeInterpolatedInput = 0.91
-
-  def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-  neped: interpolated_param.InterpolatedVarSingleAxis
-  Tiped: interpolated_param.InterpolatedVarSingleAxis
-  Teped: interpolated_param.InterpolatedVarSingleAxis
-  rho_norm_ped_top: interpolated_param.InterpolatedVarSingleAxis
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the BgB transport model."""
@@ -112,28 +75,3 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         Teped=dynamic_runtime_params_slice.pedestal.Teped,
         rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,
     )
-
-
-def _default_basic_pedestal_builder() -> SetTemperatureDensityPedestalModel:
-  return SetTemperatureDensityPedestalModel()
-
-
-@dataclasses.dataclass(kw_only=True)
-class SetTemperatureDensityPedestalModelBuilder(
-    pedestal_model.PedestalModelBuilder
-):
-  """Builds a class SetTemperatureDensityPedestalModel."""
-
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-
-  builder: Callable[
-      [],
-      SetTemperatureDensityPedestalModel,
-  ] = _default_basic_pedestal_builder
-
-  def __call__(
-      self,
-  ) -> SetTemperatureDensityPedestalModel:
-    return self.builder()
