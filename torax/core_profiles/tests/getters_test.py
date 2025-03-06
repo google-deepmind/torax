@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from unittest import mock
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -20,7 +19,7 @@ from torax import jax_utils
 from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.core_profiles import formulas
+from torax.core_profiles import getters
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_params_lib
@@ -29,7 +28,7 @@ SMALL_VALUE = 1e-6
 
 
 # pylint: disable=invalid-name
-class UpdatersTest(parameterized.TestCase):
+class GettersTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -45,28 +44,12 @@ class UpdatersTest(parameterized.TestCase):
         Ti_bound_right=bound,
         Ti=value,
     )
-    result = formulas.get_updated_ion_temperature(
+    result = getters.get_updated_ion_temperature(
         profile_conditions,
         self.geo,
     )
     np.testing.assert_allclose(result.value, value)
     np.testing.assert_equal(result.right_face_constraint, bound)
-
-  @parameterized.parameters(0, -1)
-  def test_updated_ion_temperature_negative_Ti_bound_right(
-      self, Ti_bound_right: float
-  ):
-    profile_conditions = mock.create_autospec(
-        profile_conditions_lib.DynamicProfileConditions,
-        instance=True,
-        Ti_bound_right=np.array(Ti_bound_right),
-        Ti=np.array([12.0, 10.0, 8.0, 6.0]),
-    )
-    with self.assertRaisesRegex(RuntimeError, 'Ti_bound_right'):
-      formulas.get_updated_ion_temperature(
-          profile_conditions,
-          self.geo,
-      )
 
   def test_updated_electron_temperature(self):
     bound = np.array(42.0)
@@ -77,28 +60,12 @@ class UpdatersTest(parameterized.TestCase):
         Te_bound_right=bound,
         Te=value,
     )
-    result = formulas.get_updated_electron_temperature(
+    result = getters.get_updated_electron_temperature(
         profile_conditions,
         self.geo,
     )
     np.testing.assert_allclose(result.value, value)
     np.testing.assert_equal(result.right_face_constraint, bound)
-
-  @parameterized.parameters(0, -1)
-  def test_updated_electron_temperature_negative_Te_bound_right(
-      self, Te_bound_right: float
-  ):
-    profile_conditions = mock.create_autospec(
-        profile_conditions_lib.DynamicProfileConditions,
-        instance=True,
-        Te_bound_right=np.array(Te_bound_right),
-        Te=np.array([12.0, 10.0, 8.0, 6.0]),
-    )
-    with self.assertRaisesRegex(RuntimeError, 'Te_bound_right'):
-      formulas.get_updated_electron_temperature(
-          profile_conditions,
-          self.geo,
-      )
 
   def test_ne_core_profile_setter(self):
     """Tests that setting ne works."""
@@ -120,7 +87,7 @@ class UpdatersTest(parameterized.TestCase):
         torax_mesh=self.geo.torax_mesh,
     )
     dynamic_runtime_params_slice = provider(t=1.0)
-    ne = formulas.get_ne(
+    ne = getters.get_updated_electron_density(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         self.geo,
@@ -170,7 +137,7 @@ class UpdatersTest(parameterized.TestCase):
     dynamic_runtime_params_slice = provider(
         t=1.0,
     )
-    ne = formulas.get_ne(
+    ne = getters.get_updated_electron_density(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         self.geo,
@@ -207,7 +174,7 @@ class UpdatersTest(parameterized.TestCase):
         t=1.0,
     )
 
-    ne_normalized = formulas.get_ne(
+    ne_normalized = getters.get_updated_electron_density(
         dynamic_runtime_params_slice_normalized.numerics,
         dynamic_runtime_params_slice_normalized.profile_conditions,
         self.geo,
@@ -220,7 +187,7 @@ class UpdatersTest(parameterized.TestCase):
         t=1.0,
     )
 
-    ne_unnormalized = formulas.get_ne(
+    ne_unnormalized = getters.get_updated_electron_density(
         dynamic_runtime_params_slice_unnormalized.numerics,
         dynamic_runtime_params_slice_unnormalized.profile_conditions,
         self.geo,
@@ -258,7 +225,7 @@ class UpdatersTest(parameterized.TestCase):
     dynamic_runtime_params_slice_fGW = provider(
         t=1.0,
     )
-    ne_fGW = formulas.get_ne(
+    ne_fGW = getters.get_updated_electron_density(
         dynamic_runtime_params_slice_fGW.numerics,
         dynamic_runtime_params_slice_fGW.profile_conditions,
         self.geo,
@@ -269,7 +236,7 @@ class UpdatersTest(parameterized.TestCase):
         t=1.0,
     )
 
-    ne = formulas.get_ne(
+    ne = getters.get_updated_electron_density(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         self.geo,
@@ -278,24 +245,6 @@ class UpdatersTest(parameterized.TestCase):
     ratio = ne.value / ne_fGW.value
     np.all(np.isclose(ratio, ratio[0]))
     self.assertNotEqual(ratio[0], 1.0)
-
-  # TODO(b/377225415): generalize to arbitrary number of ions.
-  @parameterized.parameters([
-      dict(Zi=1.0, Zimp=10.0, Zeff=1.0, expected=1.0),
-      dict(Zi=1.0, Zimp=5.0, Zeff=1.0, expected=1.0),
-      dict(Zi=2.0, Zimp=10.0, Zeff=2.0, expected=0.5),
-      dict(Zi=2.0, Zimp=5.0, Zeff=2.0, expected=0.5),
-      dict(Zi=1.0, Zimp=10.0, Zeff=1.9, expected=0.9),
-      dict(Zi=2.0, Zimp=10.0, Zeff=3.6, expected=0.4),
-  ])
-  def test_get_main_ion_dilution_factor(self, Zi, Zimp, Zeff, expected):
-    """Unit test of `get_main_ion_dilution_factor`."""
-    np.testing.assert_allclose(
-        formulas.get_main_ion_dilution_factor(Zi, Zimp, Zeff),
-        expected,
-    )
-
-  # pylint: enable=invalid-name
 
 
 if __name__ == '__main__':

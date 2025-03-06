@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Common functions used for working with core profiles."""
+"""Functions for getting updated CellVariable objects for CoreProfiles."""
 import jax
 from jax import numpy as jnp
-from torax import array_typing
-from torax import constants
-from torax import jax_utils
 from torax.config import numerics
 from torax.config import profile_conditions
 from torax.fvm import cell_variable
@@ -32,19 +29,14 @@ def get_updated_ion_temperature(
     dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
-  """Updated ion temp. Used upon initialization and if temp_ion=False."""
-  Ti_bound_right = jax_utils.error_if_not_positive(
-      dynamic_profile_conditions.Ti_bound_right,
-      'Ti_bound_right',
-  )
+  """Gets initial and/or prescribed ion temperature profiles."""
   temp_ion = cell_variable.CellVariable(
       value=dynamic_profile_conditions.Ti,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=Ti_bound_right,
+      right_face_constraint=dynamic_profile_conditions.Ti_bound_right,
       dr=geo.drho_norm,
   )
-
   return temp_ion
 
 
@@ -52,27 +44,23 @@ def get_updated_electron_temperature(
     dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
-  """Updated electron temp. Used upon initialization and if temp_el=False."""
-  Te_bound_right = jax_utils.error_if_not_positive(
-      dynamic_profile_conditions.Te_bound_right,
-      'Te_bound_right',
-  )
+  """Gets initial and/or prescribed electron temperature profiles."""
   temp_el = cell_variable.CellVariable(
       value=dynamic_profile_conditions.Te,
       left_face_grad_constraint=jnp.zeros(()),
       right_face_grad_constraint=None,
-      right_face_constraint=Te_bound_right,
+      right_face_constraint=dynamic_profile_conditions.Te_bound_right,
       dr=geo.drho_norm,
   )
   return temp_el
 
 
-def get_ne(
+def get_updated_electron_density(
     dynamic_numerics: numerics.DynamicNumerics,
     dynamic_profile_conditions: profile_conditions.DynamicProfileConditions,
     geo: geometry.Geometry,
 ) -> cell_variable.CellVariable:
-  """Gets initial or prescribed electron density profile at current timestep."""
+  """Gets initial and/or prescribed electron density profiles."""
 
   nGW = (
       dynamic_profile_conditions.Ip_tot
@@ -142,27 +130,3 @@ def get_ne(
       right_face_constraint=jnp.array(ne_bound_right),
   )
   return ne
-
-
-def calculate_psi_grad_constraint_from_Ip_tot(
-    Ip_tot: array_typing.ScalarFloat,
-    geo: geometry.Geometry,
-) -> jax.Array:
-  """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
-  return (
-      Ip_tot
-      * 1e6
-      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
-      / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
-  )
-
-
-# TODO(b/377225415): generalize to arbitrary number of ions.
-def get_main_ion_dilution_factor(
-    Zi: array_typing.ScalarFloat,
-    Zimp: array_typing.ArrayFloat,
-    Zeff: array_typing.ArrayFloat,
-) -> jax.Array:
-  """Calculates the main ion dilution factor based on a single assumed impurity and general main ion charge."""
-  return (Zimp - Zeff) / (Zi * (Zimp - Zi))
-

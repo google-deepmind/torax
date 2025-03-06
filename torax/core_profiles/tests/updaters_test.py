@@ -22,10 +22,11 @@ from torax import state
 from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.core_profiles import formulas
+from torax.core_profiles import getters
 from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.physics import formulas
 from torax.sources import source_models as source_models_lib
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_params_lib
@@ -75,7 +76,7 @@ class UpdatersTest(parameterized.TestCase):
         right_face_constraint=jnp.array(100.0),
         dr=self.geo.drho_norm,
     )
-    ne = formulas.get_ne(
+    ne = getters.get_updated_electron_density(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         self.geo,
@@ -90,7 +91,9 @@ class UpdatersTest(parameterized.TestCase):
 
     Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
 
-    dilution_factor = formulas.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
+    dilution_factor = formulas.calculate_main_ion_dilution_factor(
+        Zi, Zimp, Zeff
+    )
     np.testing.assert_allclose(
         ni.value,
         expected_value * dilution_factor,
@@ -352,6 +355,7 @@ class UpdatersTest(parameterized.TestCase):
         boundary_conditions['temp_ion']['right_face_constraint'],
         expected_Ti_bound_right,
     )
+
 
 if __name__ == '__main__':
   absltest.main()

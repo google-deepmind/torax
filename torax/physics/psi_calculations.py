@@ -24,6 +24,9 @@ Functions:
       coordinate.
     - calc_Wpol: Calculates total magnetic energy (Wpol).
     - calc_li3: Calculates normalized internal inductance li3 (ITER convention).
+    - calc_q95: Calculates the q-profile at 95% of the normalized poloidal flux.
+    - calculate_psi_grad_constraint_from_Ip_tot: Calculates the gradient
+      constraint on the poloidal flux (psi) from Ip.
     - _calc_bpol2: Calculates square of poloidal field (Bp).
 """
 
@@ -32,6 +35,7 @@ import dataclasses
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 from torax import constants
 from torax import jax_utils
 from torax import state
@@ -283,3 +287,34 @@ def calc_li3(
     li3: Normalized internal inductance, ITER convention.
   """
   return 4 * Wpol / (constants.CONSTANTS.mu0 * Ip_total**2 * Rmaj)
+
+
+def calc_q95(
+    psi_norm_face: array_typing.ArrayFloat,
+    q_face: array_typing.ArrayFloat,
+) -> array_typing.ScalarFloat:
+  """Calculates q95 from the q profile and the normalized poloidal flux.
+
+  Args:
+    psi_norm_face: normalized poloidal flux
+    q_face: safety factor on the face grid
+
+  Returns:
+    q95: q at 95% of the normalized poloidal flux
+  """
+  q95 = jnp.interp(0.95, psi_norm_face, q_face)
+
+  return q95
+
+
+def calculate_psi_grad_constraint_from_Ip_tot(
+    Ip_tot: array_typing.ScalarFloat,
+    geo: geometry.Geometry,
+) -> jax.Array:
+  """Calculates the gradient constraint on the poloidal flux (psi) from Ip."""
+  return (
+      Ip_tot
+      * 1e6
+      * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
+      / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
+  )

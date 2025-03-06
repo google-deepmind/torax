@@ -25,10 +25,12 @@ from torax import array_typing
 from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
-from torax.core_profiles import formulas
+from torax.core_profiles import getters
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.physics import charge_states
+from torax.physics import formulas
+from torax.physics import psi_calculations
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -125,8 +127,8 @@ def get_ion_density_and_charge_states(
   Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
   Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
 
-  dilution_factor = formulas.get_main_ion_dilution_factor(Zi, Zimp, Zeff)
-  dilution_factor_edge = formulas.get_main_ion_dilution_factor(
+  dilution_factor = formulas.calculate_main_ion_dilution_factor(Zi, Zimp, Zeff)
+  dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
       Zi_face[-1], Zimp_face[-1], Zeff_face[-1]
   )
 
@@ -187,13 +189,13 @@ def get_prescribed_core_profile_values(
   # If profiles are not evolved, they can still potential be time-evolving,
   # depending on the runtime params. If so, they are updated below.
   if not static_runtime_params_slice.ion_heat_eq:
-    temp_ion = formulas.get_updated_ion_temperature(
+    temp_ion = getters.get_updated_ion_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     ).value
   else:
     temp_ion = core_profiles.temp_ion.value
   if not static_runtime_params_slice.el_heat_eq:
-    temp_el_cell_variable = formulas.get_updated_electron_temperature(
+    temp_el_cell_variable = getters.get_updated_electron_temperature(
         dynamic_runtime_params_slice.profile_conditions, geo
     )
     temp_el = temp_el_cell_variable.value
@@ -201,7 +203,7 @@ def get_prescribed_core_profile_values(
     temp_el_cell_variable = core_profiles.temp_el
     temp_el = temp_el_cell_variable.value
   if not static_runtime_params_slice.dens_eq:
-    ne_cell_variable = formulas.get_ne(
+    ne_cell_variable = getters.get_updated_electron_density(
         dynamic_runtime_params_slice.numerics,
         dynamic_runtime_params_slice.profile_conditions,
         geo,
@@ -326,7 +328,7 @@ def compute_boundary_conditions_for_t_plus_dt(
   )
   # TODO(b/390143606): Separate out the boundary condition calculation from the
   # core profile calculation.
-  ne = formulas.get_ne(
+  ne = getters.get_updated_electron_density(
       dynamic_runtime_params_slice_t_plus_dt.numerics,
       dynamic_runtime_params_slice_t_plus_dt.profile_conditions,
       geo_t_plus_dt,
@@ -344,7 +346,7 @@ def compute_boundary_conditions_for_t_plus_dt(
       Te=Te_bound_right,
   )
 
-  dilution_factor_edge = formulas.get_main_ion_dilution_factor(
+  dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
       Zi_edge,
       Zimp_edge,
       dynamic_runtime_params_slice_t_plus_dt.plasma_composition.Zeff_face[-1],
@@ -381,7 +383,7 @@ def compute_boundary_conditions_for_t_plus_dt(
       ),
       'psi': dict(
           right_face_grad_constraint=(
-              formulas.calculate_psi_grad_constraint_from_Ip_tot(  # pylint: disable=g-long-ternary
+              psi_calculations.calculate_psi_grad_constraint_from_Ip_tot(  # pylint: disable=g-long-ternary
                   Ip_tot=dynamic_runtime_params_slice_t_plus_dt.profile_conditions.Ip_tot,
                   geo=geo_t_plus_dt,
               )

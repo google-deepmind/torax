@@ -22,7 +22,7 @@ from torax import constants
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
-from torax.core_profiles import formulas
+from torax.core_profiles import getters
 from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import geometry
@@ -59,13 +59,13 @@ def initial_core_profiles(
   # To set initial values and compute the boundary conditions, we need to handle
   # potentially time-varying inputs from the users.
   # The default time in build_dynamic_runtime_params_slice is t_initial
-  temp_ion = formulas.get_updated_ion_temperature(
+  temp_ion = getters.get_updated_ion_temperature(
       dynamic_runtime_params_slice.profile_conditions, geo
   )
-  temp_el = formulas.get_updated_electron_temperature(
+  temp_el = getters.get_updated_electron_temperature(
       dynamic_runtime_params_slice.profile_conditions, geo
   )
-  ne = formulas.get_ne(
+  ne = getters.get_updated_electron_density(
       dynamic_runtime_params_slice.numerics,
       dynamic_runtime_params_slice.profile_conditions,
       geo,
@@ -267,9 +267,11 @@ def _update_psi_from_j(
   psi_value = jnp.interp(geo.rho_norm, geo.rho_hires_norm, psi_hires)
 
   # Set the BCs for psi to ensure the correct Ip_tot
-  dpsi_drhonorm_edge = formulas.calculate_psi_grad_constraint_from_Ip_tot(
-      Ip_tot,
-      geo,
+  dpsi_drhonorm_edge = (
+      psi_calculations.calculate_psi_grad_constraint_from_Ip_tot(
+          Ip_tot,
+          geo,
+      )
   )
 
   if use_vloop_lcfs_boundary_condition:
@@ -346,9 +348,11 @@ def _init_psi_psidot_vloop_and_current(
   # profile and Ip_tot
   if dynamic_runtime_params_slice.profile_conditions.psi is not None:
     # Calculate the dpsi/drho necessary to achieve the given Ip_tot
-    dpsi_drhonorm_edge = formulas.calculate_psi_grad_constraint_from_Ip_tot(
-        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
-        geo,
+    dpsi_drhonorm_edge = (
+        psi_calculations.calculate_psi_grad_constraint_from_Ip_tot(
+            dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+            geo,
+        )
     )
 
     # Set the BCs to ensure the correct Ip_tot
@@ -398,9 +402,11 @@ def _init_psi_psidot_vloop_and_current(
     # calculated and used in current diffusion equation.
 
     # Calculate the dpsi/drho necessary to achieve the given Ip_tot
-    dpsi_drhonorm_edge = formulas.calculate_psi_grad_constraint_from_Ip_tot(
-        dynamic_runtime_params_slice.profile_conditions.Ip_tot,
-        geo,
+    dpsi_drhonorm_edge = (
+        psi_calculations.calculate_psi_grad_constraint_from_Ip_tot(
+            dynamic_runtime_params_slice.profile_conditions.Ip_tot,
+            geo,
+        )
     )
 
     # Use the psi from the equilibrium as the right face constraint
