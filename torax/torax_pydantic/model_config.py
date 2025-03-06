@@ -15,6 +15,7 @@
 """Pydantic config for Torax."""
 
 from typing import Any, Mapping
+from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -27,12 +28,16 @@ class ToraxConfig(model_base.BaseModelFrozen):
   """Base config class for Torax.
 
   Attributes:
+    runtime_params: Config for the runtime parameters.
     geometry: Config for the geometry.
     pedestal: Config for the pedestal model.
     stepper: Config for the stepper.
     time_step_calculator: Config for the time step calculator.
   """
 
+  # TODO(b/401187494): Flatten the runtime_params config, is this nesting
+  # doesn't add much value.
+  runtime_params: general_runtime_params.RuntimeParams
   geometry: geometry_pydantic_model.Geometry
   pedestal: pedestal_pydantic_model.Pedestal
   stepper: stepper_pydantic_model.Stepper
