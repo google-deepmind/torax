@@ -29,8 +29,9 @@ from torax.transport_model import transport_model as transport_model_lib
 from typing_extensions import Annotated
 
 
-class LinearThetaMethod(torax_pydantic.BaseModelMutable):
-  """Model for linear stepper.
+# pylint: disable=invalid-name
+class LinearThetaMethod(torax_pydantic.BaseModelFrozen):
+  """Model for the linear stepper.
 
   This is also the base model for the NewtonRaphsonThetaMethod and
   OptimizerThetaMethod steppers as they share the same parameters due to the

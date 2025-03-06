@@ -18,6 +18,7 @@ import numpy as np
 from torax.torax_pydantic import interpolated_param_2d
 import xarray as xr
 
+
 RHO_NORM = 'rho_norm'
 TIME_INTERPOLATION_MODE = 'time_interpolation_mode'
 RHO_INTERPOLATION_MODE = 'rho_interpolation_mode'
@@ -214,7 +215,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    interpolated.rho_norm_grid = rho_norm
+    interpolated.set_rho_norm_grid(rho_norm)
 
     np.testing.assert_allclose(
         interpolated.get_value(x=time),
@@ -225,17 +226,25 @@ class InterpolatedParam2dTest(parameterized.TestCase):
 
   def test_mutation_behavior(self):
     v1 = 1.0
-    v2 = 2.0
+    rho_norm = np.array([0.25, 0.5, 0.75])
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(v1)
-    interpolated.rho_norm_grid = np.array([0.0, 0.5, 1.0])
-    out1 = interpolated.get_value(x=0.0)
-    self.assertEqual(out1.tolist(), [v1, v1, v1])
+    # Directly setting the grid is banned due to immutability.
+    with self.assertRaises(ValueError):
+      interpolated.rho_norm_grid = rho_norm
 
-    # Modifying the value should change the output of get_value. This tests
-    # that caching is working correctly.
-    interpolated.value = {0.0: (np.array([0.0]), np.array([v2]))}
-    out2 = interpolated.get_value(x=0.0)
-    self.assertEqual(out2.tolist(), [v2, v2, v2])
+    # The grid is not set, so we should raise an error as there is not enough
+    # information to interpolate.
+    with self.assertRaises(ValueError):
+      interpolated.get_value(x=0.0)
+
+    interpolated.set_rho_norm_grid(rho_norm)
+
+    # Setting the grid twice should raise an error.
+    with self.assertRaises(RuntimeError):
+      interpolated.set_rho_norm_grid(rho_norm)
+
+    out1 = interpolated.get_value(x=0.0)
+    self.assertEqual(out1.tolist(), [v1] * len(interpolated.rho_norm_grid))
 
   def test_right_boundary_conditions_defined(self):
     """Tests that right_boundary_conditions_defined works correctly."""

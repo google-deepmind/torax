@@ -84,30 +84,6 @@ class PydanticBaseTest(parameterized.TestCase):
       with self.assertRaises(ValueError):
         m.x = 2.0
 
-  def test_model_base(self):
-
-    class Test(model_base.BaseModelMutable, validate_assignment=True):
-      name: str
-
-      @functools.cached_property
-      def computed(self):
-        return self.name + '_test'  # pytype: disable=attribute-error
-
-      @pydantic.model_validator(mode='after')
-      def validate(self):
-        if hasattr(self, 'computed'):
-          del self.computed
-        return self
-
-    m = Test(name='test_string')
-    self.assertEqual(m.computed, 'test_string_test')
-
-    with self.subTest('field_is_mutable'):
-      m.name = 'new_test_string'
-
-    with self.subTest('after_model_validator_is_called_on_update'):
-      self.assertEqual(m.computed, 'new_test_string_test')
-
   @parameterized.parameters(True, False)
   def test_model_base_map_pytree(self, frozen: bool):
 
@@ -119,7 +95,7 @@ class PydanticBaseTest(parameterized.TestCase):
 
     else:
 
-      class TestModel(model_base.BaseModelMutable):
+      class TestModel(model_base.BaseModelFrozen):
         x: float
         y: float
 
@@ -163,15 +139,15 @@ class PydanticBaseTest(parameterized.TestCase):
 
   def test_nested_model_graph(self):
 
-    class Test1(model_base.BaseModelMutable):
+    class Test1(model_base.BaseModelFrozen):
       x: bool = False
 
-    class Test2(model_base.BaseModelMutable):
+    class Test2(model_base.BaseModelFrozen):
       x: dict[str, Any]
       y: int
       z: list[tuple[Test1, Test1, int]]  # pytype: disable=invalid-annotation
 
-    class Test3(model_base.BaseModelMutable):
+    class Test3(model_base.BaseModelFrozen):
       x: tuple[Test1, Test2, Test1]  # pytype: disable=invalid-annotation
       y: dict[str, int]
 
@@ -226,10 +202,10 @@ class PydanticBaseTest(parameterized.TestCase):
 
   def test_nested_model_non_unique_submodels(self):
 
-    class Test1(model_base.BaseModelMutable):
+    class Test1(model_base.BaseModelFrozen):
       x: bool = False
 
-    class Test2(model_base.BaseModelMutable):
+    class Test2(model_base.BaseModelFrozen):
       x: Test1  # pytype: disable=invalid-annotation
       y: Test1  # pytype: disable=invalid-annotation
 
@@ -238,6 +214,93 @@ class PydanticBaseTest(parameterized.TestCase):
 
     with self.assertRaisesRegex(ValueError, 'model with non-unique submodels'):
       t2.tree_build()
+
+  def test_update_fields(self):
+    class Test1(model_base.BaseModelFrozen):
+      x: float
+
+      @functools.cached_property
+      def get_x(self):
+        return self.x
+
+    class Test2(model_base.BaseModelFrozen):
+      x: pydantic.PositiveFloat
+      y: Test1
+      z: Test1
+
+      @functools.cached_property
+      def get_yx(self):
+        return self.y.x
+
+    class Test3(model_base.BaseModelFrozen):
+      x: Test1
+      y: Test2
+
+      @functools.cached_property
+      def get_square(self):
+        return self.x.x**2
+
+    class Test4(model_base.BaseModelFrozen):
+      x: Test1
+      y: Test2
+      z: Test3
+
+      @functools.cached_property
+      def get_yyx(self):
+        return self.y.y.x
+
+    x_ref = 4.0
+    model_2 = Test2(x=0.1, y=Test1(x=x_ref), z=Test1(x=-1.0))
+    model_3 = Test3(
+        x=Test1(x=0.3),
+        y=Test2(x=0.4, y=Test1(x=5.0), z=Test1(x=-4.0)),
+    )
+    model = Test4(x=Test1(x=1.0), y=model_2, z=model_3)
+
+    with self.subTest('model_3_cache'):
+      self.assertNotIn('get_square', model.z.__dict__)
+      self.assertEqual(model.z.get_square, model.z.x.x**2)
+      self.assertIn('get_square', model.z.__dict__)
+
+    with self.subTest('check_getters_correct'):
+      # This also sets the cache.
+      self.assertEqual(model.y.y.get_x, x_ref)
+      self.assertEqual(model.y.get_yx, x_ref)
+      self.assertEqual(model.get_yyx, x_ref)
+
+    new_x = 99.0
+    model._update_fields({'y.y.x': new_x})
+
+    with self.subTest('check_cache_invalidated'):
+      self.assertEqual(model.y.y.x, new_x)
+      self.assertEqual(model.y.y.get_x, new_x)
+      self.assertEqual(model.y.get_yx, new_x)
+      self.assertEqual(model.get_yyx, new_x)
+
+    # The field update should not have invalidated the cache of Test3.
+    with self.subTest('check_test_3_cache_not_invalidated'):
+      self.assertIn('get_square', Test3.__dict__)
+
+    with self.subTest('updates_trigger_validation'):
+      with self.assertRaises(pydantic.ValidationError):
+        model_2._update_fields({'x': -1.0})
+
+    with self.subTest('invalid_path'):
+      with self.assertRaisesRegex(ValueError, 'Cannot update field'):
+        model._update_fields({'x.zz': -1.0})
+
+  def test_update_fields_dict(self):
+    class Test1(model_base.BaseModelFrozen):
+      x: float
+
+    class Test2(model_base.BaseModelFrozen):
+      y: dict[str, dict[str, Test1]]  # pytype: disable=invalid-annotation
+
+    model_1 = Test1(x=1.0)
+    model = Test2(y={'test1': {'test2': model_1}})
+    new_val = 9.0
+    model._update_fields({'y.test1.test2.x': new_val})
+    self.assertEqual(model.y['test1']['test2'].x, new_val)
 
 
 if __name__ == '__main__':

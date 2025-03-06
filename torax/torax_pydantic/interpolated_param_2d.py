@@ -38,7 +38,9 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
       `rho_norm` and `values` are 1D NumPy arrays of equal length.
     rho_interpolation_mode: The interpolation mode to use for the rho axis.
     time_interpolation_mode: The interpolation mode to use for the time axis.
-    rho_norm_grid: The rho norm grid to use for the interpolation.
+    rho_norm_grid: The rho norm grid to use for the interpolation. This is
+      generally not known at initialization time, so it is set separately via
+      the `set_rho_norm_grid` method.
   """
 
   value: Mapping[float, tuple[model_base.NumpyArray1D, model_base.NumpyArray1D]]
@@ -110,6 +112,30 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
         time_interpolation_mode=time_interpolation_mode,
         rho_interpolation_mode=rho_interpolation_mode,
     )
+
+  def set_rho_norm_grid(self, grid: model_base.NumpyArray):
+    """Sets the rho_norm_grid field.
+
+    This function can only be called if the rho_norm_grid field is None.
+
+    Args:
+      grid: The grid to use for interpolation represented as a NumPy array.
+
+    Raises:
+      RuntimeError: If the rho_norm_grid field is not None.
+    Returns:
+      No return value.
+    """
+
+    if self.rho_norm_grid is not None:
+      raise RuntimeError(
+          'set_rho_norm_grid can only be called when the rho_norm_grid field is'
+          ' None.'
+      )
+
+    # Bypass the pydantic validator that enforces field immutability by
+    # directly modifying the underlying model dictionary.
+    self.__dict__['rho_norm_grid'] = grid
 
   @functools.cached_property
   def _get_cached_interpolated_param(

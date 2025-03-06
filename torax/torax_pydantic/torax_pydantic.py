@@ -46,7 +46,6 @@ OpenUnitInterval: TypeAlias = Annotated[float, pydantic.Field(gt=0.0, lt=1.0)]
 NumpyArray = model_base.NumpyArray
 NumpyArray1D = model_base.NumpyArray1D
 
-BaseModelMutable = model_base.BaseModelMutable
 BaseModelFrozen = model_base.BaseModelFrozen
 
 TimeVaryingScalar = interpolated_param_1d.TimeVaryingScalar

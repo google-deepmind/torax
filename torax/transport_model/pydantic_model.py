@@ -23,7 +23,7 @@ import typing_extensions
 
 
 # pylint: disable=invalid-name
-class TransportBase(torax_pydantic.BaseModelMutable):
+class TransportBase(torax_pydantic.BaseModelFrozen):
   """Base model holding parameters common to all transport models.
 
   Attributes:

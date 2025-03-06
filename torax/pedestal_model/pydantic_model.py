@@ -22,7 +22,7 @@ from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class SetPpedTpedRatioNped(torax_pydantic.BaseModelMutable):
+class SetPpedTpedRatioNped(torax_pydantic.BaseModelFrozen):
   """Model for direct specification of pressure, temperature ratio, and density.
 
   Attributes:
@@ -50,7 +50,7 @@ class SetPpedTpedRatioNped(torax_pydantic.BaseModelMutable):
   )
 
 
-class SetTpedNped(torax_pydantic.BaseModelMutable):
+class SetTpedNped(torax_pydantic.BaseModelFrozen):
   """A basic version of the pedestal model that uses direct specification.
 
   Attributes:
@@ -78,7 +78,7 @@ class SetTpedNped(torax_pydantic.BaseModelMutable):
   )
 
 
-class Pedestal(torax_pydantic.BaseModelMutable):
+class Pedestal(torax_pydantic.BaseModelFrozen):
   """Config for a pedestal model."""
   pedestal_config: SetPpedTpedRatioNped | SetTpedNped = pydantic.Field(
       discriminator='pedestal_model', default_factory=SetTpedNped,
