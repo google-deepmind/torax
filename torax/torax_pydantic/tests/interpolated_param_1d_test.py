@@ -144,10 +144,10 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     )
 
     if isinstance(expected_output, bool):
-      self.assertEqual(multi_val_range.get_value(x=x), expected_output)
+      self.assertEqual(multi_val_range.get_value(t=x), expected_output)
     else:
       np.testing.assert_allclose(
-          multi_val_range.get_value(x=x),
+          multi_val_range.get_value(t=x),
           expected_output,
       )
 

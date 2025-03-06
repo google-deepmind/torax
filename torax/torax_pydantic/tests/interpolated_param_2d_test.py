@@ -167,7 +167,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               0: 18.0,
               0.95: 5.0,
           },
-          rho_norm=np.array(0.0),
+          rho_norm=np.array([0.0]),
           time=0.0,
           expected_output=18.0,
       ),
@@ -215,36 +215,14 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    interpolated.set_rho_norm_grid(rho_norm)
+    interpolated._update_fields({'grid_cell_centers': rho_norm})
 
     np.testing.assert_allclose(
-        interpolated.get_value(x=time),
+        interpolated.get_value(t=time),
         expected_output,
     )
 
     self.assertEqual(interpolated, interpolated)
-
-  def test_mutation_behavior(self):
-    v1 = 1.0
-    rho_norm = np.array([0.25, 0.5, 0.75])
-    interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(v1)
-    # Directly setting the grid is banned due to immutability.
-    with self.assertRaises(ValueError):
-      interpolated.rho_norm_grid = rho_norm
-
-    # The grid is not set, so we should raise an error as there is not enough
-    # information to interpolate.
-    with self.assertRaises(ValueError):
-      interpolated.get_value(x=0.0)
-
-    interpolated.set_rho_norm_grid(rho_norm)
-
-    # Setting the grid twice should raise an error.
-    with self.assertRaises(RuntimeError):
-      interpolated.set_rho_norm_grid(rho_norm)
-
-    out1 = interpolated.get_value(x=0.0)
-    self.assertEqual(out1.tolist(), [v1] * len(interpolated.rho_norm_grid))
 
   def test_right_boundary_conditions_defined(self):
     """Tests that right_boundary_conditions_defined works correctly."""
