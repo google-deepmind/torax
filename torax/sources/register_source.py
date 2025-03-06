@@ -43,12 +43,14 @@ from torax.sources import bootstrap_current_source
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import cyclotron_radiation_heat_sink
 from torax.sources import electron_cyclotron_source
-from torax.sources import electron_density_sources
 from torax.sources import fusion_heat_source
+from torax.sources import gas_puff_source
 from torax.sources import generic_current_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
+from torax.sources import generic_particle_source
 from torax.sources import ion_cyclotron_source
 from torax.sources import ohmic_heat_source
+from torax.sources import pellet_source
 from torax.sources import qei_source
 from torax.sources import runtime_params
 from torax.sources import source
@@ -100,30 +102,34 @@ _SUPPORTED_SOURCES = {
             )
         },
     ),
-    electron_density_sources.GenericParticleSource.SOURCE_NAME: SupportedSource(
-        source_class=electron_density_sources.GenericParticleSource,
+    generic_particle_source.GenericParticleSource.SOURCE_NAME: SupportedSource(
+        source_class=generic_particle_source.GenericParticleSource,
         model_functions={
-            electron_density_sources.GenericParticleSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
-                source_profile_function=electron_density_sources.calc_generic_particle_source,
-                runtime_params_class=electron_density_sources.GenericParticleSourceRuntimeParams,
+            generic_particle_source.GenericParticleSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
+                source_profile_function=generic_particle_source.calc_generic_particle_source,
+                runtime_params_class=generic_particle_source.GenericParticleSourceRuntimeParams,
             )
         },
     ),
-    electron_density_sources.GasPuffSource.SOURCE_NAME: SupportedSource(
-        source_class=electron_density_sources.GasPuffSource,
+    gas_puff_source.GasPuffSource.SOURCE_NAME: SupportedSource(
+        source_class=gas_puff_source.GasPuffSource,
         model_functions={
-            electron_density_sources.GasPuffSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
-                source_profile_function=electron_density_sources.calc_puff_source,
-                runtime_params_class=electron_density_sources.GasPuffRuntimeParams,
+            gas_puff_source.GasPuffSource.DEFAULT_MODEL_FUNCTION_NAME: (
+                ModelFunction(
+                    source_profile_function=gas_puff_source.calc_puff_source,
+                    runtime_params_class=gas_puff_source.GasPuffRuntimeParams,
+                )
             )
         },
     ),
-    electron_density_sources.PelletSource.SOURCE_NAME: SupportedSource(
-        source_class=electron_density_sources.PelletSource,
+    pellet_source.PelletSource.SOURCE_NAME: SupportedSource(
+        source_class=pellet_source.PelletSource,
         model_functions={
-            electron_density_sources.PelletSource.DEFAULT_MODEL_FUNCTION_NAME: ModelFunction(
-                source_profile_function=electron_density_sources.calc_pellet_source,
-                runtime_params_class=electron_density_sources.PelletRuntimeParams,
+            pellet_source.PelletSource.DEFAULT_MODEL_FUNCTION_NAME: (
+                ModelFunction(
+                    source_profile_function=pellet_source.calc_pellet_source,
+                    runtime_params_class=pellet_source.PelletRuntimeParams,
+                )
             )
         },
     ),

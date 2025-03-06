@@ -35,7 +35,9 @@ from torax.geometry import geometry
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import electron_density_sources
+from torax.sources import gas_puff_source
+from torax.sources import generic_particle_source
+from torax.sources import pellet_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_profiles
@@ -110,16 +112,16 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
       )
       return (
           (
-              electron_density_sources.calc_puff_source(
-                  source_name=electron_density_sources.GasPuffSource.SOURCE_NAME,
+              gas_puff_source.calc_puff_source(
+                  source_name=gas_puff_source.GasPuffSource.SOURCE_NAME,
                   **kwargs,
               )[0]
-              + electron_density_sources.calc_generic_particle_source(
-                  source_name=electron_density_sources.GenericParticleSource.SOURCE_NAME,
+              + generic_particle_source.calc_generic_particle_source(
+                  source_name=generic_particle_source.GenericParticleSource.SOURCE_NAME,
                   **kwargs,
               )[0]
-              + electron_density_sources.calc_pellet_source(
-                  source_name=electron_density_sources.PelletSource.SOURCE_NAME,
+              + pellet_source.calc_pellet_source(
+                  source_name=pellet_source.PelletSource.SOURCE_NAME,
                   **kwargs,
               )[0]
           ),
@@ -132,18 +134,14 @@ class SimWithCustomSourcesTest(sim_test_case.SimTestCase):
     source_models_builder.runtime_params['qei_source'].Qei_mult = 1
     params = source_models_builder.runtime_params['generic_particle_source']
     assert isinstance(
-        params, electron_density_sources.GenericParticleSourceRuntimeParams
+        params, generic_particle_source.GenericParticleSourceRuntimeParams
     )
     params.S_tot = 0.0
     pellet_params = source_models_builder.runtime_params['pellet_source']
-    assert isinstance(
-        pellet_params, electron_density_sources.PelletRuntimeParams
-    )
+    assert isinstance(pellet_params, pellet_source.PelletRuntimeParams)
     pellet_params.S_pellet_tot = 2.0e22
     gas_puff_params = source_models_builder.runtime_params['gas_puff_source']
-    assert isinstance(
-        gas_puff_params, electron_density_sources.GasPuffRuntimeParams
-    )
+    assert isinstance(gas_puff_params, gas_puff_source.GasPuffRuntimeParams)
     gas_puff_params.S_puff_tot = 1.0e22
     # Turn off some sources.
     source_models_builder.runtime_params['fusion_heat_source'].mode = (

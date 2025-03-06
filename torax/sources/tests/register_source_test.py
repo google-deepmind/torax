@@ -16,12 +16,14 @@ from absl.testing import parameterized
 from torax.sources import bootstrap_current_source
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import electron_cyclotron_source
-from torax.sources import electron_density_sources
 from torax.sources import fusion_heat_source
+from torax.sources import gas_puff_source
 from torax.sources import generic_current_source
 from torax.sources import generic_ion_el_heat_source as ion_el_heat
+from torax.sources import generic_particle_source
 from torax.sources import ion_cyclotron_source
 from torax.sources import ohmic_heat_source
+from torax.sources import pellet_source
 from torax.sources import qei_source
 from torax.sources import register_source
 from torax.sources import source as source_lib
@@ -34,9 +36,9 @@ class SourceTest(parameterized.TestCase):
       bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME,
       bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
       electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
-      electron_density_sources.GenericParticleSource.SOURCE_NAME,
-      electron_density_sources.GasPuffSource.SOURCE_NAME,
-      electron_density_sources.PelletSource.SOURCE_NAME,
+      generic_particle_source.GenericParticleSource.SOURCE_NAME,
+      gas_puff_source.GasPuffSource.SOURCE_NAME,
+      pellet_source.PelletSource.SOURCE_NAME,
       fusion_heat_source.FusionHeatSource.SOURCE_NAME,
       generic_current_source.GenericCurrentSource.SOURCE_NAME,
       ion_el_heat.GenericIonElectronHeatSource.SOURCE_NAME,

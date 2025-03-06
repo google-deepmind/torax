@@ -16,8 +16,8 @@ from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax.sources import bootstrap_current_source
-from torax.sources import electron_density_sources
 from torax.sources import fusion_heat_source
+from torax.sources import gas_puff_source
 from torax.sources import pydantic_model
 from torax.sources import runtime_params
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
@@ -34,7 +34,7 @@ class PydanticModelTest(parameterized.TestCase):
                   'S_puff_tot': 0.0,
               }
           },
-          expected_sources_model=electron_density_sources.GasPuffSourceConfig,
+          expected_sources_model=gas_puff_source.GasPuffSourceConfig,
       ),
       dict(
           config={

@@ -22,8 +22,10 @@ from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.pedestal_model import set_tped_nped
-from torax.sources import electron_density_sources
+from torax.sources import gas_puff_source as gas_puff_source_lib
 from torax.sources import generic_current_source
+from torax.sources import generic_particle_source as generic_particle_source_lib
+from torax.sources import pellet_source as pellet_source_lib
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.transport_model import runtime_params as transport_params_lib
@@ -166,21 +168,21 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       dcs = build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources={
-              electron_density_sources.GasPuffSource.SOURCE_NAME: (
-                  electron_density_sources.GasPuffRuntimeParams(
+              gas_puff_source_lib.GasPuffSource.SOURCE_NAME: (
+                  gas_puff_source_lib.GasPuffRuntimeParams(
                       puff_decay_length={0.0: 0.0, 1.0: 4.0},
                       S_puff_tot={0.0: 0.0, 1.0: 5.0},
                   )
               ),
-              electron_density_sources.PelletSource.SOURCE_NAME: (
-                  electron_density_sources.PelletRuntimeParams(
+              pellet_source_lib.PelletSource.SOURCE_NAME: (
+                  pellet_source_lib.PelletRuntimeParams(
                       pellet_width={0.0: 0.0, 1.0: 1.0},
                       pellet_deposition_location={0.0: 0.0, 1.0: 2.0},
                       S_pellet_tot={0.0: 0.0, 1.0: 3.0},
                   )
               ),
-              electron_density_sources.GenericParticleSource.SOURCE_NAME: (
-                  electron_density_sources.GenericParticleSourceRuntimeParams(
+              generic_particle_source_lib.GenericParticleSource.SOURCE_NAME: (
+                  generic_particle_source_lib.GenericParticleSourceRuntimeParams(
                       particle_width={0.0: 0.0, 1.0: 6.0},
                       deposition_location={0.0: 0.0, 1.0: 7.0},
                       S_tot={0.0: 0.0, 1.0: 8.0},
@@ -191,26 +193,24 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       )(
           t=0.5,
       )
-      pellet_source = dcs.sources[
-          electron_density_sources.PelletSource.SOURCE_NAME
-      ]
+      pellet_source = dcs.sources[pellet_source_lib.PelletSource.SOURCE_NAME]
       gas_puff_source = dcs.sources[
-          electron_density_sources.GasPuffSource.SOURCE_NAME
+          gas_puff_source_lib.GasPuffSource.SOURCE_NAME
       ]
       generic_particle_source = dcs.sources[
-          electron_density_sources.GenericParticleSource.SOURCE_NAME
+          generic_particle_source_lib.GenericParticleSource.SOURCE_NAME
       ]
       assert isinstance(
           pellet_source,
-          electron_density_sources.DynamicPelletRuntimeParams,
+          pellet_source_lib.DynamicPelletRuntimeParams,
       )
       assert isinstance(
           gas_puff_source,
-          electron_density_sources.DynamicGasPuffRuntimeParams,
+          gas_puff_source_lib.DynamicGasPuffRuntimeParams,
       )
       assert isinstance(
           generic_particle_source,
-          electron_density_sources.DynamicParticleRuntimeParams,
+          generic_particle_source_lib.DynamicParticleRuntimeParams,
       )
       print(pellet_source.pellet_width)
       print(type(pellet_source.pellet_width))

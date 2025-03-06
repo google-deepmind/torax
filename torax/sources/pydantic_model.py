@@ -23,12 +23,14 @@ from torax.sources import bootstrap_current_source
 from torax.sources import bremsstrahlung_heat_sink
 from torax.sources import cyclotron_radiation_heat_sink
 from torax.sources import electron_cyclotron_source
-from torax.sources import electron_density_sources
 from torax.sources import fusion_heat_source
+from torax.sources import gas_puff_source
 from torax.sources import generic_current_source
 from torax.sources import generic_ion_el_heat_source
+from torax.sources import generic_particle_source
 from torax.sources import ion_cyclotron_source
 from torax.sources import ohmic_heat_source
+from torax.sources import pellet_source
 from torax.sources import qei_source
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
@@ -65,9 +67,9 @@ SourceModelConfig = Union[
     bremsstrahlung_heat_sink.BremsstrahlungHeatSinkConfig,
     cyclotron_radiation_heat_sink.CyclotronRadiationHeatSinkConfig,
     electron_cyclotron_source.ElectronCyclotronSourceConfig,
-    electron_density_sources.GasPuffSourceConfig,
-    electron_density_sources.GenericParticleSourceConfig,
-    electron_density_sources.PelletSourceConfig,
+    gas_puff_source.GasPuffSourceConfig,
+    generic_particle_source.GenericParticleSourceConfig,
+    pellet_source.PelletSourceConfig,
     fusion_heat_source.FusionHeatSourceConfig,
     generic_current_source.GenericCurrentSourceConfig,
     generic_ion_el_heat_source.GenericIonElHeatSourceConfig,
