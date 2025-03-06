@@ -20,7 +20,7 @@ from typing import Any
 import pydantic
 from torax import interpolated_param
 from torax.torax_pydantic import interpolated_param_common
-from torax.torax_pydantic import model_base
+from torax.torax_pydantic import pydantic_types
 
 
 class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
@@ -40,8 +40,8 @@ class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
       mode to use.
   """
 
-  time: model_base.NumpyArray1D
-  value: model_base.NumpyArray
+  time: pydantic_types.NumpyArray1D
+  value: pydantic_types.NumpyArray
   is_bool_param: bool = False
   interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR

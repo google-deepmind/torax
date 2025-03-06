@@ -19,58 +19,12 @@ from typing import Annotated, Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
-import numpy as np
 import pydantic
 from torax.torax_pydantic import model_base
 from torax.torax_pydantic import torax_pydantic
 
 
 class PydanticBaseTest(parameterized.TestCase):
-
-  def test_numpy_array_serializer(self):
-    """Tests that interpolated vars are only constructed once."""
-
-    class TestModel(pydantic.BaseModel):
-      x: model_base.NumpyArray
-      y: model_base.NumpyArray
-      z: tuple[model_base.NumpyArray1D, float]
-
-      model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
-
-    model = TestModel(
-        x=np.random.rand(2, 5, 1).astype(np.float64),
-        y=np.array(2.3479, dtype=np.float32),
-        z=(np.array([True, False, False, True], dtype=np.bool_), -304.5),
-    )
-
-    model_dict = model.model_dump()
-    model_from_dict = TestModel.model_validate(model_dict)
-
-    with self.subTest('dict_dump_and_load'):
-      np.testing.assert_array_equal(model.x, model_from_dict.x, strict=True)
-      np.testing.assert_array_equal(model.y, model_from_dict.y, strict=True)
-      np.testing.assert_array_equal(
-          model.z[0], model_from_dict.z[0], strict=True
-      )
-
-    with self.subTest('json_dump_and_load'):
-      model_json = model.model_dump_json()
-      model_from_json = model.model_validate_json(model_json)
-      np.testing.assert_array_equal(model.x, model_from_json.x, strict=True)
-      np.testing.assert_array_equal(model.y, model_from_json.y, strict=True)
-      np.testing.assert_array_equal(
-          model.z[0], model_from_json.z[0], strict=True
-      )
-
-  def test_1d_array(self):
-    array = pydantic.TypeAdapter(
-        model_base.NumpyArray1D,
-        config=pydantic.ConfigDict(arbitrary_types_allowed=True),
-    )
-
-    # Fail with 2D array.
-    with self.assertRaises(ValueError):
-      array.validate_python(np.array([[1.0, 2.0], [3.0, 4.0]]))
 
   def test_model_base_frozen(self):
 

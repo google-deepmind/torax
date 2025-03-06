@@ -20,7 +20,9 @@ import pydantic
 from torax.torax_pydantic import interpolated_param_1d
 from torax.torax_pydantic import interpolated_param_2d
 from torax.torax_pydantic import model_base
+from torax.torax_pydantic import pydantic_types
 from typing_extensions import Annotated
+
 
 TIME_INVARIANT = model_base.TIME_INVARIANT
 
@@ -43,8 +45,8 @@ Density: TypeAlias = GreenwaldFraction | ReferenceDensity
 UnitInterval: TypeAlias = Annotated[float, pydantic.Field(ge=0.0, le=1.0)]
 OpenUnitInterval: TypeAlias = Annotated[float, pydantic.Field(gt=0.0, lt=1.0)]
 
-NumpyArray = model_base.NumpyArray
-NumpyArray1D = model_base.NumpyArray1D
+NumpyArray = pydantic_types.NumpyArray
+NumpyArray1D = pydantic_types.NumpyArray1D
 
 BaseModelFrozen = model_base.BaseModelFrozen
 

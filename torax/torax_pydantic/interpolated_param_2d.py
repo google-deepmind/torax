@@ -21,7 +21,7 @@ import chex
 import pydantic
 from torax import interpolated_param
 from torax.torax_pydantic import interpolated_param_common
-from torax.torax_pydantic import model_base
+from torax.torax_pydantic import pydantic_types
 import xarray as xr
 
 
@@ -43,14 +43,16 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
       the `set_rho_norm_grid` method.
   """
 
-  value: Mapping[float, tuple[model_base.NumpyArray1D, model_base.NumpyArray1D]]
+  value: Mapping[
+      float, tuple[pydantic_types.NumpyArray1D, pydantic_types.NumpyArray1D]
+  ]
   rho_interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   )
   time_interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   )
-  rho_norm_grid: model_base.NumpyArray | None = None
+  rho_norm_grid: pydantic_types.NumpyArray | None = None
 
   @functools.cached_property
   def right_boundary_conditions_defined(self) -> bool:
@@ -113,7 +115,7 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
         rho_interpolation_mode=rho_interpolation_mode,
     )
 
-  def set_rho_norm_grid(self, grid: model_base.NumpyArray):
+  def set_rho_norm_grid(self, grid: pydantic_types.NumpyArray):
     """Sets the rho_norm_grid field.
 
     This function can only be called if the rho_norm_grid field is None.
