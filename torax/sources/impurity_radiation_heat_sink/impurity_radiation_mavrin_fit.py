@@ -16,7 +16,7 @@
 
 import dataclasses
 import functools
-from typing import Final, Mapping, Sequence
+from typing import Final, Literal, Mapping, Sequence
 import chex
 import immutabledict
 import jax.numpy as jnp
@@ -212,6 +212,24 @@ def impurity_radiation_mavrin_fit(
   # The impurity radiation heat sink is a negative source, so we return a
   # negative profile.
   return (-radiation_profile,)
+
+
+class ImpurityRadiationHeatSinkMavrinFitConfig(
+    runtime_params_lib.SourceModelBase
+):
+  """Configuration for the ImpurityRadiationHeatSink.
+
+  Attributes:
+    radiation_multiplier: Multiplier for the impurity radiation profile.
+  """
+  source_name: Literal['impurity_radiation_heat_sink'] = (
+      'impurity_radiation_heat_sink'
+  )
+  model_func: Literal['impurity_radiation_mavrin_fit'] = (
+      'impurity_radiation_mavrin_fit'
+  )
+  radiation_multiplier: float = 1.0
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass(kw_only=True)

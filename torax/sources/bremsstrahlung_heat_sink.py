@@ -17,7 +17,7 @@
 """Bremsstrahlung heat sink for electron heat equation.."""
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 import jax
@@ -28,6 +28,17 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+
+
+class BremsstrahlungHeatSinkConfig(runtime_params_lib.SourceModelBase):
+  """Bremsstrahlung heat sink for electron heat equation.
+
+  Attributes:
+    use_relativistic_correction: Whether to use relativistic correction.
+  """
+  source_name: Literal['bremsstrahlung_heat_sink'] = 'bremsstrahlung_heat_sink'
+  use_relativistic_correction: bool = False
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass(kw_only=True)

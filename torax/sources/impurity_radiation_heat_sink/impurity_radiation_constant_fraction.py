@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import dataclasses
+from typing import Literal
 
 import chex
 import jax.numpy as jnp
@@ -26,6 +27,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.torax_pydantic import torax_pydantic
 
 MODEL_FUNCTION_NAME = 'radially_constant_fraction_of_Pin'
 
@@ -90,7 +92,29 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
       -dynamic_source_runtime_params.fraction_of_total_power_density
       * Ptot_in
       / Vtot
-      * jnp.ones_like(geo.rho),)
+      * jnp.ones_like(geo.rho),
+  )
+
+
+class ImpurityRadiationHeatSinkConstantFractionConfig(
+    runtime_params_lib.SourceModelBase
+):
+  """Configuration for the ImpurityRadiationHeatSink.
+
+  Attributes:
+    fraction_of_total_power_density: Fraction of total power density to be
+      absorbed by the impurity.
+  """
+  source_name: Literal['impurity_radiation_heat_sink'] = (
+      'impurity_radiation_heat_sink'
+  )
+  model_func: Literal['radially_constant_fraction_of_Pin'] = (
+      'radially_constant_fraction_of_Pin'
+  )
+  fraction_of_total_power_density: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.1)
+  )
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass(kw_only=True)

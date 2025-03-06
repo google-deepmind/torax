@@ -19,7 +19,7 @@ import functools
 import json
 import logging
 import os
-from typing import Any, ClassVar, Final, Sequence
+from typing import Any, ClassVar, Final, Literal, Sequence
 
 import chex
 import flax.linen as nn
@@ -37,6 +37,7 @@ from torax.physics import collisions
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 from typing_extensions import override
 
 # Internal import.
@@ -289,6 +290,32 @@ class _ToricNN(nn.Module):
 
 
 # pylint: disable=invalid-name
+class IonCyclotronSourceConfig(runtime_params_lib.SourceModelBase):
+  """Configuration for the IonCyclotronSource.
+
+  Attributes:
+    wall_inner: Inner radial location of first wall at plasma midplane level
+      [m].
+    wall_outer: Outer radial location of first wall at plasma midplane level
+      [m].
+    frequency: ICRF wave frequency [Hz].
+    minority_concentration: He3 minority concentration relative to the electron
+      density in %.
+    Ptot: Total heating power [W].
+  """
+  source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
+  wall_inner: torax_pydantic.Meter = 1.24
+  wall_outer: torax_pydantic.Meter = 2.43
+  frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      120e6
+  )
+  minority_concentration: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(3.0)
+  )
+  Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+
 @dataclasses.dataclass
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for the ion cyclotron resonance source."""

@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 import jax
@@ -140,6 +140,12 @@ def ohmic_model_func(
   )
   pohm = jtot * psidot / (2 * jnp.pi * geo.Rmaj)
   return (pohm,)
+
+
+class OhmicHeatSourceConfig(runtime_params_lib.SourceModelBase):
+  """Configuration for the OhmicHeatSource."""
+  source_name: Literal['ohmic_heat_source'] = 'ohmic_heat_source'
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass

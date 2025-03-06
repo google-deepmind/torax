@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 import jax
@@ -179,6 +179,12 @@ class FusionHeatSource(source.Source):
         source.AffectedCoreProfile.TEMP_ION,
         source.AffectedCoreProfile.TEMP_EL,
     )
+
+
+class FusionHeatSourceConfig(runtime_params_lib.SourceModelBase):
+  """Configuration for the FusionHeatSource."""
+  source_name: Literal['fusion_heat_source'] = 'fusion_heat_source'
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass

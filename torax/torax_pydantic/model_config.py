@@ -21,6 +21,7 @@ import pydantic
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
 from torax.torax_pydantic import model_base
@@ -35,8 +36,10 @@ class ToraxConfig(model_base.BaseModelFrozen):
     runtime_params: Config for the runtime parameters.
     geometry: Config for the geometry.
     pedestal: Config for the pedestal model.
+    sources: Config for the sources.
     stepper: Config for the stepper.
     time_step_calculator: Config for the time step calculator.
+    transport: Config for the transport model.
   """
 
   # TODO(b/401187494): Flatten the runtime_params config, is this nesting
@@ -44,6 +47,7 @@ class ToraxConfig(model_base.BaseModelFrozen):
   runtime_params: general_runtime_params.RuntimeParams
   geometry: geometry_pydantic_model.Geometry
   pedestal: pedestal_pydantic_model.Pedestal
+  sources: sources_pydantic_model.Sources
   stepper: stepper_pydantic_model.Stepper
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
   transport: transport_model_pydantic_model.Transport

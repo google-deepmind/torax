@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 import jax
@@ -32,6 +32,18 @@ from torax.sources import source_profiles
 
 
 # pylint: disable=invalid-name
+class QeiSourceConfig(runtime_params_lib.SourceModelBase):
+  """Configuration for the QeiSource.
+
+  Attributes:
+    Qei_mult: multiplier for ion-electron heat exchange term for sensitivity
+      testing
+  """
+  source_name: Literal['qei_source'] = 'qei_source'
+  Qei_mult: float = 1.0
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+
 @dataclasses.dataclass(kw_only=True)
 class RuntimeParams(runtime_params_lib.RuntimeParams):
   # multiplier for ion-electron heat exchange term for sensitivity testing

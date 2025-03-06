@@ -25,6 +25,7 @@ from torax import array_typing
 from torax import interpolated_param
 from torax.config import base
 from torax.geometry import geometry
+from torax.torax_pydantic import torax_pydantic
 
 
 TimeInterpolatedInput = interpolated_param.TimeInterpolatedInput
@@ -45,6 +46,35 @@ class Mode(enum.Enum):
   # time. Currently, this is only supported for sources that have a 1D output
   # along the cell grid or face grid.
   PRESCRIBED = 2
+
+
+class SourceModelBase(torax_pydantic.BaseModelFrozen):
+  """Base model holding parameters common to all source models.
+
+  Attributes:
+    mode: Defines how the source values are computed (from a model, from a file,
+      etc.)
+    is_explicit: Defines whether this is an explicit or implicit source.
+      Explicit sources are calculated based on the simulation state at the
+      beginning of a time step, or do not have any dependance on state. Implicit
+      sources depend on updated states as our iterative solvers evolve the state
+      through the course of a time step. NOTE: Not all source types can be
+      implicit or explicit. For example, file-based sources are always explicit.
+      If an incorrect combination of source type and is_explicit is passed in,
+      an error will be thrown when running the simulation.
+    prescribed_values: Prescribed values for the source. Used only when the
+      source is fully prescribed (i.e. source.mode == Mode.PRESCRIBED).
+      The default here is a vector of all zeros along for all rho and time, and
+      the output vector is along the cell grid.
+      NOTE: For Sources that have different output shapes, make sure to update
+      build_dynamic_params() to handle the new shape. The default implementation
+      assumes a 1D output along the cell grid.
+  """
+  mode: Mode = Mode.ZERO
+  is_explicit: bool = False
+  prescribed_values: torax_pydantic.TimeVaryingArray = (
+      torax_pydantic.ValidatedDefault({0: {0: 0, 1: 0}})
+  )
 
 
 @dataclasses.dataclass

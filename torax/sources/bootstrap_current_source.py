@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 import jax
@@ -33,6 +33,17 @@ from torax.physics import psi_calculations
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+
+
+class BootstrapCurrentSourceConfig(runtime_params_lib.SourceModelBase):
+  """Bootstrap current density source profile.
+
+  Attributes:
+    bootstrap_mult: Multiplication factor for bootstrap current.
+  """
+  source_name: Literal['j_bootstrap'] = 'j_bootstrap'
+  bootstrap_mult: float = 1.0
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass(kw_only=True)

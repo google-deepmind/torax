@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 import jax.numpy as jnp
@@ -31,10 +31,45 @@ from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 
 InterpolatedVarTimeRhoInput = (
     runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
 )
+
+
+class ElectronCyclotronSourceConfig(runtime_params_lib.SourceModelBase):
+  """Config for the electron-cyclotron source.
+
+  Attributes:
+    cd_efficiency: Local dimensionless current drive efficiency. Zeta from
+      Lin-Liu, Chan, and Prater, 2003, eq 44
+    manual_ec_power_density: Manual EC power density profile on the rho grid
+    gaussian_ec_power_density_width: Gaussian EC power density profile width
+    gaussian_ec_power_density_location: Gaussian EC power density profile
+      location
+    gaussian_ec_total_power: Gaussian EC total power
+  """
+
+  source_name: Literal["electron_cyclotron_source"] = (
+      "electron_cyclotron_source"
+  )
+  cd_efficiency: torax_pydantic.TimeVaryingArray = (
+      torax_pydantic.ValidatedDefault({0.0: {0.0: 0.2, 1.0: 0.2}})
+  )
+  manual_ec_power_density: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault({0.0: {0.0: 0.0, 1.0: 0.0}})
+  )
+  gaussian_ec_power_density_width: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.1)
+  )
+  gaussian_ec_power_density_location: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  gaussian_ec_total_power: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass(kw_only=True)

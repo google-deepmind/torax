@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 from jax import numpy as jnp
@@ -32,7 +32,28 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
+
+
 # pylint: disable=invalid-name
+class GenericCurrentSourceConfig(runtime_params_lib.SourceModelBase):
+  """Configuration for the GenericCurrentSource.
+
+  Attributes:
+    Iext: total "external" current in MA. Used if use_absolute_current=True.
+    fext: total "external" current fraction. Used if use_absolute_current=False.
+    wext: width of "external" Gaussian current profile
+    rext: normalized radius of "external" Gaussian current profile
+    use_absolute_current: Toggles if external current is provided absolutely or
+      as a fraction of Ip.
+  """
+  source_name: Literal['generic_current_source'] = 'generic_current_source'
+  Iext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(3.0)
+  fext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.2)
+  wext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.05)
+  rext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.4)
+  use_absolute_current: bool = False
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass(kw_only=True)

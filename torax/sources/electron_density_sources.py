@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
+import pydantic
 from torax import array_typing
 from torax import interpolated_param
 from torax import state
@@ -29,9 +30,25 @@ from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
+class GasPuffSourceConfig(runtime_params_lib.SourceModelBase):
+  """Gas puff source for the ne equation.
+
+  Attributes:
+    source_name: Name of the source, hardcoded to 'gas_puff_source'
+    puff_decay_length: exponential decay length of gas puff ionization
+      [normalized radial coord]
+    S_puff_tot: total gas puff particles/s
+  """
+  source_name: Literal['gas_puff_source'] = 'gas_puff_source'
+  puff_decay_length: torax_pydantic.UnitInterval = 0.05
+  S_puff_tot: pydantic.NonNegativeFloat = 1e22
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+
 @dataclasses.dataclass(kw_only=True)
 class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
   """Runtime parameters for GasPuffSource."""
@@ -114,6 +131,24 @@ class GasPuffSource(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.NE,)
+
+
+class GenericParticleSourceConfig(runtime_params_lib.SourceModelBase):
+  """Generic particle source for the ne equation.
+
+  Attributes:
+    particle_width: particle source Gaussian width in normalized radial coord
+    deposition_location: particle source Gaussian center in normalized radial
+      coord
+    S_tot: total particle source particles/s
+    mode: Defines how the source values are computed (from a model, from a file,
+      etc.)
+  """
+  source_name: Literal['generic_particle_source'] = 'generic_particle_source'
+  particle_width: torax_pydantic.UnitInterval = 0.25
+  deposition_location: torax_pydantic.UnitInterval = 0.0
+  S_tot: pydantic.NonNegativeFloat = 1e22
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -206,6 +241,30 @@ class GenericParticleSource(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.NE,)
+
+
+class PelletSourceConfig(runtime_params_lib.SourceModelBase):
+  """Pellet source for the ne equation.
+
+  Attributes:
+    pellet_width: Gaussian width of pellet deposition [normalized radial coord]
+    pellet_deposition_location: Gaussian center of pellet deposition [normalized
+      radial coord]
+    S_pellet_tot: total pellet particles/s
+    mode: Defines how the source values are computed (from a model, from a file,
+      etc.)
+  """
+  source_name: Literal['pellet_source'] = 'pellet_source'
+  pellet_width: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.1)
+  )
+  pellet_deposition_location: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.85)
+  )
+  S_pellet_tot: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(2e22)
+  )
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass(kw_only=True)

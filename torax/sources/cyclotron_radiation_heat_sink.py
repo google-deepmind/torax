@@ -17,11 +17,12 @@
 """Cyclotron radiation heat sink for electron heat equation.."""
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 import jax
 from jax import numpy as jnp
+import pydantic
 from torax import array_typing
 from torax import math_utils
 from torax import state
@@ -30,6 +31,38 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+import typing_extensions
+
+
+class CyclotronRadiationHeatSinkConfig(runtime_params_lib.SourceModelBase):
+  """Cyclotron radiation heat sink for electron heat equation.
+
+  Attributes:
+    wall_reflection_coeff: The wall reflection coefficient is a
+      machine-dependent dimensionless parameter corresponding to the fraction of
+      cyclotron radiation reflected off the wall and back into the plasma where
+      it is re-absorbed. The default value is a typical value.
+    beta_min: The minimum value of the beta parameter used in the parameterized
+      function for the temperature fit.
+    beta_max: The maximum value of the beta parameter used in the parameterized
+      function for the temperature fit.
+    beta_grid_size: The number of points to use in the grid search for the best
+      fit of the temperature function.
+  """
+  source_name: Literal['cyclotron_radiation_heat_sink'] = (
+      'cyclotron_radiation_heat_sink'
+  )
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  wall_reflection_coeff: float = 0.9
+  beta_min: float = 0.5
+  beta_max: float = 8.0
+  beta_grid_size: pydantic.PositiveInt = 32
+
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> typing_extensions.Self:
+    if not self.beta_min < self.beta_max:
+      raise ValueError('beta_min must be less than beta_max.')
+    return self
 
 
 @dataclasses.dataclass(kw_only=True)

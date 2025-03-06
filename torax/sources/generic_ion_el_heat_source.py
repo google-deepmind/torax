@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 from torax import array_typing
@@ -29,7 +29,33 @@ from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
+
+
 # pylint: disable=invalid-name
+class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
+  """Configuration for the GenericIonElHeatSource.
+
+  Attributes:
+    w: Gaussian width in normalized radial coordinate
+    rsource: Source Gaussian central location (in normalized r)
+    Ptot: Total heating: high default based on total ITER power including alphas
+    el_heat_fraction: Electron heating fraction
+  """
+  source_name: Literal['generic_ion_el_heat_source'] = (
+      'generic_ion_el_heat_source'
+  )
+  w: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.25)
+  rsource: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      0.0
+  )
+  Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      120e6
+  )
+  el_heat_fraction: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.66666)
+  )
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
 @dataclasses.dataclass(kw_only=True)
