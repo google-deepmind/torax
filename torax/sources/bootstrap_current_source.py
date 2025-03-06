@@ -22,9 +22,9 @@ from typing import ClassVar, Literal
 import chex
 import jax
 from jax import numpy as jnp
-from jax.scipy import integrate
 from torax import constants
 from torax import jax_utils
+from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
@@ -362,10 +362,7 @@ def calc_sauter_model(
   j_bootstrap = geometry.face_to_cell(j_bootstrap_face)
   sigmaneo_cell = geometry.face_to_cell(sigmaneo)
 
-  I_bootstrap = integrate.trapezoid(
-      j_bootstrap_face * geo.spr_face,
-      geo.rho_face_norm,
-  )
+  I_bootstrap = math_utils.area_integration(j_bootstrap, geo)
 
   return source_profiles.BootstrapCurrentProfile(
       sigma=sigmaneo_cell,

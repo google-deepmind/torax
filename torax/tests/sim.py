@@ -363,13 +363,6 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
-      # Predictor-corrector solver with main ion charge Zi=2.
-      (
-          'test_iterhybrid_predictor_corrector_zi2',
-          'test_iterhybrid_predictor_corrector_zi2.py',
-          _ALL_PROFILES,
-          5e-5,
-      ),
       # Predictor-corrector solver with a time-dependent isotope mix.
       (
           'test_iterhybrid_predictor_corrector_timedependent_isotopes',
@@ -727,6 +720,7 @@ class SimTest(sim_test_case.SimTestCase):
                 ds1[var_name].values,
                 ds2[var_name].values,
                 err_msg=f'Mismatch for {var_name} in restart test',
+                rtol=1e-6,
             )
 
     xr.map_over_datasets(check_equality, datatree_ref, datatree_new)

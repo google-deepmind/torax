@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.math_utils."""
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -28,7 +27,6 @@ jax.config.update('jax_enable_x64', True)
 
 
 class MathUtilsTest(parameterized.TestCase):
-  """Unit tests for the `torax.math_utils` module."""
 
   @parameterized.product(
       initial=(None, 0.0),
@@ -69,7 +67,7 @@ class MathUtilsTest(parameterized.TestCase):
 
   @parameterized.parameters(5, 50, 500)
   def test_cell_integration(self, num_cell_grid_points: int):
-    """Test that the cell_integration method works as expected."""
+    """Test that cell_integration is equivalent to scipy.integrate.trapezoid."""
     x = jax.random.uniform(
         jax.random.PRNGKey(0), shape=(num_cell_grid_points + 1,)
     )
@@ -82,6 +80,80 @@ class MathUtilsTest(parameterized.TestCase):
         jax.scipy.integrate.trapezoid(x, geo.rho_face_norm),
         rtol=1e-6,  # 1e-7 rtol is too tight for this test to pass.
     )
+
+  def test_area_integration(self):
+    """Test that area_integration is equivalent to an analytical formula."""
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=200,
+        elongation_LCFS=1.0,
+    ).build_geometry()
+
+    x = geo.rho_norm
+    # For circular geometry, spr = 2*pi*rho*Rmin. Do the integration by hand.
+    expected_area_integration = 2 / 3 * np.pi * geo.Rmin**2
+
+    np.testing.assert_allclose(
+        math_utils.area_integration(x, geo),
+        expected_area_integration,
+        rtol=1e-5,
+    )
+
+  def test_volume_integration(self):
+    """Test that volume_integration is equivalent to an analytical formula."""
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=200,
+        elongation_LCFS=1.0,
+    ).build_geometry()
+
+    x = geo.rho_norm
+    # For circular geometry, vpr = 4*pi^2*rho*Rmin*Rmaj. Do integration by hand.
+    expected_volume_integration = 4 / 3 * np.pi**2 * geo.Rmin**2 * geo.Rmaj
+
+    np.testing.assert_allclose(
+        math_utils.volume_integration(x, geo),
+        expected_volume_integration,
+        rtol=1e-5,
+    )
+
+  def test_line_average(self):
+    """Test that line_average is equivalent to an analytical formula."""
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=200,
+        elongation_LCFS=1.0,
+    ).build_geometry()
+
+    x = geo.rho_norm
+    expected_line_average = 0.5
+
+    np.testing.assert_allclose(
+        math_utils.line_average(x, geo),
+        expected_line_average,
+        rtol=1e-5,
+    )
+
+  def test_volume_average(self):
+    """Test that volume_average is equivalent to an analytical formula."""
+    geo = geometry_pydantic_model.CircularConfig(
+        n_rho=200,
+        elongation_LCFS=1.0,
+    ).build_geometry()
+
+    x = geo.rho_norm
+    # For circular geometry, vpr = 4*pi^2*rho*Rmin*Rmaj. Do integration by hand.
+    expected_volume_average = 2 / 3
+
+    np.testing.assert_allclose(
+        math_utils.volume_average(x, geo),
+        expected_volume_average,
+        rtol=1e-5,
+    )
+
+  def test_cell_integration_raises_when_shape_mismatch(
+      self,
+  ):
+    geo = geometry_pydantic_model.CircularConfig(n_rho=10).build_geometry()
+    with self.assertRaises(ValueError):
+      math_utils.cell_to_face(jnp.array([1.0]), geo)
 
   @parameterized.named_parameters(
       dict(
@@ -145,7 +217,6 @@ class MathUtilsTest(parameterized.TestCase):
       expected_face_values_except_right: np.ndarray,
       preserved_quantity: math_utils.IntegralPreservationQuantity,
   ):
-    """Test that the cell_to_face method works as expected."""
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=len(cell_values)
     ).build_geometry()

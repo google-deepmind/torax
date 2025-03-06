@@ -426,7 +426,7 @@ def cyclotron_radiation_albajar(
   )
 
   # Scale the profile shape to match the total integrated power loss
-  denom = math_utils.cell_integration(Q_cycl_shape * geo.vpr, geo)
+  denom = math_utils.volume_integration(Q_cycl_shape, geo)
   rescaling_factor = P_cycl_total / denom
   Q_cycl = Q_cycl_shape * rescaling_factor
 

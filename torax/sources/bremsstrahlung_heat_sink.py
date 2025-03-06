@@ -22,6 +22,7 @@ from typing import ClassVar, Literal
 import chex
 import jax
 from jax import numpy as jnp
+from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -123,9 +124,7 @@ def calc_bremsstrahlung(
   P_brem_profile_cell = geometry.face_to_cell(P_brem_profile_face) * 1e6
 
   # In MW
-  P_brem_total = jax.scipy.integrate.trapezoid(
-      P_brem_profile_face * geo.vpr_face, geo.rho_face_norm
-  )
+  P_brem_total = math_utils.volume_integration(P_brem_profile_cell, geo)
   return P_brem_total, P_brem_profile_cell
 
 

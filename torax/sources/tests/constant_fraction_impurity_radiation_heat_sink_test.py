@@ -122,8 +122,8 @@ class ImpurityRadiationConstantFractionTest(
     # The value should be equal to fraction * sum of the (TEMP_EL+TEMP_ION)
     # sources, minus P_ei and P_brems.
     # In this case, that is only the generic_ion_el_heat_source.
-    impurity_radiation_heat_sink_power = math_utils.cell_integration(
-        impurity_radiation_heat_sink_power_density * geo.vpr, geo
+    impurity_radiation_heat_sink_power = math_utils.volume_integration(
+        impurity_radiation_heat_sink_power_density, geo
     )
     chex.assert_trees_all_close(
         impurity_radiation_heat_sink_power,

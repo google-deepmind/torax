@@ -62,6 +62,7 @@ def calculate_plh_scaling_factor(
   """
 
   line_avg_ne = _calculate_line_avg_density(geo, core_profiles)
+
   # LH transition power for deuterium, in W. Eq 3 from Martin 2008.
   P_LH_hi_dens_D = (
       2.15

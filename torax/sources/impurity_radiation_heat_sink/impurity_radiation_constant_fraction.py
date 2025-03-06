@@ -83,15 +83,14 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     if 'sink' not in source_name:
       source_profiles += calculated_source_profiles.temp_ion[source_name]
 
-  Qtot_in = source_profiles
-  Ptot_in = math_utils.cell_integration(Qtot_in * geo.vpr, geo)
-  Vtot = geo.volume_face[-1]
+  Q_total_in = source_profiles
+  P_total_in = math_utils.volume_integration(Q_total_in, geo)
 
   # Calculate the heat sink as a fraction of the total power input
   return (
       -dynamic_source_runtime_params.fraction_of_total_power_density
-      * Ptot_in
-      / Vtot
+      * P_total_in
+      / geo.volume_face[-1]
       * jnp.ones_like(geo.rho),
   )
 

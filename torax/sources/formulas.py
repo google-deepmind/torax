@@ -15,6 +15,7 @@
 """Prescribed formulas for computing source profiles."""
 import jax
 from jax import numpy as jnp
+from torax import math_utils
 from torax.geometry import geometry
 # pylint: disable=invalid-name
 
@@ -30,10 +31,10 @@ def exponential_profile(
 
   The profile is parameterized by (decay_start, width, total) like so:
 
-    | cell = exp(-(decay_start - r) / width)
-    | face = exp(-(decay_start - r_face) / width)
-    | C = total / trapz(vpr_face * face, r_face_norm)
-    | profile = C * cell
+    profile = C * exp(-(decay_start - r) / width)
+
+  Where C is a calculated prefactor to ensure the volume integral of the profile
+  equals `total`.
 
   Args:
     geo: Geometry constants of torus.
@@ -45,13 +46,9 @@ def exponential_profile(
     Exponential profile on the cell grid.
   """
   r = geo.rho_norm
-  r_face = geo.rho_face_norm
   S = jnp.exp(-(decay_start - r) / width)
-  S_face = jnp.exp(-(decay_start - r_face) / width)
   # calculate constant prefactor
-  C = total / jax.scipy.integrate.trapezoid(
-      geo.vpr_face * S_face, geo.rho_face_norm
-  )
+  C = total / math_utils.volume_integration(S, geo)
   return C * S
 
 
@@ -66,10 +63,10 @@ def gaussian_profile(
 
   The profile is parameterized by (center, width, total) like so:
 
-    | cell = exp(-( (r - center)**2 / (2 * width**2) ))
-    | face = exp(-( (r_face - center)**2 / (2 * width**2) ))
-    | C = total / trapz( vpr_face * face, r_face_norm)
-    | profile = C * cell
+    profile = C * exp(-( (r - center)**2 / (2 * width**2) ))
+
+  Where C is a calculated prefactor to ensure the volume integral of the profile
+  equals `total`.
 
   Args:
     geo: Geometry constants of torus.
@@ -81,11 +78,7 @@ def gaussian_profile(
     Gaussian profile on the cell grid.
   """
   r = geo.rho_norm
-  r_face = geo.rho_face_norm
   S = jnp.exp(-((r - center) ** 2) / (2 * width**2))
-  S_face = jnp.exp(-((r_face - center) ** 2) / (2 * width**2))
   # calculate constant prefactor
-  C = total / jax.scipy.integrate.trapezoid(
-      geo.vpr_face * S_face, geo.rho_face_norm
-  )
+  C = total / math_utils.volume_integration(S, geo)
   return C * S

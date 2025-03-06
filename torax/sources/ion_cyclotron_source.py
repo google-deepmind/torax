@@ -25,11 +25,11 @@ import chex
 import flax.linen as nn
 import jax
 from jax import numpy as jnp
-from jax.scipy import integrate
 import jaxtyping as jt
 import numpy as np
 from torax import array_typing
 from torax import interpolated_param
+from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -407,21 +407,13 @@ def icrh_model_func(
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
   # Construct inputs for ToricNN.
-  volume = integrate.trapezoid(geo.vpr_face, geo.rho_face_norm)
-  volume_average_temperature = (
-      integrate.trapezoid(
-          core_profiles.temp_el.face_value() * geo.vpr_face,
-          geo.rho_face_norm,
-      )
-      / volume
+  volume_average_temperature = math_utils.volume_average(
+      core_profiles.temp_el.value, geo
   )
-  volume_average_density = (
-      integrate.trapezoid(
-          core_profiles.ne.face_value() * geo.vpr_face,
-          geo.rho_face_norm,
-      )
-      / volume
+  volume_average_density = math_utils.volume_average(
+      core_profiles.ne.value, geo
   )
+
   # Peaking factors are core w.r.t volume averages.
   temperature_peaking_factor = (
       core_profiles.temp_el.value[0] / volume_average_temperature
@@ -469,9 +461,9 @@ def icrh_model_func(
   power_deposition_all = (
       power_deposition_2T + power_deposition_e + power_deposition_he3
   )
-  # An implicit integration is being done here (using the trapezoid rule)
-  total_power_deposition = jnp.sum(
-      power_deposition_all * geo.vpr * geo.drho_norm
+
+  total_power_deposition = math_utils.volume_integration(
+      power_deposition_all, geo
   )
   power_deposition_he3 /= total_power_deposition
   power_deposition_e /= total_power_deposition

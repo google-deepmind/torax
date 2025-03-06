@@ -87,9 +87,7 @@ def _calculate_integrated_sources(
   qei = core_sources.qei.qei_coef * (
       core_profiles.temp_el.value - core_profiles.temp_ion.value
   )
-  integrated['P_ei_exchange_ion'] = math_utils.cell_integration(
-      qei * geo.vpr, geo
-  )
+  integrated['P_ei_exchange_ion'] = math_utils.volume_integration(qei, geo)
   integrated['P_ei_exchange_el'] = -integrated['P_ei_exchange_ion']
 
   # Initialize total electron and ion powers
@@ -109,11 +107,11 @@ def _calculate_integrated_sources(
     el_profiles = core_sources.temp_el
     if key in ion_profiles and key in el_profiles:
       profile_ion, profile_el = ion_profiles[key], el_profiles[key]
-      integrated[f'{value}_ion'] = math_utils.cell_integration(
-          profile_ion * geo.vpr, geo
+      integrated[f'{value}_ion'] = math_utils.volume_integration(
+          profile_ion, geo
       )
-      integrated[f'{value}_el'] = math_utils.cell_integration(
-          profile_el * geo.vpr, geo
+      integrated[f'{value}_el'] = math_utils.volume_integration(
+          profile_el, geo
       )
       integrated[f'{value}_tot'] = (
           integrated[f'{value}_ion'] + integrated[f'{value}_el']
@@ -128,9 +126,7 @@ def _calculate_integrated_sources(
     # Only populate integrated dict with sources that exist.
     profiles = core_sources.temp_el
     if key in profiles:
-      integrated[f'{value}'] = math_utils.cell_integration(
-          profiles[key] * geo.vpr, geo
-      )
+      integrated[f'{value}'] = math_utils.volume_integration(profiles[key], geo)
       integrated['P_sol_el'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_el'] += integrated[f'{value}']
@@ -139,9 +135,7 @@ def _calculate_integrated_sources(
     # Only populate integrated dict with sources that exist.
     profiles = core_sources.psi
     if key in profiles:
-      integrated[f'{value}'] = math_utils.cell_integration(
-          profiles[key] * geo.spr, geo
-      )
+      integrated[f'{value}'] = math_utils.area_integration(profiles[key], geo)
 
   integrated['P_sol_tot'] = integrated['P_sol_ion'] + integrated['P_sol_el']
   integrated['P_external_tot'] = (
@@ -274,43 +268,25 @@ def make_outputs(
     )
 
   # Calculate q at 95% of the normalized poloidal flux
-  q95 = psi_calculations.calc_q95(
-      psi_norm_face, sim_state.core_profiles.q_face
-  )
+  q95 = psi_calculations.calc_q95(psi_norm_face, sim_state.core_profiles.q_face)
 
   # Calculate te and ti volume average [keV]
-  te_volume_avg = (
-      math_utils.cell_integration(
-          sim_state.core_profiles.temp_el.value * geo.vpr, geo
-      )
-      / geo.volume[-1]
+  te_volume_avg = math_utils.volume_average(
+      sim_state.core_profiles.temp_el.value, geo
   )
-  ti_volume_avg = (
-      math_utils.cell_integration(
-          sim_state.core_profiles.temp_ion.value * geo.vpr, geo
-      )
-      / geo.volume[-1]
+  ti_volume_avg = math_utils.volume_average(
+      sim_state.core_profiles.temp_ion.value, geo
   )
 
   # Calculate ne and ni (main ion) volume and line averages [nref m^-3]
-  ne_volume_avg = (
-      math_utils.cell_integration(
-          sim_state.core_profiles.ne.value * geo.vpr, geo
-      )
-      / geo.volume[-1]
-  )
-  ni_volume_avg = (
-      math_utils.cell_integration(
-          sim_state.core_profiles.ni.value * geo.vpr, geo
-      )
-      / geo.volume[-1]
-  )
-  ne_line_avg = math_utils.cell_integration(
+  ne_volume_avg = math_utils.volume_average(
       sim_state.core_profiles.ne.value, geo
   )
-  ni_line_avg = math_utils.cell_integration(
+  ni_volume_avg = math_utils.volume_average(
       sim_state.core_profiles.ni.value, geo
   )
+  ne_line_avg = math_utils.line_average(sim_state.core_profiles.ne.value, geo)
+  ni_line_avg = math_utils.line_average(sim_state.core_profiles.ni.value, geo)
   fgw_ne_volume_avg = formulas.calculate_greenwald_fraction(
       ne_volume_avg, sim_state.core_profiles, geo
   )
