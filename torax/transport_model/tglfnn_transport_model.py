@@ -62,12 +62,12 @@ OUTPUT_LABELS: Final[list[str]] = ["efe_gb", "efi_gb", "pfi_gb"]
 
 @dataclasses.dataclass
 class TGLFNNModelConfig:
-  n_ensemble: int
+  num_estimators: int  # Number of members of the ensemble
   hidden_size: int
-  n_hidden_layers: int
+  model_size: int  # Number of hidden layers
   dropout: float
-  scale: bool
-  denormalise: bool
+  normalize_input: bool
+  denormalize_output: bool
 
   @classmethod
   def load(cls, config_path: str) -> "TGLFNNModelConfig":
@@ -75,12 +75,14 @@ class TGLFNNModelConfig:
       config = yaml.safe_load(f)
 
     return cls(
-        n_ensemble=config["num_estimators"],
-        hidden_size=512,
-        n_hidden_layers=config["model_size"],
+        num_estimators=config["num_estimators"],
+        hidden_size=config["hidden_size"],
+        model_size=config["model_size"],
         dropout=config["dropout"],
-        scale=config["scale"],
-        denormalise=config["denormalise"],
+        # Scale and denormalise entries in the config.yaml are deprecated; the
+        # input and output of the network should always be normalized/unnormalized
+        normalize_input=True,
+        denormalize_output=True,
     )
 
 
@@ -109,7 +111,7 @@ class TGLFNNModelStats:
 class GaussianMLP(nn.Module):
   """An MLP with dropout, outputting a mean and variance."""
 
-  num_hiddens: int
+  model_size: int  # Number of hidden layers
   hidden_size: int
   dropout: float
   activation: str
@@ -120,7 +122,7 @@ class GaussianMLP(nn.Module):
       x,
       deterministic: bool = False,
   ):
-    for _ in range(self.num_hiddens - 1):
+    for _ in range(self.model_size - 1):
       x = nn.Dense(self.hidden_size)(x)
       x = nn.Dropout(rate=self.dropout, deterministic=deterministic)(x)
       x = _ACTIVATION_FNS[self.activation](x)
@@ -135,8 +137,8 @@ class GaussianMLP(nn.Module):
 class GaussianMLPEnsemble(nn.Module):
   """An ensemble of GaussianMLPs."""
 
-  n_ensemble: int
-  num_hiddens: int
+  num_estimators: int  # Number of ensemble members
+  model_size: int  # Number of hidden layers
   hidden_size: int
   dropout: float
   activation: str
@@ -150,12 +152,12 @@ class GaussianMLPEnsemble(nn.Module):
     ensemble_output = jnp.stack(
         [
             GaussianMLP(
-                self.num_hiddens,
+                self.model_size,
                 self.hidden_size,
                 self.dropout,
                 self.activation,
             )(x, deterministic=deterministic)
-            for _ in range(self.n_ensemble)
+            for _ in range(self.num_estimators)
         ],
         axis=0,
     )
@@ -177,9 +179,9 @@ class TGLFNNModel:
     self.stats = stats
     self.params = params
     self.network = GaussianMLPEnsemble(
-        n_ensemble=config.n_ensemble,
+        num_estimators=config.num_estimators,
         hidden_size=config.hidden_size,
-        num_hiddens=config.n_hidden_layers,
+        model_size=config.model_size,
         dropout=config.dropout,
         activation="relu",
     )
@@ -201,9 +203,9 @@ class TGLFNNModel:
         pytorch_state_dict: dict, config: TGLFNNModelConfig
     ) -> optax.Params:
       params = {}
-      for i in range(config.n_ensemble):
+      for i in range(config.num_estimators):
         model_dict = {}
-        for j in range(config.n_hidden_layers):
+        for j in range(config.model_size):
           layer_dict = {
               "kernel": jnp.array(
                   pytorch_state_dict[f"models.{i}.model.{j * 3}.weight"]
@@ -221,15 +223,15 @@ class TGLFNNModel:
 
     with open(efe_gb_checkpoint_path, "rb") as f:
       efe_gb_params = _convert_pytorch_state_dict(
-          torch.load(f, *args, **kwargs), config
+          torch.load(f, *args, map_location="cpu", **kwargs), config
       )
     with open(efi_gb_checkpoint_path, "rb") as f:
       efi_gb_params = _convert_pytorch_state_dict(
-          torch.load(f, *args, **kwargs), config
+          torch.load(f, *args, map_location="cpu", **kwargs), config
       )
     with open(pfi_gb_checkpoint_path, "rb") as f:
       pfi_gb_params = _convert_pytorch_state_dict(
-          torch.load(f, *args, **kwargs), config
+          torch.load(f, *args, map_location="cpu", **kwargs), config
       )
 
     params = {
@@ -244,7 +246,7 @@ class TGLFNNModel:
       self,
       inputs: jax.Array,
   ) -> dict[str, jax.Array]:
-    if self.config.scale:
+    if self.config.normalize_input:
       inputs = normalize(
           inputs, mean=self.stats.input_mean, stddev=self.stats.input_std
       )
@@ -257,9 +259,21 @@ class TGLFNNModel:
         axis=-2,
     )
 
-    if self.config.denormalise:
-      output = unnormalize(
-          output, mean=self.stats.output_mean, stddev=self.stats.output_std
+    if self.config.denormalize_output:
+      output = jnp.stack(
+          [
+              unnormalize(
+                  output[..., 0],
+                  mean=self.stats.output_mean,
+                  stddev=self.stats.output_std,
+              ),
+              unnormalize(
+                  output[..., 1],
+                  mean=jnp.zeros_like(self.stats.output_mean),
+                  stddev=self.stats.output_std,
+              ),
+          ],
+          axis=-1,
       )
 
     return output
@@ -303,7 +317,7 @@ class TGLFNNTransportModel(tglf_based_transport_model.TGLFBasedTransportModel):
     tglf_inputs_array = jnp.stack(
         [
             jnp.broadcast_to(getattr(tglf_inputs, i), geo.rho_face.shape)
-            for i in self.inputs
+            for i in INPUT_LABELS
         ],
         axis=-1,
     )
