@@ -13,3 +13,5 @@ exposed this as part of the TORAX API.
 If you would like to use this please reach out to us. We aim to expose this
 functionality as part of the TORAX API in the very near future to further
 facilitate the integration of custom models.
+
+For information on JAX-friendly interfacing with ML-surrogates of physics models, see :ref:`interfacing_with_surrogates`.
