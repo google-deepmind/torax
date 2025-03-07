@@ -20,12 +20,12 @@ Functions:
       according to Ryter 2014.
     - calculate_scaling_law_confinement_time: Calculates the predicted
       thermal energy confinement time from a given empirical scaling law.
-    - _calculate_line_avg_density: Calculates line-averaged electron density.
 """
 
 import jax
 from jax import numpy as jnp
 from torax import constants
+from torax import math_utils
 from torax import state
 from torax.geometry import geometry
 
@@ -61,7 +61,9 @@ def calculate_plh_scaling_factor(
       corresponding to the P_LH_min.
   """
 
-  line_avg_ne = _calculate_line_avg_density(geo, core_profiles)
+  line_avg_ne = (
+      math_utils.line_average(core_profiles.ne.value, geo) * core_profiles.nref
+  )
 
   # LH transition power for deuterium, in W. Eq 3 from Martin 2008.
   P_LH_hi_dens_D = (
@@ -186,7 +188,11 @@ def calculate_scaling_law_confinement_time(
   scaled_Ip = core_profiles.currents.Ip_total / 1e6  # convert to MA
   scaled_Ploss = Ploss / 1e6  # convert to MW
   B = geo.B0
-  line_avg_ne = _calculate_line_avg_density(geo, core_profiles) / 1e19
+  line_avg_ne = (
+      math_utils.line_average(core_profiles.ne.value, geo)
+      * core_profiles.nref
+      / 1e19
+  )
   R = geo.Rmaj
   inverse_aspect_ratio = geo.Rmin / geo.Rmaj
 
@@ -210,35 +216,3 @@ def calculate_scaling_law_confinement_time(
       * (1 + triangularity) ** params['triangularity_exponent']
   )
   return tau_scaling
-
-
-def _calculate_line_avg_density(
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-) -> jax.Array:
-  """Calculates line-averaged electron density.
-
-  Line-averaged electron density is poorly defined. In general, the definition
-  is machine-dependent and even shot-dependent since it depends on the usage of
-  a specific interferometry chord. Furthermore, even if we knew the specific
-  chord used, its calculation would depend on magnetic geometry information
-  beyond what is available in StandardGeometry. In lieu of a better solution, we
-  use line-averaged electron density defined on the outer midplane.
-
-  Args:
-    geo: Torus geometry.
-    core_profiles: Core plasma profiles.
-
-  Returns:
-    Line-averaged electron density.
-  """
-  Rmin_out = geo.Rout_face[-1] - geo.Rout_face[0]
-  line_avg_ne = (
-      core_profiles.nref
-      * _trapz(core_profiles.ne.face_value(), geo.Rout_face)
-      / Rmin_out
-  )
-  return line_avg_ne
-
-
-# pylint: enable=invalid-name
