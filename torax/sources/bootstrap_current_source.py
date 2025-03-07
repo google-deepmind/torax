@@ -220,10 +220,7 @@ def calc_sauter_model(
 
   # We don't store q_cell in the evolving core profiles, so we need to
   # recalculate it.
-  q_face, _ = psi_calculations.calc_q(
-      geo=geo,
-      psi=psi,
-  )
+  q_face = psi_calculations.calc_q_face(geo=geo, psi=psi)
   nuestar = (
       6.921e-18
       * q_face

@@ -415,3 +415,33 @@ def stack_geometries(geometries: Sequence[Geometry]) -> Geometry:
   # Create a new object with the stacked data with the same class (i.e.
   # could be child classes of Geometry)
   return first_geo.__class__(**stacked_data)
+
+
+def update_geometries_with_Phibdot(
+    *,
+    dt: chex.Numeric,
+    geo_t: Geometry,
+    geo_t_plus_dt: Geometry,
+) -> tuple[Geometry, Geometry]:
+  """Update Phibdot in the geometry dataclasses used in the time interval.
+
+  Phibdot is used in calc_coeffs to calcuate terms related to time-dependent
+  geometry. It should be set to be the same for geo_t and geo_t_plus_dt for
+  each given time interval. This means that geo_t_plus_dt.Phibdot will not
+  necessarily be the same as the geo_t.Phibdot at the next time step.
+
+  Args:
+    dt: Time step duration.
+    geo_t: The geometry of the torus during this time step of the simulation.
+    geo_t_plus_dt: The geometry of the torus during the next time step of the
+      simulation.
+
+  Returns:
+    Tuple containing:
+      - The geometry of the torus during this time step of the simulation.
+      - The geometry of the torus during the next time step of the simulation.
+  """
+  Phibdot = (geo_t_plus_dt.Phib - geo_t.Phib) / dt
+  geo_t = dataclasses.replace(geo_t, Phibdot=Phibdot)
+  geo_t_plus_dt = dataclasses.replace(geo_t_plus_dt, Phibdot=Phibdot)
+  return geo_t, geo_t_plus_dt

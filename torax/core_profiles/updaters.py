@@ -14,11 +14,19 @@
 
 """Update routines for core_profiles.
 
-Set of routines that updates time-dependent boundary conditions, and updates
-time-dependent prescribed core_profiles that are not evolved by the PDE system.
+Set of routines that relate to updating/creating core profiles from existing
+core profiles.
+
+Includes:
+- finalize_core_profiles: Updates core profiles after each timestep.
+- get_prescribed_core_profile_values: Updates core profiles which are not being
+  evolved by PDE.
+- update_evolving_core_profiles: Updates the evolving variables in the core
+  profiles.
+- compute_boundary_conditions_for_t_plus_dt: Computes boundary conditions for
+  the next timestep and returns updates to State.
 """
 import dataclasses
-import functools
 import jax
 from jax import numpy as jnp
 from torax import array_typing
@@ -31,126 +39,91 @@ from torax.geometry import geometry
 from torax.physics import charge_states
 from torax.physics import formulas
 from torax.physics import psi_calculations
+from torax.sources import source_operations
+from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
 
-
 # pylint: disable=invalid-name
-def _get_charge_states(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    temp_el: cell_variable.CellVariable,
-) -> tuple[
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-]:
-  """Updated charge states based on IonMixtures and electron temperature."""
-  Zi = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      Te=temp_el.value,
-  )
-  Zi_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      Te=temp_el.face_value(),
-  )
-
-  Zimp = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      Te=temp_el.value,
-  )
-  Zimp_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      Te=temp_el.face_value(),
-  )
-
-  return Zi, Zi_face, Zimp, Zimp_face
 
 
-# jitted since also used outside the stepper
-@functools.partial(
-    jax_utils.jit, static_argnames=['static_runtime_params_slice']
-)
-def get_ion_density_and_charge_states(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+@jax_utils.jit
+def finalize_core_profiles(
+    core_profiles: state.CoreProfiles,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    ne: cell_variable.CellVariable,
-    temp_el: cell_variable.CellVariable,
-) -> tuple[
-    cell_variable.CellVariable,
-    cell_variable.CellVariable,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-]:
-  """Updated ion densities based on state.
+    source_profiles: source_profiles_lib.SourceProfiles,
+) -> state.CoreProfiles:
+  """Finalizes core profiles after each timestep.
 
-  Main ion and impurities are each treated as a single effective ion, but could
-  be comparised of multiple species within an IonMixture. The main ion and
-  impurity densities are calculated depending on the Zeff constraint,
-  quasineutrality, and the average impurity charge state which may be
-  temperature dependent.
+  Takes the calculated source profiles and partially updated core profiles and
+  updates the core profiles to their final values for this timestep.
 
-  Zeff = (Zi**2 * ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni*Zi = ne
+  In particular this updates:
+  - currents
+  - psidot
+  - q_face
+  - s_face
 
   Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: Dynamic runtime parameters.
-    geo: Geometry of the tokamak.
-    ne: Electron density profile [nref].
-    temp_el: Electron temperature profile [keV].
+    core_profiles: The core profiles to be finalized.
+    dynamic_runtime_params_slice: The dynamic runtime parameters for this
+      timestep.
+    geo: The geometry of the torus for this timestep.
+    source_profiles: The source profiles for this timestep.
 
   Returns:
-    ni: Ion density profile [nref].
-    nimp: Impurity density profile [nref].
-    Zi: Average charge state of main ion on cell grid [amu].
-      Typically just the average of the atomic numbers since these are normally
-      low Z ions and can be assumed to be fully ionized.
-    Zi_face: Average charge state of main ion on face grid [amu].
-    Zimp: Average charge state of impurities on cell grid [amu].
-    Zimp_face: Average charge state of impurities on face grid [amu].
+    The finalized core profiles for this timestep.
   """
-
-  Zi, Zi_face, Zimp, Zimp_face = _get_charge_states(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      temp_el,
-  )
-
-  Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
-  Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
-
-  dilution_factor = formulas.calculate_main_ion_dilution_factor(Zi, Zimp, Zeff)
-  dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
-      Zi_face[-1], Zimp_face[-1], Zeff_face[-1]
-  )
-
-  ni = cell_variable.CellVariable(
-      value=ne.value * dilution_factor,
-      dr=geo.drho_norm,
-      right_face_grad_constraint=None,
-      right_face_constraint=jnp.array(
-          ne.right_face_constraint * dilution_factor_edge
+  # Calculate psidot
+  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
+  psidot = dataclasses.replace(
+      core_profiles.psidot,
+      value=psi_calculations.calculate_psidot_from_psi_sources(
+          psi_sources=psi_sources,
+          sigma=source_profiles.j_bootstrap.sigma,
+          sigma_face=source_profiles.j_bootstrap.sigma_face,
+          resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+          psi=core_profiles.psi,
+          geo=geo,
       ),
   )
 
-  nimp = cell_variable.CellVariable(
-      value=(ne.value - ni.value * Zi) / Zimp,
-      dr=geo.drho_norm,
-      right_face_grad_constraint=None,
-      right_face_constraint=jnp.array(
-          ne.right_face_constraint - ni.right_face_constraint * Zi[-1]
-      )
-      / Zimp_face[-1],
+  return dataclasses.replace(
+      core_profiles,
+      currents=_get_updated_currents(
+          geo, core_profiles.psi, core_profiles.currents, source_profiles
+      ),
+      psidot=psidot,
+      q_face=psi_calculations.calc_q_face(geo, core_profiles.psi),
+      s_face=psi_calculations.calc_s_face(geo, core_profiles.psi),
   )
-  return ni, nimp, Zi, Zi_face, Zimp, Zimp_face
+
+
+def _get_updated_currents(
+    geo: geometry.Geometry,
+    psi: array_typing.ArrayFloat,
+    currents: state.Currents,
+    source_profiles: source_profiles_lib.SourceProfiles,
+) -> state.Currents:
+  """Updates the currents in the core profiles from the source profiles."""
+  jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(geo, psi)
+  external_current = sum(source_profiles.psi.values())
+  j_bootstrap = source_profiles.j_bootstrap
+  johm = jtot - external_current - j_bootstrap.j_bootstrap
+
+  return state.Currents(
+      jtot=jtot,
+      jtot_face=jtot_face,
+      johm=johm,
+      external_current_source=external_current,
+      j_bootstrap=j_bootstrap.j_bootstrap,
+      j_bootstrap_face=j_bootstrap.j_bootstrap_face,
+      I_bootstrap=j_bootstrap.I_bootstrap,
+      Ip_profile_face=Ip_profile_face,
+      sigma=j_bootstrap.sigma,
+      jtot_hires=currents.jtot_hires,
+  )
 
 
 def _calculate_psi_value_constraint_from_vloop(
@@ -210,12 +183,14 @@ def get_prescribed_core_profile_values(
     )
   else:
     ne_cell_variable = core_profiles.ne
-  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = get_ion_density_and_charge_states(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      ne_cell_variable,
-      temp_el_cell_variable,
+  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+      getters.get_ion_density_and_charge_states(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice,
+          geo,
+          ne_cell_variable,
+          temp_el_cell_variable,
+      )
   )
   ne = ne_cell_variable.value
   ni = ni.value
@@ -265,12 +240,14 @@ def update_evolving_core_profiles(
   psi = get_update(x_new, 'psi')
   ne = get_update(x_new, 'ne')
 
-  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = get_ion_density_and_charge_states(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      ne,
-      temp_el,
+  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+      getters.get_ion_density_and_charge_states(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice,
+          geo,
+          ne,
+          temp_el,
+      )
   )
 
   return dataclasses.replace(

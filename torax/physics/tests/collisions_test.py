@@ -22,6 +22,7 @@ from torax.fvm import cell_variable
 from torax.physics import collisions
 
 
+# pylint: disable=invalid-name
 class CollisionsTest(parameterized.TestCase):
 
   def test_fast_ion_fractional_heating_formula_ion_heating_limit(self):
@@ -52,7 +53,6 @@ class CollisionsTest(parameterized.TestCase):
       dict(Aimp=20.0, Zimp=10.0, Zi=1.0, Ai=2.0, ni=0.9, expected=0.5),
       dict(Aimp=40.0, Zimp=20.0, Zi=1.0, Ai=2.0, ni=0.92, expected=0.5),
   ])
-  # pylint: disable=invalid-name
   def test_calculate_weighted_Zeff(self, Aimp, Zimp, Zi, Ai, ni, expected):
     """Compare `_calculate_weighted_Zeff` to a reference value."""
     ne = 1.0

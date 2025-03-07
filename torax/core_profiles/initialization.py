@@ -23,7 +23,6 @@ from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import getters
-from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import standard_geometry
@@ -72,7 +71,7 @@ def initial_core_profiles(
   )
 
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
-      updaters.get_ion_density_and_charge_states(
+      getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
@@ -130,11 +129,21 @@ def initial_core_profiles(
       source_models,
   )
 
-  # Set psi as source of truth and recalculate jtot, q, s
-  return psi_calculations.update_jtot_q_face_s_face(
-      geo=geo,
-      core_profiles=core_profiles,
+  jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(
+      geo, core_profiles.psi)
+  currents = dataclasses.replace(
+      core_profiles.currents,
+      jtot=jtot,
+      jtot_face=jtot_face,
+      Ip_profile_face=Ip_profile_face,
   )
+  core_profiles = dataclasses.replace(
+      core_profiles,
+      currents=currents,
+      q_face=psi_calculations.calc_q_face(geo, core_profiles.psi),
+      s_face=psi_calculations.calc_s_face(geo, core_profiles.psi),
+  )
+  return core_profiles
 
 
 def _prescribe_currents(
