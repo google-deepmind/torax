@@ -575,63 +575,18 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
           geometry_provider=geometry_provider,
       )
   )
-  geo_t, geo_t_plus_dt = _add_Phibdot(
-      dt, dynamic_runtime_params_slice_t_plus_dt, geo_t, geo_t_plus_dt
-  )
+  if dynamic_runtime_params_slice_t_plus_dt.numerics.calcphibdot:
+    geo_t, geo_t_plus_dt = geometry.update_geometries_with_Phibdot(
+        dt=dt,
+        geo_t=geo_t,
+        geo_t_plus_dt=geo_t_plus_dt,
+    )
 
   return (
       dynamic_runtime_params_slice_t_plus_dt,
       geo_t,
       geo_t_plus_dt,
   )
-
-
-# pylint: disable=invalid-name
-def _add_Phibdot(
-    dt: jnp.ndarray,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo_t: geometry.Geometry,
-    geo_t_plus_dt: geometry.Geometry,
-) -> tuple[geometry.Geometry, geometry.Geometry]:
-  """Update Phibdot in the geometry dataclasses used in the time interval.
-
-  Phibdot is used in calc_coeffs to calcuate terms related to time-dependent
-  geometry. It should be set to be the same for geo_t and geo_t_plus_dt for
-  each given time interval. This means that geo_t_plus_dt.Phibdot will not
-  necessarily be the same as the geo_t.Phibdot at the next time step.
-
-  Args:
-    dt: Time step duration.
-    dynamic_runtime_params_slice: Runtime parameters which may change from time
-      step to time step without triggering recompilations.
-    geo_t: The geometry of the torus during this time step of the simulation.
-    geo_t_plus_dt: The geometry of the torus during the next time step of the
-      simulation.
-
-  Returns:
-    Tuple containing:
-      - The geometry of the torus during this time step of the simulation.
-      - The geometry of the torus during the next time step of the simulation.
-  """
-
-  # Calculate Phibdot for the time interval.
-  # If numerics.calcphibdot is False, set Phibdot to be 0 (useful for testing
-  # purposes)
-  Phibdot = jnp.where(
-      dynamic_runtime_params_slice.numerics.calcphibdot,
-      (geo_t_plus_dt.Phib - geo_t.Phib) / dt,
-      0.0,
-  )
-
-  geo_t = dataclasses.replace(
-      geo_t,
-      Phibdot=Phibdot,
-  )
-  geo_t_plus_dt = dataclasses.replace(
-      geo_t_plus_dt,
-      Phibdot=Phibdot,
-  )
-  return geo_t, geo_t_plus_dt
 
 
 def _provide_core_profiles_t_plus_dt(
