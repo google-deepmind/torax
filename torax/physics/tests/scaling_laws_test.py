@@ -83,7 +83,6 @@ class ScalingLawsTest(parameterized.TestCase):
         0.36 * 10**0.27 * 5**1.25 * 6**1.23 * 3**0.08 * (2.0141 / 3)
     )
     expected_ne_min_P_LH = 0.7 * 10**0.34 * 5**0.62 * 2.0**-0.95 * 3**0.4 / 10
-    # pylint: enable=invalid-name
     np.testing.assert_allclose(
         P_LH_hi_dens / 1e6, expected_PLH_hi_dens, rtol=1e-6
     )
@@ -95,7 +94,6 @@ class ScalingLawsTest(parameterized.TestCase):
       dict(elongation_LCFS=1.0),
       dict(elongation_LCFS=1.5),
   ])
-  # pylint: disable=invalid-name
   def test_calculate_scaling_law_confinement_time(self, elongation_LCFS):
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=25,
@@ -202,7 +200,6 @@ class ScalingLawsTest(parameterized.TestCase):
         * 3**0.20
         * elongation_LCFS**0.80
     )
-    # pylint: enable=invalid-name
     np.testing.assert_allclose(H89P, expected_H89P, rtol=1e-6)
     np.testing.assert_allclose(H98, expected_H98, rtol=1e-6)
     np.testing.assert_allclose(H97L, expected_H97L, rtol=1e-6)

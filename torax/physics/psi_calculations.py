@@ -66,8 +66,8 @@ def update_jtot_q_face_s_face(
   """
 
   jtot, jtot_face, Ip_profile_face = calc_jtot(geo, core_profiles.psi)
-  q_face, _ = calc_q(geo=geo, psi=core_profiles.psi)
-  s_face = calc_s(geo, core_profiles.psi)
+  q_face = calc_q_face(geo, core_profiles.psi)
+  s_face = calc_s_face(geo, core_profiles.psi)
 
   currents = dataclasses.replace(
       core_profiles.currents,
@@ -84,20 +84,11 @@ def update_jtot_q_face_s_face(
   return new_core_profiles
 
 
-def calc_q(
+def calc_q_face(
     geo: geometry.Geometry,
     psi: cell_variable.CellVariable,
-) -> tuple[chex.Array, chex.Array]:
-  """Calculates the q-profile (q) given current (jtot) and poloidal flux (psi).
-
-  Args:
-    geo: Magnetic geometry.
-    psi: Poloidal flux.
-
-  Returns:
-    q_face: q at faces.
-    q: q at cell centers.
-  """
+) -> chex.Array:
+  """Calculates the q-profile on the face grid given poloidal flux (psi)."""
   # iota is standard terminology for 1/q
   inv_iota = jnp.abs(
       (2 * geo.Phib * geo.rho_face_norm[1:]) / psi.face_grad()[1:]
@@ -109,10 +100,7 @@ def calc_q(
   )
 
   q_face = jnp.concatenate([inv_iota0, inv_iota])
-  q_face *= geo.q_correction_factor
-  q = geometry.face_to_cell(q_face)
-
-  return q_face, q
+  return q_face * geo.q_correction_factor
 
 
 def calc_jtot(
@@ -155,18 +143,10 @@ def calc_jtot(
   return jtot, jtot_face, Ip_profile_face
 
 
-def calc_s(
+def calc_s_face(
     geo: geometry.Geometry, psi: cell_variable.CellVariable
 ) -> jax.Array:
-  """Calculates magnetic shear (s) from poloidal flux (psi).
-
-  Args:
-    geo: Torus geometry.
-    psi: Poloidal flux.
-
-  Returns:
-    s_face: Magnetic shear, on the face grid.
-  """
+  """Calculates magnetic shear on the face grid from poloidal flux (psi)."""
 
   # iota (1/q) should have a /2*Phib but we drop it since will cancel out in
   # the s calculation.

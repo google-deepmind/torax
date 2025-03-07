@@ -52,14 +52,8 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
         )
     )
 
-    q_face_calculated, _ = psi_calculations.calc_q(
-        geo,
-        references.psi,
-    )
-
-    q_face_expected = references.q
-
-    np.testing.assert_allclose(q_face_calculated, q_face_expected, rtol=1e-5)
+    q_face_calculated = psi_calculations.calc_q_face(geo, references.psi)
+    np.testing.assert_allclose(q_face_calculated, references.q, rtol=1e-5)
 
   @parameterized.parameters([
       dict(references_getter=torax_refs.circular_references),
@@ -108,11 +102,7 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
         references.runtime_params.numerics.t_initial
     )
 
-    s = psi_calculations.calc_s(
-        geo,
-        references.psi,
-    )
-
+    s = psi_calculations.calc_s_face(geo, references.psi)
     np.testing.assert_allclose(s, references.s, rtol=1e-5)
 
   @parameterized.parameters([

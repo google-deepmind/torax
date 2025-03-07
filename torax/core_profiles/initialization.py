@@ -130,11 +130,21 @@ def initial_core_profiles(
       source_models,
   )
 
-  # Set psi as source of truth and recalculate jtot, q, s
-  return psi_calculations.update_jtot_q_face_s_face(
-      geo=geo,
-      core_profiles=core_profiles,
+  jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(
+      geo, core_profiles.psi)
+  currents = dataclasses.replace(
+      core_profiles.currents,
+      jtot=jtot,
+      jtot_face=jtot_face,
+      Ip_profile_face=Ip_profile_face,
   )
+  core_profiles = dataclasses.replace(
+      core_profiles,
+      currents=currents,
+      q_face=psi_calculations.calc_q_face(geo, core_profiles.psi),
+      s_face=psi_calculations.calc_s_face(geo, core_profiles.psi),
+  )
+  return core_profiles
 
 
 def _prescribe_currents(

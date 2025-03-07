@@ -131,11 +131,8 @@ class ExplicitStepper(linear_theta_method.LinearThetaMethod):
         **updated_boundary_conditions['temp_ion'],
     )
 
-    q_face, _ = psi_calculations.calc_q(
-        geo=geo_t,
-        psi=core_profiles_t.psi,
-    )
-    s_face = psi_calculations.calc_s(geo_t, core_profiles_t.psi)
+    q_face = psi_calculations.calc_q_face(geo_t, core_profiles_t.psi)
+    s_face = psi_calculations.calc_s_face(geo_t, core_profiles_t.psi)
 
     # error isn't used for timestep adaptation for this method.
     # However, too large a timestep will lead to numerical instabilities.
