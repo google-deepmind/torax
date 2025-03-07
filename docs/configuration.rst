@@ -1210,10 +1210,10 @@ parameters pertaining to a specific stepper are defined in the relevant section 
   Critical for stable calculation of stiff transport, at the cost of introducing non-physical lag during transient. Also used for
   the ``linear_step`` initial guess mode in the nonlinear solvers.
 
-``chi_per`` (float = 20.0)
+``chi_per`` (float = 60.0)
   Large heat conductivity used for the Pereverzev-Corrigan term.
 
-``d_per`` (float = 10.0)
+``d_per`` (float = 30.0)
   Large particle diffusion used for the Pereverzev-Corrigan term.
 
 linear
