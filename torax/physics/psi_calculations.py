@@ -15,8 +15,6 @@
 """Calculations related to derived quantities from poloidal flux (psi).
 
 Functions:
-    - update_jtot_q_face_s_face: Updates core profiles with
-      psi-derived quantities.
     - calc_q: Calculates the q-profile (q).
     - calc_jtot: Calculate flux-surface-averaged toroidal current density.
     - calc_s: Calculates magnetic shear (s).
@@ -29,16 +27,11 @@ Functions:
       constraint on the poloidal flux (psi) from Ip.
     - _calc_bpol2: Calculates square of poloidal field (Bp).
 """
-
-import dataclasses
-
 import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
-from torax import jax_utils
-from torax import state
 from torax.fvm import cell_variable
 from torax.fvm import convection_terms
 from torax.fvm import diffusion_terms
@@ -47,41 +40,6 @@ from torax.geometry import geometry
 _trapz = jax.scipy.integrate.trapezoid
 
 # pylint: disable=invalid-name
-
-
-@jax_utils.jit
-def update_jtot_q_face_s_face(
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-) -> state.CoreProfiles:
-  """Updates core profiles with psi-derived quantities.
-
-  Args:
-    geo: Geometry object.
-    core_profiles: Core plasma profiles.
-
-  Returns:
-    Updated core profiles with new jtot, jtot_face, Ip_profile_face, q_face,
-    and s_face.
-  """
-
-  jtot, jtot_face, Ip_profile_face = calc_jtot(geo, core_profiles.psi)
-  q_face = calc_q_face(geo, core_profiles.psi)
-  s_face = calc_s_face(geo, core_profiles.psi)
-
-  currents = dataclasses.replace(
-      core_profiles.currents,
-      jtot=jtot,
-      jtot_face=jtot_face,
-      Ip_profile_face=Ip_profile_face,
-  )
-  new_core_profiles = dataclasses.replace(
-      core_profiles,
-      currents=currents,
-      q_face=q_face,
-      s_face=s_face,
-  )
-  return new_core_profiles
 
 
 def calc_q_face(

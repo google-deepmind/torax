@@ -14,8 +14,18 @@
 
 """Update routines for core_profiles.
 
-Set of routines that updates time-dependent boundary conditions, and updates
-time-dependent prescribed core_profiles that are not evolved by the PDE system.
+Set of routines that relate to updating/creating core profiles from existing
+core profiles.
+
+Includes:
+- finalize_core_profiles: Updates core profiles after each timestep.
+- get_ion_density_and_charge_states: Updates ion densities based on state.
+- get_prescribed_core_profile_values: Updates core profiles which are not being
+  evolved by PDE.
+- update_evolving_core_profiles: Updates the evolving variables in the core
+  profiles.
+- compute_boundary_conditions_for_t_plus_dt: Computes boundary conditions for
+  the next timestep and returns updates to State.
 """
 import dataclasses
 import functools
@@ -31,8 +41,91 @@ from torax.geometry import geometry
 from torax.physics import charge_states
 from torax.physics import formulas
 from torax.physics import psi_calculations
+from torax.sources import source_operations
+from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
+
+# pylint: disable=invalid-name
+
+
+@jax_utils.jit
+def finalize_core_profiles(
+    core_profiles: state.CoreProfiles,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+    source_profiles: source_profiles_lib.SourceProfiles,
+) -> state.CoreProfiles:
+  """Finalizes core profiles after each timestep.
+
+  Takes the calculated source profiles and partially updated core profiles and
+  updates the core profiles to their final values for this timestep.
+
+  In particular this updates:
+  - currents
+  - psidot
+  - q_face
+  - s_face
+
+  Args:
+    core_profiles: The core profiles to be finalized.
+    dynamic_runtime_params_slice: The dynamic runtime parameters for this
+      timestep.
+    geo: The geometry of the torus for this timestep.
+    source_profiles: The source profiles for this timestep.
+
+  Returns:
+    The finalized core profiles for this timestep.
+  """
+  # Calculate psidot
+  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
+  psidot = dataclasses.replace(
+      core_profiles.psidot,
+      value=psi_calculations.calculate_psidot_from_psi_sources(
+          psi_sources=psi_sources,
+          sigma=source_profiles.j_bootstrap.sigma,
+          sigma_face=source_profiles.j_bootstrap.sigma_face,
+          resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+          psi=core_profiles.psi,
+          geo=geo,
+      ),
+  )
+
+  return dataclasses.replace(
+      core_profiles,
+      currents=_get_updated_currents(
+          geo, core_profiles.psi, core_profiles.currents, source_profiles
+      ),
+      psidot=psidot,
+      q_face=psi_calculations.calc_q_face(geo, core_profiles.psi),
+      s_face=psi_calculations.calc_s_face(geo, core_profiles.psi),
+  )
+
+
+def _get_updated_currents(
+    geo: geometry.Geometry,
+    psi: array_typing.ArrayFloat,
+    currents: state.Currents,
+    source_profiles: source_profiles_lib.SourceProfiles,
+) -> state.Currents:
+  """Updates the currents in the core profiles from the source profiles."""
+  jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(geo, psi)
+  external_current = sum(source_profiles.psi.values())
+  j_bootstrap = source_profiles.j_bootstrap
+  johm = jtot - external_current - j_bootstrap.j_bootstrap
+
+  return state.Currents(
+      jtot=jtot,
+      jtot_face=jtot_face,
+      johm=johm,
+      external_current_source=external_current,
+      j_bootstrap=j_bootstrap.j_bootstrap,
+      j_bootstrap_face=j_bootstrap.j_bootstrap_face,
+      I_bootstrap=j_bootstrap.I_bootstrap,
+      Ip_profile_face=Ip_profile_face,
+      sigma=j_bootstrap.sigma,
+      jtot_hires=currents.jtot_hires,
+  )
 
 
 # pylint: disable=invalid-name

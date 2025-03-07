@@ -30,8 +30,6 @@ from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.physics import psi_calculations
-from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
@@ -524,27 +522,13 @@ class SimulationStepFn:
     Returns:
       Finalized ToraxSimState.
     """
-
-    # Update total current, q, and s profiles based on new psi
-    output_state.core_profiles = psi_calculations.update_jtot_q_face_s_face(
-        geo=geo_t_plus_dt,
+    output_state.core_profiles = updaters.finalize_core_profiles(
         core_profiles=output_state.core_profiles,
-    )
-
-    # Update ohmic and bootstrap current based on the new core profiles.
-    output_state.core_profiles = _update_current_distribution(
-        core_sources=output_state.core_sources,
-        core_profiles=output_state.core_profiles,
-    )
-
-    # Update psidot based on the new core profiles.
-    # Will include the phibdot calculation since geo=geo_t_plus_dt.
-    output_state.core_profiles = _update_psidot(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
         geo=geo_t_plus_dt,
-        core_profiles=output_state.core_profiles,
         source_profiles=output_state.core_sources,
     )
+
     output_state = post_processing.make_outputs(
         sim_state=output_state,
         geo=geo_t_plus_dt,
@@ -648,72 +632,6 @@ def _add_Phibdot(
       Phibdot=Phibdot,
   )
   return geo_t, geo_t_plus_dt
-
-
-# pylint: enable=invalid-name
-
-
-def _update_current_distribution(
-    core_profiles: state.CoreProfiles,
-    core_sources: source_profiles_lib.SourceProfiles,
-) -> state.CoreProfiles:
-  """Update bootstrap current based on the new core_profiles."""
-  bootstrap_profile = core_sources.j_bootstrap
-  # Needed for the case where no psi sources are present.
-  external_current = jnp.zeros_like(
-      core_profiles.currents.external_current_source
-  )
-  external_current += sum(core_sources.psi.values())
-
-  johm = (
-      core_profiles.currents.jtot
-      - bootstrap_profile.j_bootstrap
-      - external_current
-  )
-
-  currents = dataclasses.replace(
-      core_profiles.currents,
-      j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
-      I_bootstrap=bootstrap_profile.I_bootstrap,
-      sigma=bootstrap_profile.sigma,
-      johm=johm,
-      external_current_source=external_current,
-  )
-  new_core_profiles = dataclasses.replace(
-      core_profiles,
-      currents=currents,
-  )
-  return new_core_profiles
-
-
-def _update_psidot(
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_profiles: source_profiles_lib.SourceProfiles,
-) -> state.CoreProfiles:
-  """Update psidot based on new core_profiles."""
-  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
-  sigma = source_profiles.j_bootstrap.sigma
-  sigma_face = source_profiles.j_bootstrap.sigma_face
-  psidot = dataclasses.replace(
-      core_profiles.psidot,
-      value=psi_calculations.calculate_psidot_from_psi_sources(
-          psi_sources=psi_sources,
-          sigma=sigma,
-          sigma_face=sigma_face,
-          resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
-          psi=core_profiles.psi,
-          geo=geo,
-      ),
-  )
-
-  new_core_profiles = dataclasses.replace(
-      core_profiles,
-      psidot=psidot,
-  )
-  return new_core_profiles
 
 
 def _provide_core_profiles_t_plus_dt(
