@@ -145,10 +145,7 @@ class QualikizBasedTransportModel(
     # Calculate q and s.
     # Need to recalculate since in the nonlinear solver psi has intermediate
     # states in the iterative solve.
-    q, _ = psi_calculations.calc_q(
-        geo=geo,
-        psi=core_profiles.psi,
-    )
+    q = psi_calculations.calc_q_face(geo=geo, psi=core_profiles.psi)
     smag = psi_calculations.calc_s_rmid(
         geo,
         core_profiles.psi,
