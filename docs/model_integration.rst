@@ -3,7 +3,8 @@
 How to integrate new models
 ###########################
 
-This page shows how to extend TORAX with new models.
+This page shows how to extend the TORAX API with new models.
+
 
 Adding a source model implementation
 ************************************
@@ -342,6 +343,13 @@ TORAX simulation via the config dict and use other functions in
 |torax.config.build_sim|_ to convert those to the objects you can pass into
 ``Sim.create()``. We are working on making this easier, but reach out
 if this is something you need.
+
+
+
+Interfacing with surrogates
+***************************
+
+.. include:: /interfacing_with_surrogates.rst
 
 
 .. |torax.sources| replace:: ``torax.sources``
