@@ -18,12 +18,16 @@ from absl.testing import parameterized
 import jax
 import numpy as np
 from torax import constants
+from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.geometry import standard_geometry
 from torax.physics import psi_calculations
+from torax.sources import runtime_params as source_runtime_params
+from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
+from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import torax_refs
-
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -110,6 +114,79 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
     )
 
     np.testing.assert_allclose(s, references.s, rtol=1e-5)
+
+  @parameterized.parameters([
+      dict(references_getter=torax_refs.circular_references),
+      dict(references_getter=torax_refs.chease_references_Ip_from_chease),
+      dict(
+          references_getter=torax_refs.chease_references_Ip_from_runtime_params
+      ),
+  ])
+  def test_calc_psidot(
+      self, references_getter: Callable[[], torax_refs.References]
+  ):
+    references = references_getter()
+
+    runtime_params = references.runtime_params
+    source_models_builder = source_models_lib.SourceModelsBuilder()
+    source_models_builder.runtime_params['generic_current_source'].mode = (
+        source_runtime_params.Mode.MODEL_BASED
+    )
+    source_models = source_models_builder()
+    dynamic_runtime_params_slice, geo = (
+        torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
+            runtime_params,
+            references.geometry_provider,
+            sources=source_models_builder.runtime_params,
+        )
+    )
+    source_profiles = source_profiles_lib.SourceProfiles(
+        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+            geo
+        ),
+        qei=source_profiles_lib.QeiInfo.zeros(geo),
+    )
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        source_runtime_params=source_models_builder.runtime_params,
+        torax_mesh=geo.torax_mesh,
+    )
+    initial_core_profiles = initialization.initial_core_profiles(
+        static_slice,
+        dynamic_runtime_params_slice,
+        geo,
+        source_models=source_models,
+    )
+    # Updates the calculated source profiles with the standard source profiles.
+    source_profile_builders.build_standard_source_profiles(
+        static_runtime_params_slice=static_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        geo=geo,
+        core_profiles=initial_core_profiles,
+        source_models=source_models,
+        psi_only=True,
+        calculate_anyway=True,
+        calculated_source_profiles=source_profiles,
+    )
+    bootstrap_profiles = source_models.j_bootstrap.get_bootstrap(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
+        geo=geo,
+        core_profiles=initial_core_profiles,
+    )
+
+    psidot_calculated = psi_calculations.calculate_psidot_from_psi_sources(
+        psi_sources=sum(source_profiles.psi.values()),
+        sigma=bootstrap_profiles.sigma,
+        sigma_face=bootstrap_profiles.sigma_face,
+        resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+        psi=references.psi,
+        geo=geo,
+    )
+
+    psidot_expected = references.psidot
+
+    np.testing.assert_allclose(psidot_calculated, psidot_expected, rtol=1e-5)
 
   # pylint: disable=invalid-name
   def test_calc_Wpol(self):

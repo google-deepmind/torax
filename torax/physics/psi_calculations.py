@@ -40,6 +40,8 @@ from torax import constants
 from torax import jax_utils
 from torax import state
 from torax.fvm import cell_variable
+from torax.fvm import convection_terms
+from torax.fvm import diffusion_terms
 from torax.geometry import geometry
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -318,3 +320,79 @@ def calculate_psi_grad_constraint_from_Ip_tot(
       * (16 * jnp.pi**3 * constants.CONSTANTS.mu0 * geo.Phib)
       / (geo.g2g3_over_rhon_face[-1] * geo.F_face[-1])
   )
+
+
+def calculate_psidot_from_psi_sources(
+    *,
+    psi_sources: array_typing.ArrayFloat,
+    sigma: array_typing.ArrayFloat,
+    sigma_face: array_typing.ArrayFloat,
+    resistivity_multiplier: float,
+    psi: cell_variable.CellVariable,
+    geo: geometry.Geometry,
+) -> jax.Array:
+  """Calculates psidot (loop voltage) from the sum of the psi sources."""
+
+  # Calculate transient term
+  consts = constants.CONSTANTS
+  toc_psi = (
+      1.0
+      / resistivity_multiplier
+      * geo.rho_norm
+      * sigma
+      * consts.mu0
+      * 16
+      * jnp.pi**2
+      * geo.Phib**2
+      / geo.F**2
+  )
+  # Calculate diffusion term coefficient
+  d_face_psi = geo.g2g3_over_rhon_face
+  # Add phibdot terms to poloidal flux convection
+  v_face_psi = (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * sigma_face
+      * geo.rho_face_norm**2
+      / geo.F_face**2
+  )
+
+  # Add effective phibdot poloidal flux source term
+  ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
+      sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
+  )
+
+  psi_sources += (
+      -8.0
+      * jnp.pi**2
+      * consts.mu0
+      * geo.Phibdot
+      * geo.Phib
+      * ddrnorm_sigma_rnorm2_over_f2
+  )
+
+  diffusion_mat, diffusion_vec = diffusion_terms.make_diffusion_terms(
+      d_face_psi, psi
+  )
+
+  # Set the psi convection term for psidot used in ohmic power, always with
+  # the default 'ghost' mode. Impact of different modes would mildly impact
+  # Ohmic power at the LCFS which has negligible impact on simulations.
+  # Allowing it to be configurable introduces more complexity in the code by
+  # needing to pass in the mode from the static_runtime_params across multiple
+  # functions.
+  conv_mat, conv_vec = convection_terms.make_convection_terms(
+      v_face_psi, d_face_psi, psi
+  )
+
+  c_mat = diffusion_mat + conv_mat
+  c = diffusion_vec + conv_vec
+
+  c += psi_sources
+
+  psidot = (jnp.dot(c_mat, psi.value) + c) / toc_psi
+
+  return psidot

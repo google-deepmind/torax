@@ -48,6 +48,7 @@ class References:
   geometry_provider: geometry_provider_lib.GeometryProvider
   psi: fvm.cell_variable.CellVariable
   psi_face_grad: np.ndarray
+  psidot: np.ndarray
   jtot: np.ndarray
   q: np.ndarray
   s: np.ndarray
@@ -160,6 +161,33 @@ def circular_references() -> References:
       51.4117264628835,
       47.64848792277505,
   ]).astype('float64')
+  psidot = np.array([
+      6.15796838096829e-02,
+      7.67776861533454e-02,
+      9.14645450891100e-02,
+      1.05826180471346e-01,
+      1.20797043388939e-01,
+      1.51857197587599e-01,
+      3.66055430824331e-01,
+      1.60920226665232e00,
+      5.35622979148619e00,
+      1.01528185911838e01,
+      1.04684759809395e01,
+      5.86884004424684e00,
+      1.87906989052661e00,
+      4.66830085414812e-01,
+      2.15885154977055e-01,
+      1.83861837131887e-01,
+      1.69158928431288e-01,
+      1.51395781445053e-01,
+      1.29766897536285e-01,
+      1.04971917969482e-01,
+      7.82838019851360e-02,
+      5.16475815738970e-02,
+      2.77752500731658e-02,
+      9.90033116980977e-03,
+      -1.40569237592991e-02,
+  ])
   jtot = np.array([
       2.65603610444476e06,
       2.63507518532550e06,
@@ -248,6 +276,7 @@ def circular_references() -> References:
       geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
+      psidot=psidot,
       jtot=jtot,
       q=q,
       s=s,
@@ -339,6 +368,33 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       50.82736326009893,
       50.41748508435973,
   ]).astype('float64')
+  psidot = np.array([
+      0.01900393199299,
+      0.02502967488295,
+      0.03137343719743,
+      0.03872260497412,
+      0.05304578115468,
+      0.07204449940502,
+      0.11982232309585,
+      0.33599133626923,
+      0.97622066869252,
+      1.79293945666743,
+      1.83253787252562,
+      1.03282506068381,
+      0.34893930670678,
+      0.11119916091885,
+      0.07110748084107,
+      0.0687649756332,
+      0.07024246260073,
+      0.07270482339355,
+      0.07725935134098,
+      0.08187661259011,
+      0.08383698677169,
+      0.11866443718669,
+      0.21390251275037,
+      0.40289033343704,
+      0.61986455206849,
+  ])
   jtot = np.array([
       813157.2571536204,
       864851.9422342945,
@@ -427,6 +483,7 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
+      psidot=psidot,
       jtot=jtot,
       q=q,
       s=s,
@@ -518,6 +575,33 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       64.7771940390875,
       64.25482269382653,
   ]).astype('float64')
+  psidot = np.array([
+      0.02405831545108,
+      0.03169056039557,
+      0.03972149390638,
+      0.04902499960571,
+      0.06715742163186,
+      0.09120822167296,
+      0.15169177157271,
+      0.42534900161173,
+      1.2358354798277,
+      2.26973763607176,
+      2.31986038070078,
+      1.30748145802947,
+      0.44173257747467,
+      0.14077087044304,
+      0.09001802852518,
+      0.08705341319902,
+      0.08892506417214,
+      0.09204402879046,
+      0.0978123708192,
+      0.10366110216499,
+      0.10614720189507,
+      0.15024986030514,
+      0.27085114402416,
+      0.51017615337295,
+      0.78493833987809,
+  ])
   jtot = np.array([
       1036332.4408819571,
       1102214.9976678425,
@@ -606,6 +690,7 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
+      psidot=psidot,
       jtot=jtot,
       q=q,
       s=s,

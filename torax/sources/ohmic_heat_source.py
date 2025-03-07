@@ -19,97 +19,15 @@ import dataclasses
 from typing import ClassVar, Literal
 
 import chex
-import jax
 import jax.numpy as jnp
-from torax import constants
 from torax import state
 from torax.config import runtime_params_slice
-from torax.fvm import cell_variable
-from torax.fvm import convection_terms
-from torax.fvm import diffusion_terms
 from torax.geometry import geometry
 from torax.physics import psi_calculations
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_operations
 from torax.sources import source_profiles as source_profiles_lib
-
-
-def calculate_psidot_from_psi_sources(
-    *,
-    source_profiles: source_profiles_lib.SourceProfiles,
-    resistivity_multiplier: float,
-    psi: cell_variable.CellVariable,
-    geo: geometry.Geometry,
-) -> jax.Array:
-  """Calculates psidot (loop voltage) from precalculated sources."""
-  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
-  sigma = source_profiles.j_bootstrap.sigma
-  sigma_face = source_profiles.j_bootstrap.sigma_face
-
-  # Calculate transient term
-  consts = constants.CONSTANTS
-  toc_psi = (
-      1.0
-      / resistivity_multiplier
-      * geo.rho_norm
-      * sigma
-      * consts.mu0
-      * 16
-      * jnp.pi**2
-      * geo.Phib**2
-      / geo.F**2
-  )
-  # Calculate diffusion term coefficient
-  d_face_psi = geo.g2g3_over_rhon_face
-  # Add phibdot terms to poloidal flux convection
-  v_face_psi = (
-      -8.0
-      * jnp.pi**2
-      * consts.mu0
-      * geo.Phibdot
-      * geo.Phib
-      * sigma_face
-      * geo.rho_face_norm**2
-      / geo.F_face**2
-  )
-
-  # Add effective phibdot poloidal flux source term
-  ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
-      sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
-  )
-
-  psi_sources += (
-      -8.0
-      * jnp.pi**2
-      * consts.mu0
-      * geo.Phibdot
-      * geo.Phib
-      * ddrnorm_sigma_rnorm2_over_f2
-  )
-
-  diffusion_mat, diffusion_vec = diffusion_terms.make_diffusion_terms(
-      d_face_psi, psi
-  )
-
-  # Set the psi convection term for psidot used in ohmic power, always with
-  # the default 'ghost' mode. Impact of different modes would mildly impact
-  # Ohmic power at the LCFS which has negligible impact on simulations.
-  # Allowing it to be configurable introduces more complexity in the code by
-  # needing to pass in the mode from the static_runtime_params across multiple
-  # functions.
-  conv_mat, conv_vec = convection_terms.make_convection_terms(
-      v_face_psi, d_face_psi, psi
-  )
-
-  c_mat = diffusion_mat + conv_mat
-  c = diffusion_vec + conv_vec
-
-  c += psi_sources
-
-  psidot = (jnp.dot(c_mat, psi.value) + c) / toc_psi
-
-  return psidot
 
 
 def ohmic_model_func(
@@ -132,8 +50,15 @@ def ohmic_model_func(
       geo,
       core_profiles.psi,
   )
-  psidot = calculate_psidot_from_psi_sources(
-      source_profiles=calculated_source_profiles,
+  psi_sources = source_operations.sum_sources_psi(
+      geo, calculated_source_profiles
+  )
+  sigma = calculated_source_profiles.j_bootstrap.sigma
+  sigma_face = calculated_source_profiles.j_bootstrap.sigma_face
+  psidot = psi_calculations.calculate_psidot_from_psi_sources(
+      psi_sources=psi_sources,
+      sigma=sigma,
+      sigma_face=sigma_face,
       resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
       psi=core_profiles.psi,
       geo=geo,
@@ -144,6 +69,7 @@ def ohmic_model_func(
 
 class OhmicHeatSourceConfig(runtime_params_lib.SourceModelBase):
   """Configuration for the OhmicHeatSource."""
+
   source_name: Literal['ohmic_heat_source'] = 'ohmic_heat_source'
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
