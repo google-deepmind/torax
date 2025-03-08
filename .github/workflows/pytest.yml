@@ -67,11 +67,10 @@ jobs:
     - run: echo "TORAX_QLKNN_MODEL_PATH=$PWD/qlknn-hyper" >> "$GITHUB_ENV"
 
     - run: pip --version
-    - name: Force clean reinstall of SciPy and NumPy
-      run: |
-        pip uninstall -y numpy scipy
-        pip install --no-cache-dir --no-binary :all: numpy
-        pip install --no-cache-dir --no-binary :all: scipy
+    # - name: Force clean reinstall of SciPy and NumPy
+    #   run: |
+    #     pip uninstall -y scipy
+    #     pip install --no-cache-dir --no-binary :all: scipy
     - run: pip install -e .[dev]
     - run: pip freeze
 
