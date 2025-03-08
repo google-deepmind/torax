@@ -29,6 +29,7 @@ import chex
 import contourpy
 import numpy as np
 import scipy
+from scipy.signal import savgol_filter
 from torax import constants
 from torax import interpolated_param
 from torax import jax_utils
@@ -1209,7 +1210,7 @@ def _smooth_savgol(
   """
   if idx_limit == 0:
     return data
-  smoothed_data = scipy.signal.savgol_filter(
+  smoothed_data = savgol_filter(
       data, window_length, polyorder, mode='nearest'
   )
   first_point = data[0] if preserve_first else smoothed_data[0]
