@@ -97,6 +97,8 @@ def calc_pprime(
 
   prefactor = constants.CONSTANTS.keV2J * core_profiles.nref
 
+  _, _, p_total = calculate_pressure(core_profiles)
+  psi = core_profiles.psi.face_value()
   ne = core_profiles.ne.face_value()
   ni = core_profiles.ni.face_value()
   nimp = core_profiles.nimp.face_value()
@@ -117,8 +119,14 @@ def calc_pprime(
       + dni_drhon * temp_ion
       + dnimp_drhon * temp_ion
   )
-  # Calculate on-axis value with L'Hôpital's rule.
-  pprime_face_axis = jnp.expand_dims(dptot_drhon[1] / dpsi_drhon[1], axis=0)
+
+  # Calculate on-axis value with L'Hôpital's rule using 2nd order forward
+  # difference approximation for second derivative at edge.
+  pprime_face_axis = jnp.expand_dims(
+      (2 * p_total[0] - 5 * p_total[1] + 4 * p_total[2] - p_total[3])
+      / (2 * psi[0] - 5 * psi[1] + 4 * psi[2] - psi[3]),
+      axis=0,
+  )
 
   # Zero on-axis due to boundary conditions. Avoid division by zero.
   pprime_face = jnp.concatenate(
