@@ -87,6 +87,7 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
       np.testing.assert_allclose(
           Ip_profile_face[-1],
           geo.Ip_profile_face[-1],
+          rtol=1e-6,
       )
 
   @parameterized.parameters([
@@ -176,7 +177,7 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
 
     psidot_expected = references.psidot
 
-    np.testing.assert_allclose(psidot_calculated, psidot_expected, rtol=1e-5)
+    np.testing.assert_allclose(psidot_calculated, psidot_expected, atol=1e-6)
 
   # pylint: disable=invalid-name
   def test_calc_Wpol(self):

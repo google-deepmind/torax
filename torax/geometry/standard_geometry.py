@@ -36,10 +36,9 @@ from torax.geometry import geometry
 from torax.geometry import geometry_loader
 from torax.geometry import geometry_provider
 
-
-# Using invalid-name because we are using the same naming convention as the
-# external physics implementations
 # pylint: disable=invalid-name
+
+_RHO_SMOOTHING_LIMIT = 0.1
 
 
 @chex.dataclass(frozen=True)
@@ -65,10 +64,10 @@ class StandardGeometry(geometry.Geometry):
       [:math:`\mathrm{A/m^2}`].
     jtot_face: Total toroidal current density profile on the face grid
       [:math:`\mathrm{A/m^2}`].
-    delta_upper_face: Upper triangularity on the face grid [dimensionless].
-      See `Geometry` docstring for definition.
-    delta_lower_face: Lower triangularity on the face grid [dimensionless].
-      See `Geometry` docstring for definition.
+    delta_upper_face: Upper triangularity on the face grid [dimensionless]. See
+      `Geometry` docstring for definition of `delta_upper_face`.
+    delta_lower_face: Lower triangularity on the face grid [dimensionless]. See
+      `Geometry` docstring for definition of `delta_lower_face`.
   """
 
   Ip_from_parameters: bool
@@ -121,8 +120,8 @@ class StandardGeometryIntermediates:
   All inputs are 1D profiles vs normalized rho toroidal (rhon).
 
   Attributes:
-    geometry_type:  The type of geometry being represented
-      (e.g., CHEASE, FBT, EQDSK).
+    geometry_type:  The type of geometry being represented (e.g., CHEASE, FBT,
+      EQDSK).
     Ip_from_parameters: If True, the Ip is taken from the parameters and the
       values in the Geometry are rescaled to match the new Ip.
     Rmaj: major radius on the magnetic axis in [:math:`\mathrm{m}`].
@@ -135,31 +134,31 @@ class StandardGeometryIntermediates:
       [:math:`\mathrm{m}`]. Inboard side is defined as the innermost radius.
     Rout: Radius of the flux surface at the outboard side at midplane
       [:math:`\mathrm{m}`]. Outboard side is defined as the outermost radius.
-    F: Toroidal field flux function (:math:`F = R B_{\phi}`)
-      [:math:`\mathrm{m T}`].
-    int_dl_over_Bp: :math:`\oint dl/B_p` (field-line contour integral
-      on the flux surface) [:math:`\mathrm{m / T}`], where :math:`B_p` is the
-      poloidal magnetic field.
+    F: Toroidal field flux function (:math:`F = R B_{\phi}`) [:math:`\mathrm{m
+      T}`].
+    int_dl_over_Bp: :math:`\oint dl/B_p` (field-line contour integral on the
+      flux surface) [:math:`\mathrm{m / T}`], where :math:`B_p` is the poloidal
+      magnetic field.
     flux_surf_avg_1_over_R2: Flux surface average of :math:`1/R^2`
       [:math:`\mathrm{m^{-2}}`].
     flux_surf_avg_Bp2: Flux surface average of :math:`B_p^2`
       [:math:`\mathrm{T^2}`].
-    flux_surf_avg_RBp: Flux surface average of :math:`R B_p`
-      [:math:`\mathrm{m T}`].
+    flux_surf_avg_RBp: Flux surface average of :math:`R B_p` [:math:`\mathrm{m
+      T}`].
     flux_surf_avg_R2Bp2: Flux surface average of :math:`R^2 B_p^2`
       [:math:`\mathrm{m^2 T^2}`].
-    delta_upper_face: Upper triangularity [dimensionless].
-      See `Geometry` docstring for definition.
-    delta_lower_face: Lower triangularity [dimensionless].
-      See `Geometry` docstring for definition.
-    elongation: Plasma elongation profile [dimensionless].
-      See `Geometry` docstring for definition.
+    delta_upper_face: Upper triangularity [dimensionless]. See `Geometry`
+      docstring for definition.
+    delta_lower_face: Lower triangularity [dimensionless]. See `Geometry`
+      docstring for definition.
+    elongation: Plasma elongation profile [dimensionless]. See `Geometry`
+      docstring for definition.
     vpr:  Profile of dVolume/d(rho_norm), where rho_norm is the normalized
       toroidal flux coordinate [:math:`\mathrm{m^3}`].
     n_rho: Radial grid points (number of cells).
     hires_fac: Grid refinement factor for poloidal flux <--> plasma current
-      calculations. Used to create a higher-resolution grid to improve
-      accuracy when initializing psi from a plasma current profile.
+      calculations. Used to create a higher-resolution grid to improve accuracy
+      when initializing psi from a plasma current profile.
     z_magnetic_axis: z position of magnetic axis [:math:`\mathrm{m}`].
   """
 
@@ -188,8 +187,14 @@ class StandardGeometryIntermediates:
   z_magnetic_axis: chex.Numeric | None
 
   def __post_init__(self):
-    """Extrapolates edge values based on a Cubic spline fit."""
-    # Check if last flux surface is diverted and correct if so
+    """Extrapolates edge values and smooths near-axis values.
+
+    - Edge extrapolation for a subset of attributes based on a Cubic spline fit.
+    - Near-axis smoothing for a subset of attributes based on a Savitzky-Golay
+      filter with an appropriate polynominal order based on the attribute.
+    """
+
+    # Check if last flux surface is diverted and correct via spline fit if so
     if self.flux_surf_avg_Bp2[-1] < 1e-10:
       # Calculate rhon
       rhon = np.sqrt(self.Phi / self.Phi[-1])
@@ -230,6 +235,23 @@ class StandardGeometryIntermediates:
       self.flux_surf_avg_RBp[-1] = set_edge(self.flux_surf_avg_RBp)
       self.flux_surf_avg_R2Bp2[-1] = set_edge(self.flux_surf_avg_R2Bp2)
       self.vpr[-1] = set_edge(self.vpr)
+
+    # Near-axis smoothing of quantities with known near-axis trends with rho
+    rhon = np.sqrt(self.Phi / self.Phi[-1])
+    idx_limit = np.argmin(np.abs(rhon - _RHO_SMOOTHING_LIMIT))
+
+    # Bp goes like rho near-axis. So Bp2 terms are smoothed with order 2,
+    # and Bp terms with order 1. vpr also goes like rho near-axis
+    self.flux_surf_avg_Bp2[:] = _smooth_savgol(
+        self.flux_surf_avg_Bp2, idx_limit, 2
+    )
+    self.flux_surf_avg_R2Bp2[:] = _smooth_savgol(
+        self.flux_surf_avg_R2Bp2, idx_limit, 2
+    )
+    self.flux_surf_avg_RBp[:] = _smooth_savgol(
+        self.flux_surf_avg_RBp, idx_limit, 1
+    )
+    self.vpr[:] = _smooth_savgol(self.vpr, idx_limit, 1)
 
   @classmethod
   def from_chease(
@@ -1161,3 +1183,36 @@ def _validate_fbt_data(
           f"Incorrect shape for key '{key}' in LY data. "
           f'Expected {shape}:, got {LY[key].shape}.'
       )
+
+
+# TODO(b/401502047): Investigate how window_length should depend on the
+# resolution of the data.
+def _smooth_savgol(
+    data: np.ndarray,
+    idx_limit: int,
+    polyorder: int,
+    window_length: int = 5,
+    preserve_first: bool = True,
+) -> np.ndarray:
+  """Smooths data using Savitzky-Golay polynomial filter.
+
+  Args:
+    data: 1D array of data to be smoothed.
+    idx_limit: Index up to which the smoothing is applied.
+    polyorder: Polynomial order of the Savitzky-Golay filter.
+    window_length: Window length of the Savitzky-Golay filter.
+    preserve_first: If True, the first data point is preserved, otherwise it is
+      smoothed.
+
+  Returns:
+    Smoothed data array. No-op if idx_limit is 0 (no smoothing).
+  """
+  if idx_limit == 0:
+    return data
+  smoothed_data = scipy.signal.savgol_filter(
+      data, window_length, polyorder, mode='nearest'
+  )
+  first_point = data[0] if preserve_first else smoothed_data[0]
+  return np.concatenate(
+      [np.array([first_point]), smoothed_data[1:idx_limit], data[idx_limit:]]
+  )
