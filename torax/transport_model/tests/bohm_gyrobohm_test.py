@@ -11,16 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for critical gradient transport model."""
+
 from absl.testing import absltest
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.transport_model import critical_gradient
+from torax.transport_model import bohm_gyrobohm
 
 
 class RuntimeParamsTest(absltest.TestCase):
 
   def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = critical_gradient.RuntimeParams()
+    runtime_params = bohm_gyrobohm.RuntimeParams()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = runtime_params.make_provider(geo.torax_mesh)
     provider.build_dynamic_params(t=0.0)

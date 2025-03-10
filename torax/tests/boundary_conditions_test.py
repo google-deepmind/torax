@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for module torax.boundary_conditions."""
-
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -30,7 +27,6 @@ from torax.sources import source_models as source_models_lib
 
 
 class BoundaryConditionsTest(parameterized.TestCase):
-  """Unit tests for the `torax.boundary_conditions` module."""
 
   @parameterized.parameters(
       dict(

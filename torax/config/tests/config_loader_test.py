@@ -11,20 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for constant transport model."""
+
 from absl.testing import absltest
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.transport_model import constant
+from torax.config import config_loader
 
 
-class RuntimeParamsTest(absltest.TestCase):
+class ConfigLoaderTest(absltest.TestCase):
 
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = constant.RuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
+  def test_import_module(self):
+    """test the import_module function."""
+    module = config_loader.import_module(
+        ".tests.test_data.test_iterhybrid_newton",
+        config_package="torax",
+    )
+    assert hasattr(module, "CONFIG")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   absltest.main()

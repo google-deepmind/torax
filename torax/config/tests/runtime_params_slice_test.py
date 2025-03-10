@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.config.runtime_params_slice."""
-
 import dataclasses
 
 from absl.testing import absltest
@@ -27,7 +25,6 @@ from torax.tests.test_lib import default_sources
 
 
 class RuntimeParamsSliceTest(parameterized.TestCase):
-  """Unit tests for the `runtime_params_slice` module."""
 
   def setUp(self):
     super().setUp()

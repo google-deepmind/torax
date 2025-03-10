@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for qualikiz transport_model transport model."""
 
 import os
 import subprocess
@@ -50,7 +49,6 @@ class RuntimeParamsTest(absltest.TestCase):
 
 
 class QualikizTransportModelTest(absltest.TestCase):
-  """Tests for qualikiz transport model."""
 
   def test_call(self):
     """Tests that the model can be called."""

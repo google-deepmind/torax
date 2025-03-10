@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.transport_model.qualikiz_transport_model."""
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
@@ -65,7 +64,6 @@ def _get_model_inputs(transport: qualikiz_based_transport_model.RuntimeParams):
 
 
 class QualikizTransportModelTest(parameterized.TestCase):
-  """Unit tests for the `torax.transport_model.qualikiz_transport_model` module."""
 
   def test_qualikiz_based_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""

@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.state and torax.updaters."""
-
 import dataclasses
 import functools
 from typing import Callable
@@ -39,7 +37,6 @@ from torax.tests.test_lib import torax_refs
 
 
 class StateTest(torax_refs.ReferenceValueTest):
-  """Unit tests for the `torax.state` module."""
 
   def setUp(self):
     super().setUp()

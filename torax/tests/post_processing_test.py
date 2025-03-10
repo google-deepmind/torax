@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for post_processing.py."""
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -34,7 +32,6 @@ from torax.tests.test_lib import torax_refs
 
 
 class PostProcessingTest(parameterized.TestCase):
-  """Unit tests for the `post_processing` module."""
 
   def setUp(self):
     super().setUp()
