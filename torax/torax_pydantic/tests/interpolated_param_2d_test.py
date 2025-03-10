@@ -15,9 +15,9 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+import pydantic
 from torax.torax_pydantic import interpolated_param_2d
 import xarray as xr
-
 
 RHO_NORM = 'rho_norm'
 TIME_INTERPOLATION_MODE = 'time_interpolation_mode'
@@ -267,6 +267,26 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               value
           ).right_boundary_conditions_defined
       )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='invalid_rho_norm',
+          xarray=xr.DataArray(
+              data=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+              coords={'time': [0.0, 1.0], 'rho_norm': [0.25, 0.5, 1.1]},
+          ),
+      ),
+      dict(
+          testcase_name='invalid_time',
+          xarray=xr.DataArray(
+              data=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+              coords={'time': [-0.1, 1.0], 'rho_norm': [0.25, 0.5, 0.75]},
+          ),
+      ),
+  )
+  def test_invalid_inputs(self, xarray):
+    with self.assertRaises(pydantic.ValidationError):
+      interpolated_param_2d.TimeVaryingArray.model_validate(xarray)
 
 
 if __name__ == '__main__':
