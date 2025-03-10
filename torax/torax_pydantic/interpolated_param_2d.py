@@ -35,7 +35,8 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
 
   Attributes:
     value: A mapping of the form `{time: (rho_norm, values), ...}`, where
-      `rho_norm` and `values` are 1D NumPy arrays of equal length.
+      `rho_norm` and `values` are 1D NumPy arrays of equal length. Note that all
+      `rho_norm` values `x` are in the range `0 <= x <= 1.0`, and `time>=0.0`.
     rho_interpolation_mode: The interpolation mode to use for the rho axis.
     time_interpolation_mode: The interpolation mode to use for the time axis.
     rho_norm_grid: The rho norm grid to use for the interpolation. This is
@@ -44,7 +45,10 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
   """
 
   value: Mapping[
-      float, tuple[pydantic_types.NumpyArray1D, pydantic_types.NumpyArray1D]
+      pydantic.NonNegativeFloat,
+      tuple[
+          pydantic_types.NumpyArray1DUnitInterval, pydantic_types.NumpyArray1D
+      ],
   ]
   rho_interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
