@@ -41,6 +41,7 @@ class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
     rsource: Source Gaussian central location (in normalized r)
     Ptot: Total heating: high default based on total ITER power including alphas
     el_heat_fraction: Electron heating fraction
+    absorption_fraction: Fraction of absorbed power
   """
   source_name: Literal['generic_ion_el_heat_source'] = (
       'generic_ion_el_heat_source'
@@ -54,6 +55,9 @@ class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
   )
   el_heat_fraction: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.66666)
+  )
+  absorption_fraction: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
@@ -71,6 +75,8 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
   # Electron heating fraction
   el_heat_fraction: runtime_params_lib.TimeInterpolatedInput = 0.66666
+  # Fraction of absorbed power
+  absorption_fraction: runtime_params_lib.TimeInterpolatedInput = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   def make_provider(
@@ -89,6 +95,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   rsource: interpolated_param.InterpolatedVarSingleAxis
   Ptot: interpolated_param.InterpolatedVarSingleAxis
   el_heat_fraction: interpolated_param.InterpolatedVarSingleAxis
+  absorption_fraction: interpolated_param.InterpolatedVarSingleAxis
 
   def build_dynamic_params(
       self,
@@ -103,6 +110,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   rsource: array_typing.ScalarFloat
   Ptot: array_typing.ScalarFloat
   el_heat_fraction: array_typing.ScalarFloat
+  absorption_fraction: array_typing.ScalarFloat
 
 
 def calc_generic_heat_source(
@@ -111,6 +119,7 @@ def calc_generic_heat_source(
     w: float,
     Ptot: float,
     el_heat_fraction: float,
+    absorption_fraction: float = 1.0,
 ) -> tuple[chex.Array, chex.Array]:
   """Computes ion/electron heat source terms.
 
@@ -122,13 +131,14 @@ def calc_generic_heat_source(
     w: Gaussian width
     Ptot: total heating
     el_heat_fraction: fraction of heating deposited on electrons
+    absorption_fraction: fraction of absorbed power
 
   Returns:
     source_ion: source term for ions.
     source_el: source term for electrons.
   """
-  # Calculate heat profile.
-  profile = formulas.gaussian_profile(geo, center=rsource, width=w, total=Ptot)
+  absorbed_power = Ptot * absorption_fraction
+  profile = formulas.gaussian_profile(geo, center=rsource, width=w, total=absorbed_power)
   source_ion = profile * (1 - el_heat_fraction)
   source_el = profile * el_heat_fraction
 
@@ -154,6 +164,7 @@ def default_formula(
       dynamic_source_runtime_params.w,
       dynamic_source_runtime_params.Ptot,
       dynamic_source_runtime_params.el_heat_fraction,
+      dynamic_source_runtime_params.absorption_fraction,
   )
   return (ion, el)
 

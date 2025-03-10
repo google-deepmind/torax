@@ -60,6 +60,7 @@ def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
+    dynamic_runtime_params_slice=None,
 ) -> dict[str, jax.Array]:
   """Calculates total integrated internal and external source power and current.
 
@@ -67,6 +68,7 @@ def _calculate_integrated_sources(
     geo: Magnetic geometry
     core_profiles: Kinetic profiles such as temperature and density
     core_sources: Internal and external sources
+    dynamic_runtime_params_slice: Runtime parameters slice for current time step
 
   Returns:
     Dictionary with integrated quantities for all existing sources.
@@ -98,6 +100,7 @@ def _calculate_integrated_sources(
   integrated['P_sol_el'] = integrated['P_ei_exchange_el']
   integrated['P_external_ion'] = jnp.array(0.0)
   integrated['P_external_el'] = jnp.array(0.0)
+  integrated['P_external_injected'] = jnp.array(0.0)
 
   # Calculate integrated sources with convenient names, transformed from
   # TORAX internal names.
@@ -121,6 +124,25 @@ def _calculate_integrated_sources(
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_ion'] += integrated[f'{value}_ion']
         integrated['P_external_el'] += integrated[f'{value}_el']
+        
+        # Track injected power for generic heat source
+        if key == 'generic_ion_el_heat_source' and dynamic_runtime_params_slice is not None:
+          from torax.sources import generic_ion_el_heat_source
+          try:
+            source_params = dynamic_runtime_params_slice.sources[key]
+            if isinstance(source_params, generic_ion_el_heat_source.DynamicRuntimeParams):
+              # Calculate injected power from absorbed power and absorption fraction
+              absorption_fraction = jnp.maximum(source_params.absorption_fraction, constants.CONSTANTS.eps)
+              integrated['P_generic_injected'] = integrated[f'{value}_tot'] / absorption_fraction
+              integrated['P_external_injected'] += integrated['P_generic_injected']
+            else:
+              integrated['P_generic_injected'] = integrated[f'{value}_tot']
+              integrated['P_external_injected'] += integrated['P_generic_injected']
+          except (KeyError, AttributeError):
+            integrated['P_generic_injected'] = integrated[f'{value}_tot']
+            integrated['P_external_injected'] += integrated['P_generic_injected']
+        else:
+          integrated['P_external_injected'] += integrated[f'{value}_tot']
 
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
@@ -130,6 +152,7 @@ def _calculate_integrated_sources(
       integrated['P_sol_el'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_el'] += integrated[f'{value}']
+        integrated['P_external_injected'] += integrated[f'{value}']
 
   for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
@@ -190,13 +213,16 @@ def make_outputs(
       geo,
       sim_state.core_profiles,
       sim_state.core_sources,
+      sim_state.dynamic_runtime_params_slice,
   )
   # Calculate fusion gain with a zero division guard.
   # Total energy released per reaction is 5 times the alpha particle energy.
   Q_fusion = (
-      integrated_sources['P_alpha_tot']
-      * 5.0
-      / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
+      integrated_sources['P_alpha_tot'] * 5.0
+      / (
+          integrated_sources['P_external_injected']
+          + constants.CONSTANTS.eps
+      )
   )
 
   P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (

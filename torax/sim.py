@@ -56,6 +56,7 @@ from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
 import tqdm
 import xarray as xr
+import os
 
 
 def get_initial_state(
@@ -548,154 +549,231 @@ def _run_simulation(
     initial_state: The starting state of the simulation. This includes both the
       state variables which the stepper.Stepper will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
-    step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
-      after one timestep. Note that step_fn determines dt (how long the timestep
-      is). The state_history that run_simulation() outputs comes from these
-      ToraxSimState objects.
-    log_timestep_info: If True, logs basic timestep info, like time, dt, on
-      every step.
-    progress_bar: If True, displays a progress bar.
+    step_fn: The function which is called to advance the state from time t to
+      t + dt. step_fn is typically a stepper.Stepper, which is a class wrapping
+      a __call__ function (i.e. a class method which defines the class as a
+      callable). Steppers may own their own compile-time static objects, which
+      are shared across all invocations of the stepper's __call__ method, such
+      as JAX-compiled functions. For more info, see the stepper.py file.
+    log_timestep_info: Whether to log timing information to stdout.
+    progress_bar: Whether to display a progress bar to visualize progress.
 
   Returns:
-    ToraxSimOutputs, containing information on the sim error state, and the
-    simulation history, consisting of a tuple of ToraxSimState objects, one for
-    each time step. There are N+1 objects returned, where N is the number of
-    simulation steps taken. The first object in the tuple is for the initial
-    state. If the sim error state is 1, then a trunctated simulation history is
-    returned up until the last valid timestep.
+    A ToraxSimOutputs object, which is a tuple of all ToraxSimStates, one per
+    time step, after all the time stepping has completed.
   """
+  # Check the input params.
+  initial_state.check_for_errors()
 
-  # Provide logging information on precision setting
-  if jax.config.read('jax_enable_x64'):
-    logging.info('Precision is set at float64')
-  else:
-    logging.info('Precision is set at float32')
+  is_compilation_enabled = os.environ.get(
+      'TORAX_COMPILATION_ENABLED', 'true'
+  ).lower()
+  if is_compilation_enabled != 'true':
+    print('WARNING: JIT compilation disabled by environment variable.')
 
-  logging.info('Starting simulation.')
-  # Python while loop implementation.
-  # Not efficient for grad, jit of grad.
-  # Uses time_step_calculator.not_done to decide when to stop.
-  # Note: can't use a jax while loop due to appending to history.
-
-  running_main_loop_start_time = time.time()
-  wall_clock_step_times = []
-
-  dynamic_runtime_params_slice, geo = (
-      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-          t=initial_state.t,
-          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-          geometry_provider=geometry_provider,
+  # Fetch initial dynamic runtime params, which will be used for the first time
+  # step to go from t0 to t0 + dt.
+  dynamic_runtime_params_slice_t = (
+      dynamic_runtime_params_slice_provider.get_dynamic_runtime_params(
+          initial_state.t
       )
   )
 
-  sim_state = initial_state
-  sim_history = []
-  sim_state = post_processing.make_outputs(sim_state=sim_state, geo=geo)
-  sim_history.append(sim_state)
+  # The simulation is seeded with an initial state.
+  sim_state_t = initial_state
+  sim_states = [sim_state_t]
 
-  # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
-  # the appropriate error code.
-  sim_error = state.SimError.NO_ERROR
+  # Convert t_final to jax.Array for dtype consistency.
+  t_final = jnp.array(dynamic_runtime_params_slice_t.numerics.t_final)
 
-  with tqdm.tqdm(
-      total=100,  # This makes it so that the progress bar measures a percentage
-      desc='Simulating',
-      disable=not progress_bar,
-      leave=True,
-  ) as pbar:
-    # Advance the simulation until the time_step_calculator tells us we are done
-    while step_fn.time_step_calculator.not_done(
-        sim_state.t,
-        dynamic_runtime_params_slice.numerics.t_final,
-        sim_state.time_step_calculator_state,
-    ):
-      # Measure how long in wall clock time each simulation step takes.
-      step_start_time = time.time()
-      if log_timestep_info:
-        _log_timestep(sim_state)
+  time_step_calculator_state = step_fn.time_step_calculator.initial_state()
+  sim_state_t = dataclasses.replace(
+      sim_state_t, time_step_calculator_state=time_step_calculator_state
+  )
 
-      sim_state, sim_error = step_fn(
+  # Time step counter.
+  i = jnp.array(0)
+
+  # Set some additional values for the progress bar.
+  progress_bar_kwargs = {}
+  if progress_bar:
+    # Guess at how many time steps we'll need, using a dummy amount for unknown.
+    # If we go past it, that's fine, the progress bar will just get extended.
+    numerics = dynamic_runtime_params_slice_t.numerics
+    if hasattr(numerics, 'fixed_dt') and numerics.fixed_dt is not None:
+      try:
+        nsteps = int(np.ceil((t_final - sim_state_t.t) / numerics.fixed_dt))
+      except:  # pylint: disable=bare-except
+        # For anything else, just use an estimate.
+        nsteps = int(np.ceil((t_final - sim_state_t.t) / 0.1))
+    else:
+      # When we don't have a fixed dt, make a guess at the # steps.
+      nsteps = int(np.ceil((t_final - sim_state_t.t) / 0.1))
+    progress_bar_kwargs = {
+        'total': nsteps,
+        'desc': 'Simulation Progress',
+        'bar_format': '{desc}: {percentage:3.0f}%|{bar}| t={postfix}',
+    }
+
+  geo_t = sim_state_t.geometry
+  with tqdm.tqdm(**progress_bar_kwargs) as pbar:
+    # Run until we reach t_final.
+    # Note: We don't use "while t < t_final", instead we use t <= t_final and
+    # then we break inside the loop. This allows us to exactly hit t_final (as a
+    # last step, we would compute the dt to take us exactly to t_final).
+    # If instead we had "while t < t_final", then the sim would stop just shy of
+    # t_final, where the amount shy is the previous step's dt.
+    while sim_state_t.t <= t_final:
+      geo_t = geometry_provider(sim_state_t)
+      # The calculation of residual, and by extension errors, is a crucial part
+      # of the solver. With dt as a parameter, this will calculate the next time
+      # step or give a special code like NO_STEP_SIMULATION_DONE.
+
+      next_time_step = step_fn.time_step_calculator(
           static_runtime_params_slice,
-          dynamic_runtime_params_slice_provider,
-          geometry_provider,
-          sim_state,
+          dynamic_runtime_params_slice_t,
+          geo_t,
+          sim_state_t,
       )
-      wall_clock_step_times.append(time.time() - step_start_time)
 
-      # Checks if sim_state is valid. If not, exit simulation early.
-      # We don't raise an Exception because we want to return the truncated
-      # simulation history to the user for inspection.
-      if sim_error != state.SimError.NO_ERROR:
-        sim_error.log_error()
+      if (
+          next_time_step.time_step_calculator_state.return_code
+          == ts.ReturnCodes.NO_STEP_SIMULATION_DONE
+      ):
         break
-      else:
-        sim_history.append(sim_state)
-        # Calculate progress ratio and update pbar.n
-        progress_ratio = (
-            float(sim_state.t) - dynamic_runtime_params_slice.numerics.t_initial
-        ) / (
-            dynamic_runtime_params_slice.numerics.t_final
-            - dynamic_runtime_params_slice.numerics.t_initial
+
+      dt = next_time_step.dt
+      time_step_calculator_state = next_time_step.time_step_calculator_state
+
+      # If dt is too small, then we're trying to take a sub-minimal time step,
+      # which would result in a barely-advancing simulation. Just stop.
+      if dt < constants.CONSTANTS.dt_min:
+        logging.warning(
+            'dt(%s) < dt_min(%s). Simulation ending early.',
+            dt,
+            constants.CONSTANTS.dt_min,
         )
-        pbar.n = int(progress_ratio * pbar.total)
-        pbar.set_description(f'Simulating (t={sim_state.t:.5f})')
-        pbar.refresh()
+        break
 
-  # Log final timestep
-  if log_timestep_info and sim_error == state.SimError.NO_ERROR:
-    # The "sim_state" here has been updated by the loop above.
-    _log_timestep(sim_state)
+      # If the time step would bring us past t_final, use t_final - t.
+      # This may seem like a useful check, but I believe the time_step_calculator
+      # will never give us a dt that goes past t_final. It explicitly clips dt to
+      # hit t_final exactly.
+      #
+      # I'm going to leave this condition in for now, in case
+      # time_step_calculators other than ChiTimeStepCalculator don't properly
+      # handle this case.
+      if sim_state_t.t + dt > t_final:
+        dt = t_final - sim_state_t.t
 
-  # If the first step of the simulation was very long, call it out. It might
-  # have to do with tracing the jitted step_fn.
-  std_devs = 2  # Check if the first step is more than 2 std devs longer.
-  if wall_clock_step_times and wall_clock_step_times[0] > (
-      np.mean(wall_clock_step_times) + std_devs * np.std(wall_clock_step_times)
-  ):
-    long_first_step = True
-    logging.info(
-        'The first step took more than %.1f std devs longer than other steps. '
-        'It likely was tracing and compiling the step_fn. It took %.2fs '
-        'of wall clock time.',
-        std_devs,
-        wall_clock_step_times[0],
-    )
-  else:
-    long_first_step = False
-
-  wall_clock_time_elapsed = time.time() - running_main_loop_start_time
-  simulation_time = sim_history[-1].t - sim_history[0].t
-  if long_first_step:
-    # Don't include the long first step in the total time logged.
-    wall_clock_time_elapsed -= wall_clock_step_times[0]
-  logging.info(
-      'Simulated %.2fs of physics in %.2fs of wall clock time.',
-      simulation_time,
-      wall_clock_time_elapsed,
-  )
-  return output.ToraxSimOutputs(
-      sim_error=sim_error, sim_history=tuple(sim_history)
-  )
-
-
-def _log_timestep(
-    sim_state: state.ToraxSimState,
-) -> None:
-  """Logs basic timestep info."""
-  log_str = (
-      f'Simulation time: {sim_state.t:.5f}, previous dt: {sim_state.dt:.6f},'
-      ' previous stepper iterations:'
-      f' {sim_state.stepper_numeric_outputs.outer_stepper_iterations}'
-  )
-  # TODO(b/330172917): once tol and coarse_tol are configurable in the
-  # runtime_params, also log the value of tol and coarse_tol below
-  match sim_state.stepper_numeric_outputs.stepper_error_state:
-    case 0:
-      pass
-    case 1:
-      log_str += 'Solver did not converge in previous step.'
-    case 2:
-      log_str += (
-          'Solver converged only within coarse tolerance in previous step.'
+      # Fetch dynamic runtime params for the time t + dt, which will be the
+      # target runtime params for the second half of the time step's implicit
+      # calculations.
+      dynamic_runtime_params_slice_t_plus_dt = (
+          dynamic_runtime_params_slice_provider.get_dynamic_runtime_params(
+              sim_state_t.t + dt
+          )
       )
-  tqdm.tqdm.write(log_str)
+
+      # Fetch geometry for time t + dt (if the geometry is time-dependent).
+      geo_t_plus_dt = geometry_provider(
+          dataclasses.replace(sim_state_t, t=sim_state_t.t + dt)
+      )
+
+      sim_state_t = _run_one_step(
+          sim_state_t.t,
+          dt,
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_t_plus_dt,
+          geo_t,
+          geo_t_plus_dt,
+          step_fn,
+          sim_state_t,
+      )
+
+      sim_state_t = dataclasses.replace(
+          sim_state_t, time_step_calculator_state=time_step_calculator_state
+      )
+
+      sim_states.append(sim_state_t)
+
+      dynamic_runtime_params_slice_t = dynamic_runtime_params_slice_t_plus_dt
+
+      # Display time for user.
+      if pbar is not None:
+        pbar.update(1)
+        pbar.set_postfix_str(f'{sim_state_t.t:.3f} s')
+
+      # Detailed log line.
+      if log_timestep_info:
+        _log_timestep(i, sim_state_t)
+
+      # Time step counter.
+      i += 1
+
+  return output.ToraxSimOutputs(sim_states)
+
+
+def _log_timestep(i: jnp.ndarray, sim_state: state.ToraxSimState):
+  """Logs info about the current time step.
+
+  Args:
+    i: The timestep counter
+    sim_state: Current state of the simulation.
+  """
+  logging.info(
+      'STEP %4d: t=%8.5f, dt=%8.5e',
+      int(i),
+      float(sim_state.t),
+      float(sim_state.dt),
+  )
+
+
+def _run_one_step(
+    t: jax.Array,
+    dt: jax.Array,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo_t: geometry.Geometry,
+    geo_t_plus_dt: geometry.Geometry,
+    step_fn: step_function.SimulationStepFn,
+    sim_state: state.ToraxSimState,
+) -> state.ToraxSimState:
+  """Apply one update step to the state at time t."""
+  # To get the new core profiles, we run the stepper, which may modify implicit
+  # source profiles as well. The `step_fn` has access to (possibly internal to
+  # jax.jit) the simulation's static params, thereby avoiding generating new
+  # traces on every internal jax.jit compiled function. The `step_fn`
+  # calculates the current transport coefficients as well.
+  step_fn_result = step_fn(
+      dt,
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice_t,
+      dynamic_runtime_params_slice_t_plus_dt,
+      geo_t,
+      geo_t_plus_dt,
+      sim_state,
+  )
+  # Unpack the stepper result.
+  core_profiles_t_plus_dt, core_sources_t_plus_dt, core_transport_t_plus_dt, stepper_numeric_outputs = (
+      step_fn_result
+  )
+
+  # Apply any post-processing steps needed.
+  sim_state_t_plus_dt = dataclasses.replace(
+      sim_state,
+      t=t + dt,
+      dt=dt,
+      core_profiles=core_profiles_t_plus_dt,
+      core_sources=core_sources_t_plus_dt,
+      core_transport=core_transport_t_plus_dt,
+      stepper_numeric_outputs=stepper_numeric_outputs,
+      geometry=geo_t_plus_dt,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+  )
+  sim_state_t_plus_dt = post_processing.make_outputs(
+      sim_state_t_plus_dt, sim_state
+  )
+  return sim_state_t_plus_dt
