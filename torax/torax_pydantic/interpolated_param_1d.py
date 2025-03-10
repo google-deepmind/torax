@@ -15,13 +15,15 @@
 """Classes and functions for defining interpolated parameters."""
 
 import functools
-from typing import Any
+from typing import Any, TypeAlias
 
 import chex
+import numpy as np
 import pydantic
 from torax import interpolated_param
 from torax.torax_pydantic import model_base
 from torax.torax_pydantic import pydantic_types
+from typing_extensions import Annotated
 
 
 class TimeVaryingScalar(model_base.BaseModelFrozen):
@@ -101,3 +103,13 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
         interpolation_mode=self.interpolation_mode,
         is_bool_param=self.is_bool_param,
     )
+
+
+def _is_positive(time_varying_scalar: TimeVaryingScalar) -> TimeVaryingScalar:
+  if not np.all(time_varying_scalar.value > 0):
+    raise ValueError('All values must be positive.')
+  return time_varying_scalar
+
+PositiveTimeVaryingScalar: TypeAlias = Annotated[
+    TimeVaryingScalar, pydantic.AfterValidator(_is_positive)
+]

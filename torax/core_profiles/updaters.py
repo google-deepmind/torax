@@ -345,20 +345,14 @@ def compute_boundary_conditions_for_t_plus_dt(
     each CellVariable in the state. This dict can in theory recursively replace
     values in a State object.
   """
-  Ti_bound_right = jax_utils.error_if_not_positive(
-      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.Ti_bound_right,
-      'Ti_bound_right',
-  )
-
-  Te_bound_right = jax_utils.error_if_not_positive(
-      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.Te_bound_right,
-      'Te_bound_right',
+  profile_conditions_t_plus_dt = (
+      dynamic_runtime_params_slice_t_plus_dt.profile_conditions
   )
   # TODO(b/390143606): Separate out the boundary condition calculation from the
   # core profile calculation.
   ne = getters.get_updated_electron_density(
       dynamic_runtime_params_slice_t_plus_dt.numerics,
-      dynamic_runtime_params_slice_t_plus_dt.profile_conditions,
+      profile_conditions_t_plus_dt,
       geo_t_plus_dt,
   )
   ne_bound_right = ne.right_face_constraint
@@ -366,12 +360,12 @@ def compute_boundary_conditions_for_t_plus_dt(
   Zi_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.main_ion_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.main_ion,
-      Te=Te_bound_right,
+      Te=profile_conditions_t_plus_dt.Te_bound_right,
   )
   Zimp_edge = charge_states.get_average_charge_state(
       static_runtime_params_slice.impurity_names,
       ion_mixture=dynamic_runtime_params_slice_t_plus_dt.plasma_composition.impurity,
-      Te=Te_bound_right,
+      Te=profile_conditions_t_plus_dt.Te_bound_right,
   )
 
   dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
@@ -387,12 +381,12 @@ def compute_boundary_conditions_for_t_plus_dt(
       'temp_ion': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(Ti_bound_right),
+          right_face_constraint=profile_conditions_t_plus_dt.Ti_bound_right,
       ),
       'temp_el': dict(
           left_face_grad_constraint=jnp.zeros(()),
           right_face_grad_constraint=None,
-          right_face_constraint=jnp.array(Te_bound_right),
+          right_face_constraint=profile_conditions_t_plus_dt.Te_bound_right,
       ),
       'ne': dict(
           left_face_grad_constraint=jnp.zeros(()),
@@ -412,21 +406,21 @@ def compute_boundary_conditions_for_t_plus_dt(
       'psi': dict(
           right_face_grad_constraint=(
               psi_calculations.calculate_psi_grad_constraint_from_Ip_tot(  # pylint: disable=g-long-ternary
-                  Ip_tot=dynamic_runtime_params_slice_t_plus_dt.profile_conditions.Ip_tot,
+                  Ip_tot=profile_conditions_t_plus_dt.Ip_tot,
                   geo=geo_t_plus_dt,
               )
-              if not dynamic_runtime_params_slice_t_plus_dt.profile_conditions.use_vloop_lcfs_boundary_condition
+              if not profile_conditions_t_plus_dt.use_vloop_lcfs_boundary_condition
               else None
           ),
           right_face_constraint=(
               _calculate_psi_value_constraint_from_vloop(  # pylint: disable=g-long-ternary
                   dt=dt,
                   vloop_lcfs_t=dynamic_runtime_params_slice_t.profile_conditions.vloop_lcfs,
-                  vloop_lcfs_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs,
+                  vloop_lcfs_t_plus_dt=profile_conditions_t_plus_dt.vloop_lcfs,
                   psi_lcfs_t=core_profiles_t.psi.face_value()[-1],
                   theta=static_runtime_params_slice.stepper.theta_imp,
               )
-              if dynamic_runtime_params_slice_t_plus_dt.profile_conditions.use_vloop_lcfs_boundary_condition
+              if profile_conditions_t_plus_dt.use_vloop_lcfs_boundary_condition
               else None
           ),
       ),
