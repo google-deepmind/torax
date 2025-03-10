@@ -23,7 +23,6 @@ from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import getters
-from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import standard_geometry
@@ -72,7 +71,7 @@ def initial_core_profiles(
   )
 
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
-      updaters.get_ion_density_and_charge_states(
+      getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,

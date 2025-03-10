@@ -19,7 +19,6 @@ core profiles.
 
 Includes:
 - finalize_core_profiles: Updates core profiles after each timestep.
-- get_ion_density_and_charge_states: Updates ion densities based on state.
 - get_prescribed_core_profile_values: Updates core profiles which are not being
   evolved by PDE.
 - update_evolving_core_profiles: Updates the evolving variables in the core
@@ -28,7 +27,6 @@ Includes:
   the next timestep and returns updates to State.
 """
 import dataclasses
-import functools
 import jax
 from jax import numpy as jnp
 from torax import array_typing
@@ -128,124 +126,6 @@ def _get_updated_currents(
   )
 
 
-# pylint: disable=invalid-name
-def _get_charge_states(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    temp_el: cell_variable.CellVariable,
-) -> tuple[
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-]:
-  """Updated charge states based on IonMixtures and electron temperature."""
-  Zi = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      Te=temp_el.value,
-  )
-  Zi_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.main_ion_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.main_ion,
-      Te=temp_el.face_value(),
-  )
-
-  Zimp = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      Te=temp_el.value,
-  )
-  Zimp_face = charge_states.get_average_charge_state(
-      ion_symbols=static_runtime_params_slice.impurity_names,
-      ion_mixture=dynamic_runtime_params_slice.plasma_composition.impurity,
-      Te=temp_el.face_value(),
-  )
-
-  return Zi, Zi_face, Zimp, Zimp_face
-
-
-# jitted since also used outside the stepper
-@functools.partial(
-    jax_utils.jit, static_argnames=['static_runtime_params_slice']
-)
-def get_ion_density_and_charge_states(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    ne: cell_variable.CellVariable,
-    temp_el: cell_variable.CellVariable,
-) -> tuple[
-    cell_variable.CellVariable,
-    cell_variable.CellVariable,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-    array_typing.ArrayFloat,
-]:
-  """Updated ion densities based on state.
-
-  Main ion and impurities are each treated as a single effective ion, but could
-  be comparised of multiple species within an IonMixture. The main ion and
-  impurity densities are calculated depending on the Zeff constraint,
-  quasineutrality, and the average impurity charge state which may be
-  temperature dependent.
-
-  Zeff = (Zi**2 * ni + Zimp**2 * nimp)/ne  ;  nimp*Zimp + ni*Zi = ne
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: Dynamic runtime parameters.
-    geo: Geometry of the tokamak.
-    ne: Electron density profile [nref].
-    temp_el: Electron temperature profile [keV].
-
-  Returns:
-    ni: Ion density profile [nref].
-    nimp: Impurity density profile [nref].
-    Zi: Average charge state of main ion on cell grid [amu].
-      Typically just the average of the atomic numbers since these are normally
-      low Z ions and can be assumed to be fully ionized.
-    Zi_face: Average charge state of main ion on face grid [amu].
-    Zimp: Average charge state of impurities on cell grid [amu].
-    Zimp_face: Average charge state of impurities on face grid [amu].
-  """
-
-  Zi, Zi_face, Zimp, Zimp_face = _get_charge_states(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      temp_el,
-  )
-
-  Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
-  Zeff_face = dynamic_runtime_params_slice.plasma_composition.Zeff_face
-
-  dilution_factor = formulas.calculate_main_ion_dilution_factor(Zi, Zimp, Zeff)
-  dilution_factor_edge = formulas.calculate_main_ion_dilution_factor(
-      Zi_face[-1], Zimp_face[-1], Zeff_face[-1]
-  )
-
-  ni = cell_variable.CellVariable(
-      value=ne.value * dilution_factor,
-      dr=geo.drho_norm,
-      right_face_grad_constraint=None,
-      right_face_constraint=jnp.array(
-          ne.right_face_constraint * dilution_factor_edge
-      ),
-  )
-
-  nimp = cell_variable.CellVariable(
-      value=(ne.value - ni.value * Zi) / Zimp,
-      dr=geo.drho_norm,
-      right_face_grad_constraint=None,
-      right_face_constraint=jnp.array(
-          ne.right_face_constraint - ni.right_face_constraint * Zi[-1]
-      )
-      / Zimp_face[-1],
-  )
-  return ni, nimp, Zi, Zi_face, Zimp, Zimp_face
-
-
 def _calculate_psi_value_constraint_from_vloop(
     dt: array_typing.ScalarFloat,
     theta: array_typing.ScalarFloat,
@@ -303,12 +183,14 @@ def get_prescribed_core_profile_values(
     )
   else:
     ne_cell_variable = core_profiles.ne
-  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = get_ion_density_and_charge_states(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      ne_cell_variable,
-      temp_el_cell_variable,
+  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+      getters.get_ion_density_and_charge_states(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice,
+          geo,
+          ne_cell_variable,
+          temp_el_cell_variable,
+      )
   )
   ne = ne_cell_variable.value
   ni = ni.value
@@ -358,12 +240,14 @@ def update_evolving_core_profiles(
   psi = get_update(x_new, 'psi')
   ne = get_update(x_new, 'ne')
 
-  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = get_ion_density_and_charge_states(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      ne,
-      temp_el,
+  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+      getters.get_ion_density_and_charge_states(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice,
+          geo,
+          ne,
+          temp_el,
+      )
   )
 
   return dataclasses.replace(

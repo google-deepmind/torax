@@ -26,7 +26,7 @@ from torax import jax_utils
 from torax import state
 from torax.config import config_args
 from torax.config import runtime_params_slice
-from torax.core_profiles import updaters
+from torax.core_profiles import getters
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.geometry import geometry
@@ -118,7 +118,7 @@ class CoeffsCallback:
     if 'ne' in self.evolving_names or 'temp_el' in self.evolving_names:
       # pylint: disable=invalid-name
       ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
-          updaters.get_ion_density_and_charge_states(
+          getters.get_ion_density_and_charge_states(
               self.static_runtime_params_slice,
               dynamic_runtime_params_slice,
               geo,
