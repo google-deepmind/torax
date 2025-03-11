@@ -415,27 +415,6 @@ def _calc_coeffs_full(
       explicit=False,
       explicit_source_profiles=explicit_source_profiles,
   )
-  j_bootstrap = merged_source_profiles.j_bootstrap
-
-  # Sum over all psi sources (except the bootstrap current).
-  # Needed to ensure the correct shape if no psi sources are present.
-  external_current = jnp.zeros_like(geo.rho)
-  external_current += sum(merged_source_profiles.psi.values())
-
-  currents = dataclasses.replace(
-      core_profiles.currents,
-      j_bootstrap=j_bootstrap.j_bootstrap,
-      j_bootstrap_face=j_bootstrap.j_bootstrap_face,
-      external_current_source=external_current,
-      johm=(
-          core_profiles.currents.jtot
-          - j_bootstrap.j_bootstrap
-          - external_current
-      ),
-      I_bootstrap=j_bootstrap.I_bootstrap,
-      sigma=j_bootstrap.sigma,
-  )
-  core_profiles = dataclasses.replace(core_profiles, currents=currents)
 
   # psi source terms. Source matrix is zero for all psi sources
   source_mat_psi = jnp.zeros_like(geo.rho)
@@ -472,7 +451,7 @@ def _calc_coeffs_full(
       1.0
       / dynamic_runtime_params_slice.numerics.resistivity_mult
       * geo.rho_norm
-      * j_bootstrap.sigma
+      * merged_source_profiles.j_bootstrap.sigma
       * consts.mu0
       * 16
       * jnp.pi**2
@@ -593,7 +572,7 @@ def _calc_coeffs_full(
       * consts.mu0
       * geo.Phibdot
       * geo.Phib
-      * j_bootstrap.sigma_face
+      * merged_source_profiles.j_bootstrap.sigma_face
       * geo.rho_face_norm**2
       / geo.F_face**2
   )
@@ -671,7 +650,8 @@ def _calc_coeffs_full(
   # Add effective phibdot poloidal flux source term
 
   ddrnorm_sigma_rnorm2_over_f2 = jnp.gradient(
-      j_bootstrap.sigma * geo.rho_norm**2 / geo.F**2, geo.rho_norm
+      merged_source_profiles.j_bootstrap.sigma * geo.rho_norm**2 / geo.F**2,
+      geo.rho_norm,
   )
 
   source_psi += (

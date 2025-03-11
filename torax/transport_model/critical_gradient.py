@@ -29,6 +29,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.physics import psi_calculations
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
@@ -134,9 +135,8 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
         dynamic_runtime_params_slice.transport, DynamicRuntimeParams
     )
 
-    # set typical values for now. Will include user-defined q and s later
-    s = core_profiles.s_face
-    q = core_profiles.q_face
+    s = psi_calculations.calc_s_face(geo=geo, psi=core_profiles.psi)
+    q = psi_calculations.calc_q_face(geo=geo, psi=core_profiles.psi)
 
     # very basic sawtooth model
     s = jnp.where(q < 1, 0, s)
