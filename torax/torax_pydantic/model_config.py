@@ -97,7 +97,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     if _is_nrho_updated(x):
       for model in self.submodels:
         model.clear_cached_properties()
-      mesh = self.geometry.build_provider().torax_mesh
+      mesh = self.geometry.build_provider.torax_mesh
       torax_pydantic.set_grid(self, mesh, mode='force')
 
   @pydantic.model_validator(mode='after')
@@ -105,7 +105,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     # Interpolated `TimeVaryingArray` objects require a mesh, only available
     # once the geometry provider is built. This could be done in the before
     # validator, but is harder than setting it after construction.
-    mesh = self.geometry.build_provider().torax_mesh
+    mesh = self.geometry.build_provider.torax_mesh
     # Note that the grid could already be set, eg. if the config is serialized
     # and deserialized. In this case, we do not want to overwrite it nor fail
     # when trying to set it, which is why mode='relaxed'.

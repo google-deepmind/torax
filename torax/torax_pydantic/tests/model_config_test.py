@@ -55,7 +55,7 @@ class ConfigTest(parameterized.TestCase):
       chex.assert_trees_all_equal(config_pydantic, config_pydantic_roundtrip)
 
     with self.subTest("geometry_grid_set"):
-      mesh = config_pydantic.geometry.build_provider().torax_mesh
+      mesh = config_pydantic.geometry.build_provider.torax_mesh
       time_varying_arrays = [
           m
           for m in config_pydantic.submodels
