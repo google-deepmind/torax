@@ -75,6 +75,14 @@ def finalize_core_profiles(
   Returns:
     The finalized core profiles for this timestep.
   """
+  # Add a configuration option for tracking and switching
+  track_and_switch = dynamic_runtime_params_slice.profile_conditions.track_and_switch
+  transition_time = dynamic_runtime_params_slice.profile_conditions.transition_time
+
+  # Initialize or update the transition state
+  if not hasattr(core_profiles, 'mode_state'):
+      core_profiles.mode_state = {'current_mode': 'L-mode', 'time_in_mode': 0}
+
   # Calculate psidot
   psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
   psidot = dataclasses.replace(
@@ -88,6 +96,28 @@ def finalize_core_profiles(
           geo=geo,
       ),
   )
+
+  # Calculate H-mode transition power scalings
+  P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = calculate_plh_scaling_factor(geo, core_profiles)
+
+  # Determine the desired mode based on the power
+  if track_and_switch:
+      desired_mode = 'H-mode' if core_profiles.currents.Ip_total > P_LH else 'L-mode'
+
+      # Check if a transition is needed
+      if core_profiles.mode_state['current_mode'] != desired_mode:
+          core_profiles.mode_state['time_in_mode'] += 1
+
+          # Transition if the prescribed time is reached
+          if core_profiles.mode_state['time_in_mode'] >= transition_time:
+              core_profiles.mode_state['current_mode'] = desired_mode
+              core_profiles.mode_state['time_in_mode'] = 0
+      else:
+          # Reset the time if no transition is needed
+          core_profiles.mode_state['time_in_mode'] = 0
+
+  # Log the current mode (or handle it as needed)
+  print(f"Current Mode: {core_profiles.mode_state['current_mode']}")  # Replace with appropriate logging or handling
 
   return dataclasses.replace(
       core_profiles,
