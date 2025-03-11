@@ -31,8 +31,8 @@ CONFIG = {
     },
     'geometry': {
         'geometry_type': 'imas',
-        'equilibrium_object': 'ITERhybrid_COCOS17_IDS_hdf5_ddv4',
-        'Ip_from_parameters': True,
+        'equilibrium_object': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+        'Ip_from_parameters': False,
     },
     'sources': {
         # Current sources (for psi equation)

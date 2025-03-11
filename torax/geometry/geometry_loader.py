@@ -23,8 +23,6 @@ import eqdsk
 import numpy as np
 import scipy
 
-import yaml
-
 from torax.torax_imastools.util import load_IMAS_data
 
 # Internal import.
@@ -123,6 +121,6 @@ def load_geo_data(
     case GeometrySource.EQDSK:
       return _load_eqdsk_data(file_path=filepath)
     case GeometrySource.IMAS:
-      return load_IMAS_data(path=filepath)
+      return load_IMAS_data(path=filepath, ids_name='equilibrium')
     case _:
       raise ValueError(f'Unknown geometry source: {geometry_source}')

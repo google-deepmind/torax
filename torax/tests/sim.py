@@ -740,12 +740,20 @@ class SimTest(sim_test_case.SimTestCase):
           )
       )
 
-  def test_imas(self):
+  @parameterized.parameters([
+      dict(config_name='test_imas.py'),
+      dict(config_name='test_iterhybrid_predictor_corrector_imas.py'),
+  ])
+  def test_imas(self, config_name):
     """Integration test comparing to reference output from TORAX."""
     if importlib.util.find_spec('imaspy') is None:
       self.skipTest('IMASPy optional dependency')
     self._test_torax_sim(
-        'test_imas.py',
+        config_name,
+        _ALL_PROFILES,
+    )
+    self._test_torax_sim(
+        'test_iterhybrid_predictor_corrector_imas.py',
         _ALL_PROFILES,
     )
 

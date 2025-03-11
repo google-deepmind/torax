@@ -34,7 +34,7 @@ from torax import constants
 from torax import interpolated_param
 from torax import jax_utils
 from torax.geometry import geometry_loader
-from torax.torax_imastools.util import geometry_from_IMAS
+from torax.torax_imastools.equilibrium import geometry_from_IMAS
 
 
 @chex.dataclass(frozen=True)

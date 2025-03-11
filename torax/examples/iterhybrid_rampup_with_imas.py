@@ -22,12 +22,9 @@ With Newton-Raphson stepper and adaptive timestep (backtracking)
 CONFIG = {
     'runtime_params': {
         'plasma_composition': {
-            # physical inputs
-            'Ai': 2.5,  # amu of main ion (if multiple isotope, make average)
-            'Zeff': 1.6,  # needed for qlknn and fusion power
-            # effective impurity charge state assumed for matching
-            # dilution=0.862.
-            'Zimp': 10,
+            'main_ion': {'D': 0.5, 'T': 0.5},  # (bundled isotope average)
+            'impurity': 'Ne',
+            'Zeff': 1.6,  # sets impurity density
         },
         'profile_conditions': {
             'Ip_tot': {0: 3, 80: 10.5},  # total plasma current in MA
@@ -42,11 +39,11 @@ CONFIG = {
             'Te_bound_right': (
                 0.1
             ),  # boundary condition electron temp for r=Rmin
-            'ne_bound_right_is_fGW': True,
+            'ne_bound_right_is_fGW': False,
             # boundary condition density for r=Rmin
             'ne_bound_right': {0: 0.1, 80: 0.3},
             # set initial condition density according to Greenwald fraction.
-            'ne_is_fGW': True,
+            'ne_is_fGW': False,
             'nbar': 1,
             'ne': {0: {0.0: 1.5, 1.0: 1.0}},  # Initial electron density profile
             # internal boundary condition (pedestal)
@@ -73,8 +70,8 @@ CONFIG = {
     },
     'geometry': {
         'geometry_type': 'imas',
-        'Scenario': 'scenario.yaml',
-        'Ip_from_parameters': True,
+        'equilibrium_object': 'ITERhybrid_COCOS17_IDS_ddv4.nc',
+        'Ip_from_parameters': False,
     },
     'sources': {
         # Current sources (for psi equation)
