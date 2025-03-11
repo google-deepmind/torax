@@ -29,26 +29,20 @@ class ConfigTest(parameterized.TestCase):
   def test_full_config_construction(self, config_name):
     """Test for basic config construction."""
 
-    module = config_loader.import_module(
+    config_dict = config_loader.import_module(
         f".tests.test_data.{config_name}",
         config_package="torax",
-    )
-
-    # Test only the subset of config fields that are currently supported.
-    module_config = {
-        key: module.CONFIG[key]
-        for key in model_config.ToraxConfig.model_fields.keys()
-    }
-    config_pydantic = model_config.ToraxConfig.from_dict(module_config)
+    ).CONFIG
+    config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
 
     self.assertEqual(
         config_pydantic.time_step_calculator.calculator_type.value,
-        module_config["time_step_calculator"]["calculator_type"],
+        config_dict["time_step_calculator"]["calculator_type"],
     )
     self.assertEqual(
         config_pydantic.pedestal.pedestal_config.pedestal_model,
-        module_config["pedestal"]["pedestal_model"]
-        if "pedestal_model" in module_config["pedestal"]
+        config_dict["pedestal"]["pedestal_model"]
+        if "pedestal_model" in config_dict["pedestal"]
         else "set_tped_nped",
     )
     # The full model should always be serializable.
@@ -61,17 +55,11 @@ class ConfigTest(parameterized.TestCase):
 
   def test_config_safe_update(self):
 
-    module = config_loader.import_module(
+    config_dict = config_loader.import_module(
         ".tests.test_data.test_iterhybrid_newton",
         config_package="torax",
-    )
-
-    # Test only the subset of config fields that are currently supported.
-    module_config = {
-        key: module.CONFIG[key]
-        for key in model_config.ToraxConfig.model_fields.keys()
-    }
-    config_pydantic = model_config.ToraxConfig.from_dict(module_config)
+    ).CONFIG
+    config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
 
     new_n_rho = 99
     assert new_n_rho != config_pydantic.geometry.geometry_configs.config.n_rho  # pytype: disable=attribute-error
