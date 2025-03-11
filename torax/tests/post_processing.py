@@ -31,6 +31,7 @@ from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import sim_test_case
 from torax.tests.test_lib import torax_refs
+from torax.formulas import formulas
 
 
 class PostProcessingTest(parameterized.TestCase):
@@ -43,7 +44,7 @@ class PostProcessingTest(parameterized.TestCase):
     geo_provider = geometry_provider.ConstantGeometryProvider(self.geo)
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
-    dynamic_runtime_params_slice, geo = (
+    self.dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
             geo_provider,
@@ -80,31 +81,36 @@ class PostProcessingTest(parameterized.TestCase):
         torax_mesh=geo.torax_mesh,
     )
     self.core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
         source_models=source_models,
     )
 
   def test_make_outputs(self):
-    """Test that post-processing outputs are added to the state."""
-    sim_state = state.ToraxSimState(
-        core_profiles=self.core_profiles,
-        core_transport=state.CoreTransport.zeros(self.geo),
-        core_sources=self.source_profiles,
-        t=jax.numpy.array(0.0),
-        dt=jax.numpy.array(0.1),
-        time_step_calculator_state=None,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
-        stepper_numeric_outputs=state.StepperNumericOutputs(
-            outer_stepper_iterations=1,
-            stepper_error_state=1,
-            inner_solver_iterations=1,
-        ),
-        geometry=self.geo,
+    """Checks that outputs are made correctly."""
+    self.core_profiles.j_phi = jax.jit(formulas.calc_current_density)(
+        p=self.core_profiles.pressure.cell_value(),
+        psi=self.core_profiles.psi.face_value(),
+        rho=self.geo.rho,
+        r=self.geo.r,
+        r_vol=self.geo.r_vol,
+        vol=self.geo.volume,
     )
-
-    updated_sim_state = post_processing.make_outputs(sim_state, self.geo)
+    sim_state = state.ToraxSimState(
+        t=1.0,
+        dt=0.1,
+        error_code=state.SimError.NONE,
+        core_profiles=self.core_profiles,
+        core_sources=self.source_profiles,
+        transport_coefficients=state.TransportCoefficients.zeros(self.geo),
+        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
+    )
+    updated_sim_state = post_processing.make_outputs(
+        sim_state,
+        self.geo,
+        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
+    )
 
     # Check that the outputs were updated.
     for field in state.PostProcessedOutputs.__dataclass_fields__:
@@ -128,6 +134,7 @@ class PostProcessingTest(parameterized.TestCase):
         self.geo,
         self.core_profiles,
         self.source_profiles,
+        self.dynamic_runtime_params_slice,
     )
     # pylint: enable=protected-access
 

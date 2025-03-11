@@ -360,7 +360,6 @@ class PostProcessedOutputs:
     q95: q at 95% of the normalized poloidal flux
     Wpol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]
-    P_generic_injected: Total injected power before absorption [W]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -424,7 +423,6 @@ class PostProcessedOutputs:
   q95: array_typing.ScalarFloat
   Wpol: array_typing.ScalarFloat
   li3: array_typing.ScalarFloat
-  P_generic_injected: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -488,7 +486,6 @@ class PostProcessedOutputs:
         q95=jnp.array(0.0),
         Wpol=jnp.array(0.0),
         li3=jnp.array(0.0),
-        P_generic_injected=jnp.array(0.0),
     )
 
 
@@ -540,52 +537,54 @@ class SimError(enum.Enum):
         raise ValueError(f"Unknown SimError: {self}")
 
 
-@chex.dataclass(frozen=True)
+@chex.dataclass
 class ToraxSimState:
-  """Main state class of the TORAX code.
+  """Full simulator state.
 
-  ToraxSimState implements the State protocol for transport equations.
-  This class holds all states of the simulation, and can become very large; the
-  typical way a user interacts with ToraxSimState is through
-  individual attributes. For example, `core_profiles`.
+  The simulation stepping in sim.py evolves core_profiles which includes all
+  the attributes the simulation is advancing. But beyond those, there are
+  additional stateful elements which may evolve on each simulation step, such
+  as sources and transport.
 
-  The simulation is initialized at t=t0 with an initial state and takes
-  time steps dt to arrive at the final time t=t_final. At each timestep, the
-  solver is run and the resulting updated state is the new state.
-
-  Individual PDEs can easily be turned on and off; for example, by not adding a
-  solver for them in the solver config. This means that the transport terms
-  generated for a given profile need to be checked. A profile can be either:
-    - Evolved through solving a PDE, such as ion and electron temperature
-    - Evolving through specified externally, such as Ip
-    - Constant in time, such as when the electron density is specified externally
-    - Derived from another state quantity through a formula.
+  This class includes both core_profiles and these additional elements.
 
   Attributes:
-    t: Current time in the state [s].
-    dt: Time step to progress state from previous timestep [s].
-    core_profiles: Core plasma profiles data.
-    core_sources: Source and sink profiles for each quantity.
-    core_transport: Time-dependent transport coefficients.
-    post_processed_outputs: Processed output quantities.
-    time_step_calculator_state: State of the TimeStepCalculator.
-    stepper_numeric_outputs: Numeric outputs from the stepper.
-    geometry: Magnetic geometry.
-    dynamic_runtime_params_slice: Dynamic runtime parameters for the current time.
+    t: time coordinate.
+    dt: timestep interval.
+    core_profiles: Core plasma profiles at time t.
+    core_transport: Core plasma transport coefficients computed at time t.
+    core_sources: Profiles for all sources/sinks. These are the profiles that
+      are used to calculate the coefficients for the t+dt time step. For the
+      explicit sources, these are calculated at the start of the time step, so
+      are the values at time t. For the implicit sources, these are the most
+      recent guess for time t+dt. The profiles here are the merged version of
+      the explicit and implicit profiles.
+    post_processed_outputs: variables for output or intermediate observations
+      for overarching workflows, calculated after each simulation step.
+    geometry: Geometry at this time step used for the simulation.
+    time_step_calculator_state: the state of the TimeStepper.
+    stepper_numeric_outputs: Numerical quantities related to the stepper.
   """
 
-  t: array_typing.ScalarFloat  # [s]
-  dt: array_typing.ScalarFloat  # [s]
+  # Time variables.
+  t: jax.Array
+  dt: jax.Array
+
+  # Profiles evolved or calculated by the simulation.
   core_profiles: CoreProfiles
-  core_sources: source_profiles.SourceProfiles
   core_transport: CoreTransport
+  core_sources: source_profiles.SourceProfiles
+
+  # Post-processed outputs after a step.
   post_processed_outputs: PostProcessedOutputs
-  time_step_calculator_state: Optional[Any] = None
-  stepper_numeric_outputs: StepperNumericOutputs = dataclasses.field(
-      default_factory=lambda: StepperNumericOutputs()
-  )
-  geometry: Optional[geometry.Geometry] = None
-  dynamic_runtime_params_slice: Optional[Any] = None
+
+  # Geometry used for the simulation.
+  geometry: geometry.Geometry
+
+  # Other "side" states used for logging and feeding to other components of
+  # TORAX.
+  time_step_calculator_state: Any
+  stepper_numeric_outputs: StepperNumericOutputs
 
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""

@@ -56,6 +56,8 @@ class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
   el_heat_fraction: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.66666)
   )
+  # TODO(b/817): Add appropriate pydantic validation for absorption_fraction
+  # to ensure it's never below a small positive value to prevent division by zero.
   absorption_fraction: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )

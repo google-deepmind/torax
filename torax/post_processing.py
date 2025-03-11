@@ -28,6 +28,10 @@ from torax.physics import formulas
 from torax.physics import psi_calculations
 from torax.physics import scaling_laws
 from torax.sources import source_profiles
+from torax.sources import runtime_params_slice
+from torax.sources import generic_ion_el_heat_source
+from torax.sources import ion_cyclotron_source
+from torax.types import array_typing
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -60,24 +64,35 @@ def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
-    dynamic_runtime_params_slice=None,
-) -> dict[str, jax.Array]:
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice | None,
+) -> dict[str, array_typing.ScalarFloat]:
   """Calculates total integrated internal and external source power and current.
 
   Args:
-    geo: Magnetic geometry
-    core_profiles: Kinetic profiles such as temperature and density
-    core_sources: Internal and external sources
-    dynamic_runtime_params_slice: Runtime parameters slice for current time step
+    geo: Geometry describing the torus
+    core_profiles: Core profiles
+    core_sources: Source profiles 
+    dynamic_runtime_params_slice: Dynamic runtime parameters, used for power
+      calculations. If None, injected power equals absorbed power.
 
   Returns:
-    Dictionary with integrated quantities for all existing sources.
-    See state.PostProcessedOutputs for the full list of keys.
-
-    Output dict used to update the `PostProcessedOutputs` object in the
-    output `ToraxSimState`. Sources that don't exist do not have integrated
-    quantities included in the returned dict. The corresponding
-    `PostProcessedOutputs` attributes remain at their initialized zero values.
+    Dict containing integrated quantities with keys:
+    'P_ion_tot': Total ion power integrated [W]
+    'P_el_tot': Total electron power integrated [W]
+    'P_tot': Total power ion + electron [W]
+    'P_external_ion': External ion power [W]
+    'P_external_el': External electron power [W]
+    'P_external_tot': External total ion + electron power [W]
+    'P_external_injected': External injected power before absorption [W]
+    'P_fusion': Fusion power [W]
+    'P_alpha': Alpha heating power [W]
+    'P_rad_tot': Total radiated power [W]
+    'P_sol_ion': Power entering the scrape-off-layer (ion) [W]
+    'P_sol_el': Power entering the scrape-off-layer (electron) [W]
+    'P_sol_tot': Total power entering the scrape-off-layer [W]
+    'I_ohmic': Ohmic current [A] 
+    'I_bootstrap': Bootstrap current [A]
+    'I_external': External current drive [A]
   """
   integrated = {}
 
@@ -125,22 +140,36 @@ def _calculate_integrated_sources(
         integrated['P_external_ion'] += integrated[f'{value}_ion']
         integrated['P_external_el'] += integrated[f'{value}_el']
         
-        # Track injected power for generic heat source
-        if key == 'generic_ion_el_heat_source' and dynamic_runtime_params_slice is not None:
-          from torax.sources import generic_ion_el_heat_source
-          try:
-            source_params = dynamic_runtime_params_slice.sources[key]
-            if isinstance(source_params, generic_ion_el_heat_source.DynamicRuntimeParams):
-              # Calculate injected power from absorbed power and absorption fraction
-              absorption_fraction = jnp.maximum(source_params.absorption_fraction, constants.CONSTANTS.eps)
-              integrated['P_generic_injected'] = integrated[f'{value}_tot'] / absorption_fraction
-              integrated['P_external_injected'] += integrated['P_generic_injected']
+        # Track injected power for heating sources that have absorption_fraction
+        if key in ['generic_ion_el_heat_source', 'ion_cyclotron_source'] and dynamic_runtime_params_slice is not None:
+          # Get the absorption_fraction from dynamic params
+          source_params = dynamic_runtime_params_slice.sources.get(key)
+          
+          if source_params and hasattr(source_params, 'absorption_fraction'):
+            # Ensure we have the expected type - if not, there's a bug
+            if key == 'generic_ion_el_heat_source':
+              if not isinstance(source_params, generic_ion_el_heat_source.DynamicRuntimeParams):
+                raise TypeError(f"Expected generic_ion_el_heat_source.DynamicRuntimeParams for {key}, "
+                              f"but got {type(source_params).__name__}")
+            elif key == 'ion_cyclotron_source':
+              if not isinstance(source_params, ion_cyclotron_source.DynamicRuntimeParams):
+                raise TypeError(f"Expected ion_cyclotron_source.DynamicRuntimeParams for {key}, "
+                              f"but got {type(source_params).__name__}")
+            
+            # Access absorption_fraction attribute - will raise AttributeError if missing
+            absorption_fraction = source_params.absorption_fraction
+            
+            # Calculate injected power based on absorption_fraction
+            total_absorbed = integrated[f'{value}_ion'] + integrated[f'{value}_el']
+            if absorption_fraction < 1.0:
+              injected_power = total_absorbed / absorption_fraction
+              integrated['P_external_injected'] += injected_power
             else:
-              integrated['P_generic_injected'] = integrated[f'{value}_tot']
-              integrated['P_external_injected'] += integrated['P_generic_injected']
-          except (KeyError, AttributeError):
-            integrated['P_generic_injected'] = integrated[f'{value}_tot']
-            integrated['P_external_injected'] += integrated['P_generic_injected']
+              # If absorption is 100%, injected power equals absorbed power
+              integrated['P_external_injected'] += total_absorbed
+          else:
+            # If no absorption_fraction is found, injected power equals absorbed power
+            integrated['P_external_injected'] += integrated[f'{value}_tot']
         else:
           integrated['P_external_injected'] += integrated[f'{value}_tot']
 
@@ -173,22 +202,21 @@ def make_outputs(
     sim_state: state.ToraxSimState,
     geo: geometry.Geometry,
     previous_sim_state: state.ToraxSimState | None = None,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice | None = None,
 ) -> state.ToraxSimState:
-  """Calculates post-processed outputs based on the latest state.
+  """Makes post-processed outputs given a simulation state.
 
-  Called at the beginning and end of each `sim.run_simulation` step.
   Args:
-    sim_state: The state to add outputs to.
-    geo: Geometry object
-    previous_sim_state: The previous state, used to calculate cumulative
-      quantities. Optional input. If None, then cumulative quantities are set at
-      the initialized values in sim_state itself. This is used for the first
-      time step of a the simulation. The initialized values are zero for a clean
-      simulation, or the last value of the previous simulation for a restarted
-      simulation.
+    sim_state: The simulation state to post-process.
+    geo: Magnetic equilibrium geometry.
+    previous_sim_state: The previous simulation state. If provided, used to
+      calculate time derivative of time-resolved quantities.
+    dynamic_runtime_params_slice: Optional dynamic runtime parameters that may
+      be used for power calculations. If not provided, injected power will be
+      equal to absorbed power.
 
   Returns:
-    sim_state: A ToraxSimState object, with any updated attributes.
+    A copy of the input simulation state with post-processed outputs.
   """
   (
       pressure_thermal_el_face,
@@ -213,7 +241,7 @@ def make_outputs(
       geo,
       sim_state.core_profiles,
       sim_state.core_sources,
-      sim_state.dynamic_runtime_params_slice,
+      dynamic_runtime_params_slice,
   )
   # Calculate fusion gain with a zero division guard.
   # Total energy released per reaction is 5 times the alpha particle energy.

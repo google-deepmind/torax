@@ -302,6 +302,7 @@ class IonCyclotronSourceConfig(runtime_params_lib.SourceModelBase):
     minority_concentration: He3 minority concentration relative to the electron
       density in %.
     Ptot: Total heating power [W].
+    absorption_fraction: Fraction of absorbed power.
   """
   source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
   wall_inner: torax_pydantic.Meter = 1.24
@@ -313,6 +314,11 @@ class IonCyclotronSourceConfig(runtime_params_lib.SourceModelBase):
       torax_pydantic.ValidatedDefault(3.0)
   )
   Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
+  # TODO(b/817): Add appropriate pydantic validation for absorption_fraction
+  # to ensure it's never below a small positive value to prevent division by zero.
+  absorption_fraction: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
 
@@ -330,7 +336,8 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   minority_concentration: runtime_params_lib.TimeInterpolatedInput = 3.0
   # Total heating power [W].
   Ptot: runtime_params_lib.TimeInterpolatedInput = 10e6
-  # Mode of the source.
+  # Fraction of absorbed power
+  absorption_fraction: runtime_params_lib.TimeInterpolatedInput = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @override
@@ -350,6 +357,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
   frequency: interpolated_param.InterpolatedVarSingleAxis
   minority_concentration: interpolated_param.InterpolatedVarSingleAxis
   Ptot: interpolated_param.InterpolatedVarSingleAxis
+  absorption_fraction: interpolated_param.InterpolatedVarSingleAxis
 
   @override
   def build_dynamic_params(
@@ -364,6 +372,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   frequency: array_typing.ScalarFloat
   minority_concentration: array_typing.ScalarFloat
   Ptot: array_typing.ScalarFloat
+  absorption_fraction: array_typing.ScalarFloat
   wall_inner: float
   wall_outer: float
 
@@ -482,22 +491,26 @@ def icrh_model_func(
       core_profiles.temp_el.value,
       helium3_mass,
   )
+  
+  # Apply absorption fraction to the total power
+  absorbed_power = dynamic_source_runtime_params.Ptot * dynamic_source_runtime_params.absorption_fraction
+  
   source_ion = (
       power_deposition_he3
       * frac_ion_heating
-      * dynamic_source_runtime_params.Ptot
+      * absorbed_power
   )
   source_el = (
       power_deposition_he3
       * (1 - frac_ion_heating)
-      * dynamic_source_runtime_params.Ptot
+      * absorbed_power
   )
 
   # Assume that all the power from the electron power profile goes to electrons.
-  source_el += power_deposition_e * dynamic_source_runtime_params.Ptot
+  source_el += power_deposition_e * absorbed_power
 
   # Assume that all the power from the tritium power profile goes to ions.
-  source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
+  source_ion += power_deposition_2T * absorbed_power
 
   return (source_ion, source_el)
 
