@@ -32,6 +32,7 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 
 
 class BootstrapCurrentSourceConfig(runtime_params_lib.SourceModelBase):
@@ -40,6 +41,7 @@ class BootstrapCurrentSourceConfig(runtime_params_lib.SourceModelBase):
   Attributes:
     bootstrap_mult: Multiplication factor for bootstrap current.
   """
+
   source_name: Literal['j_bootstrap'] = 'j_bootstrap'
   bootstrap_mult: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
@@ -55,7 +57,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> RuntimeParamsProvider:
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

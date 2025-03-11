@@ -55,4 +55,5 @@ TimeVaryingArray = interpolated_param_2d.TimeVaryingArray
 
 ValidatedDefault = functools.partial(pydantic.Field, validate_default=True)
 
-set_geometry_mesh = interpolated_param_2d.set_geometry_mesh
+Grid1D = interpolated_param_2d.Grid1D
+set_grid = interpolated_param_2d.set_grid

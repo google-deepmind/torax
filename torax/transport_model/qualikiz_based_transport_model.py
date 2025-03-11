@@ -20,6 +20,7 @@ from torax import state
 from torax.geometry import geometry
 from torax.physics import collisions
 from torax.physics import psi_calculations
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import quasilinear_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 
@@ -38,7 +39,7 @@ class RuntimeParams(quasilinear_transport_model.RuntimeParams):
   q_sawtooth_proxy: bool = True
 
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

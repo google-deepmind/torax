@@ -16,8 +16,9 @@
 
 from collections.abc import Mapping
 import functools
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 import chex
+import numpy as np
 import pydantic
 from torax import interpolated_param
 from torax.torax_pydantic import model_base
@@ -25,7 +26,56 @@ from torax.torax_pydantic import pydantic_types
 from typing_extensions import Self
 import xarray as xr
 
-Grid1D: TypeAlias = Any
+
+class Grid1D(model_base.BaseModelFrozen):
+  """Data structure defining a 1-D grid of cells with faces.
+
+  Construct via `construct` classmethod.
+
+  Attributes:
+    nx: Number of cells.
+    dx: Distance between cell centers.
+    face_centers: Coordinates of face centers.
+    cell_centers: Coordinates of cell centers.
+  """
+
+  nx: pydantic.PositiveInt
+  dx: pydantic.PositiveFloat
+  face_centers: pydantic_types.NumpyArray1D
+  cell_centers: pydantic_types.NumpyArray1D
+
+  def __eq__(self, other: Self) -> bool:
+    return (
+        self.nx == other.nx
+        and self.dx == other.dx
+        and np.array_equal(self.face_centers, other.face_centers)
+        and np.array_equal(self.cell_centers, other.cell_centers)
+    )
+
+  def __hash__(self) -> int:
+    return hash((self.nx, self.dx))
+
+  @classmethod
+  def construct(cls, nx: int, dx: float) -> Self:
+    """Constructs a Grid1D.
+
+    Args:
+      nx: Number of cells.
+      dx: Distance between cell centers.
+
+    Returns:
+      grid: A Grid1D with the remaining fields filled in.
+    """
+
+    # Note: nx needs to be an int so that the shape `nx + 1` is not a Jax
+    # tracer.
+
+    return Grid1D(
+        nx=nx,
+        dx=dx,
+        face_centers=np.linspace(0, nx * dx, nx + 1),
+        cell_centers=np.linspace(dx * 0.5, (nx - 0.5) * dx, nx),
+    )
 
 
 class TimeVaryingArray(model_base.BaseModelFrozen):
@@ -58,8 +108,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
   time_interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   )
-  grid_face_centers: pydantic_types.NumpyArray1D | None = None
-  grid_cell_centers: pydantic_types.NumpyArray1D | None = None
+  grid: Grid1D | None = None
 
   @functools.cached_property
   def right_boundary_conditions_defined(self) -> bool:
@@ -83,9 +132,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         element `self.grid_face_centers[-1]` is used as the grid.
 
     Raises:
-      RuntimeError: If `grid_type='cell'` and `self.grid_cell_centers` is None,
-        or if `grid_type='face'` or `grid_type='face_right'` and
-        `self.grid_face_centers` is None.
+      RuntimeError: If `self.grid` is None.
 
     Returns:
       An array of interpolated values.
@@ -117,6 +164,7 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
       # A workaround for https://github.com/pydantic/pydantic/issues/10477.
       data.pop('_get_cached_interpolated_param_cell_centers', None)
       data.pop('_get_cached_interpolated_param_face_centers', None)
+      data.pop('_get_cached_interpolated_param_face_right_centers', None)
 
       # This is the standard constructor input. No conforming required.
       if set(data.keys()).issubset(cls.model_fields.keys()):
@@ -164,12 +212,12 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
   def _get_cached_interpolated_param_cell(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
-    if self.grid_cell_centers is None:
-      raise RuntimeError('grid_cell_centers must be set.')
+    if self.grid is None:
+      raise RuntimeError('grid must be set.')
 
     return interpolated_param.InterpolatedVarTimeRho(
         self.value,
-        rho_norm=self.grid_cell_centers,
+        rho_norm=self.grid.cell_centers,
         time_interpolation_mode=self.time_interpolation_mode,
         rho_interpolation_mode=self.rho_interpolation_mode,
     )
@@ -178,12 +226,12 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
   def _get_cached_interpolated_param_face(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
-    if self.grid_face_centers is None:
-      raise RuntimeError('grid_face_centers must be set.')
+    if self.grid is None:
+      raise RuntimeError('grid must be set.')
 
     return interpolated_param.InterpolatedVarTimeRho(
         self.value,
-        rho_norm=self.grid_face_centers,
+        rho_norm=self.grid.face_centers,
         time_interpolation_mode=self.time_interpolation_mode,
         rho_interpolation_mode=self.rho_interpolation_mode,
     )
@@ -192,12 +240,12 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
   def _get_cached_interpolated_param_face_right(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
-    if self.grid_face_centers is None:
-      raise RuntimeError('grid_face_centers must be set.')
+    if self.grid is None:
+      raise RuntimeError('grid must be set.')
 
     return interpolated_param.InterpolatedVarTimeRho(
         self.value,
-        rho_norm=self.grid_face_centers[-1],
+        rho_norm=self.grid.face_centers[-1],
         time_interpolation_mode=self.time_interpolation_mode,
         rho_interpolation_mode=self.rho_interpolation_mode,
     )
@@ -312,55 +360,40 @@ def _load_from_arrays(
     raise ValueError(f'arrays must be length 2 or 3. Given: {len(arrays)}.')
 
 
-def set_geometry_mesh(
+def set_grid(
     model: model_base.BaseModelFrozen,
-    mesh: Grid1D,
+    grid: Grid1D,
     mode: Literal['strict', 'force', 'relaxed'] = 'strict',
 ):
-  """Sets the geometry mesh for all submodels.
-
-  This sets the `grid_face_centers` and `grid_cell_centers` for all
-  `TimeVaryingArray` submodels using the `mesh` if they are not yet set (ie.
-  of value `None`).
+  """Sets the grid for for the model and all its submodels.
 
   Args:
     model: The model to set the geometry mesh for.
-    mesh: A `geometry.Grid1D` object.
+    grid: A `Grid1D` object.
     mode: The update mode. With `'strict'` (default), an error will be raised if
-      the geometry mesh is already set. With `'force'`, the geometry mesh will
-      be overwritten in a potentially unsafe way (no cache invalidation). With
-      `'relaxed'`, the geometry mesh will only be set if it is not already set.
+      the `grid` is already set in `model` or any of its submodels. With
+      `'force'`, `grid` will be overwritten in a potentially unsafe way (no
+      cache invalidation). With `'relaxed'`, `grid` will only be set if it is
+      not already set.
 
   Raises:
-    RuntimeError: If `force_update=False` and the geometry mesh is already set.
+    RuntimeError: If `force_update=False` and `grid` is already set.
   """
 
-  # Principled type checking for geometry.Grid1D is not available as this would
-  # cause a circular dependency. Use ducktyping.
-  is_grid = False
-  if hasattr(mesh, '__class__'):
-    is_grid = mesh.__class__.__name__ == 'Grid1D'
-    is_grid = is_grid and hasattr(mesh, 'nx') and hasattr(mesh, 'dx')
-  if not is_grid:
-    raise ValueError(f'Mesh {mesh} is not a geometry.Grid1D.')
-
-  def _update_rule(submodel, name):
-    name_model = 'grid_' + name
-    if getattr(submodel, name_model) is None:
-      submodel.__dict__[name_model] = getattr(mesh, name)
+  def _update_rule(submodel):
+    if submodel.grid is None:
+      submodel.__dict__['grid'] = grid
     else:
       match mode:
         case 'force':
-          submodel.__dict__[name_model] = getattr(mesh, name)
+          submodel.__dict__['grid'] = grid
         case 'relaxed':
           pass
         case 'strict':
           raise RuntimeError(
-              f'Geometry mesh for {name} is already set, and using strict'
-              ' update mode.'
+              '`grid` is already set and using strict update mode.'
           )
 
   for submodel in model.submodels:
     if isinstance(submodel, TimeVaryingArray):
-      _update_rule(submodel, 'face_centers')
-      _update_rule(submodel, 'cell_centers')
+      _update_rule(submodel)

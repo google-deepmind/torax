@@ -63,8 +63,8 @@ class ConfigTest(parameterized.TestCase):
       ]
       assert time_varying_arrays  # Should be non-empty.
       for m in time_varying_arrays:
-        chex.assert_trees_all_equal(mesh.face_centers, m.grid_face_centers)
-        chex.assert_trees_all_equal(mesh.cell_centers, m.grid_cell_centers)
+        chex.assert_trees_all_equal(mesh.face_centers, m.grid.face_centers)
+        chex.assert_trees_all_equal(mesh.cell_centers, m.grid.cell_centers)
 
   def test_config_safe_update(self):
 

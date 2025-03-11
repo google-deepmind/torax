@@ -29,6 +29,7 @@ from torax.physics import collisions
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
@@ -39,6 +40,7 @@ class QeiSourceConfig(runtime_params_lib.SourceModelBase):
     Qei_mult: multiplier for ion-electron heat exchange term for sensitivity
       testing
   """
+
   source_name: Literal['qei_source'] = 'qei_source'
   Qei_mult: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
@@ -52,7 +54,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

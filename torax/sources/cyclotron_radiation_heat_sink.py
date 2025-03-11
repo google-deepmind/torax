@@ -31,6 +31,7 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 import typing_extensions
 
 
@@ -49,6 +50,7 @@ class CyclotronRadiationHeatSinkConfig(runtime_params_lib.SourceModelBase):
     beta_grid_size: The number of points to use in the grid search for the best
       fit of the temperature function.
   """
+
   source_name: Literal['cyclotron_radiation_heat_sink'] = (
       'cyclotron_radiation_heat_sink'
   )
@@ -85,7 +87,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

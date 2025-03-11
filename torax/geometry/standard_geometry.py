@@ -35,6 +35,7 @@ from torax import jax_utils
 from torax.geometry import geometry
 from torax.geometry import geometry_loader
 from torax.geometry import geometry_provider
+from torax.torax_pydantic import torax_pydantic
 
 # pylint: disable=invalid-name
 
@@ -978,7 +979,7 @@ def build_standard_geometry(
   # fill geometry structure
   drho_norm = float(rho_norm_intermediate[-1]) / intermediate.n_rho
   # normalized grid
-  mesh = geometry.Grid1D.construct(nx=intermediate.n_rho, dx=drho_norm)
+  mesh = torax_pydantic.Grid1D.construct(nx=intermediate.n_rho, dx=drho_norm)
   rho_b = rho_intermediate[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   rho_face_norm = mesh.face_centers
