@@ -28,7 +28,6 @@ from torax import constants
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
-from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 
@@ -322,7 +321,7 @@ class PlasmaComposition(
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> PlasmaCompositionProvider:
     if torax_mesh is None:
       raise ValueError(

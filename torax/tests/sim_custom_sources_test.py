@@ -45,8 +45,8 @@ from torax.sources.tests import test_lib
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import sim_test_case
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import constant as constant_transport_model
-
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
@@ -266,7 +266,7 @@ class _CustomSourceRuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> '_CustomSourceRuntimeParamsProvider':
     if torax_mesh is None:
       raise ValueError('torax_mesh is required for CustomSourceRuntimeParams.')

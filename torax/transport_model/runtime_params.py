@@ -28,8 +28,7 @@ from torax import array_typing
 from torax import interpolated_param
 from torax import jax_utils
 from torax.config import base
-from torax.geometry import geometry
-
+from torax.torax_pydantic import torax_pydantic
 
 # Type-alias for clarity. While the InterpolatedVarSingleAxiss can vary across
 # any field, in these classes, we mainly use it to handle time-dependent
@@ -81,7 +80,7 @@ class RuntimeParams(base.RuntimeParametersConfig['RuntimeParamsProvider']):
   smooth_everywhere: bool = False
 
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> RuntimeParamsProvider:
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

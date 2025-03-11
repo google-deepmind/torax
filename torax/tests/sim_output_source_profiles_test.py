@@ -28,7 +28,6 @@ import numpy as np
 from torax import sim as sim_lib
 from torax import state as state_module
 from torax.config import runtime_params as general_runtime_params
-from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.orchestration import step_function
@@ -43,8 +42,8 @@ from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import fixed_time_step_calculator
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import constant as constant_transport_model
-
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
@@ -70,7 +69,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    torax_mesh = geometry.Grid1D.construct(10, 0.1)
+    torax_mesh = torax_pydantic.Grid1D.construct(nx=10, dx=0.1)
     source_models_builder = default_sources.get_default_sources_builder()
     source_models = source_models_builder()
     # Technically, the merge_source_profiles() function should be called with
@@ -217,7 +216,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
 
 def _build_source_profiles_with_single_value(
-    torax_mesh: geometry.Grid1D,
+    torax_mesh: torax_pydantic.Grid1D,
     source_models: source_models_lib.SourceModels,
     value: float,
 ) -> source_profiles_lib.SourceProfiles:

@@ -49,7 +49,9 @@ from torax.geometry import standard_geometry
 from torax.pedestal_model import runtime_params as pedestal_model_params
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as transport_model_params
+
 # Many of the variables follow scientific or mathematical notation, so disable
 # pylint complaints.
 # pylint: disable=invalid-name
@@ -114,7 +116,7 @@ class StaticRuntimeParamsSlice:
   # Mapping of source name to source-specific static runtime params.
   sources: Mapping[str, sources_params.StaticRuntimeParams]
   # Torax mesh used to construct the geometry.
-  torax_mesh: geometry.Grid1D
+  torax_mesh: torax_pydantic.Grid1D
   # Solve the ion heat equation (ion temperature evolves over time)
   ion_heat_eq: bool
   # Solve the electron heat equation (electron temperature evolves over time)

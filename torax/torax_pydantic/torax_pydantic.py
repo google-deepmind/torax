@@ -54,3 +54,6 @@ TimeVaryingScalar = interpolated_param_1d.TimeVaryingScalar
 TimeVaryingArray = interpolated_param_2d.TimeVaryingArray
 
 ValidatedDefault = functools.partial(pydantic.Field, validate_default=True)
+
+Grid1D = interpolated_param_2d.Grid1D
+set_grid = interpolated_param_2d.set_grid

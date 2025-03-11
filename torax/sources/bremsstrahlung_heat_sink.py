@@ -29,6 +29,7 @@ from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 
 
 class BremsstrahlungHeatSinkConfig(runtime_params_lib.SourceModelBase):
@@ -37,6 +38,7 @@ class BremsstrahlungHeatSinkConfig(runtime_params_lib.SourceModelBase):
   Attributes:
     use_relativistic_correction: Whether to use relativistic correction.
   """
+
   source_name: Literal['bremsstrahlung_heat_sink'] = 'bremsstrahlung_heat_sink'
   use_relativistic_correction: bool = False
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
@@ -49,7 +51,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

@@ -25,59 +25,7 @@ import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pydantic
 from torax.torax_pydantic import torax_pydantic
-
-
-class Grid1D(torax_pydantic.BaseModelFrozen):
-  """Data structure defining a 1-D grid of cells with faces.
-
-  Construct via `construct` classmethod.
-
-  Attributes:
-    nx: Number of cells.
-    dx: Distance between cell centers.
-    face_centers: Coordinates of face centers.
-    cell_centers: Coordinates of cell centers.
-  """
-
-  nx: pydantic.PositiveInt
-  dx: pydantic.PositiveFloat
-  face_centers: torax_pydantic.NumpyArray1D
-  cell_centers: torax_pydantic.NumpyArray1D
-
-  def __eq__(self, other: Grid1D) -> bool:
-    return (
-        self.nx == other.nx
-        and self.dx == other.dx
-        and np.array_equal(self.face_centers, other.face_centers)
-        and np.array_equal(self.cell_centers, other.cell_centers)
-    )
-
-  def __hash__(self) -> int:
-    return hash((self.nx, self.dx))
-
-  @classmethod
-  def construct(cls, nx: int, dx: float) -> Grid1D:
-    """Constructs a Grid1D.
-
-    Args:
-      nx: Number of cells.
-      dx: Distance between cell centers.
-
-    Returns:
-      grid: A Grid1D with the remaining fields filled in.
-    """
-
-    # Note: nx needs to be an int so that the shape `nx + 1` is not a Jax
-    # tracer.
-
-    return Grid1D(
-        nx=nx,
-        dx=dx,
-        face_centers=np.linspace(0, nx * dx, nx + 1),
-        cell_centers=np.linspace(dx * 0.5, (nx - 0.5) * dx, nx),
-    )
 
 
 def face_to_cell(face: chex.Array) -> chex.Array:
@@ -125,8 +73,7 @@ class Geometry:
   Attributes:
     geometry_type: Type of geometry model used. See `GeometryType` for options.
     torax_mesh: `Grid1D` object representing the radial mesh used by TORAX.
-    Phi: Toroidal magnetic flux at each radial grid point
-      [:math:`\mathrm{Wb}`].
+    Phi: Toroidal magnetic flux at each radial grid point [:math:`\mathrm{Wb}`].
     Phi_face: Toroidal magnetic flux at each radial face [:math:`\mathrm{Wb}`].
     Rmaj: Tokamak major radius (geometric center) [:math:`\mathrm{m}`].
     Rmin: Tokamak minor radius [:math:`\mathrm{m}`].
@@ -150,8 +97,8 @@ class Geometry:
       [:math:`\mathrm{m}^2`]. Equal to vpr / (:math:`2 \pi` Rmaj).
     spr_face: Derivative of plasma surface area enclosed by each flux surface,
       with respect to the normalized toroidal flux coordinate rho_face_norm on
-      face grid [:math:`\mathrm{m}^2`]. Equal to
-      vpr_face / (:math:`2 \pi` Rmaj).
+      face grid [:math:`\mathrm{m}^2`]. Equal to vpr_face / (:math:`2 \pi`
+      Rmaj).
     spr_hires: Derivative of plasma surface area enclosed by each flux surface
       on a higher resolution grid, with respect to the normalized toroidal flux
       coordinate rho_norm. [:math:`\mathrm{m}^2`].
@@ -161,17 +108,17 @@ class Geometry:
       grid [dimensionless].
     g0: Flux surface averaged radial derivative of the plasma volume:
       :math:`\langle \nabla V \rangle` on cell grid [:math:`\mathrm{m}^2`].
-    g0_face: Flux surface averaged :math:`\langle \nabla V \rangle` on the
-      faces [:math:`\mathrm{m}^2`].
+    g0_face: Flux surface averaged :math:`\langle \nabla V \rangle` on the faces
+      [:math:`\mathrm{m}^2`].
     g1: Flux surface averaged :math:`\langle (\nabla V)^2 \rangle` on cell grid
       [:math:`\mathrm{m}^4`].
     g1_face: Flux surface averaged :math:`\langle (\nabla V)^2 \rangle` on the
       faces [:math:`\mathrm{m}^4`].
-    g2: Flux surface averaged :math:`\langle (\nabla V)^2 / R^2 \rangle` on
-      cell grid [:math:`\mathrm{m}^2`], where R is the major radius along the
-      flux surface being averaged.
-    g2_face: Flux surface averaged :math:`\langle (\nabla V)^2 / R^2 \rangle`
-      on the faces [:math:`\mathrm{m}^2`].
+    g2: Flux surface averaged :math:`\langle (\nabla V)^2 / R^2 \rangle` on cell
+      grid [:math:`\mathrm{m}^2`], where R is the major radius along the flux
+      surface being averaged.
+    g2_face: Flux surface averaged :math:`\langle (\nabla V)^2 / R^2 \rangle` on
+      the faces [:math:`\mathrm{m}^2`].
     g3: Flux surface averaged :math:`\langle 1 / R^2 \rangle` on cell grid
       [:math:`\mathrm{m}^{-2}`].
     g3_face: Flux surface averaged :math:`\langle 1 / R^2 \rangle` on the faces
@@ -195,32 +142,32 @@ class Geometry:
     Rin_face: Radius of the flux surface at the inboard side at midplane
       [:math:`\mathrm{m}`] on face grid.
     Rout: Radius of the flux surface at the outboard side at midplane
-      [:math:`\mathrm{m}`] on cell grid. Outboard side is defined as the
-      maximum radial extent of the flux surface.
+      [:math:`\mathrm{m}`] on cell grid. Outboard side is defined as the maximum
+      radial extent of the flux surface.
     Rout_face: Radius of the flux surface at the outboard side at midplane
       [:math:`\mathrm{m}`] on face grid.
-    delta_face: Average of upper and lower triangularity of each flux surface
-      at the faces [dimensionless]. Upper triangularity is defined as
-      (Rmaj_local - R_upper) / Rmin_local, where Rmaj_local = (Rout+Rin)/2,
-      Rmin_local = (Rout-Rin)/2, and R_upper is the radial location of the
-      upper extent of the flux surface. Lower triangularity is defined as
-      (Rmaj_local - R_lower) / Rmin_local, where R_lower is the radial
-      location of the lower extent of the flux surface.
+    delta_face: Average of upper and lower triangularity of each flux surface at
+      the faces [dimensionless]. Upper triangularity is defined as (Rmaj_local -
+      R_upper) / Rmin_local, where Rmaj_local = (Rout+Rin)/2, Rmin_local =
+      (Rout-Rin)/2, and R_upper is the radial location of the upper extent of
+      the flux surface. Lower triangularity is defined as (Rmaj_local - R_lower)
+      / Rmin_local, where R_lower is the radial location of the lower extent of
+      the flux surface.
     elongation: Plasma elongation profile on cell grid [dimensionless].
-      Elongation is defined as (Z_upper - Z_lower) / (2.0 * Rmin_local),
-      where Z_upper and Z_lower are the Z coordinates of the upper and lower
-      extent of the flux surface.
+      Elongation is defined as (Z_upper - Z_lower) / (2.0 * Rmin_local), where
+      Z_upper and Z_lower are the Z coordinates of the upper and lower extent of
+      the flux surface.
     elongation_face: Plasma elongation profile on face grid [dimensionless].
     Phibdot: Time derivative of the toroidal magnetic flux
       [:math:`\mathrm{Wb/s}`]. Calculated across a time interval using ``Phi``
-      from the Geometry objects at time t and t + dt.
-      See ``torax.orchestration.step_function`` for more details.
+      from the Geometry objects at time t and t + dt. See
+      ``torax.orchestration.step_function`` for more details.
     _z_magnetic_axis: Vertical position of the magnetic axis
       [:math:`\mathrm{m}`].
   """
 
   geometry_type: GeometryType
-  torax_mesh: Grid1D
+  torax_mesh: torax_pydantic.Grid1D
   Phi: chex.Array
   Phi_face: chex.Array
   Rmaj: chex.Array

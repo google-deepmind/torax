@@ -30,6 +30,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 
 MODEL_FUNCTION_NAME = 'impurity_radiation_mavrin_fit'
 
@@ -222,6 +223,7 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(
   Attributes:
     radiation_multiplier: Multiplier for the impurity radiation profile.
   """
+
   source_name: Literal['impurity_radiation_heat_sink'] = (
       'impurity_radiation_heat_sink'
   )
@@ -239,7 +241,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
