@@ -171,6 +171,13 @@ def _get_update(
   return getattr(core_profiles, var)
 
 
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'static_runtime_params_slice',
+        'evolving_names',
+    ],
+)
 def update_core_profiles_during_step(
     x_new: tuple[cell_variable.CellVariable, ...],
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
@@ -222,6 +229,8 @@ def update_core_profiles_during_step(
       Zi_face=Zi_face,
       Zimp=Zimp,
       Zimp_face=Zimp_face,
+      q_face=psi_calculations.calc_q_face(geo, psi),
+      s_face=psi_calculations.calc_s_face(geo, psi),
   )
 
 

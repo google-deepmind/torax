@@ -35,7 +35,6 @@ from torax import array_typing
 from torax import constants
 from torax import state
 from torax.geometry import geometry
-from torax.physics import psi_calculations
 
 # pylint: disable=invalid-name
 
@@ -122,7 +121,7 @@ def calc_nu_star(
   # to avoid divisions by zero
   epsilon = jnp.clip(epsilon, constants.CONSTANTS.eps)
   tau_bounce = (
-      psi_calculations.calc_q_face(geo=geo, psi=core_profiles.psi)
+      core_profiles.q_face
       * geo.Rmaj
       / (
           epsilon**1.5

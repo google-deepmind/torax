@@ -142,10 +142,10 @@ class QualikizBasedTransportModel(
         reference_length=geo.Rmaj,
     )
 
-    # Calculate q and s.
-    # Need to recalculate since in the nonlinear solver psi has intermediate
-    # states in the iterative solve.
-    q = psi_calculations.calc_q_face(geo=geo, psi=core_profiles.psi)
+    q = core_profiles.q_face
+
+    # Due to QuaLikiz geometry assumptions, we need to calculate s with respect
+    # to the midplane average, and not use the standard s_face from CoreProfiles
     smag = psi_calculations.calc_s_rmid(
         geo,
         core_profiles.psi,

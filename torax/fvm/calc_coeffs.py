@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 import functools
 
 import jax
@@ -24,9 +23,8 @@ import jax.numpy as jnp
 from torax import constants
 from torax import jax_utils
 from torax import state
-from torax.config import config_args
 from torax.config import runtime_params_slice
-from torax.core_profiles import getters
+from torax.core_profiles import updaters
 from torax.fvm import block_1d_coeffs
 from torax.fvm import cell_variable
 from torax.geometry import geometry
@@ -77,20 +75,10 @@ class CoeffsCallback:
       # should be called
       explicit_call: bool = False,
   ) -> block_1d_coeffs.Block1DCoeffs:
-    """Returns coefficients given a state. Can be called in various modes.
+    """Returns coefficients given a state x.
 
-    The typical sequence is:
-    call 1: x=x_old
-    call 2 (optional): x=x_old, allow_pereverzev=True
-    Subsequent calls until iterations are finished: x=x_new
-
-    x_old is the initial state at the beginning of the iterations.
-    The optional call 2 is done when a linear step is used for the initial
-    guess for the nonlinear iterations, and may involve the transport coeffs
-    including the Pereverzev Corrigan terms.
-    All subsequent calls are within the nonlinear iteration loops, where
-    x_new is a solution from within the iterations and may not yet be the
-    final output x_new.
+    Used to calculate the coefficients for the implicit or explicit components
+    of the PDE system.
 
     Args:
       dynamic_runtime_params_slice: Runtime configuration parameters. These
@@ -98,11 +86,14 @@ class CoeffsCallback:
         step of the state x.
       geo: The geometry of the system at this time step.
       core_profiles: The core profiles of the system at this time step.
-      x: The state.
-      allow_pereverzev: If True, then the coeffs are being called for an initial
-        guess based on a linear step as opposed to just passing the iniitial
-        state. This is a special case which may lead to the pereverzev-corrigan
-        terms being included in calc_coeffs.
+      x: The state with cell-grid values of the evolving variables.
+      allow_pereverzev: If True, then the coeffs are being called within a
+        linear solver. Thus could be either the predictor_corrector solver or as
+        part of calculating the initial guess for the nonlinear solver. In
+        either case, we allow the inclusion of Pereverzev-Corrigan terms which
+        aim to stabilize the linear solver when being used with highly nonlinear
+        (stiff) transport coefficients. The nonlinear solver solves the system
+        more rigorously and Pereverzev-Corrigan terms are not needed.
       explicit_call: If True, then if theta_imp=1, only a reduced Block1DCoeffs
         is calculated since most explicit coefficients will not be used.
 
@@ -111,31 +102,14 @@ class CoeffsCallback:
     """
 
     # Update core_profiles with the subset of new values of evolving variables
-    replace = {k: v for k, v in zip(self.evolving_names, x)}
-    core_profiles = config_args.recursive_replace(core_profiles, **replace)
-    # Update ion and impurity density and charge states based on new iterations
-    # for temp_el and ne, if either of these are evolving.
-    if 'ne' in self.evolving_names or 'temp_el' in self.evolving_names:
-      # pylint: disable=invalid-name
-      ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
-          getters.get_ion_density_and_charge_states(
-              self.static_runtime_params_slice,
-              dynamic_runtime_params_slice,
-              geo,
-              core_profiles.ne,
-              core_profiles.temp_el,
-          )
-      )
-      core_profiles = dataclasses.replace(
-          core_profiles,
-          ni=ni,
-          nimp=nimp,
-          Zi=Zi,
-          Zi_face=Zi_face,
-          Zimp=Zimp,
-          Zimp_face=Zimp_face,
-      )
-      # pylint: enable=invalid-name
+    core_profiles = updaters.update_core_profiles_during_step(
+        x,
+        self.static_runtime_params_slice,
+        dynamic_runtime_params_slice,
+        geo,
+        core_profiles,
+        self.evolving_names,
+    )
     if allow_pereverzev:
       use_pereverzev = self.static_runtime_params_slice.stepper.use_pereverzev
     else:
