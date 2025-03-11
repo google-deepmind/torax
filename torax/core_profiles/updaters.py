@@ -18,15 +18,17 @@ Set of routines that relate to updating/creating core profiles from existing
 core profiles.
 
 Includes:
-- finalize_core_profiles: Updates core profiles after each timestep.
 - get_prescribed_core_profile_values: Updates core profiles which are not being
   evolved by PDE.
-- update_evolving_core_profiles: Updates the evolving variables in the core
-  profiles.
+- update_core_profiles_during_step: Intra-step updates of the evolving variables
+  in core profiles during solver iterations.
+- update_all_core_profiles_after_step: Updates all core_profiles after a step.
+  Includes the evolved variables and derived variables like q_face, psidot, etc.
 - compute_boundary_conditions_for_t_plus_dt: Computes boundary conditions for
   the next timestep and returns updates to State.
 """
 import dataclasses
+import functools
 import jax
 from jax import numpy as jnp
 from torax import array_typing
@@ -45,59 +47,6 @@ from torax.sources import source_profiles as source_profiles_lib
 _trapz = jax.scipy.integrate.trapezoid
 
 # pylint: disable=invalid-name
-
-
-@jax_utils.jit
-def finalize_core_profiles(
-    core_profiles: state.CoreProfiles,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    source_profiles: source_profiles_lib.SourceProfiles,
-) -> state.CoreProfiles:
-  """Finalizes core profiles after each timestep.
-
-  Takes the calculated source profiles and partially updated core profiles and
-  updates the core profiles to their final values for this timestep.
-
-  In particular this updates:
-  - currents
-  - psidot
-  - q_face
-  - s_face
-
-  Args:
-    core_profiles: The core profiles to be finalized.
-    dynamic_runtime_params_slice: The dynamic runtime parameters for this
-      timestep.
-    geo: The geometry of the torus for this timestep.
-    source_profiles: The source profiles for this timestep.
-
-  Returns:
-    The finalized core profiles for this timestep.
-  """
-  # Calculate psidot
-  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
-  psidot = dataclasses.replace(
-      core_profiles.psidot,
-      value=psi_calculations.calculate_psidot_from_psi_sources(
-          psi_sources=psi_sources,
-          sigma=source_profiles.j_bootstrap.sigma,
-          sigma_face=source_profiles.j_bootstrap.sigma_face,
-          resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
-          psi=core_profiles.psi,
-          geo=geo,
-      ),
-  )
-
-  return dataclasses.replace(
-      core_profiles,
-      currents=_get_updated_currents(
-          geo, core_profiles.psi, core_profiles.currents, source_profiles
-      ),
-      psidot=psidot,
-      q_face=psi_calculations.calc_q_face(geo, core_profiles.psi),
-      s_face=psi_calculations.calc_s_face(geo, core_profiles.psi),
-  )
 
 
 def _get_updated_currents(
@@ -209,7 +158,20 @@ def get_prescribed_core_profile_values(
   }
 
 
-def update_evolving_core_profiles(
+def _get_update(
+    x_new: tuple[cell_variable.CellVariable, ...],
+    evolving_names: tuple[str, ...],
+    core_profiles: state.CoreProfiles,
+    var: str,
+):
+  """If variable `var` is evolving, return its new value stored in x_new."""
+  if var in evolving_names:
+    return x_new[evolving_names.index(var)]
+  # `var` is not evolving, so its new value is just its old value
+  return getattr(core_profiles, var)
+
+
+def update_core_profiles_during_step(
     x_new: tuple[cell_variable.CellVariable, ...],
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -218,6 +180,11 @@ def update_evolving_core_profiles(
     evolving_names: tuple[str, ...],
 ) -> state.CoreProfiles:
   """Returns the new core profiles after updating the evolving variables.
+
+  Intended for use during iterative solves in the step function. Only updates
+  the core profiles which are being evolved by the PDE and directly derivable
+  quantities like q_face, s_face. core_profile calculations which require
+  sources are not updated.
 
   Args:
     x_new: The new values of the evolving variables.
@@ -228,17 +195,10 @@ def update_evolving_core_profiles(
     evolving_names: The names of the evolving variables.
   """
 
-  def get_update(x_new, var):
-    """Returns the new value of `var`."""
-    if var in evolving_names:
-      return x_new[evolving_names.index(var)]
-    # `var` is not evolving, so its new value is just its old value
-    return getattr(core_profiles, var)
-
-  temp_ion = get_update(x_new, 'temp_ion')
-  temp_el = get_update(x_new, 'temp_el')
-  psi = get_update(x_new, 'psi')
-  ne = get_update(x_new, 'ne')
+  temp_ion = _get_update(x_new, evolving_names, core_profiles, 'temp_ion')
+  temp_el = _get_update(x_new, evolving_names, core_profiles, 'temp_el')
+  psi = _get_update(x_new, evolving_names, core_profiles, 'psi')
+  ne = _get_update(x_new, evolving_names, core_profiles, 'ne')
 
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
       getters.get_ion_density_and_charge_states(
@@ -262,6 +222,88 @@ def update_evolving_core_profiles(
       Zi_face=Zi_face,
       Zimp=Zimp,
       Zimp_face=Zimp_face,
+  )
+
+
+@functools.partial(
+    jax_utils.jit,
+    static_argnames=[
+        'static_runtime_params_slice',
+        'evolving_names',
+    ],
+)
+def update_all_core_profiles_after_step(
+    x_new: tuple[cell_variable.CellVariable, ...],
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+    source_profiles: source_profiles_lib.SourceProfiles,
+    core_profiles: state.CoreProfiles,
+    evolving_names: tuple[str, ...],
+) -> state.CoreProfiles:
+  """Returns a new core profiles after the stepper has finished.
+
+  Updates the evolved variables and derived variables like q_face, psidot, etc.
+
+  Args:
+    x_new: The new values of the evolving variables.
+    static_runtime_params_slice: The static runtime params slice.
+    dynamic_runtime_params_slice: The dynamic runtime params slice.
+    geo: Magnetic geometry.
+    source_profiles: The source profiles from the step function output.
+    core_profiles: The old set of core plasma profiles.
+    evolving_names: The names of the evolving variables.
+  """
+
+  temp_ion = _get_update(x_new, evolving_names, core_profiles, 'temp_ion')
+  temp_el = _get_update(x_new, evolving_names, core_profiles, 'temp_el')
+  psi = _get_update(x_new, evolving_names, core_profiles, 'psi')
+  ne = _get_update(x_new, evolving_names, core_profiles, 'ne')
+
+  ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
+      getters.get_ion_density_and_charge_states(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice,
+          geo,
+          ne,
+          temp_el,
+      )
+  )
+
+  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
+  psidot = dataclasses.replace(
+      core_profiles.psidot,
+      value=psi_calculations.calculate_psidot_from_psi_sources(
+          psi_sources=psi_sources,
+          sigma=source_profiles.j_bootstrap.sigma,
+          sigma_face=source_profiles.j_bootstrap.sigma_face,
+          resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+          psi=psi,
+          geo=geo,
+      ),
+  )
+
+  return state.CoreProfiles(
+      temp_ion=temp_ion,
+      temp_el=temp_el,
+      psi=psi,
+      ne=ne,
+      ni=ni,
+      nimp=nimp,
+      Zi=Zi,
+      Zi_face=Zi_face,
+      Zimp=Zimp,
+      Zimp_face=Zimp_face,
+      currents=_get_updated_currents(
+          geo, psi, core_profiles.currents, source_profiles
+      ),
+      psidot=psidot,
+      q_face=psi_calculations.calc_q_face(geo, psi),
+      s_face=psi_calculations.calc_s_face(geo, psi),
+      nref=core_profiles.nref,
+      Ai=core_profiles.Ai,
+      Aimp=core_profiles.Aimp,
+      vloop_lcfs=core_profiles.vloop_lcfs,
   )
 
 

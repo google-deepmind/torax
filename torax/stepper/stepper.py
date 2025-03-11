@@ -156,11 +156,15 @@ class Stepper(abc.ABC):
       core_transport = state.CoreTransport.zeros(geo_t)
       stepper_numeric_output = state.StepperNumericOutputs()
 
-    core_profiles_t_plus_dt = updaters.update_evolving_core_profiles(
+    # x_new contains the new cell-grid values of the evolving variables.
+    # Update the core profiles with the new values of the evolving variables and
+    # derived quantities like q_face, psidot, etc.
+    core_profiles_t_plus_dt = updaters.update_all_core_profiles_after_step(
         x_new,
         static_runtime_params_slice,
         dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt,
+        core_sources,
         core_profiles_t_plus_dt,
         evolving_names,
     )

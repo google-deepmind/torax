@@ -260,7 +260,7 @@ def theta_method_block_residual(
   x_new_guess = fvm_conversions.vec_to_cell_variable_tuple(
       x_new_guess_vec, core_profiles_t_plus_dt, evolving_names
   )
-  core_profiles_t_plus_dt = updaters.update_evolving_core_profiles(
+  core_profiles_t_plus_dt = updaters.update_core_profiles_during_step(
       x_new_guess,
       static_runtime_params_slice,
       dynamic_runtime_params_slice_t_plus_dt,
