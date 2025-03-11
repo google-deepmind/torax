@@ -14,10 +14,12 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 import numpy as np
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.torax_pydantic import interpolated_param_2d
+from torax.torax_pydantic import model_base
 import xarray as xr
-
 
 RHO_NORM = 'rho_norm'
 TIME_INTERPOLATION_MODE = 'time_interpolation_mode'
@@ -167,7 +169,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               0: 18.0,
               0.95: 5.0,
           },
-          rho_norm=np.array(0.0),
+          rho_norm=np.array([0.0]),
           time=0.0,
           expected_output=18.0,
       ),
@@ -215,36 +217,14 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    interpolated.set_rho_norm_grid(rho_norm)
+    interpolated._update_fields({'grid_cell_centers': rho_norm})
 
     np.testing.assert_allclose(
-        interpolated.get_value(x=time),
+        interpolated.get_value(t=time),
         expected_output,
     )
 
     self.assertEqual(interpolated, interpolated)
-
-  def test_mutation_behavior(self):
-    v1 = 1.0
-    rho_norm = np.array([0.25, 0.5, 0.75])
-    interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(v1)
-    # Directly setting the grid is banned due to immutability.
-    with self.assertRaises(ValueError):
-      interpolated.rho_norm_grid = rho_norm
-
-    # The grid is not set, so we should raise an error as there is not enough
-    # information to interpolate.
-    with self.assertRaises(ValueError):
-      interpolated.get_value(x=0.0)
-
-    interpolated.set_rho_norm_grid(rho_norm)
-
-    # Setting the grid twice should raise an error.
-    with self.assertRaises(RuntimeError):
-      interpolated.set_rho_norm_grid(rho_norm)
-
-    out1 = interpolated.get_value(x=0.0)
-    self.assertEqual(out1.tolist(), [v1] * len(interpolated.rho_norm_grid))
 
   def test_right_boundary_conditions_defined(self):
     """Tests that right_boundary_conditions_defined works correctly."""
@@ -267,6 +247,46 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               value
           ).right_boundary_conditions_defined
       )
+
+  def test_set_geometry_mesh(self):
+
+    class Test1(model_base.BaseModelFrozen):
+      x: float
+      y: interpolated_param_2d.TimeVaryingArray
+
+    class Test2(model_base.BaseModelFrozen):
+      x: Test1  # pytype: disable=invalid-annotation
+      y: interpolated_param_2d.TimeVaryingArray
+      z: int
+
+    m1 = Test1(
+        x=1.0, y=interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
+    )
+    m2 = Test2(
+        x=m1, y=interpolated_param_2d.TimeVaryingArray.model_validate(2.0), z=5
+    )
+    grid = geometry_pydantic_model.CircularConfig().build_geometry().torax_mesh
+
+    with self.subTest('set_geometry_mesh_success'):
+      interpolated_param_2d.set_geometry_mesh(m2, grid)
+      chex.assert_trees_all_equal(m2.x.y.grid_face_centers, grid.face_centers)
+      chex.assert_trees_all_equal(m2.x.y.grid_cell_centers, grid.cell_centers)
+      chex.assert_trees_all_equal(m2.y.grid_face_centers, grid.face_centers)
+      chex.assert_trees_all_equal(m2.y.grid_cell_centers, grid.cell_centers)
+
+    with self.subTest('set_geometry_mesh_already_set'):
+      with self.assertRaisesRegex(
+          RuntimeError, 'Geometry mesh for face_centers is already set'
+      ):
+        interpolated_param_2d.set_geometry_mesh(m2, grid)
+
+    with self.subTest('set_geometry_mesh_already_set_force'):
+      grid._update_fields({'face_centers': grid.face_centers.copy() + 1.0})
+      interpolated_param_2d.set_geometry_mesh(m2, grid, mode='force')
+      chex.assert_trees_all_equal(m2.y.grid_face_centers, grid.face_centers)
+
+    with self.subTest('set_geometry_mesh_already_set_relaxed'):
+      interpolated_param_2d.set_geometry_mesh(m2, grid, mode='relaxed')
 
 
 if __name__ == '__main__':
