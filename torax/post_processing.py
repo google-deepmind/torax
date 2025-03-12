@@ -28,6 +28,9 @@ from torax.physics import formulas
 from torax.physics import psi_calculations
 from torax.physics import scaling_laws
 from torax.sources import source_profiles
+from torax.config import runtime_params_slice
+from torax.sources import generic_ion_el_heat_source
+from torax.sources import ion_cyclotron_source
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -60,6 +63,7 @@ def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
 ) -> dict[str, jax.Array]:
   """Calculates total integrated internal and external source power and current.
 
@@ -67,6 +71,8 @@ def _calculate_integrated_sources(
     geo: Magnetic geometry
     core_profiles: Kinetic profiles such as temperature and density
     core_sources: Internal and external sources
+    dynamic_runtime_params_slice: Dynamic runtime parameters, used for power
+      calculations.
 
   Returns:
     Dictionary with integrated quantities for all existing sources.
@@ -79,25 +85,41 @@ def _calculate_integrated_sources(
   """
   integrated = {}
 
-  # Initialize total alpha power to zero. Needed for Q calculation.
-  integrated['P_alpha_tot'] = jnp.array(0.0)
+  # Calculate alpha power.
+  if 'alpha_source' in core_sources.temp_ion:
+    integrated['P_alpha_ion'] = math_utils.volume_integration(
+        core_sources.temp_ion['alpha_source'], geo
+    )
+    integrated['P_alpha_el'] = math_utils.volume_integration(
+        core_sources.temp_el['alpha_source'], geo
+    )
+    integrated['P_alpha_tot'] = integrated['P_alpha_ion'] + integrated['P_alpha_el']
+  else:
+    integrated['P_alpha_ion'] = jnp.array(0.0)
+    integrated['P_alpha_el'] = jnp.array(0.0)
+    integrated['P_alpha_tot'] = jnp.array(0.0)
 
-  # electron-ion heat exchange always exists, and is not in
-  # core_sources.profiles, so we calculate it here.
-  qei = core_sources.qei.qei_coef * (
-      core_profiles.temp_el.value - core_profiles.temp_ion.value
-  )
-  integrated['P_ei_exchange_ion'] = math_utils.volume_integration(qei, geo)
-  integrated['P_ei_exchange_el'] = -integrated['P_ei_exchange_ion']
-
-  # Initialize total electron and ion powers
-  # TODO(b/380848256): P_sol is now correct for stationary state. However,
-  # for generality need to add dWth/dt to the equation (time dependence of
-  # stored energy).
+  # Calculate electron-ion heat exchange.
+  if 'ei_exchange' in core_sources.temp_ion:
+    integrated['P_ei_exchange_ion'] = math_utils.volume_integration(
+        core_sources.temp_ion['ei_exchange'], geo
+    )
+    integrated['P_ei_exchange_el'] = math_utils.volume_integration(
+        core_sources.temp_el['ei_exchange'], geo
+    )
+  else:
+    # For backward compatibility with older code that uses qei
+    qei = core_sources.qei.qei_coef * (
+        core_profiles.temp_el.value - core_profiles.temp_ion.value
+    )
+    integrated['P_ei_exchange_ion'] = math_utils.volume_integration(qei, geo)
+    integrated['P_ei_exchange_el'] = -integrated['P_ei_exchange_ion']
+    
   integrated['P_sol_ion'] = integrated['P_ei_exchange_ion']
   integrated['P_sol_el'] = integrated['P_ei_exchange_el']
   integrated['P_external_ion'] = jnp.array(0.0)
   integrated['P_external_el'] = jnp.array(0.0)
+  integrated['P_external_injected'] = jnp.array(0.0)
 
   # Calculate integrated sources with convenient names, transformed from
   # TORAX internal names.
@@ -121,6 +143,23 @@ def _calculate_integrated_sources(
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_ion'] += integrated[f'{value}_ion']
         integrated['P_external_el'] += integrated[f'{value}_el']
+        
+        # Track injected power for heating sources that have absorption_fraction
+        if key in ['generic_ion_el_heat_source', 'ion_cyclotron_source']:
+          # Get the absorption_fraction from dynamic params
+          source_params = dynamic_runtime_params_slice.sources.get(key)
+          
+          if source_params and hasattr(source_params, 'absorption_fraction'):
+            # Calculate injected power based on absorption_fraction
+            total_absorbed = integrated[f'{value}_ion'] + integrated[f'{value}_el']
+            absorption_fraction = source_params.absorption_fraction
+            injected_power = total_absorbed / jnp.maximum(absorption_fraction, constants.CONSTANTS.eps)
+            integrated['P_external_injected'] += injected_power
+          else:
+            # If no absorption_fraction is found, injected power equals absorbed power
+            integrated['P_external_injected'] += integrated[f'{value}_ion'] + integrated[f'{value}_el']
+        else:
+          integrated['P_external_injected'] += integrated[f'{value}_ion'] + integrated[f'{value}_el']
 
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
@@ -130,6 +169,7 @@ def _calculate_integrated_sources(
       integrated['P_sol_el'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_el'] += integrated[f'{value}']
+        integrated['P_external_injected'] += integrated[f'{value}']
 
   for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
@@ -149,6 +189,7 @@ def _calculate_integrated_sources(
 def make_outputs(
     sim_state: state.ToraxSimState,
     geo: geometry.Geometry,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     previous_sim_state: state.ToraxSimState | None = None,
 ) -> state.ToraxSimState:
   """Calculates post-processed outputs based on the latest state.
@@ -157,15 +198,15 @@ def make_outputs(
   Args:
     sim_state: The state to add outputs to.
     geo: Geometry object
+    dynamic_runtime_params_slice: Dynamic runtime parameters used for power
+      calculations.
     previous_sim_state: The previous state, used to calculate cumulative
       quantities. Optional input. If None, then cumulative quantities are set at
       the initialized values in sim_state itself. This is used for the first
-      time step of a the simulation. The initialized values are zero for a clean
-      simulation, or the last value of the previous simulation for a restarted
-      simulation.
+      step of a simulation.
 
   Returns:
-    sim_state: A ToraxSimState object, with any updated attributes.
+    Updated state with post-processed outputs.
   """
   (
       pressure_thermal_el_face,
@@ -190,13 +231,14 @@ def make_outputs(
       geo,
       sim_state.core_profiles,
       sim_state.core_sources,
+      dynamic_runtime_params_slice,
   )
   # Calculate fusion gain with a zero division guard.
   # Total energy released per reaction is 5 times the alpha particle energy.
   Q_fusion = (
       integrated_sources['P_alpha_tot']
       * 5.0
-      / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
+      / (integrated_sources['P_external_injected'] + constants.CONSTANTS.eps)
   )
 
   P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (

@@ -104,7 +104,11 @@ class PostProcessingTest(parameterized.TestCase):
         geometry=self.geo,
     )
 
-    updated_sim_state = post_processing.make_outputs(sim_state, self.geo)
+    updated_sim_state = post_processing.make_outputs(
+        sim_state, 
+        self.geo, 
+        dynamic_runtime_params_slice=sim_state.dynamic_runtime_params_slice
+    )
 
     # Check that the outputs were updated.
     for field in state.PostProcessedOutputs.__dataclass_fields__:
