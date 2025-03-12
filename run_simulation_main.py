@@ -244,38 +244,32 @@ def change_config(
   config_module = config_loader.import_module(
       config_module_str, _PYTHON_CONFIG_PACKAGE.value
   )
-  if hasattr(config_module, 'CONFIG'):
-    # Assume that the config module uses the basic config dict to build Sim.
-    sim_config = config_module.CONFIG
-    new_runtime_params = build_sim.build_runtime_params_from_config(
-        sim_config['runtime_params']
+  if not hasattr(config_module, 'CONFIG'):
+    raise ValueError(
+        f'Config module {config_module_str} does not have a CONFIG attribute.'
+        ' Please use the basic config dict to build Sim.'
     )
-    new_geo_provider = geometry_pydantic_model.Geometry.from_dict(
-        sim_config['geometry']
-    ).build_provider
-    new_transport_model_builder = (
-        build_sim.build_transport_model_builder_from_config(
-            sim_config['transport']
-        )
-    )
-    source_models_builder = build_sim.build_sources_builder_from_config(
-        sim_config['sources']
-    )
-    new_stepper = stepper_pydantic_model.Stepper.from_dict(
-        sim_config['stepper']
-    )
-    new_pedestal = pedestal_pydantic_model.Pedestal.from_dict(
-        sim_config['pedestal'] if 'pedestal' in sim_config else {}
-    )
-  else:
-    # Assume the config module has several methods to define the individual Sim
-    # attributes (the "advanced", more Python-forward configuration method).
-    new_runtime_params = config_module.get_runtime_params()
-    new_geo_provider = config_module.get_geometry_provider()
-    new_transport_model_builder = config_module.get_transport_model_builder()
-    source_models_builder = config_module.get_sources_builder()
-    new_stepper = config_module.get_stepper()
-    new_pedestal = config_module.get_pedestal_model_builder()
+  sim_config = config_module.CONFIG
+  new_runtime_params = build_sim.build_runtime_params_from_config(
+      sim_config['runtime_params']
+  )
+  new_geo_provider = geometry_pydantic_model.Geometry.from_dict(
+      sim_config['geometry']
+  ).build_provider
+  new_transport_model_builder = (
+      build_sim.build_transport_model_builder_from_config(
+          sim_config['transport']
+      )
+  )
+  source_models_builder = build_sim.build_sources_builder_from_config(
+      sim_config['sources']
+  )
+  new_stepper = stepper_pydantic_model.Stepper.from_dict(
+      sim_config['stepper']
+  )
+  new_pedestal = pedestal_pydantic_model.Pedestal.from_dict(
+      sim_config['pedestal'] if 'pedestal' in sim_config else {}
+  )
   new_source_params = {
       name: runtime_params
       for name, runtime_params in source_models_builder.runtime_params.items()
