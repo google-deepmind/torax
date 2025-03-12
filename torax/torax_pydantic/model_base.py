@@ -174,6 +174,9 @@ class BaseModelFrozen(pydantic.BaseModel):
     all ancestral models in the nested tree, as these could have a dependency
     on the updated model. In addition, these nodes will be re-validated.
 
+    If the value to be updated is a field of a Pydantic model, any value
+    conformable to the field type will be accepted.
+
     Args:
       x: A dictionary whose key is a path `'some.path.to.field_name'` and the
         `value` is the new value for `field_name`. The path can be dictionary
@@ -197,6 +200,10 @@ class BaseModelFrozen(pydantic.BaseModel):
         raise ValueError(
             f'Cannot update field {value_name} in {model} as field not found.'
         )
+
+      if isinstance(model, pydantic.BaseModel):
+        field_type = model.model_fields[value_name].annotation
+        value = pydantic.TypeAdapter(field_type).validate_python(value)
 
       model.__dict__[value_name] = value
       # Re-validate the model. Will throw an exception if the new value is
