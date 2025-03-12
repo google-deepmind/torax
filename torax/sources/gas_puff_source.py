@@ -61,7 +61,7 @@ class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> GasPuffRuntimeParamsProvider:
     if torax_mesh is None:
       raise ValueError(

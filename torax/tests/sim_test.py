@@ -733,7 +733,7 @@ class SimTest(sim_test_case.SimTestCase):
     sim.update_base_components(
         geometry_provider=geometry_pydantic_model.Geometry.from_dict(
             new_config['geometry']
-        ).build_provider()
+        ).build_provider
     )
     sim_outputs = sim.run()
 
@@ -758,7 +758,7 @@ class SimTest(sim_test_case.SimTestCase):
       sim.update_base_components(
           geometry_provider=geometry_pydantic_model.Geometry.from_dict(
               {'geometry_type': 'circular', 'n_rho': 10}
-          ).build_provider()
+          ).build_provider
       )
 
 

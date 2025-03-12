@@ -304,6 +304,7 @@ class IonCyclotronSourceConfig(runtime_params_lib.SourceModelBase):
     Ptot: Total heating power [W].
     absorption_fraction: Fraction of absorbed power.
   """
+
   source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
   wall_inner: torax_pydantic.Meter = 1.24
   wall_outer: torax_pydantic.Meter = 2.43
@@ -343,7 +344,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   @override
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> 'RuntimeParamsProvider':
     kwargs = self.get_provider_kwargs(torax_mesh)
     return RuntimeParamsProvider(**kwargs)

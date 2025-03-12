@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.interpolated_param."""
-
 import random
 
 from absl.testing import absltest
@@ -26,7 +24,6 @@ import xarray as xr
 
 
 class InterpolatedParamTest(parameterized.TestCase):
-  """Unit tests for the `torax.interpolated_param` module."""
 
   @parameterized.parameters(
       ((np.array([0.0]), np.array([42.0,])),),

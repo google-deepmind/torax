@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the `torax.config.profile_conditions` module."""
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -26,7 +24,6 @@ import xarray as xr
 
 # pylint: disable=invalid-name
 class ProfileConditionsTest(parameterized.TestCase):
-  """Unit tests for the `torax.config.profile_conditions` module."""
 
   def test_profile_conditions_make_provider(self):
     pc = profile_conditions.ProfileConditions()

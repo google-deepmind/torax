@@ -36,6 +36,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
@@ -56,7 +57,7 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   numprocs: int = 8
 
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
@@ -353,9 +354,7 @@ def _extract_qualikiz_plan(
       type=1,
       anis=1,
       danisdr=0,
-      A=np.array(
-          core_profiles.Ai
-      ),
+      A=np.array(core_profiles.Ai),
       Z=1,  # will be a scan variable
   )
 
@@ -369,9 +368,7 @@ def _extract_qualikiz_plan(
       type=1,
       anis=1,
       danisdr=0,
-      A=np.array(
-          core_profiles.Aimp
-      ),
+      A=np.array(core_profiles.Aimp),
       Z=10,  # will be a scan variable
   )
 

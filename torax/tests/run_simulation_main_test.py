@@ -12,18 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the run_simulation_main script.
-
-Our other files don't have the "test_" prefix in their name and just match
-the name of the file they are testing. This one can't be named
-"run_simulation_main" or `import run_simulation_main" will pick up this file
-rather than the executable run_simulation_main. The test directory takes
-precedence over the cwd when resolving imports. No other test file has this
-problem because all other files we import are inside the torax module so
-we do `from torax import foo`.
-"""
-
-
 import io
 import os
 import shutil
@@ -55,7 +43,6 @@ import xarray as xr
 
 
 class RunSimulationMainTest(parameterized.TestCase):
-  """Unit tests for the `torax.run_simulation_main` app."""
 
   # These tests will make extensive use of access to private members of the
   # run_simulation_main module.

@@ -83,7 +83,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

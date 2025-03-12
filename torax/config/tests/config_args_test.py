@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the `torax.config.config_args` module."""
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -22,7 +20,6 @@ import xarray as xr
 
 
 class ConfigArgsTest(parameterized.TestCase):
-  """Unit tests for config arg parsing."""
 
   @parameterized.parameters(
       (True,),

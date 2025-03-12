@@ -75,6 +75,7 @@ class BootstrapCurrentSourceTest(absltest.TestCase):
             value=jnp.linspace(100, 200, n_rho), dr=self.geo.drho_norm
         ),
         Zi_face=np.linspace(1000, 2000, n_rho + 1),
+        q_face=np.linspace(1, 5, n_rho + 1),
     )
 
   def test_get_bootstrap(self):

@@ -24,7 +24,6 @@ import chex
 from torax import array_typing
 from torax import interpolated_param
 from torax.config import base
-from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
 
 
@@ -118,7 +117,7 @@ class RuntimeParams(base.RuntimeParametersConfig):
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> RuntimeParamsProvider:
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

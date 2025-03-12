@@ -252,7 +252,7 @@ def change_config(
     )
     new_geo_provider = geometry_pydantic_model.Geometry.from_dict(
         sim_config['geometry']
-    ).build_provider()
+    ).build_provider
     new_transport_model_builder = (
         build_sim.build_transport_model_builder_from_config(
             sim_config['transport']

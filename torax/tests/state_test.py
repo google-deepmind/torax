@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.state and torax.updaters."""
-
 import dataclasses
 import functools
 from typing import Callable
@@ -39,7 +37,6 @@ from torax.tests.test_lib import torax_refs
 
 
 class StateTest(torax_refs.ReferenceValueTest):
-  """Unit tests for the `torax.state` module."""
 
   def setUp(self):
     super().setUp()
@@ -277,7 +274,7 @@ class InitialStatesTest(parameterized.TestCase):
     )
     geo_provider = geometry_pydantic_model.Geometry.from_dict(
         {'geometry_type': geometry_name}
-    ).build_provider()
+    ).build_provider
     source_models_builder = source_models_lib.SourceModelsBuilder()
     source_models = source_models_builder()
     source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0

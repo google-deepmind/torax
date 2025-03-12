@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.config.runtime_params."""
-
 import dataclasses
 
 from absl.testing import absltest
@@ -26,7 +24,6 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 
 # pylint: disable=invalid-name
 class RuntimeParamsTest(parameterized.TestCase):
-  """Unit tests for the `torax.config.runtime_params` module."""
 
   def test_recursive_replace(self):
     """Basic test of recursive replace."""

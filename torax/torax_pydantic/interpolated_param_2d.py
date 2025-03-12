@@ -16,16 +16,69 @@
 
 from collections.abc import Mapping
 import functools
-from typing import Any
+from typing import Any, Literal
 import chex
+import numpy as np
 import pydantic
 from torax import interpolated_param
-from torax.torax_pydantic import interpolated_param_common
+from torax.torax_pydantic import model_base
 from torax.torax_pydantic import pydantic_types
+from typing_extensions import Self
 import xarray as xr
 
 
-class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
+class Grid1D(model_base.BaseModelFrozen):
+  """Data structure defining a 1-D grid of cells with faces.
+
+  Construct via `construct` classmethod.
+
+  Attributes:
+    nx: Number of cells.
+    dx: Distance between cell centers.
+    face_centers: Coordinates of face centers.
+    cell_centers: Coordinates of cell centers.
+  """
+
+  nx: pydantic.PositiveInt
+  dx: pydantic.PositiveFloat
+  face_centers: pydantic_types.NumpyArray1D
+  cell_centers: pydantic_types.NumpyArray1D
+
+  def __eq__(self, other: Self) -> bool:
+    return (
+        self.nx == other.nx
+        and self.dx == other.dx
+        and np.array_equal(self.face_centers, other.face_centers)
+        and np.array_equal(self.cell_centers, other.cell_centers)
+    )
+
+  def __hash__(self) -> int:
+    return hash((self.nx, self.dx))
+
+  @classmethod
+  def construct(cls, nx: int, dx: float) -> Self:
+    """Constructs a Grid1D.
+
+    Args:
+      nx: Number of cells.
+      dx: Distance between cell centers.
+
+    Returns:
+      grid: A Grid1D with the remaining fields filled in.
+    """
+
+    # Note: nx needs to be an int so that the shape `nx + 1` is not a Jax
+    # tracer.
+
+    return Grid1D(
+        nx=nx,
+        dx=dx,
+        face_centers=np.linspace(0, nx * dx, nx + 1),
+        cell_centers=np.linspace(dx * 0.5, (nx - 0.5) * dx, nx),
+    )
+
+
+class TimeVaryingArray(model_base.BaseModelFrozen):
   """Base class for time interpolated array types.
 
   The Pydantic `.model_validate` constructor can accept a variety of input types
@@ -38,9 +91,12 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
       `rho_norm` and `values` are 1D NumPy arrays of equal length.
     rho_interpolation_mode: The interpolation mode to use for the rho axis.
     time_interpolation_mode: The interpolation mode to use for the time axis.
-    rho_norm_grid: The rho norm grid to use for the interpolation. This is
-      generally not known at initialization time, so it is set separately via
-      the `set_rho_norm_grid` method.
+    grid_face_centers: The face centers of the grid to use for the
+      interpolation. This is optional, as this value is often not known at
+      construction time, and is set later.
+    grid_cell_centers: The cell centers of the grid to use for the
+      interpolation. This is optional, as this value is often not known at
+      construction time, and is set later.
   """
 
   value: Mapping[
@@ -52,7 +108,7 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
   time_interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   )
-  rho_norm_grid: pydantic_types.NumpyArray | None = None
+  grid: Grid1D | None = None
 
   @functools.cached_property
   def right_boundary_conditions_defined(self) -> bool:
@@ -63,6 +119,41 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
         return False
     return True
 
+  def get_value(
+      self,
+      t: chex.Numeric,
+      grid_type: Literal['cell', 'face', 'face_right'] = 'cell',
+  ) -> chex.Array:
+    """Returns the value of this parameter interpolated at x=time.
+
+    Args:
+      t: An array of times to interpolate at.
+      grid_type: One of 'cell', 'face', or 'face_right'. For 'face_right', the
+        element `self.grid_face_centers[-1]` is used as the grid.
+
+    Raises:
+      RuntimeError: If `self.grid` is None.
+
+    Returns:
+      An array of interpolated values.
+    """
+    match grid_type:
+      case 'cell':
+        return self._get_cached_interpolated_param_cell.get_value(t)
+      case 'face':
+        return self._get_cached_interpolated_param_face.get_value(t)
+      case 'face_right':
+        return self._get_cached_interpolated_param_face_right.get_value(t)
+      case _:
+        raise ValueError(f'Unknown grid type: {grid_type}')
+
+  def __eq__(self, other: Self):
+    try:
+      chex.assert_trees_all_equal(vars(self), vars(other))
+      return True
+    except AssertionError:
+      return False
+
   @pydantic.model_validator(mode='before')
   @classmethod
   def _conform_data(
@@ -71,7 +162,9 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
 
     if isinstance(data, dict):
       # A workaround for https://github.com/pydantic/pydantic/issues/10477.
-      data.pop('_get_cached_interpolated_param', None)
+      data.pop('_get_cached_interpolated_param_cell_centers', None)
+      data.pop('_get_cached_interpolated_param_face_centers', None)
+      data.pop('_get_cached_interpolated_param_face_right_centers', None)
 
       # This is the standard constructor input. No conforming required.
       if set(data.keys()).issubset(cls.model_fields.keys()):
@@ -115,39 +208,44 @@ class TimeVaryingArray(interpolated_param_common.TimeVaryingBase):
         rho_interpolation_mode=rho_interpolation_mode,
     )
 
-  def set_rho_norm_grid(self, grid: pydantic_types.NumpyArray):
-    """Sets the rho_norm_grid field.
-
-    This function can only be called if the rho_norm_grid field is None.
-
-    Args:
-      grid: The grid to use for interpolation represented as a NumPy array.
-
-    Raises:
-      RuntimeError: If the rho_norm_grid field is not None.
-    Returns:
-      No return value.
-    """
-
-    if self.rho_norm_grid is not None:
-      raise RuntimeError(
-          'set_rho_norm_grid can only be called when the rho_norm_grid field is'
-          ' None.'
-      )
-
-    # Bypass the pydantic validator that enforces field immutability by
-    # directly modifying the underlying model dictionary.
-    self.__dict__['rho_norm_grid'] = grid
-
   @functools.cached_property
-  def _get_cached_interpolated_param(
+  def _get_cached_interpolated_param_cell(
       self,
   ) -> interpolated_param.InterpolatedVarTimeRho:
-    if self.rho_norm_grid is None:
-      raise ValueError('grid must be set.')
+    if self.grid is None:
+      raise RuntimeError('grid must be set.')
+
     return interpolated_param.InterpolatedVarTimeRho(
         self.value,
-        rho_norm=self.rho_norm_grid,
+        rho_norm=self.grid.cell_centers,
+        time_interpolation_mode=self.time_interpolation_mode,
+        rho_interpolation_mode=self.rho_interpolation_mode,
+    )
+
+  @functools.cached_property
+  def _get_cached_interpolated_param_face(
+      self,
+  ) -> interpolated_param.InterpolatedVarTimeRho:
+    if self.grid is None:
+      raise RuntimeError('grid must be set.')
+
+    return interpolated_param.InterpolatedVarTimeRho(
+        self.value,
+        rho_norm=self.grid.face_centers,
+        time_interpolation_mode=self.time_interpolation_mode,
+        rho_interpolation_mode=self.rho_interpolation_mode,
+    )
+
+  @functools.cached_property
+  def _get_cached_interpolated_param_face_right(
+      self,
+  ) -> interpolated_param.InterpolatedVarTimeRho:
+    if self.grid is None:
+      raise RuntimeError('grid must be set.')
+
+    return interpolated_param.InterpolatedVarTimeRho(
+        self.value,
+        rho_norm=self.grid.face_centers[-1],
         time_interpolation_mode=self.time_interpolation_mode,
         rho_interpolation_mode=self.rho_interpolation_mode,
     )
@@ -260,3 +358,42 @@ def _load_from_arrays(
     return {t: (rho_norm, values[i, :]) for i, t in enumerate(times)}
   else:
     raise ValueError(f'arrays must be length 2 or 3. Given: {len(arrays)}.')
+
+
+def set_grid(
+    model: model_base.BaseModelFrozen,
+    grid: Grid1D,
+    mode: Literal['strict', 'force', 'relaxed'] = 'strict',
+):
+  """Sets the grid for for the model and all its submodels.
+
+  Args:
+    model: The model to set the geometry mesh for.
+    grid: A `Grid1D` object.
+    mode: The update mode. With `'strict'` (default), an error will be raised if
+      the `grid` is already set in `model` or any of its submodels. With
+      `'force'`, `grid` will be overwritten in a potentially unsafe way (no
+      cache invalidation). With `'relaxed'`, `grid` will only be set if it is
+      not already set.
+
+  Raises:
+    RuntimeError: If `force_update=False` and `grid` is already set.
+  """
+
+  def _update_rule(submodel):
+    if submodel.grid is None:
+      submodel.__dict__['grid'] = grid
+    else:
+      match mode:
+        case 'force':
+          submodel.__dict__['grid'] = grid
+        case 'relaxed':
+          pass
+        case 'strict':
+          raise RuntimeError(
+              '`grid` is already set and using strict update mode.'
+          )
+
+  for submodel in model.submodels:
+    if isinstance(submodel, TimeVaryingArray):
+      _update_rule(submodel)

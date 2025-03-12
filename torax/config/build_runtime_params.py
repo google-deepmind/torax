@@ -32,6 +32,7 @@ from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import runtime_params as sources_params
 from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as transport_model_params
 
 
@@ -39,7 +40,7 @@ def build_static_runtime_params_slice(
     *,
     runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
     source_runtime_params: dict[str, sources_params.RuntimeParams],
-    torax_mesh: geometry.Grid1D,
+    torax_mesh: torax_pydantic.Grid1D,
     stepper: stepper_pydantic_model.Stepper | None = None,
 ) -> runtime_params_slice.StaticRuntimeParamsSlice:
   """Builds a StaticRuntimeParamsSlice.
@@ -144,7 +145,7 @@ class DynamicRuntimeParamsSliceProvider:
       transport: transport_model_params.RuntimeParams | None = None,
       sources: dict[str, sources_params.RuntimeParams] | None = None,
       stepper: stepper_pydantic_model.Stepper | None = None,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ):
     """Constructs a build_simulation_params.DynamicRuntimeParamsSliceProvider.
 

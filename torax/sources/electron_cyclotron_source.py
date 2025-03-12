@@ -98,7 +98,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   ) = 0.0
   gaussian_ec_total_power: runtime_params_lib.TimeInterpolatedInput = 0.0
 
-  def make_provider(self, torax_mesh: geometry.Grid1D | None = None):
+  def make_provider(self, torax_mesh: torax_pydantic.Grid1D | None = None):
     if torax_mesh is None:
       raise ValueError(
           "torax_mesh is required for RuntimeParams.make_provider."

@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.config.build_sim."""
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -33,7 +31,6 @@ from torax.transport_model import qlknn_transport_model
 
 
 class BuildSimTest(parameterized.TestCase):
-  """Unit tests for the `torax.config.build_sim` module."""
 
   def test_build_sim_raises_error_with_missing_keys(self):
     with self.assertRaises(ValueError):

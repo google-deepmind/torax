@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.output."""
-
 import dataclasses
 import os
 
@@ -42,7 +40,6 @@ DictKey = tree_util.DictKey
 
 
 class StateHistoryTest(parameterized.TestCase):
-  """Unit tests for the `torax.output` module."""
 
   def setUp(self):
     super().setUp()

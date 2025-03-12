@@ -23,7 +23,6 @@ from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.core_profiles import getters
-from torax.core_profiles import updaters
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.geometry import standard_geometry
@@ -72,7 +71,7 @@ def initial_core_profiles(
   )
 
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
-      updaters.get_ion_density_and_charge_states(
+      getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
           dynamic_runtime_params_slice,
           geo,
@@ -131,7 +130,8 @@ def initial_core_profiles(
   )
 
   jtot, jtot_face, Ip_profile_face = psi_calculations.calc_jtot(
-      geo, core_profiles.psi)
+      geo, core_profiles.psi
+  )
   currents = dataclasses.replace(
       core_profiles.currents,
       jtot=jtot,
@@ -386,7 +386,12 @@ def _init_psi_psidot_vloop_and_current(
         dr=geo.drho_norm,
     )
 
-    core_profiles = dataclasses.replace(core_profiles, psi=psi)
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        psi=psi,
+        q_face=psi_calculations.calc_q_face(geo, psi),
+        s_face=psi_calculations.calc_s_face(geo, psi),
+    )
     bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -430,7 +435,12 @@ def _init_psi_psidot_vloop_and_current(
         else None,
         dr=geo.drho_norm,
     )
-    core_profiles = dataclasses.replace(core_profiles, psi=psi)
+    core_profiles = dataclasses.replace(
+        core_profiles,
+        psi=psi,
+        q_face=psi_calculations.calc_q_face(geo, psi),
+        s_face=psi_calculations.calc_s_face(geo, psi),
+    )
 
     # Calculate non-inductive currents
     bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
@@ -465,7 +475,11 @@ def _init_psi_psidot_vloop_and_current(
         use_vloop_lcfs_boundary_condition=use_vloop_bc,
     )
     core_profiles = dataclasses.replace(
-        core_profiles, currents=currents, psi=psi
+        core_profiles,
+        currents=currents,
+        psi=psi,
+        q_face=psi_calculations.calc_q_face(geo, psi),
+        s_face=psi_calculations.calc_s_face(geo, psi),
     )
     # Now calculate currents with bootstrap.
     bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
@@ -495,6 +509,8 @@ def _init_psi_psidot_vloop_and_current(
   core_profiles = dataclasses.replace(
       core_profiles,
       psi=psi,
+      q_face=psi_calculations.calc_q_face(geo, psi),
+      s_face=psi_calculations.calc_s_face(geo, psi),
       currents=currents,
       vloop_lcfs=dynamic_runtime_params_slice.profile_conditions.vloop_lcfs,
   )

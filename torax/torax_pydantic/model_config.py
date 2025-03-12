@@ -16,7 +16,6 @@
 
 import logging
 from typing import Any, Mapping
-
 import pydantic
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
@@ -24,12 +23,13 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
-from torax.torax_pydantic import model_base
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import pydantic_model as transport_model_pydantic_model
 import typing_extensions
+from typing_extensions import Self
 
 
-class ToraxConfig(model_base.BaseModelFrozen):
+class ToraxConfig(torax_pydantic.BaseModelFrozen):
   """Base config class for Torax.
 
   Attributes:
@@ -89,4 +89,33 @@ class ToraxConfig(model_base.BaseModelFrozen):
       ValueError: all submodels must be unique object instances. A `ValueError`
         will be raised if this is not the case.
     """
+
     self._update_fields(x)
+
+    # If the nrho is updated, all model caches need to be invalidated and the
+    # geometry mesh reset.
+    if _is_nrho_updated(x):
+      for model in self.submodels:
+        model.clear_cached_properties()
+      mesh = self.geometry.build_provider.torax_mesh
+      torax_pydantic.set_grid(self, mesh, mode='force')
+
+  @pydantic.model_validator(mode='after')
+  def _set_grid(self) -> Self:
+    # Interpolated `TimeVaryingArray` objects require a mesh, only available
+    # once the geometry provider is built. This could be done in the before
+    # validator, but is harder than setting it after construction.
+    mesh = self.geometry.build_provider.torax_mesh
+    # Note that the grid could already be set, eg. if the config is serialized
+    # and deserialized. In this case, we do not want to overwrite it nor fail
+    # when trying to set it, which is why mode='relaxed'.
+    torax_pydantic.set_grid(self, mesh, mode='relaxed')
+    return self
+
+
+def _is_nrho_updated(x: Mapping[str, Any]) -> bool:
+  for path in x.keys():
+    chunks = path.split('.')
+    if chunks[-1] == 'n_rho' and chunks[0] == 'geometry':
+      return True
+  return False

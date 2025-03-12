@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for qlknn_model_wrapper."""
 
 import tempfile
 
@@ -37,7 +36,6 @@ def _get_test_flux_name_map():
 
 
 class QlknnModelWrapperTest(parameterized.TestCase):
-  """Tests for qlknn_model_wrapper."""
 
   def setUp(self):
     super().setUp()

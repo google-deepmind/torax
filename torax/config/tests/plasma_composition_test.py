@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the `torax.config.plasma_composition` module."""
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -24,7 +22,6 @@ from torax.physics import charge_states
 
 
 class PlasmaCompositionTest(parameterized.TestCase):
-  """Unit tests for methods in the `torax.config.plasma_composition` module."""
 
   def test_plasma_composition_make_provider(self):
     """Checks provider construction with no issues."""

@@ -96,7 +96,7 @@ class BaseModelFrozen(pydantic.BaseModel):
     return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))
 
   @functools.cached_property
-  def submodels(self) -> tuple[pydantic.BaseModel, ...]:
+  def submodels(self) -> tuple[Self, ...]:
     """A tuple of the model and all submodels.
 
     This will return all Pydantic models directly inside model fields, and
@@ -148,7 +148,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         model_tree.paste(id(self), model.tree_build())
     return model_tree
 
-  def _clear_cached_properties(self, exceptions: Sequence[str] | None = None):
+  def clear_cached_properties(self, exceptions: Sequence[str] | None = None):
     """Clears all `functools.cached_property` caches in the model.
 
     Args:
@@ -206,7 +206,7 @@ class BaseModelFrozen(pydantic.BaseModel):
     for model in mutated_models:
       for model_ancestral in model_tree.rsearch(id(model)):
         node = model_tree.get_node(model_ancestral)
-        node.data._clear_cached_properties()  # pylint: disable=protected-access
+        node.data.clear_cached_properties()
 
   def _lookup_path(self, paths: Sequence[str]) -> Self:
     """Returns the model at the given path."""

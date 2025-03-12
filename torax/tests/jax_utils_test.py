@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for torax.jax_utils."""
-
 from absl.testing import absltest
 from absl.testing import parameterized
 from jax import numpy as jnp
@@ -21,7 +19,6 @@ from torax import jax_utils
 
 
 class JaxUtilsTest(parameterized.TestCase):
-  """Unit tests for the `torax.jax_utils` module."""
 
   def _should_error(self):
     """Assert that errors are on."""

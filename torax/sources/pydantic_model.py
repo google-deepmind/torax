@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Pydantic config for Transport models."""
+"""Pydantic config for source models."""
 
 from collections.abc import Mapping
 import copy
