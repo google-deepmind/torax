@@ -321,6 +321,7 @@ class PostProcessedOutputs:
     P_external_el: Total external electron heating power: auxiliary heating +
       Ohmic [W]
     P_external_tot: Total external heating power: auxiliary heating + Ohmic [W]
+    P_external_injected: External injected power before absorption [W]
     P_ei_exchange_ion: Electron-ion heat exchange power to ions [W]
     P_ei_exchange_el: Electron-ion heat exchange power to electrons [W]
     P_generic_ion: Total generic_ion_el_heat_source power to ions [W]
@@ -387,6 +388,7 @@ class PostProcessedOutputs:
   P_external_ion: array_typing.ScalarFloat
   P_external_el: array_typing.ScalarFloat
   P_external_tot: array_typing.ScalarFloat
+  P_external_injected: array_typing.ScalarFloat
   P_ei_exchange_ion: array_typing.ScalarFloat
   P_ei_exchange_el: array_typing.ScalarFloat
   P_generic_ion: array_typing.ScalarFloat
@@ -450,6 +452,7 @@ class PostProcessedOutputs:
         P_external_ion=jnp.array(0.0),
         P_external_el=jnp.array(0.0),
         P_external_tot=jnp.array(0.0),
+        P_external_injected=jnp.array(0.0),
         P_ei_exchange_ion=jnp.array(0.0),
         P_ei_exchange_el=jnp.array(0.0),
         P_generic_ion=jnp.array(0.0),
