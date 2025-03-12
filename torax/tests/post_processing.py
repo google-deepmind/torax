@@ -19,6 +19,7 @@ from absl.testing import parameterized
 import jax
 import numpy as np
 import scipy
+from jax import numpy as jnp
 from torax import output
 from torax import post_processing
 from torax import state
@@ -31,7 +32,7 @@ from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import sim_test_case
 from torax.tests.test_lib import torax_refs
-from torax.formulas import formulas
+from torax.physics import formulas
 
 
 class PostProcessingTest(parameterized.TestCase):
@@ -88,28 +89,26 @@ class PostProcessingTest(parameterized.TestCase):
     )
 
   def test_make_outputs(self):
-    """Checks that outputs are made correctly."""
-    self.core_profiles.j_phi = jax.jit(formulas.calc_current_density)(
-        p=self.core_profiles.pressure.cell_value(),
-        psi=self.core_profiles.psi.face_value(),
-        rho=self.geo.rho,
-        r=self.geo.r,
-        r_vol=self.geo.r_vol,
-        vol=self.geo.volume,
-    )
+    """Test that post-processing outputs are added to the state."""
     sim_state = state.ToraxSimState(
-        t=1.0,
-        dt=0.1,
-        error_code=state.SimError.NONE,
+        t=jnp.array(1.0),
+        dt=jnp.array(0.1),
         core_profiles=self.core_profiles,
         core_sources=self.source_profiles,
-        transport_coefficients=state.TransportCoefficients.zeros(self.geo),
+        core_transport=state.CoreTransport.zeros(self.geo),
         post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
+        geometry=self.geo,
+        time_step_calculator_state=None,
+        stepper_numeric_outputs=state.StepperNumericOutputs(
+            outer_stepper_iterations=1,
+            stepper_error_state=1,
+            inner_solver_iterations=1,
+        ),
     )
     updated_sim_state = post_processing.make_outputs(
         sim_state,
         self.geo,
-        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
+        self.dynamic_runtime_params_slice,
     )
 
     # Check that the outputs were updated.
@@ -156,6 +155,7 @@ class PostProcessingTest(parameterized.TestCase):
         'P_external_ion',
         'P_external_el',
         'P_external_tot',
+        'P_external_injected',
         'I_ecrh',
         'I_generic',
     }
