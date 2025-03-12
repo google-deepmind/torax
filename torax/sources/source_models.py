@@ -319,6 +319,29 @@ class SourceModelsBuilder:
     self.source_builders = source_builders
 
   def __call__(self) -> SourceModels:
+    # Check if bremsstrahlung and Mavrin models are both active
+    bremsstrahlung_name = 'bremsstrahlung_heat_sink'
+    impurity_radiation_name = 'impurity_radiation_heat_sink'
+    
+    if (bremsstrahlung_name in self.source_builders and 
+        impurity_radiation_name in self.source_builders):
+        
+        bremsstrahlung_params = self.source_builders[bremsstrahlung_name].runtime_params
+        impurity_params = self.source_builders[impurity_radiation_name].runtime_params
+        
+        # Check if both sources are active (not in ZERO mode)
+        bremsstrahlung_active = bremsstrahlung_params.mode != runtime_params_lib.Mode.ZERO
+        
+        # Check if impurity radiation is active and using the Mavrin model
+        impurity_active = impurity_params.mode != runtime_params_lib.Mode.ZERO
+        using_mavrin = getattr(impurity_params, 'model_func', 'impurity_radiation_mavrin_fit') == 'impurity_radiation_mavrin_fit'
+        
+        if bremsstrahlung_active and impurity_active and using_mavrin:
+            raise ValueError(
+                f"Both {bremsstrahlung_name} and {impurity_radiation_name} with Mavrin model "
+                f"should not be active at the same time to avoid double-counting radiation losses. "
+                f"Please set one of them to Mode.ZERO."
+            )
 
     return SourceModels(self.source_builders)
 
