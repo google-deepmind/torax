@@ -305,6 +305,9 @@ analysis and inspection.
 ``P_external_tot`` (time) [W]:
   Total external heating power: auxiliary heating + Ohmic.
 
+``P_external_injected`` (time) [W]:
+  External injected power before absorption: total power injected into the plasma before absorption effects.
+
 ``P_ei_exchange_ion`` (time) [W]:
   Electron-ion heat exchange power to ions.
 
