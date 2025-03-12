@@ -32,13 +32,10 @@ class ImpurityRadiationConstantFractionTest(
     test_lib.SingleProfileSourceTestCase
 ):
 
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink,
-        runtime_params_class=impurity_radiation_constant_fraction.RuntimeParams,
+  def setUp(self):
+    super().setUp(
+        source_config_class=impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
-        model_func=impurity_radiation_constant_fraction.radially_constant_fraction_of_Pin,
         needs_source_models=True,
     )
 

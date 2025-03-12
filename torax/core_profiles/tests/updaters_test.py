@@ -15,19 +15,15 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from jax import numpy as jnp
 import numpy as np
 from torax import jax_utils
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
-from torax.core_profiles import getters
 from torax.core_profiles import updaters
-from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.physics import formulas
-from torax.sources import source_models as source_models_lib
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_params_lib
 
@@ -41,71 +37,6 @@ class UpdatersTest(parameterized.TestCase):
     super().setUp()
     jax_utils.enable_errors(True)
     self.geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-
-  def test_get_ion_density_and_charge_states(self):
-    expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            ne={0: {0: 1.5, 1: 1}},
-            ne_is_fGW=False,
-            ne_bound_right_is_fGW=False,
-            nbar=1,
-            normalize_to_nbar=False,
-        )
-    )
-    source_models_builder = source_models_lib.SourceModelsBuilder()
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
-        sources={},
-        stepper=stepper_pydantic_model.Stepper(),
-        torax_mesh=self.geo.torax_mesh,
-    )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
-        torax_mesh=self.geo.torax_mesh,
-    )
-    dynamic_runtime_params_slice = provider(t=1.0)
-
-    temp_el = cell_variable.CellVariable(
-        value=jnp.ones_like(self.geo.rho_norm)
-        * 100.0,  # ensure full ionization
-        left_face_grad_constraint=jnp.zeros(()),
-        right_face_grad_constraint=None,
-        right_face_constraint=jnp.array(100.0),
-        dr=self.geo.drho_norm,
-    )
-    ne = getters.get_updated_electron_density(
-        dynamic_runtime_params_slice.numerics,
-        dynamic_runtime_params_slice.profile_conditions,
-        self.geo,
-    )
-    ni, nimp, Zi, _, Zimp, _ = updaters.get_ion_density_and_charge_states(
-        static_slice,
-        dynamic_runtime_params_slice,
-        self.geo,
-        ne,
-        temp_el,
-    )
-
-    Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
-
-    dilution_factor = formulas.calculate_main_ion_dilution_factor(
-        Zi, Zimp, Zeff
-    )
-    np.testing.assert_allclose(
-        ni.value,
-        expected_value * dilution_factor,
-        atol=1e-6,
-        rtol=1e-6,
-    )
-    np.testing.assert_allclose(
-        nimp.value,
-        (expected_value - ni.value * Zi) / Zimp,
-        atol=1e-6,
-        rtol=1e-6,
-    )
 
   @parameterized.named_parameters(
       dict(
@@ -201,16 +132,16 @@ class UpdatersTest(parameterized.TestCase):
             ne_bound_right=ne_bound_right,
         ),
     )
-    source_models_builder = source_models_lib.SourceModelsBuilder()
+    sources = source_pydantic_model.Sources()
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
@@ -267,16 +198,16 @@ class UpdatersTest(parameterized.TestCase):
             Te_bound_right=Te_bound_right,
         ),
     )
-    source_models_builder = source_models_lib.SourceModelsBuilder()
+    sources = source_pydantic_model.Sources.from_dict({})
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
@@ -319,16 +250,16 @@ class UpdatersTest(parameterized.TestCase):
             Ti_bound_right=Ti_bound_right,
         ),
     )
-    source_models_builder = source_models_lib.SourceModelsBuilder()
+    sources = source_pydantic_model.Sources.from_dict({})
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )

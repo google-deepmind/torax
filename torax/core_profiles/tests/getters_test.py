@@ -14,13 +14,17 @@
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+from jax import numpy as jnp
 import numpy as np
 from torax import jax_utils
 from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import getters
+from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.physics import formulas
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_params_lib
 
@@ -82,7 +86,7 @@ class GettersTest(parameterized.TestCase):
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
@@ -130,7 +134,7 @@ class GettersTest(parameterized.TestCase):
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
@@ -166,7 +170,7 @@ class GettersTest(parameterized.TestCase):
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
@@ -218,7 +222,7 @@ class GettersTest(parameterized.TestCase):
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
@@ -245,6 +249,71 @@ class GettersTest(parameterized.TestCase):
     ratio = ne.value / ne_fGW.value
     np.all(np.isclose(ratio, ratio[0]))
     self.assertNotEqual(ratio[0], 1.0)
+
+  def test_get_ion_density_and_charge_states(self):
+    expected_value = np.array([1.4375, 1.3125, 1.1875, 1.0625])
+    runtime_params = general_runtime_params.GeneralRuntimeParams(
+        profile_conditions=profile_conditions_lib.ProfileConditions(
+            ne={0: {0: 1.5, 1: 1}},
+            ne_is_fGW=False,
+            ne_bound_right_is_fGW=False,
+            nbar=1,
+            normalize_to_nbar=False,
+        )
+    )
+    sources = sources_pydantic_model.Sources.from_dict({})
+    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
+        runtime_params=runtime_params,
+        transport=transport_params_lib.RuntimeParams(),
+        sources=sources,
+        stepper=stepper_pydantic_model.Stepper(),
+        torax_mesh=self.geo.torax_mesh,
+    )
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        sources=sources,
+        torax_mesh=self.geo.torax_mesh,
+    )
+    dynamic_runtime_params_slice = provider(t=1.0)
+
+    temp_el = cell_variable.CellVariable(
+        value=jnp.ones_like(self.geo.rho_norm)
+        * 100.0,  # ensure full ionization
+        left_face_grad_constraint=jnp.zeros(()),
+        right_face_grad_constraint=None,
+        right_face_constraint=jnp.array(100.0),
+        dr=self.geo.drho_norm,
+    )
+    ne = getters.get_updated_electron_density(
+        dynamic_runtime_params_slice.numerics,
+        dynamic_runtime_params_slice.profile_conditions,
+        self.geo,
+    )
+    ni, nimp, Zi, _, Zimp, _ = getters.get_ion_density_and_charge_states(
+        static_slice,
+        dynamic_runtime_params_slice,
+        self.geo,
+        ne,
+        temp_el,
+    )
+
+    Zeff = dynamic_runtime_params_slice.plasma_composition.Zeff
+
+    dilution_factor = formulas.calculate_main_ion_dilution_factor(
+        Zi, Zimp, Zeff
+    )
+    np.testing.assert_allclose(
+        ni.value,
+        expected_value * dilution_factor,
+        atol=1e-6,
+        rtol=1e-6,
+    )
+    np.testing.assert_allclose(
+        nimp.value,
+        (expected_value - ni.value * Zi) / Zimp,
+        atol=1e-6,
+        rtol=1e-6,
+    )
 
 
 if __name__ == '__main__':

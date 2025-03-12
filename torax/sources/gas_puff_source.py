@@ -20,12 +20,11 @@ import dataclasses
 from typing import ClassVar, Literal
 
 import chex
-import pydantic
 from torax import array_typing
-from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.sources import base
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -34,7 +33,7 @@ from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class GasPuffSourceConfig(runtime_params_lib.SourceModelBase):
+class GasPuffSourceConfig(base.SourceModelBase):
   """Gas puff source for the ne equation.
 
   Attributes:
@@ -43,46 +42,32 @@ class GasPuffSourceConfig(runtime_params_lib.SourceModelBase):
       [normalized radial coord]
     S_puff_tot: total gas puff particles/s
   """
+
   source_name: Literal['gas_puff_source'] = 'gas_puff_source'
-  puff_decay_length: torax_pydantic.UnitInterval = 0.05
-  S_puff_tot: pydantic.NonNegativeFloat = 1e22
+  puff_decay_length: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.05)
+  )
+  S_puff_tot: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1e22)
+  )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
-
-@dataclasses.dataclass(kw_only=True)
-class GasPuffRuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for GasPuffSource."""
-
-  # exponential decay length of gas puff ionization [normalized radial coord]
-  puff_decay_length: runtime_params_lib.TimeInterpolatedInput = 0.05
-  # total gas puff particles/s
-  S_puff_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> GasPuffRuntimeParamsProvider:
-    if torax_mesh is None:
-      raise ValueError(
-          'torax_mesh is required for GasPuffRuntimeParams.make_provider.'
-      )
-    return GasPuffRuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class GasPuffRuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: GasPuffRuntimeParams
-  puff_decay_length: interpolated_param.InterpolatedVarSingleAxis
-  S_puff_tot: interpolated_param.InterpolatedVarSingleAxis
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return calc_puff_source
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
   ) -> DynamicGasPuffRuntimeParams:
-    return DynamicGasPuffRuntimeParams(**self.get_dynamic_params_kwargs(t))
+    return DynamicGasPuffRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        puff_decay_length=self.puff_decay_length.get_value(t),
+        S_puff_tot=self.S_puff_tot.get_value(t),
+    )
+
+  def build_source(self) -> GasPuffSource:
+    return GasPuffSource(model_func=self.model_func)
 
 
 @chex.dataclass(frozen=True)

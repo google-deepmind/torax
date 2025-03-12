@@ -75,4 +75,4 @@ jobs:
       run: |
         pytest \
           -vv -n auto \
-          --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }} --assert=plain
+          --shard-id=$((${{ matrix.shard-id }} - 1)) --num-shards=${{ env.PYTEST_NUM_SHARDS }}

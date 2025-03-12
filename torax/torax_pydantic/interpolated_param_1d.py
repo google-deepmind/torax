@@ -17,13 +17,14 @@
 import functools
 from typing import Any
 
+import chex
 import pydantic
 from torax import interpolated_param
-from torax.torax_pydantic import interpolated_param_common
+from torax.torax_pydantic import model_base
 from torax.torax_pydantic import pydantic_types
 
 
-class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
+class TimeVaryingScalar(model_base.BaseModelFrozen):
   """Base class for time interpolated scalar types.
 
   The Pydantic `.model_validate` constructor can accept a variety of input types
@@ -46,6 +47,24 @@ class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
   interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   )
+
+  def get_value(self, t: chex.Numeric) -> chex.Array:
+    """Returns the value of this parameter interpolated at x=time.
+
+    Args:
+      t: An array of times to interpolate at.
+
+    Returns:
+      An array of interpolated values.
+    """
+    return self._get_cached_interpolated_param.get_value(t)
+
+  def __eq__(self, other):
+    try:
+      chex.assert_trees_all_equal(vars(self), vars(other))
+      return True
+    except AssertionError:
+      return False
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -75,11 +94,7 @@ class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
   def _get_cached_interpolated_param(
       self,
   ) -> interpolated_param.InterpolatedVarSingleAxis:
-    """Interpolates the input param at time t.
-
-    Returns:
-      A constructed interpolated var.
-    """
+    """Interpolates the input param at time t."""
 
     return interpolated_param.InterpolatedVarSingleAxis(
         value=(self.time, self.value),

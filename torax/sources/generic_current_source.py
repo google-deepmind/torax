@@ -22,13 +22,12 @@ from typing import ClassVar, Literal
 import chex
 from jax import numpy as jnp
 from torax import array_typing
-from torax import interpolated_param
 from torax import jax_utils
 from torax import math_utils
 from torax import state
-from torax.config import base
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.sources import base as source_base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -36,7 +35,7 @@ from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class GenericCurrentSourceConfig(runtime_params_lib.SourceModelBase):
+class GenericCurrentSourceConfig(source_base.SourceModelBase):
   """Configuration for the GenericCurrentSource.
 
   Attributes:
@@ -55,50 +54,25 @@ class GenericCurrentSourceConfig(runtime_params_lib.SourceModelBase):
   use_absolute_current: bool = False
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
-
-@dataclasses.dataclass(kw_only=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for the external current source."""
-
-  # total "external" current in MA. Used if use_absolute_current=True.
-  Iext: runtime_params_lib.TimeInterpolatedInput = 3.0
-  # total "external" current fraction. Used if use_absolute_current=False.
-  fext: runtime_params_lib.TimeInterpolatedInput = 0.2
-  # width of "external" Gaussian current profile
-  wext: runtime_params_lib.TimeInterpolatedInput = 0.05
-  # normalized radius of "external" Gaussian current profile
-  rext: runtime_params_lib.TimeInterpolatedInput = 0.4
-
-  # Toggles if external current is provided absolutely or as a fraction of Ip.
-  use_absolute_current: bool = False
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
   @property
-  def grid_type(self) -> base.GridType:
-    return base.GridType.CELL
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: RuntimeParams
-  Iext: interpolated_param.InterpolatedVarSingleAxis
-  fext: interpolated_param.InterpolatedVarSingleAxis
-  wext: interpolated_param.InterpolatedVarSingleAxis
-  rext: interpolated_param.InterpolatedVarSingleAxis
+  def model_func(self) -> source.SourceProfileFunction:
+    return calculate_generic_current
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        Iext=self.Iext.get_value(t),
+        fext=self.fext.get_value(t),
+        wext=self.wext.get_value(t),
+        rext=self.rext.get_value(t),
+        use_absolute_current=self.use_absolute_current,
+    )
+
+  def build_source(self) -> GenericCurrentSource:
+    return GenericCurrentSource(model_func=self.model_func)
 
 
 @chex.dataclass(frozen=True)

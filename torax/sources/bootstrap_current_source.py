@@ -29,54 +29,44 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
-from torax.physics import psi_calculations
+from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 
 
-class BootstrapCurrentSourceConfig(runtime_params_lib.SourceModelBase):
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  bootstrap_mult: float
+
+
+class BootstrapCurrentSourceConfig(base.SourceModelBase):
   """Bootstrap current density source profile.
 
   Attributes:
     bootstrap_mult: Multiplication factor for bootstrap current.
   """
+
   source_name: Literal['j_bootstrap'] = 'j_bootstrap'
   bootstrap_mult: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
+  def model_func(self):
+    raise NotImplementedError(
+        'Bootstrap current source is not meant to be used as a model.'
+    )
 
-@dataclasses.dataclass(kw_only=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Configuration parameters for the bootstrap current source."""
-
-  # Multiplication factor for bootstrap current
-  bootstrap_mult: float = 1.0
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: RuntimeParams
+  def build_source(self) -> BootstrapCurrentSource:
+    return BootstrapCurrentSource()
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
-@chex.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  bootstrap_mult: float
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        bootstrap_mult=self.bootstrap_mult,
+    )
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -140,6 +130,7 @@ class BootstrapCurrentSource(source.Source):
         temp_el=core_profiles.temp_el,
         temp_ion=core_profiles.temp_ion,
         psi=core_profiles.psi,
+        q_face=core_profiles.q_face,
         geo=geo,
     )
     if static_source_runtime_params.mode == runtime_params_lib.Mode.ZERO.value:
@@ -183,6 +174,7 @@ def calc_sauter_model(
     temp_el: cell_variable.CellVariable,
     temp_ion: cell_variable.CellVariable,
     psi: cell_variable.CellVariable,
+    q_face: chex.Array,
     geo: geometry.Geometry,
 ) -> source_profiles.BootstrapCurrentProfile:
   """Calculates sigmaneo, j_bootstrap, and I_bootstrap."""
@@ -218,9 +210,6 @@ def calc_sauter_model(
       1.9012e04 * (temp_el.face_value() * 1e3) ** 1.5 / Zeff_face / NZ / lnLame
   )
 
-  # We don't store q_cell in the evolving core profiles, so we need to
-  # recalculate it.
-  q_face = psi_calculations.calc_q_face(geo=geo, psi=psi)
   nuestar = (
       6.921e-18
       * q_face

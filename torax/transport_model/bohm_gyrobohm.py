@@ -29,6 +29,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
@@ -56,7 +57,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   v_face_coeff: runtime_params_lib.TimeInterpolatedInput = -0.1
 
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> RuntimeParamsProvider:
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

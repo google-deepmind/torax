@@ -23,10 +23,7 @@ from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import register_source
-from torax.sources import runtime_params as source_runtime_params_lib
-from torax.sources import source as source_lib
-from torax.sources import source_models as source_models_lib
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
@@ -130,7 +127,7 @@ def build_sim_from_config(
   runtime_params = build_runtime_params_from_config(config['runtime_params'])
   geo_provider = geometry_pydantic_model.Geometry.from_dict(
       config['geometry']
-  ).build_provider()
+  ).build_provider
 
   if 'restart' in config:
     file_restart = runtime_params_lib.FileRestart(**config['restart'])
@@ -140,7 +137,7 @@ def build_sim_from_config(
   return sim_lib.Sim.create(
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
-      source_models_builder=build_sources_builder_from_config(
+      sources=source_pydantic_model.Sources.from_dict(
           config['sources']
       ),
       transport_model_builder=build_transport_model_builder_from_config(
@@ -178,98 +175,6 @@ def build_runtime_params_from_config(
       runtime_params_lib.GeneralRuntimeParams(),
       **general_runtime_params_config,
   )
-
-
-def build_sources_builder_from_config(
-    source_configs: dict[str, Any],
-) -> source_models_lib.SourceModelsBuilder:
-  """Builds a `SourceModelsBuilder` from the input config.
-
-  The input config has an expected structure which maps onto TORAX sources.
-  Each key in the input config maps to a single source, and its value maps onto
-  that source's input runtime parameters. Different sources have different input
-  parameters, so to know which parameters to use, see the following dataclass
-  definitions (source names to dataclass):
-
-  -  `j_bootstrap`: `source.bootstrap_current_source.RuntimeParams`
-  -  `generic_current_source`: `source.generic_current_source.RuntimeParams`
-  -  `generic_particle_source`:
-     `source.electron_density_sources.GenericParticleSourceRuntimeParams`
-  -  `gas_puff_source`: `source.electron_density_sources.GasPuffRuntimeParams`
-  -  `pellet_source`: `source.electron_density_sources.PelletRuntimeParams`
-  -  `generic_ion_el_heat_source`:
-     `source.generic_ion_el_heat_source.RuntimeParams`
-  -  `fusion_heat_source`: `source.runtime_params.RuntimeParams`
-  -  `ohmic_heat_source`: `source.runtime_params.RuntimeParams`
-  -  `qei_source`: `source.qei_source.RuntimeParams`
-
-  If the input config includes a key that does not match one of the keys listed
-  above, an error is raised. Sources are turned off unless included in the input
-  config.
-
-  For the source `Mode` enum, the string name can be provided as input:
-
-  .. code-block:: python
-
-    {
-        'j_bootstrap': {
-            'mode': 'zero',  # turns it off.
-        },
-    }
-
-  Args:
-    source_configs: Input config dict defining all sources, with a structure as
-      described above.
-
-  Returns:
-    A `SourceModelsBuilder`.
-  """
-
-  source_builders = {
-      name: _build_single_source_builder_from_config(name, config)
-      for name, config in source_configs.items()
-  }
-
-  return source_models_lib.SourceModelsBuilder(source_builders)
-
-
-def _build_single_source_builder_from_config(
-    source_name: str,
-    source_config: dict[str, Any],
-) -> source_lib.SourceBuilderProtocol:
-  """Builds a source builder from the input config."""
-  supported_source = register_source.get_supported_source(source_name)
-  source_config = copy.deepcopy(source_config)
-  if 'model_func' in source_config:
-    # If the user has specified a model function, try to retrive that from the
-    # registered source model functions.
-    model_func = source_config.pop('model_func')
-    model_function = supported_source.model_functions[model_func]
-  else:
-    # Otherwise, use the default model function.
-    model_function = supported_source.model_functions[
-        supported_source.source_class.DEFAULT_MODEL_FUNCTION_NAME
-    ]
-  runtime_params = model_function.runtime_params_class()
-  # Update the defaults with the config provided.
-  source_config = copy.copy(source_config)
-  if 'mode' in source_config:
-    mode = source_runtime_params_lib.Mode[source_config.pop('mode').upper()]
-    runtime_params.mode = mode
-  runtime_params = config_args.recursive_replace(
-      runtime_params, ignore_extra_kwargs=True, **source_config
-  )
-  kwargs = {'runtime_params': runtime_params}
-
-  source_builder_class = model_function.source_builder_class
-  if source_builder_class is None:
-    source_builder_class = source_lib.make_source_builder(
-        supported_source.source_class,
-        runtime_params_type=model_function.runtime_params_class,
-        model_func=model_function.source_profile_function,
-    )
-
-  return source_builder_class(**kwargs)
 
 
 def build_transport_model_builder_from_config(

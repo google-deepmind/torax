@@ -29,6 +29,7 @@ from torax.sources import ion_cyclotron_source
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
+from torax import math_utils
 
 # Internal import.
 # Internal import.
@@ -173,6 +174,90 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     self.assertLen(ion_and_el, 2)
     self.assertEqual(ion_and_el[0].shape, geo.rho.shape)
     self.assertEqual(ion_and_el[1].shape, geo.rho.shape)
+
+    # Calculate integrated power
+    integrated_ion1 = math_utils.volume_integration(ion_and_el[0], geo)
+    integrated_ion2 = math_utils.volume_integration(ion_and_el[1], geo)
+    integrated_el1 = math_utils.volume_integration(ion_and_el[0], geo)
+    integrated_el2 = math_utils.volume_integration(ion_and_el[1], geo)
+
+  @mock.patch.object(
+      ion_cyclotron_source,
+      "_get_default_model_path",
+      autospec=True,
+      return_value=_DUMMY_MODEL_PATH,
+  )
+  def test_absorption_fraction(self, mock_path):
+    """Tests that absorption_fraction correctly affects power calculations."""
+    # Create a simple geometry
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    
+    # Create minimal core profiles
+    core_profiles = initialization.build_simple_profiles(geo)
+    
+    # Set up the toric neural network with dummy model
+    toric_nn = ion_cyclotron_source.ToricNNWrapper(_DUMMY_MODEL_PATH)
+    
+    # Create identical dynamic params but with different absorption fractions
+    dynamic_params1 = ion_cyclotron_source.DynamicRuntimeParams(
+        frequency=120e6,
+        minority_concentration=3.0,
+        Ptot=1.0,
+        absorption_fraction=1.0,
+        wall_inner=1.24,
+        wall_outer=2.43,
+    )
+    
+    dynamic_params2 = ion_cyclotron_source.DynamicRuntimeParams(
+        frequency=120e6,
+        minority_concentration=3.0,
+        Ptot=1.0,
+        absorption_fraction=0.5,  # Half absorption fraction
+        wall_inner=1.24,
+        wall_outer=2.43,
+    )
+    
+    # Create simple runtime params slice
+    static_params = build_runtime_params.build_static_runtime_params_slice(
+        runtime_params=general_runtime_params.GeneralRuntimeParams(),
+        source_runtime_params={},
+        torax_mesh=geo.torax_mesh,
+    )
+    
+    # Create dynamic runtime params slices
+    dynamic_slice1 = {'ion_cyclotron_source': dynamic_params1}
+    dynamic_slice2 = {'ion_cyclotron_source': dynamic_params2}
+    
+    # Call icrh_model_func directly to get ion and electron heat profiles
+    ion1, el1 = ion_cyclotron_source.icrh_model_func(
+        static_params,
+        dynamic_slice1,
+        geo,
+        'ion_cyclotron_source',
+        core_profiles,
+        None,
+        toric_nn,
+    )
+    
+    ion2, el2 = ion_cyclotron_source.icrh_model_func(
+        static_params, 
+        dynamic_slice2,
+        geo,
+        'ion_cyclotron_source',
+        core_profiles,
+        None,
+        toric_nn,
+    )
+    
+    # Integrate the power profiles
+    integrated_ion1 = math_utils.volume_integration(ion1, geo)
+    integrated_ion2 = math_utils.volume_integration(ion2, geo)
+    integrated_el1 = math_utils.volume_integration(el1, geo)
+    integrated_el2 = math_utils.volume_integration(el2, geo)
+    
+    # Second profile should have half the power of the first
+    np.testing.assert_allclose(integrated_ion2 / integrated_ion1, 0.5, rtol=1e-5)
+    np.testing.assert_allclose(integrated_el2 / integrated_el1, 0.5, rtol=1e-5)
 
 
 if __name__ == "__main__":

@@ -21,10 +21,10 @@ from typing import ClassVar, Literal
 
 import chex
 from torax import array_typing
-from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.sources import base
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -33,7 +33,7 @@ from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
+class GenericIonElHeatSourceConfig(base.SourceModelBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
@@ -57,44 +57,24 @@ class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
-
-@dataclasses.dataclass(kw_only=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for the generic heat source."""
-
-  # External heat source parameters
-  # Gaussian width in normalized radial coordinate
-  w: runtime_params_lib.TimeInterpolatedInput = 0.25
-  # Source Gaussian central location (in normalized r)
-  rsource: runtime_params_lib.TimeInterpolatedInput = 0.0
-  # Total heating: high default based on total ITER power including alphas
-  Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
-  # Electron heating fraction
-  el_heat_fraction: runtime_params_lib.TimeInterpolatedInput = 0.66666
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> 'RuntimeParamsProvider':
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: RuntimeParams
-  w: interpolated_param.InterpolatedVarSingleAxis
-  rsource: interpolated_param.InterpolatedVarSingleAxis
-  Ptot: interpolated_param.InterpolatedVarSingleAxis
-  el_heat_fraction: interpolated_param.InterpolatedVarSingleAxis
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return default_formula
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
+  ) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        w=self.w.get_value(t),
+        rsource=self.rsource.get_value(t),
+        Ptot=self.Ptot.get_value(t),
+        el_heat_fraction=self.el_heat_fraction.get_value(t),
+    )
+
+  def build_source(self) -> GenericIonElectronHeatSource:
+    return GenericIonElectronHeatSource(model_func=self.model_func)
 
 
 @chex.dataclass(frozen=True)

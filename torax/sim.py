@@ -47,6 +47,7 @@ from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -297,7 +298,7 @@ class Sim:
       geometry_provider: geometry_provider_lib.GeometryProvider,
       stepper: stepper_pydantic_model.Stepper,
       transport_model_builder: transport_model_lib.TransportModelBuilder,
-      source_models_builder: source_models_lib.SourceModelsBuilder,
+      sources: source_pydantic_model.Sources,
       pedestal: pedestal_pydantic_model.Pedestal,
       time_step_calculator: Optional[ts.TimeStepCalculator] = None,
       file_restart: Optional[general_runtime_params.FileRestart] = None,
@@ -310,8 +311,7 @@ class Sim:
       geometry_provider: The geometry used throughout the simulation run.
       stepper: The stepper config that can be used to build the stepper.
       transport_model_builder: A callable to build the transport model.
-      source_models_builder: Builds the SourceModels and holds its
-        runtime_params.
+      sources: Builds the sources.
       pedestal: The pedestal config that can be used to build the pedestal.
       time_step_calculator: The time_step_calculator, if built, otherwise a
         ChiTimeStepCalculator will be built by default.
@@ -332,7 +332,7 @@ class Sim:
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=geometry_provider.torax_mesh,
             stepper=stepper,
         )
@@ -341,13 +341,15 @@ class Sim:
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             transport=transport_model_builder.runtime_params,
-            sources=source_models_builder.runtime_params,
+            sources=sources,
             stepper=stepper,
             torax_mesh=geometry_provider.torax_mesh,
             pedestal=pedestal,
         )
     )
-    source_models = source_models_builder()
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     stepper_model = stepper.build_stepper_model(
         transport_model=transport_model,
         source_models=source_models,
@@ -590,7 +592,11 @@ def _run_simulation(
 
   sim_state = initial_state
   sim_history = []
-  sim_state = post_processing.make_outputs(sim_state=sim_state, geo=geo)
+  sim_state = post_processing.make_outputs(
+      sim_state=sim_state, 
+      geo=geo, 
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice
+  )
   sim_history.append(sim_state)
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to

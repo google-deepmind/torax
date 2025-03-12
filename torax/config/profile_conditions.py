@@ -25,7 +25,6 @@ from torax import array_typing
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
-from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
 from typing_extensions import override
 from typing_extensions import Self
@@ -263,7 +262,7 @@ class ProfileConditions(
   @override
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> ProfileConditionsProvider:
     provider_kwargs = self.get_provider_kwargs(torax_mesh)
     if torax_mesh is None:

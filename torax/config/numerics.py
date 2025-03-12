@@ -20,7 +20,6 @@ import pydantic
 from torax import array_typing
 from torax import interpolated_param
 from torax.config import base
-from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
 from typing_extensions import override
 from typing_extensions import Self
@@ -166,7 +165,7 @@ class Numerics(base.RuntimeParametersConfig):
 
   @override
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> NumericsProvider:
     return NumericsProvider(**self.get_provider_kwargs(torax_mesh))
 

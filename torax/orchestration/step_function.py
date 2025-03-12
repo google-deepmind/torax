@@ -188,11 +188,7 @@ class SimulationStepFn:
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if
       # output_state.stepper_numeric_outputs.stepper_error_state == 0.
-      (
-          dynamic_runtime_params_slice_t_plus_dt,
-          geo_t_plus_dt,
-          output_state,
-      ) = self.adaptive_step(
+      geo_t_plus_dt, output_state = self.adaptive_step(
           output_state,
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t,
@@ -203,13 +199,14 @@ class SimulationStepFn:
           explicit_source_profiles,
       )
 
-    sim_state = self.finalize_output(
-        input_state,
-        output_state,
-        dynamic_runtime_params_slice_t_plus_dt,
-        geo_t_plus_dt,
+    output_state = post_processing.make_outputs(
+        sim_state=output_state,
+        geo=geo_t_plus_dt,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
+        previous_sim_state=input_state,
     )
-    return sim_state, sim_state.check_for_errors()
+
+    return output_state, output_state.check_for_errors()
 
   def init_time_step_calculator(
       self,
@@ -370,11 +367,7 @@ class SimulationStepFn:
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[
-      runtime_params_slice.DynamicRuntimeParamsSlice,
-      geometry.Geometry,
-      state.ToraxSimState,
-  ]:
+  ) -> tuple[geometry.Geometry, state.ToraxSimState]:
     """Performs adaptive time stepping until stepper converges.
 
     If the initial step has converged (i.e.
@@ -397,8 +390,6 @@ class SimulationStepFn:
 
     Returns:
       A tuple containing:
-        - Runtime parameters at time t + dt, where dt is the actual time step
-          used.
         - Geometry at time t + dt, where dt is the actual time step used.
         - ToraxSimState after adaptive time stepping.
     """
@@ -485,57 +476,17 @@ class SimulationStepFn:
 
     # Calculate dynamic_runtime_params and geo at t + dt.
     # Update geos with phibdot.
-    (
-        dynamic_runtime_params_slice_t_plus_dt,
-        geo_t,
-        geo_t_plus_dt,
-    ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
-        input_state.t,
-        output_state.dt,
-        dynamic_runtime_params_slice_provider,
-        geo_t,
-        geometry_provider,
+    _, _, geo_t_plus_dt = (
+        _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+            input_state.t,
+            output_state.dt,
+            dynamic_runtime_params_slice_provider,
+            geo_t,
+            geometry_provider,
+        )
     )
 
-    return (
-        dynamic_runtime_params_slice_t_plus_dt,
-        geo_t_plus_dt,
-        output_state,
-    )
-
-  def finalize_output(
-      self,
-      input_state: state.ToraxSimState,
-      output_state: state.ToraxSimState,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo_t_plus_dt: geometry.Geometry,
-  ) -> state.ToraxSimState:
-    """Finalizes given output state at the end of the simulation step.
-
-    Args:
-      input_state: Previous sim state.
-      output_state: State to be finalized.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
-      geo_t_plus_dt: The geometry of the torus during the next time step of the
-        simulation.
-
-    Returns:
-      Finalized ToraxSimState.
-    """
-    output_state.core_profiles = updaters.finalize_core_profiles(
-        core_profiles=output_state.core_profiles,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        geo=geo_t_plus_dt,
-        source_profiles=output_state.core_sources,
-    )
-
-    output_state = post_processing.make_outputs(
-        sim_state=output_state,
-        geo=geo_t_plus_dt,
-        previous_sim_state=input_state,
-    )
-
-    return output_state
+    return geo_t_plus_dt, output_state
 
 
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(

@@ -22,6 +22,7 @@ This module also provides a method
 `get_consistent_dynamic_runtime_params_slice_and_geometry` which returns a
 DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
 """
+
 from __future__ import annotations
 
 import chex
@@ -30,16 +31,17 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import runtime_params as sources_params
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as transport_model_params
 
 
 def build_static_runtime_params_slice(
     *,
     runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
-    source_runtime_params: dict[str, sources_params.RuntimeParams],
-    torax_mesh: geometry.Grid1D,
+    sources: sources_pydantic_model.Sources,
+    torax_mesh: torax_pydantic.Grid1D,
     stepper: stepper_pydantic_model.Stepper | None = None,
 ) -> runtime_params_slice.StaticRuntimeParamsSlice:
   """Builds a StaticRuntimeParamsSlice.
@@ -47,7 +49,7 @@ def build_static_runtime_params_slice(
   Args:
     runtime_params: General runtime params from which static params are taken,
       which are the choices on equations being solved, and adaptive dt.
-    source_runtime_params: data from which the source related static variables
+    sources: data from which the source related static variables
       are taken, which are the explicit/implicit toggle and calculation mode for
       each source.
     torax_mesh: The torax mesh, e.g. the grid used to construct the geometry.
@@ -64,8 +66,8 @@ def build_static_runtime_params_slice(
   stepper = stepper or stepper_pydantic_model.Stepper()
   return runtime_params_slice.StaticRuntimeParamsSlice(
       sources={
-          source_name: specific_source_runtime_params.build_static_params()
-          for source_name, specific_source_runtime_params in source_runtime_params.items()
+          source_name: source_config.build_static_params()
+          for source_name, source_config in sources.source_model_config.items()
       },
       torax_mesh=torax_mesh,
       stepper=stepper.build_static_params(),
@@ -142,9 +144,9 @@ class DynamicRuntimeParamsSliceProvider:
       runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
       pedestal: pedestal_pydantic_model.Pedestal | None = None,
       transport: transport_model_params.RuntimeParams | None = None,
-      sources: dict[str, sources_params.RuntimeParams] | None = None,
+      sources: sources_pydantic_model.Sources | None = None,
       stepper: stepper_pydantic_model.Stepper | None = None,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ):
     """Constructs a build_simulation_params.DynamicRuntimeParamsSliceProvider.
 
@@ -163,9 +165,10 @@ class DynamicRuntimeParamsSliceProvider:
         will be raised within the constructor of the interpolated variable.
     """
     transport = transport or transport_model_params.RuntimeParams()
-    sources = sources or {}
+    sources = sources or sources_pydantic_model.Sources()
     stepper = stepper or stepper_pydantic_model.Stepper()
     pedestal = pedestal or pedestal_pydantic_model.Pedestal()
+    torax_pydantic.set_grid(sources, torax_mesh, mode='relaxed')
     self._torax_mesh = torax_mesh
     self._sources = sources
     self._runtime_params = runtime_params
@@ -175,21 +178,17 @@ class DynamicRuntimeParamsSliceProvider:
     self._construct_providers()
 
   @property
-  def sources(self) -> dict[str, sources_params.RuntimeParams]:
+  def sources(self) -> sources_pydantic_model.Sources:
     return self._sources
-
-  @property
-  def sources_providers(
-      self,
-  ) -> dict[str, sources_params.RuntimeParamsProvider]:
-    return self._sources_providers
 
   def validate_new(
       self,
       new_provider: DynamicRuntimeParamsSliceProvider,
   ):
     """Validates that the new provider is compatible."""
-    if set(new_provider.sources) != set(self.sources):
+    if set(new_provider.sources.source_model_config.keys()) != set(
+        self.sources.source_model_config.keys()
+    ):
       raise ValueError(
           'New dynamic runtime params slice provider has different sources.'
       )
@@ -208,10 +207,6 @@ class DynamicRuntimeParamsSliceProvider:
     self._transport_runtime_params_provider = (
         self._transport_runtime_params.make_provider(self._torax_mesh)
     )
-    self._sources_providers = {
-        key: source.make_provider(self._torax_mesh)
-        for key, source in self._sources.items()
-    }
 
   def __call__(
       self,
@@ -228,7 +223,7 @@ class DynamicRuntimeParamsSliceProvider:
         stepper=self._stepper.build_dynamic_params,
         sources={
             source_name: input_source_config.build_dynamic_params(t)
-            for source_name, input_source_config in self._sources_providers.items()
+            for source_name, input_source_config in self._sources.source_model_config.items()
         },
         plasma_composition=dynamic_general_runtime_params.plasma_composition,
         profile_conditions=dynamic_general_runtime_params.profile_conditions,

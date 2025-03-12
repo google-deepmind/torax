@@ -14,19 +14,20 @@
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
 from __future__ import annotations
 
-import dataclasses
 from typing import Literal
 
 import chex
 import jax.numpy as jnp
 from torax import array_typing
-from torax import interpolated_param
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import source as source_lib
 from torax.sources import source_profiles as source_profiles_lib
+from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax.torax_pydantic import torax_pydantic
 
 MODEL_FUNCTION_NAME = 'radially_constant_fraction_of_Pin'
@@ -95,9 +96,7 @@ def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
   )
 
 
-class ImpurityRadiationHeatSinkConstantFractionConfig(
-    runtime_params_lib.SourceModelBase
-):
+class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
   """Configuration for the ImpurityRadiationHeatSink.
 
   Attributes:
@@ -107,7 +106,7 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(
   source_name: Literal['impurity_radiation_heat_sink'] = (
       'impurity_radiation_heat_sink'
   )
-  model_func: Literal['radially_constant_fraction_of_Pin'] = (
+  model_function_name: Literal['radially_constant_fraction_of_Pin'] = (
       'radially_constant_fraction_of_Pin'
   )
   fraction_of_total_power_density: torax_pydantic.TimeVaryingScalar = (
@@ -115,32 +114,27 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
-
-@dataclasses.dataclass(kw_only=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  fraction_of_total_power_density: runtime_params_lib.TimeInterpolatedInput = (
-      0.1
-  )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  fraction_of_total_power_density: interpolated_param.InterpolatedVarSingleAxis
-
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
+  ) -> 'DynamicRuntimeParams':
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        fraction_of_total_power_density=self.fraction_of_total_power_density.get_value(
+            t
+        ),
+    )
+
+  def build_source(
+      self,
+  ) -> impurity_radiation_heat_sink.ImpurityRadiationHeatSink:
+    return impurity_radiation_heat_sink.ImpurityRadiationHeatSink(
+        model_func=self.model_func
+    )
+
+  @property
+  def model_func(self) -> source_lib.SourceProfileFunction:
+    return radially_constant_fraction_of_Pin
 
 
 @chex.dataclass(frozen=True)
