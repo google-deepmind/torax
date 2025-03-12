@@ -22,7 +22,7 @@ from torax.config import build_runtime_params
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
-from torax.utils import math_utils
+from torax import math_utils
 
 
 class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):

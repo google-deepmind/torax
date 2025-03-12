@@ -29,7 +29,7 @@ from torax.sources import ion_cyclotron_source
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
-from torax.utils import math_utils
+from torax import math_utils
 
 # Internal import.
 # Internal import.
