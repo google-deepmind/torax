@@ -32,12 +32,11 @@ from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.orchestration import step_function
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
-from torax.sources.tests import test_lib
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
@@ -48,30 +47,16 @@ from torax.transport_model import constant as constant_transport_model
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
 
-class TestImplicitNeSource(test_lib.TestSource):
-  """A test source."""
-
-  @property
-  def source_name(self) -> str:
-    return 'implicit_ne_source'
-
-
-class TestExplicitNeSource(test_lib.TestSource):
-  """A test source."""
-
-  @property
-  def source_name(self) -> str:
-    return 'explicit_ne_source'
-
-
 class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
   """Tests checking the output core_sources profiles from run_simulation()."""
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
     torax_mesh = torax_pydantic.Grid1D.construct(nx=10, dx=0.1)
-    source_models_builder = default_sources.get_default_sources_builder()
-    source_models = source_models_builder()
+    sources = default_sources.get_default_sources()
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     # Technically, the merge_source_profiles() function should be called with
     # source profiles where, for every source, only one of the implicit or
     # explicit profiles has non-zero values. That is what makes the summing
@@ -108,53 +93,25 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
       self.assertIn(name, merged_profiles.temp_ion)
       self.assertIn(name, merged_profiles.temp_el)
 
-  def test_first_and_last_source_profiles(self):
-    """Tests that the first and last source profiles contain correct data."""
+  def test_source_profiles(self):
+    """Tests that the source profiles contain correct data."""
     # The first time step and last time step's output source profiles are built
     # in a special way that combines the implicit and explicit profiles.
-
-    # Create custom sources whose output profiles depend on foo.
-    # This is not physically realistic, just for testing purposes.
-    def custom_source_formula(
-        unused_static_runtime_params_slice,
-        dynamic_runtime_params,
-        unused_geo,
-        source_name,
-        unused_state,
-        unused_calculated_source_profiles,
-    ):
-      dynamic_source_params = dynamic_runtime_params.sources[source_name]
-      return (dynamic_source_params.prescribed_values,)
-
-    # Include 2 versions of this source, one implicit and one explicit.
-    runtime_params = runtime_params_lib.RuntimeParams(
-        mode=runtime_params_lib.Mode.MODEL_BASED,
-        prescribed_values={
-            0.0: {0: 1.0},
-            1.0: {0: 2.0},
-            2.0: {0: 3.0},
-            3.0: {0: 4.0},
+    sources = source_pydantic_model.Sources.from_dict({
+        'generic_particle_source': {
+            'prescribed_values': {
+                0.0: {0: 1.0},
+                1.0: {0: 2.0},
+                2.0: {0: 3.0},
+                3.0: {0: 4.0},
+            },
+            'mode': 'PRESCRIBED',
         },
-    )
-    implicit_source_builder = source_lib.make_source_builder(
-        TestImplicitNeSource,
-        runtime_params_type=runtime_params_lib.RuntimeParams,
-        model_func=custom_source_formula,
-    )
-    explicit_source_builder = source_lib.make_source_builder(
-        TestExplicitNeSource,
-        runtime_params_type=runtime_params_lib.RuntimeParams,
-        model_func=custom_source_formula,
-    )
-    source_models_builder = source_models_lib.SourceModelsBuilder({
-        'implicit_ne_source': implicit_source_builder(
-            runtime_params=runtime_params,
-        ),
-        'explicit_ne_source': explicit_source_builder(
-            runtime_params=runtime_params,
-        ),
     })
-    source_models = source_models_builder()
+
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     runtime_params.numerics.t_final = 2.0
     runtime_params.numerics.fixed_dt = 1.0
@@ -192,7 +149,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
         stepper=explicit_stepper.ExplicitStepperModel(),
         transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
-        source_models_builder=source_models_builder,
+        sources=sources,
         pedestal=pedestal_pydantic_model.Pedestal(),
         time_step_calculator=time_stepper,
     )
@@ -201,17 +158,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
     ):
       sim_outputs = sim.run()
 
-    # The implicit and explicit profiles get merged together before being
-    # outputted, and they are aligned as well as possible to be computed based
-    # on the state and config at time t. So both the implicit and explicit
-    # profiles of each time step should be equal in this case (especially
-    # because we are using the mock step function defined above).
     for i, sim_state in enumerate(sim_outputs.sim_history):
       np.testing.assert_allclose(
-          sim_state.core_sources.ne['implicit_ne_source'], i + 1
-      )
-      np.testing.assert_allclose(
-          sim_state.core_sources.ne['explicit_ne_source'], i + 1
+          sim_state.core_sources.ne['generic_particle_source'], i + 1
       )
 
 

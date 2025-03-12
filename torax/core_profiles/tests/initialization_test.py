@@ -24,6 +24,7 @@ from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -43,17 +44,14 @@ class InitializationTest(torax_refs.ReferenceValueTest):
     references = torax_refs.circular_references()
 
     runtime_params = references.runtime_params
-    source_runtime_params = generic_current_source.RuntimeParams()
     # Turn on the external current source.
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
             references.geometry_provider,
-            sources={
-                generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-                    source_runtime_params
-                )
-            },
+            sources=source_pydantic_model.Sources.from_dict(
+                {"generic_current_source": {}}
+            ),
         )
     )
     bootstrap = source_profiles.BootstrapCurrentProfile.zero_profile(geo)
@@ -95,12 +93,14 @@ class InitializationTest(torax_refs.ReferenceValueTest):
             psi=psi,
         )
     )
-    source_models_builder = source_models_lib.SourceModelsBuilder()
-    source_models = source_models_builder()
+    sources = source_pydantic_model.Sources()
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources=source_models_builder.runtime_params,
+        sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
@@ -109,7 +109,7 @@ class InitializationTest(torax_refs.ReferenceValueTest):
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )
     core_profiles = initialization.initial_core_profiles(

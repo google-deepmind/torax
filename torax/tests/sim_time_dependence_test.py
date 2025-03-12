@@ -34,6 +34,7 @@ from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
@@ -73,7 +74,6 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
     transport_builder = FakeTransportModelBuilder()
-    source_models_builder = source_models_lib.SourceModelsBuilder()
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
@@ -88,7 +88,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
             )
         ),
         transport_model_builder=transport_builder,
-        source_models_builder=source_models_builder,
+        sources=source_pydantic_model.Sources(),
         pedestal=pedestal_pydantic_model.Pedestal(),
         time_step_calculator=time_calculator,
     )

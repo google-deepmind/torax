@@ -23,6 +23,7 @@ from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pedestal_model
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.stepper import pydantic_model as stepper_pydantic_model
 
@@ -59,15 +60,17 @@ class QualikizTransportModelTest(absltest.TestCase):
 
     # Building the model inputs.
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    source_models_builder = source_models_lib.SourceModelsBuilder()
-    source_models = source_models_builder()
+    sources = sources_pydantic_model.Sources()
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             torax_mesh=geo.torax_mesh,
             transport=qualikiz_transport_model.RuntimeParams(),
-            sources=source_models_builder.runtime_params,
+            sources=sources,
         )(
             t=runtime_params.numerics.t_initial,
         )
@@ -75,7 +78,7 @@ class QualikizTransportModelTest(absltest.TestCase):
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=geo.torax_mesh,
             stepper=stepper_pydantic_model.Stepper(),
         )

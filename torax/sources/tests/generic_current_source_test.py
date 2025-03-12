@@ -19,13 +19,10 @@ from torax.sources.tests import test_lib
 class GenericCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GenericCurrentSource."""
 
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=generic_current_source.GenericCurrentSource,
-        runtime_params_class=generic_current_source.RuntimeParams,
+  def setUp(self):
+    super().setUp(
+        source_config_class=generic_current_source.GenericCurrentSourceConfig,
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
-        model_func=generic_current_source.calculate_generic_current,
     )
 
 

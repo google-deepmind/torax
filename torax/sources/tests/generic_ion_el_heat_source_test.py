@@ -19,13 +19,10 @@ from torax.sources.tests import test_lib
 class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
   """Tests for GenericIonElectronHeatSource."""
 
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=generic_ion_el_heat_source.GenericIonElectronHeatSource,
-        runtime_params_class=generic_ion_el_heat_source.RuntimeParams,
+  def setUp(self):
+    super().setUp(
+        source_config_class=generic_ion_el_heat_source.GenericIonElHeatSourceConfig,
         source_name=generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME,
-        model_func=generic_ion_el_heat_source.default_formula,
     )
 
 

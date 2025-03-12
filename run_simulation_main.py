@@ -38,6 +38,7 @@ from torax.config import runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.plotting import plotruns_lib
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 
 
@@ -261,19 +262,15 @@ def change_config(
           sim_config['transport']
       )
   )
-  source_models_builder = build_sim.build_sources_builder_from_config(
-      sim_config['sources']
-  )
   new_stepper = stepper_pydantic_model.Stepper.from_dict(
       sim_config['stepper']
   )
   new_pedestal = pedestal_pydantic_model.Pedestal.from_dict(
       sim_config['pedestal'] if 'pedestal' in sim_config else {}
   )
-  new_source_params = {
-      name: runtime_params
-      for name, runtime_params in source_models_builder.runtime_params.items()
-  }
+  new_sources = sources_pydantic_model.Sources.from_dict(
+      sim_config['sources']
+    )
   # Make sure the transport model has not changed.
   # TODO(b/330172917): Improve the check for updated configs.
   if not isinstance(new_transport_model_builder(), type(sim.transport_model)):
@@ -287,7 +284,7 @@ def change_config(
       runtime_params=new_runtime_params,
       geo_provider=new_geo_provider,
       transport_runtime_params=new_transport_model_builder.runtime_params,
-      source_runtime_params=new_source_params,
+      sources=new_sources,
       stepper=new_stepper,
       pedestal=new_pedestal,
   )

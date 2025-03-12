@@ -24,31 +24,17 @@ from torax.config import build_runtime_params
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.sources import base
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 
 
 # Most of the checks and computations in TORAX require float64.
 jax.config.update('jax_enable_x64', True)
-
-
-class TestSource(source_lib.Source):
-  """A test source."""
-
-  @property
-  def source_name(self) -> str:
-    return 'foo'
-
-  @property
-  def affected_core_profiles(
-      self,
-  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
-    return (source_lib.AffectedCoreProfile.NE,)
-
-
-TestSourceBuilder = source_lib.make_source_builder(TestSource)
 
 
 class SourceTestCase(parameterized.TestCase):
@@ -57,43 +43,25 @@ class SourceTestCase(parameterized.TestCase):
   Extend this class for source-specific tests.
   """
 
-  _source_class: Type[source_lib.Source]
-  _source_class_builder: source_lib.SourceBuilderProtocol
-  _config_attr_name: str
-  _source_name: str
-  _runtime_params_class: Type[runtime_params_lib.RuntimeParams]
-  _needs_source_models: bool
-
-  @classmethod
-  def setUpClass(
-      cls,
-      source_class: Type[source_lib.Source],
-      runtime_params_class: Type[runtime_params_lib.RuntimeParams],
+  def setUp(
+      self,
       source_name: str,
-      model_func: source_lib.SourceProfileFunction | None,
+      source_config_class: Type[base.SourceModelBase],
       needs_source_models: bool = False,
-      source_class_builder: source_lib.SourceBuilderProtocol | None = None,
   ):
-    super().setUpClass()
-    cls._source_class = source_class
-    if source_class_builder is None:
-      cls._source_class_builder = source_lib.make_source_builder(
-          source_type=source_class,
-          runtime_params_type=runtime_params_class,
-          model_func=model_func,
-      )
-    else:
-      cls._source_class_builder = source_class_builder
-    cls._runtime_params_class = runtime_params_class
-    cls._source_name = source_name
-    cls._needs_source_models = needs_source_models
+    self._source_name = source_name
+    self._source_config_class = source_config_class
+    self._needs_source_models = needs_source_models
+    super().setUp()
 
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = self._runtime_params_class()
-    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    dynamic_params = provider.build_dynamic_params(t=0.0)
+  def test_build_dynamic_params(self):
+    source = self._source_config_class.from_dict({})
+    self.assertIsInstance(source, self._source_config_class)
+    torax_pydantic.set_grid(
+        source,
+        torax_pydantic.Grid1D.construct(nx=4, dx=0.25,),
+    )
+    dynamic_params = source.build_dynamic_params(t=0.0)
     self.assertIsInstance(
         dynamic_params, runtime_params_lib.DynamicRuntimeParams
     )
@@ -110,11 +78,10 @@ class SourceTestCase(parameterized.TestCase):
       self, mode: runtime_params_lib.Mode, is_explicit: bool
   ):
     """Tests that the static params are built correctly."""
-    runtime_params = self._runtime_params_class()
-    runtime_params.mode = mode
-    runtime_params.is_explicit = is_explicit
-    self.assertIsInstance(runtime_params, runtime_params_lib.RuntimeParams)
-    static_params = runtime_params.build_static_params()
+    source_config = self._source_config_class.from_dict(
+        {'mode': mode, 'is_explicit': is_explicit}
+    )
+    static_params = source_config.build_static_params()
     self.assertIsInstance(static_params, runtime_params_lib.StaticRuntimeParams)
     self.assertEqual(static_params.mode, mode.value)
     self.assertEqual(static_params.is_explicit, is_explicit)
@@ -125,26 +92,13 @@ class SingleProfileSourceTestCase(SourceTestCase):
 
   def test_source_value_on_the_cell_grid(self):
     """Tests that the source can provide a value by default on the cell grid."""
-    # SingleProfileSource subclasses should have default names and be
-    # instantiable without any __init__ arguments.
-    # pylint: disable=missing-kwoa
-    source_builder = self._source_class_builder()
-    if not source_lib.is_source_builder(source_builder):
-      raise TypeError(f'{type(self)} has a bad _source_class_builder')
-    # pylint: enable=missing-kwoa
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {self._source_name: source_builder},
-    )
-    source_models = source_models_builder()
-    source = source_models.sources[self._source_name]
-    source_builder.runtime_params.mode = runtime_params_lib.Mode.MODEL_BASED
-    self.assertIsInstance(source, source_lib.Source)
+    sources = source_pydantic_model.Sources.from_dict({self._source_name: {}})
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            sources=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,
@@ -152,8 +106,11 @@ class SingleProfileSourceTestCase(SourceTestCase):
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=geo.torax_mesh,
+    )
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -172,6 +129,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
       )
     else:
       calculated_source_profiles = None
+    source = source_models.sources[self._source_name]
     value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
@@ -188,21 +146,18 @@ class IonElSourceTestCase(SourceTestCase):
 
   def test_source_values_on_the_cell_grid(self):
     """Tests that the source can provide values on the cell grid."""
-    # pylint: disable=missing-kwoa
-    source_builder = self._source_class_builder()
-    # pylint: enable=missing-kwoa
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {self._source_name: source_builder},
+    sources = source_pydantic_model.Sources.from_dict({self._source_name: {}})
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
     )
-    source_models = source_models_builder()
     source = source_models.sources[self._source_name]
     self.assertIsInstance(source, source_lib.Source)
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            sources=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,
@@ -210,7 +165,7 @@ class IonElSourceTestCase(SourceTestCase):
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=geo.torax_mesh,
     )
     core_profiles = initialization.initial_core_profiles(
