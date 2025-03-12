@@ -207,6 +207,12 @@ post_processed_outputs
 These outputs are calculated by the post_processing module, for both
 analysis and inspection.
 
+The post-processing module uses the ``dynamic_runtime_params_slice`` parameter to 
+calculate various power-related outputs. This parameter provides access to runtime 
+parameters that may change during simulation, such as absorption fractions for 
+different heating sources. This ensures accurate calculation of power flows, 
+particularly for outputs like ``P_external_injected`` and fusion gain (``Q_fusion``).
+
 ``pressure_thermal_ion_face`` (time, rho_face) [Pa]:
   Ion thermal pressure on the face grid.
 
@@ -304,6 +310,9 @@ analysis and inspection.
 
 ``P_external_tot`` (time) [W]:
   Total external heating power: auxiliary heating + Ohmic.
+
+``P_external_injected`` (time) [W]:
+  External injected power before absorption: total power injected into the plasma before absorption effects.
 
 ``P_ei_exchange_ion`` (time) [W]:
   Electron-ion heat exchange power to ions.

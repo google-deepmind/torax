@@ -1498,6 +1498,17 @@ We envisage this feature being useful for example to:
   the sim from the last healthy point.
 
 * do uncertainty quantification by sweeping lots of configs following running
-  a simulation up to a certain point in time. After running the initial
-  simulation you could then modify and sweep the runtime parameter config in
-  order to do some uncertainty quantification.
+  a simulation you could then modify and sweep the runtime parameter config in
+  different ways.
+
+Dynamic Runtime Parameters in Post-Processing
+=============================================
+
+The post-processing module uses dynamic runtime parameters to calculate various outputs, 
+particularly for power calculations. The ``dynamic_runtime_params_slice`` parameter is 
+passed to the ``make_outputs`` function to ensure that power calculations correctly 
+account for parameters that may change during simulation, used in absorption fractions 
+for different heating sources.
+
+This is particularly important for calculations like fusion gain (Q_fusion), which 
+depends on the external injected power before absorption effects.
