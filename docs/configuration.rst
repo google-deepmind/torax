@@ -955,6 +955,11 @@ A utility source module that allows for a time dependent Gaussian ion and electr
 ``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
 
+``absorption_fraction`` (float = 1.0) **time-varying-scalar**
+  Fraction of power that is actually absorbed in the plasma. This parameter can be used to model
+  phenomena like edge losses, coupling inefficiencies, or other effects that reduce the actual
+  power delivered to the plasma from the total injected power.
+
 qei_source
 ^^^^^^^^^^
 
@@ -1158,6 +1163,11 @@ environment variable which should point to a compatible JSON file.
 
 ``frequency`` (float = 120e6) **time-varying-scalar**
   ICRF wave frequency in Hz.
+
+``absorption_fraction`` (float = 1.0) **time-varying-scalar**
+  Fraction of power that is actually absorbed in the plasma. This parameter can be used to model
+  phenomena like edge losses, coupling inefficiencies, or other effects that reduce the actual
+  power delivered to the plasma from the total injected power.
 
 ``minority_concentration`` (float = 3.0) **time-varying-scalar**
   Helium-3 minority concentration relative to the electron density in %.
