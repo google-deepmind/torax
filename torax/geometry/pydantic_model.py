@@ -272,7 +272,7 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   n_rho: Annotated[pydantic.PositiveInt, TIME_INVARIANT] = 25
   hires_fac: pydantic.PositiveInt = 4
   geometry_dir: Annotated[str | None, TIME_INVARIANT] = None
-  equilibrium_object: str = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
+  equilibrium_object: str | Any = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = False
 
 

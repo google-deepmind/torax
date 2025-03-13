@@ -85,7 +85,7 @@ def geometry_from_IMAS(
     else:
         raise ValueError("equilibrium_object must be a string (file path) or an IDS")
     IMAS_data = equilibrium.time_slice[0]
-    B0 = np.abs(equilibrium.vacuum_toroidal_field.b0) #Shoudld it be replaced by reference value .time_slice[0].global_quantities.b_field_phi ?
+    B0 = np.abs(equilibrium.vacuum_toroidal_field.b0[0]) #Shoudld it be replaced by reference value .time_slice[0].global_quantities.b_field_phi ?
     Rmaj = np.asarray(IMAS_data.boundary.geometric_axis.r) #Shoudld it be replaced by reference value .vacuum_toroidal_field.r0 ?
 
     # Poloidal flux (switch sign between ddv3 and ddv4)
@@ -160,9 +160,9 @@ def geometry_from_IMAS(
         "F": F,
         "int_dl_over_Bp": int_dl_over_Bp,
         "flux_surf_avg_1_over_R2": flux_surf_avg_1_over_R2,
-        "flux_surf_avg_Bp2": flux_surf_avg_Bp2,
         "flux_surf_avg_RBp": flux_surf_avg_RBp,
         "flux_surf_avg_R2Bp2": flux_surf_avg_R2Bp2,
+        "flux_surf_avg_Bp2": flux_surf_avg_Bp2,
         "delta_upper_face": IMAS_data.profiles_1d.triangularity_upper,
         "delta_lower_face": IMAS_data.profiles_1d.triangularity_lower,
         "elongation": IMAS_data.profiles_1d.elongation,

@@ -20,7 +20,7 @@ CHEASE, FBT, etc.
 
 
 from __future__ import annotations
-from Typing import Any
+from typing import Any
 from collections.abc import Mapping
 import dataclasses
 import functools
