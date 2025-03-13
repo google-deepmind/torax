@@ -23,6 +23,7 @@ import pydantic
 from torax import interpolated_param
 from torax.torax_pydantic import model_base
 from torax.torax_pydantic import pydantic_types
+from typing_extensions import Annotated
 from typing_extensions import Self
 import xarray as xr
 
@@ -249,6 +250,18 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         time_interpolation_mode=self.time_interpolation_mode,
         rho_interpolation_mode=self.rho_interpolation_mode,
     )
+
+
+def _is_positive(array: TimeVaryingArray) -> TimeVaryingArray:
+  for _, value in array.value.values():
+    if not np.all(value > 0):
+      raise ValueError('All values must be positive.')
+  return array
+
+
+PositiveTimeVaryingArray = Annotated[
+    TimeVaryingArray, pydantic.AfterValidator(_is_positive)
+]
 
 
 def _load_from_primitives(

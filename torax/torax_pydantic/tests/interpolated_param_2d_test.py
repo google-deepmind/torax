@@ -17,6 +17,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import numpy as np
+import pydantic
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.torax_pydantic import interpolated_param_2d
 from torax.torax_pydantic import model_base
@@ -230,7 +231,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
   def test_time_varying_array_parses_inputs_correctly(
       self, time_rho_interpolated_input, nx, dx, time, expected_output
   ):
-    """Tests that the creation of TimeVaryingArray from config works."""
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
@@ -265,6 +265,13 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               value
           ).right_boundary_conditions_defined
       )
+
+  def test_raises_error_when_value_is_not_positive(self):
+    class TestModel(model_base.BaseModelFrozen):
+      a: interpolated_param_2d.PositiveTimeVaryingArray
+
+    with self.assertRaisesRegex(pydantic.ValidationError, 'be positive.'):
+      TestModel.model_validate({'a': {0.: {0.: 1.0, 1: -1.0}}})
 
   def test_set_grid(self):
 
