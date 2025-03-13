@@ -19,13 +19,10 @@ from torax.sources.tests import test_lib
 class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for PelletSource."""
 
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=pellet_source.PelletSource,
-        runtime_params_class=pellet_source.PelletRuntimeParams,
+  def setUp(self):
+    super().setUp(
+        source_config_class=pellet_source.PelletSourceConfig,
         source_name=pellet_source.PelletSource.SOURCE_NAME,
-        model_func=pellet_source.calc_pellet_source,
     )
 
 

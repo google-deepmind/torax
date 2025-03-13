@@ -21,6 +21,7 @@ from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import qlknn_transport_model
 
@@ -36,14 +37,13 @@ class QlknnTransportModelTest(parameterized.TestCase):
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    source_models_builder = source_models_lib.SourceModelsBuilder()
-    source_models = source_models_builder()
+    sources = sources_pydantic_model.Sources()
     pedestal = pedestal_pydantic_model.Pedestal()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
             transport=qlknn_transport_model.RuntimeParams(),
-            sources=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=geo.torax_mesh,
             pedestal=pedestal,
         )(
@@ -52,8 +52,11 @@ class QlknnTransportModelTest(parameterized.TestCase):
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=geo.torax_mesh,
+    )
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
     )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,

@@ -22,13 +22,10 @@ from torax.sources.tests import test_lib
 class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for OhmicHeatSource."""
 
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=ohmic_heat_source.OhmicHeatSource,
-        runtime_params_class=ohmic_heat_source.OhmicRuntimeParams,
+  def setUp(self):
+    super().setUp(
+        source_config_class=ohmic_heat_source.OhmicHeatSourceConfig,
         source_name=ohmic_heat_source.OhmicHeatSource.SOURCE_NAME,
-        model_func=ohmic_heat_source.ohmic_model_func,
         needs_source_models=True,
     )
 
@@ -42,7 +39,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
         instance=True,
         sources={
             self._source_name: (
-                self._runtime_params_class().build_static_params()
+                self._source_config_class().build_static_params()  # pytype: disable=not-instantiable
             )
         },
     )

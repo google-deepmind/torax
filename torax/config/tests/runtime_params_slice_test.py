@@ -52,15 +52,15 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   def test_static_runtime_params_slice_hash_same_for_same_params(self):
     """Tests that the hash is the same for the same static params."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    source_models_builder = default_sources.get_default_sources_builder()
+    sources = default_sources.get_default_sources()
     static_slice1 = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self._geo.torax_mesh,
     )
     static_slice2 = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self._geo.torax_mesh,
     )
     self.assertEqual(hash(static_slice1), hash(static_slice2))
@@ -70,10 +70,10 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   ):
     """Test that the hash changes when the static params change."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    source_models_builder = default_sources.get_default_sources_builder()
+    sources = default_sources.get_default_sources()
     static_slice1 = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self._geo.torax_mesh,
     )
     runtime_params_mod = dataclasses.replace(
@@ -85,7 +85,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     static_slice2 = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params_mod,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self._geo.torax_mesh,
     )
     self.assertNotEqual(hash(static_slice1), hash(static_slice2))

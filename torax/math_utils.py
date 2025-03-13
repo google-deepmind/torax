@@ -17,8 +17,11 @@
 Math operations that are needed for Torax, but are not specific to plasma
 physics or differential equation solvers.
 """
+
 import enum
 import functools
+
+import chex
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
@@ -44,10 +47,10 @@ class IntegralPreservationQuantity(enum.Enum):
     static_argnames=['preserved_quantity',],
 )
 def cell_to_face(
-    cell_values: jt.Float[jt.Array, 'rhon'],
+    cell_values: jt.Float[chex.Array, 'rhon'],
     geo: geometry.Geometry,
     preserved_quantity: IntegralPreservationQuantity = IntegralPreservationQuantity.VALUE,
-) -> jt.Float[jt.Array, 'rhon+1']:
+) -> jt.Float[chex.Array, 'rhon+1']:
   """Convert cell values to face values.
 
   We make four assumptions:

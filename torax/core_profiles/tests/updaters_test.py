@@ -23,7 +23,7 @@ from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import updaters
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.sources import source_models as source_models_lib
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_params_lib
 
@@ -132,16 +132,16 @@ class UpdatersTest(parameterized.TestCase):
             ne_bound_right=ne_bound_right,
         ),
     )
-    source_models_builder = source_models_lib.SourceModelsBuilder()
+    sources = source_pydantic_model.Sources()
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
@@ -198,16 +198,16 @@ class UpdatersTest(parameterized.TestCase):
             Te_bound_right=Te_bound_right,
         ),
     )
-    source_models_builder = source_models_lib.SourceModelsBuilder()
+    sources = source_pydantic_model.Sources.from_dict({})
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )
@@ -250,16 +250,16 @@ class UpdatersTest(parameterized.TestCase):
             Ti_bound_right=Ti_bound_right,
         ),
     )
-    source_models_builder = source_models_lib.SourceModelsBuilder()
+    sources = source_pydantic_model.Sources.from_dict({})
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
     )

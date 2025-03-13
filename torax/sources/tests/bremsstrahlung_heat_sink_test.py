@@ -18,10 +18,12 @@ from absl.testing import parameterized
 from torax.config import build_runtime_params
 from torax.core_profiles import initialization
 from torax.sources import bremsstrahlung_heat_sink
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources.tests import test_lib
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import torax_refs
+
 
 # pylint: disable=invalid-name
 
@@ -29,13 +31,10 @@ from torax.tests.test_lib import torax_refs
 class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
   """Tests for BremsstrahlungHeatSink."""
 
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSink,
-        runtime_params_class=bremsstrahlung_heat_sink.RuntimeParams,
+  def setUp(self):
+    super().setUp(
+        source_config_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSinkConfig,
         source_name=bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
-        model_func=bremsstrahlung_heat_sink.bremsstrahlung_model_func,
     )
 
   @parameterized.parameters([
@@ -53,23 +52,25 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
     runtime_params = references.runtime_params
     geo_provider = references.geometry_provider
 
-    source_models_builder = source_models_lib.SourceModelsBuilder()
+    sources = source_pydantic_model.Sources()
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
             geo_provider,
-            sources=source_models_builder.runtime_params,
+            sources=sources,
         )
     )
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=geo.torax_mesh,
             stepper=stepper_pydantic_model.Stepper(),
         )
     )
-    source_models = source_models_builder()
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     core_profiles = initialization.initial_core_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_runtime_params_slice,

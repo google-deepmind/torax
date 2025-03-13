@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Config for test_explicit. Basic test of explicit linear solver."""
-import dataclasses
 
 from torax import sim as sim_lib
 from torax.config import numerics as numerics_lib
@@ -22,8 +21,8 @@ from torax.config import runtime_params as general_runtime_params
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import runtime_params as source_runtime_params
-from torax.sources import source_models as source_models_lib
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
 from torax.transport_model import constant as constant_transport_model
@@ -57,30 +56,23 @@ def get_transport_model_builder() -> (
   return constant_transport_model.ConstantTransportModelBuilder()
 
 
-def get_sources_builder() -> source_models_lib.SourceModelsBuilder:
+def get_sources() -> source_pydantic_model.Sources:
   """Returns the source models used in the simulation."""
-  source_models_builder = default_sources.get_default_sources_builder()
+  sources = default_sources.get_default_sources()
+  sources_dict = sources.to_dict()
+  sources_dict = sources_dict['source_model_config']
   # multiplier for ion-electron heat exchange term for sensitivity
-  source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
+  sources_dict['qei_source']['Qei_mult'] = 0.0
   # remove bootstrap current
-  source_models_builder.runtime_params['j_bootstrap'].bootstrap_mult = 0.0
-  # pylint: disable=unexpected-keyword-arg
-  source_models_builder.source_builders[
-      'generic_ion_el_heat_source'
-  ].runtime_params = dataclasses.replace(
-      source_models_builder.runtime_params['generic_ion_el_heat_source'],
-      # total heating (including accounting for radiation) r
-      Ptot=200.0e6,  # pytype: disable=wrong-keyword-args
-      is_explicit=True,
-  )
-  # pylint: enable=unexpected-keyword-arg
-  source_models_builder.runtime_params['fusion_heat_source'].mode = (
-      source_runtime_params.Mode.ZERO
-  )
-  source_models_builder.runtime_params['ohmic_heat_source'].mode = (
-      source_runtime_params.Mode.ZERO
-  )
-  return source_models_builder
+  sources_dict['j_bootstrap']['bootstrap_mult'] = 0.0
+  # total heating (including accounting for radiation) r
+  sources_dict['generic_ion_el_heat_source']['Ptot'] = 200.0e6
+  sources_dict['generic_ion_el_heat_source']['is_explicit'] = True
+  sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
+  sources_dict['ohmic_heat_source']['mode'] = source_runtime_params.Mode.ZERO
+
+  sources = source_pydantic_model.Sources.from_dict(sources_dict)
+  return sources
 
 
 def get_stepper() -> explicit_stepper.ExplicitStepperModel:
@@ -103,7 +95,7 @@ def get_sim() -> sim_lib.Sim:
   return sim_lib.Sim.create(
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
-      source_models_builder=get_sources_builder(),
+      sources=get_sources(),
       transport_model_builder=get_transport_model_builder(),
       stepper=get_stepper(),
       pedestal=pedestal_pydantic_model.Pedestal(),

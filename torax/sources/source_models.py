@@ -18,10 +18,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from torax.sources import base
 from torax.sources import bootstrap_current_source
 from torax.sources import generic_current_source
 from torax.sources import qei_source as qei_source_lib
-from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 
 
@@ -59,7 +59,7 @@ class SourceModels:
 
   def __init__(
       self,
-      source_builders: Mapping[str, source_lib.SourceBuilderProtocol]
+      sources: Mapping[str, base.SourceModelBase],
   ):
     """Constructs a collection of sources.
 
@@ -71,10 +71,7 @@ class SourceModels:
     runtime_params_lib.py).
 
     Args:
-      source_builders: Mapping of source model names to builders of the Source
-        objects. The names (i.e. the keys of this dictionary) also define the
-        keys in the output SourceProfiles which are computed from this
-        SourceModels object.
+      sources: Source models config.
 
     NOTE - Some sources are "special-case": bootstrap_current, generic_current,
     and Qei. SourceModels will always instantiate default objects for these
@@ -84,7 +81,10 @@ class SourceModels:
       ValueError if there is a naming collision with the reserved names as
       described above.
     """
-    sources = {name: builder() for name, builder in source_builders.items()}
+    sources = {
+        name: source_config.build_source()
+        for name, source_config in sources.items()
+    }
 
     # Some sources are accessed for specific use cases, so we extract those
     # ones and expose them directly.
@@ -231,101 +231,4 @@ class SourceModels:
     return self._standard_sources | {
         self.j_bootstrap_name: self.j_bootstrap,
         self.qei_source_name: self.qei_source,
-    }
-
-
-class SourceModelsBuilder:
-  """Builds a SourceModels and also holds its runtime_params.
-
-  The SourceModels is a collection of many smaller Source models.
-
-  Attributes:
-    source_builders: Dict mapping the name of each Source to its builder.
-  """
-
-  def __init__(
-      self,
-      source_builders: (
-          dict[str, source_lib.SourceBuilderProtocol] | None
-      ) = None,
-  ):
-
-    # Note: this runtime type checking isn't needed just because of the
-    # dynamically created builder classes, pytype seems to have a bug that
-    # prevents it from checking this arg in general.
-    # In an alternate version of SourceModelsBuilder it had a dict of dict of
-    # configs and pytype failed to enforce that the values of the outer dict
-    # were dicts.
-    if source_builders:
-      for name, builder in source_builders.items():
-        if not source_lib.is_source_builder(builder):
-          raise TypeError(
-              f'Expected source builder, got {type(builder)}for "{name}"'
-          )
-
-    source_builders = source_builders or {}
-
-    # Validate that these sources are found
-    bootstrap_found = qei_found = generic_current_found = False
-    if (
-        bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
-        in source_builders
-    ):
-      bootstrap_found = True
-    if qei_source_lib.QeiSource.SOURCE_NAME in source_builders:
-      qei_found = True
-    if (
-        generic_current_source.GenericCurrentSource.SOURCE_NAME
-        in source_builders
-    ):
-      generic_current_found = True
-    # These are special sources that must be present for every TORAX run.
-    # If these sources are missing, we need to include builders for them.
-    # We also ZERO out these sources if they are not explicitly provided.
-    # The SourceModels would also build them, but then there'd be no
-    # user-editable runtime params for them.
-    if not bootstrap_found:
-      source_builders[
-          bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
-      ] = source_lib.make_source_builder(
-          bootstrap_current_source.BootstrapCurrentSource,
-          runtime_params_type=bootstrap_current_source.RuntimeParams,
-      )()
-      source_builders[
-          bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
-      ].runtime_params.mode = runtime_params_lib.Mode.ZERO
-    if not qei_found:
-      source_builders[qei_source_lib.QeiSource.SOURCE_NAME] = (
-          source_lib.make_source_builder(
-              qei_source_lib.QeiSource,
-              runtime_params_type=qei_source_lib.RuntimeParams,
-          )()
-      )
-      source_builders[
-          qei_source_lib.QeiSource.SOURCE_NAME
-      ].runtime_params.mode = runtime_params_lib.Mode.ZERO
-    if not generic_current_found:
-      source_builders[
-          generic_current_source.GenericCurrentSource.SOURCE_NAME
-      ] = source_lib.make_source_builder(
-          generic_current_source.GenericCurrentSource,
-          runtime_params_type=generic_current_source.RuntimeParams,
-          model_func=generic_current_source.calculate_generic_current,
-      )()
-      source_builders[
-          generic_current_source.GenericCurrentSource.SOURCE_NAME
-      ].runtime_params.mode = runtime_params_lib.Mode.ZERO
-
-    self.source_builders = source_builders
-
-  def __call__(self) -> SourceModels:
-
-    return SourceModels(self.source_builders)
-
-  @property
-  def runtime_params(self) -> dict[str, runtime_params_lib.RuntimeParams]:
-    """Returns all the runtime params for all sources."""
-    return {
-        source_name: builder.runtime_params
-        for source_name, builder in self.source_builders.items()
     }

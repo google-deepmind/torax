@@ -26,6 +26,7 @@ from torax.sources import gas_puff_source as gas_puff_source_lib
 from torax.sources import generic_current_source
 from torax.sources import generic_particle_source as generic_particle_source_lib
 from torax.sources import pellet_source as pellet_source_lib
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.transport_model import runtime_params as transport_params_lib
@@ -47,7 +48,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={},
+        sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
     )
@@ -165,30 +166,26 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       # Check that the runtime params for the default ne sources are
       # time-dependent.
       runtime_params = general_runtime_params.GeneralRuntimeParams()
+      sources = sources_pydantic_model.Sources.from_dict(
+          {
+              gas_puff_source_lib.GasPuffSource.SOURCE_NAME: {
+                  'puff_decay_length': {0.0: 0.0, 1.0: 4.0},
+                  'S_puff_tot': {0.0: 0.0, 1.0: 5.0},
+                  },
+              pellet_source_lib.PelletSource.SOURCE_NAME: {
+                  'pellet_width': {0.0: 0.0, 1.0: 1.0},
+                  'pellet_deposition_location': {0.0: 0.0, 1.0: 2.0},
+                  'S_pellet_tot': {0.0: 0.0, 1.0: 3.0},},
+              generic_particle_source_lib.GenericParticleSource.SOURCE_NAME: {
+                  'particle_width': {0.0: 0.0, 1.0: 6.0},
+                  'deposition_location': {0.0: 0.0, 1.0: 7.0},
+                  'S_tot': {0.0: 0.0, 1.0: 8.0},
+              },
+          }
+      )
       dcs = build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
-          sources={
-              gas_puff_source_lib.GasPuffSource.SOURCE_NAME: (
-                  gas_puff_source_lib.GasPuffRuntimeParams(
-                      puff_decay_length={0.0: 0.0, 1.0: 4.0},
-                      S_puff_tot={0.0: 0.0, 1.0: 5.0},
-                  )
-              ),
-              pellet_source_lib.PelletSource.SOURCE_NAME: (
-                  pellet_source_lib.PelletRuntimeParams(
-                      pellet_width={0.0: 0.0, 1.0: 1.0},
-                      pellet_deposition_location={0.0: 0.0, 1.0: 2.0},
-                      S_pellet_tot={0.0: 0.0, 1.0: 3.0},
-                  )
-              ),
-              generic_particle_source_lib.GenericParticleSource.SOURCE_NAME: (
-                  generic_particle_source_lib.GenericParticleSourceRuntimeParams(
-                      particle_width={0.0: 0.0, 1.0: 6.0},
-                      deposition_location={0.0: 0.0, 1.0: 7.0},
-                      S_tot={0.0: 0.0, 1.0: 8.0},
-                  )
-              ),
-          },
+          sources=sources,
           torax_mesh=self._geo.torax_mesh,
       )(
           t=0.5,
@@ -228,14 +225,17 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   def test_wext_in_dynamic_runtime_params_cannot_be_negative(self):
     """Tests that wext cannot be negative."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
+    sources = sources_pydantic_model.Sources.from_dict(
+        {
+            generic_current_source.GenericCurrentSource.SOURCE_NAME: {
+                'wext': {0.0: 1.0, 1.0: -1.0},
+            },
+        }
+    )
     dcs_provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         transport=transport_params_lib.RuntimeParams(),
-        sources={
-            generic_current_source.GenericCurrentSource.SOURCE_NAME: (
-                generic_current_source.RuntimeParams(wext={0.0: 1.0, 1.0: -1.0})
-            ),
-        },
+        sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
     )
@@ -438,32 +438,36 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   ):
     """Tests that the dynamic slice provider can be updated."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    source_models_builder = default_sources.get_default_sources_builder()
-    source_models_builder.runtime_params[
-        generic_current_source.GenericCurrentSource.SOURCE_NAME
-    ].Iext = 1.0
+    sources = default_sources.get_default_sources()
+    sources_dict = sources.to_dict()['source_model_config']
+    sources_dict[generic_current_source.GenericCurrentSource.SOURCE_NAME][
+        'Iext'
+    ] = 1.0
+    sources = sources_pydantic_model.Sources.from_dict(sources_dict)
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        sources=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=geo.torax_mesh,
     )
     dcs = provider(
         t=0.0,
     )
-    for key in source_models_builder.runtime_params.keys():
+    for key in sources.source_model_config.keys():
       self.assertIn(key, dcs.sources)
 
     # Update an interpolated variable.
-    source_models_builder.runtime_params[
-        generic_current_source.GenericCurrentSource.SOURCE_NAME
-    ].Iext = 2.0
+    sources_dict = sources.to_dict()['source_model_config']
+    sources_dict[generic_current_source.GenericCurrentSource.SOURCE_NAME][
+        'Iext'
+    ] = 2.0
+    sources = sources_pydantic_model.Sources.from_dict(sources_dict)
 
     # Check pre-update that nothing has changed.
     dcs = provider(
         t=0.0,
     )
-    for key in source_models_builder.runtime_params.keys():
+    for key in sources.source_model_config.keys():
       self.assertIn(key, dcs.sources)
     generic_current = dcs.sources[
         generic_current_source.GenericCurrentSource.SOURCE_NAME
@@ -476,13 +480,13 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     # Update any interpolated variables and check that the change is reflected.
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        sources=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=geo.torax_mesh,
     )
     dcs = provider(
         t=0.0,
     )
-    for key in source_models_builder.runtime_params.keys():
+    for key in sources.source_model_config.keys():
       self.assertIn(key, dcs.sources)
     generic_current = dcs.sources[
         generic_current_source.GenericCurrentSource.SOURCE_NAME

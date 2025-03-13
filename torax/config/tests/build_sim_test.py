@@ -20,6 +20,7 @@ from torax.config import build_sim
 from torax.config import runtime_params as runtime_params_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -54,7 +55,7 @@ class BuildSimTest(parameterized.TestCase):
             ),
             sources=dict(
                 pellet_source=dict(
-                    mode='zero',
+                    mode='ZERO',
                 ),
             ),
             transport=dict(
@@ -190,68 +191,20 @@ class BuildSimTest(parameterized.TestCase):
 
   def test_empty_source_config_only_has_defaults_turned_off(self):
     """Tests that an empty source config has all sources turned off."""
-    source_models_builder = build_sim.build_sources_builder_from_config({})
-    source_models = source_models_builder()
+    sources = sources_pydantic_model.Sources.from_dict({})
     self.assertEqual(
-        source_models_builder.runtime_params['j_bootstrap'].mode,
+        sources.source_model_config['j_bootstrap'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models_builder.runtime_params['generic_current_source'].mode,
+        sources.source_model_config['generic_current_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertEqual(
-        source_models_builder.runtime_params['qei_source'].mode,
+        sources.source_model_config['qei_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
-    self.assertLen(source_models.sources, 3)
-    self.assertLen(source_models.standard_sources, 1)
-
-  def test_adding_standard_source_via_config(self):
-    """Tests that a source can be added with overriding defaults."""
-    source_models_builder = build_sim.build_sources_builder_from_config({
-        'gas_puff_source': {
-            'puff_decay_length': 1.23,
-        },
-        'ohmic_heat_source': {
-            'is_explicit': True,
-            'mode': 'zero',  # turn it off.
-        },
-    })
-    source_models = source_models_builder()
-    # The non-standard ones are still off.
-    self.assertEqual(
-        source_models_builder.runtime_params['j_bootstrap'].mode,
-        source_runtime_params_lib.Mode.ZERO,
-    )
-    self.assertEqual(
-        source_models_builder.runtime_params['generic_current_source'].mode,
-        source_runtime_params_lib.Mode.ZERO,
-    )
-    self.assertEqual(
-        source_models_builder.runtime_params['qei_source'].mode,
-        source_runtime_params_lib.Mode.ZERO,
-    )
-    # But these new sources have been added.
-    self.assertLen(source_models.sources, 5)
-    self.assertLen(source_models.standard_sources, 3)
-    # With the overriding params.
-    # pytype: disable=attribute-error
-    self.assertEqual(
-        source_models_builder.runtime_params[
-            'gas_puff_source'
-        ].puff_decay_length,
-        1.23,
-    )
-    # pytype: enable=attribute-error
-    self.assertEqual(
-        source_models_builder.runtime_params['gas_puff_source'].mode,
-        source_runtime_params_lib.Mode.MODEL_BASED,  # On by default.
-    )
-    self.assertEqual(
-        source_models_builder.runtime_params['ohmic_heat_source'].mode,
-        source_runtime_params_lib.Mode.ZERO,
-    )
+    self.assertLen(sources.source_model_config, 3)
 
   def test_missing_transport_model_raises_error(self):
     with self.assertRaises(ValueError):

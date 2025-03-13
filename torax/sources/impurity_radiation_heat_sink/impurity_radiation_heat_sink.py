@@ -19,10 +19,8 @@ Model functions are in separate files.
 """
 
 import dataclasses
-from typing import ClassVar
 
 from torax.sources import source as source_lib
-from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -30,9 +28,6 @@ class ImpurityRadiationHeatSink(source_lib.Source):
   """Impurity radiation heat sink for electron heat equation."""
 
   SOURCE_NAME = "impurity_radiation_heat_sink"
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = (
-      impurity_radiation_mavrin_fit.MODEL_FUNCTION_NAME
-  )
   model_func: source_lib.SourceProfileFunction
 
   @property
