@@ -30,10 +30,12 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+from torax.sources import base
+from torax.config import base as config_base
 
 
 # pylint: disable=invalid-name
-class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
+class GenericIonElHeatSourceConfig(base.SourceModelBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
@@ -64,7 +66,7 @@ class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
 
 
 @dataclasses.dataclass(kw_only=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(config_base.RuntimeParametersConfig['RuntimeParamsProvider']):
   """Runtime parameters for the generic heat source."""
 
   # External heat source parameters
@@ -87,8 +89,17 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  w: array_typing.ScalarFloat
+  rsource: array_typing.ScalarFloat
+  Ptot: array_typing.ScalarFloat
+  el_heat_fraction: array_typing.ScalarFloat
+  absorption_fraction: array_typing.ScalarFloat
+
+
 @chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+class RuntimeParamsProvider(config_base.RuntimeParametersProvider[DynamicRuntimeParams]):
   """Provides runtime parameters for a given time and geometry."""
 
   runtime_params_config: RuntimeParams
@@ -103,15 +114,6 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
       t: chex.Numeric,
   ) -> 'DynamicRuntimeParams':
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
-@chex.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  w: array_typing.ScalarFloat
-  rsource: array_typing.ScalarFloat
-  Ptot: array_typing.ScalarFloat
-  el_heat_fraction: array_typing.ScalarFloat
-  absorption_fraction: array_typing.ScalarFloat
 
 
 def calc_generic_heat_source(

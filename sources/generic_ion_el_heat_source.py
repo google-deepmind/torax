@@ -8,16 +8,24 @@ import dataclasses
 from typing import ClassVar, Literal
 
 import chex
+import jax
 from torax import array_typing
+from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.physics import formulas
+from torax.sources import source as source_lib
+from torax.sources import source_profiles
 from torax.sources import base
+from torax.torax_pydantic import interpolated_param
+import torax.torax_pydantic as torax_pydantic
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+from torax.config import base as config_base
 
 def calc_generic_heat_source(
     geo: geometry.Geometry,
@@ -49,15 +57,17 @@ def calc_generic_heat_source(
 
   return (source_ion, source_el)
 
+# pylint: disable=invalid-name
 class GenericIonElHeatSourceConfig(base.SourceModelBase):
-  """Configuration for the GenericIonElHeatSource.
+  """Generic ion-electron heat source configuration.
 
   Attributes:
+    source_name: Name of this source
     w: Gaussian width in normalized radial coordinate
     rsource: Source Gaussian central location (in normalized r)
     Ptot: Total heating: high default based on total ITER power including alphas
     el_heat_fraction: Electron heating fraction
-    absorption_fraction: Fraction of absorbed power
+    absorption_fraction: fraction of absorbed power
   """
   source_name: Literal['generic_ion_el_heat_source'] = (
       'generic_ion_el_heat_source'
