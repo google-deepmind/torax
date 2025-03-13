@@ -29,8 +29,9 @@ For reference, the standard control flow while using TORAX is:
 
 
 #.
-   Configure a simulation with a dictionary of Python primitives (see
-   |torax/examples/|_). More on this config language below.
+   Configure a simulation with a dictionary of Python primitives, numpy arrays,
+   or xarray datasets (see |torax/examples/|_). More on this config language
+   below.
 
 #.
    Use |torax.config.build_sim.build_sim_from_config()|_ to convert the config
@@ -38,15 +39,17 @@ For reference, the standard control flow while using TORAX is:
    of a TORAX simulation run.
 
 #.
-   |torax.sim.Sim|_ internally calls |torax.sim.run_simulation()|_, which is the
-   entrypoint for all TORAX simulations. Technically, the above steps are
-   optional (though useful standards).
+   |torax.sim.Sim|_ internally calls |torax.sim.run_simulation()|_, which is an
+   entrypoint for running an entire TORAX time loop, Technically, the above
+   steps are optional (though useful standards). The API is designed to enable
+   users to customize TORAX with purpose-built timeloops calling the |Stepper|_.
+   Tutorials illustrating how to customize TORAX timeloops are coming soon.
 
 #.
    |torax.sim.run_simulation()|_ steps the simulation in a loop, the duration of
    each time step coming from a |TimeStepCalculator|_, and the state updates
-   coming from a |Stepper|_, which internally uses |SourceModels|_ and a
-   |TransportModel|_ to help evolve the state.
+   coming from a |Stepper|_, which internally uses |SourceModels|_, a
+   |TransportModel|_ and a |Geometry|_ to help evolve the state.
 
 
 The rest of this section details each of these components and a few more.
@@ -56,7 +59,7 @@ sim.py
 
 |sim.py|_ holds the majority of the business logic running TORAX.
 ``run_simulation()`` is its main function which actually runs the TORAX
-simulation. All TORAX runs hit this function.
+simulation. All TORAX runs using the standard flow hit this function.
 
 This file also contains the |torax.sim.Sim|_ class which wraps
 ``run_simulation()`` for convenience. It provides a higher level API so users
@@ -66,19 +69,24 @@ can run a TORAX simulation without constructing all the inputs
 Broadly, ``run_simulation()`` takes the following inputs:
 
 
-* an initial state
-* geometry
-* runtime parameters
-* |TimeStepCalculator|_
-* |Stepper|_ (via the ``step_fn`` argument)
+* An initial state
+* A geometry provider, which interpolates geometry attributes at each time step.
+* Static runtime parameters fixed for the simulation, and will trigger a
+  recompilation if changed.
+* A dynamic runtime parameters provider, which interpolates dynamic runtime
+  parameters at each time step.
+* |Stepper|_ (via the ``step_fn`` argument), the solver method.
+* |TimeStepCalculator|_ (via the ``step_fn`` argument)
 * |TransportModel|_ (via the ``step_fn`` argument)
+* |PedestalModel|_ (via the ``step_fn`` argument)
 
 The following sections cover these inputs.
 
 Note that, while the standard flow detailed above uses the "config", and then
 builds a |torax.sim.Sim|_ object, these steps are optional. Users who wish to
 customize TORAX with purpose-built transport models or steppers may call
-``run_simulation()`` directly.
+``run_simulation()`` directly, or use the API to build customized timeloops
+and not run ```run_simulation()`` at all.
 
 TORAX state
 ^^^^^^^^^^^
@@ -91,11 +99,16 @@ updates that state.
 Geometry
 ^^^^^^^^
 
-|torax.geometry.Geometry|_ describes the geometry of the torus and fields.
-See the ``geometry`` module for different ways to build a ``Geometry``.
+|Geometry|_ describes the geometry of the torus and fields.
+See the ``torax.geometry`` package for different ways to build a
+``Geometry`` and its child classes.
 
 Each ``Geometry`` object represents the geometry at a single point in time.
-It is on our roadmap to support time-varying geometry as well.
+A sequence of different geometries at different timesteps can be provided at
+config, and the various ``Geometry``s are constructed upon initialization.
+These are packaged together into a ``GeometryProvider`` which interpolates a
+new ``Geometry`` at each timestep. This is needed in general, since the TORAX
+timesteps are not necessarily deterministic.
 
 Config and Runtime Parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -132,12 +145,12 @@ Stepper
 |torax.stepper|_ contains PDE time steppers that discretize the PDE in time and
 solve for the next time step with linear or nonlinear methods.
 
-Inside the |Stepper|_ implementations in where JAX is actually used to compute
+Inside the |Stepper|_ implementations is where JAX is actually used to compute
 Jacobians or do optimization-based solving. See the implementations for more
 details.
 
-Most |Stepper|_\ s are built with |SourceModels|_ and a |TransportModel|_,
-both described below.
+Most |Stepper|_\ s are built with |SourceModels|_ , a |TransportModel|_, and a
+|PedestalModel|_, described below.
 
 The |Stepper|_ class is abstract and can be extended. Users may provide their
 own implementation and feed it to |torax.sim.run_simulation()|_.
@@ -172,8 +185,20 @@ See the |torax.transport_model|_ module for all implementations. Users may
 extend |TransportModel|_ to create their own implementation as well. More
 details in :ref:`model-integration`.
 
+Pedestal model
+^^^^^^^^^^^^^^^
+
+A TORAX |PedestalModel|_ imposes the plasma temperature and density at a desired
+internal location. This is intended to correspond to the top of the H-mode
+pedstal. The operation of the pedestal is controlled by a time-dependent
+configuration attribute. |PedestalModel|_ is an abstract class, and TORAX
+currently provides two simple implementations.
+
+See the |torax.pedestal_model|_ module for all implementations. Users may
+extend |PedestalModel|_ to create their own implementation as well.
+
 Time step calculator
-^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 |torax.time_step_calculator|_ contains the interface and default implementations
 of |TimeStepCalculator|_, the base class which computes the duration of the next
@@ -181,17 +206,6 @@ time step in TORAX and decides when the simulation is over.
 
 Users may use one of the provided implementations or create their own by
 extending |TimeStepCalculator|_.
-
-Spectators
-^^^^^^^^^^
-
-The ``torax.spectators`` module contains objects that can "view" the progress of
-a simulation as it evolves. This is useful for tools like live-plotting.
-
-All spectators extend the |torax.spectators.spectator.Spectator|_
-abstract base class, and the spectator is called/updated within the run-loop
-inside |torax.sim.run_simulation()|_.
-
 
 .. |run_simulation_main.py| replace:: ``run_simulation_main.py``
 .. _run_simulation_main.py: https://github.com/google-deepmind/torax/blob/main/run_simulation_main.py
@@ -211,14 +225,16 @@ inside |torax.sim.run_simulation()|_.
 .. _SourceModels: https://github.com/google-deepmind/torax/blob/main/torax/sources/source_models.py
 .. |TransportModel| replace:: ``TransportModel``
 .. _TransportModel: https://github.com/google-deepmind/torax/blob/main/torax/transport_model/transport_model.py
+.. |PedestalModel| replace:: ``PedestalModel``
+.. _PedestalModel: https://github.com/google-deepmind/torax/blob/main/torax/pedestal_model/pedestal_model.py
 .. |sim.py| replace:: ``sim.py``
 .. _sim.py: https://github.com/google-deepmind/torax/blob/main/torax/sim.py
 .. |torax.state| replace:: ``torax.state``
 .. _torax.state: https://github.com/google-deepmind/torax/blob/main/torax/state.py
 .. |torax.state.ToraxSimState| replace:: ``torax.state.ToraxSimState``
 .. _torax.state.ToraxSimState: https://github.com/google-deepmind/torax/blob/main/torax/state.py
-.. |torax.geometry.Geometry| replace:: ``torax.geometry.Geometry``
-.. _torax.geometry.Geometry: https://github.com/google-deepmind/torax/blob/main/torax/geometry.py
+.. |Geometry| replace:: ``Geometry``
+.. _Geometry: https://github.com/google-deepmind/torax/blob/main/torax/geometry/geometry.py
 .. |torax.config.build_sim| replace:: ``torax.config.build_sim``
 .. _torax.config.build_sim: https://github.com/google-deepmind/torax/blob/main/torax/config/build_sim.py
 .. |torax.config.runtime_params| replace:: ``torax.config.runtime_params``
@@ -235,7 +251,7 @@ inside |torax.sim.run_simulation()|_.
 .. _QLKNN: https://github.com/google-deepmind/torax/blob/main/torax/transport_model/qlknn_transport_model.py
 .. |torax.transport_model| replace:: ``torax.transport_model``
 .. _torax.transport_model: https://github.com/google-deepmind/torax/blob/main/torax/transport_model
+.. |torax.pedestal_model| replace:: ``torax.pedestal_model``
+.. _torax.pedestal_model: https://github.com/google-deepmind/torax/blob/main/torax/pedestal_model
 .. |torax.time_step_calculator| replace:: ``torax.time_step_calculator``
 .. _torax.time_step_calculator: https://github.com/google-deepmind/torax/blob/main/torax/time_step_calculator
-.. |torax.spectators.spectator.Spectator| replace:: ``torax.spectators.spectator.Spectator``
-.. _torax.spectators.spectator.Spectator: https://github.com/google-deepmind/torax/blob/main/torax/spectators/spectator.py

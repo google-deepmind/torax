@@ -17,8 +17,11 @@
 Math operations that are needed for Torax, but are not specific to plasma
 physics or differential equation solvers.
 """
+
 import enum
 import functools
+
+import chex
 import jax
 from jax import numpy as jnp
 import jaxtyping as jt
@@ -44,10 +47,10 @@ class IntegralPreservationQuantity(enum.Enum):
     static_argnames=['preserved_quantity',],
 )
 def cell_to_face(
-    cell_values: jt.Float[jt.Array, 'rhon'],
+    cell_values: jt.Float[chex.Array, 'rhon'],
     geo: geometry.Geometry,
     preserved_quantity: IntegralPreservationQuantity = IntegralPreservationQuantity.VALUE,
-) -> jt.Float[jt.Array, 'rhon+1']:
+) -> jt.Float[chex.Array, 'rhon+1']:
   """Convert cell values to face values.
 
   We make four assumptions:
@@ -88,7 +91,7 @@ def cell_to_face(
       ) / geo.vpr_face[-1]
     case IntegralPreservationQuantity.SURFACE:
       diff = jnp.sum(
-          cell_values * geo.spr_cell
+          cell_values * geo.spr
       ) * geo.drho_norm - jax.scipy.integrate.trapezoid(
           face_values_without_right * geo.spr_face[:-1], geo.rho_face_norm[:-1]
       )
@@ -106,27 +109,6 @@ def cell_to_face(
 
   face_values = jnp.concatenate([face_values_without_right, right[None]])
   return face_values
-
-
-@array_typing.typed
-@jax_utils.jit
-def cell_integration(
-    x: array_typing.ArrayFloat, geo: geometry.Geometry
-) -> array_typing.ScalarFloat:
-  r"""Integrate a value `x` over the rhon grid.
-
-  Cell variables in TORAX are defined as the average of the face values. This
-  method integrates that face value over the rhon grid implicitly using the
-  trapezium rule to sum the averaged face values by the face grid spacing.
-
-  Args:
-    x: The cell averaged value to integrate.
-    geo: The geometry instance.
-
-  Returns:
-    Face value integrated over the rhon grid: $\int_0^1 x_{face} d\hat{rho}$
-  """
-  return jnp.sum(x * geo.drho_norm)
 
 
 def tridiag(
@@ -210,3 +192,61 @@ def cumulative_trapezoid(
     initial_array = jnp.broadcast_to(initial_array, initial_shape)
     out = jnp.concatenate((initial_array, out), axis=axis)
   return out
+
+
+@array_typing.typed
+@jax_utils.jit
+def cell_integration(
+    x: array_typing.ArrayFloat, geo: geometry.Geometry
+) -> array_typing.ScalarFloat:
+  r"""Integrate a value `x` over the rhon grid.
+
+  Cell variables in TORAX are defined as the average of the face values. This
+  method integrates that face value over the rhon grid implicitly using the
+  trapezium rule to sum the averaged face values by the face grid spacing.
+
+  Args:
+    x: The cell averaged value to integrate.
+    geo: The geometry instance.
+
+  Returns:
+    Integration over the rhon grid: :math:`\int_0^1 x_{face} d\hat{rho}`
+  """
+  if x.shape != geo.rho_norm.shape:
+    raise ValueError(
+        f"For cell_integration, input 'x' must have same shape as the cell grid"
+        f"Got x.shape={x.shape}, expected {geo.rho_norm.shape}."
+    )
+  return jnp.sum(x * geo.drho_norm)
+
+
+def area_integration(
+    value: array_typing.ArrayFloat,
+    geo: geometry.Geometry,
+) -> array_typing.ScalarFloat:
+  """Calculates integral of value using an area metric."""
+  return cell_integration(value * geo.spr, geo)
+
+
+def volume_integration(
+    value: array_typing.ArrayFloat,
+    geo: geometry.Geometry,
+) -> array_typing.ScalarFloat:
+  """Calculates integral of value using a volume metric."""
+  return cell_integration(value * geo.vpr, geo)
+
+
+def line_average(
+    value: array_typing.ArrayFloat,
+    geo: geometry.Geometry,
+) -> array_typing.ScalarFloat:
+  """Calculates line-averaged value from input profile."""
+  return cell_integration(value, geo)
+
+
+def volume_average(
+    value: array_typing.ArrayFloat,
+    geo: geometry.Geometry,
+) -> array_typing.ScalarFloat:
+  """Calculates volume-averaged value from input profile."""
+  return cell_integration(value * geo.vpr, geo)/geo.volume_face[-1]

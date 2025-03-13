@@ -425,15 +425,6 @@ Configures simulation control such as time settings and timestep calculation, eq
 ``dens_eq`` (bool = False)
   Solve the electron density equation in the time-dependent PDE.
 
-``enable_prescribed_profile_evolution`` (bool = True)
-  Enable time-dependent prescribed profiles. If False, then time-dependent ``numerics``
-  quantities such as ``nbar`` and ``Ti`` will be ignored, even if their respective core_profile equation is not being solved by the PDE.
-  This option is provided to allow initialization of density profiles scaled to a Greenwald fraction, and freeze this density even if the current
-  is time evolving. Otherwise the density will evolve to always maintain that GW fraction.
-
-``q_correction_factor`` (float = 1.38)
-  q-profile correction factor used only in the ad-hoc circular geometry model
-
 ``resistivity_mult`` (float = 1.0)
   1/multiplication factor for :math:`\sigma` (conductivity) to reduce the current
   diffusion timescale to be closer to the energy confinement timescale, for testing purposes.
@@ -517,8 +508,8 @@ total pressure at the pedestal and the ratio of ion to electron temperature.
 geometry
 --------
 
-``geometry_type`` (str = 'chease')
-  Geometry model used, from the following options.
+``geometry_type`` (str)
+  Geometry model used. A string must be provided from the following options.
 
 * ``'circular'``
     An ad-hoc circular geometry model. Includes elongation corrections.
@@ -539,10 +530,10 @@ geometry
 
 Geometry dicts for all geometry types can contain the following additional keys.
 
-``nrho`` (int = 25)
+``n_rho`` (int = 25)
   Number of radial grid points
 
-``hi_res_fac`` (int = 4)
+``hires_fac`` (int = 4)
   Only used when the initial condition ``psi`` is from plasma current. Sets up a higher resolution mesh
   with ``nrho_hires = nrho * hi_res_fac``, used for ``j`` to ``psi`` conversions.
 
@@ -906,12 +897,14 @@ The configurable runtime parameters of each source are as follows:
     Source is set to zero.
 
 * ``'MODEL'``
-    Source values come from a model in code. Specific model selection is not yet available in TORAX since there are no source components with more than one
-    physics model. However, this will be straightforward to develop when that occurs.
+    Source values come from a model in code. Specific model selection where more
+    than one model is available can be done by specifying a ``model_func``.
+    This is documented in the individual source sections.
 
 * ``'PRESCRIBED'``
     Source values are arbitrarily prescribed by the user. The value is set by ``prescribed_values``, and can contain the same
-    data structures as :ref:`Time-varying arrays`.
+    data structures as :ref:`Time-varying arrays`. Currently, this is only supported for sources that have a 1D output
+    along the cell grid or face grid.
 
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purposes, set:
 
@@ -957,7 +950,7 @@ A utility source module that allows for a time dependent Gaussian ion and electr
   Gaussian width of source profile in units of :math:`\hat{\rho}`.
 
 ``Ptot`` (float = 120e6), **time-varying-scalar**
-  Total injected source power in W.
+  Total source power in W. High default based on total ITER power including alphas
 
 ``el_heat_fraction`` (float = 0.66666), **time-varying-scalar**
   Electron heating fraction.
@@ -1073,6 +1066,27 @@ Bremsstrahlung model from Wesson, with an optional correction for relativistic e
 
 ``use_relativistic_correction`` (bool = False)
 
+impurity_radiation_heat_sink
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Various models for impurity radiation. Runtime params for each available model are listed separately
+
+``mode`` (str = 'model')
+
+``model_func`` (str = 'impurity_radiation_mavrin_fit')
+
+The following models are available:
+
+* ``'impurity_radiation_mavrin_fit'``
+    Polynomial fits to ADAS data from `Mavrin, 2018. <https://doi.org/10.1080/10420150.2018.1462361>`_
+
+    ``radiation_multiplier`` (float = 1.0). Multiplication factor for radiation term for testing sensitivities.
+
+* ``'radially_constant_fraction_of_Pin'``
+    Sets impurity radiation to be a constant fraction of the total external input power.
+
+    ``fraction_of_total_power_density`` (float = 1.0). Fraction of total external input power to use for impurity radiation.
+
 cyclotron_radiation_heat_sink
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1148,7 +1162,7 @@ environment variable which should point to a compatible JSON file.
 ``minority_concentration`` (float = 3.0) **time-varying-scalar**
   Helium-3 minority concentration relative to the electron density in %.
 
-``Ptot`` (float = 120e6), **time-varying-scalar**
+``Ptot`` (float = 10e6), **time-varying-scalar**
   Total injected source power in W.
 
 See :ref:`physics_models` for more detail.
@@ -1157,7 +1171,8 @@ stepper
 -------
 
 Select and configure the ``Stepper`` object, which evolves the PDE system by one timestep. See :ref:`solver_details` for further details.
-The dictionary consists of keys common to all steppers, and additional nested dictionaries where parameters pertaining to a specific stepper are defined.
+The dictionary consists of keys common to all steppers. Additional fields for
+parameters pertaining to a specific stepper are defined in the relevant section below.
 
 ``stepper_type`` (str = 'linear')
   Selected PDE solver algorithm. The current options are:
@@ -1212,10 +1227,17 @@ parent ``Stepper`` class.
 newton_raphson
 ^^^^^^^^^^^^^^
 
-``newton_raphson_params`` dict containing the following configuration parameters for the Newton Raphson stepper.
+.. _log_iterations:
 
 ``log_iterations`` (bool = False)
-  Log the internal iterations in the Newton-Raphson solver.
+  If True, logs information about the internal state of the Newton-Raphson
+  solver. For the first iteration, this contains the initial residual value and
+  time-step size. For subsequent iterations, this contains the iteration step
+  number, the current value of the residual, and the current value of ``tau``,
+  which is the relative reduction in Newton step size compared to the original
+  Newton step size. If the solver does not converge, then these inner iterations
+  will restart at a smaller timestep size if ``adaptive_dt=True`` in the
+  ``stepper`` config dict.
 
 ``initial_guess_mode`` (str = 'linear_step')
   Sets the approach taken for the initial guess into the Newton-Raphson solver for the first iteration.
@@ -1226,6 +1248,9 @@ newton_raphson
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear solver.
+    If used, is recommended to do so with the predictor_corrector solver and
+    several corrector steps. It is also strongly recommended to
+    use_pereverzev=True if a stiff transport model like qlknn is used.
 
 ``tol`` (float = 1e-5)
   PDE residual magnitude tolerance for successfully exiting the iterative solver.
@@ -1252,8 +1277,6 @@ newton_raphson
 optimizer
 ^^^^^^^^^
 
-``optimizer_params`` dict containing the following configuration parameters for the Optimizer stepper.
-
 ``initial_guess_mode`` (str = 'linear_step')
   Sets the approach taken for the initial guess into the Newton-Raphson solver for the first iteration.
   Two options are available:
@@ -1263,9 +1286,15 @@ optimizer
 
 * ``linear_step``
     Use the linear solver to obtain an initial guess to warm-start the nonlinear solver.
+    If used, is recommended to do so with the predictor_corrector solver and
+    several corrector steps. It is also strongly recommended to
+    use_pereverzev=True if a stiff transport model like qlknn is used.
 
 ``tol`` (float = 1e-12)
   PDE loss magnitude tolerance for successfully exiting the iterative solver.
+  Note: the default tolerance here is smaller than the default tolerance for
+  the Newton-Raphson solver because it's a tolerance on the loss (square of the
+  residual).
 
 ``maxiter`` (int = 100)
   Maximum number of allowed optimizer iterations.
@@ -1414,9 +1443,6 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'smoothing_sigma': 0.1,
           'qlknn_params': {
               'DVeff': True,
-              'include_ITG': True,
-              'include_TEM': True,
-              'include_ETG': True,
               'avoid_big_negative_s': True,
               'An_min': 0.05,
               'ITG_flux_ratio_correction': 1,
@@ -1429,7 +1455,7 @@ The configuration file is also available in ``torax/examples/iterhybrid_rampup.p
           'chi_per': 30,
           'd_per': 15,
           'use_pereverzev': True,
-          'log_iterations': True,
+          'log_iterations': False,
       },
       'time_step_calculator': {
           'calculator_type': 'fixed',

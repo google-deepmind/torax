@@ -39,7 +39,6 @@ CONFIG = {
             'dtmult': 150,
             'maxdt': 0.5,
             't_final': 10,
-            'enable_prescribed_profile_evolution': True,
         },
     },
     'geometry': {

@@ -22,14 +22,14 @@ Naming conventions and API are similar to those developed in the FiPy fvm solver
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
 
 import chex
 import jax
 from jax import numpy as jnp
+from torax import array_typing
 
 
-def _zero() -> jax.Array:
+def _zero() -> array_typing.ScalarFloat:
   """Returns a scalar zero as a jax Array."""
   return jnp.zeros(())
 
@@ -62,24 +62,21 @@ class CellVariable:
   """
 
   value: jax.Array
-  dr: jax.Array
-  left_face_constraint: Optional[jax.Array] = None
-  right_face_constraint: Optional[jax.Array] = None
-  left_face_grad_constraint: Optional[jax.Array] = dataclasses.field(
-      default_factory=_zero
+  dr: array_typing.ScalarFloat
+  left_face_constraint: array_typing.ScalarFloat | None = None
+  right_face_constraint: array_typing.ScalarFloat | None = None
+  left_face_grad_constraint: array_typing.ScalarFloat | None = (
+      dataclasses.field(default_factory=_zero)
   )
-  right_face_grad_constraint: Optional[jax.Array] = dataclasses.field(
-      default_factory=_zero
+  right_face_grad_constraint: array_typing.ScalarFloat | None = (
+      dataclasses.field(default_factory=_zero)
   )
-  history: Optional[bool] = None
+  history: bool | None = None
 
   # Can't make the above default values be jax zeros because that would be a
   # call to jax before absl.app.run
 
   def __post_init__(self):
-    self.sanity_check()
-
-  def sanity_check(self):
     """Check that the CellVariable is valid.
 
     How is `sanity_check` different from `__post_init__`?
@@ -111,17 +108,32 @@ class CellVariable:
       # assert.
       # chex.assert_rank(self.value, 1)
       chex.assert_rank(self.dr, 0)
-      num_left_constraints = (self.left_face_constraint is not None) + (
-          self.left_face_grad_constraint is not None
+      left_and = (
+          self.left_face_constraint is not None
+          and self.left_face_grad_constraint is not None
       )
-      assert num_left_constraints == 1, (
-          self.left_face_constraint,
-          self.left_face_grad_constraint,
+      left_or = (
+          self.left_face_constraint is not None
+          or self.left_face_grad_constraint is not None
       )
-      num_right_constraints = (self.right_face_constraint is not None) + (
-          self.right_face_grad_constraint is not None
+      if left_and or not left_or:
+        raise ValueError(
+            'Exactly one of left_face_constraint and '
+            'left_face_grad_constraint must be set.'
+        )
+      right_and = (
+          self.right_face_constraint is not None
+          and self.right_face_grad_constraint is not None
       )
-      assert num_right_constraints == 1
+      right_or = (
+          self.right_face_constraint is not None
+          or self.right_face_grad_constraint is not None
+      )
+      if right_and or not right_or:
+        raise ValueError(
+            'Exactly one of right_face_constraint and '
+            'right_face_grad_constraint must be set.'
+        )
 
   def face_grad(self, x: jax.Array | None = None) -> jax.Array:
     """Returns the gradient of this value with respect to the faces.
@@ -143,23 +155,12 @@ class CellVariable:
       forward_difference = jnp.diff(self.value) / jnp.diff(x)
 
     def constrained_grad(
-        face: Optional[jax.Array],
-        grad: Optional[jax.Array],
+        face: jax.Array | None,
+        grad: jax.Array | None,
         cell: jax.Array,
         right: bool,
     ) -> jax.Array:
-      """Calculates the constrained gradient entry for an outer face.
-
-      Args:
-        face: Optional, constraint on the value of the face variable.
-        grad: Optional, constraint on the gradient wrt the face variable.
-          Exactly one of face and grad must be specified.
-        cell: The value of the neighboring cell variable.
-        right: If True, this is the rightmost face, else the leftmost.
-
-      Returns:
-        The gradient on this face variable.
-      """
+      """Calculates the constrained gradient entry for an outer face."""
 
       if face is not None:
         if grad is not None:
@@ -170,11 +171,9 @@ class CellVariable:
         if x is None:
           dx = self.dr
         else:
-          if right:
-            dx = x[-1] - x[-2]
-          else:
-            dx = x[1] - x[0]
-        return (1.0 - 2.0 * right) * (cell - face) / (0.5 * dx)
+          dx = x[-1] - x[-2] if right else x[1] - x[0]
+        sign = -1 if right else 1
+        return sign * (cell - face) / (0.5 * dx)
       else:
         if grad is None:
           raise ValueError('Must specify one of value or gradient.')
@@ -198,11 +197,7 @@ class CellVariable:
     return jnp.concatenate([left, forward_difference, right])
 
   def face_value(self) -> jax.Array:
-    """Calculates values of this variable at faces.
-
-    Returns:
-      Values of the variable at faces.
-    """
+    """Calculates values of this variable at faces."""
     self.assert_not_history()
     inner = (self.value[..., :-1] + self.value[..., 1:]) / 2.0
     if self.left_face_constraint is not None:

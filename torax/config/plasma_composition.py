@@ -22,15 +22,66 @@ import logging
 
 import chex
 import numpy as np
+import pydantic
 from torax import array_typing
 from torax import constants
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
-from torax.geometry import geometry
-
+from torax.torax_pydantic import torax_pydantic
+from typing_extensions import Self
 
 # pylint: disable=invalid-name
+
+
+class PlasmaCompositionPydantic(torax_pydantic.BaseModelFrozen):
+  """Configuration for the plasma composition.
+
+  The `from_dict(...)` method can accept a dictionary defined by
+  https://torax.readthedocs.io/en/latest/configuration.html#plasma-composition.
+
+  Attributes:
+    main_ion: Main ion species. Can be single ion or a mixture of ions (e.g. D
+      and T). Either a single ion, and constant mixture, or a time-dependent
+      mixture. For single ions the input is one of the allowed strings in
+      `ION_SYMBOLS`. For mixtures the input is an IonMixture object, constructed
+      from a dict mapping ion symbols to their fractional concentration in the
+      mixture.
+    impurity: Impurity ion species. Same format as main_ion.
+    Zeff: Constraint for impurity densities.
+    Zi_override: Optional arbitrary masses and charges which can be used to
+      override the data for the average Z and A of each IonMixture for main_ions
+      or impurities. Useful for testing or testing physical sensitivities,
+      outside the constraint of allowed impurity species.
+    Ai_override: Optional arbitrary masses and charges which can be used to
+      override the data for the average Z and A of each IonMixture for main_ions
+      or impurities. Useful for testing or testing physical sensitivities,
+      outside the constraint of allowed impurity species.
+    Zimp_override: Optional arbitrary masses and charges which can
+  """
+
+  main_ion: str | Mapping[str, torax_pydantic.TimeVaryingScalar] = (
+      pydantic.Field(
+          default_factory=lambda: {'D': 0.5, 'T': 0.5}, validate_default=True
+      )
+  )
+  impurity: str | Mapping[str, torax_pydantic.TimeVaryingScalar] = 'Ne'
+  Zeff: torax_pydantic.TimeVaryingArray = torax_pydantic.ValidatedDefault(1.0)
+  Zi_override: torax_pydantic.TimeVaryingScalar | None = None
+  Ai_override: torax_pydantic.TimeVaryingScalar | None = None
+  Zimp_override: torax_pydantic.TimeVaryingScalar | None = None
+  Aimp_override: torax_pydantic.TimeVaryingScalar | None = None
+
+  @pydantic.model_validator(mode='after')
+  def after_validator(self) -> Self:
+    if not self.Zeff.right_boundary_conditions_defined:
+      logging.debug("""
+          Config input Zeff not directly defined at rhonorm=1.0.
+          Zeff_face at rhonorm=1.0 set from constant values or constant extrapolation.
+          """)
+    return self
+
+
 @chex.dataclass(frozen=True)
 class IonMixture:
   """Represents a mixture of ion species. The mixture can depend on time.
@@ -207,9 +258,9 @@ class DynamicIonMixture:
     fractions: Ion fractions for a time slice.
     avg_A: Average A of the mixture.
     Z_override: Typically, the average Z is calculated according to the
-      temperature dependent charge-state-distribution, or for low-Z cases
-      by the atomic numbers of the ions assuming full ionization.
-      If Z_override is provided, it is used instead for the average Z.
+      temperature dependent charge-state-distribution, or for low-Z cases by the
+      atomic numbers of the ions assuming full ionization. If Z_override is
+      provided, it is used instead for the average Z.
   """
 
   fractions: array_typing.ArrayFloat
@@ -270,7 +321,7 @@ class PlasmaComposition(
 
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> PlasmaCompositionProvider:
     if torax_mesh is None:
       raise ValueError(
@@ -312,7 +363,7 @@ class PlasmaComposition(
     )
 
     if not interpolated_param.rhonorm1_defined_in_timerhoinput(self.Zeff):
-      logging.info("""
+      logging.debug("""
           Config input Zeff not directly defined at rhonorm=1.0.
           Zeff_face at rhonorm=1.0 set from constant values or constant extrapolation.
           """)

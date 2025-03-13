@@ -17,13 +17,11 @@
 The pedestal model calculates quantities relevant to the pedestal.
 """
 import abc
-import dataclasses
 import chex
 from torax import array_typing
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
-from torax.pedestal_model import runtime_params as runtime_params_lib
 
 
 @chex.dataclass(frozen=True)
@@ -88,19 +86,3 @@ class PedestalModel(abc.ABC):
       core_profiles: state.CoreProfiles,
   ) -> PedestalModelOutput:
     """Calculate the pedestal values."""
-
-
-@dataclasses.dataclass(kw_only=True)
-class PedestalModelBuilder(abc.ABC):
-  """Factory for PedestalModel objects."""
-
-  # Input parameters to the PedestalModel built by this class.
-  runtime_params: runtime_params_lib.RuntimeParams = dataclasses.field(
-      default_factory=runtime_params_lib.RuntimeParams
-  )
-
-  @abc.abstractmethod
-  def __call__(
-      self,
-  ) -> PedestalModel:
-    """Builds a PedestalModel instance."""

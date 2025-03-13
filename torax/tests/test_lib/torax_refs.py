@@ -23,13 +23,15 @@ from jax import numpy as jnp
 import numpy as np
 import torax
 from torax import fvm
+from torax.config import build_runtime_params
 from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
-from torax.sources import runtime_params as sources_params
-from torax.stepper import runtime_params as stepper_params
+from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.sources import pydantic_model as sources_pydantic_model
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_model_params
 
 # Internal import.
@@ -46,7 +48,9 @@ class References:
   geometry_provider: geometry_provider_lib.GeometryProvider
   psi: fvm.cell_variable.CellVariable
   psi_face_grad: np.ndarray
+  psidot: np.ndarray
   jtot: np.ndarray
+  q: np.ndarray
   s: np.ndarray
   Ip_from_parameters: bool  # pylint: disable=invalid-name
 
@@ -54,18 +58,18 @@ class References:
 def build_consistent_dynamic_runtime_params_slice_and_geometry(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     geometry_provider: geometry_provider_lib.GeometryProvider,
-    sources: dict[str, sources_params.RuntimeParams] | None = None,
+    sources: sources_pydantic_model.Sources,
     t: chex.Numeric | None = None,
 ) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
   """Builds a consistent Geometry and a DynamicRuntimeParamsSlice."""
   t = runtime_params.numerics.t_initial if t is None else t
-  return runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+  return build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
       t=t,
-      dynamic_runtime_params_slice_provider=runtime_params_slice.DynamicRuntimeParamsSliceProvider(
+      dynamic_runtime_params_slice_provider=build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params,
           transport=transport_model_params.RuntimeParams(),
           sources=sources,
-          stepper=stepper_params.RuntimeParams(),
+          stepper=stepper_pydantic_model.Stepper(),
           torax_mesh=geometry_provider.torax_mesh,
       ),
       geometry_provider=geometry_provider,
@@ -84,19 +88,16 @@ def circular_references() -> References:
               'Ip_tot': 15,
               'nu': 3,
           },
-          'numerics': {
-              'q_correction_factor': 1.0,
-          },
       },
   )
-  geo = geometry.build_circular_geometry(
+  geo = geometry_pydantic_model.CircularConfig(
       n_rho=25,
       elongation_LCFS=1.72,
       hires_fac=4,
       Rmaj=6.2,
       Rmin=2.0,
       B0=5.3,
-  )
+  ).build_geometry()
   # ground truth values copied from example executions using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.cell_variable.CellVariable(
@@ -160,32 +161,87 @@ def circular_references() -> References:
       51.4117264628835,
       47.64848792277505,
   ]).astype('float64')
+  psidot = np.array([
+      6.15796838096829e-02,
+      7.67776861533454e-02,
+      9.14645450891100e-02,
+      1.05826180471346e-01,
+      1.20797043388939e-01,
+      1.51857197587599e-01,
+      3.66055430824331e-01,
+      1.60920226665232e00,
+      5.35622979148619e00,
+      1.01528185911838e01,
+      1.04684759809395e01,
+      5.86884004424684e00,
+      1.87906989052661e00,
+      4.66830085414812e-01,
+      2.15885154977055e-01,
+      1.83861837131887e-01,
+      1.69158928431288e-01,
+      1.51395781445053e-01,
+      1.29766897536285e-01,
+      1.04971917969482e-01,
+      7.82838019851360e-02,
+      5.16475815738970e-02,
+      2.77752500731658e-02,
+      9.90033116980977e-03,
+      -1.40569237592991e-02,
+  ])
   jtot = np.array([
-      2.65603610444476e06,
-      2.63507518532550e06,
-      2.57173156499720e06,
-      2.49325068732876e06,
-      2.39844184311764e06,
-      2.30679250085058e06,
-      2.28072077110533e06,
-      2.41165009601333e06,
-      2.68616246795863e06,
-      2.86383606047094e06,
-      2.66405185162365e06,
-      2.11004768810304e06,
-      1.50210057505178e06,
-      1.06527275121419e06,
-      8.00985587848605e05,
-      6.23310701928993e05,
-      4.79501434000615e05,
-      3.55403340091418e05,
-      2.50094779129977e05,
-      1.64425604025163e05,
-      9.86423519234078e04,
-      5.20041357205945e04,
-      2.25986371083383e04,
-      5.96528658619718e03,
-      -2.16166743039443e03,
+      2.68706872988400e06,
+      2.62750394454838e06,
+      2.56793915921276e06,
+      2.49042322276088e06,
+      2.39610280024494e06,
+      2.30492587011602e06,
+      2.27950750341659e06,
+      2.41114151496692e06,
+      2.68609305861153e06,
+      2.86393557512200e06,
+      2.66415023264853e06,
+      2.10979371202918e06,
+      1.50120636612165e06,
+      1.06391996162165e06,
+      7.99571303958327e05,
+      6.22057226335077e05,
+      4.78443548479771e05,
+      3.54513021547000e05,
+      2.49338905818845e05,
+      1.63776158728762e05,
+      9.80765609014896e04,
+      5.15042432166735e04,
+      2.21523673765912e04,
+      5.57375144108907e03,
+      -1.64601168964488e02,
+  ])
+  q = np.array([
+      0.65136284674552,
+      0.65136284674552,
+      0.66549200308491,
+      0.68288435974473,
+      0.70403585664969,
+      0.72929778158408,
+      0.75816199863277,
+      0.78585816811502,
+      0.79880472498816,
+      0.78520449625846,
+      0.76017886574672,
+      0.75633510231278,
+      0.79147108029917,
+      0.86242114812994,
+      0.95771945489906,
+      1.06980964076381,
+      1.19762252680817,
+      1.34329397040352,
+      1.50983774906477,
+      1.70045978288947,
+      1.91831678381418,
+      2.16626740192572,
+      2.44657621398095,
+      2.76066019839069,
+      3.10910068989888,
+      3.49443220339156,
   ])
   s = np.array([
       -0.0,
@@ -220,7 +276,9 @@ def circular_references() -> References:
       geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
+      psidot=psidot,
       jtot=jtot,
+      q=q,
       s=s,
       Ip_from_parameters=True,
   )
@@ -236,22 +294,17 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
               'Ip_tot': 15,
               'nu': 3,
           },
-          'numerics': {
-              'q_correction_factor': 1.0,
-          },
       },
   )
-  geo = geometry.build_standard_geometry(
-      geometry.StandardGeometryIntermediates.from_chease(
-          geometry_dir=_GEO_DIRECTORY,
-          geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-          n_rho=25,
-          Ip_from_parameters=False,
-          Rmaj=6.2,
-          Rmin=2.0,
-          B0=5.3,
-      )
-  )
+  geo = geometry_pydantic_model.CheaseConfig(
+      geometry_dir=_GEO_DIRECTORY,
+      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      n_rho=25,
+      Ip_from_parameters=False,
+      Rmaj=6.2,
+      Rmin=2.0,
+      B0=5.3,
+  ).build_geometry()
   # ground truth values copied from an example PINT execution using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.cell_variable.CellVariable(
@@ -315,32 +368,87 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       50.82736326009893,
       50.41748508435973,
   ]).astype('float64')
+  psidot = np.array([
+      0.01900599079702,
+      0.025030390627,
+      0.03137235571175,
+      0.03872260157285,
+      0.05304578115468,
+      0.07204449940502,
+      0.11982232309585,
+      0.33599133626926,
+      0.9762206686926,
+      1.79293945666758,
+      1.83253787252577,
+      1.0328250606839,
+      0.34893930670681,
+      0.11119916091886,
+      0.07110748084107,
+      0.0687649756332,
+      0.07024246260073,
+      0.07270482339354,
+      0.07725935134098,
+      0.08187661259012,
+      0.08383698677169,
+      0.11866443718669,
+      0.21390251275039,
+      0.40289033343704,
+      0.61986455206849,
+  ])
   jtot = np.array([
-      813157.2571536204,
-      864851.9422342945,
-      919092.3553600532,
-      1013723.9182892411,
-      1166923.0733103524,
-      1309995.8119838932,
-      1354133.4900918193,
-      1259497.8542251373,
-      1069042.9548963327,
-      874434.6306661696,
-      730455.0879010647,
-      632869.0119655379,
-      557700.6845818826,
-      492604.2142102875,
-      436320.6841938545,
-      389019.0637479049,
-      348800.701868444,
-      314962.26984272804,
-      286434.1270039312,
-      257256.8081710547,
-      242328.2153636439,
-      282697.06942260603,
-      394752.49898599176,
-      520019.67038794764,
-      580635.5973376503,
+      811609.9098229366,
+      866385.1221635343,
+      921160.3345041319,
+      1016912.7960753854,
+      1168375.8525787708,
+      1310273.7707742,
+      1353582.4718000428,
+      1258435.7258067038,
+      1067937.5578883719,
+      873863.6305219756,
+      730187.7536221396,
+      632407.564093728,
+      557089.8965614517,
+      492245.17613446864,
+      435863.3889411418,
+      388159.92881701485,
+      348263.07369122043,
+      314018.5745032179,
+      285308.842786635,
+      254277.87395354218,
+      248656.92782346866,
+      281069.58766096696,
+      411581.3564879673,
+      491401.00411945814,
+      459537.161104151,
+  ])
+  q = np.array([
+      1.74778489687499,
+      1.74778489687499,
+      1.63019017120101,
+      1.55135548433531,
+      1.47944703389477,
+      1.34587749007678,
+      1.22208416710003,
+      1.14174321035495,
+      1.12073724167867,
+      1.15719843686828,
+      1.23446022617573,
+      1.33693108455852,
+      1.45471199796885,
+      1.58807953262815,
+      1.73889524213944,
+      1.90938587558384,
+      2.10182786843057,
+      2.31924672085511,
+      2.56737489962044,
+      2.85095694625504,
+      3.18252465224016,
+      3.5949796873733,
+      4.06580137921761,
+      4.41721011791634,
+      4.74589637288284,
+      4.98383229828587,
   ])
   s = np.array([
       -0.0,
@@ -375,7 +483,9 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
       geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
+      psidot=psidot,
       jtot=jtot,
+      q=q,
       s=s,
       Ip_from_parameters=False,
   )
@@ -391,22 +501,17 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
               'Ip_tot': 15,
               'nu': 3,
           },
-          'numerics': {
-              'q_correction_factor': 1.0,
-          },
       },
   )
-  geo = geometry.build_standard_geometry(
-      geometry.StandardGeometryIntermediates.from_chease(
-          geometry_dir=_GEO_DIRECTORY,
-          geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
-          n_rho=25,
-          Ip_from_parameters=True,
-          Rmaj=6.2,
-          Rmin=2.0,
-          B0=5.3,
-      )
-  )
+  geo = geometry_pydantic_model.CheaseConfig(
+      geometry_dir=_GEO_DIRECTORY,
+      geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
+      n_rho=25,
+      Ip_from_parameters=True,
+      Rmaj=6.2,
+      Rmin=2.0,
+      B0=5.3,
+  ).build_geometry()
   # ground truth values copied from an example executions using
   # array.astype(str),which allows fully lossless reloading
   psi = fvm.cell_variable.CellVariable(
@@ -470,32 +575,87 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       64.7771940390875,
       64.25482269382653,
   ]).astype('float64')
+  psidot = np.array([
+      0.02406092179879,
+      0.03169146658328,
+      0.0397201246665,
+      0.04902499529931,
+      0.06715742163186,
+      0.09120822167296,
+      0.15169177157271,
+      0.42534900161175,
+      1.2358354798278,
+      2.26973763607195,
+      2.31986038070098,
+      1.30748145802958,
+      0.44173257747471,
+      0.14077087044305,
+      0.09001802852517,
+      0.08705341319902,
+      0.08892506417215,
+      0.09204402879045,
+      0.09781237081922,
+      0.10366110216499,
+      0.10614720189509,
+      0.15024986030514,
+      0.27085114402406,
+      0.51017615337305,
+      0.78493833987809,
+  ])
   jtot = np.array([
-      1036332.4408819571,
-      1102214.9976678425,
-      1171341.970629782,
-      1291945.6518146081,
-      1487191.1014092225,
-      1669530.8877037195,
-      1725782.3781578145,
-      1605173.5061968667,
-      1362447.2820096393,
-      1114427.704134508,
-      930932.2367101787,
-      806563.1612568619,
-      710764.5005314804,
-      627801.9696808034,
-      556071.135908784,
-      495787.3428992997,
-      444530.8451331861,
-      401405.28172175714,
-      365047.4436259141,
-      327862.25985197444,
-      308836.43810973485,
-      360284.73140663106,
-      503094.34887228254,
-      662741.7385489461,
-      739994.0178338734,
+      1034360.4161327551,
+      1104168.9666995427,
+      1173977.5172663303,
+      1296009.7334798898,
+      1489042.603405987,
+      1669885.1337109827,
+      1725080.1300670987,
+      1603819.871181349,
+      1361038.5031180736,
+      1113699.9900693987,
+      930591.5311659881,
+      805975.066647696,
+      709986.0786032396,
+      627344.3917618832,
+      555488.3336263564,
+      494692.4139760883,
+      443845.66214270715,
+      400202.58435167436,
+      363613.3193783076,
+      324065.7418455171,
+      316902.098193848,
+      358210.5789205136,
+      524541.9727099353,
+      626268.5324035365,
+      585659.4940932447,
+  ])
+  q = np.array([
+      1.37139774532955,
+      1.37139774532955,
+      1.27912715646002,
+      1.21726959491758,
+      1.16084669815229,
+      1.05604148352651,
+      0.95890717122028,
+      0.89586771645968,
+      0.87938540325705,
+      0.90799464514058,
+      0.9686180341204,
+      1.04902169500535,
+      1.14143837590391,
+      1.24608508423676,
+      1.36442248625569,
+      1.49819779849434,
+      1.64919722386333,
+      1.81979471817761,
+      2.01448825599212,
+      2.23700063727324,
+      2.4971649202036,
+      2.82079736847724,
+      3.19022715803668,
+      3.46595968828215,
+      3.72386304343085,
+      3.91055923940663,
   ])
   s = np.array([
       -0.0,
@@ -530,7 +690,9 @@ def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable
       geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
       psi=psi,
       psi_face_grad=psi_face_grad,
+      psidot=psidot,
       jtot=jtot,
+      q=q,
       s=s,
       Ip_from_parameters=True,
   )

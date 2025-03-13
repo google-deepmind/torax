@@ -61,17 +61,14 @@ CONFIG = {
     'pedestal': {},
     'transport': {
         'transport_model': 'qlknn',
-        'qlknn_params': {
-            'DVeff': False,
-        },
+        # qlknn params.
+        'DVeff': False,
     },
     'stepper': {
         'stepper_type': 'newton_raphson',
         'predictor_corrector': False,
         'use_pereverzev': True,
-        'newton_raphson_params': {
-            'maxiter': 0,
-        },
+        'maxiter': 0,
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

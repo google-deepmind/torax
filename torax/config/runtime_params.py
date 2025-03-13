@@ -19,12 +19,37 @@ from __future__ import annotations
 import dataclasses
 
 import chex
+import pydantic
 from torax.config import base
 from torax.config import numerics as numerics_lib
 from torax.config import plasma_composition as plasma_composition_lib
 from torax.config import profile_conditions as profile_conditions_lib
-from torax.geometry import geometry
+from torax.torax_pydantic import torax_pydantic
 from typing_extensions import override
+
+
+class RuntimeParams(torax_pydantic.BaseModelFrozen):
+  """Pydantic model for runtime parameters.
+
+  The `from_dict(...)` method can accept a dictionary defined by
+  https://torax.readthedocs.io/en/latest/configuration.html#runtime-params.
+
+  Attributes:
+    profile_conditions: Pydantic model for the profile conditions.
+    numerics: Pydantic model for the numerics.
+    plasma_composition: Pydantic model for the plasma composition.
+    output_dir: File directory where the simulation outputs will be saved. If
+      not provided, this will default to /tmp/torax_results_<YYYYMMDD_HHMMSS>/.
+  """
+
+  profile_conditions: profile_conditions_lib.ProfileConditionsPydantic
+  numerics: numerics_lib.NumericsPydantic
+  plasma_composition: plasma_composition_lib.PlasmaCompositionPydantic = (
+      pydantic.Field(
+          default_factory=plasma_composition_lib.PlasmaCompositionPydantic
+      )
+  )
+  output_dir: str | None = None
 
 
 @dataclasses.dataclass
@@ -62,7 +87,7 @@ class GeneralRuntimeParams(base.RuntimeParametersConfig):
   output_dir: str | None = None
 
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> GeneralRuntimeParamsProvider:
     return GeneralRuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

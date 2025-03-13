@@ -56,10 +56,8 @@ CONFIG = {
     'pedestal': {},
     'transport': {
         'transport_model': 'constant',
-        'constant_params': {
-            'chii_const': 0.5,
-            'chie_const': 0.5,
-        },
+        'chii_const': 0.5,
+        'chie_const': 0.5,
     },
     'stepper': {
         'stepper_type': 'linear',

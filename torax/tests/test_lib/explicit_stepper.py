@@ -20,23 +20,26 @@ few configuration options, etc., to ensure reliability for testing purposes.
 """
 
 import dataclasses
+from typing import Literal
 
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import core_profile_setters
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
+from torax.core_profiles import updaters
 from torax.fvm import diffusion_terms
 from torax.geometry import geometry
-from torax.sources import source_models
+from torax.physics import psi_calculations
+from torax.sources import source_operations
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles
-from torax.stepper import stepper as stepper_lib
+from torax.stepper import linear_theta_method
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import constant as constant_transport_model
 
 
-class ExplicitStepper(stepper_lib.Stepper):
+class ExplicitStepper(linear_theta_method.LinearThetaMethod):
   """Explicit time step update.
 
   Coefficients of the various terms are computed at each timestep even though it
@@ -67,8 +70,6 @@ class ExplicitStepper(stepper_lib.Stepper):
   ]:
     """Applies a time step update. See Stepper.__call__ docstring."""
 
-    # Many variables throughout this function are capitalized based on physics
-    # notational conventions rather than on Google Python style
     # pylint: disable=invalid-name
 
     # The explicit method is for testing purposes and
@@ -106,10 +107,9 @@ class ExplicitStepper(stepper_lib.Stepper):
     )
 
     # Source term
-    c += source_models.sum_sources_temp_ion(
+    c += source_operations.sum_sources_temp_ion(
         geo_t,
         explicit_source_profiles,
-        self.source_models,
     )
 
     temp_ion_new = (
@@ -117,12 +117,13 @@ class ExplicitStepper(stepper_lib.Stepper):
         + dt * (jnp.dot(c_mat, core_profiles_t.temp_ion.value) + c) / cti
     )
     # Update the potentially time-dependent boundary conditions as well.
-    updated_boundary_conditions = (
-        core_profile_setters.compute_boundary_conditions(
-            static_runtime_params_slice,
-            dynamic_runtime_params_slice_t_plus_dt,
-            geo_t,
-        )
+    updated_boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
+        dt=dynamic_runtime_params_slice_t_plus_dt.numerics.fixed_dt,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t_plus_dt,
+        dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+        geo_t_plus_dt=geo_t_plus_dt,
+        core_profiles_t=core_profiles_t,
     )
     temp_ion_new = dataclasses.replace(
         core_profiles_t.temp_ion,
@@ -130,12 +131,8 @@ class ExplicitStepper(stepper_lib.Stepper):
         **updated_boundary_conditions['temp_ion'],
     )
 
-    q_face, _ = physics.calc_q_from_psi(
-        geo=geo_t,
-        psi=core_profiles_t.psi,
-        q_correction_factor=dynamic_runtime_params_slice_t.numerics.q_correction_factor,
-    )
-    s_face = physics.calc_s_from_psi(geo_t, core_profiles_t.psi)
+    q_face = psi_calculations.calc_q_face(geo_t, core_profiles_t.psi)
+    s_face = psi_calculations.calc_s_face(geo_t, core_profiles_t.psi)
 
     # error isn't used for timestep adaptation for this method.
     # However, too large a timestep will lead to numerical instabilities.
@@ -153,20 +150,36 @@ class ExplicitStepper(stepper_lib.Stepper):
             q_face=q_face,
             s_face=s_face,
         ),
-        source_models.build_all_zero_profiles(
+        source_profile_builders.build_source_profiles(
+            dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
+            static_runtime_params_slice=static_runtime_params_slice,
             geo=geo_t,
+            core_profiles=core_profiles_t,
             source_models=self.source_models,
+            explicit=False,
+            explicit_source_profiles=explicit_source_profiles,
         ),
         state.CoreTransport.zeros(geo_t),
         stepper_numeric_outputs,
     )
 
 
-@dataclasses.dataclass(kw_only=True)
-class ExplicitStepperBuilder(stepper_lib.StepperBuilder):
-  """Builds an ExplicitStepper."""
+class ExplicitStepperConfig(stepper_pydantic_model.LinearThetaMethod):
+  """Fake stepper config that allows us to hook into the error logic."""
 
-  def __call__(
-      self, transport_model, sources, pedestal_model
-  ) -> ExplicitStepper:
-    return ExplicitStepper(transport_model, sources, pedestal_model)
+  stepper_type: Literal['explicit'] = 'explicit'
+
+  def build_stepper(
+      self, transport_model, source_models, pedestal_model
+  ) -> 'ExplicitStepper':
+    return ExplicitStepper(
+        transport_model=transport_model,
+        source_models=source_models,
+        pedestal_model=pedestal_model,
+    )
+
+
+class ExplicitStepperModel(stepper_pydantic_model.Stepper):
+  """Config for a stepper."""
+
+  stepper_config: ExplicitStepperConfig

@@ -95,15 +95,11 @@ CONFIG = {
         'chimax': 100,
         'Demin': 0.05,
         'smoothing_sigma': 0.1,
-        'qlknn_params': {
-            'DVeff': True,
-            'include_ITG': True,
-            'include_TEM': True,
-            'include_ETG': True,
-            'avoid_big_negative_s': True,
-            'An_min': 0.05,
-            'ITG_flux_ratio_correction': 1,
-        },
+        # qlknn params.
+        'DVeff': True,
+        'avoid_big_negative_s': True,
+        'An_min': 0.05,
+        'ITG_flux_ratio_correction': 1,
     },
     'stepper': {
         'stepper_type': 'linear',

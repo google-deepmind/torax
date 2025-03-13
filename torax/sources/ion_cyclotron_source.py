@@ -19,25 +19,25 @@ import functools
 import json
 import logging
 import os
-from typing import Any, ClassVar, Final, Sequence
+from typing import Any, ClassVar, Final, Literal, Sequence
 
 import chex
 import flax.linen as nn
 import jax
 from jax import numpy as jnp
-from jax.scipy import integrate
 import jaxtyping as jt
 import numpy as np
 from torax import array_typing
-from torax import interpolated_param
-from torax import physics
+from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.physics import collisions
+from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_models
-from typing_extensions import override
+from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
 
 # Internal import.
 
@@ -289,49 +289,54 @@ class _ToricNN(nn.Module):
 
 
 # pylint: disable=invalid-name
-# Several variable names below follow physics notation matching so don't adhere
-# to the lint guide.
-@dataclasses.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for the ion cyclotron resonance source."""
+class IonCyclotronSourceConfig(base.SourceModelBase):
+  """Configuration for the IonCyclotronSource.
 
-  # Inner radial location of first wall at plasma midplane level [m].
-  wall_inner: float = 1.24
-  # Outer radial location of first wall at plasma midplane level [m].
-  wall_outer: float = 2.43
-  # ICRF wave frequency [Hz].
-  frequency: runtime_params_lib.TimeInterpolatedInput = 120e6
-  # He3 minority concentration relative to the electron density in %.
-  minority_concentration: runtime_params_lib.TimeInterpolatedInput = 3.0
-  # Total heating power [W].
-  Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
-  # Mode of the source.
+  Attributes:
+    wall_inner: Inner radial location of first wall at plasma midplane level
+      [m].
+    wall_outer: Outer radial location of first wall at plasma midplane level
+      [m].
+    frequency: ICRF wave frequency [Hz].
+    minority_concentration: He3 minority concentration relative to the electron
+      density in %.
+    Ptot: Total heating power [W].
+  """
+
+  source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
+  wall_inner: torax_pydantic.Meter = 1.24
+  wall_outer: torax_pydantic.Meter = 2.43
+  frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      120e6
+  )
+  minority_concentration: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(3.0)
+  )
+  Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
-  @override
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> 'RuntimeParamsProvider':
-    kwargs = self.get_provider_kwargs(torax_mesh)
-    return RuntimeParamsProvider(**kwargs)
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return functools.partial(
+        icrh_model_func,
+        toric_nn=ToricNNWrapper(),
+    )
 
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: RuntimeParams
-  frequency: interpolated_param.InterpolatedVarSingleAxis
-  minority_concentration: interpolated_param.InterpolatedVarSingleAxis
-  Ptot: interpolated_param.InterpolatedVarSingleAxis
-
-  @override
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
+  ) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        wall_inner=self.wall_inner,
+        wall_outer=self.wall_outer,
+        frequency=self.frequency.get_value(t),
+        minority_concentration=self.minority_concentration.get_value(t),
+        Ptot=self.Ptot.get_value(t),
+    )
+
+  def build_source(self) -> IonCyclotronSource:
+    return IonCyclotronSource(model_func=self.model_func)
 
 
 @chex.dataclass(frozen=True)
@@ -354,52 +359,41 @@ def _helium3_tail_temperature(
   helium3_charge = 2
   helium3_fraction = minority_concentration / 100  # Min conc provided in %.
   absorbed_power_density = power_deposition_he3 * Ptot
+  ne20 = core_profiles.ne.value * core_profiles.nref / 1e20
   # Use a "Stix distribution" [Stix, Nuc. Fus. 1975] to model the non-thermal
   # He3 distribution based on an analytic solution to the FP equation.
-  epsilon = (
+  xi = (
       0.24
       * jnp.sqrt(core_profiles.temp_el.value)
       * helium3_mass
       * absorbed_power_density
-  ) / (core_profiles.ne.value**2 * helium3_charge**2 * helium3_fraction)
-  return core_profiles.temp_el.value * (1 + epsilon)
+  ) / (ne20**2 * helium3_charge**2 * helium3_fraction)
+  return core_profiles.temp_el.value * (1 + xi)
 
 
 def icrh_model_func(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
-    unused_source_models: source_models.SourceModels | None,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
     toric_nn: ToricNNWrapper,
-) -> jax.Array:
+) -> tuple[chex.Array, ...]:
   """Compute ion/electron heat source terms."""
-  del (
-      unused_source_models,
-      static_runtime_params_slice,
-  )  # Unused.
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
   assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
 
   # Construct inputs for ToricNN.
-  volume = integrate.trapezoid(geo.vpr_face, geo.rho_face_norm)
-  volume_average_temperature = (
-      integrate.trapezoid(
-          core_profiles.temp_el.face_value() * geo.vpr_face,
-          geo.rho_face_norm,
-      )
-      / volume
+  volume_average_temperature = math_utils.volume_average(
+      core_profiles.temp_el.value, geo
   )
-  volume_average_density = (
-      integrate.trapezoid(
-          core_profiles.ne.face_value() * geo.vpr_face,
-          geo.rho_face_norm,
-      )
-      / volume
+  volume_average_density = math_utils.volume_average(
+      core_profiles.ne.value, geo
   )
+
   # Peaking factors are core w.r.t volume averages.
   temperature_peaking_factor = (
       core_profiles.temp_el.value[0] / volume_average_temperature
@@ -419,7 +413,7 @@ def icrh_model_func(
       minority_concentration=dynamic_source_runtime_params.minority_concentration,
       gap_inner=gap_inner,
       gap_outer=gap_outer,
-      z0=geo.z_magnetic_axis,
+      z0=geo.z_magnetic_axis(),
       temperature_peaking_factor=temperature_peaking_factor,
       density_peaking_factor=density_peaking_factor,
       B0=geo.B0,
@@ -447,9 +441,9 @@ def icrh_model_func(
   power_deposition_all = (
       power_deposition_2T + power_deposition_e + power_deposition_he3
   )
-  # An implicit integration is being done here (using the trapezoid rule)
-  total_power_deposition = jnp.sum(
-      power_deposition_all * geo.vpr * geo.drho_norm
+
+  total_power_deposition = math_utils.volume_integration(
+      power_deposition_all, geo
   )
   power_deposition_he3 /= total_power_deposition
   power_deposition_e /= total_power_deposition
@@ -463,7 +457,7 @@ def icrh_model_func(
       dynamic_source_runtime_params.Ptot / 1e6,  # required in MW.
   )
   helium3_mass = 3.016
-  frac_ion_heating = physics.fast_ion_fractional_heating_formula(
+  frac_ion_heating = collisions.fast_ion_fractional_heating_formula(
       helium3_birth_energy,
       core_profiles.temp_el.value,
       helium3_mass,
@@ -485,7 +479,7 @@ def icrh_model_func(
   # Assume that all the power from the tritium power profile goes to ions.
   source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
 
-  return jnp.stack([source_ion, source_el])
+  return (source_ion, source_el)
 # pylint: enable=invalid-name
 
 
@@ -505,34 +499,4 @@ class IonCyclotronSource(source.Source):
     return (
         source.AffectedCoreProfile.TEMP_ION,
         source.AffectedCoreProfile.TEMP_EL,
-    )
-
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.get_ion_el_output_shape
-
-
-@dataclasses.dataclass(kw_only=True, frozen=False)
-class IonCyclotronSourceBuilder:
-  """Builder for the IonCyclotronSource."""
-
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-  links_back: bool = False
-  model_func: source.SourceProfileFunction | None = None
-
-  def __post_init__(self):
-    if self.model_func is None:
-      self.model_func = functools.partial(
-          icrh_model_func,
-          toric_nn=ToricNNWrapper(),
-      )
-
-  def __call__(
-      self,
-  ) -> IonCyclotronSource:
-
-    return IonCyclotronSource(
-        model_func=self.model_func,
     )

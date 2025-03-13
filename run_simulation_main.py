@@ -19,6 +19,7 @@ python3 run_simulation_main.py \
  --config='torax.tests.test_data.default_config' \
  --log_progress
 """
+
 from collections.abc import Sequence
 import enum
 import functools
@@ -34,7 +35,11 @@ from torax import simulation_app
 from torax.config import build_sim
 from torax.config import config_loader
 from torax.config import runtime_params
+from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.plotting import plotruns_lib
+from torax.sources import pydantic_model as sources_pydantic_model
+from torax.stepper import pydantic_model as stepper_pydantic_model
 
 
 # String used when prompting the user to make a choice of command
@@ -240,44 +245,32 @@ def change_config(
   config_module = config_loader.import_module(
       config_module_str, _PYTHON_CONFIG_PACKAGE.value
   )
-  if hasattr(config_module, 'CONFIG'):
-    # Assume that the config module uses the basic config dict to build Sim.
-    sim_config = config_module.CONFIG
-    new_runtime_params = build_sim.build_runtime_params_from_config(
-        sim_config['runtime_params']
+  if not hasattr(config_module, 'CONFIG'):
+    raise ValueError(
+        f'Config module {config_module_str} does not have a CONFIG attribute.'
+        ' Please use the basic config dict to build Sim.'
     )
-    new_geo_provider = build_sim.build_geometry_provider_from_config(
-        sim_config['geometry'],
+  sim_config = config_module.CONFIG
+  new_runtime_params = build_sim.build_runtime_params_from_config(
+      sim_config['runtime_params']
+  )
+  new_geo_provider = geometry_pydantic_model.Geometry.from_dict(
+      sim_config['geometry']
+  ).build_provider
+  new_transport_model_builder = (
+      build_sim.build_transport_model_builder_from_config(
+          sim_config['transport']
+      )
+  )
+  new_stepper = stepper_pydantic_model.Stepper.from_dict(
+      sim_config['stepper']
+  )
+  new_pedestal = pedestal_pydantic_model.Pedestal.from_dict(
+      sim_config['pedestal'] if 'pedestal' in sim_config else {}
+  )
+  new_sources = sources_pydantic_model.Sources.from_dict(
+      sim_config['sources']
     )
-    new_transport_model_builder = (
-        build_sim.build_transport_model_builder_from_config(
-            sim_config['transport']
-        )
-    )
-    source_models_builder = build_sim.build_sources_builder_from_config(
-        sim_config['sources']
-    )
-    new_stepper_builder = build_sim.build_stepper_builder_from_config(
-        sim_config['stepper']
-    )
-    new_pedestal_model_builder = (
-        build_sim.build_pedestal_model_builder_from_config(
-            sim_config['pedestal'] if 'pedestal' in sim_config else {}
-        )
-    )
-  else:
-    # Assume the config module has several methods to define the individual Sim
-    # attributes (the "advanced", more Python-forward configuration method).
-    new_runtime_params = config_module.get_runtime_params()
-    new_geo_provider = config_module.get_geometry_provider()
-    new_transport_model_builder = config_module.get_transport_model_builder()
-    source_models_builder = config_module.get_sources_builder()
-    new_stepper_builder = config_module.get_stepper_builder()
-    new_pedestal_model_builder = config_module.get_pedestal_model_builder()
-  new_source_params = {
-      name: runtime_params
-      for name, runtime_params in source_models_builder.runtime_params.items()
-  }
   # Make sure the transport model has not changed.
   # TODO(b/330172917): Improve the check for updated configs.
   if not isinstance(new_transport_model_builder(), type(sim.transport_model)):
@@ -291,15 +284,15 @@ def change_config(
       runtime_params=new_runtime_params,
       geo_provider=new_geo_provider,
       transport_runtime_params=new_transport_model_builder.runtime_params,
-      source_runtime_params=new_source_params,
-      stepper_runtime_params=new_stepper_builder.runtime_params,
-      pedestal_runtime_params=new_pedestal_model_builder.runtime_params,
+      sources=new_sources,
+      stepper=new_stepper,
+      pedestal=new_pedestal,
   )
   return sim, new_runtime_params
 
 
 def change_sim_obj(
-    config_module_str: str
+    config_module_str: str,
 ) -> tuple[sim_lib.Sim, runtime_params.GeneralRuntimeParams, str]:
   """Builds a new Sim from the config module.
 
@@ -554,7 +547,8 @@ def main(_):
           try:
             start_time = time.time()
             sim_and_runtime_params_or_none = change_config(
-                sim, config_module_str)
+                sim, config_module_str
+            )
             if sim_and_runtime_params_or_none is not None:
               sim, new_runtime_params = sim_and_runtime_params_or_none
             config_change_time = time.time() - start_time

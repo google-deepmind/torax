@@ -54,6 +54,11 @@ class Currents:
   sigma: array_typing.ArrayFloat
   jtot_hires: Optional[array_typing.ArrayFloat] = None
 
+  @property
+  def Ip_total(self) -> array_typing.ScalarFloat:
+    """Returns the total plasma current [A]."""
+    return self.Ip_profile_face[..., -1]
+
   def has_nans(self) -> bool:
     """Checks for NaNs in all attributes of Currents."""
 
@@ -94,29 +99,47 @@ class CoreProfiles:
   Many of the profiles in this class are evolved by the PDE system in TORAX, and
   therefore are stored as CellVariables. Other profiles are computed outside the
   internal PDE system, and are simple JAX arrays.
+
+  Attributes:
+      temp_ion: Ion temperature [keV].
+      temp_el: Electron temperature [keV].
+      psi: Poloidal flux [Wb].
+      psidot: Time derivative of poloidal flux (loop voltage) [V].
+      ne: Electron density [nref m^-3].
+      ni: Main ion density [nref m^-3].
+      nimp: Impurity density [nref m^-3].
+      currents: Instance of the Currents dataclass.
+      q_face: Safety factor.
+      s_face: Magnetic shear.
+      nref: Reference density [m^-3].
+      vloop_lcfs: Loop voltage at LCFS (V).
+      Zi: Main ion charge on cell grid [dimensionless].
+      Zi_face: Main ion charge on face grid [dimensionless].
+      Ai: Main ion mass [amu].
+      Zimp: Impurity charge on cell grid [dimensionless].
+      Zimp_face: Impurity charge on face grid [dimensionless].
+      Aimp: Impurity mass [amu].
   """
 
-  temp_ion: cell_variable.CellVariable  # Ion temperature
-  temp_el: cell_variable.CellVariable  # Electron temperature
-  psi: cell_variable.CellVariable  # Poloidal flux
-  psidot: (
-      cell_variable.CellVariable
-  )  # Time derivative of poloidal flux (loop voltage)
-  ne: cell_variable.CellVariable  # Electron density
-  ni: cell_variable.CellVariable  # Main ion density
-  # Impurity density (currently only 1 supported)
+  temp_ion: cell_variable.CellVariable
+  temp_el: cell_variable.CellVariable
+  psi: cell_variable.CellVariable
+  psidot: cell_variable.CellVariable
+  ne: cell_variable.CellVariable
+  ni: cell_variable.CellVariable
   nimp: cell_variable.CellVariable
   currents: Currents
   q_face: array_typing.ArrayFloat
   s_face: array_typing.ArrayFloat
-  nref: array_typing.ScalarFloat  # Reference density
+  nref: array_typing.ScalarFloat
+  vloop_lcfs: array_typing.ScalarFloat
   # pylint: disable=invalid-name
-  Zi: array_typing.ArrayFloat  # Main ion charge on cell grid [amu]
-  Zi_face: array_typing.ArrayFloat  # Main ion charge on face grid [amu]
-  Ai: array_typing.ScalarFloat  # Main ion mass [amu]
-  Zimp: array_typing.ArrayFloat  # Impurity charge on cell grid [amu]
-  Zimp_face: array_typing.ArrayFloat  # Impurity charge on face grid [amu]
-  Aimp: array_typing.ScalarFloat  # Impurity mass [amu]
+  Zi: array_typing.ArrayFloat
+  Zi_face: array_typing.ArrayFloat
+  Ai: array_typing.ScalarFloat
+  Zimp: array_typing.ArrayFloat
+  Zimp_face: array_typing.ArrayFloat
+  Aimp: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   def history_elem(self) -> CoreProfiles:
@@ -276,10 +299,12 @@ class PostProcessedOutputs:
     W_thermal_el: Electron thermal stored energy [J]
     W_thermal_tot: Total thermal stored energy [J]
     tauE: Thermal energy confinement time [s]
+    H89P: L-mode confinement quality factor with respect to the ITER89P scaling
+      law derived from the ITER L-mode confinement database
     H98: H-mode confinement quality factor with respect to the ITER98y2 scaling
       law derived from the ITER H-mode confinement database
     H97L: L-mode confinement quality factor with respect to the ITER97L scaling
-      law derived from the ITER H-mode confinement database
+      law derived from the ITER L-mode confinement database
     H20: H-mode confinement quality factor with respect to the ITER20 scaling
       law derived from the updated (2020) ITER H-mode confinement database
     FFprime_face: FF' on the face grid, where F is the toroidal flux function
@@ -316,8 +341,9 @@ class PostProcessedOutputs:
     P_icrh_ion: Ion cyclotron resonance heating to ions [W]
     P_icrh_tot: Total ion cyclotron resonance heating power [W]
     P_LH_hi_dens: H-mode transition power for high density branch [W]
-    P_LH_low_dens: H-mode transition power for low density branch [W]
-    ne_min_P_LH: Density corresponding to the minimum P_LH [nref]
+    P_LH_min: Minimum H-mode transition power for at ne_min_P_LH [W]
+    P_LH: H-mode transition power from maximum of P_LH_hi_dens and P_LH_min [W]
+    ne_min_P_LH: Density corresponding to the P_LH_min [nref]
     E_cumulative_fusion: Total cumulative fusion energy [J]
     E_cumulative_external: Total external injected energy (Ohmic + auxiliary
       heating) [J]
@@ -325,7 +351,15 @@ class PostProcessedOutputs:
     ti_volume_avg: Volume average ion temperature [keV]
     ne_volume_avg: Volume average electron density [nref m^-3]
     ni_volume_avg: Volume average main ion density [nref m^-3]
+    ne_line_avg: Line averaged electron density [nref m^-3]
+    ni_line_avg: Line averaged main ion density [nref m^-3]
+    fgw_ne_volume_avg: Greenwald fraction from volume-averaged electron density
+      [dimensionless]
+    fgw_ne_line_avg: Greenwald fraction from line-averaged electron density
+      [dimensionless]
     q95: q at 95% of the normalized poloidal flux
+    Wpol: Total magnetic energy [J]
+    li3: Normalized plasma internal inductance, ITER convention [dimensionless]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -337,6 +371,7 @@ class PostProcessedOutputs:
   W_thermal_el: array_typing.ScalarFloat
   W_thermal_tot: array_typing.ScalarFloat
   tauE: array_typing.ScalarFloat
+  H89P: array_typing.ScalarFloat
   H98: array_typing.ScalarFloat
   H97L: array_typing.ScalarFloat
   H20: array_typing.ScalarFloat
@@ -372,7 +407,8 @@ class PostProcessedOutputs:
   P_icrh_ion: array_typing.ScalarFloat
   P_icrh_tot: array_typing.ScalarFloat
   P_LH_hi_dens: array_typing.ScalarFloat
-  P_LH_low_dens: array_typing.ScalarFloat
+  P_LH_min: array_typing.ScalarFloat
+  P_LH: array_typing.ScalarFloat
   ne_min_P_LH: array_typing.ScalarFloat
   E_cumulative_fusion: array_typing.ScalarFloat
   E_cumulative_external: array_typing.ScalarFloat
@@ -380,7 +416,13 @@ class PostProcessedOutputs:
   ti_volume_avg: array_typing.ScalarFloat
   ne_volume_avg: array_typing.ScalarFloat
   ni_volume_avg: array_typing.ScalarFloat
+  ne_line_avg: array_typing.ScalarFloat
+  ni_line_avg: array_typing.ScalarFloat
+  fgw_ne_volume_avg: array_typing.ScalarFloat
+  fgw_ne_line_avg: array_typing.ScalarFloat
   q95: array_typing.ScalarFloat
+  Wpol: array_typing.ScalarFloat
+  li3: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -395,6 +437,7 @@ class PostProcessedOutputs:
         W_thermal_el=jnp.array(0.0),
         W_thermal_tot=jnp.array(0.0),
         tauE=jnp.array(0.0),
+        H89P=jnp.array(0.0),
         H98=jnp.array(0.0),
         H97L=jnp.array(0.0),
         H20=jnp.array(0.0),
@@ -427,7 +470,8 @@ class PostProcessedOutputs:
         P_icrh_el=jnp.array(0.0),
         P_icrh_tot=jnp.array(0.0),
         P_LH_hi_dens=jnp.array(0.0),
-        P_LH_low_dens=jnp.array(0.0),
+        P_LH_min=jnp.array(0.0),
+        P_LH=jnp.array(0.0),
         ne_min_P_LH=jnp.array(0.0),
         E_cumulative_fusion=jnp.array(0.0),
         E_cumulative_external=jnp.array(0.0),
@@ -435,7 +479,13 @@ class PostProcessedOutputs:
         ti_volume_avg=jnp.array(0.0),
         ne_volume_avg=jnp.array(0.0),
         ni_volume_avg=jnp.array(0.0),
+        ne_line_avg=jnp.array(0.0),
+        ni_line_avg=jnp.array(0.0),
+        fgw_ne_volume_avg=jnp.array(0.0),
+        fgw_ne_line_avg=jnp.array(0.0),
         q95=jnp.array(0.0),
+        Wpol=jnp.array(0.0),
+        li3=jnp.array(0.0),
     )
 
 
@@ -503,18 +553,15 @@ class ToraxSimState:
     dt: timestep interval.
     core_profiles: Core plasma profiles at time t.
     core_transport: Core plasma transport coefficients computed at time t.
-    core_sources: Profiles for all sources/sinks. For any state-dependent source
-      models, the profiles in this dataclass are computed based on the core
-      profiles at time t, almost. When running `sim.run_simulation()`, any
-      profile from an "explicit" state-dependent source will be computed with
-      the core profiles at time t. Any profile from an "implicit"
-      state-dependent source will be computed with an intermediate state from
-      the previous time step's solver. This should be close to the core profiles
-      at time t, but is not guaranteed to be. In case exact source profiles are
-      required for each time step, they must be recomputed manually after
-      running `run_simulation()`.
+    core_sources: Profiles for all sources/sinks. These are the profiles that
+      are used to calculate the coefficients for the t+dt time step. For the
+      explicit sources, these are calculated at the start of the time step, so
+      are the values at time t. For the implicit sources, these are the most
+      recent guess for time t+dt. The profiles here are the merged version of
+      the explicit and implicit profiles.
     post_processed_outputs: variables for output or intermediate observations
       for overarching workflows, calculated after each simulation step.
+    geometry: Geometry at this time step used for the simulation.
     time_step_calculator_state: the state of the TimeStepper.
     stepper_numeric_outputs: Numerical quantities related to the stepper.
   """
@@ -530,6 +577,9 @@ class ToraxSimState:
 
   # Post-processed outputs after a step.
   post_processed_outputs: PostProcessedOutputs
+
+  # Geometry used for the simulation.
+  geometry: geometry.Geometry
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.

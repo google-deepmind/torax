@@ -12,8 +12,10 @@ of all input configuration fields.
 
 .. code-block:: console
 
-  python3 run_simulation_main.py \
-     --config='torax.examples.basic_config' --log_progress
+  python3 run_simulation_main.py --config='torax.examples.basic_config'
+
+Simulation progress is shown by a progress bar in the terminal, displaying the current
+simulation time, and the percentage of the total simulation time completed.
 
 More involved examples in ``torax/examples`` include non-rigorous mockups of the ITER hybrid scenario:
 
@@ -66,15 +68,18 @@ If false, JAX does not compile internal TORAX functions. Used for debugging. Def
 
 Set flags
 ---------
+
+.. _log_progress_quickstart:
+
 log_progress
 ^^^^^^^^^^^^
-Output simulation time, dt, and number of stepper iterations carried out at each timestep.
-For nonlinear solvers, the stepper iterations can be more than 1 due to dt backtracking.
+Increased output verbosity. Logs, for each timestep (dt), the current simulation
+time, dt, and number of outer stepper iterations carried out during the step.
 
 .. code-block:: console
 
-  python3 run_simulation_main.py \
-   --config='torax.examples.basic_config' \
+  python3 run_simulation_main.py
+  --config='torax.examples.basic_config' \
    --log_progress
 
 plot_progress

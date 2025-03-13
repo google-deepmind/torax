@@ -38,7 +38,6 @@ from torax.fvm import diffusion_terms
 
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
 Block1DCoeffs: TypeAlias = block_1d_coeffs.Block1DCoeffs
-Block1DCoeffsCallback: TypeAlias = block_1d_coeffs.Block1DCoeffsCallback
 
 
 def calc_c(

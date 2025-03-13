@@ -19,18 +19,18 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
+import jax
 import jax.numpy as jnp
-from torax import core_profile_setters
 from torax import jax_utils
-from torax import physics
 from torax import post_processing
 from torax import state
+from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.sources import ohmic_heat_source
-from torax.sources import source_models as source_models_lib
+from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import time_step_calculator as ts
@@ -96,7 +96,7 @@ class SimulationStepFn:
   def __call__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
   ) -> tuple[state.ToraxSimState, state.SimError]:
@@ -134,7 +134,7 @@ class SimulationStepFn:
       SimError indicating if an error has occurred during simulation.
     """
     dynamic_runtime_params_slice_t, geo_t = (
-        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=input_state.t,
             dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
             geometry_provider=geometry_provider,
@@ -144,22 +144,13 @@ class SimulationStepFn:
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
     # set to 0.
-    explicit_source_profiles = source_models_lib.build_source_profiles(
+    explicit_source_profiles = source_profile_builders.build_source_profiles(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t,
         static_runtime_params_slice=static_runtime_params_slice,
         geo=geo_t,
         core_profiles=input_state.core_profiles,
         source_models=self.stepper.source_models,
         explicit=True,
-    )
-
-    # The previous time step's state has an incomplete set of source profiles
-    # which was computed based on the previous time step's "guess" of the core
-    # profiles at this time step's t. We can merge those "implicit" source
-    # profiles with the explicit ones computed here.
-    input_state.core_sources = source_profiles_lib.SourceProfiles.merge(
-        explicit_source_profiles=explicit_source_profiles,
-        implicit_source_profiles=input_state.core_sources,
     )
 
     dt, time_step_calculator_state = self.init_time_step_calculator(
@@ -197,11 +188,7 @@ class SimulationStepFn:
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if
       # output_state.stepper_numeric_outputs.stepper_error_state == 0.
-      (
-          dynamic_runtime_params_slice_t_plus_dt,
-          geo_t_plus_dt,
-          output_state,
-      ) = self.adaptive_step(
+      geo_t_plus_dt, output_state = self.adaptive_step(
           output_state,
           static_runtime_params_slice,
           dynamic_runtime_params_slice_t,
@@ -212,14 +199,13 @@ class SimulationStepFn:
           explicit_source_profiles,
       )
 
-    sim_state = self.finalize_output(
-        input_state,
-        output_state,
-        dynamic_runtime_params_slice_t_plus_dt,
-        static_runtime_params_slice,
-        geo_t_plus_dt,
+    output_state = post_processing.make_outputs(
+        sim_state=output_state,
+        geo=geo_t_plus_dt,
+        previous_sim_state=input_state,
     )
-    return sim_state, sim_state.check_for_errors()
+
+    return output_state, output_state.check_for_errors()
 
   def init_time_step_calculator(
       self,
@@ -330,7 +316,9 @@ class SimulationStepFn:
     # conditions and time-dependent prescribed profiles not directly solved by
     # PDE system.
     core_profiles_t_plus_dt = _provide_core_profiles_t_plus_dt(
+        dt=dt,
         static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt=geo_t_plus_dt,
         core_profiles_t=core_profiles_t,
@@ -365,6 +353,7 @@ class SimulationStepFn:
         post_processed_outputs=state.PostProcessedOutputs.zeros(geo_t_plus_dt),
         time_step_calculator_state=time_step_calculator_state,
         stepper_numeric_outputs=stepper_numeric_outputs,
+        geometry=geo_t_plus_dt,
     )
 
   def adaptive_step(
@@ -372,16 +361,12 @@ class SimulationStepFn:
       output_state: state.ToraxSimState,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
-      dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+      dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geo_t: geometry.Geometry,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[
-      runtime_params_slice.DynamicRuntimeParamsSlice,
-      geometry.Geometry,
-      state.ToraxSimState,
-  ]:
+  ) -> tuple[geometry.Geometry, state.ToraxSimState]:
     """Performs adaptive time stepping until stepper converges.
 
     If the initial step has converged (i.e.
@@ -404,8 +389,6 @@ class SimulationStepFn:
 
     Returns:
       A tuple containing:
-        - Runtime parameters at time t + dt, where dt is the actual time step
-          used.
         - Geometry at time t + dt, where dt is the actual time step used.
         - ToraxSimState after adaptive time stepping.
     """
@@ -451,10 +434,12 @@ class SimulationStepFn:
       )
 
       core_profiles_t_plus_dt = _provide_core_profiles_t_plus_dt(
-          core_profiles_t=core_profiles_t,
-          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+          dt=dt,
           static_runtime_params_slice=static_runtime_params_slice,
+          dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
+          core_profiles_t=core_profiles_t,
       )
       core_profiles, core_sources, core_transport, stepper_numeric_outputs = (
           self._stepper_fn(
@@ -490,85 +475,23 @@ class SimulationStepFn:
 
     # Calculate dynamic_runtime_params and geo at t + dt.
     # Update geos with phibdot.
-    (
-        dynamic_runtime_params_slice_t_plus_dt,
-        geo_t,
-        geo_t_plus_dt,
-    ) = _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
-        input_state.t,
-        output_state.dt,
-        dynamic_runtime_params_slice_provider,
-        geo_t,
-        geometry_provider,
+    _, _, geo_t_plus_dt = (
+        _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
+            input_state.t,
+            output_state.dt,
+            dynamic_runtime_params_slice_provider,
+            geo_t,
+            geometry_provider,
+        )
     )
 
-    return (
-        dynamic_runtime_params_slice_t_plus_dt,
-        geo_t_plus_dt,
-        output_state,
-    )
-
-  def finalize_output(
-      self,
-      input_state: state.ToraxSimState,
-      output_state: state.ToraxSimState,
-      dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
-      static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-      geo_t_plus_dt: geometry.Geometry,
-  ) -> state.ToraxSimState:
-    """Finalizes given output state at the end of the simulation step.
-
-    Args:
-      input_state: Previous sim state.
-      output_state: State to be finalized.
-      dynamic_runtime_params_slice_t_plus_dt: Runtime parameters at time t + dt.
-      static_runtime_params_slice: Static runtime parameters.
-      geo_t_plus_dt: The geometry of the torus during the next time step of the
-        simulation.
-
-    Returns:
-      Finalized ToraxSimState.
-    """
-
-    # Update total current, q, and s profiles based on new psi
-    q_corr = dynamic_runtime_params_slice_t_plus_dt.numerics.q_correction_factor
-    output_state.core_profiles = physics.update_jtot_q_face_s_face(
-        geo=geo_t_plus_dt,
-        core_profiles=output_state.core_profiles,
-        q_correction_factor=q_corr,
-    )
-
-    # Update ohmic and bootstrap current based on the new core profiles.
-    output_state.core_profiles = _update_current_distribution(
-        source_models=self._stepper_fn.source_models,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo_t_plus_dt,
-        core_profiles=output_state.core_profiles,
-    )
-
-    # Update psidot based on the new core profiles.
-    # Will include the phibdot calculation since geo=geo_t_plus_dt.
-    output_state.core_profiles = _update_psidot(
-        source_models=self._stepper_fn.source_models,
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        static_runtime_params_slice=static_runtime_params_slice,
-        geo=geo_t_plus_dt,
-        core_profiles=output_state.core_profiles,
-    )
-    output_state = post_processing.make_outputs(
-        sim_state=output_state,
-        geo=geo_t_plus_dt,
-        previous_sim_state=input_state,
-    )
-
-    return output_state
+    return geo_t_plus_dt, output_state
 
 
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
     t: jnp.ndarray,
     dt: jnp.ndarray,
-    dynamic_runtime_params_slice_provider: runtime_params_slice.DynamicRuntimeParamsSliceProvider,
+    dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geo_t: geometry.Geometry,
     geometry_provider: geometry_provider_lib.GeometryProvider,
 ) -> tuple[
@@ -596,15 +519,18 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
       - The geometry of the torus during the next time step of the simulation.
   """
   dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt = (
-      runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
           t=t + dt,
           dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
           geometry_provider=geometry_provider,
       )
   )
-  geo_t, geo_t_plus_dt = _add_Phibdot(
-      dt, dynamic_runtime_params_slice_t_plus_dt, geo_t, geo_t_plus_dt
-  )
+  if dynamic_runtime_params_slice_t_plus_dt.numerics.calcphibdot:
+    geo_t, geo_t_plus_dt = geometry.update_geometries_with_Phibdot(
+        dt=dt,
+        geo_t=geo_t,
+        geo_t_plus_dt=geo_t_plus_dt,
+    )
 
   return (
       dynamic_runtime_params_slice_t_plus_dt,
@@ -613,146 +539,24 @@ def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
   )
 
 
-# pylint: disable=invalid-name
-def _add_Phibdot(
-    dt: jnp.ndarray,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo_t: geometry.Geometry,
-    geo_t_plus_dt: geometry.Geometry,
-) -> tuple[geometry.Geometry, geometry.Geometry]:
-  """Update Phibdot in the geometry dataclasses used in the time interval.
-
-  Phibdot is used in calc_coeffs to calcuate terms related to time-dependent
-  geometry. It should be set to be the same for geo_t and geo_t_plus_dt for
-  each given time interval. This means that geo_t_plus_dt.Phibdot will not
-  necessarily be the same as the geo_t.Phibdot at the next time step.
-
-  Args:
-    dt: Time step duration.
-    dynamic_runtime_params_slice: Runtime parameters which may change from time
-      step to time step without triggering recompilations.
-    geo_t: The geometry of the torus during this time step of the simulation.
-    geo_t_plus_dt: The geometry of the torus during the next time step of the
-      simulation.
-
-  Returns:
-    Tuple containing:
-      - The geometry of the torus during this time step of the simulation.
-      - The geometry of the torus during the next time step of the simulation.
-  """
-
-  # Calculate Phibdot for the time interval.
-  # If numerics.calcphibdot is False, set Phibdot to be 0 (useful for testing
-  # purposes)
-  Phibdot = jnp.where(
-      dynamic_runtime_params_slice.numerics.calcphibdot,
-      (geo_t_plus_dt.Phib - geo_t.Phib) / dt,
-      0.0,
-  )
-
-  geo_t = dataclasses.replace(
-      geo_t,
-      Phibdot=Phibdot,
-  )
-  geo_t_plus_dt = dataclasses.replace(
-      geo_t_plus_dt,
-      Phibdot=Phibdot,
-  )
-  return geo_t, geo_t_plus_dt
-
-
-# pylint: enable=invalid-name
-
-
-def _update_current_distribution(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-) -> state.CoreProfiles:
-  """Update bootstrap current based on the new core_profiles."""
-
-  bootstrap_profile = source_models.j_bootstrap.get_value(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-
-  # calculate "External" current profile (e.g. ECCD)
-  # form of external current on face grid
-  external_current = source_models.external_current_source(
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      static_runtime_params_slice=static_runtime_params_slice,
-      geo=geo,
-      core_profiles=core_profiles,
-  )
-
-  johm = (
-      core_profiles.currents.jtot
-      - bootstrap_profile.j_bootstrap
-      - external_current
-  )
-
-  currents = dataclasses.replace(
-      core_profiles.currents,
-      j_bootstrap=bootstrap_profile.j_bootstrap,
-      j_bootstrap_face=bootstrap_profile.j_bootstrap_face,
-      I_bootstrap=bootstrap_profile.I_bootstrap,
-      sigma=bootstrap_profile.sigma,
-      johm=johm,
-      external_current_source=external_current,
-  )
-  new_core_profiles = dataclasses.replace(
-      core_profiles,
-      currents=currents,
-  )
-  return new_core_profiles
-
-
-def _update_psidot(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-) -> state.CoreProfiles:
-  """Update psidot based on new core_profiles."""
-
-  psidot = dataclasses.replace(
-      core_profiles.psidot,
-      value=ohmic_heat_source.calc_psidot(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice,
-          geo,
-          core_profiles,
-          source_models,
-      ),
-  )
-
-  new_core_profiles = dataclasses.replace(
-      core_profiles,
-      psidot=psidot,
-  )
-  return new_core_profiles
-
-
 def _provide_core_profiles_t_plus_dt(
+    dt: jax.Array,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
     dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo_t_plus_dt: geometry.Geometry,
     core_profiles_t: state.CoreProfiles,
 ) -> state.CoreProfiles:
   """Provides state at t_plus_dt with new boundary conditions and prescribed profiles."""
-  updated_boundary_conditions = (
-      core_profile_setters.compute_boundary_conditions(
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice_t_plus_dt,
-          geo_t_plus_dt,
-      )
+  updated_boundary_conditions = updaters.compute_boundary_conditions_for_t_plus_dt(
+      dt=dt,
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice_t=dynamic_runtime_params_slice_t,
+      dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
+      geo_t_plus_dt=geo_t_plus_dt,
+      core_profiles_t=core_profiles_t,
   )
-  updated_values = core_profile_setters.get_prescribed_core_profile_values(
+  updated_values = updaters.get_prescribed_core_profile_values(
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
       geo=geo_t_plus_dt,

@@ -82,67 +82,158 @@ class FigureProperties:
     if len(self.axes) > self.rows * self.cols:
       raise ValueError('len(axes) in plot_config is more than rows * columns.')
 
+  @property
+  def contains_spatial_plot_type(self) -> bool:
+    """Checks if any plot is a spatial plottype."""
+    return any(
+        plot_properties.plot_type == PlotType.SPATIAL
+        for plot_properties in self.axes
+    )
+
 
 @dataclasses.dataclass
 class PlotData:
-  """Dataclass for all plot related data."""
+  r"""Dataclass for all plot related data.
 
-  ti: np.ndarray  # [keV]
-  te: np.ndarray  # [keV]
-  ne: np.ndarray  # [10^20 m^-3]
-  ni: np.ndarray  # [10^20 m^-3]
-  nimp: np.ndarray  # [10^20 m^-3]
-  zimp: np.ndarray  # [10^20 m^-3]
-  psi: np.ndarray  # [Wb]
-  psidot: np.ndarray  # [Wb/s]
-  j: np.ndarray  # [MA/m^2]
-  johm: np.ndarray  # [MA/m^2]
-  j_bootstrap: np.ndarray  # [MA/m^2]
-  j_ecrh: np.ndarray  # [MA/m^2]
-  generic_current_source: np.ndarray  # [MA/m^2]
-  external_current_source: np.ndarray  # [MA/m^2]
-  q: np.ndarray  # Dimensionless
-  s: np.ndarray  # Dimensionless
-  chi_i: np.ndarray  # [m^2/s]
-  chi_e: np.ndarray  # [m^2/s]
-  d_e: np.ndarray  # [m^2/s]
-  v_e: np.ndarray  # [m/s]
-  q_icrh_i: np.ndarray  # [MW/m^3]
-  q_icrh_e: np.ndarray  # [MW/m^3]
-  q_gen_i: np.ndarray  # [MW/m^3]
-  q_gen_e: np.ndarray  # [MW/m^3]
-  q_ecrh: np.ndarray  # [MW/m^3]
-  q_alpha_i: np.ndarray  # [MW/m^3]
-  q_alpha_e: np.ndarray  # [MW/m^3]
-  q_ohmic: np.ndarray  # [MW/m^3]
-  q_brems: np.ndarray  # [MW/m^3]
-  q_cycl: np.ndarray  # [MW/m^3]
-  q_ei: np.ndarray  # [MW/m^3]
-  q_rad: np.ndarray  # [MW/m^3]
-  Q_fusion: np.ndarray  # pylint: disable=invalid-name  # Dimensionless
-  s_puff: np.ndarray  # [10^20 m^-3 s^-1]
-  s_generic: np.ndarray  # [10^20 m^-3 s^-1]
-  s_pellet: np.ndarray  # [10^20 m^-3 s^-1]
-  i_total: np.ndarray  # [MA]
-  i_bootstrap: np.ndarray  # [MA]
-  i_generic: np.ndarray  # [MA]
-  i_ecrh: np.ndarray  # [MA]
-  p_auxiliary: np.ndarray  # [MW]
-  p_ohmic: np.ndarray  # [MW]
-  p_alpha: np.ndarray  # [MW]
-  p_sink: np.ndarray  # [MW]
-  p_brems: np.ndarray  # [MW]
-  p_cycl: np.ndarray  # [MW]
-  p_rad: np.ndarray  # [MW]
-  t: np.ndarray  # [s]
-  rho_cell_coord: np.ndarray  # Normalized toroidal flux coordinate
-  rho_face_coord: np.ndarray  # Normalized toroidal flux coordinate
-  te_volume_avg: np.ndarray  # [keV]
-  ti_volume_avg: np.ndarray  # [keV]
-  ne_volume_avg: np.ndarray  # [10^20 m^-3]
-  ni_volume_avg: np.ndarray  # [10^20 m^-3]
-  W_thermal_tot: np.ndarray  # [MJ]  # pylint: disable=invalid-name
-  q95: np.ndarray  # Dimensionless
+  Attributes:
+    ti: Ion temperature profile [:math:`\mathrm{keV}`] on the cell grid.
+    te: Electron temperature profile [:math:`\mathrm{keV}`] on the cell grid.
+    ne: Electron density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
+      grid.
+    ni: Main ion density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
+      grid. Corresponds to an bundled ion mixture if specified as such in the
+      config.
+    nimp: Impurity density profile [:math:`\mathrm{10^{20} m^{-3}}`] on the cell
+      grid. Corresponds to an bundled ion mixture if specified as such in the
+      config.
+    zimp: Average charge state of the impurity species [dimensionless] on the
+      cell grid.
+    psi: Poloidal flux [:math:`\mathrm{Wb}`] on the cell grid.
+    psidot: Time derivative of poloidal flux (loop voltage :math:`V_{loop}`) [V]
+      on the cell grid.
+    j: Total toroidal current density profile [:math:`\mathrm{MA/m^2}`] on the
+      cell grid.
+    johm: Ohmic current density profile [:math:`\mathrm{MA/m^2}`] on the cell
+      grid.
+    j_bootstrap: Bootstrap current density profile [:math:`\mathrm{MA/m^2}`] on
+      the cell grid.
+    j_ecrh: Electron cyclotron current density profile [:math:`\mathrm{MA/m^2}`]
+      on the cell grid.
+    generic_current_source: Generic external current source density profile
+      [:math:`\mathrm{MA/m^2}`] on the cell grid.
+    external_current_source: Total externally driven current source density
+      profile [:math:`\mathrm{MA/m^2}`] on the cell grid.
+    q: Safety factor (q-profile) [dimensionless] on the face grid.
+    s: Magnetic shear profile [dimensionless] on the face grid.
+    chi_i: Ion heat conductivity [:math:`\mathrm{m^2/s}`] on the face grid.
+    chi_e: Electron heat conductivity [:math:`\mathrm{m^2/s}`] on the face grid.
+    d_e: Electron particle diffusivity [:math:`\mathrm{m^2/s}`] on the face
+      grid.
+    v_e: Electron particle convection velocity [:math:`\mathrm{m/s}`] on the
+      face grid.
+    q_icrh_i: ICRH ion heating power density [:math:`\mathrm{MW/m^3}`].
+    q_icrh_e: ICRH electron heating power density [:math:`\mathrm{MW/m^3}`].
+    q_gen_i: Generic ion heating power density [:math:`\mathrm{MW/m^³}`].
+    q_gen_e: Generic electron heating power density [:math:`\mathrm{MW/m^3}`].
+    q_ecrh: Electron cyclotron heating power density [:math:`\mathrm{MW/m^3}`].
+    q_alpha_i: Fusion alpha particle heating power density to ion
+      [:math:`\mathrm{MW/m^3}`].
+    q_alpha_e: Fusion alpha particle heating power density to electrons
+      [:math:`\mathrm{MW/m^3}`].
+    q_ohmic: Ohmic heating power density [:math:`\mathrm{MW/m^3}`].
+    q_brems: Bremsstrahlung radiation power density [:math:`\mathrm{MW/m^3}`].
+    q_cycl: Cyclotron radiation power density [:math:`\mathrm{MW/m^3}`].
+    q_ei: Ion-electron heat exchange power density [:math:`\mathrm{MW/m^3}`].
+      Positive values denote ion heating, and negative values denote ion cooling
+      (electron heating).
+    q_rad: Impurity radiation power density [:math:`\mathrm{MW/m^3}`].
+    Q_fusion: Fusion power gain (dimensionless).
+    s_puff: Gas puff particle source density [:math:`\mathrm{10^{20} m^{-3}
+      s^{-1}}`].
+    s_generic: Generic particle source density [:math:`\mathrm{10^{20} m^{-3}
+      s^{-1}}`].
+    s_pellet: Pellet particle source density [:math:`\mathrm{10^{20} m^{-3}
+      s^{-1}}`].
+    i_total: Total plasma current [:math:`\mathrm{MA}`].
+    i_bootstrap: Total bootstrap current [:math:`\mathrm{MA}`].
+    i_generic: Total generic current source [:math:`\mathrm{MA}`].
+    i_ecrh: Total electron cyclotron current [:math:`\mathrm{MA}`].
+    p_auxiliary: Total auxiliary heating power [:math:`\mathrm{MW}`].
+    p_ohmic: Total Ohmic heating power [:math:`\mathrm{MW}`].
+    p_alpha: Total fusion alpha heating power [:math:`\mathrm{MW}`].
+    p_sink: Total electron heating sink [:math:`\mathrm{MW}`].
+    p_brems: Total bremsstrahlung radiation power loss [:math:`\mathrm{MW}`].
+    p_cycl: Total cyclotron radiation power loss [:math:`\mathrm{MW}`].
+    p_rad: Total impurity radiation power loss [:math:`\mathrm{MW}`].
+    t: Simulation time [:math:`\mathrm{s}`].
+    rho_cell_coord: Normalized toroidal flux coordinate on the cell grid.
+    rho_face_coord: Normalized toroidal flux coordinate on the face grid.
+    te_volume_avg: Volume-averaged electron temperature [:math:`\mathrm{keV}`].
+    ti_volume_avg: Volume-averaged ion temperature [:math:`\mathrm{keV}`].
+    ne_volume_avg: Volume-averaged electron density [:math:`\mathrm{10^{20}
+      m^{-3}}`].
+    ni_volume_avg: Volume-averaged ion density [:math:`\mathrm{10^{20}
+      m^{-3}}`].
+    W_thermal_tot: Total thermal stored energy [:math:`\mathrm{MJ}`].
+    q95: Safety factor at 95% of the normalized poloidal flux.
+  """
+
+  ti: np.ndarray
+  te: np.ndarray
+  ne: np.ndarray
+  ni: np.ndarray
+  nimp: np.ndarray
+  zimp: np.ndarray
+  psi: np.ndarray
+  psidot: np.ndarray
+  j: np.ndarray
+  johm: np.ndarray
+  j_bootstrap: np.ndarray
+  j_ecrh: np.ndarray
+  generic_current_source: np.ndarray
+  external_current_source: np.ndarray
+  q: np.ndarray
+  s: np.ndarray
+  chi_i: np.ndarray
+  chi_e: np.ndarray
+  d_e: np.ndarray
+  v_e: np.ndarray
+  q_icrh_i: np.ndarray
+  q_icrh_e: np.ndarray
+  q_gen_i: np.ndarray
+  q_gen_e: np.ndarray
+  q_ecrh: np.ndarray
+  q_alpha_i: np.ndarray
+  q_alpha_e: np.ndarray
+  q_ohmic: np.ndarray
+  q_brems: np.ndarray
+  q_cycl: np.ndarray
+  q_ei: np.ndarray
+  q_rad: np.ndarray
+  Q_fusion: np.ndarray  # pylint: disable=invalid-name
+  s_puff: np.ndarray
+  s_generic: np.ndarray
+  s_pellet: np.ndarray
+  i_total: np.ndarray
+  i_bootstrap: np.ndarray
+  i_generic: np.ndarray
+  i_ecrh: np.ndarray
+  p_auxiliary: np.ndarray
+  p_ohmic: np.ndarray
+  p_alpha: np.ndarray
+  p_sink: np.ndarray
+  p_brems: np.ndarray
+  p_cycl: np.ndarray
+  p_rad: np.ndarray
+  t: np.ndarray
+  rho_cell_coord: np.ndarray
+  rho_face_coord: np.ndarray
+  te_volume_avg: np.ndarray
+  ti_volume_avg: np.ndarray
+  ne_volume_avg: np.ndarray
+  ni_volume_avg: np.ndarray
+  W_thermal_tot: np.ndarray  # pylint: disable=invalid-name
+  q95: np.ndarray
 
 
 def load_data(filename: str) -> PlotData:
@@ -169,11 +260,12 @@ def load_data(filename: str) -> PlotData:
   def _transform_data(ds: xr.Dataset):
     """Transforms data in-place to the desired units."""
     ds = ds.copy()
+
     transformations = {
         output.JTOT: 1e6,  # A/m^2 to MA/m^2
         output.JOHM: 1e6,  # A/m^2 to MA/m^2
         output.J_BOOTSTRAP: 1e6,  # A/m^2 to MA/m^2
-        output.CORE_PROFILES_EXTERNAL_CURRENT: 1e6,  # A/m^2 to MA/m^2
+        output.EXTERNAL_CURRENT: 1e6,  # A/m^2 to MA/m^2
         'generic_current_source': 1e6,  # A/m^2 to MA/m^2
         output.I_BOOTSTRAP: 1e6,  # A to MA
         output.IP_PROFILE_FACE: 1e6,  # A to MA
@@ -208,6 +300,13 @@ def load_data(filename: str) -> PlotData:
       if var_name in ds:
         ds[var_name] /= scale
 
+    # For density transformations we need nref which is only available in the
+    # core_profiles dataset. Do these separately.
+    if output.NREF in ds:
+      ds[output.NE] *= ds[output.NREF][0].values / 1e20
+      ds[output.NI] *= ds[output.NREF][0].values / 1e20
+      ds[output.NIMP] *= ds[output.NREF][0].values / 1e20
+
     return ds
 
   data_tree = xr.map_over_datasets(_transform_data, data_tree)
@@ -232,7 +331,7 @@ def load_data(filename: str) -> PlotData:
       johm=core_profiles_dataset[output.JOHM].to_numpy(),
       j_bootstrap=core_profiles_dataset[output.J_BOOTSTRAP].to_numpy(),
       external_current_source=core_profiles_dataset[
-          output.CORE_PROFILES_EXTERNAL_CURRENT
+          output.EXTERNAL_CURRENT
       ].to_numpy(),
       j_ecrh=get_optional_data(
           core_sources_dataset, 'electron_cyclotron_source_j', 'cell'
@@ -352,17 +451,19 @@ def plot_run(
   )
 
   format_plots(plot_config, plotdata1, plotdata2, axes)
-  timeslider = create_slider(slider_ax, plotdata1, plotdata2)
-  fig.canvas.draw()
 
-  def update(newtime):
-    """Update plots with new values following slider manipulation."""
-    fig.constrained_layout = False
-    _update(newtime, plot_config, plotdata1, lines1, plotdata2, lines2)
-    fig.constrained_layout = True
-    fig.canvas.draw_idle()
+  # Only create the slider if needed.
+  if plot_config.contains_spatial_plot_type:
+    timeslider = create_slider(slider_ax, plotdata1, plotdata2)
+    def update(newtime):
+      """Update plots with new values following slider manipulation."""
+      fig.constrained_layout = False
+      _update(newtime, plot_config, plotdata1, lines1, plotdata2, lines2)
+      fig.constrained_layout = True
+      fig.canvas.draw_idle()
 
-  timeslider.on_changed(update)
+    timeslider.on_changed(update)
+
   fig.canvas.draw()
   plt.show()
 
@@ -577,16 +678,23 @@ def create_figure(plot_config: FigureProperties):
       ),
       constrained_layout=True,
   )
-  # Create the GridSpec - leave space for the slider at the bottom
-  gs = gridspec.GridSpec(
-      rows + 1, cols, figure=fig, height_ratios=[1] * rows + [0.2]
-  )  # Adjust 0.2 for slider height
+  # Create the GridSpec - Adjust height ratios to include the slider
+  # in the plot, only if a slider is required:
+  if plot_config.contains_spatial_plot_type:
+    # Add an extra smaller is a spatial plottypeider
+    height_ratios = [1] * rows + [0.2]
+    gs = gridspec.GridSpec(
+        rows + 1, cols, figure=fig, height_ratios=height_ratios
+    )
+    # slider spans all columns
+    slider_ax = fig.add_subplot(gs[rows, :])
+  else:
+    gs = gridspec.GridSpec(rows, cols, figure=fig)
+    slider_ax = None
 
   axes = []
   for i in range(rows * cols):
     row = i // cols
     col = i % cols
     axes.append(fig.add_subplot(gs[row, col]))  # Add subplots to the grid
-  # slider spans all columns in the last row
-  slider_ax = fig.add_subplot(gs[rows, :])
   return fig, axes, slider_ax

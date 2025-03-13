@@ -29,6 +29,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
@@ -54,7 +55,7 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
   VR_D_ratio: runtime_params_lib.TimeInterpolatedInput = 0.0
 
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> RuntimeParamsProvider:
     # TODO(b/360831279)
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
@@ -91,7 +92,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     self.sanity_check()
 
 
-class CriticalGradientModel(transport_model.TransportModel):
+class CriticalGradientTransportModel(transport_model.TransportModel):
   """Calculates various coefficients related to particle transport."""
 
   def __init__(
@@ -107,7 +108,14 @@ class CriticalGradientModel(transport_model.TransportModel):
       core_profiles: state.CoreProfiles,
       pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
-    """Calculates transport coefficients using the Critical Gradient Model.
+    r"""Calculates transport coefficients using the Critical Gradient Model.
+
+    Uses critical normalized logarithmic ion temperature gradient
+    :math:`R/L_{Ti}|_crit` from Guo Romanelli 1993:
+    :math:`\chi_i = \chi_{GB} \chi_{stiff} H(R/L_{Ti} - R/L_{Ti})`
+    where :math:`\chi_{GB}` is the GyroBohm diffusivity,
+    :math:`\chi_{stiff}` is the stiffness parameter, and
+    :math:`H` is the Heaviside function.
 
     Args:
       dynamic_runtime_params_slice: Input runtime parameters that can change
@@ -120,20 +128,13 @@ class CriticalGradientModel(transport_model.TransportModel):
       coeffs: The transport coefficients
     """
 
-    # Many variables throughout this function are capitalized based on physics
-    # notational conventions rather than on Google Python style
     # pylint: disable=invalid-name
-
-    # ITG critical gradient model. R/LTi_crit from Guo Romanelli 1993
-    # chi_i = chiGB * chistiff * H(R/LTi -
-    #  R/LTi_crit)*(R/LTi - R/LTi_crit)^alpha
 
     constants = constants_module.CONSTANTS
     assert isinstance(
         dynamic_runtime_params_slice.transport, DynamicRuntimeParams
     )
 
-    # set typical values for now. Will include user-defined q and s later
     s = core_profiles.s_face
     q = core_profiles.q_face
 
@@ -210,11 +211,11 @@ class CriticalGradientModel(transport_model.TransportModel):
     return hash('CriticalGradientModel')
 
   def __eq__(self, other):
-    return isinstance(other, CriticalGradientModel)
+    return isinstance(other, CriticalGradientTransportModel)
 
 
-def _default_cgm_builder() -> CriticalGradientModel:
-  return CriticalGradientModel()
+def _default_cgm_builder() -> CriticalGradientTransportModel:
+  return CriticalGradientTransportModel()
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -227,10 +228,10 @@ class CriticalGradientModelBuilder(transport_model.TransportModelBuilder):
 
   builder: Callable[
       [],
-      CriticalGradientModel,
+      CriticalGradientTransportModel,
   ] = _default_cgm_builder
 
   def __call__(
       self,
-  ) -> CriticalGradientModel:
+  ) -> CriticalGradientTransportModel:
     return self.builder()

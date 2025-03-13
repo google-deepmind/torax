@@ -17,17 +17,20 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar, Optional
+from typing import ClassVar, Literal
 
+import chex
 import jax
 from jax import numpy as jnp
 from torax import constants
-from torax import physics
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.physics import collisions
+from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_profiles
 
 
 def calc_fusion(
@@ -75,8 +78,6 @@ def calc_fusion(
   # <sigma*v> for DT calculated with the Bosch-Hale parameterization NF 1992.
   # T is in keV for the formula
 
-  # Many variables throughout this function are capitalized based on physics
-  # notational conventions rather than on Google Python style
   # pylint: disable=invalid-name
   Efus = 17.6 * 1e3 * constants.CONSTANTS.keV2J
   mrc2 = 1124656
@@ -127,7 +128,7 @@ def calc_fusion(
   # Fractional fusion power ions/electrons.
   birth_energy = 3520  # Birth energy of alpha particles is 3.52MeV.
   alpha_mass = 4.002602
-  frac_i = physics.fast_ion_fractional_heating_formula(
+  frac_i = collisions.fast_ion_fractional_heating_formula(
       birth_energy,
       core_profiles.temp_el.value,
       alpha_mass,
@@ -144,13 +145,12 @@ def fusion_heat_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
-    source_name: str,
+    unused_source_name: str,
     core_profiles: state.CoreProfiles,
-    unused_source_models: Optional['source_models.SourceModels'],
-) -> jax.Array:
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+) -> tuple[chex.Array, ...]:
   """Model function for fusion heating."""
   # pytype: enable=name-error
-  del source_name
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
       geo,
@@ -158,7 +158,7 @@ def fusion_heat_model_func(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
   )
-  return jnp.stack((Pfus_i, Pfus_e))
+  return (Pfus_i, Pfus_e)
   # pylint: enable=invalid-name
 
 
@@ -181,13 +181,23 @@ class FusionHeatSource(source.Source):
         source.AffectedCoreProfile.TEMP_EL,
     )
 
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.get_ion_el_output_shape
 
-
-@dataclasses.dataclass
-class FusionHeatSourceRuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime params for FusionHeatSource."""
-
+class FusionHeatSourceConfig(base.SourceModelBase):
+  """Configuration for the FusionHeatSource."""
+  source_name: Literal['fusion_heat_source'] = 'fusion_heat_source'
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return fusion_heat_model_func
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> runtime_params_lib.DynamicRuntimeParams:
+    return runtime_params_lib.DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+    )
+
+  def build_source(self) -> FusionHeatSource:
+    return FusionHeatSource(model_func=self.model_func)

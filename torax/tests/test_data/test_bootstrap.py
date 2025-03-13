@@ -68,12 +68,10 @@ CONFIG = {
     'pedestal': {},
     'transport': {
         'transport_model': 'constant',
-        'constant_params': {
-            # diffusion coefficient in electron density equation in m^2/s
-            'De_const': 0.5,
-            # convection coefficient in electron density equation in m^2/s
-            'Ve_const': -0.2,
-        },
+        # diffusion coefficient in electron density equation in m^2/s
+        'De_const': 0.5,
+        # convection coefficient in electron density equation in m^2/s
+        'Ve_const': -0.2,
     },
     'stepper': {
         'stepper_type': 'linear',

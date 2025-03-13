@@ -164,19 +164,18 @@ CONFIG = {
         'Demax': 50,  # maximum electron diffusivity
         'Vemin': -10,  # minimum electron convection
         'Vemax': 10,  # minimum electron convection
-        'qlknn_params': {
-            'DVeff': True,
-            'include_ITG': True,  # to toggle ITG modes on or off
-            'include_TEM': True,  # to toggle TEM modes on or off
-            'include_ETG': True,  # to toggle ETG modes on or off
-            # ensure that smag - alpha > -0.2 always, to compensate for no slab
-            # modes
-            'avoid_big_negative_s': True,
-            # minimum |R/Lne| below which effective V is used instead of
-            # effective D
-            'An_min': 0.05,
-            'ITG_flux_ratio_correction': 1,
-        },
+        # qlknn params.
+        'DVeff': True,
+        'include_ITG': True,  # to toggle ITG modes on or off
+        'include_TEM': True,  # to toggle TEM modes on or off
+        'include_ETG': True,  # to toggle ETG modes on or off
+        # ensure that smag - alpha > -0.2 always, to compensate for no slab
+        # modes
+        'avoid_big_negative_s': True,
+        # minimum |R/Lne| below which effective V is used instead of
+        # effective D
+        'An_min': 0.05,
+        'ITG_flux_ratio_correction': 1,
     },
     'stepper': {
         'stepper_type': 'newton_raphson',
@@ -188,9 +187,6 @@ CONFIG = {
         # (deliberately) large particle diffusion for Pereverzev rule
         'd_per': 15,
         'use_pereverzev': True,
-        'newton_raphson_params': {
-            'log_iterations': False,
-        },
     },
     'time_step_calculator': {
         'calculator_type': 'chi',

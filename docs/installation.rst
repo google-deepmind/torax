@@ -15,8 +15,14 @@ Make sure that tkinter is installed:
   sudo apt-get install python3-tk
 
 .. _how_to_install:
+
 How to install
 ==============
+
+.. _prepare_virtualenv:
+
+Prepare a virtual environment
+-----------------------------
 
 Install virtualenv (if not already installed):
 
@@ -48,6 +54,11 @@ Activate the virtual env:
 
 It is convenient to set up an alias for the above command.
 
+.. _install_qlknn_hyper:
+
+Install QLKNN-hyper
+-------------------
+
 Download QLKNN dependencies:
 
 .. code-block:: console
@@ -65,6 +76,30 @@ It is recommended to automate the environment variable export. For example, if u
   echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
 
 The above command only needs to be run once on a given system.
+
+.. _install_qlknn_7_11:
+
+(Optional) Install QLKNN_7_11
+-----------------------------
+
+Optionally, you can instead use QLKNN_7_11, a more recent surrogate model:
+
+.. code-block:: console
+
+  git clone https://github.com/google-deepmind/fusion_transport_surrogates.git
+  pip install -e ./fusion_transport_surrogates
+  export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn
+
+We recommend automating the variable export. If using bash, run:
+
+.. code-block:: console
+
+  echo export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn >> ~/.bashrc
+
+.. install_torax:
+
+Install TORAX
+-------------
 
 The following may optionally be added to ~/.bashrc and will cause jax to
 store compiled programs to the filesystem, avoiding recompilation in
@@ -96,6 +131,22 @@ Enter the TORAX directory and pip install the dependencies.
 .. code-block:: console
 
   cd torax; pip install .
+
+From within the top level directory where you `pip install` from, also set the
+geometry data directory.
+
+.. code-block:: console
+
+  export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo
+
+As with the QLKNN dependencies, we recommend automating the variable export. If
+using bash, run:
+
+.. code-block:: console
+
+  echo export TORAX_GEOMETRY_DIR="$PWD"/torax/data/third_party/geo >> ~/.bashrc
+
+The above command only needs to be run once on a given system.
 
 **Recommended** for developers. Instead of the above, install optional dependencies
 for (parallel) pytest and documentation generation. Also install in editable mode to

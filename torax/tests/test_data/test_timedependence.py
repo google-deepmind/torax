@@ -26,6 +26,8 @@ CONFIG = {
             'Te': {0.0: {0.0: 10.0, 1.0: 1.0}},
             'Ip_tot': {0: 5, 4: 15, 6: 12, 8: 12},
             'ne_bound_right': 0.5,
+            'ne_is_fGW': False,
+            'nbar': 0.33820425407,  # fGW=0.85 for Ip_tot(t=0)
         },
         'numerics': {
             'current_eq': True,
@@ -34,7 +36,6 @@ CONFIG = {
             'dtmult': 150,
             'maxdt': 0.5,
             't_final': 10,
-            'enable_prescribed_profile_evolution': False,
         },
     },
     'geometry': {

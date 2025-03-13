@@ -12,51 +12,73 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Many variables throughout this function are capitalized based on physics
-# notational conventions rather than on Google Python style
 # pylint: disable=invalid-name
 
 """Cyclotron radiation heat sink for electron heat equation.."""
+from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import chex
 import jax
 from jax import numpy as jnp
+import pydantic
 from torax import array_typing
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
-from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles
+import typing_extensions
 
 
-@dataclasses.dataclass(kw_only=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for the cyclotron radiation heat sink, updating the parent class."""
+class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
+  """Cyclotron radiation heat sink for electron heat equation.
 
-  # The wall reflection coefficient is a machine-dependent dimensionless
-  # parameter corresponding to the fraction of cyclotron radiation reflected
-  # off the wall and back into the plasma where it is re-absorbed.
-  # The default value is a typical value.
+  Attributes:
+    wall_reflection_coeff: The wall reflection coefficient is a
+      machine-dependent dimensionless parameter corresponding to the fraction of
+      cyclotron radiation reflected off the wall and back into the plasma where
+      it is re-absorbed. The default value is a typical value.
+    beta_min: The minimum value of the beta parameter used in the parameterized
+      function for the temperature fit.
+    beta_max: The maximum value of the beta parameter used in the parameterized
+      function for the temperature fit.
+    beta_grid_size: The number of points to use in the grid search for the best
+      fit of the temperature function.
+  """
+
+  source_name: Literal['cyclotron_radiation_heat_sink'] = (
+      'cyclotron_radiation_heat_sink'
+  )
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9
-
-  # The beta parameter is used in the parameterized function for the
-  # temperature fit. beta_min, beta_max, and beta_grid_size are used for a
-  # grid search to find the best fit.
   beta_min: float = 0.5
   beta_max: float = 8.0
-  beta_grid_size: int = 32
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  beta_grid_size: pydantic.PositiveInt = 32
 
-  def make_provider(
+  @pydantic.model_validator(mode='after')
+  def _check_fields(self) -> typing_extensions.Self:
+    if not self.beta_min < self.beta_max:
+      raise ValueError('beta_min must be less than beta_max.')
+    return self
+
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return cyclotron_radiation_albajar
+
+  def build_dynamic_params(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> 'RuntimeParamsProvider':
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
+      t: chex.Numeric,
+  ) -> 'DynamicRuntimeParams':
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        wall_reflection_coeff=self.wall_reflection_coeff,
+    )
 
   def build_static_params(self) -> 'StaticRuntimeParams':
     return StaticRuntimeParams(
@@ -67,20 +89,8 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
         beta_grid_size=self.beta_grid_size,
     )
 
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: RuntimeParams
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
-        **self.get_dynamic_params_kwargs(t, StaticRuntimeParams)
-    )
+  def build_source(self) -> CyclotronRadiationHeatSink:
+    return CyclotronRadiationHeatSink(model_func=self.model_func)
 
 
 @chex.dataclass(frozen=True)
@@ -283,8 +293,8 @@ def cyclotron_radiation_albajar(
     geo: geometry.Geometry,
     source_name: str,
     core_profiles: state.CoreProfiles,
-    source_models: source_models_lib.SourceModels,
-) -> array_typing.ArrayFloat:
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+) -> tuple[array_typing.ArrayFloat, ...]:
   """Calculates the cyclotron radiation heat sink contribution to the electron heat equation.
 
   Total cyclotron radiation is from:
@@ -311,13 +321,12 @@ def cyclotron_radiation_albajar(
     geo: The geometry object.
     source_name: The name of the source.
     core_profiles: The core profiles object.
-    source_models: Collections of source models.
+    unused_calculated_source_profiles: Unused.
 
   Returns:
     The cyclotron radiation heat sink contribution to the electron heat
     equation.
   """
-  del (source_models,)
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
@@ -396,11 +405,11 @@ def cyclotron_radiation_albajar(
   )
 
   # Scale the profile shape to match the total integrated power loss
-  denom = math_utils.cell_integration(Q_cycl_shape * geo.vpr, geo)
+  denom = math_utils.volume_integration(Q_cycl_shape, geo)
   rescaling_factor = P_cycl_total / denom
   Q_cycl = Q_cycl_shape * rescaling_factor
 
-  return -Q_cycl
+  return (-Q_cycl,)
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)

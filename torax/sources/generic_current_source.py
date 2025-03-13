@@ -17,67 +17,62 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar, Optional
+from typing import ClassVar, Literal
 
 import chex
-import jax
 from jax import numpy as jnp
 from torax import array_typing
-from torax import interpolated_param
 from torax import jax_utils
 from torax import math_utils
 from torax import state
-from torax.config import base
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.sources import base as source_base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
+from torax.sources import source_profiles
+from torax.torax_pydantic import torax_pydantic
+
+
 # pylint: disable=invalid-name
+class GenericCurrentSourceConfig(source_base.SourceModelBase):
+  """Configuration for the GenericCurrentSource.
 
-
-@dataclasses.dataclass(kw_only=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for the external current source."""
-
-  # total "external" current in MA. Used if use_absolute_current=True.
-  Iext: runtime_params_lib.TimeInterpolatedInput = 3.0
-  # total "external" current fraction. Used if use_absolute_current=False.
-  fext: runtime_params_lib.TimeInterpolatedInput = 0.2
-  # width of "external" Gaussian current profile
-  wext: runtime_params_lib.TimeInterpolatedInput = 0.05
-  # normalized radius of "external" Gaussian current profile
-  rext: runtime_params_lib.TimeInterpolatedInput = 0.4
-
-  # Toggles if external current is provided absolutely or as a fraction of Ip.
+  Attributes:
+    Iext: total "external" current in MA. Used if use_absolute_current=True.
+    fext: total "external" current fraction. Used if use_absolute_current=False.
+    wext: width of "external" Gaussian current profile
+    rext: normalized radius of "external" Gaussian current profile
+    use_absolute_current: Toggles if external current is provided absolutely or
+      as a fraction of Ip.
+  """
+  source_name: Literal['generic_current_source'] = 'generic_current_source'
+  Iext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(3.0)
+  fext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.2)
+  wext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.05)
+  rext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.4)
   use_absolute_current: bool = False
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property
-  def grid_type(self) -> base.GridType:
-    return base.GridType.CELL
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: RuntimeParams
-  Iext: interpolated_param.InterpolatedVarSingleAxis
-  fext: interpolated_param.InterpolatedVarSingleAxis
-  wext: interpolated_param.InterpolatedVarSingleAxis
-  rext: interpolated_param.InterpolatedVarSingleAxis
+  def model_func(self) -> source.SourceProfileFunction:
+    return calculate_generic_current
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        Iext=self.Iext.get_value(t),
+        fext=self.fext.get_value(t),
+        wext=self.wext.get_value(t),
+        rext=self.rext.get_value(t),
+        use_absolute_current=self.use_absolute_current,
+    )
+
+  def build_source(self) -> GenericCurrentSource:
+    return GenericCurrentSource(model_func=self.model_func)
 
 
 @chex.dataclass(frozen=True)
@@ -101,33 +96,14 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 # pytype bug: does not treat 'source_models.SourceModels' as a forward reference
 # pytype: disable=name-error
 def calculate_generic_current(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_name: str,
-    unused_state: state.CoreProfiles | None = None,
-    unused_source_models: Optional['source_models.SourceModels'] = None,
-) -> jax.Array:
-  """Calculates the external current density profiles.
-
-  Args:
-    static_runtime_params_slice: Static runtime parameters.
-    dynamic_runtime_params_slice: Parameter configuration at present timestep.
-    geo: Tokamak geometry.
-    source_name: Name of the source.
-    unused_state: State argument not used in this function but is present to
-      adhere to the source API.
-    unused_source_models: Source models argument not used in this function but
-      is present to adhere to the source API.
-
-  Returns:
-    External current density profile along the cell grid.
-  """
-  del (
-      static_runtime_params_slice,
-      unused_state,
-      unused_source_models,
-  )  # Unused.
+    unused_state: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+) -> tuple[chex.Array, ...]:
+  """Calculates the external current density profiles on the cell grid."""
   dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
       source_name
   ]
@@ -146,13 +122,13 @@ def calculate_generic_current(
   Cext = (
       Iext
       * 1e6
-      / math_utils.cell_integration(generic_current_form * geo.spr_cell, geo)
+      / math_utils.area_integration(generic_current_form, geo)
   )
 
   generic_current_profile = (
       Cext * generic_current_form
   )
-  return generic_current_profile
+  return (generic_current_profile,)
 
 
 def _calculate_Iext(
@@ -185,7 +161,3 @@ class GenericCurrentSource(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.PSI,)
-
-  @property
-  def output_shape_getter(self) -> source.SourceOutputShapeFunction:
-    return source.ProfileType.CELL.get_profile_shape

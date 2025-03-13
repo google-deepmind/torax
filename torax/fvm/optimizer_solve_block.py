@@ -22,6 +22,7 @@ import jax
 from torax import state
 from torax.config import runtime_params_slice
 from torax.fvm import block_1d_coeffs
+from torax.fvm import calc_coeffs
 from torax.fvm import cell_variable
 from torax.fvm import enums
 from torax.fvm import fvm_conversions
@@ -35,7 +36,6 @@ from torax.transport_model import transport_model as transport_model_lib
 
 
 AuxiliaryOutput: TypeAlias = block_1d_coeffs.AuxiliaryOutput
-Block1DCoeffsCallback: TypeAlias = block_1d_coeffs.Block1DCoeffsCallback
 
 
 def optimizer_solve_block(
@@ -52,7 +52,7 @@ def optimizer_solve_block(
     explicit_source_profiles: source_profiles.SourceProfiles,
     source_models: source_models_lib.SourceModels,
     pedestal_model: pedestal_model_lib.PedestalModel,
-    coeffs_callback: Block1DCoeffsCallback,
+    coeffs_callback: calc_coeffs.CoeffsCallback,
     evolving_names: tuple[str, ...],
     initial_guess_mode: enums.InitialGuessMode,
     maxiter: int,
@@ -60,7 +60,7 @@ def optimizer_solve_block(
 ) -> tuple[
     tuple[cell_variable.CellVariable, ...],
     state.StepperNumericOutputs,
-    AuxiliaryOutput,
+    block_1d_coeffs.AuxiliaryOutput,
 ]:
   # pyformat: disable  # pyformat removes line breaks needed for readability
   """Runs one time step of an optimization-based solver on the equation defined by `coeffs`.
@@ -149,20 +149,8 @@ def optimizer_solve_block(
           explicit_call=True,
       )
       # See linear_theta_method.py for comments on the predictor_corrector API
-      x_new_init = tuple(
+      x_new_guess = tuple(
           [core_profiles_t_plus_dt[name] for name in evolving_names]
-      )
-      init_val = (
-          x_new_init,
-          # Initialized here with correct shapes to help with tracing in case
-          # this is jitted.
-          (
-              source_models_lib.build_all_zero_profiles(
-                  geo_t,
-                  source_models,
-              ),
-              state.CoreTransport.zeros(geo_t),
-          ),
       )
       init_x_new, _ = predictor_corrector_method.predictor_corrector_method(
           dt=dt,
@@ -170,8 +158,8 @@ def optimizer_solve_block(
           dynamic_runtime_params_slice_t_plus_dt=dynamic_runtime_params_slice_t_plus_dt,
           geo_t_plus_dt=geo_t_plus_dt,
           x_old=x_old,
+          x_new_guess=x_new_guess,
           core_profiles_t_plus_dt=core_profiles_t_plus_dt,
-          init_val=init_val,
           coeffs_exp=coeffs_exp_linear,
           coeffs_callback=coeffs_callback,
       )
@@ -189,7 +177,7 @@ def optimizer_solve_block(
   (
       x_new_vec,
       final_loss,
-      aux_output,
+      _,
       stepper_numeric_outputs.inner_solver_iterations,
   ) = residual_and_loss.jaxopt_solver(
       dt=dt,
@@ -223,4 +211,12 @@ def optimizer_solve_block(
       lambda: 0,  # Called when False
   )
 
-  return x_new, stepper_numeric_outputs, aux_output
+  coeffs_final = coeffs_callback(
+      dynamic_runtime_params_slice_t_plus_dt,
+      geo_t_plus_dt,
+      core_profiles_t_plus_dt,
+      x_new,
+      allow_pereverzev=True,
+  )
+
+  return x_new, stepper_numeric_outputs, coeffs_final.auxiliary_outputs
