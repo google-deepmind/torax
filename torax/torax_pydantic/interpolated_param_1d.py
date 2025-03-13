@@ -110,6 +110,26 @@ def _is_positive(time_varying_scalar: TimeVaryingScalar) -> TimeVaryingScalar:
     raise ValueError('All values must be positive.')
   return time_varying_scalar
 
+
+def _interval(
+    time_varying_scalar: TimeVaryingScalar,
+    lower_bound: float,
+    upper_bound: float,
+) -> TimeVaryingScalar:
+  if not np.all(lower_bound <= time_varying_scalar.value <= upper_bound):
+    raise ValueError(
+        'All values must be less than %f and greater than %f.'
+        % (upper_bound, lower_bound)
+    )
+  return time_varying_scalar
+
+
 PositiveTimeVaryingScalar: TypeAlias = Annotated[
     TimeVaryingScalar, pydantic.AfterValidator(_is_positive)
+]
+UnitIntervalTimeVaryingScalar: TypeAlias = Annotated[
+    TimeVaryingScalar,
+    pydantic.AfterValidator(
+        functools.partial(_interval, lower_bound=0.0, upper_bound=1.0)
+    ),
 ]

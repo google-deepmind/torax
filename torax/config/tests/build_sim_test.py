@@ -26,8 +26,6 @@ from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
-from torax.transport_model import constant as constant_transport
-from torax.transport_model import critical_gradient as critical_gradient_transport
 from torax.transport_model import qlknn_transport_model
 
 
@@ -60,9 +58,7 @@ class BuildSimTest(parameterized.TestCase):
             ),
             transport=dict(
                 transport_model='qlknn',
-                qlknn_params=dict(
-                    include_ITG=False,
-                ),
+                include_ITG=False,
             ),
             stepper=dict(
                 stepper_type='linear',
@@ -205,68 +201,6 @@ class BuildSimTest(parameterized.TestCase):
         source_runtime_params_lib.Mode.ZERO,
     )
     self.assertLen(sources.source_model_config, 3)
-
-  def test_missing_transport_model_raises_error(self):
-    with self.assertRaises(ValueError):
-      build_sim.build_transport_model_builder_from_config({})
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='constant',
-          name='constant',
-          expected_type=constant_transport.ConstantTransportModel,
-      ),
-      dict(
-          testcase_name='critical_gradient',
-          name='CGM',
-          expected_type=critical_gradient_transport.CriticalGradientTransportModel,
-      ),
-      dict(
-          testcase_name='qlknn',
-          name='qlknn',
-          expected_type=qlknn_transport_model.QLKNNTransportModel,
-      ),
-  )
-  def test_build_transport_models(self, name, expected_type):
-    """Tests that we can build a transport model from the config."""
-    transport_model_builder = (
-        build_sim.build_transport_model_builder_from_config({
-            'transport_model': name,
-            'chimin': 1.23,
-            'constant_params': {
-                'chii_const': 4.56,
-            },
-            'cgm_params': {
-                'alpha': 7.89,
-            },
-            'qlknn_params': {
-                'coll_mult': 10.11,
-            },
-        })
-    )
-    transport_model = transport_model_builder()
-    self.assertIsInstance(transport_model, expected_type)
-    self.assertEqual(transport_model_builder.runtime_params.chimin, 1.23)
-    if name == 'constant':
-      assert isinstance(
-          transport_model_builder.runtime_params,
-          constant_transport.RuntimeParams,
-      )
-      self.assertEqual(transport_model_builder.runtime_params.chii_const, 4.56)
-    elif name == 'CGM':
-      assert isinstance(
-          transport_model_builder.runtime_params,
-          critical_gradient_transport.RuntimeParams,
-      )
-      self.assertEqual(transport_model_builder.runtime_params.alpha, 7.89)
-    elif name == 'qlknn':
-      assert isinstance(
-          transport_model_builder.runtime_params,
-          qlknn_transport_model.RuntimeParams,
-      )
-      self.assertEqual(transport_model_builder.runtime_params.coll_mult, 10.11)
-    else:
-      self.fail(f'Unknown transport model: {name}')
 
   def test_unknown_stepper_type_raises_error(self):
     with self.assertRaises(ValueError):

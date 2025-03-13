@@ -23,7 +23,6 @@ from __future__ import annotations
 from typing import TypeAlias
 
 import chex
-import jax
 from torax import array_typing
 from torax import interpolated_param
 from torax import jax_utils
@@ -113,12 +112,12 @@ class RuntimeParamsProvider(
 class DynamicRuntimeParams:
   """Input params for the transport model which can be used as compiled args."""
 
-  chimin: jax.Array
-  chimax: jax.Array
-  Demin: jax.Array
-  Demax: jax.Array
-  Vemin: jax.Array
-  Vemax: jax.Array
+  chimin: float
+  chimax: float
+  Demin: float
+  Demax: float
+  Vemin: float
+  Vemax: float
   apply_inner_patch: array_typing.ScalarBool
   De_inner: array_typing.ScalarFloat
   Ve_inner: array_typing.ScalarFloat
@@ -131,36 +130,12 @@ class DynamicRuntimeParams:
   chii_outer: array_typing.ScalarFloat
   chie_outer: array_typing.ScalarFloat
   rho_outer: array_typing.ScalarFloat
-  smoothing_sigma: jax.Array
-  smooth_everywhere: jax.Array
+  smoothing_sigma: float
+  smooth_everywhere: bool
 
-  def sanity_check(self):
-    """Make sure all the parameters are valid."""
-    jax_utils.error_if_negative(self.chimin, 'chimin')
-    jax_utils.error_if(
-        self.chimax, self.chimax <= self.chimin, 'chimax must be > chimin'
-    )
-    jax_utils.error_if_negative(self.Demin, 'Demin')
-    jax_utils.error_if(
-        self.Demax, self.Demax <= self.Demin, 'Demax must be > Demin'
-    )
-    jax_utils.error_if(
-        self.Vemax, self.Vemax <= self.Vemin, 'Vemax must be > Vemin'
-    )
-    jax_utils.error_if_negative(self.De_inner, 'De_inner')
-    jax_utils.error_if_negative(self.chii_inner, 'chii_inner')
-    jax_utils.error_if_negative(self.chie_inner, 'chie_inner')
-    jax_utils.error_if(
-        self.rho_inner, self.rho_inner > 1.0, 'rho_inner must be <= 1.'
-    )
-    jax_utils.error_if(
-        self.rho_outer, self.rho_outer > 1.0, 'rho_outer must be <= 1.'
-    )
+  def __post_init__(self):
     jax_utils.error_if(
         self.rho_outer,
         self.rho_outer <= self.rho_inner,
-        'rho_outer must be > rho_inner',
+        'rho_outer must be greater than rho_inner.',
     )
-
-  def __post_init__(self):
-    self.sanity_check()

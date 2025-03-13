@@ -40,6 +40,7 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.plotting import plotruns_lib
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
 # String used when prompting the user to make a choice of command
@@ -257,10 +258,8 @@ def change_config(
   new_geo_provider = geometry_pydantic_model.Geometry.from_dict(
       sim_config['geometry']
   ).build_provider
-  new_transport_model_builder = (
-      build_sim.build_transport_model_builder_from_config(
-          sim_config['transport']
-      )
+  new_transport_model = transport_pydantic_model.Transport.from_dict(
+      sim_config['transport']
   )
   new_stepper = stepper_pydantic_model.Stepper.from_dict(
       sim_config['stepper']
@@ -273,17 +272,20 @@ def change_config(
     )
   # Make sure the transport model has not changed.
   # TODO(b/330172917): Improve the check for updated configs.
-  if not isinstance(new_transport_model_builder(), type(sim.transport_model)):
+  if not isinstance(
+      new_transport_model.build_transport_model(), type(sim.transport_model)
+  ):
     raise ValueError(
-        f'New transport model type {type(new_transport_model_builder())} does'
-        f' not match the existing transport model {type(sim.transport_model)}.'
-        ' When using this option, you cannot change the transport model.'
+        'New transport model type'
+        f' {type(new_transport_model.build_transport_model())} does not match'
+        f' the existing transport model {type(sim.transport_model)}. When using'
+        ' this option, you cannot change the transport model.'
     )
   simulation_app.update_sim(
       sim=sim,
       runtime_params=new_runtime_params,
       geo_provider=new_geo_provider,
-      transport_runtime_params=new_transport_model_builder.runtime_params,
+      transport=new_transport_model,
       sources=new_sources,
       stepper=new_stepper,
       pedestal=new_pedestal,
