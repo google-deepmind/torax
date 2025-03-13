@@ -28,16 +28,17 @@ from jax import numpy as jnp
 import jaxtyping as jt
 import numpy as np
 from torax import array_typing
+from torax import interpolated_param
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.physics import collisions
-from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+from typing_extensions import override
 
 # Internal import.
 
@@ -289,7 +290,7 @@ class _ToricNN(nn.Module):
 
 
 # pylint: disable=invalid-name
-class IonCyclotronSourceConfig(base.SourceModelBase):
+class IonCyclotronSourceConfig(runtime_params_lib.SourceModelBase):
   """Configuration for the IonCyclotronSource.
 
   Attributes:
@@ -302,7 +303,6 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       density in %.
     Ptot: Total heating power [W].
   """
-
   source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
   wall_inner: torax_pydantic.Meter = 1.24
   wall_outer: torax_pydantic.Meter = 2.43
@@ -315,37 +315,50 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return functools.partial(
-        icrh_model_func,
-        toric_nn=ToricNNWrapper(),
-    )
+
+@dataclasses.dataclass(kw_only=True)
+class RuntimeParams(runtime_params_lib.RuntimeParams):
+  """Runtime parameters for the ion cyclotron source."""
+
+  # External heat source parameters
+  power: runtime_params_lib.TimeInterpolatedInput = 20e6
+  frequency: runtime_params_lib.TimeInterpolatedInput = 120.0
+  minority_concentration: runtime_params_lib.TimeInterpolatedInput = 3.0
+  # Fraction of absorbed power
+  absorption_fraction: runtime_params_lib.TimeInterpolatedInput = 1.0
+  model_path: str | None = None
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  def make_provider(
+      self,
+      torax_mesh: geometry.Grid1D | None = None,
+  ) -> 'RuntimeParamsProvider':
+    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
+
+
+@chex.dataclass
+class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+  """Provides runtime parameters for a given time and geometry."""
+
+  runtime_params_config: RuntimeParams
+  power: interpolated_param.InterpolatedVarSingleAxis
+  frequency: interpolated_param.InterpolatedVarSingleAxis
+  minority_concentration: interpolated_param.InterpolatedVarSingleAxis
+  absorption_fraction: interpolated_param.InterpolatedVarSingleAxis
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
-        wall_inner=self.wall_inner,
-        wall_outer=self.wall_outer,
-        frequency=self.frequency.get_value(t),
-        minority_concentration=self.minority_concentration.get_value(t),
-        Ptot=self.Ptot.get_value(t),
-    )
-
-  def build_source(self) -> IonCyclotronSource:
-    return IonCyclotronSource(model_func=self.model_func)
+  ) -> 'DynamicRuntimeParams':
+    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  power: array_typing.ScalarFloat
   frequency: array_typing.ScalarFloat
   minority_concentration: array_typing.ScalarFloat
-  Ptot: array_typing.ScalarFloat
-  wall_inner: float
-  wall_outer: float
+  absorption_fraction: array_typing.ScalarFloat
 
 
 def _helium3_tail_temperature(
@@ -480,6 +493,8 @@ def icrh_model_func(
   source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
 
   return (source_ion, source_el)
+
+
 # pylint: enable=invalid-name
 
 
@@ -500,3 +515,109 @@ class IonCyclotronSource(source.Source):
         source.AffectedCoreProfile.TEMP_ION,
         source.AffectedCoreProfile.TEMP_EL,
     )
+
+
+@dataclasses.dataclass(kw_only=True, frozen=False)
+class IonCyclotronSourceBuilder:
+  """Builder for the IonCyclotronSource."""
+
+  runtime_params: RuntimeParams = dataclasses.field(
+      default_factory=RuntimeParams
+  )
+  model_func: source.SourceProfileFunction | None = None
+
+  def __post_init__(self):
+    if self.model_func is None:
+      self.model_func = functools.partial(
+          icrh_model_func,
+          toric_nn=ToricNNWrapper(),
+      )
+
+  def __call__(
+      self,
+  ) -> IonCyclotronSource:
+
+    return IonCyclotronSource(
+        model_func=self.model_func,
+    )
+
+
+def default_formula(
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+    source_name: str,
+    core_profiles: state.CoreProfiles,
+    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
+) -> tuple[chex.Array, ...]:
+  """Returns the default formula-based ion/electron heat source profile."""
+  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
+      source_name
+  ]
+  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
+
+  # Get the model path from the static runtime params.
+  model_path = static_runtime_params_slice.sources.get(
+      source_name, {}
+  ).get('model_path')
+
+  # Create the model if it doesn't exist.
+  model = _get_model(model_path)
+
+  # Calculate the volume average temperature and density.
+  volume_average_temperature = _calculate_volume_average_temperature(
+      core_profiles, geo
+  )
+  volume_average_density = _calculate_volume_average_density(core_profiles, geo)
+
+  # Calculate the temperature and density peaking factors.
+  temperature_peaking_factor = _calculate_temperature_peaking_factor(
+      core_profiles, geo
+  )
+  density_peaking_factor = _calculate_density_peaking_factor(core_profiles, geo)
+
+  # Calculate the gap between the LCFS and the wall.
+  gap_inner = geo.R_inboard - dynamic_source_runtime_params.wall_inner
+  gap_outer = dynamic_source_runtime_params.wall_outer - geo.R_outboard
+
+  # Create the inputs for the model.
+  inputs = ToricNNInputs(
+      frequency=dynamic_source_runtime_params.frequency / 1e6,  # MHz
+      volume_average_temperature=volume_average_temperature,
+      volume_average_density=volume_average_density / 1e20,  # 10^20 m^-3
+      minority_concentration=dynamic_source_runtime_params.minority_concentration,
+      gap_inner=gap_inner,
+      gap_outer=gap_outer,
+      z0=geo.z0,
+      temperature_peaking_factor=temperature_peaking_factor,
+      density_peaking_factor=density_peaking_factor,
+      B0=geo.B0,
+  )
+
+  # Get the power deposition profiles from the model.
+  outputs = model.predict(inputs)
+
+  # Convert the power deposition profiles to the TORAX grid.
+  power_deposition_He3 = _convert_to_torax_grid(
+      outputs.power_deposition_He3, geo
+  )
+  power_deposition_2T = _convert_to_torax_grid(
+      outputs.power_deposition_2T, geo
+  )
+  power_deposition_e = _convert_to_torax_grid(
+      outputs.power_deposition_e, geo
+  )
+
+  # Apply the total power and absorption fraction.
+  # The power deposition profiles are normalized to 1 MW of absorbed power.
+  # We need to scale them by the total power and absorption fraction.
+  total_power = dynamic_source_runtime_params.power
+  absorption_fraction = dynamic_source_runtime_params.absorption_fraction
+  absorbed_power = total_power * absorption_fraction
+  
+  power_deposition_ion = (
+      power_deposition_He3 + power_deposition_2T
+  ) * absorbed_power * 1e6  # Convert from MW to W
+  power_deposition_el = power_deposition_e * absorbed_power * 1e6  # Convert from MW to W
+
+  return (power_deposition_ion, power_deposition_el)

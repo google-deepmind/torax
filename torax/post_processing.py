@@ -16,21 +16,26 @@
 
 # In torax/post_processing.py
 
+from __future__ import annotations
+
 import dataclasses
+from typing import Any, Mapping
+
 import jax
 from jax import numpy as jnp
+import numpy as np
+
+from torax import array_typing
 from torax import constants
 from torax import jax_utils
 from torax import math_utils
 from torax import state
+from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.physics import formulas
 from torax.physics import psi_calculations
 from torax.physics import scaling_laws
 from torax.sources import source_profiles
-from torax.config import runtime_params_slice
-from torax.sources import generic_ion_el_heat_source
-from torax.sources import ion_cyclotron_source
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -148,7 +153,7 @@ def _calculate_integrated_sources(
         if key in ['generic_ion_el_heat_source', 'ion_cyclotron_source']:
           # Get the absorption_fraction from dynamic params
           source_params = dynamic_runtime_params_slice.sources.get(key)
-          
+
           if source_params and hasattr(source_params, 'absorption_fraction'):
             # Calculate injected power based on absorption_fraction
             total_absorbed = integrated[f'{value}_ion'] + integrated[f'{value}_el']
@@ -159,7 +164,7 @@ def _calculate_integrated_sources(
             # If no absorption_fraction is found, injected power equals absorbed power
             integrated['P_external_injected'] += integrated[f'{value}_ion'] + integrated[f'{value}_el']
         else:
-          integrated['P_external_injected'] += integrated[f'{value}_ion'] + integrated[f'{value}_el']
+          integrated['P_external_injected'] += integrated[f'{value}_ion'] + integrated[f'{value}_el'] 
 
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
