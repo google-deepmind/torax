@@ -279,6 +279,31 @@ class PydanticBaseTest(parameterized.TestCase):
       submodels_set = set(id(m) for m in t2.submodels)
       self.assertSetEqual(submodels_set, {id(t2), id(t1_2), id(t1_1)})
 
+  def test_update_fields_conform(self):
+    class Test1(model_base.BaseModelFrozen):
+      x: float
+      y: float
+
+      @pydantic.model_validator(mode='before')
+      @classmethod
+      def conform_string(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+          return data
+        x, y = data.split(';')
+        return dict(x=float(x), y=float(y))
+
+    class Test2(model_base.BaseModelFrozen):
+      x: dict[int, Test1]
+      y: Test1
+
+    t = Test2(x={1: Test1(x=1.0, y=2.0)}, y=Test1(x=3.0, y=4.0))
+    t._update_fields({'x': {1: '10.;11.0'}, 'y': Test1(x=12.0, y=13.0)})
+
+    self.assertEqual(t.x[1].x, 10.0)
+    self.assertEqual(t.x[1].y, 11.0)
+    self.assertEqual(t.y.x, 12.0)
+    self.assertEqual(t.y.y, 13.0)
+
 
 if __name__ == '__main__':
   absltest.main()
