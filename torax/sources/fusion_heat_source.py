@@ -27,6 +27,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.physics import collisions
+from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
@@ -181,14 +182,22 @@ class FusionHeatSource(source.Source):
     )
 
 
-class FusionHeatSourceConfig(runtime_params_lib.SourceModelBase):
+class FusionHeatSourceConfig(base.SourceModelBase):
   """Configuration for the FusionHeatSource."""
   source_name: Literal['fusion_heat_source'] = 'fusion_heat_source'
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return fusion_heat_model_func
 
-@dataclasses.dataclass
-class FusionHeatSourceRuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime params for FusionHeatSource."""
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> runtime_params_lib.DynamicRuntimeParams:
+    return runtime_params_lib.DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+    )
 
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  def build_source(self) -> FusionHeatSource:
+    return FusionHeatSource(model_func=self.model_func)

@@ -15,6 +15,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import build_sim
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax.sources import pydantic_model as source_pydantic_model
+from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -51,8 +53,10 @@ class PydanticModelTest(parameterized.TestCase):
     transport_model = transport_model_builder()
     pedestal = pedestal_pydantic_model.Pedestal()
     pedestal_model = pedestal.build_pedestal_model()
-    source_models_builder = build_sim.build_sources_builder_from_config({})
-    source_models = source_models_builder()
+    sources = source_pydantic_model.Sources.from_dict({})
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     stepper_model = stepper.build_stepper_model(
         transport_model=transport_model,
         source_models=source_models,

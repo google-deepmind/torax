@@ -28,6 +28,7 @@ from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import torax_refs
@@ -50,8 +51,7 @@ class StateHistoryTest(parameterized.TestCase):
             ne_bound_right=({0.0: 0.1, 1.0: 2.0}, 'step'),
         ),
     )
-    source_models_builder = default_sources.get_default_sources_builder()
-    source_models = source_models_builder()
+    sources = default_sources.get_default_sources()
     # Make some dummy source profiles that could have come from these sources.
     self.geo = geometry_pydantic_model.CircularConfig().build_geometry()
     ones = jnp.ones_like(self.geo.rho)
@@ -60,7 +60,7 @@ class StateHistoryTest(parameterized.TestCase):
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
             geo_provider,
-            sources=source_models_builder.runtime_params,
+            sources=sources,
         )
     )
     self.source_profiles = source_profiles_lib.SourceProfiles(
@@ -81,8 +81,11 @@ class StateHistoryTest(parameterized.TestCase):
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=geo.torax_mesh,
+    )
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
     )
 
     self.core_profiles = initialization.initial_core_profiles(

@@ -21,6 +21,7 @@ from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 
 
@@ -56,12 +57,14 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
         )
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    source_models_builder = source_models_lib.SourceModelsBuilder()
-    source_models = source_models_builder()
+    sources = source_pydantic_model.Sources()
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params,
-        sources=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=geo.torax_mesh,
         pedestal=pedestal,
     )
@@ -71,7 +74,7 @@ class SetPressureTemperatureRatioAndDensityPedestalModelTest(
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=geo.torax_mesh,
         )
     )

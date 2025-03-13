@@ -31,7 +31,6 @@ CONFIG['sources']['generic_ion_el_heat_source']['Ptot'] = 16.32e6
 
 # Set the ECRH source.
 CONFIG['sources']['electron_cyclotron_source'] = {
-    'P_tot': 16.32e6,
     'gaussian_ec_power_density_width': 0.075,
     'gaussian_ec_power_density_location': 0.36,
     'gaussian_ec_total_power': 34.68e6,

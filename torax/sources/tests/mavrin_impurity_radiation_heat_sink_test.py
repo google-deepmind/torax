@@ -19,12 +19,10 @@ from torax.config import plasma_composition
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_ion_el_heat_source
-from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
-from torax.sources.impurity_radiation_heat_sink import (
-    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,
-)
+from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax.sources.tests import test_lib
 
@@ -32,49 +30,29 @@ from torax.sources.tests import test_lib
 class ImpurityRadiationMavrinFitTest(test_lib.SourceTestCase):
   """Tests impurity_radiation_mavrin_fit implementation of ImpurityRadiationHeatSink."""
 
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink,
-        runtime_params_class=impurity_radiation_mavrin_fit.RuntimeParams,
+  def setUp(self):
+    super().setUp(
+        source_config_class=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
-        model_func=impurity_radiation_mavrin_fit.impurity_radiation_mavrin_fit,
     )
 
   def test_source_value(self):
     """Tests that the source value is correct."""
-    # Source builder for this class
-    impurity_radiation_sink_builder = self._source_class_builder()
-    impurity_radiation_sink_builder.runtime_params.mode = (
-        runtime_params_lib.Mode.MODEL_BASED
-    )
-    if not source_lib.is_source_builder(impurity_radiation_sink_builder):
-      raise TypeError(f'{type(self)} has a bad _source_class_builder')
-
-    # Source builder for generic_ion_el_heat_source
-    # We don't test this class, as that should be done in its own test
-    heat_source_builder_builder = source_lib.make_source_builder(
-        source_type=generic_ion_el_heat_source.GenericIonElectronHeatSource,
-        runtime_params_type=generic_ion_el_heat_source.RuntimeParams,
-        model_func=generic_ion_el_heat_source.default_formula,
-    )
-    heat_source_builder = heat_source_builder_builder(
-        model_func=generic_ion_el_heat_source.default_formula
-    )
-
     # Runtime params
     runtime_params = general_runtime_params.GeneralRuntimeParams()
 
     # Source models
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {
-            self._source_name: impurity_radiation_sink_builder,
-            generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME: (
-                heat_source_builder
-            ),
+    sources = sources_pydantic_model.Sources.from_dict({
+        generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME: {},
+        impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME: {
+            'model_function_name': (
+                impurity_radiation_mavrin_fit.MODEL_FUNCTION_NAME
+            )
         },
+    })
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
     )
-    source_models = source_models_builder()
 
     # Extract the source we're testing and check that it's been built correctly
     impurity_radiation_sink = source_models.sources[self._source_name]
@@ -86,7 +64,7 @@ class ImpurityRadiationMavrinFitTest(test_lib.SourceTestCase):
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            sources=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,

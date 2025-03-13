@@ -23,6 +23,7 @@ from torax.config import runtime_params as runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source
 from torax.sources import source_models as source_models_lib
@@ -40,12 +41,14 @@ class SourceModelsTest(parameterized.TestCase):
   def test_computing_source_profiles_works_with_all_defaults(self):
     """Tests that you can compute source profiles with all defaults."""
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    source_models_builder = source_models_lib.SourceModelsBuilder()
-    source_models = source_models_builder()
+    sources = source_pydantic_model.Sources()
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
-            sources=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=self.geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,
@@ -53,7 +56,7 @@ class SourceModelsTest(parameterized.TestCase):
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )
     core_profiles = initialization.initial_core_profiles(
@@ -66,7 +69,7 @@ class SourceModelsTest(parameterized.TestCase):
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=self.geo.torax_mesh,
             stepper=stepper_params,
         )
@@ -112,7 +115,7 @@ class SourceModelsTest(parameterized.TestCase):
         source_models_lib.SourceModels, standard_sources={'foo': test_source}
     )
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
-        mode=1, is_explicit=True
+        mode='MODEL_BASED', is_explicit=True
     )
     static_params = mock.create_autospec(
         runtime_params_slice.StaticRuntimeParamsSlice,
@@ -173,7 +176,7 @@ class SourceModelsTest(parameterized.TestCase):
         source_models_lib.SourceModels, standard_sources={'foo': test_source}
     )
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
-        mode=1, is_explicit=True
+        mode='MODEL_BASED', is_explicit=True
     )
     static_params = mock.create_autospec(
         runtime_params_slice.StaticRuntimeParamsSlice,
@@ -261,7 +264,7 @@ class SourceModelsTest(parameterized.TestCase):
         source_models_lib.SourceModels, standard_sources={'foo': test_source}
     )
     test_source_runtime_params = source_runtime_params.StaticRuntimeParams(
-        mode=1, is_explicit=True  # Set the source to be explicit.
+        mode='MODEL_BASED', is_explicit=True  # Set the source to be explicit.
     )
     static_params = mock.create_autospec(
         runtime_params_slice.StaticRuntimeParamsSlice,

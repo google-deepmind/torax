@@ -24,6 +24,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.physics import psi_calculations
+from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_operations
@@ -67,18 +68,26 @@ def ohmic_model_func(
   return (pohm,)
 
 
-class OhmicHeatSourceConfig(runtime_params_lib.SourceModelBase):
+class OhmicHeatSourceConfig(base.SourceModelBase):
   """Configuration for the OhmicHeatSource."""
 
   source_name: Literal['ohmic_heat_source'] = 'ohmic_heat_source'
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
+  @property
+  def model_func(self) -> source_lib.SourceProfileFunction:
+    return ohmic_model_func
 
-@dataclasses.dataclass
-class OhmicRuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime params for OhmicHeatSource."""
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> runtime_params_lib.DynamicRuntimeParams:
+    return runtime_params_lib.DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+    )
 
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  def build_source(self) -> OhmicHeatSource:
+    return OhmicHeatSource(model_func=self.model_func)
 
 
 # OhmicHeatSource is a special case and defined here to avoid circular
