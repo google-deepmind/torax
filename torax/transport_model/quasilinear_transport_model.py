@@ -21,12 +21,12 @@ from torax import constants as constants_module
 from torax import state
 from torax.fvm import cell_variable
 from torax.geometry import geometry
-from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
 
-def calculate_chiGB(  # pylint: disable=invalid-name
+# pylint: disable=invalid-name
+def calculate_chiGB(
     reference_temperature: chex.Array,
     reference_magnetic_field: chex.Numeric,
     reference_mass: chex.Numeric,
@@ -114,38 +114,12 @@ def calculate_alpha(
   return alpha
 
 
-# pylint: disable=invalid-name
-@chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Shared parameters for Quasilinear models."""
-
-  # effective D / effective V approach for particle transport
-  DVeff: bool = False
-  # minimum |R/Lne| below which effective V is used instead of effective D
-  An_min: float = 0.05
-
-  def make_provider(
-      self, torax_mesh: torax_pydantic.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Shared parameters for Quasilinear models."""
 
   DVeff: bool
   An_min: float
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)
