@@ -307,6 +307,8 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       grid._update_fields({'nx': grid.nx + 1})
       interpolated_param_2d.set_grid(m2, grid, mode='force')
       chex.assert_trees_all_equal(m2.y.grid.face_centers, grid.face_centers)  # pytype: disable=attribute-error
+      # Ensure that setting the grid does not re-use the grid object.
+      self.assertTrue(m2._has_unique_submodels)
 
     with self.subTest('set_grid_already_set_relaxed'):
       interpolated_param_2d.set_grid(m2, grid, mode='relaxed')

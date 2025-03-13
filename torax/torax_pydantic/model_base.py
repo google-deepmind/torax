@@ -83,7 +83,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         k for k, v in cls.model_fields.items() if TIME_INVARIANT in v.metadata
     )
 
-  @functools.cached_property
+  @property
   def _direct_submodels(self) -> tuple[Self, ...]:
     """Direct submodels in the model."""
 
@@ -95,7 +95,7 @@ class BaseModelFrozen(pydantic.BaseModel):
     leaves = jax.tree.flatten(self.__dict__, is_leaf=is_leaf)[0]
     return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))
 
-  @functools.cached_property
+  @property
   def submodels(self) -> tuple[Self, ...]:
     """A tuple of the model and all submodels.
 
@@ -116,7 +116,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       new_submodels = new_submodels_temp
     return tuple(all_submodels)
 
-  @functools.cached_property
+  @property
   def _has_unique_submodels(self) -> bool:
     """Returns True if all submodels are different instances of models."""
     submodels = self.submodels
