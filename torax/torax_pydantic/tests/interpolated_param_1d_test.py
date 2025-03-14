@@ -87,11 +87,11 @@ class InterpolatedParam1dTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='negative_value',
-          values={0.: 1., 2.: -1},
+          values={0.0: 1.0, 2.0: -1},
       ),
       dict(
           testcase_name='zero_value',
-          values=0.,
+          values=0.0,
       ),
   )
   def test_raises_error_when_value_is_not_positive(self, values):
@@ -156,9 +156,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       expected_output,
   ):
     """Tests that the range returns the expected output."""
-    multi_val_range = torax_pydantic.TimeVaryingScalar.model_validate(
-        values
-    )
+    multi_val_range = torax_pydantic.TimeVaryingScalar.model_validate(values)
 
     if isinstance(expected_output, bool):
       self.assertEqual(multi_val_range.get_value(t=x), expected_output)
@@ -167,6 +165,15 @@ class InterpolatedParam1dTest(parameterized.TestCase):
           multi_val_range.get_value(t=x),
           expected_output,
       )
+
+  def test_test_equality_cached_property(self):
+    scalar_1 = torax_pydantic.TimeVaryingScalar.model_validate(1.0)
+    scalar_2 = torax_pydantic.TimeVaryingScalar.model_validate(1.0)
+
+    # Check that the cached property does not break equality.
+    self.assertEqual(scalar_1, scalar_2)
+    scalar_1.get_value(t=0.0)
+    self.assertEqual(scalar_1, scalar_2)
 
 
 if __name__ == '__main__':

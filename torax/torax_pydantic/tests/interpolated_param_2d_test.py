@@ -313,6 +313,18 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     with self.subTest('set_grid_already_set_relaxed'):
       interpolated_param_2d.set_grid(m2, grid, mode='relaxed')
 
+  def test_test_equality_cached_property(self):
+    array_1 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
+    array_2 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
+
+    grid = geometry_pydantic_model.CircularConfig().build_geometry().torax_mesh
+    interpolated_param_2d.set_grid(array_1, grid)
+    interpolated_param_2d.set_grid(array_2, grid)
+
+    # Check that the cached property does not break equality.
+    self.assertEqual(array_1, array_2)
+    array_1.get_value(t=0.0)
+    self.assertEqual(array_1, array_2)
 
 if __name__ == '__main__':
   absltest.main()
