@@ -13,33 +13,29 @@
 # limitations under the License.
 
 """Utilities to help with testing sources."""
-
-from torax.sources import register_source
-from torax.sources import source as source_lib
-from torax.sources import source_models as source_models_lib
+from torax.sources import pydantic_model as source_pydantic_model
 
 
-def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
-  """Returns a SourceModelsBuilder containing default sources and runtime parameters.
+def get_default_sources() -> source_pydantic_model.Sources:
+  """Returns default sources and configurations.
 
   This set of sources and params are used by most of the TORAX test
   configurations, including ITER-inspired configs, with additional changes to
   their runtime configurations on top.
 
-  If you plan to use them, please remember to update the default runtime
-  parameters as needed. Here is an example of how to do so:
+  If you plan to use them, please remember to update the default configuration
+  as needed. Here is an example of how to do so:
 
   .. code-block:: python
 
-    default_sources: SourceModels = get_default_sources()
-    # Turn off bootstrap current.
-    default_sources.j_bootstrap.runtime_params.mode = runtime_params.Mode.ZERO
-    # Change the Qei ion-electron heat exchange term.
-    default_sources.qei_source.runtime_params.Qei_mult = 2.0
-    # Turn off fusion power.
-    default_sources.sources['fusion_heat_source'].runtime_params.mode = (
-        runtime_params.Mode.ZERO
-    )
+    default_sources = get_default_sources()
+    sources_dict = default_sources.to_dict()
+    sources_dict = sources_dict['source_model_config']
+    sources_dict['qei_source']['Qei_mult'] = 0.0
+    sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
+    sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
+    sources_dict['ohmic_heat_source']['mode'] = source_runtime_params.Mode.ZERO
+    default_sources = sources_pydantic_model.Sources.from_dict(sources_dict)
 
   More examples are located in the test config files under
   `torax/tests/test_data`.
@@ -60,19 +56,7 @@ def get_default_sources_builder() -> source_models_lib.SourceModelsBuilder:
       'ohmic_heat_source',
       'bremsstrahlung_heat_sink',
   ]
-  source_builders = {}
+  sources = {}
   for name in names:
-    registered_source = register_source.get_supported_source(name)
-    model_function = registered_source.model_functions[
-        registered_source.source_class.DEFAULT_MODEL_FUNCTION_NAME
-    ]
-    runtime_params = model_function.runtime_params_class()
-    source_builder_class = model_function.source_builder_class
-    if source_builder_class is None:
-      source_builder_class = source_lib.make_source_builder(
-          registered_source.source_class,
-          runtime_params_type=model_function.runtime_params_class,
-          model_func=model_function.source_profile_function,
-      )
-    source_builders[name] = source_builder_class(runtime_params=runtime_params)
-  return source_models_lib.SourceModelsBuilder(source_builders)
+    sources[name] = {}
+  return source_pydantic_model.Sources.from_dict(sources)

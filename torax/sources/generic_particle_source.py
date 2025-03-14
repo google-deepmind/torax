@@ -18,12 +18,11 @@ import dataclasses
 from typing import ClassVar, Literal
 
 import chex
-import pydantic
 from torax import array_typing
-from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.sources import base
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -85,51 +84,7 @@ class DynamicParticleRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   S_tot: array_typing.ScalarFloat
 
 
-@chex.dataclass
-class GenericParticleSourceRuntimeParamsProvider(
-    runtime_params_lib.RuntimeParamsProvider
-):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: GenericParticleSourceRuntimeParams
-  particle_width: interpolated_param.InterpolatedVarSingleAxis
-  deposition_location: interpolated_param.InterpolatedVarSingleAxis
-  S_tot: interpolated_param.InterpolatedVarSingleAxis
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicParticleRuntimeParams:
-    return DynamicParticleRuntimeParams(
-        particle_width=float(self.particle_width.get_value(t)),
-        deposition_location=float(self.deposition_location.get_value(t)),
-        S_tot=float(self.S_tot.get_value(t)),
-        prescribed_values=self.prescribed_values.get_value(t),
-    )
-
-
-@dataclasses.dataclass(kw_only=True)
-class GenericParticleSourceRuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for particle source."""
-
-  # particle source Gaussian width in normalized radial coord
-  particle_width: runtime_params_lib.TimeInterpolatedInput = 0.25
-  # particle source Gaussian central location in normalized radial coord
-  deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.0
-  # total particle source
-  S_tot: runtime_params_lib.TimeInterpolatedInput = 1e22
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> GenericParticleSourceRuntimeParamsProvider:
-    return GenericParticleSourceRuntimeParamsProvider(
-        **self.get_provider_kwargs(torax_mesh)
-    )
-
-
-class GenericParticleSourceConfig(runtime_params_lib.SourceModelBase):
+class GenericParticleSourceConfig(base.SourceModelBase):
   """Generic particle source for the ne equation.
 
   Attributes:
@@ -140,8 +95,33 @@ class GenericParticleSourceConfig(runtime_params_lib.SourceModelBase):
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
+
   source_name: Literal['generic_particle_source'] = 'generic_particle_source'
-  particle_width: torax_pydantic.UnitInterval = 0.25
-  deposition_location: torax_pydantic.UnitInterval = 0.0
-  S_tot: pydantic.NonNegativeFloat = 1e22
+  particle_width: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.25)
+  )
+  deposition_location: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.0)
+  )
+  S_tot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      1e22
+  )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return calc_generic_particle_source
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicParticleRuntimeParams:
+    return DynamicParticleRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        particle_width=self.particle_width.get_value(t),
+        deposition_location=self.deposition_location.get_value(t),
+        S_tot=self.S_tot.get_value(t),
+    )
+
+  def build_source(self) -> GenericParticleSource:
+    return GenericParticleSource(model_func=self.model_func)

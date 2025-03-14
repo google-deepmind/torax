@@ -30,10 +30,12 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+from torax.sources import base
+from torax.config import base as config_base
 
 
 # pylint: disable=invalid-name
-class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
+class GenericIonElHeatSourceConfig(base.SourceModelBase):
   """Configuration for the GenericIonElHeatSource.
 
   Attributes:
@@ -41,7 +43,11 @@ class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
     rsource: Source Gaussian central location (in normalized r)
     Ptot: Total heating: high default based on total ITER power including alphas
     el_heat_fraction: Electron heating fraction
+<<<<<<< HEAD
     absorption_fraction: Fraction of absorbed power
+=======
+    absorption_fraction: fraction of absorbed power
+>>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
   """
   source_name: Literal['generic_ion_el_heat_source'] = (
       'generic_ion_el_heat_source'
@@ -56,6 +62,10 @@ class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
   el_heat_fraction: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.66666)
   )
+<<<<<<< HEAD
+=======
+  # TODO(b/817): Add appropriate pydantic validation for absorption_fraction
+>>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
   absorption_fraction: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
@@ -63,7 +73,7 @@ class GenericIonElHeatSourceConfig(runtime_params_lib.SourceModelBase):
 
 
 @dataclasses.dataclass(kw_only=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
+class RuntimeParams(config_base.RuntimeParametersConfig['RuntimeParamsProvider']):
   """Runtime parameters for the generic heat source."""
 
   # External heat source parameters
@@ -86,8 +96,17 @@ class RuntimeParams(runtime_params_lib.RuntimeParams):
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
+@chex.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  w: array_typing.ScalarFloat
+  rsource: array_typing.ScalarFloat
+  Ptot: array_typing.ScalarFloat
+  el_heat_fraction: array_typing.ScalarFloat
+  absorption_fraction: array_typing.ScalarFloat
+
+
 @chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
+class RuntimeParamsProvider(config_base.RuntimeParametersProvider[DynamicRuntimeParams]):
   """Provides runtime parameters for a given time and geometry."""
 
   runtime_params_config: RuntimeParams
@@ -104,6 +123,7 @@ class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
     return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
+<<<<<<< HEAD
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   w: array_typing.ScalarFloat
@@ -113,13 +133,19 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   absorption_fraction: array_typing.ScalarFloat
 
 
+=======
+>>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
 def calc_generic_heat_source(
     geo: geometry.Geometry,
     rsource: float,
     w: float,
     Ptot: float,
     el_heat_fraction: float,
+<<<<<<< HEAD
     absorption_fraction: float,
+=======
+    absorption_fraction: float = 1.0,
+>>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
 ) -> tuple[chex.Array, chex.Array]:
   """Computes ion/electron heat source terms.
 
@@ -131,13 +157,21 @@ def calc_generic_heat_source(
     w: Gaussian width
     Ptot: total heating
     el_heat_fraction: fraction of heating deposited on electrons
+<<<<<<< HEAD
     absorption_fraction: fraction of absorbed power
+=======
+    absorption_fraction: Fraction of absorbed power
+>>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
 
   Returns:
     source_ion: source term for ions.
     source_el: source term for electrons.
   """
   # Calculate heat profile.
+<<<<<<< HEAD
+=======
+  # Apply absorption_fraction to the total power
+>>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
   absorbed_power = Ptot * absorption_fraction
   profile = formulas.gaussian_profile(geo, center=rsource, width=w, total=absorbed_power)
   source_ion = profile * (1 - el_heat_fraction)

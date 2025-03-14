@@ -20,10 +20,10 @@ from typing import Literal
 
 import chex
 from torax import array_typing
-from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.sources import base
 from torax.sources import formulas
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
@@ -82,44 +82,7 @@ class DynamicPelletRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   S_pellet_tot: array_typing.ScalarFloat
 
 
-@chex.dataclass
-class PelletRuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: PelletRuntimeParams
-  pellet_width: interpolated_param.InterpolatedVarSingleAxis
-  pellet_deposition_location: interpolated_param.InterpolatedVarSingleAxis
-  S_pellet_tot: interpolated_param.InterpolatedVarSingleAxis
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicPelletRuntimeParams:
-    return DynamicPelletRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
-@dataclasses.dataclass(kw_only=True)
-class PelletRuntimeParams(runtime_params_lib.RuntimeParams):
-  """Runtime parameters for PelletSource."""
-
-  # Gaussian width of pellet deposition [normalized radial coord],
-  # (continuous pellet model)
-  pellet_width: runtime_params_lib.TimeInterpolatedInput = 0.1
-  # Pellet source Gaussian central location [normalized radial coord]
-  # (continuous pellet model)
-  pellet_deposition_location: runtime_params_lib.TimeInterpolatedInput = 0.85
-  # total pellet particles/s (continuous pellet model)
-  S_pellet_tot: runtime_params_lib.TimeInterpolatedInput = 2e22
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> PelletRuntimeParamsProvider:
-    return PelletRuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-class PelletSourceConfig(runtime_params_lib.SourceModelBase):
+class PelletSourceConfig(base.SourceModelBase):
   """Pellet source for the ne equation.
 
   Attributes:
@@ -142,3 +105,21 @@ class PelletSourceConfig(runtime_params_lib.SourceModelBase):
       torax_pydantic.ValidatedDefault(2e22)
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return calc_pellet_source
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicPelletRuntimeParams:
+    return DynamicPelletRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        pellet_width=self.pellet_width.get_value(t),
+        pellet_deposition_location=self.pellet_deposition_location.get_value(t),
+        S_pellet_tot=self.S_pellet_tot.get_value(t),
+    )
+
+  def build_source(self) -> PelletSource:
+    return PelletSource(model_func=self.model_func)

@@ -26,48 +26,40 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.physics import collisions
+from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 
 
 # pylint: disable=invalid-name
-class QeiSourceConfig(runtime_params_lib.SourceModelBase):
+class QeiSourceConfig(base.SourceModelBase):
   """Configuration for the QeiSource.
 
   Attributes:
     Qei_mult: multiplier for ion-electron heat exchange term for sensitivity
       testing
   """
+
   source_name: Literal['qei_source'] = 'qei_source'
   Qei_mult: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
-
-@dataclasses.dataclass(kw_only=True)
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  # multiplier for ion-electron heat exchange term for sensitivity testing
-  Qei_mult: float = 1.0
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> 'RuntimeParamsProvider':
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides runtime parameters for a given time and geometry."""
-
-  runtime_params_config: RuntimeParams
+  @property
+  def model_func(self) -> None:
+    return None
 
   def build_dynamic_params(
       self,
       t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
+  ) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        Qei_mult=self.Qei_mult,
+    )
+
+  def build_source(self) -> QeiSource:
+    return QeiSource(model_func=self.model_func)
 
 
 @chex.dataclass(frozen=True)

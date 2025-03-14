@@ -25,7 +25,6 @@ from torax import array_typing
 from torax import interpolated_param
 from torax.config import base
 from torax.config import config_args
-from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
 from typing_extensions import override
 from typing_extensions import Self
@@ -93,16 +92,16 @@ class ProfileConditionsPydantic(torax_pydantic.BaseModelFrozen):
   vloop_lcfs: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.0)
   )
-  Ti_bound_right: torax_pydantic.TimeVaryingScalar | None = None
-  Te_bound_right: torax_pydantic.TimeVaryingScalar | None = None
-  Ti: torax_pydantic.TimeVaryingArray = pydantic.Field(
+  Ti_bound_right: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  Te_bound_right: torax_pydantic.PositiveTimeVaryingScalar | None = None
+  Ti: torax_pydantic.PositiveTimeVaryingArray = pydantic.Field(
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}, validate_default=True
   )
-  Te: torax_pydantic.TimeVaryingArray = pydantic.Field(
+  Te: torax_pydantic.PositiveTimeVaryingArray = pydantic.Field(
       default_factory=lambda: {0: {0: 15.0, 1: 1.0}}, validate_default=True
   )
   psi: torax_pydantic.TimeVaryingArray | None = None
-  ne: torax_pydantic.TimeVaryingArray = pydantic.Field(
+  ne: torax_pydantic.PositiveTimeVaryingArray = pydantic.Field(
       default_factory=lambda: {0: {0: 1.5, 1: 1.0}}, validate_default=True
   )
   normalize_to_nbar: bool = True
@@ -135,20 +134,11 @@ class ProfileConditionsPydantic(torax_pydantic.BaseModelFrozen):
         raise ValueError(error_message)
 
     if self.Ti_bound_right is None:
-      _sanity_check_profile_boundary_conditions(
-          self.Ti,
-          'Ti',
-      )
+      _sanity_check_profile_boundary_conditions(self.Ti, 'Ti')
     if self.Te_bound_right is None:
-      _sanity_check_profile_boundary_conditions(
-          self.Te,
-          'Te',
-      )
+      _sanity_check_profile_boundary_conditions(self.Te, 'Te')
     if self.ne_bound_right is None:
-      _sanity_check_profile_boundary_conditions(
-          self.ne,
-          'ne',
-      )
+      _sanity_check_profile_boundary_conditions(self.ne, 'ne')
     return self
 
 
@@ -263,7 +253,7 @@ class ProfileConditions(
   @override
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> ProfileConditionsProvider:
     provider_kwargs = self.get_provider_kwargs(torax_mesh)
     if torax_mesh is None:

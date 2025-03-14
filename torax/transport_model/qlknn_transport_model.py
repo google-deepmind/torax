@@ -29,13 +29,13 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
 from torax.transport_model import qlknn_model_wrapper
 from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
-
 
 # Environment variable for the QLKNN model. Used if the model path
 # is not set in the config.
@@ -89,7 +89,7 @@ class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
   clip_margin: float = 0.95
 
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> 'RuntimeParamsProvider':
     return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 

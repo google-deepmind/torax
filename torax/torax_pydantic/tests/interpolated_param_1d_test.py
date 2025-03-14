@@ -84,6 +84,23 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       torax_pydantic.TimeVaryingScalar.model_validate({})
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='negative_value',
+          values={0.: 1., 2.: -1},
+      ),
+      dict(
+          testcase_name='zero_value',
+          values=0.,
+      ),
+  )
+  def test_raises_error_when_value_is_not_positive(self, values):
+    class TestModel(torax_pydantic.BaseModelFrozen):
+      a: torax_pydantic.PositiveTimeVaryingScalar
+
+    with self.assertRaisesRegex(pydantic.ValidationError, 'be positive.'):
+      TestModel.model_validate({'a': values})
+
   @parameterized.parameters(
       (
           (7.0, 'step'),
@@ -144,10 +161,10 @@ class InterpolatedParam1dTest(parameterized.TestCase):
     )
 
     if isinstance(expected_output, bool):
-      self.assertEqual(multi_val_range.get_value(x=x), expected_output)
+      self.assertEqual(multi_val_range.get_value(t=x), expected_output)
     else:
       np.testing.assert_allclose(
-          multi_val_range.get_value(x=x),
+          multi_val_range.get_value(t=x),
           expected_output,
       )
 

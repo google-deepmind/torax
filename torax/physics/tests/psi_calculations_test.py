@@ -23,7 +23,7 @@ from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.geometry import standard_geometry
 from torax.physics import psi_calculations
-from torax.sources import runtime_params as source_runtime_params
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
@@ -49,6 +49,7 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
             references.geometry_provider,
+            sources=sources_pydantic_model.Sources.from_dict({}),
         )
     )
 
@@ -119,16 +120,17 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
     references = references_getter()
 
     runtime_params = references.runtime_params
-    source_models_builder = source_models_lib.SourceModelsBuilder()
-    source_models_builder.runtime_params['generic_current_source'].mode = (
-        source_runtime_params.Mode.MODEL_BASED
+    sources = sources_pydantic_model.Sources.from_dict(
+        {'generic_current_source': {'mode': 'MODEL_BASED'}}
     )
-    source_models = source_models_builder()
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
             references.geometry_provider,
-            sources=source_models_builder.runtime_params,
+            sources=sources,
         )
     )
     source_profiles = source_profiles_lib.SourceProfiles(
@@ -139,7 +141,7 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=sources,
         torax_mesh=geo.torax_mesh,
     )
     initial_core_profiles = initialization.initial_core_profiles(

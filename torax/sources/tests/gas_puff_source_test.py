@@ -19,13 +19,10 @@ from torax.sources.tests import test_lib
 class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
   """Tests for GasPuffSource."""
 
-  @classmethod
-  def setUpClass(cls):
-    super().setUpClass(
-        source_class=gas_puff_source.GasPuffSource,
-        runtime_params_class=gas_puff_source.GasPuffRuntimeParams,
+  def setUp(self):
+    super().setUp(
+        source_config_class=gas_puff_source.GasPuffSourceConfig,
         source_name=gas_puff_source.GasPuffSource.SOURCE_NAME,
-        model_func=gas_puff_source.calc_puff_source,
     )
 
 

@@ -83,7 +83,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         k for k, v in cls.model_fields.items() if TIME_INVARIANT in v.metadata
     )
 
-  @functools.cached_property
+  @property
   def _direct_submodels(self) -> tuple[Self, ...]:
     """Direct submodels in the model."""
 
@@ -95,8 +95,8 @@ class BaseModelFrozen(pydantic.BaseModel):
     leaves = jax.tree.flatten(self.__dict__, is_leaf=is_leaf)[0]
     return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))
 
-  @functools.cached_property
-  def submodels(self) -> tuple[pydantic.BaseModel, ...]:
+  @property
+  def submodels(self) -> tuple[Self, ...]:
     """A tuple of the model and all submodels.
 
     This will return all Pydantic models directly inside model fields, and
@@ -116,7 +116,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       new_submodels = new_submodels_temp
     return tuple(all_submodels)
 
-  @functools.cached_property
+  @property
   def _has_unique_submodels(self) -> bool:
     """Returns True if all submodels are different instances of models."""
     submodels = self.submodels
@@ -148,7 +148,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         model_tree.paste(id(self), model.tree_build())
     return model_tree
 
-  def _clear_cached_properties(self, exceptions: Sequence[str] | None = None):
+  def clear_cached_properties(self, exceptions: Sequence[str] | None = None):
     """Clears all `functools.cached_property` caches in the model.
 
     Args:
@@ -174,6 +174,9 @@ class BaseModelFrozen(pydantic.BaseModel):
     all ancestral models in the nested tree, as these could have a dependency
     on the updated model. In addition, these nodes will be re-validated.
 
+    If the value to be updated is a field of a Pydantic model, any value
+    conformable to the field type will be accepted.
+
     Args:
       x: A dictionary whose key is a path `'some.path.to.field_name'` and the
         `value` is the new value for `field_name`. The path can be dictionary
@@ -198,6 +201,12 @@ class BaseModelFrozen(pydantic.BaseModel):
             f'Cannot update field {value_name} in {model} as field not found.'
         )
 
+      # If the value is a field of a Pydantic model, validate the value against
+      # the field type annotation.
+      if isinstance(model, pydantic.BaseModel):
+        field_type = model.model_fields[value_name].annotation
+        value = pydantic.TypeAdapter(field_type).validate_python(value)
+
       model.__dict__[value_name] = value
       # Re-validate the model. Will throw an exception if the new value is
       # invalid.
@@ -206,7 +215,7 @@ class BaseModelFrozen(pydantic.BaseModel):
     for model in mutated_models:
       for model_ancestral in model_tree.rsearch(id(model)):
         node = model_tree.get_node(model_ancestral)
-        node.data._clear_cached_properties()  # pylint: disable=protected-access
+        node.data.clear_cached_properties()
 
   def _lookup_path(self, paths: Sequence[str]) -> Self:
     """Returns the model at the given path."""

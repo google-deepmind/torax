@@ -30,7 +30,7 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.sources import runtime_params as sources_params
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.transport_model import runtime_params as transport_model_params
 
@@ -58,7 +58,7 @@ class References:
 def build_consistent_dynamic_runtime_params_slice_and_geometry(
     runtime_params: general_runtime_params.GeneralRuntimeParams,
     geometry_provider: geometry_provider_lib.GeometryProvider,
-    sources: dict[str, sources_params.RuntimeParams] | None = None,
+    sources: sources_pydantic_model.Sources,
     t: chex.Numeric | None = None,
 ) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
   """Builds a consistent Geometry and a DynamicRuntimeParamsSlice."""

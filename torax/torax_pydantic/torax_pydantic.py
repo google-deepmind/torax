@@ -52,5 +52,10 @@ BaseModelFrozen = model_base.BaseModelFrozen
 
 TimeVaryingScalar = interpolated_param_1d.TimeVaryingScalar
 TimeVaryingArray = interpolated_param_2d.TimeVaryingArray
+PositiveTimeVaryingScalar = interpolated_param_1d.PositiveTimeVaryingScalar
+PositiveTimeVaryingArray = interpolated_param_2d.PositiveTimeVaryingArray
 
 ValidatedDefault = functools.partial(pydantic.Field, validate_default=True)
+
+Grid1D = interpolated_param_2d.Grid1D
+set_grid = interpolated_param_2d.set_grid

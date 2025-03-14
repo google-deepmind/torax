@@ -15,15 +15,18 @@
 """Classes and functions for defining interpolated parameters."""
 
 import functools
-from typing import Any
+from typing import Any, TypeAlias
 
+import chex
+import numpy as np
 import pydantic
 from torax import interpolated_param
-from torax.torax_pydantic import interpolated_param_common
+from torax.torax_pydantic import model_base
 from torax.torax_pydantic import pydantic_types
+from typing_extensions import Annotated
 
 
-class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
+class TimeVaryingScalar(model_base.BaseModelFrozen):
   """Base class for time interpolated scalar types.
 
   The Pydantic `.model_validate` constructor can accept a variety of input types
@@ -46,6 +49,24 @@ class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
   interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
   )
+
+  def get_value(self, t: chex.Numeric) -> chex.Array:
+    """Returns the value of this parameter interpolated at x=time.
+
+    Args:
+      t: An array of times to interpolate at.
+
+    Returns:
+      An array of interpolated values.
+    """
+    return self._get_cached_interpolated_param.get_value(t)
+
+  def __eq__(self, other):
+    try:
+      chex.assert_trees_all_equal(vars(self), vars(other))
+      return True
+    except AssertionError:
+      return False
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -75,14 +96,20 @@ class TimeVaryingScalar(interpolated_param_common.TimeVaryingBase):
   def _get_cached_interpolated_param(
       self,
   ) -> interpolated_param.InterpolatedVarSingleAxis:
-    """Interpolates the input param at time t.
-
-    Returns:
-      A constructed interpolated var.
-    """
+    """Interpolates the input param at time t."""
 
     return interpolated_param.InterpolatedVarSingleAxis(
         value=(self.time, self.value),
         interpolation_mode=self.interpolation_mode,
         is_bool_param=self.is_bool_param,
     )
+
+
+def _is_positive(time_varying_scalar: TimeVaryingScalar) -> TimeVaryingScalar:
+  if not np.all(time_varying_scalar.value > 0):
+    raise ValueError('All values must be positive.')
+  return time_varying_scalar
+
+PositiveTimeVaryingScalar: TypeAlias = Annotated[
+    TimeVaryingScalar, pydantic.AfterValidator(_is_positive)
+]

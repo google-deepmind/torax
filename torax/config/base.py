@@ -24,7 +24,7 @@ from typing import Any, Generic, TypeVar
 import chex
 from torax import interpolated_param
 from torax.config import config_args
-from torax.geometry import geometry
+from torax.torax_pydantic import torax_pydantic
 
 DynamicT = TypeVar('DynamicT')
 ProviderT = TypeVar('ProviderT', bound='RuntimeParametersProvider')
@@ -36,7 +36,7 @@ class GridType(enum.Enum):
   CELL = enum.auto()
   FACE = enum.auto()
 
-  def get_mesh(self, torax_mesh: geometry.Grid1D) -> chex.Array:
+  def get_mesh(self, torax_mesh: torax_pydantic.Grid1D) -> chex.Array:
     match self:
       case GridType.CELL:
         return torax_mesh.cell_centers
@@ -64,7 +64,7 @@ class RuntimeParametersConfig(Generic[ProviderT], metaclass=abc.ABCMeta):
     return GridType.CELL
 
   def get_provider_kwargs(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> dict[str, Any]:
     """Returns the kwargs to be passed to the provider constructor.
 
@@ -127,7 +127,7 @@ class RuntimeParametersConfig(Generic[ProviderT], metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def make_provider(
       self,
-      torax_mesh: geometry.Grid1D | None = None,
+      torax_mesh: torax_pydantic.Grid1D | None = None,
   ) -> ProviderT:
     """Builds a RuntimeParamsProvider object from this config.
 

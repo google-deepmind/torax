@@ -22,7 +22,9 @@ from torax.core_profiles import initialization
 from torax.fvm import calc_coeffs
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import runtime_params as source_runtime_params
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
@@ -68,23 +70,28 @@ class CoreProfileSettersTest(parameterized.TestCase):
     pedestal = pedestal_pydantic_model.Pedestal()
     pedestal_model = pedestal.build_pedestal_model()
     transport_model = transport_model_builder()
-    source_models_builder = default_sources.get_default_sources_builder()
-    source_models_builder.runtime_params['qei_source'].Qei_mult = 0.0
-    source_models_builder.runtime_params['generic_ion_el_heat_source'].Ptot = (
+    sources = default_sources.get_default_sources()
+    sources_dict = sources.to_dict()
+    sources_dict = sources_dict['source_model_config']
+    sources_dict['qei_source']['Qei_mult'] = 0.0
+    sources_dict['generic_ion_el_heat_source']['Ptot'] = (
         0.0
     )
-    source_models_builder.runtime_params['fusion_heat_source'].mode = (
+    sources_dict['fusion_heat_source']['mode'] = (
         source_runtime_params.Mode.ZERO
     )
-    source_models_builder.runtime_params['ohmic_heat_source'].mode = (
+    sources_dict['ohmic_heat_source']['mode'] = (
         source_runtime_params.Mode.ZERO
     )
-    source_models = source_models_builder()
+    sources = sources_pydantic_model.Sources.from_dict(sources_dict)
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             transport=transport_model_builder.runtime_params,
-            sources=source_models_builder.runtime_params,
+            sources=sources,
             stepper=stepper_params,
             pedestal=pedestal,
             torax_mesh=geo.torax_mesh,
@@ -95,7 +102,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
             runtime_params=runtime_params,
-            source_runtime_params=source_models_builder.runtime_params,
+            sources=sources,
             torax_mesh=geo.torax_mesh,
             stepper=stepper_params,
         )

@@ -24,7 +24,6 @@ from torax.config import base
 from torax.config import numerics as numerics_lib
 from torax.config import plasma_composition as plasma_composition_lib
 from torax.config import profile_conditions as profile_conditions_lib
-from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
 from typing_extensions import override
 
@@ -88,7 +87,7 @@ class GeneralRuntimeParams(base.RuntimeParametersConfig):
   output_dir: str | None = None
 
   def make_provider(
-      self, torax_mesh: geometry.Grid1D | None = None
+      self, torax_mesh: torax_pydantic.Grid1D | None = None
   ) -> GeneralRuntimeParamsProvider:
     return GeneralRuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
