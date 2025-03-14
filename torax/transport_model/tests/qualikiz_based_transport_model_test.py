@@ -31,6 +31,7 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import quasilinear_transport_model
 
@@ -223,7 +224,9 @@ class FakeQualikizBasedTransportModel(
 
 
 # pylint: disable=invalid-name
-class QualikizBasedTransportModelConfig(transport_pydantic_model.TransportBase):
+class QualikizBasedTransportModelConfig(
+    transport_pydantic_model_base.TransportBase
+):
   """Model for the Qualikiz-based transport model.
 
   Attributes:

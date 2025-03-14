@@ -44,6 +44,7 @@ from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import transport_model as transport_model_lib
 
 
@@ -275,7 +276,7 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
     )
 
 
-class FakeTransportConfig(transport_pydantic_model.TransportBase):
+class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
   """Fake transport config for a model that always returns zeros."""
   transport_model: Literal['fake'] = 'fake'
 
