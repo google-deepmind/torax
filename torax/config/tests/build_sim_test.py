@@ -20,7 +20,6 @@ from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import qlknn_transport_model
 
@@ -147,35 +146,6 @@ class BuildSimTest(parameterized.TestCase):
   def test_unknown_stepper_type_raises_error(self):
     with self.assertRaises(ValueError):
       stepper_pydantic_model.Stepper.from_dict({'stepper_type': 'foo'})
-
-  def test_missing_time_step_calculator_type_raises_error(self):
-    with self.assertRaises(ValueError):
-      build_sim.build_time_step_calculator_from_config({})
-
-  def test_unknown_time_step_calculator_type_raises_error(self):
-    with self.assertRaises(ValueError):
-      build_sim.build_time_step_calculator_from_config({'calculator_type': 'x'})
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='fixed',
-          calculator_type='fixed',
-          expected_type=fixed_time_step_calculator.FixedTimeStepCalculator,
-      ),
-      dict(
-          testcase_name='chi',
-          calculator_type='chi',
-          expected_type=chi_time_step_calculator.ChiTimeStepCalculator,
-      ),
-  )
-  def test_build_time_step_calculator_from_config(
-      self, calculator_type, expected_type
-  ):
-    """Builds a time step calculator from the config."""
-    time_stepper = build_sim.build_time_step_calculator_from_config(
-        calculator_type
-    )
-    self.assertIsInstance(time_stepper, expected_type)
 
 
 if __name__ == '__main__':
