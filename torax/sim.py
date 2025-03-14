@@ -590,7 +590,11 @@ def _run_simulation(
 
   sim_state = initial_state
   sim_history = []
-  sim_state = post_processing.make_outputs(sim_state=sim_state, geo=geo)
+  sim_state = post_processing.make_outputs(
+      sim_state=sim_state, 
+      geo=geo,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice
+  )
   sim_history.append(sim_state)
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to

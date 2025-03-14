@@ -532,6 +532,7 @@ class SimulationStepFn:
     output_state = post_processing.make_outputs(
         sim_state=output_state,
         geo=geo_t_plus_dt,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
         previous_sim_state=input_state,
     )
 

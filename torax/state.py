@@ -321,6 +321,8 @@ class PostProcessedOutputs:
     P_external_el: Total external electron heating power: auxiliary heating +
       Ohmic [W]
     P_external_tot: Total external heating power: auxiliary heating + Ohmic [W]
+    P_external_injected: Total external injected power: auxiliary heating + Ohmic
+      [W]
     P_ei_exchange_ion: Electron-ion heat exchange power to ions [W]
     P_ei_exchange_el: Electron-ion heat exchange power to electrons [W]
     P_generic_ion: Total generic_ion_el_heat_source power to ions [W]
@@ -360,6 +362,7 @@ class PostProcessedOutputs:
     q95: q at 95% of the normalized poloidal flux
     Wpol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]
+    P_generic_injected: Total injected power before absorption [W]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -387,6 +390,7 @@ class PostProcessedOutputs:
   P_external_ion: array_typing.ScalarFloat
   P_external_el: array_typing.ScalarFloat
   P_external_tot: array_typing.ScalarFloat
+  P_external_injected: array_typing.ScalarFloat
   P_ei_exchange_ion: array_typing.ScalarFloat
   P_ei_exchange_el: array_typing.ScalarFloat
   P_generic_ion: array_typing.ScalarFloat
@@ -423,6 +427,7 @@ class PostProcessedOutputs:
   q95: array_typing.ScalarFloat
   Wpol: array_typing.ScalarFloat
   li3: array_typing.ScalarFloat
+  P_generic_injected: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -450,6 +455,7 @@ class PostProcessedOutputs:
         P_external_ion=jnp.array(0.0),
         P_external_el=jnp.array(0.0),
         P_external_tot=jnp.array(0.0),
+        P_external_injected=jnp.array(0.0),
         P_ei_exchange_ion=jnp.array(0.0),
         P_ei_exchange_el=jnp.array(0.0),
         P_generic_ion=jnp.array(0.0),
@@ -486,6 +492,7 @@ class PostProcessedOutputs:
         q95=jnp.array(0.0),
         Wpol=jnp.array(0.0),
         li3=jnp.array(0.0),
+        P_generic_injected=jnp.array(0.0),
     )
 
 
