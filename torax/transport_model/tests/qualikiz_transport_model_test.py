@@ -26,6 +26,7 @@ from torax.pedestal_model import pedestal_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
 # pylint: disable=g-import-not-at-top
@@ -36,17 +37,6 @@ try:
 except ImportError:
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
 # pylint: enable=g-import-not-at-top
-
-
-class RuntimeParamsTest(absltest.TestCase):
-
-  def test_runtime_params_builds_dynamic_params(self):
-    if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
-      self.skipTest('Qualikiz transport model is not available.')
-    runtime_params = qualikiz_transport_model.RuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
 
 
 class QualikizTransportModelTest(absltest.TestCase):
@@ -69,7 +59,9 @@ class QualikizTransportModelTest(absltest.TestCase):
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
             torax_mesh=geo.torax_mesh,
-            transport=qualikiz_transport_model.RuntimeParams(),
+            transport=transport_pydantic_model.Transport.from_dict(
+                {'transport_model': 'qualikiz'}
+            ),
             sources=sources,
         )(
             t=runtime_params.numerics.t_initial,

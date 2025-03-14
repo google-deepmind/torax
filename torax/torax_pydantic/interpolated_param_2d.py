@@ -394,12 +394,21 @@ def set_grid(
   """
 
   def _update_rule(submodel):
+    # The update API assumes all submodels are unique objects. Construct
+    # a new Grid1D object (without validation) to ensure this. We do reuse
+    # the same NumPy arrays.
+    new_grid = Grid1D.model_construct(
+        nx=grid.nx,
+        dx=grid.dx,
+        face_centers=grid.face_centers,
+        cell_centers=grid.cell_centers,
+    )
     if submodel.grid is None:
-      submodel.__dict__['grid'] = grid
+      submodel.__dict__['grid'] = new_grid
     else:
       match mode:
         case 'force':
-          submodel.__dict__['grid'] = grid
+          submodel.__dict__['grid'] = new_grid
         case 'relaxed':
           pass
         case 'strict':

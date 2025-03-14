@@ -34,7 +34,7 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.torax_pydantic import torax_pydantic
-from torax.transport_model import runtime_params as transport_model_params
+from torax.transport_model import pydantic_model as transport_model_pydantic_model
 
 
 def build_static_runtime_params_slice(
@@ -143,7 +143,7 @@ class DynamicRuntimeParamsSliceProvider:
       self,
       runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
       pedestal: pedestal_pydantic_model.Pedestal | None = None,
-      transport: transport_model_params.RuntimeParams | None = None,
+      transport: transport_model_pydantic_model.Transport | None = None,
       sources: sources_pydantic_model.Sources | None = None,
       stepper: stepper_pydantic_model.Stepper | None = None,
       torax_mesh: torax_pydantic.Grid1D | None = None,
@@ -164,7 +164,9 @@ class DynamicRuntimeParamsSliceProvider:
         construct any rho interpolated values, this can be None, else an error
         will be raised within the constructor of the interpolated variable.
     """
-    transport = transport or transport_model_params.RuntimeParams()
+    transport = transport or transport_model_pydantic_model.Transport.from_dict(
+        {'transport_model': 'qlknn'}
+    )
     sources = sources or sources_pydantic_model.Sources()
     stepper = stepper or stepper_pydantic_model.Stepper()
     pedestal = pedestal or pedestal_pydantic_model.Pedestal()
@@ -172,7 +174,7 @@ class DynamicRuntimeParamsSliceProvider:
     self._torax_mesh = torax_mesh
     self._sources = sources
     self._runtime_params = runtime_params
-    self._transport_runtime_params = transport
+    self._transport_model = transport
     self._stepper = stepper
     self._pedestal = pedestal
     self._construct_providers()
@@ -204,9 +206,6 @@ class DynamicRuntimeParamsSliceProvider:
     self._runtime_params_provider = self._runtime_params.make_provider(
         self._torax_mesh
     )
-    self._transport_runtime_params_provider = (
-        self._transport_runtime_params.make_provider(self._torax_mesh)
-    )
 
   def __call__(
       self,
@@ -217,9 +216,7 @@ class DynamicRuntimeParamsSliceProvider:
         self._runtime_params_provider.build_dynamic_params(t)
     )
     return runtime_params_slice.DynamicRuntimeParamsSlice(
-        transport=self._transport_runtime_params_provider.build_dynamic_params(
-            t
-        ),
+        transport=self._transport_model.build_dynamic_params(t),
         stepper=self._stepper.build_dynamic_params,
         sources={
             source_name: input_source_config.build_dynamic_params(t)

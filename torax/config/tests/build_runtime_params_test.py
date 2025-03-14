@@ -29,7 +29,7 @@ from torax.sources import pellet_source as pellet_source_lib
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
-from torax.transport_model import runtime_params as transport_params_lib
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
 class RuntimeParamsSliceTest(parameterized.TestCase):
@@ -47,7 +47,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
+        transport=transport_pydantic_model.Transport(),
         sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
@@ -234,7 +234,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     )
     dcs_provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
         sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
@@ -501,7 +500,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   ):
     """Tests that the dynamic slice provider can be updated."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    transport = transport_params_lib.RuntimeParams(De_inner=1.0)
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'De_inner': 1.0, 'transport_model': 'constant'}
+    )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
@@ -514,7 +515,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     self.assertEqual(dcs.transport.De_inner, 1.0)
 
     # Update something in transport.
-    transport.De_inner = 2.0
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'De_inner': 2.0, 'transport_model': 'constant'}
+    )
     # Check pre-update that nothing has changed.
     dcs = provider(
         t=0.0,

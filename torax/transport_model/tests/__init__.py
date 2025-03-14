@@ -12,19 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import absltest
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.transport_model import constant
-
-
-class RuntimeParamsTest(absltest.TestCase):
-
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = constant.RuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
-
-
-if __name__ == '__main__':
-  absltest.main()
+"""Transport model tests."""

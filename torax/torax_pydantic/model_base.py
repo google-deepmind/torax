@@ -83,7 +83,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         k for k, v in cls.model_fields.items() if TIME_INVARIANT in v.metadata
     )
 
-  @functools.cached_property
+  @property
   def _direct_submodels(self) -> tuple[Self, ...]:
     """Direct submodels in the model."""
 
@@ -92,10 +92,14 @@ class BaseModelFrozen(pydantic.BaseModel):
         return False
       return True
 
-    leaves = jax.tree.flatten(self.__dict__, is_leaf=is_leaf)[0]
+    # Exclude non-field values in __dict__, such as cached_properties.
+    leaves = {k: self.__dict__[k] for k in self.model_fields.keys()}
+    # Some Pydantic models are values of a dict. We flatten the tree to access
+    # them.
+    leaves = jax.tree.flatten(leaves, is_leaf=is_leaf)[0]
     return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))
 
-  @functools.cached_property
+  @property
   def submodels(self) -> tuple[Self, ...]:
     """A tuple of the model and all submodels.
 
@@ -116,7 +120,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       new_submodels = new_submodels_temp
     return tuple(all_submodels)
 
-  @functools.cached_property
+  @property
   def _has_unique_submodels(self) -> bool:
     """Returns True if all submodels are different instances of models."""
     submodels = self.submodels
@@ -168,7 +172,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         del self.__dict__[p]
 
   def _update_fields(self, x: Mapping[str, Any]):
-    """Safely update fields in the config.
+    """Safely update fields a nested BaseModelFrozen.
 
     This method will invalidate all `functools.cached_property` caches of
     all ancestral models in the nested tree, as these could have a dependency
@@ -191,22 +195,21 @@ class BaseModelFrozen(pydantic.BaseModel):
     mutated_models = []
 
     for path, value in x.items():
-      path = path.split('.')
-      value_name = path.pop()
-      model = self._lookup_path(path)
+      path_split = path.split('.')
+      value_name = path_split.pop()
+      model = self._lookup_path(path_split)
       mutated_models.append(model)
-      # Mutate even frozen models.
-      if value_name not in model.__dict__:
+
+      if not isinstance(model, BaseModelFrozen) or (
+          value_name not in model.model_fields
+      ):
         raise ValueError(
-            f'Cannot update field {value_name} in {model} as field not found.'
+            f'The path {path} is does not refer to a field of a Pydantic'
+            ' BaseModelFrozen model.'
         )
-
-      # If the value is a field of a Pydantic model, validate the value against
-      # the field type annotation.
-      if isinstance(model, pydantic.BaseModel):
-        field_type = model.model_fields[value_name].annotation
-        value = pydantic.TypeAdapter(field_type).validate_python(value)
-
+      assert value_name in model.__dict__
+      field_type = model.model_fields[value_name].annotation
+      value = pydantic.TypeAdapter(field_type).validate_python(value)
       model.__dict__[value_name] = value
       # Re-validate the model. Will throw an exception if the new value is
       # invalid.
@@ -222,6 +225,11 @@ class BaseModelFrozen(pydantic.BaseModel):
     value = self
     for path in paths:
       if isinstance(value, BaseModelFrozen):
+        if path not in value.model_fields:
+          raise ValueError(
+              f'The path {".".join(paths)} is does not refer to a field of a'
+              ' Pydantic BaseModelFrozen model.'
+          )
         value = getattr(value, path)
       elif isinstance(value, dict):
         value = value[path]
