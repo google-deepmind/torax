@@ -239,33 +239,44 @@ class CoreTransport:
   transport_model/ folder for more info.
 
   NOTE: The naming of this class is inspired by the IMAS `core_transport` IDS,
-  but it's schema is not a 1:1 mapping to that IDS.
+  but its schema is not a 1:1 mapping to that IDS.
 
   Attributes:
     chi_face_ion: Ion heat conductivity, on the face grid.
     chi_face_el: Electron heat conductivity, on the face grid.
     d_face_el: Diffusivity of electron density, on the face grid.
     v_face_el: Convection strength of electron density, on the face grid.
+    chi_e_bohm: (Optional) Bohm contribution for electron heat conductivity.
+    chi_e_gyrobohm: (Optional) GyroBohm contribution for electron heat conductivity.
+    chi_i_bohm: (Optional) Bohm contribution for ion heat conductivity.
+    chi_i_gyrobohm: (Optional) GyroBohm contribution for ion heat conductivity.
   """
-
   chi_face_ion: jax.Array
   chi_face_el: jax.Array
   d_face_el: jax.Array
   v_face_el: jax.Array
+  chi_e_bohm: Optional[jax.Array] = None
+  chi_e_gyrobohm: Optional[jax.Array] = None
+  chi_i_bohm: Optional[jax.Array] = None
+  chi_i_gyrobohm: Optional[jax.Array] = None
+
+  def __post_init__(self):
+    # Use the shape of chi_face_el as a reference.
+    shape = self.chi_face_el.shape
+    if self.chi_e_bohm is None:
+      object.__setattr__(self, 'chi_e_bohm', jnp.zeros(shape))
+    if self.chi_e_gyrobohm is None:
+      object.__setattr__(self, 'chi_e_gyrobohm', jnp.zeros(shape))
+    if self.chi_i_bohm is None:
+      object.__setattr__(self, 'chi_i_bohm', jnp.zeros(shape))
+    if self.chi_i_gyrobohm is None:
+      object.__setattr__(self, 'chi_i_gyrobohm', jnp.zeros(shape))
 
   def chi_max(
       self,
       geo: geometry.Geometry,
   ) -> jax.Array:
-    """Calculates the maximum value of chi.
-
-    Args:
-      geo: Geometry of the torus.
-
-    Returns:
-      chi_max: Maximum value of chi.
-    """
-
+    """Calculates the maximum value of chi."""
     return jnp.maximum(
         jnp.max(self.chi_face_ion * geo.g1_over_vpr2_face),
         jnp.max(self.chi_face_el * geo.g1_over_vpr2_face),
@@ -274,12 +285,18 @@ class CoreTransport:
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> CoreTransport:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
+    shape = geo.rho_face.shape
     return cls(
-        chi_face_ion=jnp.zeros(geo.rho_face.shape),
-        chi_face_el=jnp.zeros(geo.rho_face.shape),
-        d_face_el=jnp.zeros(geo.rho_face.shape),
-        v_face_el=jnp.zeros(geo.rho_face.shape),
+        chi_face_ion=jnp.zeros(shape),
+        chi_face_el=jnp.zeros(shape),
+        d_face_el=jnp.zeros(shape),
+        v_face_el=jnp.zeros(shape),
+        chi_e_bohm=jnp.zeros(shape),
+        chi_e_gyrobohm=jnp.zeros(shape),
+        chi_i_bohm=jnp.zeros(shape),
+        chi_i_gyrobohm=jnp.zeros(shape),
     )
+
 
 
 @chex.dataclass(frozen=True, eq=False)
