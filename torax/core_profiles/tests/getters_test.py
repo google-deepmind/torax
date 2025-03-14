@@ -182,7 +182,9 @@ class GettersTest(parameterized.TestCase):
 
     np.testing.assert_allclose(np.mean(ne_normalized.value), nbar, rtol=1e-1)
 
-    runtime_params.profile_conditions.normalize_to_nbar = False
+    runtime_params._update_fields(
+        {'profile_conditions.normalize_to_nbar': False}
+    )
     dynamic_runtime_params_slice_unnormalized = provider(
         t=1.0,
     )
@@ -230,7 +232,7 @@ class GettersTest(parameterized.TestCase):
         self.geo,
     )
 
-    runtime_params.profile_conditions.ne_is_fGW = False
+    runtime_params._update_fields({'profile_conditions.ne_is_fGW': False})
     dynamic_runtime_params_slice = provider(
         t=1.0,
     )

@@ -14,17 +14,12 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import numpy as np
-from torax.config import build_runtime_params
 from torax.config import build_sim
-from torax.config import runtime_params as runtime_params_lib
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import runtime_params as source_runtime_params_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.transport_model import qlknn_transport_model
 
@@ -131,60 +126,6 @@ class BuildSimTest(parameterized.TestCase):
           fixed_time_step_calculator.FixedTimeStepCalculator,
       )
 
-  def test_build_runtime_params_from_empty_config(self):
-    """An empty config should return all defaults."""
-    runtime_params = build_sim.build_runtime_params_from_config({})
-    defaults = runtime_params_lib.GeneralRuntimeParams()
-    self.assertEqual(runtime_params, defaults)
-
-  def test_build_runtime_params_raises_error_with_incorrect_args(self):
-    """If an incorrect key is provided, an error should be raised."""
-    with self.assertRaises(KeyError):
-      build_sim.build_runtime_params_from_config({'incorrect_key': 'value'})
-
-  def test_general_runtime_params_with_time_dependent_args(self):
-    """Tests that we can build all types of attributes in the runtime params."""
-    runtime_params = build_sim.build_runtime_params_from_config({
-        'plasma_composition': {
-            'main_ion': 'D',
-            'Zeff': {
-                0: {0: 0.1, 1: 0.1},
-                1: {0: 0.2, 1: 0.2},
-                2: {0: 0.3, 1: 0.3},
-            },  # time-dependent with constant radial profile.
-        },
-        'profile_conditions': {
-            'ne_is_fGW': False,  # scalar fields.
-            'Ip_tot': {0: 0.2, 1: 0.4, 2: 0.6},  # time-dependent.
-        },
-        'numerics': {
-            # Designate the interpolation mode, as well, setting to "step".
-            'resistivity_mult': ({0: 0.3, 1: 0.6, 2: 0.9}, 'step'),
-        },
-        'output_dir': '/tmp/this/is/a/test',
-    })
-    self.assertEqual(runtime_params.plasma_composition.main_ion, 'D')
-    self.assertEqual(runtime_params.profile_conditions.ne_is_fGW, False)
-    self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            torax_mesh=geo.torax_mesh,
-        )(
-            t=1.5,
-        )
-    )
-    np.testing.assert_allclose(
-        dynamic_runtime_params_slice.plasma_composition.Zeff, 0.25
-    )
-    np.testing.assert_allclose(
-        dynamic_runtime_params_slice.profile_conditions.Ip_tot, 0.5
-    )
-    np.testing.assert_allclose(
-        dynamic_runtime_params_slice.numerics.resistivity_mult, 0.6
-    )
-
   def test_empty_source_config_only_has_defaults_turned_off(self):
     """Tests that an empty source config has all sources turned off."""
     sources = sources_pydantic_model.Sources.from_dict({})
@@ -205,35 +146,6 @@ class BuildSimTest(parameterized.TestCase):
   def test_unknown_stepper_type_raises_error(self):
     with self.assertRaises(ValueError):
       stepper_pydantic_model.Stepper.from_dict({'stepper_type': 'foo'})
-
-  def test_missing_time_step_calculator_type_raises_error(self):
-    with self.assertRaises(ValueError):
-      build_sim.build_time_step_calculator_from_config({})
-
-  def test_unknown_time_step_calculator_type_raises_error(self):
-    with self.assertRaises(ValueError):
-      build_sim.build_time_step_calculator_from_config({'calculator_type': 'x'})
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='fixed',
-          calculator_type='fixed',
-          expected_type=fixed_time_step_calculator.FixedTimeStepCalculator,
-      ),
-      dict(
-          testcase_name='chi',
-          calculator_type='chi',
-          expected_type=chi_time_step_calculator.ChiTimeStepCalculator,
-      ),
-  )
-  def test_build_time_step_calculator_from_config(
-      self, calculator_type, expected_type
-  ):
-    """Builds a time step calculator from the config."""
-    time_stepper = build_sim.build_time_step_calculator_from_config(
-        calculator_type
-    )
-    self.assertIsInstance(time_stepper, expected_type)
 
 
 if __name__ == '__main__':

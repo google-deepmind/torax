@@ -49,9 +49,9 @@ def build_static_runtime_params_slice(
   Args:
     runtime_params: General runtime params from which static params are taken,
       which are the choices on equations being solved, and adaptive dt.
-    sources: data from which the source related static variables
-      are taken, which are the explicit/implicit toggle and calculation mode for
-      each source.
+    sources: data from which the source related static variables are taken,
+      which are the explicit/implicit toggle and calculation mode for each
+      source.
     torax_mesh: The torax mesh, e.g. the grid used to construct the geometry.
       This is static for the entire simulation and any modification implies
       changed array sizes, and hence would require a recompilation. Useful to
@@ -164,6 +164,7 @@ class DynamicRuntimeParamsSliceProvider:
         construct any rho interpolated values, this can be None, else an error
         will be raised within the constructor of the interpolated variable.
     """
+    torax_pydantic.set_grid(runtime_params, torax_mesh, mode='relaxed')
     transport = transport or transport_model_pydantic_model.Transport.from_dict(
         {'transport_model': 'qlknn'}
     )
@@ -177,7 +178,6 @@ class DynamicRuntimeParamsSliceProvider:
     self._transport_model = transport
     self._stepper = stepper
     self._pedestal = pedestal
-    self._construct_providers()
 
   @property
   def sources(self) -> sources_pydantic_model.Sources:
@@ -195,25 +195,13 @@ class DynamicRuntimeParamsSliceProvider:
           'New dynamic runtime params slice provider has different sources.'
       )
 
-  @property
-  def runtime_params_provider(
-      self,
-  ) -> general_runtime_params_lib.GeneralRuntimeParamsProvider:
-    return self._runtime_params_provider
-
-  def _construct_providers(self):
-    """Construct the providers that will give us the dynamic params."""
-    self._runtime_params_provider = self._runtime_params.make_provider(
-        self._torax_mesh
-    )
-
   def __call__(
       self,
       t: chex.Numeric,
   ) -> runtime_params_slice.DynamicRuntimeParamsSlice:
     """Returns a runtime_params_slice.DynamicRuntimeParamsSlice to use during time t of the sim."""
-    dynamic_general_runtime_params = (
-        self._runtime_params_provider.build_dynamic_params(t)
+    dynamic_general_runtime_params = self._runtime_params.build_dynamic_params(
+        t
     )
     return runtime_params_slice.DynamicRuntimeParamsSlice(
         transport=self._transport_model.build_dynamic_params(t),

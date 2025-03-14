@@ -32,7 +32,6 @@ import jax
 import torax
 from torax import sim as sim_lib
 from torax import simulation_app
-from torax.config import build_sim
 from torax.config import config_loader
 from torax.config import runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
@@ -252,7 +251,7 @@ def change_config(
         ' Please use the basic config dict to build Sim.'
     )
   sim_config = config_module.CONFIG
-  new_runtime_params = build_sim.build_runtime_params_from_config(
+  new_runtime_params = runtime_params.GeneralRuntimeParams.from_dict(
       sim_config['runtime_params']
   )
   new_geo_provider = geometry_pydantic_model.Geometry.from_dict(

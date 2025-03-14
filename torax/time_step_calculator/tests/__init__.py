@@ -12,21 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import absltest
-from absl.testing import parameterized
-from torax.config import numerics
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.torax_pydantic import torax_pydantic
-
-
-class NumericsTest(parameterized.TestCase):
-
-  def test_numerics_build_dynamic_params(self):
-    nums = numerics.Numerics()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    torax_pydantic.set_grid(nums, geo.torax_mesh)
-    nums.build_dynamic_params(t=0.0)
-
-
-if __name__ == "__main__":
-  absltest.main()
+"""Time step calculator tests."""

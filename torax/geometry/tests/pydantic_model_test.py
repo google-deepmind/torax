@@ -155,7 +155,7 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
     self.assertIsNotNone(dynamic_slice)
     self.assertNotEqual(
-        dynamic_slice.profile_conditions.Ip_tot, original_Ip_tot
+        dynamic_slice.profile_conditions.Ip_tot, original_Ip_tot.value[0]
     )
     # pylint: enable=invalid-name
 

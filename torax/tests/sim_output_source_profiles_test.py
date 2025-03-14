@@ -113,8 +113,8 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         sources=sources.source_model_config
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    runtime_params.numerics.t_final = 2.0
-    runtime_params.numerics.fixed_dt = 1.0
+    runtime_params._update_fields({'numerics.t_final': 2.0})
+    runtime_params._update_fields({'numerics.fixed_dt': 1.0})
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     time_stepper = fixed_time_step_calculator.FixedTimeStepCalculator()
 

@@ -150,8 +150,12 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
   def __eq__(self, other: Self):
     try:
-      chex.assert_trees_all_equal(vars(self), vars(other))
-      return True
+      chex.assert_trees_all_equal(self.value, other.value)
+      return (
+          self.rho_interpolation_mode == other.rho_interpolation_mode
+          and self.time_interpolation_mode == other.time_interpolation_mode
+          and self.grid == other.grid
+      )
     except AssertionError:
       return False
 
