@@ -14,38 +14,18 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax import interpolated_param
 from torax.config import numerics
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.torax_pydantic import torax_pydantic
 
 
 class NumericsTest(parameterized.TestCase):
 
-  def test_numerics_make_provider(self):
+  def test_numerics_build_dynamic_params(self):
     nums = numerics.Numerics()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = nums.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
-
-  def test_interpolated_vars_are_only_constructed_once(
-      self,
-  ):
-    """Tests that interpolated vars are only constructed once."""
-    nums = numerics.Numerics()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = nums.make_provider(geo.torax_mesh)
-    interpolated_params = {}
-    for field in provider:
-      value = getattr(provider, field)
-      if isinstance(value, interpolated_param.InterpolatedParamBase):
-        interpolated_params[field] = value
-
-    # Check we don't make any additional calls to construct interpolated vars.
-    provider.build_dynamic_params(t=1.0)
-    for field in provider:
-      value = getattr(provider, field)
-      if isinstance(value, interpolated_param.InterpolatedParamBase):
-        self.assertIs(value, interpolated_params[field])
+    torax_pydantic.set_grid(nums, geo.torax_mesh)
+    nums.build_dynamic_params(t=0.0)
 
 
 if __name__ == "__main__":

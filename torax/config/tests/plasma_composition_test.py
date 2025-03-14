@@ -15,20 +15,21 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax import interpolated_param
+import pydantic
 from torax.config import plasma_composition
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.physics import charge_states
+from torax.torax_pydantic import torax_pydantic
 
 
 class PlasmaCompositionTest(parameterized.TestCase):
 
-  def test_plasma_composition_make_provider(self):
+  def test_plasma_composition_build_dynamic_params(self):
     """Checks provider construction with no issues."""
     pc = plasma_composition.PlasmaComposition()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = pc.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    pc.build_dynamic_params(t=0.0)
 
   @parameterized.parameters(
       (1.0,),
@@ -39,8 +40,8 @@ class PlasmaCompositionTest(parameterized.TestCase):
     """Tests that zeff accepts a single float input."""
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     pc = plasma_composition.PlasmaComposition(Zeff=zeff)
-    provider = pc.make_provider(geo.torax_mesh)
-    dynamic_pc = provider.build_dynamic_params(t=0.0)
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    dynamic_pc = pc.build_dynamic_params(t=0.0)
     # Check that the values in both Zeff and Zeff_face are the same
     # and consistent with the zeff float input
     np.testing.assert_allclose(
@@ -62,10 +63,10 @@ class PlasmaCompositionTest(parameterized.TestCase):
 
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     pc = plasma_composition.PlasmaComposition(Zeff=zeff_profile)
-    provider = pc.make_provider(geo.torax_mesh)
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
 
     # Check values at t=0.0
-    dynamic_pc = provider.build_dynamic_params(t=0.0)
+    dynamic_pc = pc.build_dynamic_params(t=0.0)
     expected_zeff = np.interp(
         geo.rho_norm,
         np.array(list(zeff_profile[0.0])),
@@ -80,7 +81,7 @@ class PlasmaCompositionTest(parameterized.TestCase):
     np.testing.assert_allclose(dynamic_pc.Zeff_face, expected_zeff_face)
 
     # Check values at t=0.5 (interpolated in time)
-    dynamic_pc = provider.build_dynamic_params(t=0.5)
+    dynamic_pc = pc.build_dynamic_params(t=0.5)
     expected_zeff = np.interp(
         geo.rho_norm,
         np.array([0.0, 0.5, 1.0]),
@@ -93,26 +94,6 @@ class PlasmaCompositionTest(parameterized.TestCase):
     )
     np.testing.assert_allclose(dynamic_pc.Zeff, expected_zeff)
     np.testing.assert_allclose(dynamic_pc.Zeff_face, expected_zeff_face)
-
-  def test_interpolated_vars_are_only_constructed_once(
-      self,
-  ):
-    """Tests that interpolated vars are only constructed once."""
-    pc = plasma_composition.PlasmaComposition()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = pc.make_provider(geo.torax_mesh)
-    interpolated_params = {}
-    for field in provider:
-      value = getattr(provider, field)
-      if isinstance(value, interpolated_param.InterpolatedParamBase):
-        interpolated_params[field] = value
-
-    # Check we don't make any additional calls to construct interpolated vars.
-    provider.build_dynamic_params(t=1.0)
-    for field in provider:
-      value = getattr(provider, field)
-      if isinstance(value, interpolated_param.InterpolatedParamBase):
-        self.assertIs(value, interpolated_params[field])
 
   def test_get_ion_names(self):
     # Test the get_ion_names method
@@ -154,18 +135,19 @@ class IonMixtureTest(parameterized.TestCase):
       ),
       ('valid_tolerance', {'D': 0.49999999, 'T': 0.5}, False),
       ('invalid_tolerance', {'D': 0.4999, 'T': 0.5}, True),
-      ('invalid_not_mapping', 'D', True),
       ('invalid_ion_symbol', {'De': 0.5, 'Tr': 0.5}, True),
   )
   def test_ion_mixture_constructor(self, input_species, should_raise):
     """Tests various cases of IonMixture construction."""
-    if should_raise:
-      with self.assertRaises(ValueError):
-        plasma_composition.IonMixture(species=input_species)
-    else:
-      plasma_composition.IonMixture(species=input_species)
 
-  # pylint: disable=invalid-name
+    if should_raise:
+      with self.assertRaises(pydantic.ValidationError):
+        plasma_composition.IonMixture.model_validate({'species': input_species})
+    else:
+      plasma_composition.IonMixture.model_validate({'species': input_species})
+
+  # pylint: disable = invalid-name
+
   @parameterized.named_parameters(
       ('D_constant', {'D': 1.0}, 0.0, 1.0, 2.0141),
       ('T_constant', {'T': 1.0}, 0.0, 1.0, 3.016),
@@ -188,12 +170,12 @@ class IonMixtureTest(parameterized.TestCase):
   )
   def test_ion_mixture_averaging(self, species, time, expected_Z, expected_A):
     """Tests the averaging of Z and A for different mixtures."""
-
-    mixture = plasma_composition.IonMixture(species=species)
-    provider = mixture.make_provider()
-    dynamic_mixture = provider.build_dynamic_params(time)
+    mixture = plasma_composition.IonMixture.model_validate(
+        dict(species=species)
+    )
+    dynamic_mixture = mixture.build_dynamic_params(time)
     calculated_Z = charge_states.get_average_charge_state(
-        ion_symbols=tuple(species.keys()),
+        ion_symbols=tuple(species.keys()),  # pytype: disable=attribute-error
         ion_mixture=dynamic_mixture,
         Te=np.array(10.0),  # Ensure that all ions in test are fully ionized
     )
@@ -209,13 +191,14 @@ class IonMixtureTest(parameterized.TestCase):
   def test_ion_mixture_override(self, Z_override, A_override, Z, A):
     """Tests overriding the automatic Z/A averaging."""
 
-    mixture = plasma_composition.IonMixture(
-        species={'D': {0: 1.0}},
-        Z_override=Z_override,
-        A_override=A_override,
+    mixture = plasma_composition.IonMixture.model_validate(
+        dict(
+            species={'D': {0: 1.0}},
+            Z_override=Z_override,
+            A_override=A_override,
+        )
     )
-    provider = mixture.make_provider()
-    dynamic_mixture = provider.build_dynamic_params(t=0.0)
+    dynamic_mixture = mixture.build_dynamic_params(t=0.0)
     calculated_Z = charge_states.get_average_charge_state(
         ion_symbols=tuple(mixture.species.keys()),
         ion_mixture=dynamic_mixture,
@@ -226,22 +209,29 @@ class IonMixtureTest(parameterized.TestCase):
     np.testing.assert_allclose(calculated_Z, Z_expected)
     np.testing.assert_allclose(dynamic_mixture.avg_A, A_expected)
 
-  def test_from_config(self):
+  def test_model_validate(self):
     """Test that IonMixture.from_config behaves as expected."""
     # Single ion.
-    mixture = plasma_composition.IonMixture.from_config('D')
-    self.assertEqual(mixture.species, {'D': 1.0})
+    mixture = plasma_composition.IonMixture.model_validate({'species': 'D'})
+    self.assertEqual(
+        mixture.species,
+        {'D': torax_pydantic.TimeVaryingScalar.model_validate(1.0)},
+    )
 
     # Multiple ions.
-    mixture = plasma_composition.IonMixture.from_config({'D': 0.6, 'T': 0.4})
+    mixture = plasma_composition.IonMixture.model_validate(
+        dict(species={'D': 0.6, 'T': 0.4})
+    )
     self.assertEqual(set(mixture.species.keys()), {'D', 'T'})
 
     # Check overrides.
-    mixture = plasma_composition.IonMixture.from_config(
-        'D', Z_override=1.2, A_override=2.4
+    z = torax_pydantic.TimeVaryingScalar.model_validate(1.2)
+    a = torax_pydantic.TimeVaryingScalar.model_validate(2.4)
+    mixture = plasma_composition.IonMixture.model_validate(
+        dict(species='D', Z_override=1.2, A_override=2.4)
     )
-    self.assertEqual(mixture.Z_override, 1.2)
-    self.assertEqual(mixture.A_override, 2.4)
+    self.assertEqual(mixture.Z_override, z)
+    self.assertEqual(mixture.A_override, a)
 
   # pylint: enable=invalid-name
 

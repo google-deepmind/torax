@@ -44,7 +44,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
   # TODO(b/401187494): Flatten the runtime_params config, is this nesting
   # doesn't add much value.
-  runtime_params: general_runtime_params.RuntimeParams
+  runtime_params: general_runtime_params.GeneralRuntimeParams
   geometry: geometry_pydantic_model.Geometry
   pedestal: pedestal_pydantic_model.Pedestal
   sources: sources_pydantic_model.Sources

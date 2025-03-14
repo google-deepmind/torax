@@ -23,6 +23,7 @@ import pydantic
 from torax import interpolated_param
 from torax.torax_pydantic import model_base
 from torax.torax_pydantic import pydantic_types
+from typing_extensions import Annotated
 from typing_extensions import Self
 import xarray as xr
 
@@ -251,6 +252,18 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
     )
 
 
+def _is_positive(array: TimeVaryingArray) -> TimeVaryingArray:
+  for _, value in array.value.values():
+    if not np.all(value > 0):
+      raise ValueError('All values must be positive.')
+  return array
+
+
+PositiveTimeVaryingArray = Annotated[
+    TimeVaryingArray, pydantic.AfterValidator(_is_positive)
+]
+
+
 def _load_from_primitives(
     primitive_values: (
         Mapping[float, interpolated_param.InterpolatedVarSingleAxisInput]
@@ -381,12 +394,21 @@ def set_grid(
   """
 
   def _update_rule(submodel):
+    # The update API assumes all submodels are unique objects. Construct
+    # a new Grid1D object (without validation) to ensure this. We do reuse
+    # the same NumPy arrays.
+    new_grid = Grid1D.model_construct(
+        nx=grid.nx,
+        dx=grid.dx,
+        face_centers=grid.face_centers,
+        cell_centers=grid.cell_centers,
+    )
     if submodel.grid is None:
-      submodel.__dict__['grid'] = grid
+      submodel.__dict__['grid'] = new_grid
     else:
       match mode:
         case 'force':
-          submodel.__dict__['grid'] = grid
+          submodel.__dict__['grid'] = new_grid
         case 'relaxed':
           pass
         case 'strict':

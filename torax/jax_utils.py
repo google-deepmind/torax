@@ -109,29 +109,6 @@ def error_if(
   return eqx.error_if(var, cond, msg)
 
 
-def error_if_not_positive(
-    var: jax.Array, name: str, to_wrap: Optional[jax.Array] = None
-) -> jax.Array:
-  """Check that a variable is positive.
-
-  Similar to error_if_negative, but 0 is not allowed in this function.
-
-  Args:
-    var: The variable to check.
-    name: Name of the variable.
-    to_wrap: If `var` won't be used in your jax function, specify another
-      variable that will be.
-
-  Returns:
-    var: Identity wrapper that must be used for the check to be included.
-  """
-  msg = f'{name} must be > 0.'
-  min_var = jnp.min(var)
-  if to_wrap is None:
-    to_wrap = var
-  return error_if(to_wrap, min_var <= 0, msg)
-
-
 def error_if_negative(
     var: jax.Array, name: str, to_wrap: Optional[jax.Array] = None
 ) -> jax.Array:

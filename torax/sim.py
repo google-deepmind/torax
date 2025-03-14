@@ -54,6 +54,7 @@ from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
+from torax.transport_model import pydantic_model as transport_model_pydantic_model
 from torax.transport_model import transport_model as transport_model_lib
 import tqdm
 import xarray as xr
@@ -254,7 +255,7 @@ class Sim:
 
     dynamic_runtime_params_slice_for_init, geo_for_init = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-            t=self._dynamic_runtime_params_slice_provider.runtime_params_provider.numerics.runtime_params_config.t_initial,
+            t=self._dynamic_runtime_params_slice_provider._runtime_params.numerics.t_initial,  # pylint: disable=protected-access
             dynamic_runtime_params_slice_provider=self._dynamic_runtime_params_slice_provider,
             geometry_provider=self._geometry_provider,
         )
@@ -297,7 +298,7 @@ class Sim:
       runtime_params: general_runtime_params.GeneralRuntimeParams,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       stepper: stepper_pydantic_model.Stepper,
-      transport_model_builder: transport_model_lib.TransportModelBuilder,
+      transport_model: transport_model_pydantic_model.Transport,
       sources: source_pydantic_model.Sources,
       pedestal: pedestal_pydantic_model.Pedestal,
       time_step_calculator: Optional[ts.TimeStepCalculator] = None,
@@ -310,7 +311,8 @@ class Sim:
         run.
       geometry_provider: The geometry used throughout the simulation run.
       stepper: The stepper config that can be used to build the stepper.
-      transport_model_builder: A callable to build the transport model.
+      transport_model: The transport model config that can be used to build the
+        transport model.
       sources: Builds the sources.
       pedestal: The pedestal config that can be used to build the pedestal.
       time_step_calculator: The time_step_calculator, if built, otherwise a
@@ -324,8 +326,6 @@ class Sim:
     Returns:
       sim: The built Sim instance.
     """
-
-    transport_model = transport_model_builder()
     pedestal_model = pedestal.build_pedestal_model()
 
     # TODO(b/385788907): Document all changes that lead to recompilations.
@@ -340,7 +340,7 @@ class Sim:
     dynamic_runtime_params_slice_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport=transport_model_builder.runtime_params,
+            transport=transport_model,
             sources=sources,
             stepper=stepper,
             torax_mesh=geometry_provider.torax_mesh,
@@ -350,6 +350,7 @@ class Sim:
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )
+    transport_model = transport_model.build_transport_model()
     stepper_model = stepper.build_stepper_model(
         transport_model=transport_model,
         source_models=source_models,

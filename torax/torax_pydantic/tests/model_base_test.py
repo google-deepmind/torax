@@ -243,7 +243,11 @@ class PydanticBaseTest(parameterized.TestCase):
         model_2._update_fields({'x': -1.0})
 
     with self.subTest('invalid_path'):
-      with self.assertRaisesRegex(ValueError, 'Cannot update field'):
+      with self.assertRaisesRegex(
+          ValueError,
+          'The path x.zz is does not refer to a field of a Pydantic'
+          ' BaseModelFrozen model',
+      ):
         model._update_fields({'x.zz': -1.0})
 
   def test_update_fields_dict(self):
@@ -278,6 +282,68 @@ class PydanticBaseTest(parameterized.TestCase):
     with self.subTest('unique_submodels'):
       submodels_set = set(id(m) for m in t2.submodels)
       self.assertSetEqual(submodels_set, {id(t2), id(t1_2), id(t1_1)})
+
+  def test_update_fields_conform(self):
+    class Test1(model_base.BaseModelFrozen):
+      x: float
+      y: float
+
+      @pydantic.model_validator(mode='before')
+      @classmethod
+      def conform_string(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+          return data
+        x, y = data.split(';')
+        return dict(x=float(x), y=float(y))
+
+    class Test2(model_base.BaseModelFrozen):
+      x: dict[int, Test1]
+      y: Test1
+
+    t = Test2(x={1: Test1(x=1.0, y=2.0)}, y=Test1(x=3.0, y=4.0))
+    t._update_fields({'x': {1: '10.;11.0'}, 'y': Test1(x=12.0, y=13.0)})
+
+    self.assertEqual(t.x[1].x, 10.0)
+    self.assertEqual(t.x[1].y, 11.0)
+    self.assertEqual(t.y.x, 12.0)
+    self.assertEqual(t.y.y, 13.0)
+
+  def test_cached_property_submodules(self):
+
+    class TestModel1(model_base.BaseModelFrozen):
+      x: float
+      y: float
+
+    class TestModel2(model_base.BaseModelFrozen):
+      x: float
+      y: float
+
+      @functools.cached_property
+      def get_model_1(self) -> TestModel1:
+        return TestModel1(x=self.x, y=self.y)
+
+    model = TestModel2(x=2.0, y=4.0)
+    ids_before = tuple(id(m) for m in model.submodels)
+    model.get_model_1  # pylint: disable=pointless-statement
+    ids_after = tuple(id(m) for m in model.submodels)
+
+    with self.subTest('submodels_unchanged_cached_property_called'):
+      self.assertTupleEqual(ids_before, ids_after)
+
+    with self.subTest('update_cached_property_raises_error'):
+      with self.assertRaisesRegex(
+          ValueError,
+          'The path get_model_1 is does not refer to a field of a Pydantic'
+          ' BaseModelFrozen model',
+      ):
+        model._update_fields({'get_model_1': TestModel1(x=1.0, y=2.0)})
+
+      with self.assertRaisesRegex(
+          ValueError,
+          'The path get_model_1 is does not refer to a field of a Pydantic'
+          ' BaseModelFrozen model',
+      ):
+        model._update_fields({'get_model_1.x': 2.3})
 
 
 if __name__ == '__main__':

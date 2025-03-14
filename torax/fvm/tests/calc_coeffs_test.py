@@ -28,7 +28,7 @@ from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
-from torax.transport_model import constant as constant_transport_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
 class CoreProfileSettersTest(parameterized.TestCase):
@@ -59,17 +59,13 @@ class CoreProfileSettersTest(parameterized.TestCase):
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=num_cells
     ).build_geometry()
-    transport_model_builder = (
-        constant_transport_model.ConstantTransportModelBuilder(
-            runtime_params=constant_transport_model.RuntimeParams(
-                chimin=0,
-                chii_const=1,
-            ),
-        )
+
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'transport_model': 'constant', 'chimin': 0, 'chii_const': 1}
     )
     pedestal = pedestal_pydantic_model.Pedestal()
     pedestal_model = pedestal.build_pedestal_model()
-    transport_model = transport_model_builder()
+    transport_model = transport.build_transport_model()
     sources = default_sources.get_default_sources()
     sources_dict = sources.to_dict()
     sources_dict = sources_dict['source_model_config']
@@ -90,7 +86,7 @@ class CoreProfileSettersTest(parameterized.TestCase):
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
-            transport=transport_model_builder.runtime_params,
+            transport=transport,
             sources=sources,
             stepper=stepper_params,
             pedestal=pedestal,

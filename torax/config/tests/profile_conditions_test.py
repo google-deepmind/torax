@@ -15,21 +15,21 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
-from torax import interpolated_param
 from torax.config import config_args
 from torax.config import profile_conditions
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.torax_pydantic import torax_pydantic
 import xarray as xr
 
 
 # pylint: disable=invalid-name
 class ProfileConditionsTest(parameterized.TestCase):
 
-  def test_profile_conditions_make_provider(self):
+  def test_profile_conditions_build_dynamic_params(self):
     pc = profile_conditions.ProfileConditions()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = pc.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    pc.build_dynamic_params(t=0.0)
 
   @parameterized.named_parameters(
       ('no boundary condition', None, 2.0, 200.0),
@@ -44,10 +44,10 @@ class ProfileConditionsTest(parameterized.TestCase):
         Te_bound_right=Te_bound_right,
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = pc.make_provider(geo.torax_mesh)
-    dcs = provider.build_dynamic_params(t=0.0)
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    dcs = pc.build_dynamic_params(t=0.0)
     self.assertEqual(dcs.Te_bound_right, expected_initial_value)
-    dcs = provider.build_dynamic_params(t=1.5)
+    dcs = pc.build_dynamic_params(t=1.5)
     self.assertEqual(dcs.Te_bound_right, expected_second_value)
 
   @parameterized.named_parameters(
@@ -63,10 +63,10 @@ class ProfileConditionsTest(parameterized.TestCase):
         Ti_bound_right=Ti_bound_right,
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = pc.make_provider(geo.torax_mesh)
-    dcs = provider.build_dynamic_params(t=0.0)
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    dcs = pc.build_dynamic_params(t=0.0)
     self.assertEqual(dcs.Ti_bound_right, expected_initial_value)
-    dcs = provider.build_dynamic_params(t=1.5)
+    dcs = pc.build_dynamic_params(t=1.5)
     self.assertEqual(dcs.Ti_bound_right, expected_second_value)
 
   @parameterized.named_parameters(
@@ -82,15 +82,15 @@ class ProfileConditionsTest(parameterized.TestCase):
         ne_bound_right=ne_bound_right,
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = pc.make_provider(geo.torax_mesh)
-    dcs = provider.build_dynamic_params(t=0.0)
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    dcs = pc.build_dynamic_params(t=0.0)
     self.assertEqual(dcs.ne_bound_right, expected_initial_value)
     if ne_bound_right is None:
       self.assertEqual(dcs.ne_bound_right_is_fGW, dcs.ne_is_fGW)
       self.assertFalse(dcs.ne_bound_right_is_absolute)
     else:
       self.assertTrue(dcs.ne_bound_right_is_absolute)
-    dcs = provider.build_dynamic_params(t=1.5)
+    dcs = pc.build_dynamic_params(t=1.5)
     self.assertEqual(dcs.ne_bound_right, expected_second_value)
     if ne_bound_right is None:
       self.assertEqual(dcs.ne_bound_right_is_fGW, dcs.ne_is_fGW)
@@ -127,37 +127,17 @@ class ProfileConditionsTest(parameterized.TestCase):
     pc = profile_conditions.ProfileConditions(
         psi=psi,
     )
-    provider = pc.make_provider(geo.torax_mesh)
-    dcs = provider.build_dynamic_params(t=0.0)
+    torax_pydantic.set_grid(pc, geo.torax_mesh)
+    dcs = pc.build_dynamic_params(t=0.0)
     if psi is None:
       self.assertIsNone(dcs.psi)
     else:
       np.testing.assert_allclose(dcs.psi, expected_initial_value)
-    dcs = provider.build_dynamic_params(t=1.5)
+    dcs = pc.build_dynamic_params(t=1.5)
     if psi is None:
       self.assertIsNone(dcs.psi)
     else:
       np.testing.assert_allclose(dcs.psi, expected_second_value)
-
-  def test_interpolated_vars_are_only_constructed_once(
-      self,
-  ):
-    """Tests that interpolated vars are only constructed once."""
-    pc = profile_conditions.ProfileConditions()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = pc.make_provider(geo.torax_mesh)
-    interpolated_params = {}
-    for field in provider:
-      value = getattr(provider, field)
-      if isinstance(value, interpolated_param.InterpolatedParamBase):
-        interpolated_params[field] = value
-
-    # Check we don't make any additional calls to construct interpolated vars.
-    provider.build_dynamic_params(t=1.0)
-    for field in provider:
-      value = getattr(provider, field)
-      if isinstance(value, interpolated_param.InterpolatedParamBase):
-        self.assertIs(value, interpolated_params[field])
 
   @parameterized.named_parameters(
       dict(testcase_name='float', values=1.0, raises=True),
@@ -169,7 +149,7 @@ class ProfileConditionsTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='valid dict shortcut',
-          values={0.0: 0.0, 1.0: 1.0},
+          values={0.0: 0.1, 1.0: 1.0},
           raises=False,
       ),
       dict(
@@ -179,17 +159,17 @@ class ProfileConditionsTest(parameterized.TestCase):
       ),
       dict(
           testcase_name='valid dict',
-          values={0.0: {0.0: 0.0, 1.0: 1.0}},
+          values={0.0: {0.0: 0.1, 1.0: 1.0}},
           raises=False,
       ),
       dict(
           testcase_name='invalid numpy shortcut',
-          values=(np.array([0.0, 0.9]), np.array([0.0, 1.0])),
+          values=(np.array([0.1, 0.9]), np.array([0.0, 1.0])),
           raises=True,
       ),
       dict(
           testcase_name='valid numpy shortcut',
-          values=(np.array([0.0, 1.0]), np.array([0.0, 1.0])),
+          values=(np.array([0.0, 1.0]), np.array([0.1, 1.0])),
           raises=False,
       ),
       dict(
@@ -197,7 +177,7 @@ class ProfileConditionsTest(parameterized.TestCase):
           values=(
               np.array([0.0]),
               np.array([0.0, 0.9]),
-              np.array([[0.0, 1.0]]),
+              np.array([[0.1, 1.0]]),
           ),
           raises=True,
       ),
@@ -206,25 +186,25 @@ class ProfileConditionsTest(parameterized.TestCase):
           values=(
               np.array([0.0]),
               np.array([0.0, 1.0]),
-              np.array([[0.0, 1.0]]),
+              np.array([[1.0, 1.0]]),
           ),
           raises=False,
       ),
       dict(
           testcase_name='invalid xarray',
           values=xr.DataArray(
-              data=np.array([[0.0, 1.0]]),
-              dims=['times', config_args.RHO_NORM],
-              coords={config_args.RHO_NORM: [0.0, 0.9], 'times': [0.0]},
+              data=np.array([[0.1, 1.0]]),
+              dims=['time', config_args.RHO_NORM],
+              coords={config_args.RHO_NORM: [0.0, 0.9], 'time': [0.0]},
           ),
           raises=True,
       ),
       dict(
           testcase_name='valid xarray',
           values=xr.DataArray(
-              data=np.array([[0.0, 1.0]]),
-              dims=['times', config_args.RHO_NORM],
-              coords={config_args.RHO_NORM: [0.0, 1.0], 'times': [0.0]},
+              data=np.array([[0.1, 1.0]]),
+              dims=['time', config_args.RHO_NORM],
+              coords={config_args.RHO_NORM: [0.0, 1.0], 'time': [0.0]},
           ),
           raises=False,
       ),

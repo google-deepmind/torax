@@ -20,8 +20,6 @@ truth for surrogate model evaluations.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-import dataclasses
 import datetime
 import os
 import subprocess
@@ -36,45 +34,13 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import qualikiz_based_transport_model
-from torax.transport_model import runtime_params as runtime_params_lib
-from torax.transport_model import transport_model
-
-
-# pylint: disable=invalid-name
-@chex.dataclass
-class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
-  """Extends the base runtime params with additional params for this model.
-
-  See base class runtime_params.RuntimeParams docstring for more info.
-  """
-
-  # QuaLiKiz model configuration
-  # set frequency of full QuaLiKiz contour solutions
-  maxruns: int = 2
-  # set number of cores used QuaLiKiz calculations
-  numprocs: int = 8
-
-  def make_provider(
-      self, torax_mesh: torax_pydantic.Grid1D | None = None
-  ) -> 'RuntimeParamsProvider':
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
   maxruns: int
   numprocs: int
-
-
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 _DEFAULT_QLKRUN_NAME_PREFIX = 'torax_qualikiz_runs'
@@ -89,11 +55,7 @@ class QualikizTransportModel(
 ):
   """Calculates turbulent transport coefficients with QuaLiKiz."""
 
-  def __init__(
-      self,
-      runtime_params: RuntimeParams | None = None,
-  ):
-    self._runtime_params = runtime_params or RuntimeParams()
+  def __init__(self):
     self._qlkrun_parentdir = tempfile.TemporaryDirectory()
     self._qlkrun_name = (
         _DEFAULT_QLKRUN_NAME_PREFIX
@@ -101,14 +63,6 @@ class QualikizTransportModel(
     )
     self._runpath = os.path.join(self._qlkrun_parentdir.name, self._qlkrun_name)
     self._frozen = True
-
-  @property
-  def runtime_params(self) -> RuntimeParams:
-    return self._runtime_params
-
-  @runtime_params.setter
-  def runtime_params(self, runtime_params: RuntimeParams) -> None:
-    self._runtime_params = runtime_params
 
   def _call_implementation(
       self,
@@ -418,27 +372,3 @@ def _extract_qualikiz_plan(
   )
 
   return qualikiz_plan
-
-
-def _default_qualikiz_builder() -> QualikizTransportModel:
-  return QualikizTransportModel()
-
-
-@dataclasses.dataclass(kw_only=True)
-class QualikizTransportModelBuilder(transport_model.TransportModelBuilder):
-  """Builds a class QualikizTransportModel."""
-
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-  model_path: str | None = None
-
-  _builder: Callable[
-      [],
-      QualikizTransportModel,
-  ] = _default_qualikiz_builder
-
-  def __call__(
-      self,
-  ) -> QualikizTransportModel:
-    return self._builder()

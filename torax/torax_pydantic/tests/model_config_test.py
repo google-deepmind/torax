@@ -36,6 +36,9 @@ class ConfigTest(parameterized.TestCase):
     ).CONFIG
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
 
+    with self.subTest("has_unique_submodels"):
+      self.assertTrue(config_pydantic._has_unique_submodels)
+
     self.assertEqual(
         config_pydantic.time_step_calculator.calculator_type.value,
         config_dict["time_step_calculator"]["calculator_type"],
