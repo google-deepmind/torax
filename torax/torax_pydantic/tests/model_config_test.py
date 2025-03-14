@@ -26,6 +26,7 @@ class ConfigTest(parameterized.TestCase):
       "test_bohmgyrobohm_all",
       "test_iterhybrid_predictor_corrector",
       "test_iterhybrid_rampup",
+      "test_iterhybrid_rampup_restart",
   )
   def test_full_config_construction(self, config_name):
     """Test for basic config construction."""
