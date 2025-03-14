@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -22,6 +21,7 @@ from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice as runtime_params_slice_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.tests.test_lib import default_sources
+from torax.torax_pydantic import torax_pydantic
 
 
 class RuntimeParamsSliceTest(parameterized.TestCase):
@@ -40,6 +40,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
 
     foo_jitted = jax.jit(foo)
     runtime_params = general_runtime_params.GeneralRuntimeParams()
+    torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
     dynamic_slice = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params,
         torax_mesh=self._geo.torax_mesh,
@@ -52,6 +53,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   def test_static_runtime_params_slice_hash_same_for_same_params(self):
     """Tests that the hash is the same for the same static params."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
+    torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
     sources = default_sources.get_default_sources()
     static_slice1 = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
@@ -76,12 +78,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         sources=sources,
         torax_mesh=self._geo.torax_mesh,
     )
-    runtime_params_mod = dataclasses.replace(
-        runtime_params,
-        numerics=dataclasses.replace(
-            runtime_params.numerics,
-            ion_heat_eq=not runtime_params.numerics.ion_heat_eq,
-        ),
+    runtime_params_mod = runtime_params.model_copy()
+    runtime_params_mod._update_fields(
+        {'numerics.ion_heat_eq': not runtime_params.numerics.ion_heat_eq}
     )
     static_slice2 = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params_mod,

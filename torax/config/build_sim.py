@@ -19,7 +19,6 @@ import copy
 from typing import Any
 
 from torax import sim as sim_lib
-from torax.config import config_args
 from torax.config import runtime_params as runtime_params_lib
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
@@ -28,6 +27,7 @@ from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as time_step_calculator_lib
+from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
@@ -109,10 +109,14 @@ def build_sim_from_config(
         ' https://torax.readthedocs.io/en/latest/configuration.html#detailed-configuration-structure'
         ' for more info.'
     )
-  runtime_params = build_runtime_params_from_config(config['runtime_params'])
   geo_provider = geometry_pydantic_model.Geometry.from_dict(
       config['geometry']
   ).build_provider
+
+  runtime_params = runtime_params_lib.GeneralRuntimeParams.from_dict(
+      config['runtime_params']
+  )
+  torax_pydantic.set_grid(runtime_params, geo_provider.torax_mesh)
 
   if 'restart' in config:
     file_restart = runtime_params_lib.FileRestart(**config['restart'])
@@ -122,9 +126,7 @@ def build_sim_from_config(
   return sim_lib.Sim.create(
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
-      sources=source_pydantic_model.Sources.from_dict(
-          config['sources']
-      ),
+      sources=source_pydantic_model.Sources.from_dict(config['sources']),
       transport_model=transport_pydantic_model.Transport.from_dict(
           config['transport']
       ),
@@ -136,29 +138,6 @@ def build_sim_from_config(
           config['time_step_calculator']
       ),
       file_restart=file_restart,
-  )
-
-
-def build_runtime_params_from_config(
-    general_runtime_params_config: Mapping[str, Any],
-) -> runtime_params_lib.GeneralRuntimeParams:
-  """Builds `GeneralRuntimeParams` from the input config.
-
-  The input config has a required structure which maps directly to the
-  parameters of `GeneralRuntimeParams`. More info about the allowed keys/values,
-  as well as information about how the parameters are nested, can be found in
-  the `GeneralRuntimeParams` docstring and class definition.
-
-  Args:
-    general_runtime_params_config: Python dictionary containing keys/values that
-      map onto `GeneralRuntimeParams` and its attributes.
-
-  Returns:
-    A `GeneralRuntimeParams` based on the input config.
-  """
-  return config_args.recursive_replace(
-      runtime_params_lib.GeneralRuntimeParams(),
-      **general_runtime_params_config,
   )
 
 

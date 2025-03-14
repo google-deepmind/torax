@@ -24,7 +24,6 @@ import numpy as np
 import torax
 from torax import fvm
 from torax.config import build_runtime_params
-from torax.config import config_args
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -78,15 +77,13 @@ def circular_references() -> References:
   """Reference values for circular geometry."""
   # Hard-code the parameters relevant to the tests, so the reference values
   # will stay valid even if we change the Config constructor defaults
-  runtime_params = general_runtime_params.GeneralRuntimeParams()
-  runtime_params = config_args.recursive_replace(
-      runtime_params,
-      **{
+  runtime_params = general_runtime_params.GeneralRuntimeParams.model_validate(
+      {
           'profile_conditions': {
               'Ip_tot': 15,
               'nu': 3,
-          },
-      },
+          }
+      }
   )
   geo = geometry_pydantic_model.CircularConfig(
       n_rho=25,
@@ -284,16 +281,13 @@ def circular_references() -> References:
 
 def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid-name
   """Reference values for CHEASE geometry where the Ip comes from the file."""
-  runtime_params = general_runtime_params.GeneralRuntimeParams()
-  runtime_params = config_args.recursive_replace(
-      runtime_params,
-      **{
-          'profile_conditions': {
-              'Ip_tot': 15,
-              'nu': 3,
-          },
+  runtime_params = general_runtime_params.GeneralRuntimeParams.model_validate({
+      'profile_conditions': {
+          'Ip_tot': 15,
+          'nu': 3,
       },
-  )
+  })
+
   geo = geometry_pydantic_model.CheaseConfig(
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',
@@ -491,16 +485,13 @@ def chease_references_Ip_from_chease() -> References:  # pylint: disable=invalid
 
 def chease_references_Ip_from_runtime_params() -> References:  # pylint: disable=invalid-name
   """Reference values for CHEASE geometry where the Ip comes from the config."""
-  runtime_params = general_runtime_params.GeneralRuntimeParams()
-  runtime_params = config_args.recursive_replace(
-      runtime_params,
-      **{
-          'profile_conditions': {
-              'Ip_tot': 15,
-              'nu': 3,
-          },
+  runtime_params = general_runtime_params.GeneralRuntimeParams.model_validate({
+      'profile_conditions': {
+          'Ip_tot': 15,
+          'nu': 3,
       },
-  )
+  })
+
   geo = geometry_pydantic_model.CheaseConfig(
       geometry_dir=_GEO_DIRECTORY,
       geometry_file='ITER_hybrid_citrin_equil_cheasedata.mat2cols',

@@ -47,7 +47,7 @@ class StateHistoryTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti_bound_right=27.7,
-            Te_bound_right={0.0: 42.0, 1.0: 0.0},
+            Te_bound_right={0.0: 42.0, 1.0: 0.0001},
             ne_bound_right=({0.0: 0.1, 1.0: 2.0}, 'step'),
         ),
     )

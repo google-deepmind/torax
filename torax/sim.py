@@ -255,7 +255,7 @@ class Sim:
 
     dynamic_runtime_params_slice_for_init, geo_for_init = (
         build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
-            t=self._dynamic_runtime_params_slice_provider.runtime_params_provider.numerics.runtime_params_config.t_initial,
+            t=self._dynamic_runtime_params_slice_provider._runtime_params.numerics.t_initial,  # pylint: disable=protected-access
             dynamic_runtime_params_slice_provider=self._dynamic_runtime_params_slice_provider,
             geometry_provider=self._geometry_provider,
         )
