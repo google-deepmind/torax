@@ -488,6 +488,4 @@ class Transport(torax_pydantic.BaseModelFrozen):
       self, t: chex.Numeric
   ) -> runtime_params.DynamicRuntimeParams:
     """Builds a dynamic runtime params from the config."""
-    d = self.transport_model_config.build_dynamic_params(t)
-    print(d)
-    return d
+    return self.transport_model_config.build_dynamic_params(t)
