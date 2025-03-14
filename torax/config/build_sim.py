@@ -23,6 +23,7 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as source_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
+from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import pydantic_model as transport_pydantic_model
 
@@ -105,7 +106,9 @@ def build_sim_from_config(
   torax_pydantic.set_grid(runtime_params, geo_provider.torax_mesh)
 
   if 'restart' in config:
-    file_restart = runtime_params_lib.FileRestart(**config['restart'])
+    file_restart = file_restart_pydantic_model.FileRestart.from_dict(
+        config['restart']
+    )
   else:
     file_restart = None
 
