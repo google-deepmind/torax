@@ -23,6 +23,7 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
+from torax.transport_model import pydantic_model as transport_pydantic_model
 from torax.transport_model import qlknn_transport_model
 
 
@@ -42,7 +43,9 @@ class QlknnTransportModelTest(parameterized.TestCase):
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport=qlknn_transport_model.RuntimeParams(),
+            transport=transport_pydantic_model.Transport.from_dict(
+                {'transport_model': 'qlknn'}
+            ),
             sources=sources,
             torax_mesh=geo.torax_mesh,
             pedestal=pedestal,
@@ -166,12 +169,6 @@ class QlknnTransportModelTest(parameterized.TestCase):
         clip_margin=clip_margin,
     )
     npt.assert_allclose(clipped_feature_scan, expected)
-
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = qlknn_transport_model.RuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
 
 
 if __name__ == '__main__':

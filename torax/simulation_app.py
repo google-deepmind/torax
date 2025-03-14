@@ -69,7 +69,7 @@ from torax.geometry import geometry_provider
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.transport_model import runtime_params as transport_runtime_params_lib
+from torax.transport_model import pydantic_model as transport_pydantic_model
 import xarray as xr
 
 import shutil
@@ -163,7 +163,7 @@ def update_sim(
     sim: sim_lib.Sim,
     runtime_params: runtime_params_lib.GeneralRuntimeParams,
     geo_provider: geometry_provider.GeometryProvider,
-    transport_runtime_params: transport_runtime_params_lib.RuntimeParams,
+    transport: transport_pydantic_model.Transport,
     sources: sources_pydantic_model.Sources,
     stepper: stepper_pydantic_model.Stepper,
     pedestal: pedestal_pydantic_model.Pedestal,
@@ -186,7 +186,7 @@ def update_sim(
   dynamic_runtime_params_slice_provider = (
       build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
-          transport=transport_runtime_params,
+          transport=transport,
           sources=sources,
           stepper=stepper,
           pedestal=pedestal,

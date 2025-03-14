@@ -13,13 +13,13 @@
 # limitations under the License.
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax.config import build_sim
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.stepper import linear_theta_method
 from torax.stepper import nonlinear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -47,10 +47,10 @@ class PydanticModelTest(parameterized.TestCase):
         'stepper_type': stepper_type,
         'theta_imp': 0.5,
     })
-    transport_model_builder = (
-        build_sim.build_transport_model_builder_from_config('constant')
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'transport_model': 'constant'}
     )
-    transport_model = transport_model_builder()
+    transport_model = transport.build_transport_model()
     pedestal = pedestal_pydantic_model.Pedestal()
     pedestal_model = pedestal.build_pedestal_model()
     sources = source_pydantic_model.Sources.from_dict({})
