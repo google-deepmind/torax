@@ -34,6 +34,7 @@ import typing_extensions
 # pylint: disable=g-import-not-at-top
 try:
   from torax.transport_model import qualikiz_transport_model
+
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
 except ImportError:
   _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
@@ -71,6 +72,7 @@ class TransportBase(torax_pydantic.BaseModelFrozen):
     smooth_everywhere: Smooth across entire radial domain regardless of inner
       and outer patches.
   """
+
   chimin: torax_pydantic.MeterSquaredPerSecond = 0.05
   chimax: torax_pydantic.MeterSquaredPerSecond = 100.0
   Demin: torax_pydantic.MeterSquaredPerSecond = 0.05
@@ -179,6 +181,7 @@ class QLKNNTransportModel(TransportBase):
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
   """
+
   transport_model: Literal['qlknn'] = 'qlknn'
   model_path: str = qlknn_transport_model.get_default_model_path()
   include_ITG: bool = True
@@ -259,6 +262,7 @@ class QualikizTransportModel(TransportBase):
     An_min: Minimum |R/Lne| below which effective V is used instead of effective
       D.
   """
+
   transport_model: Literal['qualikiz'] = 'qualikiz'
   maxruns: pydantic.PositiveInt = 2
   numprocs: pydantic.PositiveInt = 8
@@ -275,9 +279,7 @@ class QualikizTransportModel(TransportBase):
   ):
     return qualikiz_transport_model.QualikizTransportModel()
 
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ):
+  def build_dynamic_params(self, t: chex.Numeric):
     base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
     return qualikiz_transport_model.DynamicRuntimeParams(
         maxruns=self.maxruns,
@@ -290,6 +292,7 @@ class QualikizTransportModel(TransportBase):
         An_min=self.An_min,
         **base_kwargs,
     )
+
   # pylint: enable=undefined-variable
 
 
@@ -303,6 +306,7 @@ class ConstantTransportModel(TransportBase):
     De_const: diffusion coefficient in electron density equation in m^2/s.
     Ve_const: convection coefficient in electron density equation in m^2/s.
   """
+
   transport_model: Literal['constant'] = 'constant'
   chii_const: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
@@ -347,6 +351,7 @@ class CriticalGradientTransportModel(TransportBase):
       electron diffusion. Sets the value of electron particle convection in the
       model.
   """
+
   transport_model: Literal['CGM'] = 'CGM'
   alpha: float = 2.0
   chistiff: float = 2.0
@@ -392,7 +397,12 @@ class BohmGyroBohmTransportModel(TransportBase):
     d_face_c1: Constant for the electron diffusivity weighting factor.
     d_face_c2: Constant for the electron diffusivity weighting factor.
     v_face_coeff: Proportionality factor between convectivity and diffusivity.
+    chi_e_bohm_multiplier: Multiplier for the default Bohm term (default 1.0).
+    chi_e_gyrobohm_multiplier: Multiplier for the default Gyro-Bohm term (default 1.0).
+    chi_i_bohm_multiplier: Multiplier for the default Bohm term for ions (default 1.0).
+    chi_i_gyrobohm_multiplier: Multiplier for the default Gyro-Bohm term for ions (default 1.0).
   """
+
   transport_model: Literal['bohm-gyrobohm'] = 'bohm-gyrobohm'
   chi_e_bohm_coeff: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(8e-5)
@@ -415,6 +425,19 @@ class BohmGyroBohmTransportModel(TransportBase):
   v_face_coeff: interpolated_param_1d.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(-0.1)
   )
+  # New fields: multipliers for the default Bohm and Gyro-Bohm terms.
+  chi_e_bohm_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  chi_e_gyrobohm_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  chi_i_bohm_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  chi_i_gyrobohm_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
 
   def build_transport_model(
       self,
@@ -433,6 +456,10 @@ class BohmGyroBohmTransportModel(TransportBase):
         d_face_c1=self.d_face_c1.get_value(t),
         d_face_c2=self.d_face_c2.get_value(t),
         v_face_coeff=self.v_face_coeff.get_value(t),
+        chi_e_bohm_multiplier=self.chi_e_bohm_multiplier.get_value(t),
+        chi_e_gyrobohm_multiplier=self.chi_e_gyrobohm_multiplier.get_value(t),
+        chi_i_bohm_multiplier=self.chi_i_bohm_multiplier.get_value(t),
+        chi_i_gyrobohm_multiplier=self.chi_i_gyrobohm_multiplier.get_value(t),
         **base_kwargs,
     )
 
