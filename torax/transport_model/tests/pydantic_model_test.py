@@ -21,14 +21,6 @@ from torax.transport_model import qlknn_transport_model
 from torax.transport_model import runtime_params
 from torax.transport_model import transport_model as transport_model_lib
 
-# pylint: disable=g-import-not-at-top
-try:
-  from torax.transport_model import qualikiz_transport_model
-  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
-except ImportError:
-  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
-# pylint: enable=g-import-not-at-top
-
 
 class PydanticModelTest(parameterized.TestCase):
 
@@ -67,6 +59,26 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(dynamic_runtime_params, expected_dynamic_params)
     transport_model = transport.build_transport_model()
     self.assertIsInstance(transport_model, expected_transport_model)
+
+  def test_build_qualikiz_transport_model(self):
+    try:
+      # pylint: disable=g-import-not-at-top
+      from torax.transport_model import qualikiz_transport_model
+      # pylint: enable=g-import-not-at-top
+    except ImportError:
+      self.skipTest('Qualikiz transport model is not available.')
+
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'transport_model': 'qualikiz'}
+    )
+    dynamic_runtime_params = transport.build_dynamic_params(t=0.0)
+    self.assertIsInstance(
+        dynamic_runtime_params, qualikiz_transport_model.DynamicRuntimeParams
+    )
+    transport_model = transport.build_transport_model()
+    self.assertIsInstance(
+        transport_model, qualikiz_transport_model.QualikizTransportModel
+    )
 
   def test_qlknn_flux_ratio_correction_default(self):
     """Tests that the flux ratio correction is set to 2.0 for QLKNN."""
