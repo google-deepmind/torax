@@ -16,8 +16,6 @@
 
 from __future__ import annotations
 
-import dataclasses
-
 import chex
 import pydantic
 from torax.config import numerics as numerics_lib
@@ -69,14 +67,3 @@ class GeneralRuntimeParams(torax_pydantic.BaseModelFrozen):
         numerics=self.numerics.build_dynamic_params(t),
         plasma_composition=self.plasma_composition.build_dynamic_params(t),
     )
-
-
-@dataclasses.dataclass
-class FileRestart:
-  # Filename to load initial state from.
-  filename: str
-  # Time in state file at which to load from.
-  time: float
-  # Toggle loading initial state from file or not.
-  do_restart: bool
-  stitch: bool

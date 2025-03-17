@@ -54,6 +54,7 @@ from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import chi_time_step_calculator
 from torax.time_step_calculator import time_step_calculator as ts
+from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax.transport_model import pydantic_model as transport_model_pydantic_model
 from torax.transport_model import transport_model as transport_model_lib
 import tqdm
@@ -121,7 +122,7 @@ class Sim:
       geometry_provider: geometry_provider_lib.GeometryProvider,
       initial_state: state.ToraxSimState,
       step_fn: step_function.SimulationStepFn,
-      file_restart: general_runtime_params.FileRestart | None = None,
+      file_restart: file_restart_pydantic_model.FileRestart | None = None,
   ):
     self._static_runtime_params_slice = static_runtime_params_slice
     self._dynamic_runtime_params_slice_provider = (
@@ -133,7 +134,7 @@ class Sim:
     self._file_restart = file_restart
 
   @property
-  def file_restart(self) -> general_runtime_params.FileRestart | None:
+  def file_restart(self) -> file_restart_pydantic_model.FileRestart | None:
     return self._file_restart
 
   @property
@@ -302,7 +303,7 @@ class Sim:
       sources: source_pydantic_model.Sources,
       pedestal: pedestal_pydantic_model.Pedestal,
       time_step_calculator: Optional[ts.TimeStepCalculator] = None,
-      file_restart: Optional[general_runtime_params.FileRestart] = None,
+      file_restart: file_restart_pydantic_model.FileRestart | None = None,
   ) -> Sim:
     """Builds a Sim object from the input runtime params and sim components.
 
