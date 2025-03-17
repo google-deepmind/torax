@@ -68,7 +68,6 @@ class CoreProfileSettersTest(parameterized.TestCase):
     transport_model = transport.build_transport_model()
     sources = default_sources.get_default_sources()
     sources_dict = sources.to_dict()
-    sources_dict = sources_dict['source_model_config']
     sources_dict['qei_source']['Qei_mult'] = 0.0
     sources_dict['generic_ion_el_heat_source']['Ptot'] = (
         0.0

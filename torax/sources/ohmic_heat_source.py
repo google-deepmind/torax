@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Ohmic heat source."""
-
-from __future__ import annotations
-
 import dataclasses
 from typing import ClassVar, Literal
 
@@ -68,28 +65,6 @@ def ohmic_model_func(
   return (pohm,)
 
 
-class OhmicHeatSourceConfig(base.SourceModelBase):
-  """Configuration for the OhmicHeatSource."""
-
-  source_name: Literal['ohmic_heat_source'] = 'ohmic_heat_source'
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source_lib.SourceProfileFunction:
-    return ohmic_model_func
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> runtime_params_lib.DynamicRuntimeParams:
-    return runtime_params_lib.DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
-    )
-
-  def build_source(self) -> OhmicHeatSource:
-    return OhmicHeatSource(model_func=self.model_func)
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class OhmicHeatSource(source_lib.Source):
   """Ohmic heat source for electron heat equation.
@@ -110,3 +85,25 @@ class OhmicHeatSource(source_lib.Source):
       self,
   ) -> tuple[source_lib.AffectedCoreProfile, ...]:
     return (source_lib.AffectedCoreProfile.TEMP_EL,)
+
+
+class OhmicHeatSourceConfig(base.SourceModelBase):
+  """Configuration for the OhmicHeatSource."""
+
+  source_name: Literal['ohmic_heat_source'] = 'ohmic_heat_source'
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  @property
+  def model_func(self) -> source_lib.SourceProfileFunction:
+    return ohmic_model_func
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> runtime_params_lib.DynamicRuntimeParams:
+    return runtime_params_lib.DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+    )
+
+  def build_source(self) -> OhmicHeatSource:
+    return OhmicHeatSource(model_func=self.model_func)

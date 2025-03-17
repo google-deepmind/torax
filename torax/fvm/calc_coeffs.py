@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Calculates Block1DCoeffs for a time step."""
-
-from __future__ import annotations
-
 import functools
 
 import jax

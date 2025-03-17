@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """The NonLinearThetaMethod class."""
-
-from __future__ import annotations
-
 import abc
 
 import chex

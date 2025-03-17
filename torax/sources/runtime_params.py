@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Configuration for all the sources/sinks modelled in Torax."""
-
-from __future__ import annotations
-
 import enum
 
 import chex

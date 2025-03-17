@@ -17,9 +17,6 @@
 Must be run with TORAX_COMPILATION_ENABLED=False. Used for generating ground
 truth for surrogate model evaluations.
 """
-
-from __future__ import annotations
-
 import dataclasses
 import datetime
 import os

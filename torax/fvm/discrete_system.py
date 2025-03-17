@@ -23,9 +23,6 @@ expressions, not just numeric values, so nonlinear solvers like
 newton_raphson_solve_block can capture nonlinear dynamics even when
 each step is expressed using a matrix multiply.
 """
-
-from __future__ import annotations
-
 from typing import TypeAlias
 
 import jax

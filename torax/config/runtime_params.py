@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """General runtime input parameters used throughout TORAX simulations."""
-
-from __future__ import annotations
-
 import chex
 import pydantic
 from torax.config import numerics as numerics_lib
