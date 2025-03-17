@@ -19,6 +19,7 @@ import jax
 
 # pylint: disable=g-importing-member
 
+from torax import version
 from torax.config.build_sim import build_sim_from_config
 from torax.config.config_loader import import_module
 from torax.interpolated_param import InterpolatedVarSingleAxis
@@ -28,9 +29,10 @@ from torax.output import ToraxSimOutputs
 from torax.sim import Sim
 from torax.state import SimError
 
-
 # pylint: enable=g-importing-member
 
+__version__ = version.TORAX_VERSION
+__version_info__ = version.TORAX_VERSION_INFO
 
 __all__ = [
     'build_sim_from_config',

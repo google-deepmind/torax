@@ -18,6 +18,7 @@ import logging
 from typing import Any, Mapping
 
 import pydantic
+from torax import version
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
@@ -116,6 +117,21 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     # when trying to set it, which is why mode='relaxed'.
     torax_pydantic.set_grid(self, mesh, mode='relaxed')
     return self
+
+  # This is primarily used for serialization, so the importer can check which
+  # version of Torax was used to generate the serialized config.
+  @pydantic.computed_field
+  @property
+  def _torax_version(self) -> str:
+    return version.TORAX_VERSION
+
+  @pydantic.model_validator(mode='before')
+  @classmethod
+  def _remove_version_field(cls, data: Any) -> Any:
+    if isinstance(data, dict):
+      if '_torax_version' in data:
+        data = {k: v for k, v in data.items() if k != '_torax_version'}
+    return data
 
 
 def _is_nrho_updated(x: Mapping[str, Any]) -> bool:
