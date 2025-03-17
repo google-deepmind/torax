@@ -31,6 +31,7 @@ from torax.pedestal_model import set_tped_nped
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import transport_model as transport_model_lib
 
 
@@ -451,7 +452,7 @@ class FakeTransportModel(transport_model_lib.TransportModel):
     )
 
 
-class FakeTransportConfig(transport_pydantic_model.TransportBase):
+class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
   """Fake transport config for a model that always returns zeros."""
   transport_model: Literal['fake'] = 'fake'
 

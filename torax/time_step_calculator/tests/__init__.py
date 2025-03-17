@@ -12,15 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Simulation to test that NaNs are handled correctly.
-
-Identical to test_iterhybrid_predictor_corrector apart from fixed timestep
-and negative particle source to induce negative density and NaNs.
-"""
-
-import copy
-from torax.tests.test_data import test_iterhybrid_predictor_corrector
-
-CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
-CONFIG['time_step_calculator'] = {'calculator_type': 'fixed'}
-CONFIG['sources']['gas_puff_source']['S_puff_tot'] = -1.0e23
+"""Time step calculator tests."""

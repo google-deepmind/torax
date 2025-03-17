@@ -12,15 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Simulation to test that NaNs are handled correctly.
+"""Pydantic config for restarting a simulation from a file."""
+import pydantic
+from torax.torax_pydantic import torax_pydantic
 
-Identical to test_iterhybrid_predictor_corrector apart from fixed timestep
-and negative particle source to induce negative density and NaNs.
-"""
 
-import copy
-from torax.tests.test_data import test_iterhybrid_predictor_corrector
+class FileRestart(torax_pydantic.BaseModelFrozen):
+  """Pydantic config for restarting a simulation from a file.
 
-CONFIG = copy.deepcopy(test_iterhybrid_predictor_corrector.CONFIG)
-CONFIG['time_step_calculator'] = {'calculator_type': 'fixed'}
-CONFIG['sources']['gas_puff_source']['S_puff_tot'] = -1.0e23
+  Attributes:
+    filename: Filename to load initial state from.
+    time: Time in state file at which to load from.
+    do_restart: Toggle loading initial state from file or not.
+    stitch: Whether to stitch the state from the file.
+  """
+  filename: pydantic.FilePath
+  time: torax_pydantic.Second
+  do_restart: bool
+  stitch: bool

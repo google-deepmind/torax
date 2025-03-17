@@ -62,11 +62,12 @@ class TimeVaryingScalar(model_base.BaseModelFrozen):
     return self._get_cached_interpolated_param.get_value(t)
 
   def __eq__(self, other):
-    try:
-      chex.assert_trees_all_equal(vars(self), vars(other))
-      return True
-    except AssertionError:
-      return False
+    return (
+        np.array_equal(self.time, other.time)
+        and np.array_equal(self.value, other.value)
+        and self.is_bool_param == other.is_bool_param
+        and self.interpolation_mode == other.interpolation_mode
+    )
 
   @pydantic.model_validator(mode='before')
   @classmethod
