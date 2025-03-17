@@ -213,8 +213,20 @@ def make_outputs(
   Ploss = (
       integrated_sources['P_alpha_tot'] + integrated_sources['P_external_tot']
   )
+
+   # If a previous simulation state is available, compute the time derivative
+  # of the total stored thermal energy (dW_thermal/dt). Otherwise, default to zero.
+  if previous_sim_state is not None:
+      dW_th_dt = (W_thermal_tot - previous_sim_state.post_processed_outputs.W_thermal_tot) / sim_state.dt
+  else:
+      dW_th_dt = 0.0
+
+
+  # Add the dW/dt term to the power loss to account for non-stationary states.
+  effective_loss = Ploss + dW_th_dt
+
   # TODO(b/380848256): include dW/dt term
-  tauE = W_thermal_tot / Ploss
+  tauE = W_thermal_tot / effective_loss
 
   tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
       geo, sim_state.core_profiles, Ploss, 'H89P'
