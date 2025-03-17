@@ -358,6 +358,7 @@ class PostProcessedOutputs:
     q95: q at 95% of the normalized poloidal flux
     Wpol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]
+    dW_th_dt: Time derivative of the total stored thermal energy [W]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -421,6 +422,7 @@ class PostProcessedOutputs:
   q95: array_typing.ScalarFloat
   Wpol: array_typing.ScalarFloat
   li3: array_typing.ScalarFloat
+  dW_th_dt: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
@@ -484,6 +486,7 @@ class PostProcessedOutputs:
         q95=jnp.array(0.0),
         Wpol=jnp.array(0.0),
         li3=jnp.array(0.0),
+        dW_th_dt=jnp.array(0.0),
     )
 
 

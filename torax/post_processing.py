@@ -110,9 +110,7 @@ def _calculate_integrated_sources(
       integrated[f'{value}_ion'] = math_utils.volume_integration(
           profile_ion, geo
       )
-      integrated[f'{value}_el'] = math_utils.volume_integration(
-          profile_el, geo
-      )
+      integrated[f'{value}_el'] = math_utils.volume_integration(profile_el, geo)
       integrated[f'{value}_tot'] = (
           integrated[f'{value}_ion'] + integrated[f'{value}_el']
       )
@@ -213,7 +211,14 @@ def make_outputs(
   Ploss = (
       integrated_sources['P_alpha_tot'] + integrated_sources['P_external_tot']
   )
-  # TODO(b/380848256): include dW/dt term
+
+  if previous_sim_state is not None:
+    dW_th_dt = (
+        W_thermal_tot - previous_sim_state.post_processed_outputs.W_thermal_tot
+    ) / sim_state.dt
+  else:
+    dW_th_dt = 0.0
+
   tauE = W_thermal_tot / Ploss
 
   tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
@@ -335,6 +340,7 @@ def make_outputs(
       q95=q95,
       Wpol=Wpol,
       li3=li3,
+      dW_th_dt=dW_th_dt,
   )
   # pylint: enable=invalid-name
   return dataclasses.replace(
