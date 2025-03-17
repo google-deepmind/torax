@@ -15,7 +15,6 @@
 from absl.testing import absltest
 import jax.numpy as jnp
 from unittest import mock
-from types import SimpleNamespace
 
 from torax.transport_model.bohm_gyrobohm import BohmGyroBohmTransportModel, DynamicRuntimeParams
 
@@ -25,20 +24,16 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
+from torax.config import numerics
+from torax.config import plasma_composition
+from torax.config import runtime_params_slice
+from torax.config.plasma_composition import DynamicIonMixture
 
 
 class BohmGyroBohmTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    # Patch the QLKNN model loader to avoid FileNotFoundError.
-    from torax.transport_model import qlknn_transport_model
-
-    self._old_get_model = qlknn_transport_model.get_model
-    qlknn_transport_model.get_model = lambda path: type(
-        'DummyQLKNN', (), {'version': 'dummy'}
-    )
-
     self.model = BohmGyroBohmTransportModel()
     self.runtime_params = general_runtime_params.GeneralRuntimeParams()
     self.sources = source_pydantic_model.Sources()
@@ -75,19 +70,8 @@ class BohmGyroBohmTest(absltest.TestCase):
         self.geo,
         self.source_models,
     )
-    self.numerics = SimpleNamespace(nref=1.0)
-    self.plasma_composition = SimpleNamespace(
-        main_ion=SimpleNamespace(avg_A=2.0)
-    )
     # pedestal_model_outputs is not used in the transport model; we can mock it.
     self.pedestal_outputs = mock.create_autospec(object)
-
-  def tearDown(self):
-    # Revert the monkeypatch.
-    from torax.transport_model import qlknn_transport_model
-
-    qlknn_transport_model.get_model = self._old_get_model
-    super().tearDown()
 
   def _create_dynamic_params_slice(
       self,
@@ -100,32 +84,10 @@ class BohmGyroBohmTest(absltest.TestCase):
       chi_i_bohm_multiplier,
       chi_i_gyrobohm_multiplier,
   ):
-    """Helper function to create a dummy dynamic runtime params slice.
-
-    Note: We supply dummy values for additional required parameters.
-    """
-    transport_params = DynamicRuntimeParams(
-        # Dummy values for the base fields.
-        chimin=0.0,
-        chimax=1.0,
-        Demin=0.0,
-        Demax=1.0,
-        Vemin=0.0,
-        Vemax=1.0,
-        apply_inner_patch=False,
-        De_inner=0.0,
-        Ve_inner=0.0,
-        chii_inner=0.0,
-        chie_inner=0.0,
-        rho_inner=0.5,
-        apply_outer_patch=False,
-        De_outer=0.0,
-        Ve_outer=0.0,
-        chii_outer=0.0,
-        chie_outer=0.0,
-        rho_outer=1.0,
-        smoothing_sigma=1.0,
-        smooth_everywhere=True,
+    # Create a mock for the transport parameters with only the required fields.
+    transport = mock.create_autospec(
+        DynamicRuntimeParams,
+        instance=True,
         # Transport-model specific fields.
         chi_e_bohm_coeff=chi_e_bohm_coeff,
         chi_e_gyrobohm_coeff=chi_e_gyrobohm_coeff,
@@ -139,11 +101,33 @@ class BohmGyroBohmTest(absltest.TestCase):
         chi_i_bohm_multiplier=chi_i_bohm_multiplier,
         chi_i_gyrobohm_multiplier=chi_i_gyrobohm_multiplier,
     )
-    return SimpleNamespace(
-        transport=transport_params,
-        numerics=self.numerics,
-        plasma_composition=self.plasma_composition,
+
+    # Create the plasma composition mock and add the required attribute.
+    plasma_comp_mock = mock.create_autospec(
+        plasma_composition.PlasmaComposition,
+        instance=True,
+        Zeff_face=jnp.ones_like(self.geo.rho_face),
     )
+    main_ion_mock = mock.create_autospec(
+        DynamicIonMixture,  # Replace with the actual class name
+        instance=True,
+        avg_A=2.0,
+    )
+    plasma_comp_mock.main_ion = main_ion_mock
+
+    # Create the dynamic runtime params slice mock with nested mocks.
+    dynamic_params = mock.create_autospec(
+        runtime_params_slice.DynamicRuntimeParamsSlice,
+        instance=True,
+        transport=transport,
+        plasma_composition=plasma_comp_mock,
+        numerics=mock.create_autospec(
+            numerics.Numerics,
+            instance=True,
+            nref=100,
+        ),
+    )
+    return dynamic_params
 
   def test_coeff_multiplier_feature(self):
     """Test that modifying coefficients or multipliers equivalently affects outputs.
