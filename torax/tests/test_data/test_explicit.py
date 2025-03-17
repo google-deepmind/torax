@@ -62,7 +62,6 @@ def get_sources() -> source_pydantic_model.Sources:
   """Returns the source models used in the simulation."""
   sources = default_sources.get_default_sources()
   sources_dict = sources.to_dict()
-  sources_dict = sources_dict['source_model_config']
   # multiplier for ion-electron heat exchange term for sensitivity
   sources_dict['qei_source']['Qei_mult'] = 0.0
   # remove bootstrap current
