@@ -109,7 +109,7 @@ class BohmGyroBohmTest(absltest.TestCase):
         Zeff_face=jnp.ones_like(self.geo.rho_face),
     )
     main_ion_mock = mock.create_autospec(
-        DynamicIonMixture,  # Replace with the actual class name
+        DynamicIonMixture, 
         instance=True,
         avg_A=2.0,
     )
