@@ -123,16 +123,17 @@ class DynamicRuntimeParamsSliceProvider:
   def __init__(
       self,
       runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
+      torax_mesh: torax_pydantic.Grid1D,
       pedestal: pedestal_pydantic_model.Pedestal | None = None,
       transport: transport_model_pydantic_model.Transport | None = None,
       sources: sources_pydantic_model.Sources | None = None,
       stepper: stepper_pydantic_model.Stepper | None = None,
-      torax_mesh: torax_pydantic.Grid1D | None = None,
   ):
     """Constructs a build_simulation_params.DynamicRuntimeParamsSliceProvider.
 
     Args:
       runtime_params: The general runtime params to use.
+      torax_mesh: The torax mesh to use.
       pedestal: The pedestal model runtime params to use. If None, defaults to
         the default pedestal model runtime params.
       transport: The transport model runtime params to use. If None, defaults to
@@ -141,9 +142,6 @@ class DynamicRuntimeParamsSliceProvider:
         defaults to an empty dict (i.e. no sources).
       stepper: The stepper configuration to use. If None, defaults to the
         default stepper configuration.
-      torax_mesh: The torax mesh to use. If the slice provider doesn't need to
-        construct any rho interpolated values, this can be None, else an error
-        will be raised within the constructor of the interpolated variable.
     """
     torax_pydantic.set_grid(runtime_params, torax_mesh, mode='relaxed')
     transport = transport or transport_model_pydantic_model.Transport.from_dict(
