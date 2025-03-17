@@ -24,7 +24,6 @@ from torax.physics import psi_calculations
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
-from torax.sources import source_operations
 from torax.sources import source_profiles as source_profiles_lib
 
 
@@ -48,9 +47,7 @@ def ohmic_model_func(
       geo,
       core_profiles.psi,
   )
-  psi_sources = source_operations.sum_sources_psi(
-      geo, calculated_source_profiles
-  )
+  psi_sources = calculated_source_profiles.total_psi_sources(geo)
   sigma = calculated_source_profiles.j_bootstrap.sigma
   sigma_face = calculated_source_profiles.j_bootstrap.sigma_face
   psidot = psi_calculations.calculate_psidot_from_psi_sources(

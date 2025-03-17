@@ -14,10 +14,12 @@
 
 """Source/sink profiles for all the sources in TORAX."""
 import dataclasses
+from typing import Literal
 
 import chex
 import jax
 import jax.numpy as jnp
+from torax import constants
 from torax.geometry import geometry
 import typing_extensions
 
@@ -142,3 +144,19 @@ class SourceProfiles:
     sum_profiles = lambda a, b: a + b
     return jax.tree_util.tree_map(
         sum_profiles, explicit_source_profiles, implicit_source_profiles)
+
+  def total_psi_sources(self, geo: geometry.Geometry) -> jax.Array:
+    total = self.j_bootstrap.j_bootstrap
+    total += sum(self.psi.values())
+    mu0 = constants.CONSTANTS.mu0
+    prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
+    return -total * prefactor
+
+  def total_sources(
+      self,
+      source_type: Literal['ne', 'temp_ion', 'temp_el'],
+      geo: geometry.Geometry,
+  ) -> jax.Array:
+    source: dict[str, jax.Array] = getattr(self, source_type)
+    total = sum(source.values())
+    return total * geo.vpr

@@ -41,7 +41,6 @@ from torax.geometry import geometry
 from torax.physics import charge_states
 from torax.physics import formulas
 from torax.physics import psi_calculations
-from torax.sources import source_operations
 from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -279,7 +278,7 @@ def update_all_core_profiles_after_step(
       )
   )
 
-  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
+  psi_sources = source_profiles.total_psi_sources(geo)
   psidot = dataclasses.replace(
       core_profiles.psidot,
       value=psi_calculations.calculate_psidot_from_psi_sources(

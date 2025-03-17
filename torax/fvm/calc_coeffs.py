@@ -27,7 +27,6 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_models as source_models_lib
-from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.transport_model import transport_model as transport_model_lib
@@ -391,7 +390,7 @@ def _calc_coeffs_full(
   source_mat_psi = jnp.zeros_like(geo.rho)
 
   # fill source vector based on both original and updated core profiles
-  source_psi = source_operations.sum_sources_psi(geo, merged_source_profiles)
+  source_psi = merged_source_profiles.total_psi_sources(geo)
 
   true_ne = core_profiles.ne.value * dynamic_runtime_params_slice.numerics.nref
   true_ni = core_profiles.ni.value * dynamic_runtime_params_slice.numerics.nref
@@ -465,7 +464,7 @@ def _calc_coeffs_full(
   source_mat_nn = jnp.zeros_like(geo.rho)
 
   # density source vector based both on original and updated core profiles
-  source_ne = source_operations.sum_sources_ne(geo, merged_source_profiles)
+  source_ne = merged_source_profiles.total_sources('ne', geo)
 
   source_ne += jnp.where(
       dynamic_runtime_params_slice.profile_conditions.set_pedestal,
@@ -550,8 +549,8 @@ def _calc_coeffs_full(
 
   # Fill heat transport equation sources. Initialize source matrices to zero
 
-  source_i = source_operations.sum_sources_temp_ion(geo, merged_source_profiles)
-  source_e = source_operations.sum_sources_temp_el(geo, merged_source_profiles)
+  source_i = merged_source_profiles.total_sources('temp_ion', geo)
+  source_e = merged_source_profiles.total_sources('temp_el', geo)
 
   # Add the Qei effects.
   qei = merged_source_profiles.qei
