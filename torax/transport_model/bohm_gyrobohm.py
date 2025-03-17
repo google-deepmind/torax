@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """The BohmGyroBohmModel class."""
-
-from __future__ import annotations
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing

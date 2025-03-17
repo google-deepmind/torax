@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Plasma composition parameters used throughout TORAX simulations."""
-
-from __future__ import annotations
-
 import functools
 
 import chex
@@ -48,6 +45,58 @@ class DynamicIonMixture:
   fractions: array_typing.ArrayFloat
   avg_A: array_typing.ScalarFloat
   Z_override: array_typing.ScalarFloat | None = None
+
+
+class IonMixture(torax_pydantic.BaseModelFrozen):
+  """Represents a mixture of ion species. The mixture can depend on time.
+
+  Main use cases:
+  1. Represent a bundled mixture of hydrogenic main ions (e.g. D and T)
+  2. Represent a bundled impurity species where the avg charge state, mass,
+    and radiation is consistent with each fractional concentration, and these
+    quantities are then averaged over the mixture to represent a single impurity
+    species in the transport equations for efficiency.
+
+  Attributes:
+    species: A dict mapping ion symbols (from ION_SYMBOLS) to their fractional
+      concentration in the mixture. The fractions must sum to 1.
+    Z_override: An optional override for the average charge (Z) of the mixture.
+    A_override: An optional override for the average mass (A) of the mixture.
+  """
+
+  species: runtime_validation_utils.IonMapping
+  Z_override: torax_pydantic.TimeVaryingScalar | None = None
+  A_override: torax_pydantic.TimeVaryingScalar | None = None
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicIonMixture:
+    """Creates a DynamicIonMixture object at a given time.
+
+    Optional overrides for Z and A can be provided.
+
+    Args:
+      t: The time at which to build the DynamicIonMixture.
+
+    Returns:
+      A DynamicIonMixture object.
+    """
+    ions = self.species.keys()
+    fractions = np.array([self.species[ion].get_value(t) for ion in ions])
+    Z_override = None if not self.Z_override else self.Z_override.get_value(t)
+
+    if not self.A_override:
+      As = np.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
+      avg_A = np.sum(As * fractions)
+    else:
+      avg_A = self.A_override.get_value(t)
+
+    return DynamicIonMixture(
+        fractions=fractions,
+        avg_A=avg_A,
+        Z_override=Z_override,
+    )
 
 
 @chex.dataclass
@@ -137,56 +186,4 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
         impurity=self.impurity_mixture.build_dynamic_params(t),
         Zeff=self.Zeff.get_value(t),
         Zeff_face=self.Zeff.get_value(t, grid_type='face'),
-    )
-
-
-class IonMixture(torax_pydantic.BaseModelFrozen):
-  """Represents a mixture of ion species. The mixture can depend on time.
-
-  Main use cases:
-  1. Represent a bundled mixture of hydrogenic main ions (e.g. D and T)
-  2. Represent a bundled impurity species where the avg charge state, mass,
-    and radiation is consistent with each fractional concentration, and these
-    quantities are then averaged over the mixture to represent a single impurity
-    species in the transport equations for efficiency.
-
-  Attributes:
-    species: A dict mapping ion symbols (from ION_SYMBOLS) to their fractional
-      concentration in the mixture. The fractions must sum to 1.
-    Z_override: An optional override for the average charge (Z) of the mixture.
-    A_override: An optional override for the average mass (A) of the mixture.
-  """
-
-  species: runtime_validation_utils.IonMapping
-  Z_override: torax_pydantic.TimeVaryingScalar | None = None
-  A_override: torax_pydantic.TimeVaryingScalar | None = None
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicIonMixture:
-    """Creates a DynamicIonMixture object at a given time.
-
-    Optional overrides for Z and A can be provided.
-
-    Args:
-      t: The time at which to build the DynamicIonMixture.
-
-    Returns:
-      A DynamicIonMixture object.
-    """
-    ions = self.species.keys()
-    fractions = np.array([self.species[ion].get_value(t) for ion in ions])
-    Z_override = None if not self.Z_override else self.Z_override.get_value(t)
-
-    if not self.A_override:
-      As = np.array([constants.ION_PROPERTIES_DICT[ion].A for ion in ions])
-      avg_A = np.sum(As * fractions)
-    else:
-      avg_A = self.A_override.get_value(t)
-
-    return DynamicIonMixture(
-        fractions=fractions,
-        avg_A=avg_A,
-        Z_override=Z_override,
     )

@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Functions for building source profiles in TORAX."""
-
-from __future__ import annotations
-
 import functools
 
 import chex

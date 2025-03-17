@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """External current source profile."""
-
-from __future__ import annotations
-
 import dataclasses
 from typing import ClassVar, Literal
 
@@ -35,46 +32,6 @@ from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
-class GenericCurrentSourceConfig(source_base.SourceModelBase):
-  """Configuration for the GenericCurrentSource.
-
-  Attributes:
-    Iext: total "external" current in MA. Used if use_absolute_current=True.
-    fext: total "external" current fraction. Used if use_absolute_current=False.
-    wext: width of "external" Gaussian current profile
-    rext: normalized radius of "external" Gaussian current profile
-    use_absolute_current: Toggles if external current is provided absolutely or
-      as a fraction of Ip.
-  """
-  source_name: Literal['generic_current_source'] = 'generic_current_source'
-  Iext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(3.0)
-  fext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.2)
-  wext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.05)
-  rext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.4)
-  use_absolute_current: bool = False
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return calculate_generic_current
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
-        Iext=self.Iext.get_value(t),
-        fext=self.fext.get_value(t),
-        wext=self.wext.get_value(t),
-        rext=self.rext.get_value(t),
-        use_absolute_current=self.use_absolute_current,
-    )
-
-  def build_source(self) -> GenericCurrentSource:
-    return GenericCurrentSource(model_func=self.model_func)
-
-
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime parameters for the external current source."""
@@ -93,8 +50,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     self.sanity_check()
 
 
-# pytype bug: does not treat 'source_models.SourceModels' as a forward reference
-# pytype: disable=name-error
 def calculate_generic_current(
     unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -161,3 +116,44 @@ class GenericCurrentSource(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.PSI,)
+
+
+class GenericCurrentSourceConfig(source_base.SourceModelBase):
+  """Configuration for the GenericCurrentSource.
+
+  Attributes:
+    Iext: total "external" current in MA. Used if use_absolute_current=True.
+    fext: total "external" current fraction. Used if use_absolute_current=False.
+    wext: width of "external" Gaussian current profile
+    rext: normalized radius of "external" Gaussian current profile
+    use_absolute_current: Toggles if external current is provided absolutely or
+      as a fraction of Ip.
+  """
+
+  source_name: Literal['generic_current_source'] = 'generic_current_source'
+  Iext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(3.0)
+  fext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.2)
+  wext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.05)
+  rext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.4)
+  use_absolute_current: bool = False
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return calculate_generic_current
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        Iext=self.Iext.get_value(t),
+        fext=self.fext.get_value(t),
+        wext=self.wext.get_value(t),
+        rext=self.rext.get_value(t),
+        use_absolute_current=self.use_absolute_current,
+    )
+
+  def build_source(self) -> GenericCurrentSource:
+    return GenericCurrentSource(model_func=self.model_func)

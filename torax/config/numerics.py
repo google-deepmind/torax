@@ -13,15 +13,31 @@
 # limitations under the License.
 
 """Numerics parameters used throughout TORAX simulations."""
-
-from __future__ import annotations
 import chex
 import pydantic
 from torax import array_typing
 from torax.torax_pydantic import torax_pydantic
 from typing_extensions import Self
 
+
 # pylint: disable=invalid-name
+@chex.dataclass
+class DynamicNumerics:
+  """Generic numeric parameters for the simulation."""
+
+  t_initial: float
+  t_final: float
+  exact_t_final: bool
+  maxdt: float
+  mindt: float
+  dtmult: float
+  fixed_dt: float
+  dt_reduction_factor: float
+  resistivity_mult: array_typing.ScalarFloat
+  nref: float
+  largeValue_T: float
+  largeValue_n: float
+  calcphibdot: bool
 
 
 class Numerics(torax_pydantic.BaseModelFrozen):
@@ -120,22 +136,3 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         largeValue_T=self.largeValue_T,
         largeValue_n=self.largeValue_n,
     )
-
-
-@chex.dataclass
-class DynamicNumerics:
-  """Generic numeric parameters for the simulation."""
-
-  t_initial: float
-  t_final: float
-  exact_t_final: bool
-  maxdt: float
-  mindt: float
-  dtmult: float
-  fixed_dt: float
-  dt_reduction_factor: float
-  resistivity_mult: array_typing.ScalarFloat
-  nref: float
-  largeValue_T: float
-  largeValue_n: float
-  calcphibdot: bool

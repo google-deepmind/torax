@@ -16,9 +16,6 @@
 
 This is a separate file to not bloat the main sim.py test file.
 """
-
-from __future__ import annotations
-
 import dataclasses
 from unittest import mock
 

@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A wrapper for QLKNN transport surrogate models."""
-
-from __future__ import annotations
-
 from collections.abc import Mapping
 from typing import Final
 import immutabledict
@@ -24,10 +21,10 @@ from torax.transport_model import base_qlknn_model
 from torax.transport_model import qualikiz_based_transport_model
 # pylint: disable=g-import-not-at-top
 try:
-  from fusion_transport_surrogates import qlknn_model
-  _FUSION_TRANSPORT_SURROGATES_AVAILABLE = True
+  from fusion_surrogates import qlknn_model
+  _FUSION_SURROGATES_AVAILABLE = True
 except ImportError:
-  _FUSION_TRANSPORT_SURROGATES_AVAILABLE = False
+  _FUSION_SURROGATES_AVAILABLE = False
 # pylint: enable=g-import-not-at-top
 
 # Convert flux names from Qualikiz to TORAX.
@@ -50,10 +47,9 @@ class QLKNNModelWrapper(base_qlknn_model.BaseQLKNNModel):
       path: str,
       flux_name_map: Mapping[str, str] | None = None,
   ):
-    if not _FUSION_TRANSPORT_SURROGATES_AVAILABLE:
+    if not _FUSION_SURROGATES_AVAILABLE:
       raise ImportError(
-          'QLKNNModelWrapper requires fusion_transport_surrogates to be '
-          'installed.'
+          'QLKNNModelWrapper requires fusion_surrogates to be installed.'
       )
     if flux_name_map is None:
       flux_name_map = _FLUX_NAME_MAP

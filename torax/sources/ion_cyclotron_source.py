@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Surrogate model for ion-cyclotron resonance heating (ICRH) model."""
-from __future__ import annotations
-
 import dataclasses
 import functools
 import json
@@ -107,6 +105,86 @@ class ToricNNOutputs:
   power_deposition_2T: array_typing.ArrayFloat
   # Power deposition on electrons in MW/m^3/MW_{abs}.
   power_deposition_e: array_typing.ArrayFloat
+
+
+class _ToricNN(nn.Module):
+  """Surrogate heating model trained on TORIC ICRF solver simulation.
+
+  This model takes input parameters from the `ToricNNInputs` class and outputs
+  power deposition profiles for helium-3, tritium (second harmonic) and
+  electrons on a radial grid.
+
+  This Flax module is not intended to be used directly but rather through the
+  `ToricNNWrapper` class.
+
+  The modelling approach is described in:
+  https://iopscience.iop.org/article/10.1088/1741-4326/ad645d/pdf. The model
+  is trained on regression outputs from the TORIC ICRF solver. PCA is applied
+  to the outputs of the solver to reduce the dimensionality of the model.
+
+  The structure of the model consistents of:
+  - Scaling and normalisation of the input parameters.
+  - An MLP transforming the scaled inputs.
+  - A projection back to true values using the PCA coefficients.
+  """
+
+  # Hidden layer sizes for the MLP.
+  hidden_sizes: Sequence[int]
+  # Number of PCA coefficients used by ToricNN.
+  pca_coeffs: int
+  # Input dimensionality of the ToricNN model.
+  input_dim: int
+  # Number of radial nodes in output of the ToricNN model.
+  radial_nodes: int
+
+  def setup(self):
+    """Setup the parameters of the ToricNN model."""
+    self.scaler_mean = self.param(
+        'scaler_mean',
+        jax.random.normal,
+        (self.input_dim,),
+    )
+    self.scaler_scale = self.param(
+        'scaler_scale',
+        jax.random.normal,
+        (self.input_dim,),
+    )
+    self.pca_components = self.param(
+        'pca_components',
+        jax.random.normal,
+        (
+            self.pca_coeffs,
+            self.radial_nodes,
+        ),
+    )
+    self.pca_mean = self.param(
+        'pca_mean',
+        jax.random.normal,
+        (self.radial_nodes,),
+    )
+
+  @nn.compact
+  def __call__(
+      self,
+      x: jt.Float32[jt.Array, 'B* {self.input_dim}'],
+  ) -> jt.Float32[jt.Array, 'B* {self.radial_nodes}']:
+    """Run a forward pass of the ToricNN model."""
+    # Scale and normalise inputs.
+    x = (x - self.scaler_mean) / self.scaler_scale
+
+    # MLP.
+    for hidden_size in self.hidden_sizes:
+      x = nn.Dense(
+          hidden_size,
+      )(x)
+      x = nn.relu(x)
+    x = nn.Dense(
+        self.pca_coeffs,
+    )(x)
+
+    x = x @ self.pca_components + self.pca_mean  # Project back to true values.
+    x = x * (x > 0)  # Eliminate non-physical values for power deposition.
+    return x
 
 
 class ToricNNWrapper:
@@ -203,140 +281,6 @@ class ToricNNWrapper:
         power_deposition_2T=outputs_2T,
         power_deposition_e=outputs_e,
     )
-
-
-# pylint: enable=invalid-name
-
-
-class _ToricNN(nn.Module):
-  """Surrogate heating model trained on TORIC ICRF solver simulation.
-
-  This model takes input parameters from the `ToricNNInputs` class and outputs
-  power deposition profiles for helium-3, tritium (second harmonic) and
-  electrons on a radial grid.
-
-  This Flax module is not intended to be used directly but rather through the
-  `ToricNNWrapper` class.
-
-  The modelling approach is described in:
-  https://iopscience.iop.org/article/10.1088/1741-4326/ad645d/pdf. The model
-  is trained on regression outputs from the TORIC ICRF solver. PCA is applied
-  to the outputs of the solver to reduce the dimensionality of the model.
-
-  The structure of the model consistents of:
-  - Scaling and normalisation of the input parameters.
-  - An MLP transforming the scaled inputs.
-  - A projection back to true values using the PCA coefficients.
-  """
-
-  # Hidden layer sizes for the MLP.
-  hidden_sizes: Sequence[int]
-  # Number of PCA coefficients used by ToricNN.
-  pca_coeffs: int
-  # Input dimensionality of the ToricNN model.
-  input_dim: int
-  # Number of radial nodes in output of the ToricNN model.
-  radial_nodes: int
-
-  def setup(self):
-    """Setup the parameters of the ToricNN model."""
-    self.scaler_mean = self.param(
-        'scaler_mean',
-        jax.random.normal,
-        (self.input_dim,),
-    )
-    self.scaler_scale = self.param(
-        'scaler_scale',
-        jax.random.normal,
-        (self.input_dim,),
-    )
-    self.pca_components = self.param(
-        'pca_components',
-        jax.random.normal,
-        (
-            self.pca_coeffs,
-            self.radial_nodes,
-        ),
-    )
-    self.pca_mean = self.param(
-        'pca_mean',
-        jax.random.normal,
-        (self.radial_nodes,),
-    )
-
-  @nn.compact
-  def __call__(
-      self,
-      x: jt.Float32[jt.Array, 'B* {self.input_dim}'],
-  ) -> jt.Float32[jt.Array, 'B* {self.radial_nodes}']:
-    """Run a forward pass of the ToricNN model."""
-    # Scale and normalise inputs.
-    x = (x - self.scaler_mean) / self.scaler_scale
-
-    # MLP.
-    for hidden_size in self.hidden_sizes:
-      x = nn.Dense(
-          hidden_size,
-      )(x)
-      x = nn.relu(x)
-    x = nn.Dense(
-        self.pca_coeffs,
-    )(x)
-
-    x = x @ self.pca_components + self.pca_mean  # Project back to true values.
-    x = x * (x > 0)  # Eliminate non-physical values for power deposition.
-    return x
-
-
-# pylint: disable=invalid-name
-class IonCyclotronSourceConfig(base.SourceModelBase):
-  """Configuration for the IonCyclotronSource.
-
-  Attributes:
-    wall_inner: Inner radial location of first wall at plasma midplane level
-      [m].
-    wall_outer: Outer radial location of first wall at plasma midplane level
-      [m].
-    frequency: ICRF wave frequency [Hz].
-    minority_concentration: He3 minority concentration relative to the electron
-      density in %.
-    Ptot: Total heating power [W].
-  """
-
-  source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
-  wall_inner: torax_pydantic.Meter = 1.24
-  wall_outer: torax_pydantic.Meter = 2.43
-  frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      120e6
-  )
-  minority_concentration: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(3.0)
-  )
-  Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return functools.partial(
-        icrh_model_func,
-        toric_nn=ToricNNWrapper(),
-    )
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
-        wall_inner=self.wall_inner,
-        wall_outer=self.wall_outer,
-        frequency=self.frequency.get_value(t),
-        minority_concentration=self.minority_concentration.get_value(t),
-        Ptot=self.Ptot.get_value(t),
-    )
-
-  def build_source(self) -> IonCyclotronSource:
-    return IonCyclotronSource(model_func=self.model_func)
 
 
 @chex.dataclass(frozen=True)
@@ -480,7 +424,6 @@ def icrh_model_func(
   source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
 
   return (source_ion, source_el)
-# pylint: enable=invalid-name
 
 
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
@@ -500,3 +443,53 @@ class IonCyclotronSource(source.Source):
         source.AffectedCoreProfile.TEMP_ION,
         source.AffectedCoreProfile.TEMP_EL,
     )
+
+
+class IonCyclotronSourceConfig(base.SourceModelBase):
+  """Configuration for the IonCyclotronSource.
+
+  Attributes:
+    wall_inner: Inner radial location of first wall at plasma midplane level
+      [m].
+    wall_outer: Outer radial location of first wall at plasma midplane level
+      [m].
+    frequency: ICRF wave frequency [Hz].
+    minority_concentration: He3 minority concentration relative to the electron
+      density in %.
+    Ptot: Total heating power [W].
+  """
+
+  source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
+  wall_inner: torax_pydantic.Meter = 1.24
+  wall_outer: torax_pydantic.Meter = 2.43
+  frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      120e6
+  )
+  minority_concentration: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(3.0)
+  )
+  Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return functools.partial(
+        icrh_model_func,
+        toric_nn=ToricNNWrapper(),
+    )
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        wall_inner=self.wall_inner,
+        wall_outer=self.wall_outer,
+        frequency=self.frequency.get_value(t),
+        minority_concentration=self.minority_concentration.get_value(t),
+        Ptot=self.Ptot.get_value(t),
+    )
+
+  def build_source(self) -> IonCyclotronSource:
+    return IonCyclotronSource(model_func=self.model_func)

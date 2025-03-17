@@ -16,16 +16,9 @@
 
 from collections.abc import Mapping
 from typing import Any
+
 from torax import sim as sim_lib
-from torax.config import runtime_params as runtime_params_lib
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import pydantic_model as source_pydantic_model
-from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
-from torax.torax_pydantic import file_restart as file_restart_pydantic_model
-from torax.torax_pydantic import torax_pydantic
-from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.torax_pydantic import model_config as pydantic_model_config
 
 
 def build_sim_from_config(
@@ -69,62 +62,16 @@ def build_sim_from_config(
   Raises:
     ValueError if any config parameters are missing or incorrect.
   """
-  missing_keys = []
-  required_keys = [
-      'runtime_params',
-      'geometry',
-      'sources',
-      'transport',
-      'stepper',
-      'time_step_calculator',
-  ]
-  for key in required_keys:
-    if key not in config:
-      missing_keys.append(key)
-  if missing_keys:
-    raise ValueError(
-        f'The following required keys are not in the input dict: {missing_keys}'
-    )
-  if (
-      'set_pedestal' in config['runtime_params']['profile_conditions']
-      and config['runtime_params']['profile_conditions']['set_pedestal']
-      and 'pedestal' not in config
-  ):
-    raise ValueError(
-        'The pedestal config is required if set_pedestal is True in the runtime'
-        ' params. See'
-        ' https://torax.readthedocs.io/en/latest/configuration.html#detailed-configuration-structure'
-        ' for more info.'
-    )
-  geo_provider = geometry_pydantic_model.Geometry.from_dict(
-      config['geometry']
-  ).build_provider
 
-  runtime_params = runtime_params_lib.GeneralRuntimeParams.from_dict(
-      config['runtime_params']
-  )
-  torax_pydantic.set_grid(runtime_params, geo_provider.torax_mesh)
-
-  if 'restart' in config:
-    file_restart = file_restart_pydantic_model.FileRestart.from_dict(
-        config['restart']
-    )
-  else:
-    file_restart = None
+  model = pydantic_model_config.ToraxConfig.from_dict(config)
 
   return sim_lib.Sim.create(
-      runtime_params=runtime_params,
-      geometry_provider=geo_provider,
-      sources=source_pydantic_model.Sources.from_dict(config['sources']),
-      transport_model=transport_pydantic_model.Transport.from_dict(
-          config['transport']
-      ),
-      stepper=stepper_pydantic_model.Stepper.from_dict(config['stepper']),
-      pedestal=pedestal_pydantic_model.Pedestal.from_dict(
-          config['pedestal'] if 'pedestal' in config else {}
-      ),
-      time_step_calculator=time_step_calculator_pydantic_model.TimeStepCalculator.from_dict(
-          config['time_step_calculator']
-      ).time_step_calculator,
-      file_restart=file_restart,
+      runtime_params=model.runtime_params,
+      geometry_provider=model.geometry.build_provider,
+      sources=model.sources,
+      transport_model=model.transport,
+      stepper=model.stepper,
+      pedestal=model.pedestal,
+      time_step_calculator=model.time_step_calculator.time_step_calculator,
+      file_restart=model.restart,
   )
