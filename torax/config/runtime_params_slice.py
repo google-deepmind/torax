@@ -34,9 +34,6 @@ trigger a recompilation of the stepper. These arguments don't have the same
 restrictions as the dynamic arguments both in terms of types and how they are
 used.
 """
-
-from __future__ import annotations
-
 from collections.abc import Mapping
 import dataclasses
 
@@ -51,6 +48,7 @@ from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as transport_model_params
+import typing_extensions
 
 # Many of the variables follow scientific or mathematical notation, so disable
 # pylint complaints.
@@ -153,7 +151,7 @@ class StaticRuntimeParamsSlice:
         self.adaptive_dt,
     ))
 
-  def validate_new(self, new_params: StaticRuntimeParamsSlice):
+  def validate_new(self, new_params: typing_extensions.Self):
     """Validates that the new static runtime params slice is compatible."""
     if set(new_params.sources) != set(self.sources):
       raise ValueError('New static runtime params slice has different sources.')

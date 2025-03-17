@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Functions for building arguments for configs and runtime input params."""
-
-from __future__ import annotations
-
 import dataclasses
 import enum
 import typing

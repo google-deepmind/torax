@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Pedestal model that specifies pressure, temperature ratio, and density."""
-
-from __future__ import annotations
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing

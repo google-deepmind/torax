@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
-from __future__ import annotations
 
 import dataclasses
 import inspect

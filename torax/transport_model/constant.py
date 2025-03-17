@@ -16,9 +16,6 @@
 
 A simple model assuming constant transport.
 """
-
-from __future__ import annotations
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing

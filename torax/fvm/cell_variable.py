@@ -18,15 +18,13 @@ A chex dataclass used to represent variables on meshes for the 1D fvm solver.
 Naming conventions and API are similar to those developed in the FiPy fvm solver
 [https://www.ctcms.nist.gov/fipy/]
 """
-
-from __future__ import annotations
-
 import dataclasses
 
 import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
+import typing_extensions
 
 
 def _zero() -> array_typing.ScalarFloat:
@@ -222,7 +220,7 @@ class CellVariable:
     face = self.face_value()
     return jnp.diff(face) / self.dr
 
-  def history_elem(self) -> CellVariable:
+  def history_elem(self) -> typing_extensions.Self:
     """Return a history entry version of this CellVariable."""
     return dataclasses.replace(self, history=True)
 

@@ -20,9 +20,6 @@ in this folder use these classes to define specific types of sources/sinks.
 See Source class docstring for more details on what a TORAX source is and how to
 use it.
 """
-
-from __future__ import annotations
-
 import abc
 import dataclasses
 import enum

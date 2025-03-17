@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Fusion heat source for both ion and electron heat equations."""
-
-from __future__ import annotations
-
 import dataclasses
 from typing import ClassVar, Literal
 

@@ -13,10 +13,6 @@
 # limitations under the License.
 
 """Classes for representing a circular geometry."""
-
-
-from __future__ import annotations
-
 import numpy as np
 from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
