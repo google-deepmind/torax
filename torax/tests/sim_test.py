@@ -391,6 +391,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with Mavrin polynomial model for radiation.
+      (
+          'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation',
+          'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Predictor-corrector solver with constant pressure pedestal model.
       (
           'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped',
