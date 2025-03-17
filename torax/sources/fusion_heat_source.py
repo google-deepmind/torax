@@ -139,8 +139,6 @@ def calc_fusion(
   return Ptot, Pfus_i, Pfus_e
 
 
-# pytype bug: does not treat 'source_models.SourceModels' as forward reference
-# pytype: disable=name-error
 def fusion_heat_model_func(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -150,7 +148,6 @@ def fusion_heat_model_func(
     unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
 ) -> tuple[chex.Array, ...]:
   """Model function for fusion heating."""
-  # pytype: enable=name-error
   # pylint: disable=invalid-name
   _, Pfus_i, Pfus_e = calc_fusion(
       geo,
