@@ -25,135 +25,14 @@ from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import bohm_gyrobohm
 from torax.transport_model import constant
 from torax.transport_model import critical_gradient
+from torax.transport_model import pydantic_model_base
 from torax.transport_model import qlknn_transport_model
 from torax.transport_model import runtime_params
 from torax.transport_model import transport_model as transport_model_lib
-import typing_extensions
-
-
-# pylint: disable=g-import-not-at-top
-try:
-  from torax.transport_model import qualikiz_transport_model
-  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = True
-except ImportError:
-  _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE = False
-# pylint: enable=g-import-not-at-top
 
 
 # pylint: disable=invalid-name
-class TransportBase(torax_pydantic.BaseModelFrozen):
-  """Base model holding parameters common to all transport models.
-
-  Attributes:
-    chimin: Lower bound on heat conductivity.
-    chimax: Upper bound on heat conductivity (can be helpful for stability).
-    Demin: minimum electron density diffusivity.
-    Demax: maximum electron density diffusivity.
-    Vemin: minimum electron density convection.
-    Vemax: minimum electron density convection.
-    apply_inner_patch: set inner core transport coefficients (ad-hoc MHD/EM
-      transport).
-    De_inner: inner core electron density diffusivity.
-    Ve_inner: inner core electron density convection.
-    chii_inner: inner core ion heat equation diffusion term.
-    chie_inner: inner core electron heat equation diffusion term.
-    rho_inner: normalized radius below which inner patch is applied.
-    apply_outer_patch: set outer core transport coefficients (ad-hoc MHD/EM
-      transport). Only used when set_pedestal = False Useful for L-mode
-      near-edge region where QLKNN10D is not applicable.
-    De_outer: outer core electron density diffusivity.
-    Ve_outer: outer core electron density convection.
-    chii_outer: outer core ion heat equation diffusion term.
-    chie_outer: outer core electron heat equation diffusion term.
-    rho_outer: normalized radius above which outer patch is applied.
-    smoothing_sigma: Width of HWHM Gaussian smoothing kernel operating on
-      transport model outputs.
-    smooth_everywhere: Smooth across entire radial domain regardless of inner
-      and outer patches.
-  """
-  chimin: torax_pydantic.MeterSquaredPerSecond = 0.05
-  chimax: torax_pydantic.MeterSquaredPerSecond = 100.0
-  Demin: torax_pydantic.MeterSquaredPerSecond = 0.05
-  Demax: torax_pydantic.MeterSquaredPerSecond = 100.0
-  Vemin: torax_pydantic.MeterPerSecond = -50.0
-  Vemax: torax_pydantic.MeterPerSecond = 50.0
-  apply_inner_patch: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(False)
-  )
-  De_inner: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.2)
-  )
-  Ve_inner: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  chii_inner: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  chie_inner: torax_pydantic.PositiveTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  rho_inner: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.3)
-  )
-  apply_outer_patch: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(False)
-  )
-  De_outer: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.2)
-  )
-  Ve_outer: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.0)
-  )
-  chii_outer: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  chie_outer: interpolated_param_1d.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
-  rho_outer: torax_pydantic.UnitIntervalTimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.9)
-  )
-  smoothing_sigma: float = 0.0
-  smooth_everywhere: bool = False
-
-  @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
-    if not self.chimax > self.chimin:
-      raise ValueError('chimin must be less than chimax.')
-    if not self.Demin < self.Demax:
-      raise ValueError('Demin must be less than Demax.')
-    if not self.Vemin < self.Vemax:
-      raise ValueError('Vemin must be less than Vemax.')
-    return self
-
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ) -> runtime_params.DynamicRuntimeParams:
-    return runtime_params.DynamicRuntimeParams(
-        chimin=self.chimin,
-        chimax=self.chimax,
-        Demin=self.Demin,
-        Demax=self.Demax,
-        Vemin=self.Vemin,
-        Vemax=self.Vemax,
-        apply_inner_patch=self.apply_inner_patch.get_value(t),
-        De_inner=self.De_inner.get_value(t),
-        Ve_inner=self.Ve_inner.get_value(t),
-        chii_inner=self.chii_inner.get_value(t),
-        chie_inner=self.chie_inner.get_value(t),
-        rho_inner=self.rho_inner.get_value(t),
-        apply_outer_patch=self.apply_outer_patch.get_value(t),
-        De_outer=self.De_outer.get_value(t),
-        Ve_outer=self.Ve_outer.get_value(t),
-        chii_outer=self.chii_outer.get_value(t),
-        chie_outer=self.chie_outer.get_value(t),
-        rho_outer=self.rho_outer.get_value(t),
-        smoothing_sigma=self.smoothing_sigma,
-        smooth_everywhere=self.smooth_everywhere,
-    )
-
-
-class QLKNNTransportModel(TransportBase):
+class QLKNNTransportModel(pydantic_model_base.TransportBase):
   """Model for the QLKNN transport model.
 
   Attributes:
@@ -241,59 +120,7 @@ class QLKNNTransportModel(TransportBase):
     )
 
 
-class QualikizTransportModel(TransportBase):
-  """Model for the Qualikiz transport model.
-
-  Attributes:
-    transport_model: The transport model to use. Hardcoded to 'qualikiz'.
-    maxruns: Set frequency of full QuaLiKiz contour solutions.
-    numprocs: Set number of cores used QuaLiKiz calculations.
-    coll_mult: Collisionality multiplier.
-    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
-      for no slab modes.
-    smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
-      impact of alpha.
-    q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
-      are sawteeth.
-    DVeff: Effective D / effective V approach for particle transport.
-    An_min: Minimum |R/Lne| below which effective V is used instead of effective
-      D.
-  """
-  transport_model: Literal['qualikiz'] = 'qualikiz'
-  maxruns: pydantic.PositiveInt = 2
-  numprocs: pydantic.PositiveInt = 8
-  coll_mult: pydantic.PositiveFloat = 1.0
-  avoid_big_negative_s: bool = True
-  smag_alpha_correction: bool = True
-  q_sawtooth_proxy: bool = True
-  DVeff: bool = False
-  An_min: pydantic.PositiveFloat = 0.05
-
-  # pylint: disable=undefined-variable
-  def build_transport_model(
-      self,
-  ):
-    return qualikiz_transport_model.QualikizTransportModel()
-
-  def build_dynamic_params(
-      self, t: chex.Numeric
-  ):
-    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
-    return qualikiz_transport_model.DynamicRuntimeParams(
-        maxruns=self.maxruns,
-        numprocs=self.numprocs,
-        coll_mult=self.coll_mult,
-        avoid_big_negative_s=self.avoid_big_negative_s,
-        smag_alpha_correction=self.smag_alpha_correction,
-        q_sawtooth_proxy=self.q_sawtooth_proxy,
-        DVeff=self.DVeff,
-        An_min=self.An_min,
-        **base_kwargs,
-    )
-  # pylint: enable=undefined-variable
-
-
-class ConstantTransportModel(TransportBase):
+class ConstantTransportModel(pydantic_model_base.TransportBase):
   """Model for the Constant transport model.
 
   Attributes:
@@ -333,7 +160,7 @@ class ConstantTransportModel(TransportBase):
     )
 
 
-class CriticalGradientTransportModel(TransportBase):
+class CriticalGradientTransportModel(pydantic_model_base.TransportBase):
   """Model for the Critical Gradient transport model.
 
   Attributes:
@@ -379,7 +206,7 @@ class CriticalGradientTransportModel(TransportBase):
     )
 
 
-class BohmGyroBohmTransportModel(TransportBase):
+class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
   """Model for the Bohm + Gyro-Bohm transport model.
 
   Attributes:
@@ -437,13 +264,24 @@ class BohmGyroBohmTransportModel(TransportBase):
     )
 
 
-TransportModelConfig = Union[
-    QLKNNTransportModel,
-    QualikizTransportModel,
-    ConstantTransportModel,
-    CriticalGradientTransportModel,
-    BohmGyroBohmTransportModel,
-]
+try:
+  # pylint: disable=g-import-not-at-top
+  from torax.transport_model import qualikiz_transport_model
+  # pylint: enable=g-import-not-at-top
+  TransportModelConfig = Union[
+      QLKNNTransportModel,
+      ConstantTransportModel,
+      CriticalGradientTransportModel,
+      BohmGyroBohmTransportModel,
+      qualikiz_transport_model.QualikizTransportModelConfig,
+  ]
+except ImportError:
+  TransportModelConfig = Union[
+      QLKNNTransportModel,
+      ConstantTransportModel,
+      CriticalGradientTransportModel,
+      BohmGyroBohmTransportModel,
+  ]
 
 
 class Transport(torax_pydantic.BaseModelFrozen):
@@ -452,20 +290,12 @@ class Transport(torax_pydantic.BaseModelFrozen):
   The `from_dict` method of constructing this class supports the config
   described in: https://torax.readthedocs.io/en/latest/configuration.html
   """
-
+  # Pytype does not like the conditional import.
+  # pytype: disable=invalid-annotation
   transport_model_config: TransportModelConfig = pydantic.Field(
       discriminator='transport_model'
   )
-
-  @pydantic.model_validator(mode='after')
-  def _check_fields(self) -> typing_extensions.Self:
-    if isinstance(self.transport_model_config, QualikizTransportModel):
-      if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
-        raise ValueError(
-            'Qualikiz transport model is not available. Possible issue is that'
-            ' the QuaLiKiz Pythontools are not installed.'
-        )
-    return self
+  # pytype: enable=invalid-annotation
 
   @pydantic.model_validator(mode='before')
   @classmethod

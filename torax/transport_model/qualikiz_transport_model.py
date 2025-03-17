@@ -20,13 +20,16 @@ truth for surrogate model evaluations.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import os
 import subprocess
 import tempfile
+from typing import Literal
 
 import chex
 import numpy as np
+import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
 from torax import jax_utils
@@ -34,6 +37,7 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
+from torax.transport_model import pydantic_model_base
 from torax.transport_model import qualikiz_based_transport_model
 
 
@@ -372,3 +376,51 @@ def _extract_qualikiz_plan(
   )
 
   return qualikiz_plan
+
+
+# pylint: disable=invalid-name
+class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
+  """Model for the Qualikiz transport model.
+
+  Attributes:
+    transport_model: The transport model to use. Hardcoded to 'qualikiz'.
+    maxruns: Set frequency of full QuaLiKiz contour solutions.
+    numprocs: Set number of cores used QuaLiKiz calculations.
+    coll_mult: Collisionality multiplier.
+    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
+      for no slab modes.
+    smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
+      impact of alpha.
+    q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
+      are sawteeth.
+    DVeff: Effective D / effective V approach for particle transport.
+    An_min: Minimum |R/Lne| below which effective V is used instead of effective
+      D.
+  """
+
+  transport_model: Literal['qualikiz'] = 'qualikiz'
+  maxruns: pydantic.PositiveInt = 2
+  numprocs: pydantic.PositiveInt = 8
+  coll_mult: pydantic.PositiveFloat = 1.0
+  avoid_big_negative_s: bool = True
+  smag_alpha_correction: bool = True
+  q_sawtooth_proxy: bool = True
+  DVeff: bool = False
+  An_min: pydantic.PositiveFloat = 0.05
+
+  def build_transport_model(self) -> QualikizTransportModel:
+    return QualikizTransportModel()
+
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
+    return DynamicRuntimeParams(
+        maxruns=self.maxruns,
+        numprocs=self.numprocs,
+        coll_mult=self.coll_mult,
+        avoid_big_negative_s=self.avoid_big_negative_s,
+        smag_alpha_correction=self.smag_alpha_correction,
+        q_sawtooth_proxy=self.q_sawtooth_proxy,
+        DVeff=self.DVeff,
+        An_min=self.An_min,
+        **base_kwargs,
+    )

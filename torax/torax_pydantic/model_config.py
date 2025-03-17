@@ -16,6 +16,7 @@
 
 import logging
 from typing import Any, Mapping
+
 import pydantic
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
@@ -23,6 +24,7 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import pydantic_model as time_step_calculator_pydantic_model
+from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import pydantic_model as transport_model_pydantic_model
 import typing_extensions
@@ -51,6 +53,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   stepper: stepper_pydantic_model.Stepper
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
   transport: transport_model_pydantic_model.Transport
+  restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
+      default=None
+  )
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
