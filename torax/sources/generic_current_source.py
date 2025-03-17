@@ -93,8 +93,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
     self.sanity_check()
 
 
-# pytype bug: does not treat 'source_models.SourceModels' as a forward reference
-# pytype: disable=name-error
 def calculate_generic_current(
     unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
