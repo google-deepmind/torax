@@ -22,9 +22,6 @@ This module also provides a method
 `get_consistent_dynamic_runtime_params_slice_and_geometry` which returns a
 DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
 """
-
-from __future__ import annotations
-
 import chex
 from torax.config import runtime_params as general_runtime_params_lib
 from torax.config import runtime_params_slice
@@ -35,6 +32,7 @@ from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import pydantic_model as transport_model_pydantic_model
+import typing_extensions
 
 
 def build_static_runtime_params_slice(
@@ -79,23 +77,6 @@ def build_static_runtime_params_slice(
       impurity_names=runtime_params.plasma_composition.get_impurity_names(),
       adaptive_dt=runtime_params.numerics.adaptive_dt,
   )
-
-
-def get_consistent_dynamic_runtime_params_slice_and_geometry(
-    *,
-    t: chex.Numeric,
-    dynamic_runtime_params_slice_provider: DynamicRuntimeParamsSliceProvider,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
-) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
-  """Returns the dynamic runtime params and geometry for a given time."""
-  geo = geometry_provider(t)
-  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      t=t,
-  )
-  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
-      dynamic_runtime_params_slice, geo
-  )
-  return dynamic_runtime_params_slice, geo
 
 
 class DynamicRuntimeParamsSliceProvider:
@@ -185,7 +166,7 @@ class DynamicRuntimeParamsSliceProvider:
 
   def validate_new(
       self,
-      new_provider: DynamicRuntimeParamsSliceProvider,
+      new_provider: typing_extensions.Self,
   ):
     """Validates that the new provider is compatible."""
     if set(new_provider.sources.source_model_config.keys()) != set(
@@ -215,3 +196,20 @@ class DynamicRuntimeParamsSliceProvider:
         numerics=dynamic_general_runtime_params.numerics,
         pedestal=self._pedestal.build_dynamic_params(t),
     )
+
+
+def get_consistent_dynamic_runtime_params_slice_and_geometry(
+    *,
+    t: chex.Numeric,
+    dynamic_runtime_params_slice_provider: DynamicRuntimeParamsSliceProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
+) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
+  """Returns the dynamic runtime params and geometry for a given time."""
+  geo = geometry_provider(t)
+  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
+      t=t,
+  )
+  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
+      dynamic_runtime_params_slice, geo
+  )
+  return dynamic_runtime_params_slice, geo

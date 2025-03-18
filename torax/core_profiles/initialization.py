@@ -28,7 +28,6 @@ from torax.geometry import geometry
 from torax.geometry import standard_geometry
 from torax.physics import psi_calculations
 from torax.sources import source_models as source_models_lib
-from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 
@@ -526,7 +525,7 @@ def _init_psi_psidot_vloop_and_current(
   # psidot calculated here with phibdot=0 in geo, since this is initial
   # conditions and we don't yet have information on geo_t_plus_dt for the
   # phibdot calculation.
-  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
+  psi_sources = source_profiles.total_psi_sources(geo)
   sigma = source_profiles.j_bootstrap.sigma
   sigma_face = source_profiles.j_bootstrap.sigma_face
   psidot = psi_calculations.calculate_psidot_from_psi_sources(

@@ -404,7 +404,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     """Tests that the dynamic slice provider can be updated."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     sources = default_sources.get_default_sources()
-    sources_dict = sources.to_dict()['source_model_config']
+    sources_dict = sources.to_dict()
     sources_dict[generic_current_source.GenericCurrentSource.SOURCE_NAME][
         'Iext'
     ] = 1.0
@@ -422,7 +422,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       self.assertIn(key, dcs.sources)
 
     # Update an interpolated variable.
-    sources_dict = sources.to_dict()['source_model_config']
+    sources_dict = sources.to_dict()
     sources_dict[generic_current_source.GenericCurrentSource.SOURCE_NAME][
         'Iext'
     ] = 2.0

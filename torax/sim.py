@@ -24,8 +24,6 @@ compilation off can sometimes help with debugging (e.g. by making
 it easier to print error messages in context).
 """
 
-from __future__ import annotations
-
 import dataclasses
 import time
 from typing import Optional
@@ -58,6 +56,7 @@ from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 from torax.transport_model import pydantic_model as transport_model_pydantic_model
 from torax.transport_model import transport_model as transport_model_lib
 import tqdm
+import typing_extensions
 import xarray as xr
 
 
@@ -304,7 +303,7 @@ class Sim:
       pedestal: pedestal_pydantic_model.Pedestal,
       time_step_calculator: Optional[ts.TimeStepCalculator] = None,
       file_restart: file_restart_pydantic_model.FileRestart | None = None,
-  ) -> Sim:
+  ) -> typing_extensions.Self:
     """Builds a Sim object from the input runtime params and sim components.
 
     Args:

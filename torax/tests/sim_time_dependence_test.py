@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Tests torax.sim for handling time dependent input runtime params."""
-
-from __future__ import annotations
-
 import copy
 import dataclasses
 from typing import Literal
@@ -276,14 +273,6 @@ class FakeStepper(linear_theta_method.LinearThetaMethod):
     )
 
 
-class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
-  """Fake transport config for a model that always returns zeros."""
-  transport_model: Literal['fake'] = 'fake'
-
-  def build_transport_model(self) -> FakeTransportModel:
-    return FakeTransportModel()
-
-
 class FakeTransportModel(transport_model_lib.TransportModel):
   """Dummy transport model that always returns zeros."""
 
@@ -299,6 +288,15 @@ class FakeTransportModel(transport_model_lib.TransportModel):
       pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     return state.CoreTransport.zeros(geo)
+
+
+class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
+  """Fake transport config for a model that always returns zeros."""
+
+  transport_model: Literal['fake'] = 'fake'
+
+  def build_transport_model(self) -> FakeTransportModel:
+    return FakeTransportModel()
 
 
 if __name__ == '__main__':

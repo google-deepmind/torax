@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """A transport model that uses a QLKNN model."""
-
-from __future__ import annotations
-
 import dataclasses
 import functools
 import logging
@@ -33,6 +30,7 @@ from torax.transport_model import base_qlknn_model
 from torax.transport_model import qlknn_10d
 from torax.transport_model import qlknn_model_wrapper
 from torax.transport_model import qualikiz_based_transport_model
+import typing_extensions
 
 # Environment variable for the QLKNN model. Used if the model path
 # is not set in the config.
@@ -309,7 +307,7 @@ class QLKNNTransportModel(
   def __hash__(self) -> int:
     return hash(('QLKNNTransportModel' + self._model_path))
 
-  def __eq__(self, other: QLKNNTransportModel) -> bool:
+  def __eq__(self, other: typing_extensions.Self) -> bool:
     return (
         isinstance(other, QLKNNTransportModel)
         and self.model_path == other.model_path

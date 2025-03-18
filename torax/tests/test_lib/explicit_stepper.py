@@ -31,7 +31,6 @@ from torax.core_profiles import updaters
 from torax.fvm import diffusion_terms
 from torax.geometry import geometry
 from torax.physics import psi_calculations
-from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import linear_theta_method
@@ -107,10 +106,7 @@ class ExplicitStepper(linear_theta_method.LinearThetaMethod):
     )
 
     # Source term
-    c += source_operations.sum_sources_temp_ion(
-        geo_t,
-        explicit_source_profiles,
-    )
+    c += explicit_source_profiles.total_sources('temp_ion', geo_t)
 
     temp_ion_new = (
         core_profiles_t.temp_ion.value
