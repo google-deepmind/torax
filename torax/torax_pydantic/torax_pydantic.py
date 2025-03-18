@@ -25,6 +25,7 @@ from typing_extensions import Annotated
 
 
 TIME_INVARIANT = model_base.TIME_INVARIANT
+JAX_STATIC = model_base.JAX_STATIC
 
 # Physical units.
 # keep-sorted start
