@@ -229,7 +229,7 @@ class CoreProfiles:
     return id(self)
 
 
-@chex.dataclass(frozen=True, eq=False)
+@chex.dataclass
 class CoreTransport:
   """Coefficients for the plasma transport.
 
@@ -253,22 +253,21 @@ class CoreTransport:
   chi_face_el: jax.Array
   d_face_el: jax.Array
   v_face_el: jax.Array
-  chi_e_bohm: Optional[jax.Array] = None
-  chi_e_gyrobohm: Optional[jax.Array] = None
-  chi_i_bohm: Optional[jax.Array] = None
-  chi_i_gyrobohm: Optional[jax.Array] = None
+  chi_e_bohm: Optional[jax.Array] = dataclasses.field(default_factory=lambda: None)
+  chi_e_gyrobohm: Optional[jax.Array] = dataclasses.field(default_factory=lambda: None)
+  chi_i_bohm: Optional[jax.Array] = dataclasses.field(default_factory=lambda: None)
+  chi_i_gyrobohm: Optional[jax.Array] = dataclasses.field(default_factory=lambda: None)
 
   def __post_init__(self):
-    # Use the shape of chi_face_el as a reference.
-    shape = self.chi_face_el.shape
+    # Use the array size of chi_face_el as a reference.
     if self.chi_e_bohm is None:
-      object.__setattr__(self, 'chi_e_bohm', jnp.zeros(shape))
+      self.chi_e_bohm = jnp.zeros_like(self.chi_face_el)
     if self.chi_e_gyrobohm is None:
-      object.__setattr__(self, 'chi_e_gyrobohm', jnp.zeros(shape))
+      self.chi_e_gyrobohm = jnp.zeros_like(self.chi_face_el)
     if self.chi_i_bohm is None:
-      object.__setattr__(self, 'chi_i_bohm', jnp.zeros(shape))
+      self.chi_i_bohm = jnp.zeros_like(self.chi_face_el)
     if self.chi_i_gyrobohm is None:
-      object.__setattr__(self, 'chi_i_gyrobohm', jnp.zeros(shape))
+      self.chi_i_gyrobohm = jnp.zeros_like(self.chi_face_el)
 
   def chi_max(
       self,
