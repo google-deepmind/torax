@@ -17,7 +17,7 @@
 from collections.abc import Set
 import functools
 import inspect
-from typing import Any, Final, Mapping, Sequence
+from typing import Any, Final, Mapping, Sequence, TypeAlias
 import jax
 import pydantic
 import treelib
@@ -25,6 +25,10 @@ from typing_extensions import Self
 
 
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
+JAX_STATIC: Final[str] = '_pydantic_jax_static_field'
+
+StaticKwargs: TypeAlias = dict[str, Any]
+DynamicArgs: TypeAlias = list[Any]
 
 
 class BaseModelFrozen(pydantic.BaseModel):
@@ -33,7 +37,9 @@ class BaseModelFrozen(pydantic.BaseModel):
   See https://docs.pydantic.dev/latest/ for documentation on pydantic.
 
   This class is compatible with JAX, so can be used as an argument to a JITted
-  function.
+  function. Static fields can be annotated via
+  `typing.Annotated[dtype, torax_pydantic.JAX_STATIC`] to make them static in
+  the JAX tree. These fields must be hashable.
   """
 
   model_config = pydantic.ConfigDict(
@@ -50,24 +56,70 @@ class BaseModelFrozen(pydantic.BaseModel):
       registered_cls = cls  # Already registered.
     return super().__new__(registered_cls)
 
-  def tree_flatten(self):
-
-    children = tuple(getattr(self, k) for k in self.model_fields.keys())
-    aux_data = None
-    return (children, aux_data)
+  @classmethod
+  @functools.cache
+  def _jit_dynamic_kwarg_names(cls) -> tuple[str, ...]:
+    return tuple(
+        name
+        for name in cls.model_fields.keys()
+        if JAX_STATIC not in cls.model_fields[name].metadata
+    )
 
   @classmethod
-  def tree_unflatten(cls, aux_data, children):
-    del aux_data
+  @functools.cache
+  def _jit_static_kwarg_names(cls) -> tuple[str, ...]:
+    return tuple(
+        name
+        for name in cls.model_fields.keys()
+        if JAX_STATIC in cls.model_fields[name].metadata
+    )
 
-    init = {
-        key: value
-        for key, value in zip(cls.model_fields, children, strict=True)
+  def tree_flatten(self) -> tuple[DynamicArgs, StaticKwargs]:
+    """Flattens the model into a JAX dynamic and static argument tuple.
+
+    Static arguments are model fields annotated via
+    `typing.Annotated[dtype, torax_pydantic.JAX_STATIC]`. Dynamic arguments are
+    all other fields.
+
+    Required by the use of `jax.tree_util.register_pytree_node_class`.
+
+    Returns:
+      A tuple of the dynamic and static arguments. Dynamic arguments are a list
+      of numeric values compatible with `jax.jit`. Static arguments are a
+      dictionary of hashable values considered `static_argnames` by `jax.jit`.
+    """
+    static_names = self._jit_static_kwarg_names()
+    dynamic_names = self._jit_dynamic_kwarg_names()
+    static_children = {name: getattr(self, name) for name in static_names}
+    dynamic_children = [getattr(self, name) for name in dynamic_names]
+
+    return (dynamic_children, static_children)
+
+  @classmethod
+  def tree_unflatten(
+      cls, aux_data: StaticKwargs, children: DynamicArgs
+  ) -> Self:
+    """Reconstructs a model from a JAX dynamic and static argument tuple.
+
+    Required by the use of `jax.tree_util.register_pytree_node_class`.
+
+    Args:
+      aux_data: A dictionary of static arguments.
+      children: A list of dynamic arguments.
+
+    Returns:
+      A model instance.
+    """
+    dynamic_kwargs = {
+        name: value
+        for name, value in zip(
+            cls._jit_dynamic_kwarg_names(), children, strict=True
+        )
     }
     # The model needs to be reconstructed without validation, as init can
     # contain JAX tracers inside a JIT, which will fail Pydantic validation. In
     # addition, validation is unecessary overhead.
-    return cls.model_construct(**init)
+    return cls.model_construct(**(dynamic_kwargs | aux_data))
 
   @classmethod
   def from_dict(cls: type[Self], cfg: Mapping[str, Any]) -> Self:

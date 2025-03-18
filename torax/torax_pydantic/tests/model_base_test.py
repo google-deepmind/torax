@@ -38,33 +38,44 @@ class PydanticBaseTest(parameterized.TestCase):
       with self.assertRaises(ValueError):
         m.x = 2.0
 
-  @parameterized.parameters(True, False)
-  def test_model_base_map_pytree(self, frozen: bool):
+  def test_model_base_jax_pytree(self):
 
-    if frozen:
+    class TestModel1(model_base.BaseModelFrozen):
+      name: Annotated[str, model_base.JAX_STATIC]
+      y: float
 
-      class TestModel(model_base.BaseModelFrozen):
-        x: float
-        y: float
+    class TestModel2(model_base.BaseModelFrozen):
+      name: Annotated[
+          str, 'distractor_1', model_base.JAX_STATIC, 'distractor_2'
+      ]
+      y: TestModel1  # pytype: disable=invalid-annotation
+      z: float
 
-    else:
+    m = TestModel2(name='test2', y=TestModel1(name='test1', y=2.0), z=3.0)
 
-      class TestModel(model_base.BaseModelFrozen):
-        x: float
-        y: float
+    with self.subTest('flatten'):
+      flat_dynamic, tree_struct = jax.tree.flatten(m)
+      self.assertListEqual(flat_dynamic, [m.y.y, m.z])
+      m_unflattened = jax.tree.unflatten(tree_struct, flat_dynamic)
+      self.assertEqual(m_unflattened, m)
 
-    m = TestModel(x=2.0, y=4.0)
-    m2 = jax.tree_util.tree_map(lambda x: x**2, m)
+    with self.subTest('map_pytree'):
+      m2 = jax.tree_util.tree_map(lambda x: x**2, m)
 
-    self.assertEqual(m2.x, 4.0)
-    self.assertEqual(m2.y, 16.0)
+      self.assertEqual(m2.z, m.z**2)
+      self.assertEqual(m2.y.y, m.y.y**2)
 
+    # This would fail if data.name was not correctly marked as static, as it
+    # is both an invalid JAX input type (string) and is used in control-flow.
     @jax.jit
     def f(data):
-      return data.x * data.y
+      if data.name == 'test2':
+        return data.y.y * data.z
+      else:
+        return data.y.y + data.z
 
     with self.subTest('jit_works'):
-      self.assertEqual(f(m), m.x * m.y)
+      self.assertEqual(f(m), m.y.y * m.z)
 
   def test_model_field_metadata(self):
 
