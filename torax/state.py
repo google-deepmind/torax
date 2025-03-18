@@ -274,7 +274,12 @@ class CoreTransport:
       self,
       geo: geometry.Geometry,
   ) -> jax.Array:
-    """Calculates the maximum value of chi."""
+    """Calculates the maximum value of chi.
+    Args:
+      geo: Geometry of the torus.
+    Returns:
+      chi_max: Maximum value of chi.
+    """
     return jnp.maximum(
         jnp.max(self.chi_face_ion * geo.g1_over_vpr2_face),
         jnp.max(self.chi_face_el * geo.g1_over_vpr2_face),

@@ -311,9 +311,17 @@ class TransportModel(abc.ABC):
         geo, dynamic_runtime_params_slice, pedestal_model_outputs
     )
     smoothed_coeffs = {}
-    for coeff in transport_coeffs:
-      smoothed_coeff = jnp.dot(smoothing_matrix, transport_coeffs[coeff])
-      smoothed_coeffs[coeff] = smoothed_coeff
+
+    # Iterate over all fields of the CoreTransport dataclass.
+    for field in dataclasses.fields(transport_coeffs):
+      attr_name = field.name
+      coeff = getattr(transport_coeffs, attr_name)
+      smoothed_coeffs[attr_name] = jax.lax.cond(
+          jnp.all(coeff == 0.0),
+          lambda: coeff,
+          lambda: jnp.dot(smoothing_matrix, coeff)
+      )
+
     return state.CoreTransport(**smoothed_coeffs)
 
 

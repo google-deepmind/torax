@@ -343,6 +343,17 @@ class StateHistory:
     xr_dict[D_FACE_EL] = self.core_transport.d_face_el
     xr_dict[V_FACE_EL] = self.core_transport.v_face_el
 
+    # Check if any BohmGyroBohm attributes are nonzero.
+    core_transport = self.core_transport
+    if (jnp.any(core_transport.chi_e_bohm != 0) or
+        jnp.any(core_transport.chi_e_gyrobohm != 0) or
+        jnp.any(core_transport.chi_i_bohm != 0) or
+        jnp.any(core_transport.chi_i_gyrobohm != 0)):
+     xr_dict["chi_e_bohm"] = core_transport.chi_e_bohm
+     xr_dict["chi_e_gyrobohm"] = core_transport.chi_e_gyrobohm
+     xr_dict["chi_i_bohm"] = core_transport.chi_i_bohm
+     xr_dict["chi_i_gyrobohm"] = core_transport.chi_i_gyrobohm
+
     xr_dict = {
         name: self._pack_into_data_array(
             name,
