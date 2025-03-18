@@ -129,15 +129,15 @@ The above command only needs to be run once on a given system.
 Optionally, you can instead use QLKNN_7_11, a more recent surrogate model:
 
 ```shell
-git clone https://github.com/google-deepmind/fusion_transport_surrogates.git
-pip install -e ./fusion_transport_surrogates
-export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn
+git clone https://github.com/google-deepmind/fusion_surrogates.git
+pip install -e ./fusion_surrogates
+export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn
 ```
 
 We recommend automating the variable export. If using bash, run:
 
 ```shell
-echo export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn >> ~/.bashrc
+echo export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn >> ~/.bashrc
 ```
 
 #### Install TORAX

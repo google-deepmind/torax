@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Profile condition parameters used throughout TORAX simulations."""
-
-from __future__ import annotations
-
 import dataclasses
 import logging
 

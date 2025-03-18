@@ -13,10 +13,6 @@
 # limitations under the License.
 
 """The LinearThetaMethodStepper class."""
-
-from __future__ import annotations
-
-
 import jax
 from torax import state
 from torax.config import runtime_params_slice

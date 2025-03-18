@@ -17,9 +17,6 @@
 NOTE: Time dependent providers currently live in `geometry.py` and match the
 protocol defined here.
 """
-
-from __future__ import annotations
-
 from collections.abc import Mapping
 import dataclasses
 import functools
@@ -31,6 +28,7 @@ from torax import interpolated_param
 from torax import jax_utils
 from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
+import typing_extensions
 
 # Using invalid-name because we are using the same naming convention as the
 # external physics implementations
@@ -156,7 +154,7 @@ class TimeDependentGeometryProvider:
   @classmethod
   def create_provider(
       cls, geometries: Mapping[float, geometry.Geometry]
-  ) -> TimeDependentGeometryProvider:
+  ) -> typing_extensions.Self:
     """Creates a GeometryProvider from a mapping of times to geometries."""
     # Create a list of times and geometries.
     times = np.asarray(list(geometries.keys()))

@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """The BohmGyroBohmModel class."""
-
-from __future__ import annotations
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing
@@ -39,6 +36,10 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   d_face_c1: array_typing.ScalarFloat
   d_face_c2: array_typing.ScalarFloat
   v_face_coeff: array_typing.ScalarFloat
+  chi_e_bohm_multiplier: array_typing.ScalarFloat
+  chi_e_gyrobohm_multiplier: array_typing.ScalarFloat
+  chi_i_bohm_multiplier: array_typing.ScalarFloat
+  chi_i_gyrobohm_multiplier: array_typing.ScalarFloat
 
 
 class BohmGyroBohmTransportModel(transport_model.TransportModel):
@@ -119,12 +120,20 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
 
     # Total heat transport (combined contributions)
     chi_i = (
-        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff * chi_i_B
-        + dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff * chi_i_gB
+        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_i_bohm_multiplier
+        * chi_i_B
+        + dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_i_gyrobohm_multiplier
+        * chi_i_gB
     )
     chi_e = (
-        dynamic_runtime_params_slice.transport.chi_e_bohm_coeff * chi_e_B
-        + dynamic_runtime_params_slice.transport.chi_e_gyrobohm_coeff * chi_e_gB
+        dynamic_runtime_params_slice.transport.chi_e_bohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_e_bohm_multiplier
+        * chi_e_B
+        + dynamic_runtime_params_slice.transport.chi_e_gyrobohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_e_gyrobohm_multiplier
+        * chi_e_gB
     )
 
     # Electron diffusivity

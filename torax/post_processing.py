@@ -212,8 +212,6 @@ def make_outputs(
       integrated_sources['P_alpha_tot'] + integrated_sources['P_external_tot']
   )
 
-  # If a previous simulation state is available, compute the time derivative
-  # of the total stored thermal energy (dW_thermal/dt). Otherwise, default to zero.
   if previous_sim_state is not None:
     dW_th_dt = (
         W_thermal_tot - previous_sim_state.post_processed_outputs.W_thermal_tot
@@ -342,7 +340,7 @@ def make_outputs(
       q95=q95,
       Wpol=Wpol,
       li3=li3,
-      dW_th_dt=dW_th_dt,  # new output
+      dW_th_dt=dW_th_dt,
   )
   # pylint: enable=invalid-name
   return dataclasses.replace(

@@ -216,6 +216,14 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
       conductivity.
     chi_i_bohm_coeff: Prefactor for Bohm term for ion heat conductivity.
     chi_i_gyrobohm_coeff: Prefactor for GyroBohm term for ion heat conductivity.
+    chi_e_bohm_multiplier: Multiplier for chi_e_bohm_coeff. Intended for
+      user-friendly default modification.
+    chi_e_gyrobohm_multiplier: Multiplier for chi_e_gyrobohm_coeff. Intended for
+      user-friendly default modification.
+    chi_i_bohm_multiplier: Multiplier for chi_i_bohm_coeff. Intended for
+      user-friendly default modification.
+    chi_i_gyrobohm_multiplier: Multiplier for chi_i_gyrobohm_coeff. Intended for
+      user-friendly default modification.
     d_face_c1: Constant for the electron diffusivity weighting factor.
     d_face_c2: Constant for the electron diffusivity weighting factor.
     v_face_coeff: Proportionality factor between convectivity and diffusivity.
@@ -232,6 +240,18 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
   )
   chi_i_gyrobohm_coeff: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(5e-6)
+  )
+  chi_e_bohm_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  chi_e_gyrobohm_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  chi_i_bohm_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
+  chi_i_gyrobohm_multiplier: torax_pydantic.PositiveTimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
   )
   d_face_c1: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
@@ -257,6 +277,10 @@ class BohmGyroBohmTransportModel(pydantic_model_base.TransportBase):
         chi_e_gyrobohm_coeff=self.chi_e_gyrobohm_coeff.get_value(t),
         chi_i_bohm_coeff=self.chi_i_bohm_coeff.get_value(t),
         chi_i_gyrobohm_coeff=self.chi_i_gyrobohm_coeff.get_value(t),
+        chi_e_bohm_multiplier=self.chi_e_bohm_multiplier.get_value(t),
+        chi_e_gyrobohm_multiplier=self.chi_e_gyrobohm_multiplier.get_value(t),
+        chi_i_bohm_multiplier=self.chi_i_bohm_multiplier.get_value(t),
+        chi_i_gyrobohm_multiplier=self.chi_i_gyrobohm_multiplier.get_value(t),
         d_face_c1=self.d_face_c1.get_value(t),
         d_face_c2=self.d_face_c2.get_value(t),
         v_face_coeff=self.v_face_coeff.get_value(t),

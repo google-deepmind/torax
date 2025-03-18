@@ -239,7 +239,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
     pedestal_model = pedestal.build_pedestal_model()
     sources = default_sources.get_default_sources()
     sources_dict = sources.to_dict()
-    sources_dict = sources_dict['source_model_config']
     sources_dict['qei_source']['Qei_mult'] = 0.0
     sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
     sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
@@ -376,7 +375,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
     transport_model = transport.build_transport_model()
     sources = default_sources.get_default_sources()
     sources_dict = sources.to_dict()
-    sources_dict = sources_dict['source_model_config']
     sources_dict['qei_source']['Qei_mult'] = 0.0
     sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
     sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
@@ -524,7 +522,6 @@ class FVMTest(torax_refs.ReferenceValueTest):
     pedestal = pedestal_pydantic_model.Pedestal()
     sources = default_sources.get_default_sources()
     sources_dict = sources.to_dict()
-    sources_dict = sources_dict['source_model_config']
     sources_dict['qei_source']['Qei_mult'] = 0.0
     sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
     sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO

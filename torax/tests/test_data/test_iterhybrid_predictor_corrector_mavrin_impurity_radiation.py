@@ -28,5 +28,5 @@ CONFIG['runtime_params']['plasma_composition']['impurity'] = {
 }
 CONFIG['runtime_params']['plasma_composition']['Zeff'] = 3.0
 CONFIG['sources']['impurity_radiation_heat_sink'] = {
-    'model_func': 'impurity_radiation_mavrin_fit',
+    'model_function_name': 'impurity_radiation_mavrin_fit',
 }

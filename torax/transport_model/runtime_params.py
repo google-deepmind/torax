@@ -17,9 +17,6 @@
 This is the dataclass runtime config exposed to the user. The actual model gets
 a time-interpolated version of this config via the DynamicRuntimeParams.
 """
-
-from __future__ import annotations
-
 import chex
 from torax import array_typing
 from torax import jax_utils
