@@ -155,6 +155,52 @@ class BohmGyroBohmTest(absltest.TestCase):
     np.testing.assert_allclose(output_A.chi_face_ion, output_B.chi_face_ion)
     np.testing.assert_allclose(output_A.chi_face_el, output_B.chi_face_el)
 
+  def test_raw_bohm_and_gyrobohm_fields(self):
+    """Test that the raw Bohm and gyro-Bohm fields are computed consistently."""
+    # Configuration A: Non-default coefficients with multipliers set to 1.
+    dyn_params_A = self._create_dynamic_params_slice(
+        chi_e_bohm_coeff=2.0,
+        chi_e_gyrobohm_coeff=3.0,
+        chi_i_bohm_coeff=4.0,
+        chi_i_gyrobohm_coeff=5.0,
+        chi_e_bohm_multiplier=1.0,
+        chi_e_gyrobohm_multiplier=1.0,
+        chi_i_bohm_multiplier=1.0,
+        chi_i_gyrobohm_multiplier=1.0,
+    )
+
+    # Configuration B: Coefficients set to 1 and multipliers adjusted so that the
+    # effective products remain the same as in configuration A.
+    dyn_params_B = self._create_dynamic_params_slice(
+        chi_e_bohm_coeff=1.0,
+        chi_e_gyrobohm_coeff=1.0,
+        chi_i_bohm_coeff=1.0,
+        chi_i_gyrobohm_coeff=1.0,
+        chi_e_bohm_multiplier=2.0,
+        chi_e_gyrobohm_multiplier=3.0,
+        chi_i_bohm_multiplier=4.0,
+        chi_i_gyrobohm_multiplier=5.0,
+    )
+
+    output_A = self.model._call_implementation(
+        dyn_params_A, self.geo, self.core_profiles, self.pedestal_outputs
+    )
+    output_B = self.model._call_implementation(
+        dyn_params_B, self.geo, self.core_profiles, self.pedestal_outputs
+    )
+
+    # Verify that the raw fields (which are computed before applying the scaling factors)
+    # are identical between the two configurations.
+    np.testing.assert_allclose(output_A.chi_e_bohm, output_B.chi_e_bohm)
+    np.testing.assert_allclose(output_A.chi_e_gyrobohm, output_B.chi_e_gyrobohm)
+    np.testing.assert_allclose(output_A.chi_i_bohm, output_B.chi_i_bohm)
+    np.testing.assert_allclose(output_A.chi_i_gyrobohm, output_B.chi_i_gyrobohm)
+
+    # Also verify the relationships between the raw fields.
+    np.testing.assert_allclose(output_A.chi_i_bohm, 2 * output_A.chi_e_bohm)
+    np.testing.assert_allclose(output_A.chi_i_gyrobohm, 0.5 * output_A.chi_e_gyrobohm)
+
+
 
 if __name__ == '__main__':
   absltest.main()
