@@ -27,6 +27,9 @@ RHO_NORM = 'rho_norm'
 TIME_INTERPOLATION_MODE = 'time_interpolation_mode'
 RHO_INTERPOLATION_MODE = 'rho_interpolation_mode'
 
+_RHO_NORM_ARRAY = np.array([0.125, 0.375, 0.625, 0.875])
+_VALUES_ARRAY = np.array([1.0, 2.0, 3.0, 4.0])
+
 
 class InterpolatedParam2dTest(parameterized.TestCase):
 
@@ -34,147 +37,147 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       dict(
           testcase_name='2_tuple_input_t=0',
           time_rho_interpolated_input=(
-              np.array([0.125, 0.375, 0.625]),
-              np.array([1.0, 2.0, 3.0]),
+              _RHO_NORM_ARRAY,
+              _VALUES_ARRAY,
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=0.0,
-          expected_output=np.array([1.0, 2.0, 3.0]),
+          expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
       dict(
           testcase_name='2_tuple_input_t=1',
           time_rho_interpolated_input=(
-              np.array([0.125, 0.375, 0.625]),
-              np.array([1.0, 2.0, 3.0]),
+              _RHO_NORM_ARRAY,
+              _VALUES_ARRAY,
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=1.0,
-          expected_output=np.array([1.0, 2.0, 3.0]),
+          expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
       dict(
           testcase_name='3_tuple_input_t=0',
           time_rho_interpolated_input=(
               np.array([0.0, 1.0]),
-              np.array([0.125, 0.375, 0.625]),
-              np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+              np.array([0.125, 0.375, 0.625, 0.875]),
+              np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=0.0,
-          expected_output=np.array([1.0, 2.0, 3.0]),
+          expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
       dict(
           testcase_name='3_tuple_input_t=1',
           time_rho_interpolated_input=(
               np.array([0.0, 1.0]),
-              np.array([0.125, 0.375, 0.625]),
-              np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+              _RHO_NORM_ARRAY,
+              np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=1.0,
-          expected_output=np.array([4.0, 5.0, 6.0]),
+          expected_output=np.array([5.0, 6.0, 7.0, 8.0]),
       ),
       dict(
           testcase_name='3_tuple_input_t=0.5',
           time_rho_interpolated_input=(
               np.array([0.0, 1.0]),
-              np.array([0.125, 0.375, 0.625]),
-              np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+              _RHO_NORM_ARRAY,
+              np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=0.5,
-          expected_output=np.array([2.5, 3.5, 4.5]),
+          expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
       ),
       dict(
           testcase_name='3_tuple_input_t=0_time_step_interpolation',
           time_rho_interpolated_input=(
               (
                   np.array([0.0, 1.0]),
-                  np.array([0.125, 0.375, 0.625]),
-                  np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+                  _RHO_NORM_ARRAY,
+                  np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
               ),
               {
                   TIME_INTERPOLATION_MODE: 'step',
                   RHO_INTERPOLATION_MODE: 'piecewise_linear',
               },
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=0.0,
-          expected_output=np.array([1.0, 2.0, 3.0]),
+          expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
       dict(
           testcase_name='3_tuple_input_t=1_time_step_interpolation',
           time_rho_interpolated_input=(
               (
                   np.array([0.0, 1.0]),
-                  np.array([0.125, 0.375, 0.625]),
-                  np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+                  _RHO_NORM_ARRAY,
+                  np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
               ),
               {
                   TIME_INTERPOLATION_MODE: 'step',
                   RHO_INTERPOLATION_MODE: 'piecewise_linear',
               },
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=1.01,
-          expected_output=np.array([4.0, 5.0, 6.0]),
+          expected_output=np.array([5.0, 6.0, 7.0, 8.0]),
       ),
       dict(
           testcase_name='3_tuple_input_t=0.5_time_step_interpolation',
           time_rho_interpolated_input=(
               (
                   np.array([0.0, 1.0]),
-                  np.array([0.125, 0.375, 0.625]),
-                  np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+                  _RHO_NORM_ARRAY,
+                  np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
               ),
               {
                   TIME_INTERPOLATION_MODE: 'step',
                   RHO_INTERPOLATION_MODE: 'piecewise_linear',
               },
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=0.5,
-          expected_output=np.array([1.0, 2.0, 3.0]),
+          expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
       dict(
           testcase_name='xarray_input_t=0.0',
           time_rho_interpolated_input=xr.DataArray(
-              data=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
-              coords={'time': [0.0, 1.0], 'rho_norm': [0.125, 0.375, 0.625]},
+              data=np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
+              coords={'time': [0.0, 1.0], 'rho_norm': _RHO_NORM_ARRAY},
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=0.0,
-          expected_output=np.array([1.0, 2.0, 3.0]),
+          expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
       dict(
           testcase_name='xarray_input_t=1',
           time_rho_interpolated_input=xr.DataArray(
-              data=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
-              coords={'time': [0.0, 1.0], 'rho_norm': [0.125, 0.375, 0.625]},
+              data=np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
+              coords={'time': [0.0, 1.0], 'rho_norm': _RHO_NORM_ARRAY},
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=1.0,
-          expected_output=np.array([4.0, 5.0, 6.0]),
+          expected_output=np.array([5.0, 6.0, 7.0, 8.0]),
       ),
       dict(
           testcase_name='xarray_input_t=0.5',
           time_rho_interpolated_input=xr.DataArray(
-              data=np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
-              coords={'time': [0.0, 1.0], 'rho_norm': [0.125, 0.375, 0.625]},
+              data=np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
+              coords={'time': [0.0, 1.0], 'rho_norm': _RHO_NORM_ARRAY},
           ),
-          nx=3,
+          nx=4,
           dx=0.25,
           time=0.5,
-          expected_output=np.array([2.5, 3.5, 4.5]),
+          expected_output=np.array([3.0, 4.0, 5.0, 6.0]),
       ),
       dict(
           testcase_name='single_dict_t=0',
@@ -182,10 +185,10 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               0.25: 18.0,
               0.95: 5.0,
           },
-          nx=1,
+          nx=4,
           dx=0.5,
           time=0.0,
-          expected_output=18.0,
+          expected_output=np.array([18.0, 8.714286, 5.0, 5.0]),
       ),
       # Single dict represents a constant (in time) radial profile.
       dict(
@@ -194,10 +197,10 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               0.475: 18.0,
               1.425: 5.0,
           },
-          nx=2,
+          nx=4,
           dx=0.95,
           time=0.5,
-          expected_output=np.array([18.0, 5.0]),
+          expected_output=np.array([18.0, 5.0, 5.0, 5.0]),
       ),
       dict(
           testcase_name='single_dict_t=0.0',
@@ -205,27 +208,27 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               0.475: 18.0,
               1.425: 5.0,
           },
-          nx=2,
+          nx=4,
           dx=0.95,
           time=0.0,
-          expected_output=np.array([18.0, 5.0]),
+          expected_output=np.array([18.0, 5.0, 5.0, 5.0]),
       ),
       # Single float represents a constant (in time and rho) profile.
       dict(
           testcase_name='float_t=0.0',
           time_rho_interpolated_input=1.0,
-          nx=3,
+          nx=4,
           dx=0.5,
           time=0.0,
-          expected_output=np.array([1.0, 1.0, 1.0]),
+          expected_output=np.array([1.0, 1.0, 1.0, 1.0]),
       ),
       dict(
           testcase_name='float_t=5.0',
           time_rho_interpolated_input=1.0,
-          nx=3,
+          nx=4,
           dx=0.5,
           time=5.0,
-          expected_output=np.array([1.0, 1.0, 1.0]),
+          expected_output=np.array([1.0, 1.0, 1.0, 1.0]),
       ),
   )
   def test_time_varying_array_parses_inputs_correctly(
@@ -234,7 +237,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
-    grid = interpolated_param_2d.Grid1D.construct(nx=nx, dx=dx)
+    grid = interpolated_param_2d.Grid1D(nx=nx, dx=dx)
     interpolated_param_2d.set_grid(interpolated, grid=grid)
 
     np.testing.assert_allclose(
@@ -271,7 +274,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       a: interpolated_param_2d.PositiveTimeVaryingArray
 
     with self.assertRaisesRegex(pydantic.ValidationError, 'be positive.'):
-      TestModel.model_validate({'a': {0.: {0.: 1.0, 1: -1.0}}})
+      TestModel.model_validate({'a': {0.0: {0.0: 1.0, 1: -1.0}}})
 
   def test_set_grid(self):
 
@@ -325,6 +328,16 @@ class InterpolatedParam2dTest(parameterized.TestCase):
     self.assertEqual(array_1, array_2)
     array_1.get_value(t=0.0)
     self.assertEqual(array_1, array_2)
+
+  def test_grid1d_cache(self):
+    grid_1 = interpolated_param_2d.Grid1D(nx=10, dx=0.1)
+    grid_2 = interpolated_param_2d.Grid1D(nx=10, dx=0.1)
+
+    # Ensure cell_centers and face_centers are cached, and use the same
+    # underlying NumPy arrays.
+    self.assertIs(grid_1.cell_centers, grid_2.cell_centers)
+    self.assertIs(grid_1.face_centers, grid_2.face_centers)
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -207,7 +207,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         self.assertGreater(x[1 - start].value.min(), 0.0)
 
   @parameterized.parameters([
-      dict(num_cells=3, theta_imp=0, time_steps=29),
+      dict(num_cells=4, theta_imp=0, time_steps=29),
       dict(num_cells=4, theta_imp=0.5, time_steps=21),
       dict(num_cells=5, theta_imp=1.0, time_steps=34),
   ])
@@ -354,7 +354,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     """Tests that updated boundary conditions affect x_new."""
     # Create a system with diffusive transport and no sources. When initialized
     # flat, x_new should remain zero unless boundary conditions change.
-    num_cells = 3
+    num_cells = 4
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=False,
@@ -497,7 +497,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
   def test_theta_residual_uses_updated_boundary_conditions(self):
     # Create a system with diffusive transport and no sources. When initialized
     # flat, residual should remain zero unless boundary conditions change.
-    num_cells = 3
+    num_cells = 4
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=False,

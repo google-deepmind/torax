@@ -34,8 +34,8 @@ from torax.transport_model import pydantic_model as transport_pydantic_model
 class CoreProfileSettersTest(parameterized.TestCase):
 
   @parameterized.parameters([
-      dict(num_cells=3, theta_imp=0, set_pedestal=False),
-      dict(num_cells=3, theta_imp=0, set_pedestal=True),
+      dict(num_cells=4, theta_imp=0, set_pedestal=False),
+      dict(num_cells=4, theta_imp=0, set_pedestal=True),
       dict(num_cells=4, theta_imp=0.5, set_pedestal=False),
       dict(num_cells=4, theta_imp=0.5, set_pedestal=True),
   ])
