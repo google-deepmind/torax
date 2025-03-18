@@ -23,10 +23,10 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import state
-from torax.config import runtime_params
 from torax.geometry import geometry as geometry_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
+from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 import xarray as xr
 
 import os
@@ -177,7 +177,7 @@ def concat_datatrees(
 
 
 def stitch_state_files(
-    file_restart: runtime_params.FileRestart, datatree: xr.DataTree
+    file_restart: file_restart_pydantic_model.FileRestart, datatree: xr.DataTree
 ) -> xr.DataTree:
   """Stitch a datatree to the end of a previous state file.
 
@@ -430,7 +430,7 @@ class StateHistory:
 
   def simulation_output_to_xr(
       self,
-      file_restart: runtime_params.FileRestart | None = None,
+      file_restart: file_restart_pydantic_model.FileRestart | None = None,
   ) -> xr.DataTree:
     """Build an xr.DataTree of the simulation output.
 

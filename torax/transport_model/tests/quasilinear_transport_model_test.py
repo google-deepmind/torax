@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -31,15 +30,17 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
+from torax.transport_model import pydantic_model as transport_pydantic_model
 from torax.transport_model import quasilinear_transport_model
-from torax.transport_model import runtime_params as runtime_params_lib
 
 
 constants = constants_module.CONSTANTS
 jax.config.update('jax_enable_x64', True)
 
 
-def _get_model_inputs(transport: quasilinear_transport_model.RuntimeParams):
+def _get_model_inputs(
+    transport: transport_pydantic_model.Transport,
+):
   """Returns the model inputs for testing."""
   runtime_params = general_runtime_params.GeneralRuntimeParams()
   geo = geometry_pydantic_model.CircularConfig().build_geometry()
@@ -89,7 +90,9 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
 
   def test_quasilinear_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
-    transport = quasilinear_transport_model.RuntimeParams()
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'transport_model': 'qlknn'}
+    )
 
     transport_model = FakeQuasilinearTransportModel()
     (
@@ -135,13 +138,17 @@ class QuasilinearTransportModelTest(parameterized.TestCase):
       self, DVeff, An_min, expected_zero_v_face_el, expected_zero_d_face_el
   ):
     """Tests that the DVeff approach options behaves as expected."""
-    transport = quasilinear_transport_model.RuntimeParams(
-        DVeff=DVeff,
-        An_min=An_min,
-        **runtime_params_lib.RuntimeParams(Demin=0.0, Vemin=0.0)
-    )
+    transport = transport_pydantic_model.Transport.from_dict({
+        'transport_model': 'qlknn',
+        'DVeff': DVeff,
+        'An_min': An_min,
+        'Demin': 0.0,
+        'Vemin': 0.0,
+    })
     transport_model = FakeQuasilinearTransportModel()
-    core_transport = transport_model(*_get_model_inputs(transport))
+    core_transport = transport_model(
+        *_get_model_inputs(transport)
+    )
     self.assertEqual(
         (np.sum(np.abs(core_transport.v_face_el)) == 0.0),
         expected_zero_v_face_el,

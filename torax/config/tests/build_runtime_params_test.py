@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dataclasses
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -29,7 +28,8 @@ from torax.sources import pellet_source as pellet_source_lib
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
-from torax.transport_model import runtime_params as transport_params_lib
+from torax.torax_pydantic import torax_pydantic
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
 class RuntimeParamsSliceTest(parameterized.TestCase):
@@ -45,9 +45,10 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             Ti_bound_right={0.0: 2.0, 4.0: 4.0},
         ),
     )
+    torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
+        transport=transport_pydantic_model.Transport(),
         sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
@@ -76,6 +77,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             ne_bound_right=({5.0: 6.0, 7.0: 8.0}, 'step'),
         ),
     )
+    torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
     np.testing.assert_allclose(
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
@@ -111,6 +113,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
             set_pedestal={0.0: True, 1.0: False},
         )
     )
+    torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
     pedestal = pedestal_pydantic_model.Pedestal.from_dict(
         dict(
             Tiped={0.0: 0.0, 1.0: 1.0},
@@ -166,23 +169,23 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       # Check that the runtime params for the default ne sources are
       # time-dependent.
       runtime_params = general_runtime_params.GeneralRuntimeParams()
-      sources = sources_pydantic_model.Sources.from_dict(
-          {
-              gas_puff_source_lib.GasPuffSource.SOURCE_NAME: {
-                  'puff_decay_length': {0.0: 0.0, 1.0: 4.0},
-                  'S_puff_tot': {0.0: 0.0, 1.0: 5.0},
-                  },
-              pellet_source_lib.PelletSource.SOURCE_NAME: {
-                  'pellet_width': {0.0: 0.0, 1.0: 1.0},
-                  'pellet_deposition_location': {0.0: 0.0, 1.0: 2.0},
-                  'S_pellet_tot': {0.0: 0.0, 1.0: 3.0},},
-              generic_particle_source_lib.GenericParticleSource.SOURCE_NAME: {
-                  'particle_width': {0.0: 0.0, 1.0: 6.0},
-                  'deposition_location': {0.0: 0.0, 1.0: 7.0},
-                  'S_tot': {0.0: 0.0, 1.0: 8.0},
-              },
-          }
-      )
+      sources = sources_pydantic_model.Sources.from_dict({
+          gas_puff_source_lib.GasPuffSource.SOURCE_NAME: {
+              'puff_decay_length': {0.0: 0.0, 1.0: 4.0},
+              'S_puff_tot': {0.0: 0.0, 1.0: 5.0},
+          },
+          pellet_source_lib.PelletSource.SOURCE_NAME: {
+              'pellet_width': {0.0: 0.0, 1.0: 1.0},
+              'pellet_deposition_location': {0.0: 0.0, 1.0: 2.0},
+              'S_pellet_tot': {0.0: 0.0, 1.0: 3.0},
+          },
+          generic_particle_source_lib.GenericParticleSource.SOURCE_NAME: {
+              'particle_width': {0.0: 0.0, 1.0: 6.0},
+              'deposition_location': {0.0: 0.0, 1.0: 7.0},
+              'S_tot': {0.0: 0.0, 1.0: 8.0},
+          },
+      })
+      torax_pydantic.set_grid(runtime_params, self._geo.torax_mesh)
       dcs = build_runtime_params.DynamicRuntimeParamsSliceProvider(
           runtime_params=runtime_params,
           sources=sources,
@@ -209,8 +212,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           generic_particle_source,
           generic_particle_source_lib.DynamicParticleRuntimeParams,
       )
-      print(pellet_source.pellet_width)
-      print(type(pellet_source.pellet_width))
       np.testing.assert_allclose(pellet_source.pellet_width, 0.5)
       np.testing.assert_allclose(pellet_source.pellet_deposition_location, 1.0)
       np.testing.assert_allclose(pellet_source.S_pellet_tot, 1.5)
@@ -225,16 +226,13 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   def test_wext_in_dynamic_runtime_params_cannot_be_negative(self):
     """Tests that wext cannot be negative."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    sources = sources_pydantic_model.Sources.from_dict(
-        {
-            generic_current_source.GenericCurrentSource.SOURCE_NAME: {
-                'wext': {0.0: 1.0, 1.0: -1.0},
-            },
-        }
-    )
+    sources = sources_pydantic_model.Sources.from_dict({
+        generic_current_source.GenericCurrentSource.SOURCE_NAME: {
+            'wext': {0.0: 1.0, 1.0: -1.0},
+        },
+    })
     dcs_provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
         sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self._geo.torax_mesh,
@@ -320,17 +318,20 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       var_name,
   ):
     """Tests that the profile conditions can set the electron temperature."""
-    profile_conditions = profile_conditions_lib.ProfileConditions()
+
     boundary_var_name = var_name + '_bound_right'
     temperatures = {
         var_name: var,
         boundary_var_name: var_boundary_condition,
     }
-    profile_conditions = dataclasses.replace(profile_conditions, **temperatures)
+    profile_conditions = profile_conditions_lib.ProfileConditions.from_dict(
+        temperatures
+    )
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions,
     )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
+    torax_pydantic.set_grid(runtime_params, geo.torax_mesh)
     dcs = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -374,7 +375,7 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
         ),
     )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-
+    torax_pydantic.set_grid(runtime_params, geo.torax_mesh)
     dcs = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
         torax_mesh=geo.torax_mesh,
@@ -396,42 +397,6 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
           ne_bound_right_is_fGW,
       )
       self.assertTrue(dcs.profile_conditions.ne_bound_right_is_absolute)
-
-  def test_update_dynamic_slice_provider_updates_runtime_params(
-      self,
-  ):
-    """Tests that the dynamic slice provider can be updated."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            Ti_bound_right={0.0: 1.0, 1.0: 2.0},
-        ),
-    )
-    geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        torax_mesh=geo.torax_mesh,
-    )
-    dcs = provider(
-        t=0.0,
-    )
-    self.assertEqual(dcs.profile_conditions.Ti_bound_right, 1.0)
-
-    # Update something in runtime params.
-    runtime_params.profile_conditions.Ti_bound_right = {0.0: 2.0, 1.0: 4.0}
-    # Check pre-update that nothing has changed.
-    dcs = provider(
-        t=0.0,
-    )
-    self.assertEqual(dcs.profile_conditions.Ti_bound_right, 1.0)
-    # Check post-update that the change is reflected.
-    provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
-        runtime_params=runtime_params,
-        torax_mesh=geo.torax_mesh,
-    )
-    dcs = provider(
-        t=0.0,
-    )
-    self.assertEqual(dcs.profile_conditions.Ti_bound_right, 2.0)
 
   def test_update_dynamic_slice_provider_updates_sources(
       self,
@@ -501,7 +466,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
   ):
     """Tests that the dynamic slice provider can be updated."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    transport = transport_params_lib.RuntimeParams(De_inner=1.0)
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'De_inner': 1.0, 'transport_model': 'constant'}
+    )
     geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
@@ -514,7 +481,9 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
     self.assertEqual(dcs.transport.De_inner, 1.0)
 
     # Update something in transport.
-    transport.De_inner = 2.0
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'De_inner': 2.0, 'transport_model': 'constant'}
+    )
     # Check pre-update that nothing has changed.
     dcs = provider(
         t=0.0,

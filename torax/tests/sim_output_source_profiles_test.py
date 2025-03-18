@@ -42,7 +42,7 @@ from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.torax_pydantic import torax_pydantic
-from torax.transport_model import constant as constant_transport_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
@@ -113,8 +113,8 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         sources=sources.source_model_config
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    runtime_params.numerics.t_final = 2.0
-    runtime_params.numerics.fixed_dt = 1.0
+    runtime_params._update_fields({'numerics.t_final': 2.0})
+    runtime_params._update_fields({'numerics.fixed_dt': 1.0})
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     time_stepper = fixed_time_step_calculator.FixedTimeStepCalculator()
 
@@ -148,7 +148,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         runtime_params=runtime_params,
         geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
         stepper=explicit_stepper.ExplicitStepperModel(),
-        transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
+        transport_model=transport_pydantic_model.Transport.from_dict(
+            {'transport_model': 'constant'}
+        ),
         sources=sources,
         pedestal=pedestal_pydantic_model.Pedestal(),
         time_step_calculator=time_stepper,

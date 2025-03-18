@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from absl.testing import absltest
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.transport_model import critical_gradient
+"""Pydantic config for restarting a simulation from a file."""
+import pydantic
+from torax.torax_pydantic import torax_pydantic
 
 
-class RuntimeParamsTest(absltest.TestCase):
+class FileRestart(torax_pydantic.BaseModelFrozen):
+  """Pydantic config for restarting a simulation from a file.
 
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = critical_gradient.RuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
-
-
-if __name__ == '__main__':
-  absltest.main()
+  Attributes:
+    filename: Filename to load initial state from.
+    time: Time in state file at which to load from.
+    do_restart: Toggle loading initial state from file or not.
+    stitch: Whether to stitch the state from the file.
+  """
+  filename: pydantic.FilePath
+  time: torax_pydantic.Second
+  do_restart: bool
+  stitch: bool

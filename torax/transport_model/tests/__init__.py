@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+<<<<<<< HEAD:torax/transport_model/tests/bohm_gyrobohm_test.py
 from absl.testing import absltest
 import jax.numpy as jnp
 
@@ -104,3 +105,6 @@ class BohmGyroBohmOutputTest(absltest.TestCase):
 
 if __name__ == '__main__':
   absltest.main()
+=======
+"""Transport model tests."""
+>>>>>>> origin/main:torax/transport_model/tests/__init__.py

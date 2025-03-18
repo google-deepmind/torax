@@ -17,6 +17,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import numpy as np
+import pydantic
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.torax_pydantic import interpolated_param_2d
 from torax.torax_pydantic import model_base
@@ -230,7 +231,6 @@ class InterpolatedParam2dTest(parameterized.TestCase):
   def test_time_varying_array_parses_inputs_correctly(
       self, time_rho_interpolated_input, nx, dx, time, expected_output
   ):
-    """Tests that the creation of TimeVaryingArray from config works."""
     interpolated = interpolated_param_2d.TimeVaryingArray.model_validate(
         time_rho_interpolated_input
     )
@@ -266,6 +266,13 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           ).right_boundary_conditions_defined
       )
 
+  def test_raises_error_when_value_is_not_positive(self):
+    class TestModel(model_base.BaseModelFrozen):
+      a: interpolated_param_2d.PositiveTimeVaryingArray
+
+    with self.assertRaisesRegex(pydantic.ValidationError, 'be positive.'):
+      TestModel.model_validate({'a': {0.: {0.: 1.0, 1: -1.0}}})
+
   def test_set_grid(self):
 
     class Test1(model_base.BaseModelFrozen):
@@ -300,10 +307,24 @@ class InterpolatedParam2dTest(parameterized.TestCase):
       grid._update_fields({'nx': grid.nx + 1})
       interpolated_param_2d.set_grid(m2, grid, mode='force')
       chex.assert_trees_all_equal(m2.y.grid.face_centers, grid.face_centers)  # pytype: disable=attribute-error
+      # Ensure that setting the grid does not re-use the grid object.
+      self.assertTrue(m2._has_unique_submodels)
 
     with self.subTest('set_grid_already_set_relaxed'):
       interpolated_param_2d.set_grid(m2, grid, mode='relaxed')
 
+  def test_test_equality_cached_property(self):
+    array_1 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
+    array_2 = interpolated_param_2d.TimeVaryingArray.model_validate(1.0)
+
+    grid = geometry_pydantic_model.CircularConfig().build_geometry().torax_mesh
+    interpolated_param_2d.set_grid(array_1, grid)
+    interpolated_param_2d.set_grid(array_2, grid)
+
+    # Check that the cached property does not break equality.
+    self.assertEqual(array_1, array_2)
+    array_1.get_value(t=0.0)
+    self.assertEqual(array_1, array_2)
 
 if __name__ == '__main__':
   absltest.main()

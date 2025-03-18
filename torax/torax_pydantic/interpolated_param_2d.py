@@ -23,6 +23,7 @@ import pydantic
 from torax import interpolated_param
 from torax.torax_pydantic import model_base
 from torax.torax_pydantic import pydantic_types
+from typing_extensions import Annotated
 from typing_extensions import Self
 import xarray as xr
 
@@ -149,8 +150,12 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
   def __eq__(self, other: Self):
     try:
-      chex.assert_trees_all_equal(vars(self), vars(other))
-      return True
+      chex.assert_trees_all_equal(self.value, other.value)
+      return (
+          self.rho_interpolation_mode == other.rho_interpolation_mode
+          and self.time_interpolation_mode == other.time_interpolation_mode
+          and self.grid == other.grid
+      )
     except AssertionError:
       return False
 
@@ -249,6 +254,18 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
         time_interpolation_mode=self.time_interpolation_mode,
         rho_interpolation_mode=self.rho_interpolation_mode,
     )
+
+
+def _is_positive(array: TimeVaryingArray) -> TimeVaryingArray:
+  for _, value in array.value.values():
+    if not np.all(value > 0):
+      raise ValueError('All values must be positive.')
+  return array
+
+
+PositiveTimeVaryingArray = Annotated[
+    TimeVaryingArray, pydantic.AfterValidator(_is_positive)
+]
 
 
 def _load_from_primitives(
@@ -381,12 +398,21 @@ def set_grid(
   """
 
   def _update_rule(submodel):
+    # The update API assumes all submodels are unique objects. Construct
+    # a new Grid1D object (without validation) to ensure this. We do reuse
+    # the same NumPy arrays.
+    new_grid = Grid1D.model_construct(
+        nx=grid.nx,
+        dx=grid.dx,
+        face_centers=grid.face_centers,
+        cell_centers=grid.cell_centers,
+    )
     if submodel.grid is None:
-      submodel.__dict__['grid'] = grid
+      submodel.__dict__['grid'] = new_grid
     else:
       match mode:
         case 'force':
-          submodel.__dict__['grid'] = grid
+          submodel.__dict__['grid'] = new_grid
         case 'relaxed':
           pass
         case 'strict':

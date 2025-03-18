@@ -26,6 +26,7 @@ class ConfigTest(parameterized.TestCase):
       "test_bohmgyrobohm_all",
       "test_iterhybrid_predictor_corrector",
       "test_iterhybrid_rampup",
+      "test_iterhybrid_rampup_restart",
   )
   def test_full_config_construction(self, config_name):
     """Test for basic config construction."""
@@ -35,6 +36,9 @@ class ConfigTest(parameterized.TestCase):
         config_package="torax",
     ).CONFIG
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
+
+    with self.subTest("has_unique_submodels"):
+      self.assertTrue(config_pydantic._has_unique_submodels)
 
     self.assertEqual(
         config_pydantic.time_step_calculator.calculator_type.value,
