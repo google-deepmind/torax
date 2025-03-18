@@ -106,15 +106,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
 
 
 class BohmGyroBohmTransportModel(transport_model.TransportModel):
-  """Calculates various coefficients related to particle transport according to the Bohm + gyro-Bohm Model.
-
-  In this modified version, the returned CoreTransport structure includes the individual
-  contributions for the Bohm and GyroBohm terms as additional fields:
-    - chi_e_bohm: Bohm contribution for electron heat conductivity.
-    - chi_e_gyrobohm: GyroBohm contribution for electron heat conductivity.
-    - chi_i_bohm: Bohm contribution for ion heat conductivity.
-    - chi_i_gyrobohm: GyroBohm contribution for ion heat conductivity.
-  """
+  """Calculates various coefficients related to particle transport according to the Bohm + gyro-Bohm Model."""
 
   def __init__(
       self,
@@ -145,9 +137,7 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
       pedestal_model_outputs: Output of the pedestal model.
 
     Returns:
-      coeffs: The transport coefficients encapsulated in a CoreTransport structure.
-             Now includes the individual Bohm and GyroBohm contributions as:
-             - chi_e_bohm, chi_e_gyrobohm, chi_i_bohm, and chi_i_gyrobohm.
+      coeffs: The transport coefficients 
     """
     del pedestal_model_outputs  # Unused.
     # pylint: disable=invalid-name
