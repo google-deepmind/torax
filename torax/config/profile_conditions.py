@@ -14,7 +14,6 @@
 
 """Profile condition parameters used throughout TORAX simulations."""
 import dataclasses
-import logging
 
 import chex
 import pydantic
@@ -173,19 +172,16 @@ class ProfileConditions(torax_pydantic.BaseModelFrozen):
     }
 
     if self.Te_bound_right is None:
-      logging.info('Setting electron temperature boundary condition using Te.')
       dynamic_params['Te_bound_right'] = self.Te.get_value(
           t, grid_type='face_right'
       )
 
     if self.Ti_bound_right is None:
-      logging.info('Setting ion temperature boundary condition using Ti.')
       dynamic_params['Ti_bound_right'] = self.Ti.get_value(
           t, grid_type='face_right'
       )
 
     if self.ne_bound_right is None:
-      logging.info('Setting electron density boundary condition using ne.')
       dynamic_params['ne_bound_right'] = self.ne.get_value(
           t, grid_type='face_right'
       )
