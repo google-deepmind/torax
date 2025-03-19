@@ -20,7 +20,7 @@ import inspect
 from absl import logging
 import chex
 import jax
-from jax import numpy as jnp
+import numpy as np
 from torax import state
 from torax.geometry import geometry as geometry_lib
 from torax.sources import source_models as source_models_lib
@@ -214,7 +214,7 @@ class StateHistory:
     ]
     geometries = [state.geometry for state in sim_outputs.sim_history]
     self.geometry = geometry_lib.stack_geometries(geometries)
-    stack = lambda *ys: jnp.stack(ys)
+    stack = lambda *ys: np.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
     )
@@ -227,7 +227,7 @@ class StateHistory:
     self.post_processed_outputs: state.PostProcessedOutputs = (
         jax.tree_util.tree_map(stack, *post_processed_output)
     )
-    self.times = jnp.array([state.t for state in sim_outputs.sim_history])
+    self.times = np.array([state.t for state in sim_outputs.sim_history])
     # The rho grid does not change in time so we can just take the first one.
     self.rho_norm = sim_outputs.sim_history[0].geometry.rho_norm
     self.rho_face_norm = sim_outputs.sim_history[0].geometry.rho_face_norm
