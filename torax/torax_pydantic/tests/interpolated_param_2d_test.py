@@ -195,7 +195,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           testcase_name='single_dict_t=0.5',
           time_rho_interpolated_input={
               0.475: 18.0,
-              1.425: 5.0,
+              0.9: 5.0,
           },
           nx=4,
           dx=0.95,
@@ -206,7 +206,7 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           testcase_name='single_dict_t=0.0',
           time_rho_interpolated_input={
               0.475: 18.0,
-              1.425: 5.0,
+              0.9: 5.0,
           },
           nx=4,
           dx=0.95,
