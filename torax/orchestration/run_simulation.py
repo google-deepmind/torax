@@ -16,11 +16,12 @@
 The intended use is
 ```
 torax_config = torax.ToraxConfig.from_dict(config_dict)
-sim_oututs = torax.run_simulation(torax_config)
-
-We can then update the config to run a new simulation with different parameters.
-torax_config.update(updated_fields)
 sim_outputs = torax.run_simulation(torax_config)
+
+# Update the config to run a new simulation with different parameters.
+torax_config.update(updated_fields)
+new_sim_outputs = torax.run_simulation(torax_config)
+```
 """
 
 from torax import output
@@ -33,6 +34,8 @@ from torax.torax_pydantic import model_config
 
 def run_simulation(
     torax_config: model_config.ToraxConfig,
+    log_timestep_info: bool = False,
+    progress_bar: bool = True,
 ) -> output.StateHistory:
   """Runs a TORAX simulation using the config and returns the outputs."""
   # TODO(b/384767453): Remove the need for the step_fn and stepper to take the
@@ -98,6 +101,8 @@ def run_simulation(
       geometry_provider=geometry_provider,
       initial_state=initial_state,
       step_fn=step_fn,
+      log_timestep_info=log_timestep_info,
+      progress_bar=progress_bar,
   )
 
   return output.StateHistory(
