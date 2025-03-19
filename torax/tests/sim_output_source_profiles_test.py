@@ -16,30 +16,29 @@
 
 This is a separate file to not bloat the main sim.py test file.
 """
+
 import dataclasses
 from unittest import mock
 
 from absl.testing import absltest
 from jax import numpy as jnp
 import numpy as np
-from torax import sim as sim_lib
+import pydantic
 from torax import state as state_module
-from torax.config import runtime_params as general_runtime_params
-from torax.geometry import geometry_provider as geometry_provider_lib
-from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.orchestration import run_simulation
 from torax.orchestration import step_function
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source as source_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
+from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
-from torax.tests.test_lib import explicit_stepper
+from torax.tests.test_lib import explicit_stepper as explicit_stepper_lib
 from torax.tests.test_lib import sim_test_case
-from torax.time_step_calculator import fixed_time_step_calculator
+from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
-from torax.transport_model import pydantic_model as transport_pydantic_model
+from typing_extensions import Annotated
+
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
@@ -49,7 +48,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    torax_mesh = torax_pydantic.Grid1D.construct(nx=10, dx=0.1)
+    torax_mesh = torax_pydantic.Grid1D(nx=10, dx=0.1)
     sources = default_sources.get_default_sources()
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
@@ -92,28 +91,46 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_source_profiles(self):
     """Tests that the source profiles contain correct data."""
-    # The first time step and last time step's output source profiles are built
-    # in a special way that combines the implicit and explicit profiles.
-    sources = source_pydantic_model.Sources.from_dict({
-        'generic_particle_source': {
-            'prescribed_values': {
-                0.0: {0: 1.0},
-                1.0: {0: 2.0},
-                2.0: {0: 3.0},
-                3.0: {0: 4.0},
-            },
-            'mode': 'PRESCRIBED',
-        },
-    })
+    stepper_pydantic_model.Stepper.model_fields[
+        'stepper_config'
+    ].annotation |= Annotated[
+        explicit_stepper_lib.ExplicitStepperConfig, pydantic.Tag('explicit')
+    ]
+    stepper_pydantic_model.Stepper.model_rebuild(force=True)
+    model_config.ToraxConfig.model_rebuild(force=True)
 
+    config = {
+        # The first time step and last time step's output source profiles are
+        # built in a special way that combines the implicit and explicit
+        # profiles.
+        'sources': {
+            'generic_particle_source': {
+                'prescribed_values': {
+                    0.0: {0: 1.0},
+                    1.0: {0: 2.0},
+                    2.0: {0: 3.0},
+                    3.0: {0: 4.0},
+                },
+                'mode': 'PRESCRIBED',
+            },
+        },
+        'runtime_params': {
+            'numerics': {
+                't_final': 2.0,
+                'fixed_dt': 1.0,
+            }
+        },
+        'geometry': {'geometry_type': 'circular'},
+        'stepper': {'stepper_type': 'explicit'},
+        'transport': {},
+        'pedestal': {},
+        'time_step_calculator': {},
+    }
+
+    torax_config = model_config.ToraxConfig.from_dict(config)
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    runtime_params._update_fields({'numerics.t_final': 2.0})
-    runtime_params._update_fields({'numerics.fixed_dt': 1.0})
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    time_stepper = fixed_time_step_calculator.FixedTimeStepCalculator()
 
     def mock_step_fn(
         _,
@@ -140,27 +157,14 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
           ),
           state_module.SimError.NO_ERROR,
       )
-
-    sim = sim_lib.Sim.create(
-        runtime_params=runtime_params,
-        geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
-        stepper=explicit_stepper.ExplicitStepperModel(),
-        transport_model=transport_pydantic_model.Transport.from_dict(
-            {'transport_model': 'constant'}
-        ),
-        sources=sources,
-        pedestal=pedestal_pydantic_model.Pedestal(),
-        time_step_calculator=time_stepper,
-    )
     with mock.patch.object(
         step_function.SimulationStepFn, '__call__', new=mock_step_fn
     ):
-      sim_outputs = sim.run()
+      state_history = run_simulation.run_simulation(torax_config)
 
-    for i, sim_state in enumerate(sim_outputs.sim_history):
-      np.testing.assert_allclose(
-          sim_state.core_sources.ne['generic_particle_source'], i + 1
-      )
+    for i, v in enumerate(
+        state_history.core_sources.ne['generic_particle_source']):
+      np.testing.assert_allclose(v, i + 1)
 
 
 def _build_source_profiles_with_single_value(

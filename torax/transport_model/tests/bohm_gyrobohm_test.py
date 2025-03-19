@@ -191,23 +191,35 @@ class BohmGyroBohmTest(absltest.TestCase):
 
     # Verify that the raw fields (which are computed before applying the
     # scaling factors) are identical between the two configurations.
-    np.testing.assert_allclose(output_A.chi_e_bohm, output_B.chi_e_bohm)
-    np.testing.assert_allclose(output_A.chi_e_gyrobohm, output_B.chi_e_gyrobohm)
-    np.testing.assert_allclose(output_A.chi_i_bohm, output_B.chi_i_bohm)
-    np.testing.assert_allclose(output_A.chi_i_gyrobohm, output_B.chi_i_gyrobohm)
+    np.testing.assert_allclose(
+        output_A.chi_face_el_bohm, output_B.chi_face_el_bohm
+    )
+    np.testing.assert_allclose(
+        output_A.chi_face_el_gyrobohm, output_B.chi_face_el_gyrobohm
+    )
+    np.testing.assert_allclose(
+        output_A.chi_face_ion_bohm, output_B.chi_face_ion_bohm
+    )
+    np.testing.assert_allclose(
+        output_A.chi_face_ion_gyrobohm, output_B.chi_face_ion_gyrobohm
+    )
 
     # Verify the raw fields add up to the total fields.
     np.testing.assert_allclose(
-        output_A.chi_i_bohm + output_A.chi_i_gyrobohm, output_A.chi_face_ion
+        output_A.chi_face_ion_bohm + output_A.chi_face_ion_gyrobohm,
+        output_A.chi_face_ion,
     )
     np.testing.assert_allclose(
-        output_A.chi_e_bohm + output_A.chi_e_gyrobohm, output_A.chi_face_el
+        output_A.chi_face_el_bohm + output_A.chi_face_el_gyrobohm,
+        output_A.chi_face_el,
     )
     np.testing.assert_allclose(
-        output_B.chi_i_bohm + output_B.chi_i_gyrobohm, output_B.chi_face_ion
+        output_B.chi_face_ion_bohm + output_B.chi_face_ion_gyrobohm,
+        output_B.chi_face_ion,
     )
     np.testing.assert_allclose(
-        output_B.chi_e_bohm + output_B.chi_e_gyrobohm, output_B.chi_face_el
+        output_B.chi_face_el_bohm + output_B.chi_face_el_gyrobohm,
+        output_B.chi_face_el,
     )
 
 

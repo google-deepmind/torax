@@ -20,7 +20,7 @@ import inspect
 from absl import logging
 import chex
 import jax
-from jax import numpy as jnp
+import numpy as np
 from torax import state
 from torax.geometry import geometry as geometry_lib
 from torax.sources import source_models as source_models_lib
@@ -214,7 +214,7 @@ class StateHistory:
     ]
     geometries = [state.geometry for state in sim_outputs.sim_history]
     self.geometry = geometry_lib.stack_geometries(geometries)
-    stack = lambda *ys: jnp.stack(ys)
+    stack = lambda *ys: np.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
     )
@@ -227,7 +227,7 @@ class StateHistory:
     self.post_processed_outputs: state.PostProcessedOutputs = (
         jax.tree_util.tree_map(stack, *post_processed_output)
     )
-    self.times = jnp.array([state.t for state in sim_outputs.sim_history])
+    self.times = np.array([state.t for state in sim_outputs.sim_history])
     # The rho grid does not change in time so we can just take the first one.
     self.rho_norm = sim_outputs.sim_history[0].geometry.rho_norm
     self.rho_face_norm = sim_outputs.sim_history[0].geometry.rho_face_norm
@@ -270,7 +270,7 @@ class StateHistory:
         logging.warning(
             "Unsupported data shape for %s: %s. Skipping persisting.",
             name,
-            data.shape,
+            data.shape,  # pytype: disable=attribute-error
         )
         return None
 
@@ -343,16 +343,18 @@ class StateHistory:
     xr_dict[D_FACE_EL] = self.core_transport.d_face_el
     xr_dict[V_FACE_EL] = self.core_transport.v_face_el
 
-    # Check if any BohmGyroBohm attributes are nonzero.
+    # Save optional BohmGyroBohm attributes if nonzero.
     core_transport = self.core_transport
-    if (jnp.any(core_transport.chi_e_bohm != 0) or
-        jnp.any(core_transport.chi_e_gyrobohm != 0) or
-        jnp.any(core_transport.chi_i_bohm != 0) or
-        jnp.any(core_transport.chi_i_gyrobohm != 0)):
-     xr_dict["chi_e_bohm"] = core_transport.chi_e_bohm
-     xr_dict["chi_e_gyrobohm"] = core_transport.chi_e_gyrobohm
-     xr_dict["chi_i_bohm"] = core_transport.chi_i_bohm
-     xr_dict["chi_i_gyrobohm"] = core_transport.chi_i_gyrobohm
+    if (
+        np.any(core_transport.chi_face_el_bohm != 0)
+        or np.any(core_transport.chi_face_el_gyrobohm != 0)
+        or np.any(core_transport.chi_face_ion_bohm != 0)
+        or np.any(core_transport.chi_face_ion_gyrobohm != 0)
+    ):
+      xr_dict["chi_face_el_bohm"] = core_transport.chi_face_el_bohm
+      xr_dict["chi_face_el_gyrobohm"] = core_transport.chi_face_el_gyrobohm
+      xr_dict["chi_face_ion_bohm"] = core_transport.chi_face_ion_bohm
+      xr_dict["chi_face_ion_gyrobohm"] = core_transport.chi_face_ion_gyrobohm
 
     xr_dict = {
         name: self._pack_into_data_array(

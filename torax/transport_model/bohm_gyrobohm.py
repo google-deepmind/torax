@@ -104,6 +104,8 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         / geo.rho_b
     )
 
+    # Set proportionality of chi_i to chi_e according to the assumptions of the
+    # Bohm model.
     chi_i_B = 2 * chi_e_B
 
     # Gyrobohm term of heat transport
@@ -117,6 +119,8 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         / geo.rho_b
     )
 
+    # Set proportionality of chi_i to chi_e according to the assumptions of the
+    # GyroBohm model.
     chi_i_gB = 0.5 * chi_e_gB
 
     # Calibrated transport coefficients
@@ -175,10 +179,10 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         chi_face_el=chi_e,
         d_face_el=d_face_el,
         v_face_el=v_face_el,
-        chi_e_bohm=chi_e_bohm,
-        chi_e_gyrobohm=chi_e_gyrobohm,
-        chi_i_bohm=chi_i_bohm,
-        chi_i_gyrobohm=chi_i_gyrobohm,
+        chi_face_el_bohm=chi_e_bohm,
+        chi_face_el_gyrobohm=chi_e_gyrobohm,
+        chi_face_ion_bohm=chi_i_bohm,
+        chi_face_ion_gyrobohm=chi_i_gyrobohm,
     )
 
   def __hash__(self):

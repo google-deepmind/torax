@@ -244,38 +244,44 @@ class CoreTransport:
     chi_face_el: Electron heat conductivity, on the face grid.
     d_face_el: Diffusivity of electron density, on the face grid.
     v_face_el: Convection strength of electron density, on the face grid.
-    chi_e_bohm: (Optional) Bohm contribution for electron heat conductivity.
-    chi_e_gyrobohm: (Optional) GyroBohm contribution for electron heat conductivity.
-    chi_i_bohm: (Optional) Bohm contribution for ion heat conductivity.
-    chi_i_gyrobohm: (Optional) GyroBohm contribution for ion heat conductivity.
+    chi_face_el_bohm: (Optional) Bohm contribution for electron heat
+      conductivity.
+    chi_face_el_gyrobohm: (Optional) GyroBohm contribution for electron heat
+      conductivity.
+    chi_face_ion_bohm: (Optional) Bohm contribution for ion heat conductivity.
+    chi_face_ion_gyrobohm: (Optional) GyroBohm contribution for ion heat
+      conductivity.
   """
+
   chi_face_ion: jax.Array
   chi_face_el: jax.Array
   d_face_el: jax.Array
   v_face_el: jax.Array
-  chi_e_bohm: Optional[jax.Array] = dataclasses.field(default_factory=lambda: None)
-  chi_e_gyrobohm: Optional[jax.Array] = dataclasses.field(default_factory=lambda: None)
-  chi_i_bohm: Optional[jax.Array] = dataclasses.field(default_factory=lambda: None)
-  chi_i_gyrobohm: Optional[jax.Array] = dataclasses.field(default_factory=lambda: None)
+  chi_face_el_bohm: Optional[jax.Array] = None
+  chi_face_el_gyrobohm: Optional[jax.Array] = None
+  chi_face_ion_bohm: Optional[jax.Array] = None
+  chi_face_ion_gyrobohm: Optional[jax.Array] = None
 
   def __post_init__(self):
     # Use the array size of chi_face_el as a reference.
-    if self.chi_e_bohm is None:
-      self.chi_e_bohm = jnp.zeros_like(self.chi_face_el)
-    if self.chi_e_gyrobohm is None:
-      self.chi_e_gyrobohm = jnp.zeros_like(self.chi_face_el)
-    if self.chi_i_bohm is None:
-      self.chi_i_bohm = jnp.zeros_like(self.chi_face_el)
-    if self.chi_i_gyrobohm is None:
-      self.chi_i_gyrobohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_el_bohm is None:
+      self.chi_face_el_bohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_el_gyrobohm is None:
+      self.chi_face_el_gyrobohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_ion_bohm is None:
+      self.chi_face_ion_bohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_ion_gyrobohm is None:
+      self.chi_face_ion_gyrobohm = jnp.zeros_like(self.chi_face_el)
 
   def chi_max(
       self,
       geo: geometry.Geometry,
   ) -> jax.Array:
     """Calculates the maximum value of chi.
+
     Args:
       geo: Geometry of the torus.
+
     Returns:
       chi_max: Maximum value of chi.
     """
@@ -293,12 +299,11 @@ class CoreTransport:
         chi_face_el=jnp.zeros(shape),
         d_face_el=jnp.zeros(shape),
         v_face_el=jnp.zeros(shape),
-        chi_e_bohm=jnp.zeros(shape),
-        chi_e_gyrobohm=jnp.zeros(shape),
-        chi_i_bohm=jnp.zeros(shape),
-        chi_i_gyrobohm=jnp.zeros(shape),
+        chi_face_el_bohm=jnp.zeros(shape),
+        chi_face_el_gyrobohm=jnp.zeros(shape),
+        chi_face_ion_bohm=jnp.zeros(shape),
+        chi_face_ion_gyrobohm=jnp.zeros(shape),
     )
-
 
 
 @chex.dataclass(frozen=True, eq=False)
