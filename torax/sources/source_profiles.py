@@ -13,15 +13,70 @@
 # limitations under the License.
 
 """Source/sink profiles for all the sources in TORAX."""
-
-from __future__ import annotations
-
 import dataclasses
+from typing import Literal
 
 import chex
 import jax
 import jax.numpy as jnp
+from torax import constants
 from torax.geometry import geometry
+import typing_extensions
+
+
+@chex.dataclass(frozen=True)
+class BootstrapCurrentProfile:
+  """Bootstrap current profile.
+
+  Attributes:
+    sigma: plasma conductivity with neoclassical corrections on cell grid.
+    sigma_face: plasma conductivity with neoclassical corrections on face grid.
+    j_bootstrap: Bootstrap current density (Amps / m^2)
+    j_bootstrap_face: Bootstrap current density (Amps / m^2) on face grid
+    I_bootstrap: Total bootstrap current. Used primarily for diagnostic
+      purposes.
+  """
+
+  sigma: jax.Array
+  sigma_face: jax.Array
+  j_bootstrap: jax.Array
+  j_bootstrap_face: jax.Array
+  I_bootstrap: jax.Array  # pylint: disable=invalid-name
+
+  @classmethod
+  def zero_profile(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+    return BootstrapCurrentProfile(
+        sigma=jnp.zeros_like(geo.rho),
+        sigma_face=jnp.zeros_like(geo.rho_face),
+        j_bootstrap=jnp.zeros_like(geo.rho),
+        j_bootstrap_face=jnp.zeros_like(geo.rho_face),
+        I_bootstrap=jnp.zeros(()),
+    )
+
+
+@chex.dataclass(frozen=True)
+class QeiInfo:
+  """Represents the source values coming from a QeiSource."""
+
+  qei_coef: jax.Array
+  implicit_ii: jax.Array
+  explicit_i: jax.Array
+  implicit_ee: jax.Array
+  explicit_e: jax.Array
+  implicit_ie: jax.Array
+  implicit_ei: jax.Array
+
+  @classmethod
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
+    return QeiInfo(
+        qei_coef=jnp.zeros_like(geo.rho),
+        implicit_ii=jnp.zeros_like(geo.rho),
+        explicit_i=jnp.zeros_like(geo.rho),
+        implicit_ee=jnp.zeros_like(geo.rho),
+        explicit_e=jnp.zeros_like(geo.rho),
+        implicit_ie=jnp.zeros_like(geo.rho),
+        implicit_ei=jnp.zeros_like(geo.rho),
+    )
 
 
 @chex.dataclass(frozen=True)
@@ -58,9 +113,9 @@ class SourceProfiles:
   @classmethod
   def merge(
       cls,
-      explicit_source_profiles: SourceProfiles,
-      implicit_source_profiles: SourceProfiles,
-  ) -> SourceProfiles:
+      explicit_source_profiles: typing_extensions.Self,
+      implicit_source_profiles: typing_extensions.Self,
+  ) -> typing_extensions.Self:
     """Returns a SourceProfiles that merges the input profiles.
 
     Sources can either be explicit or implicit. The explicit_source_profiles
@@ -90,57 +145,18 @@ class SourceProfiles:
     return jax.tree_util.tree_map(
         sum_profiles, explicit_source_profiles, implicit_source_profiles)
 
+  def total_psi_sources(self, geo: geometry.Geometry) -> jax.Array:
+    total = self.j_bootstrap.j_bootstrap
+    total += sum(self.psi.values())
+    mu0 = constants.CONSTANTS.mu0
+    prefactor = 8 * geo.vpr * jnp.pi**2 * geo.B0 * mu0 * geo.Phib / geo.F**2
+    return -total * prefactor
 
-@chex.dataclass(frozen=True)
-class BootstrapCurrentProfile:
-  """Bootstrap current profile.
-
-  Attributes:
-    sigma: plasma conductivity with neoclassical corrections on cell grid.
-    sigma_face: plasma conductivity with neoclassical corrections on face grid.
-    j_bootstrap: Bootstrap current density (Amps / m^2)
-    j_bootstrap_face: Bootstrap current density (Amps / m^2) on face grid
-    I_bootstrap: Total bootstrap current. Used primarily for diagnostic
-      purposes.
-  """
-
-  sigma: jax.Array
-  sigma_face: jax.Array
-  j_bootstrap: jax.Array
-  j_bootstrap_face: jax.Array
-  I_bootstrap: jax.Array  # pylint: disable=invalid-name
-
-  @classmethod
-  def zero_profile(cls, geo: geometry.Geometry) -> BootstrapCurrentProfile:
-    return BootstrapCurrentProfile(
-        sigma=jnp.zeros_like(geo.rho),
-        sigma_face=jnp.zeros_like(geo.rho_face),
-        j_bootstrap=jnp.zeros_like(geo.rho),
-        j_bootstrap_face=jnp.zeros_like(geo.rho_face),
-        I_bootstrap=jnp.zeros(()),
-    )
-
-
-@chex.dataclass(frozen=True)
-class QeiInfo:
-  """Represents the source values coming from a QeiSource."""
-
-  qei_coef: jax.Array
-  implicit_ii: jax.Array
-  explicit_i: jax.Array
-  implicit_ee: jax.Array
-  explicit_e: jax.Array
-  implicit_ie: jax.Array
-  implicit_ei: jax.Array
-
-  @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> QeiInfo:
-    return QeiInfo(
-        qei_coef=jnp.zeros_like(geo.rho),
-        implicit_ii=jnp.zeros_like(geo.rho),
-        explicit_i=jnp.zeros_like(geo.rho),
-        implicit_ee=jnp.zeros_like(geo.rho),
-        explicit_e=jnp.zeros_like(geo.rho),
-        implicit_ie=jnp.zeros_like(geo.rho),
-        implicit_ei=jnp.zeros_like(geo.rho),
-    )
+  def total_sources(
+      self,
+      source_type: Literal['ne', 'temp_ion', 'temp_el'],
+      geo: geometry.Geometry,
+  ) -> jax.Array:
+    source: dict[str, jax.Array] = getattr(self, source_type)
+    total = sum(source.values())
+    return total * geo.vpr

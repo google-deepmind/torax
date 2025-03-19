@@ -39,7 +39,7 @@ from torax.sources import source_profile_builders
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import torax_refs
-from torax.transport_model import constant as constant_transport_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
 class FVMTest(torax_refs.ReferenceValueTest):
@@ -207,7 +207,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         self.assertGreater(x[1 - start].value.min(), 0.0)
 
   @parameterized.parameters([
-      dict(num_cells=3, theta_imp=0, time_steps=29),
+      dict(num_cells=4, theta_imp=0, time_steps=29),
       dict(num_cells=4, theta_imp=0.5, time_steps=21),
       dict(num_cells=5, theta_imp=1.0, time_steps=34),
   ])
@@ -232,20 +232,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=num_cells
     ).build_geometry()
-    transport_model_builder = (
-        constant_transport_model.ConstantTransportModelBuilder(
-            runtime_params=constant_transport_model.RuntimeParams(
-                chimin=0,
-                chii_const=1,
-            ),
-        )
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'transport_model': 'constant', 'chimin': 0, 'chii_const': 1}
     )
     pedestal = pedestal_pydantic_model.Pedestal()
     pedestal_model = pedestal.build_pedestal_model()
-    transport_model = transport_model_builder()
     sources = default_sources.get_default_sources()
     sources_dict = sources.to_dict()
-    sources_dict = sources_dict['source_model_config']
     sources_dict['qei_source']['Qei_mult'] = 0.0
     sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
     sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
@@ -257,7 +250,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
-            transport=transport_model_builder.runtime_params,
+            transport=transport,
             sources=sources,
             stepper=stepper_params,
             pedestal=pedestal,
@@ -289,6 +282,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
         core_profiles=core_profiles,
         explicit=True,
     )
+    transport_model = transport.build_transport_model()
     coeffs = calc_coeffs.calc_coeffs(
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -360,7 +354,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     """Tests that updated boundary conditions affect x_new."""
     # Create a system with diffusive transport and no sources. When initialized
     # flat, x_new should remain zero unless boundary conditions change.
-    num_cells = 3
+    num_cells = 4
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=False,
@@ -375,18 +369,12 @@ class FVMTest(torax_refs.ReferenceValueTest):
             theta_imp=1.0,
         )
     )
-    transport_model_builder = (
-        constant_transport_model.ConstantTransportModelBuilder(
-            runtime_params=constant_transport_model.RuntimeParams(
-                chimin=0,
-                chii_const=1,
-            ),
-        )
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'transport_model': 'constant', 'chimin': 0, 'chii_const': 1}
     )
-    transport_model = transport_model_builder()
+    transport_model = transport.build_transport_model()
     sources = default_sources.get_default_sources()
     sources_dict = sources.to_dict()
-    sources_dict = sources_dict['source_model_config']
     sources_dict['qei_source']['Qei_mult'] = 0.0
     sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
     sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
@@ -399,7 +387,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
-            transport=transport_model_builder.runtime_params,
+            transport=transport,
             sources=sources,
             stepper=stepper_params,
             pedestal=pedestal,
@@ -509,7 +497,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
   def test_theta_residual_uses_updated_boundary_conditions(self):
     # Create a system with diffusive transport and no sources. When initialized
     # flat, residual should remain zero unless boundary conditions change.
-    num_cells = 3
+    num_cells = 4
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             set_pedestal=False,
@@ -527,19 +515,13 @@ class FVMTest(torax_refs.ReferenceValueTest):
     geo = geometry_pydantic_model.CircularConfig(
         n_rho=num_cells
     ).build_geometry()
-    transport_model_builder = (
-        constant_transport_model.ConstantTransportModelBuilder(
-            runtime_params=constant_transport_model.RuntimeParams(
-                chimin=0,
-                chii_const=1,
-            ),
-        )
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'transport_model': 'constant', 'chimin': 0, 'chii_const': 1}
     )
-    transport_model = transport_model_builder()
+    transport_model = transport.build_transport_model()
     pedestal = pedestal_pydantic_model.Pedestal()
     sources = default_sources.get_default_sources()
     sources_dict = sources.to_dict()
-    sources_dict = sources_dict['source_model_config']
     sources_dict['qei_source']['Qei_mult'] = 0.0
     sources_dict['generic_ion_el_heat_source']['Ptot'] = 0.0
     sources_dict['fusion_heat_source']['mode'] = source_runtime_params.Mode.ZERO
@@ -548,7 +530,7 @@ class FVMTest(torax_refs.ReferenceValueTest):
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
-            transport=transport_model_builder.runtime_params,
+            transport=transport,
             sources=sources,
             stepper=stepper_params,
             pedestal=pedestal,

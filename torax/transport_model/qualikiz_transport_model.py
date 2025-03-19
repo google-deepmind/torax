@@ -17,18 +17,16 @@
 Must be run with TORAX_COMPILATION_ENABLED=False. Used for generating ground
 truth for surrogate model evaluations.
 """
-
-from __future__ import annotations
-
-from collections.abc import Callable
 import dataclasses
 import datetime
 import os
 import subprocess
 import tempfile
+from typing import Literal
 
 import chex
 import numpy as np
+import pydantic
 from qualikiz_tools.qualikiz_io import inputfiles as qualikiz_inputtools
 from qualikiz_tools.qualikiz_io import qualikizrun as qualikiz_runtools
 from torax import jax_utils
@@ -36,45 +34,14 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.torax_pydantic import torax_pydantic
+from torax.transport_model import pydantic_model_base
 from torax.transport_model import qualikiz_based_transport_model
-from torax.transport_model import runtime_params as runtime_params_lib
-from torax.transport_model import transport_model
-
-
-# pylint: disable=invalid-name
-@chex.dataclass
-class RuntimeParams(qualikiz_based_transport_model.RuntimeParams):
-  """Extends the base runtime params with additional params for this model.
-
-  See base class runtime_params.RuntimeParams docstring for more info.
-  """
-
-  # QuaLiKiz model configuration
-  # set frequency of full QuaLiKiz contour solutions
-  maxruns: int = 2
-  # set number of cores used QuaLiKiz calculations
-  numprocs: int = 8
-
-  def make_provider(
-      self, torax_mesh: torax_pydantic.Grid1D | None = None
-  ) -> 'RuntimeParamsProvider':
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(qualikiz_based_transport_model.DynamicRuntimeParams):
   maxruns: int
   numprocs: int
-
-
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 _DEFAULT_QLKRUN_NAME_PREFIX = 'torax_qualikiz_runs'
@@ -89,11 +56,7 @@ class QualikizTransportModel(
 ):
   """Calculates turbulent transport coefficients with QuaLiKiz."""
 
-  def __init__(
-      self,
-      runtime_params: RuntimeParams | None = None,
-  ):
-    self._runtime_params = runtime_params or RuntimeParams()
+  def __init__(self):
     self._qlkrun_parentdir = tempfile.TemporaryDirectory()
     self._qlkrun_name = (
         _DEFAULT_QLKRUN_NAME_PREFIX
@@ -101,14 +64,6 @@ class QualikizTransportModel(
     )
     self._runpath = os.path.join(self._qlkrun_parentdir.name, self._qlkrun_name)
     self._frozen = True
-
-  @property
-  def runtime_params(self) -> RuntimeParams:
-    return self._runtime_params
-
-  @runtime_params.setter
-  def runtime_params(self, runtime_params: RuntimeParams) -> None:
-    self._runtime_params = runtime_params
 
   def _call_implementation(
       self,
@@ -420,25 +375,49 @@ def _extract_qualikiz_plan(
   return qualikiz_plan
 
 
-def _default_qualikiz_builder() -> QualikizTransportModel:
-  return QualikizTransportModel()
+# pylint: disable=invalid-name
+class QualikizTransportModelConfig(pydantic_model_base.TransportBase):
+  """Model for the Qualikiz transport model.
 
+  Attributes:
+    transport_model: The transport model to use. Hardcoded to 'qualikiz'.
+    maxruns: Set frequency of full QuaLiKiz contour solutions.
+    numprocs: Set number of cores used QuaLiKiz calculations.
+    coll_mult: Collisionality multiplier.
+    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
+      for no slab modes.
+    smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
+      impact of alpha.
+    q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
+      are sawteeth.
+    DVeff: Effective D / effective V approach for particle transport.
+    An_min: Minimum |R/Lne| below which effective V is used instead of effective
+      D.
+  """
 
-@dataclasses.dataclass(kw_only=True)
-class QualikizTransportModelBuilder(transport_model.TransportModelBuilder):
-  """Builds a class QualikizTransportModel."""
+  transport_model: Literal['qualikiz'] = 'qualikiz'
+  maxruns: pydantic.PositiveInt = 2
+  numprocs: pydantic.PositiveInt = 8
+  coll_mult: pydantic.PositiveFloat = 1.0
+  avoid_big_negative_s: bool = True
+  smag_alpha_correction: bool = True
+  q_sawtooth_proxy: bool = True
+  DVeff: bool = False
+  An_min: pydantic.PositiveFloat = 0.05
 
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-  model_path: str | None = None
+  def build_transport_model(self) -> QualikizTransportModel:
+    return QualikizTransportModel()
 
-  _builder: Callable[
-      [],
-      QualikizTransportModel,
-  ] = _default_qualikiz_builder
-
-  def __call__(
-      self,
-  ) -> QualikizTransportModel:
-    return self._builder()
+  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
+    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
+    return DynamicRuntimeParams(
+        maxruns=self.maxruns,
+        numprocs=self.numprocs,
+        coll_mult=self.coll_mult,
+        avoid_big_negative_s=self.avoid_big_negative_s,
+        smag_alpha_correction=self.smag_alpha_correction,
+        q_sawtooth_proxy=self.q_sawtooth_proxy,
+        DVeff=self.DVeff,
+        An_min=self.An_min,
+        **base_kwargs,
+    )

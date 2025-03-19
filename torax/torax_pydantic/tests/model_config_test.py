@@ -11,12 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
+
+from typing import Any
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 from torax.config import config_loader
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
+
+
+def get_unique_objects(x: Any, object_ids: list[int]) -> list[int]:
+  if isinstance(x, dict):
+    for _, value in x.items():
+      object_ids = get_unique_objects(value, object_ids)
+  elif isinstance(x, (list, tuple)):
+    for value in x:
+      object_ids = get_unique_objects(value, object_ids)
+  object_ids.append(id(x))
+  return object_ids
 
 
 class ConfigTest(parameterized.TestCase):
@@ -26,6 +41,7 @@ class ConfigTest(parameterized.TestCase):
       "test_bohmgyrobohm_all",
       "test_iterhybrid_predictor_corrector",
       "test_iterhybrid_rampup",
+      "test_iterhybrid_rampup_restart",
   )
   def test_full_config_construction(self, config_name):
     """Test for basic config construction."""
@@ -34,7 +50,15 @@ class ConfigTest(parameterized.TestCase):
         f".tests.test_data.{config_name}",
         config_package="torax",
     ).CONFIG
+    unique_objects_before = get_unique_objects(config_dict, list())
+    config_dict_copy = copy.deepcopy(config_dict)  # Keep a copy for comparison.
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
+
+    with self.subTest("original_config_dict_unchanged"):
+      chex.assert_trees_all_equal(config_dict, config_dict_copy)
+      # And the object ids should be unchanged.
+      unique_objects_after = get_unique_objects(config_dict, list())
+      self.assertListEqual(unique_objects_before, unique_objects_after)
 
     with self.subTest("has_unique_submodels"):
       self.assertTrue(config_pydantic._has_unique_submodels)

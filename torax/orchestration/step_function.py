@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Logic which controls the stepping over time of the simulation."""
-
-from __future__ import annotations
-
 import dataclasses
 from typing import Any
 

@@ -13,10 +13,9 @@
 # limitations under the License.
 
 """Tests torax.sim for handling time dependent input runtime params."""
-
 import copy
 import dataclasses
-from typing import Callable, Literal
+from typing import Literal
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -41,11 +40,33 @@ from torax.sources import source_profiles
 from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.time_step_calculator import fixed_time_step_calculator
+from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import transport_model as transport_model_lib
 
 
 class SimWithTimeDependeceTest(parameterized.TestCase):
   """Integration tests for torax.sim with time-dependent runtime params."""
+
+  def setUp(self):
+    super().setUp()
+    # Register the fake transport config.
+    self.original_annotation = (
+        transport_pydantic_model.Transport.model_fields[
+            'transport_model_config'
+        ].annotation
+    )
+    transport_pydantic_model.Transport.model_fields[
+        'transport_model_config'
+    ].annotation |= FakeTransportConfig
+    transport_pydantic_model.Transport.model_rebuild(force=True)
+
+  def tearDown(self):
+    super().tearDown()
+    transport_pydantic_model.Transport.model_fields[
+        'transport_model_config'
+    ].annotation = self.original_annotation
+    transport_pydantic_model.Transport.model_rebuild(force=True)
 
   @parameterized.named_parameters(
       ('with_adaptive_dt', True, 3, 0, 2.44444444444, [1, 2, 3]),
@@ -73,7 +94,9 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
     )
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
-    transport_builder = FakeTransportModelBuilder()
+    transport = transport_pydantic_model.Transport.from_dict(
+        {'transport_model': 'fake'}
+    )
     # max combined value of Ti_bound_right should be 2.5. Higher will make the
     # error state from the stepper be 1.
     time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
@@ -87,7 +110,7 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
                 inner_solver_iterations=inner_solver_iterations,
             )
         ),
-        transport_model_builder=transport_builder,
+        transport_model=transport,
         sources=source_pydantic_model.Sources(),
         pedestal=pedestal_pydantic_model.Pedestal(),
         time_step_calculator=time_calculator,
@@ -267,23 +290,13 @@ class FakeTransportModel(transport_model_lib.TransportModel):
     return state.CoreTransport.zeros(geo)
 
 
-def _default_fake_builder() -> FakeTransportModel:
-  return FakeTransportModel()
+class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
+  """Fake transport config for a model that always returns zeros."""
 
+  transport_model: Literal['fake'] = 'fake'
 
-@dataclasses.dataclass(kw_only=True)
-class FakeTransportModelBuilder(transport_model_lib.TransportModelBuilder):
-  """Builds a class FakeTransportModel."""
-
-  builder: Callable[
-      [],
-      FakeTransportModel,
-  ] = _default_fake_builder
-
-  def __call__(
-      self,
-  ) -> FakeTransportModel:
-    return self.builder()
+  def build_transport_model(self) -> FakeTransportModel:
+    return FakeTransportModel()
 
 
 if __name__ == '__main__':

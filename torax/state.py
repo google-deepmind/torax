@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Classes defining the TORAX state that evolves over time."""
-
-from __future__ import annotations
-
 import dataclasses
 import enum
 from typing import Any, Optional
@@ -29,6 +26,7 @@ from torax.config import config_args
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.sources import source_profiles
+import typing_extensions
 
 
 @chex.dataclass(frozen=True)
@@ -142,7 +140,7 @@ class CoreProfiles:
   Aimp: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
-  def history_elem(self) -> CoreProfiles:
+  def history_elem(self) -> typing_extensions.Self:
     """Returns the current CoreProfiles as a history entry.
 
     Histories are CoreProfiles with all the tree leaves getting an extra
@@ -199,7 +197,7 @@ class CoreProfiles:
         self.ne.value,
     ).item()
 
-  def index(self, i: int) -> CoreProfiles:
+  def index(self, i: int) -> typing_extensions.Self:
     """If the CoreProfiles is a history, returns the i-th CoreProfiles."""
     idx = lambda x: x[i]
     state = jax.tree_util.tree_map(idx, self)
@@ -272,7 +270,7 @@ class CoreTransport:
     )
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> CoreTransport:
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
     return cls(
         chi_face_ion=jnp.zeros(geo.rho_face.shape),
@@ -360,7 +358,10 @@ class PostProcessedOutputs:
     q95: q at 95% of the normalized poloidal flux
     Wpol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]
+
     P_generic_injected: Total injected power before absorption [W]
+    dW_th_dt: Time derivative of the total stored thermal energy [W]
+
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -425,11 +426,15 @@ class PostProcessedOutputs:
   q95: array_typing.ScalarFloat
   Wpol: array_typing.ScalarFloat
   li3: array_typing.ScalarFloat
+
   P_generic_injected: array_typing.ScalarFloat
+
+  dW_th_dt: array_typing.ScalarFloat
+
   # pylint: enable=invalid-name
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> PostProcessedOutputs:
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
         pressure_thermal_ion_face=jnp.zeros(geo.rho_face.shape),
@@ -490,7 +495,11 @@ class PostProcessedOutputs:
         q95=jnp.array(0.0),
         Wpol=jnp.array(0.0),
         li3=jnp.array(0.0),
+
         P_generic_injected=jnp.array(0.0),
+
+        dW_th_dt=jnp.array(0.0),
+
     )
 
 

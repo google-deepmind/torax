@@ -17,9 +17,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import constants
-from torax import interpolated_param
 from torax.config import build_runtime_params
-from torax.config import plasma_composition
 from torax.core_profiles import initialization
 from torax.sources import fusion_heat_source
 from torax.sources import pydantic_model as sources_pydantic_model
@@ -92,17 +90,15 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     np.testing.assert_allclose(torax_fusion_power, reference_fusion_power)
 
   @parameterized.named_parameters(
-      ('no_fusion_D', 'D', 0.0),
-      ('no_fusion_T', 'T', 0.0),
+      ('no_fusion_D', {'D': 1.0}, 0.0),
+      ('no_fusion_T', {'T': 1.0}, 0.0),
       ('no_fusion_HT', {'H': 0.5, 'T': 0.5}, 0.0),
       ('50-50-DT', {'D': 0.5, 'T': 0.5}, 1.0),
       ('25-75-DT', {'D': 0.25, 'T': 0.75}, 0.75),
   )
   def test_calc_fusion_different_ion_mixtures(
       self,
-      main_ion_input: (
-          str | Mapping[str, interpolated_param.TimeInterpolatedInput]
-      ),
+      main_ion_input: str | Mapping[str, float],
       expected_fusion_factor: float,
   ):
     """Compare `calc_fusion` function to a reference implementation for various ion mixtures."""
@@ -110,8 +106,8 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
 
     runtime_params = references.runtime_params
 
-    runtime_params.plasma_composition.main_ion_mixture = (
-        plasma_composition.IonMixture.from_config(main_ion_input)
+    runtime_params._update_fields(
+        {'plasma_composition.main_ion': main_ion_input}
     )
 
     sources = sources_pydantic_model.Sources.from_dict({

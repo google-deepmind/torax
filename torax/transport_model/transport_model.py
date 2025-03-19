@@ -28,7 +28,6 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.transport_model import runtime_params as runtime_params_lib
 
 
 class TransportModel(abc.ABC):
@@ -417,19 +416,3 @@ def build_smoothing_matrix(
   row_sums = jnp.sum(kernel, axis=1)
   kernel /= row_sums[:, jnp.newaxis]
   return kernel
-
-
-@dataclasses.dataclass(kw_only=True)
-class TransportModelBuilder(abc.ABC):
-  """Factory for TransportModel objects."""
-
-  @abc.abstractmethod
-  def __call__(
-      self,
-  ) -> TransportModel:
-    """Builds a TransportModel instance."""
-
-  # Input parameters to the TransportModel built by this class.
-  runtime_params: runtime_params_lib.RuntimeParams = dataclasses.field(
-      default_factory=runtime_params_lib.RuntimeParams
-  )

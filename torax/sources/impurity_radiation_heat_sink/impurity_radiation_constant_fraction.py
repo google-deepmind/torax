@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
-from __future__ import annotations
-
 from typing import Literal
 
 import chex

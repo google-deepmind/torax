@@ -26,8 +26,10 @@ from torax import sim as sim_lib
 from torax import simulation_app
 from torax.config import build_sim
 from torax.fvm import cell_variable
+from torax.orchestration import run_simulation
 from torax.tests import test_lib
 from torax.tests.test_lib import paths
+from torax.torax_pydantic import model_config
 
 PYTHON_MODULE_PREFIX = '.tests.test_data.'
 PYTHON_CONFIG_PACKAGE = 'torax'
@@ -208,6 +210,44 @@ class SimTestCase(parameterized.TestCase):
         _ = simulation_app.write_simulation_output_to_file(output_dir, ds)
 
       raise AssertionError(final_msg)
+
+  def _test_run_simulation(
+      self,
+      config_name: str,
+      profiles: Sequence[str],
+      ref_name: Optional[str] = None,
+      rtol: Optional[float] = None,
+      atol: Optional[float] = None,
+      write_output: bool = True,
+  ):
+    """Integration test comparing to TORAX reference output."""
+    if rtol is None:
+      rtol = self.rtol
+    if atol is None:
+      atol = self.atol
+
+    config_module = self._get_config_module(config_name)
+    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    history = run_simulation.run_simulation(torax_config)
+    ds = history.simulation_output_to_xr()
+    output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
+
+    if ref_name is None:
+      ref_name = test_lib.get_data_file(config_name[:-3])
+
+    ref_profiles, ref_time = self._get_refs(ref_name, profiles)
+
+    self._check_profiles_vs_expected(
+        core_profiles=history.core_profiles,
+        t=history.times,
+        ref_time=ref_time,
+        ref_profiles=ref_profiles,
+        rtol=rtol,
+        atol=atol,
+        output_dir=output_dir,
+        ds=ds,
+        write_output=write_output,
+    )
 
   def _test_torax_sim(
       self,

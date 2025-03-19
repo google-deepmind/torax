@@ -166,7 +166,7 @@ class InitialStatesTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti_bound_right=27.7,
-            Te_bound_right={0.0: 42.0, 1.0: 0.0},
+            Te_bound_right={0.0: 42.0, 1.0: 0.001},
             ne_bound_right=({0.0: 0.1, 1.0: 2.0}, 'step'),
             normalize_to_nbar=False,
         ),
@@ -393,7 +393,7 @@ class InitialStatesTest(parameterized.TestCase):
     # calculate total and Ohmic current profiles arising from nu=2
     jformula = (1 - geo.rho_norm**2) ** 2
     denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
-    ctot = config1.profile_conditions.Ip_tot * 1e6 / denom
+    ctot = config1.profile_conditions.Ip_tot.value[0] * 1e6 / denom
     jtot_formula = jformula * ctot
     johm_formula = jtot_formula * (
         1
@@ -413,7 +413,7 @@ class InitialStatesTest(parameterized.TestCase):
         core_profiles=core_profiles3_helper,
     )
     f_bootstrap = bootstrap_profile.I_bootstrap / (
-        config3.profile_conditions.Ip_tot * 1e6
+        config3.profile_conditions.Ip_tot.value[0] * 1e6
     )
 
     np.testing.assert_raises(

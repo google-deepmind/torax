@@ -37,7 +37,7 @@ from torax.sources import pydantic_model as source_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import chi_time_step_calculator
-from torax.transport_model import constant as constant_transport_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
 import xarray as xr
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
@@ -391,6 +391,13 @@ class SimTest(sim_test_case.SimTestCase):
           _ALL_PROFILES,
           0,
       ),
+      # Predictor-corrector solver with Mavrin polynomial model for radiation.
+      (
+          'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation',
+          'test_iterhybrid_predictor_corrector_mavrin_impurity_radiation.py',
+          _ALL_PROFILES,
+          0,
+      ),
       # Predictor-corrector solver with constant pressure pedestal model.
       (
           'test_iterhybrid_predictor_corrector_set_pped_tpedratio_nped',
@@ -522,7 +529,9 @@ class SimTest(sim_test_case.SimTestCase):
         runtime_params=runtime_params,
         geometry_provider=geo_provider,
         stepper=stepper_pydantic_model.Stepper(),
-        transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
+        transport_model=transport_pydantic_model.Transport.from_dict(
+            {'transport_model': 'constant'}
+        ),
         sources=source_pydantic_model.Sources(),
         time_step_calculator=time_step_calculator,
         pedestal=pedestal_pydantic_model.Pedestal(),

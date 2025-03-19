@@ -78,12 +78,7 @@ class PsiCalculationsTest(torax_refs.ReferenceValueTest):
     # pylint: enable=invalid-name
     np.testing.assert_allclose(j, references.jtot, rtol=1e-5)
 
-    if references.Ip_from_parameters:
-      np.testing.assert_allclose(
-          Ip_profile_face[-1],
-          references.runtime_params.profile_conditions.Ip_tot * 1e6,
-      )
-    else:
+    if not references.Ip_from_parameters:
       assert isinstance(geo, standard_geometry.StandardGeometry)
       np.testing.assert_allclose(
           Ip_profile_face[-1],

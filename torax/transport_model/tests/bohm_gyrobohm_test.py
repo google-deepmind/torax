@@ -12,18 +12,148 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest import mock
+
 from absl.testing import absltest
+import jax.numpy as jnp
+import numpy as np
+from torax.config import build_runtime_params
+from torax.config import numerics
+from torax.config import plasma_composition
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.sources import pydantic_model as source_pydantic_model
+from torax.sources import source_models as source_models_lib
 from torax.transport_model import bohm_gyrobohm
 
 
-class RuntimeParamsTest(absltest.TestCase):
+# pylint: disable=invalid-name
+class BohmGyroBohmTest(absltest.TestCase):
 
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = bohm_gyrobohm.RuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
+  def setUp(self):
+    super().setUp()
+    self.model = bohm_gyrobohm.BohmGyroBohmTransportModel()
+    self.geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    dynamic_runtime_params_slice = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
+            general_runtime_params.GeneralRuntimeParams(),
+            torax_mesh=self.geo.torax_mesh,
+        )(t=0.0)
+    )
+    sources = source_pydantic_model.Sources()
+    static_runtime_params_slice = (
+        build_runtime_params.build_static_runtime_params_slice(
+            runtime_params=general_runtime_params.GeneralRuntimeParams(),
+            sources=sources,
+            torax_mesh=self.geo.torax_mesh,
+        )
+    )
+    self.core_profiles = initialization.initial_core_profiles(
+        static_runtime_params_slice,
+        dynamic_runtime_params_slice,
+        self.geo,
+        source_models_lib.SourceModels(sources=sources.source_model_config),
+    )
+    # pedestal_model_outputs is not used in the transport model; we can mock it.
+    self.pedestal_outputs = mock.create_autospec(object)
+
+  def _create_dynamic_params_slice(
+      self,
+      chi_e_bohm_coeff,
+      chi_e_gyrobohm_coeff,
+      chi_i_bohm_coeff,
+      chi_i_gyrobohm_coeff,
+      chi_e_bohm_multiplier,
+      chi_e_gyrobohm_multiplier,
+      chi_i_bohm_multiplier,
+      chi_i_gyrobohm_multiplier,
+  ):
+    """Creates a mock dynamic runtime params slice for the BohmGyroBohm model."""
+    transport_mock = mock.create_autospec(
+        bohm_gyrobohm.DynamicRuntimeParams,
+        instance=True,
+        chi_e_bohm_coeff=chi_e_bohm_coeff,
+        chi_e_gyrobohm_coeff=chi_e_gyrobohm_coeff,
+        chi_i_bohm_coeff=chi_i_bohm_coeff,
+        chi_i_gyrobohm_coeff=chi_i_gyrobohm_coeff,
+        d_face_c1=0.1,
+        d_face_c2=0.2,
+        v_face_coeff=0.3,
+        chi_e_bohm_multiplier=chi_e_bohm_multiplier,
+        chi_e_gyrobohm_multiplier=chi_e_gyrobohm_multiplier,
+        chi_i_bohm_multiplier=chi_i_bohm_multiplier,
+        chi_i_gyrobohm_multiplier=chi_i_gyrobohm_multiplier,
+    )
+    plasma_composition_mock = mock.create_autospec(
+        plasma_composition.PlasmaComposition,
+        instance=True,
+        Zeff_face=jnp.ones_like(self.geo.rho_face),
+        main_ion=mock.create_autospec(
+            plasma_composition.DynamicIonMixture,
+            instance=True,
+            avg_A=2.0,
+        ),
+    )
+    numerics_mock = mock.create_autospec(
+        numerics.Numerics,
+        instance=True,
+        nref=100,
+    )
+
+    # Create the dynamic runtime params slice mock with nested mocks.
+    dynamic_params = mock.create_autospec(
+        runtime_params_slice.DynamicRuntimeParamsSlice,
+        instance=True,
+        transport=transport_mock,
+        plasma_composition=plasma_composition_mock,
+        numerics=numerics_mock,
+    )
+    return dynamic_params
+
+  def test_coeff_multiplier_feature(self):
+    """Test that modifying coefficients or multipliers equivalently affects outputs.
+
+    Verifies that if the product of coefficient and multiplier is held constant—
+    either by changing the coefficient with multipliers left at 1 or by leaving
+    the coefficients at default (1) and scaling the multipliers—the computed
+    transport coefficients (chi_face_ion and chi_face_el) remain identical.
+    """
+    # Configuration A: Set non-default coefficients with all multipliers = 1.
+    dyn_params_A = self._create_dynamic_params_slice(
+        chi_e_bohm_coeff=2.0,
+        chi_e_gyrobohm_coeff=3.0,
+        chi_i_bohm_coeff=4.0,
+        chi_i_gyrobohm_coeff=5.0,
+        chi_e_bohm_multiplier=1.0,
+        chi_e_gyrobohm_multiplier=1.0,
+        chi_i_bohm_multiplier=1.0,
+        chi_i_gyrobohm_multiplier=1.0,
+    )
+
+    # Configuration B: Set coefficients = 1 and adjust multipliers so that the
+    # effective products are the same as in configuration A.
+    dyn_params_B = self._create_dynamic_params_slice(
+        chi_e_bohm_coeff=1.0,
+        chi_e_gyrobohm_coeff=1.0,
+        chi_i_bohm_coeff=1.0,
+        chi_i_gyrobohm_coeff=1.0,
+        chi_e_bohm_multiplier=2.0,
+        chi_e_gyrobohm_multiplier=3.0,
+        chi_i_bohm_multiplier=4.0,
+        chi_i_gyrobohm_multiplier=5.0,
+    )
+
+    output_A = self.model._call_implementation(
+        dyn_params_A, self.geo, self.core_profiles, self.pedestal_outputs
+    )
+    output_B = self.model._call_implementation(
+        dyn_params_B, self.geo, self.core_profiles, self.pedestal_outputs
+    )
+
+    np.testing.assert_allclose(output_A.chi_face_ion, output_B.chi_face_ion)
+    np.testing.assert_allclose(output_A.chi_face_el, output_B.chi_face_el)
 
 
 if __name__ == '__main__':

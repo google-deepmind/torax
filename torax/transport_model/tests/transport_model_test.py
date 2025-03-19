@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
-from typing import Callable
+from typing import Literal
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -31,12 +30,21 @@ from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.pedestal_model import set_tped_nped
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
-from torax.transport_model import runtime_params as runtime_params_lib
+from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import transport_model as transport_model_lib
 
 
 class TransportSmoothingTest(parameterized.TestCase):
   """Tests Gaussian smoothing in the `torax.transport_model` package."""
+
+  def setUp(self):
+    super().setUp()
+    # Register the fake transport config.
+    transport_pydantic_model.Transport.model_fields[
+        'transport_model_config'
+    ].annotation |= FakeTransportConfig
+    transport_pydantic_model.Transport.model_rebuild(force=True)
 
   def test_smoothing(self):
     """Tests that smoothing works as expected."""
@@ -52,22 +60,23 @@ class TransportSmoothingTest(parameterized.TestCase):
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )
-    transport_model_builder = FakeTransportModelBuilder(
-        runtime_params=runtime_params_lib.RuntimeParams(
+    transport = transport_pydantic_model.Transport.from_dict(
+        dict(
+            transport_model='fake',
             apply_inner_patch=True,
             apply_outer_patch=True,
             rho_inner=0.3,
             rho_outer=0.8,
             smoothing_sigma=0.05,
-        )
+            ),
     )
-    transport_model = transport_model_builder()
+    transport_model = transport.build_transport_model()
     pedestal = pedestal_pydantic_model.Pedestal()
     pedestal_model = pedestal.build_pedestal_model()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
-            transport=transport_model_builder.runtime_params,
+            transport=transport,
             sources=sources,
             torax_mesh=geo.torax_mesh,
             pedestal=pedestal,
@@ -230,22 +239,23 @@ class TransportSmoothingTest(parameterized.TestCase):
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )
-    transport_model_builder = FakeTransportModelBuilder(
-        runtime_params=runtime_params_lib.RuntimeParams(
+    transport = transport_pydantic_model.Transport.from_dict(
+        dict(
+            transport_model='fake',
             apply_inner_patch=True,
             apply_outer_patch=True,
             rho_inner=0.3,
             rho_outer=0.8,
             smoothing_sigma=0.05,
             smooth_everywhere=True,
-        )
+            ),
     )
-    transport_model = transport_model_builder()
+    transport_model = transport.build_transport_model()
     pedestal = pedestal_pydantic_model.Pedestal()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params,
-            transport=transport_model_builder.runtime_params,
+            transport=transport,
             sources=sources,
             torax_mesh=geo.torax_mesh,
             pedestal=pedestal,
@@ -442,23 +452,12 @@ class FakeTransportModel(transport_model_lib.TransportModel):
     )
 
 
-def _default_fake_builder() -> FakeTransportModel:
-  return FakeTransportModel()
+class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
+  """Fake transport config for a model that always returns zeros."""
+  transport_model: Literal['fake'] = 'fake'
 
-
-@dataclasses.dataclass(kw_only=True)
-class FakeTransportModelBuilder(transport_model_lib.TransportModelBuilder):
-  """Builds a class FakeTransportModel."""
-
-  builder: Callable[
-      [],
-      FakeTransportModel,
-  ] = _default_fake_builder
-
-  def __call__(
-      self,
-  ) -> FakeTransportModel:
-    return self.builder()
+  def build_transport_model(self) -> FakeTransportModel:
+    return FakeTransportModel()
 
 
 if __name__ == '__main__':

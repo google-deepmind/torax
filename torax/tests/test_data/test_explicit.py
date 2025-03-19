@@ -25,7 +25,7 @@ from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import runtime_params as source_runtime_params
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import explicit_stepper
-from torax.transport_model import constant as constant_transport_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 
 def get_runtime_params() -> general_runtime_params.GeneralRuntimeParams:
@@ -51,16 +51,17 @@ def get_geometry_provider() -> geometry_provider.ConstantGeometryProvider:
 
 
 def get_transport_model_builder() -> (
-    constant_transport_model.ConstantTransportModelBuilder
+    transport_pydantic_model.Transport
 ):
-  return constant_transport_model.ConstantTransportModelBuilder()
+  return transport_pydantic_model.Transport.from_dict(
+      {'transport_model': 'constant'}
+  )
 
 
 def get_sources() -> source_pydantic_model.Sources:
   """Returns the source models used in the simulation."""
   sources = default_sources.get_default_sources()
   sources_dict = sources.to_dict()
-  sources_dict = sources_dict['source_model_config']
   # multiplier for ion-electron heat exchange term for sensitivity
   sources_dict['qei_source']['Qei_mult'] = 0.0
   # remove bootstrap current
@@ -96,7 +97,7 @@ def get_sim() -> sim_lib.Sim:
       runtime_params=runtime_params,
       geometry_provider=geo_provider,
       sources=get_sources(),
-      transport_model_builder=get_transport_model_builder(),
+      transport_model=get_transport_model_builder(),
       stepper=get_stepper(),
       pedestal=pedestal_pydantic_model.Pedestal(),
   )
