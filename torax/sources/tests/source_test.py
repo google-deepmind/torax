@@ -134,6 +134,51 @@ class SourceTest(parameterized.TestCase):
         rtol=1e-6,
     )
 
+  def test_bremsstrahlung_and_mavrin_active_check(self):
+    """Tests that bremsstrahlung and Mavrin models cannot be active together."""
+    # Test valid configuration: bremsstrahlung is ZERO
+    valid_config_1 = {
+        'bremsstrahlung_heat_sink': {'mode': 'ZERO'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'PRESCRIBED',
+            'model_function_name': 'impurity_radiation_mavrin_fit',
+        },
+    }
+    source_pydantic_model.Sources.from_dict(valid_config_1)
+
+    # Test valid configuration: Mavrin is ZERO
+    valid_config_2 = {
+        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'ZERO',
+            'model_function_name': 'impurity_radiation_mavrin_fit',
+        },
+    }
+    source_pydantic_model.Sources.from_dict(valid_config_2)
+
+    # Test valid configuration: impurity_radiation is using constant fraction model
+    valid_config_3 = {
+        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'PRESCRIBED',
+            'model_function_name': 'radially_constant_fraction_of_Pin',
+        },
+    }
+    source_pydantic_model.Sources.from_dict(valid_config_3)
+
+    # Test invalid configuration: both Mavrin and bremsstrahlung are active
+    invalid_config = {
+        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'PRESCRIBED',
+            'model_function_name': 'impurity_radiation_mavrin_fit',
+        },
+    }
+    with self.assertRaisesRegex(
+        ValueError, 'Both bremsstrahlung_heat_sink and impurity_radiation_heat_sink'
+    ):
+      source_pydantic_model.Sources.from_dict(invalid_config)
+
 
 if __name__ == '__main__':
   absltest.main()

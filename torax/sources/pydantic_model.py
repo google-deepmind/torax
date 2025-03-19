@@ -34,7 +34,7 @@ from torax.sources.impurity_radiation_heat_sink import impurity_radiation_consta
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax.torax_pydantic import torax_pydantic
 from typing_extensions import Annotated
-from torax.config import runtime_params
+from torax.sources import runtime_params
 
 
 def get_impurity_heat_sink_discriminator_value(model: dict[str, Any]) -> str:
@@ -124,8 +124,6 @@ class Sources(torax_pydantic.BaseModelFrozen):
     Raises:
       ValueError: If both bremsstrahlung and Mavrin models are active.
     """
-    from torax.sources import runtime_params
-    
     # Check if both sources are defined
     if (self.bremsstrahlung_heat_sink is not None and 
         self.impurity_radiation_heat_sink is not None):
