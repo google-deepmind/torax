@@ -104,6 +104,10 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         / geo.rho_b
     )
 
+    # Set proportionality of chi_i to chi_e according to the assumptions of the
+    # Bohm model.
+    chi_i_B = 2 * chi_e_B
+
     # Gyrobohm term of heat transport
     chi_e_gB = (
         jnp.sqrt(
@@ -115,26 +119,36 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         / geo.rho_b
     )
 
-    chi_i_B = 2 * chi_e_B
+    # Set proportionality of chi_i to chi_e according to the assumptions of the
+    # GyroBohm model.
     chi_i_gB = 0.5 * chi_e_gB
 
-    # Total heat transport
-    chi_i = (
-        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff
-        * dynamic_runtime_params_slice.transport.chi_i_bohm_multiplier
-        * chi_i_B
-        + dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff
-        * dynamic_runtime_params_slice.transport.chi_i_gyrobohm_multiplier
-        * chi_i_gB
-    )
-    chi_e = (
+    # Calibrated transport coefficients
+    chi_e_bohm = (
         dynamic_runtime_params_slice.transport.chi_e_bohm_coeff
         * dynamic_runtime_params_slice.transport.chi_e_bohm_multiplier
         * chi_e_B
-        + dynamic_runtime_params_slice.transport.chi_e_gyrobohm_coeff
+    )
+    chi_e_gyrobohm = (
+        dynamic_runtime_params_slice.transport.chi_e_gyrobohm_coeff
         * dynamic_runtime_params_slice.transport.chi_e_gyrobohm_multiplier
         * chi_e_gB
     )
+
+    chi_i_bohm = (
+        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_i_bohm_multiplier
+        * chi_i_B
+    )
+    chi_i_gyrobohm = (
+        dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_i_gyrobohm_multiplier
+        * chi_i_gB
+    )
+
+    # Total heat transport (combined contributions)
+    chi_e = chi_e_gyrobohm + chi_e_bohm
+    chi_i = chi_i_gyrobohm + chi_i_bohm
 
     # Electron diffusivity
     weighting = (
@@ -146,10 +160,9 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         * geo.rho_face_norm
     )
 
-    # Diffusion
-    # d_face_el is zero on-axis by definition
-    # We also add a small epsilon to the denominator to avoid the cases where
-    # chi_i + chi_e = 0
+    # Diffusion: d_face_el is zero on-axis by definition.
+    # We add a small epsilon to the denominator to avoid cases where
+    # chi_i + chi_e = 0.
     d_face_el = jnp.concatenate([
         jnp.zeros(1),
         weighting[1:]
@@ -166,6 +179,10 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         chi_face_el=chi_e,
         d_face_el=d_face_el,
         v_face_el=v_face_el,
+        chi_face_el_bohm=chi_e_bohm,
+        chi_face_el_gyrobohm=chi_e_gyrobohm,
+        chi_face_ion_bohm=chi_i_bohm,
+        chi_face_ion_gyrobohm=chi_i_gyrobohm,
     )
 
   def __hash__(self):

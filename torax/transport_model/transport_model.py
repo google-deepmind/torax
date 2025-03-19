@@ -310,10 +310,20 @@ class TransportModel(abc.ABC):
     smoothing_matrix = build_smoothing_matrix(
         geo, dynamic_runtime_params_slice, pedestal_model_outputs
     )
-    smoothed_coeffs = {}
-    for coeff in transport_coeffs:
-      smoothed_coeff = jnp.dot(smoothing_matrix, transport_coeffs[coeff])
-      smoothed_coeffs[coeff] = smoothed_coeff
+
+    # Iterate over fields of the CoreTransport dataclass.
+    # Ignore optional fields that are made all zero in post_init.
+    def smooth_single_coeff(coeff):
+      return jax.lax.cond(
+          jnp.all(coeff == 0.0),
+          lambda: coeff,
+          lambda: jnp.dot(smoothing_matrix, coeff),
+      )
+
+    smoothed_coeffs = jax.tree_util.tree_map(
+        smooth_single_coeff, transport_coeffs
+    )
+
     return state.CoreTransport(**smoothed_coeffs)
 
 
