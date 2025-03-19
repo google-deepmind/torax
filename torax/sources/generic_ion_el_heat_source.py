@@ -12,64 +12,122 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Generic heat source for both ion and electron heat."""
+"""Generic ion/electron heat source."""
 
 from __future__ import annotations
 
 import dataclasses
-from typing import ClassVar, Literal
+from typing import Any, Callable, Literal, Optional, TypeVar
 
 import chex
+import jax
+import jax.numpy as jnp
+import numpy as np
 from torax import array_typing
+from torax import jax_utils
 from torax import interpolated_param
 from torax import state
 from torax.config import runtime_params_slice
+from torax.config import base as config_base
 from torax.geometry import geometry
 from torax.sources import formulas
-from torax.sources import runtime_params as runtime_params_lib
-from torax.sources import source
-from torax.sources import source_profiles
-from torax.torax_pydantic import torax_pydantic
 from torax.sources import base
-from torax.config import base as config_base
+from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import source as source_lib
+from torax.torax_pydantic import torax_pydantic
+
+T = TypeVar('T')
+
+# Constants matching the "H_fraction" for the 3 electron density regions in METIS.
+# For H-mode, the electron density is ~0.65 Greenwald.
+# For the Low density region (ne < 0.4 nGW), H_fraction=0.74
+# For the ITER baseline density (0.4 nGW < ne < 0.8 nGW), H_fraction = 0.95
+# For the high density region (0.8 nGW < ne < 1.0 nGW), H_fraction = 0.85
 
 
-# pylint: disable=invalid-name
 class GenericIonElHeatSourceConfig(base.SourceModelBase):
-  """Configuration for the GenericIonElHeatSource.
+  """Configuration for the generic ion/electron heat source.
 
   Attributes:
-    w: Gaussian width in normalized radial coordinate
-    rsource: Source Gaussian central location (in normalized r)
+    source_name: Name of the source
+    rsource: center of gaussian profile
+    w: width of gaussian profile
     Ptot: Total heating: high default based on total ITER power including alphas
     el_heat_fraction: Electron heating fraction
-<<<<<<< HEAD
     absorption_fraction: Fraction of absorbed power
-=======
-    absorption_fraction: fraction of absorbed power
->>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
   """
   source_name: Literal['generic_ion_el_heat_source'] = (
-      'generic_ion_el_heat_source'
+      'generic_ion_el_heat_sink'
   )
-  w: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.25)
   rsource: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
-      0.0
+      0.3
   )
+  w: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.2)
   Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       120e6
   )
   el_heat_fraction: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.66666)
   )
-<<<<<<< HEAD
-=======
   # TODO(b/817): Add appropriate pydantic validation for absorption_fraction
->>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
   absorption_fraction: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  def build_source(self) -> source_lib.Source:
+    """Builds a source object from the model config."""
+    return GenericIonElHeatSource(model_func=model_func)
+
+  @property
+  def model_func(self) -> source_lib.SourceProfileFunction:
+    """Returns the model function for the source."""
+    return model_func
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> runtime_params_lib.DynamicRuntimeParams:
+    """Builds dynamic runtime parameters for the source."""
+    return DynamicRuntimeParams(
+        w=self.w.get_value(t),
+        rsource=self.rsource.get_value(t),
+        Ptot=self.Ptot.get_value(t),
+        el_heat_fraction=self.el_heat_fraction.get_value(t),
+        absorption_fraction=self.absorption_fraction.get_value(t),
+        prescribed_values=self.prescribed_values.get_value(t) if self.mode == runtime_params_lib.Mode.PRESCRIBED else None,
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
+  w: array_typing.ScalarFloat = 0.2
+  rsource: array_typing.ScalarFloat = 0.3
+  Ptot: array_typing.ScalarFloat = 120e6
+  el_heat_fraction: array_typing.ScalarFloat = 0.66666
+  absorption_fraction: array_typing.ScalarFloat = 1.0
+  prescribed_values: Optional[Any] = None
+
+  def tree_flatten(self):
+    """Returns a flattened version of the tree."""
+    children = (self.w, self.rsource, self.Ptot, self.el_heat_fraction, 
+               self.absorption_fraction, self.prescribed_values)
+    aux_data = None
+    return (children, aux_data)
+
+  @classmethod
+  def tree_unflatten(cls, aux_data, children):
+    """Creates a new instance of the class from flattened data."""
+    return cls(
+        w=children[0],
+        rsource=children[1],
+        Ptot=children[2],
+        el_heat_fraction=children[3],
+        absorption_fraction=children[4],
+        prescribed_values=children[5],
+    )
+
+jax.tree_util.register_pytree_node_class(DynamicRuntimeParams)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -78,147 +136,159 @@ class RuntimeParams(config_base.RuntimeParametersConfig['RuntimeParamsProvider']
 
   # External heat source parameters
   # Gaussian width in normalized radial coordinate
-  w: runtime_params_lib.TimeInterpolatedInput = 0.25
-  # Source Gaussian central location (in normalized r)
-  rsource: runtime_params_lib.TimeInterpolatedInput = 0.0
-  # Total heating: high default based on total ITER power including alphas
-  Ptot: runtime_params_lib.TimeInterpolatedInput = 120e6
-  # Electron heating fraction
-  el_heat_fraction: runtime_params_lib.TimeInterpolatedInput = 0.66666
-  # Fraction of absorbed power
-  absorption_fraction: runtime_params_lib.TimeInterpolatedInput = 1.0
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+  w: config_base.ScalarOrTimeTrace = 0.2
+  # Gaussian center
+  rsource: config_base.ScalarOrTimeTrace = 0.3
+  # Total power injected
+  Ptot: config_base.ScalarOrTimeTrace = 120e6
+  # Heat deposition to electrons. Ion fraction = 1 - el_heat_fraction.
+  el_heat_fraction: config_base.ScalarOrTimeTrace = 0.66666
+  # Fraction of power that is absorbed in the core
+  absorption_fraction: config_base.ScalarOrTimeTrace = 1.0
 
-  def make_provider(
-      self,
-      torax_mesh: geometry.Grid1D | None = None,
-  ) -> 'RuntimeParamsProvider':
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  w: array_typing.ScalarFloat
-  rsource: array_typing.ScalarFloat
-  Ptot: array_typing.ScalarFloat
-  el_heat_fraction: array_typing.ScalarFloat
-  absorption_fraction: array_typing.ScalarFloat
+  def get_provider(self) -> 'RuntimeParamsProvider':
+    return RuntimeParamsProvider(
+        w=self.w,
+        rsource=self.rsource,
+        Ptot=self.Ptot,
+        el_heat_fraction=self.el_heat_fraction,
+        absorption_fraction=self.absorption_fraction,
+    )
 
 
-@chex.dataclass
-class RuntimeParamsProvider(config_base.RuntimeParametersProvider[DynamicRuntimeParams]):
-  """Provides runtime parameters for a given time and geometry."""
+@dataclasses.dataclass(kw_only=True)
+class RuntimeParamsProvider(
+    config_base.RuntimeParametersProvider[DynamicRuntimeParams]
+):
+  """Provider for generic heat source runtime parameters."""
+  w: config_base.ScalarOrTimeTrace
+  rsource: config_base.ScalarOrTimeTrace
+  Ptot: config_base.ScalarOrTimeTrace
+  el_heat_fraction: config_base.ScalarOrTimeTrace
+  absorption_fraction: config_base.ScalarOrTimeTrace
 
-  runtime_params_config: RuntimeParams
-  w: interpolated_param.InterpolatedVarSingleAxis
-  rsource: interpolated_param.InterpolatedVarSingleAxis
-  Ptot: interpolated_param.InterpolatedVarSingleAxis
-  el_heat_fraction: interpolated_param.InterpolatedVarSingleAxis
-  absorption_fraction: interpolated_param.InterpolatedVarSingleAxis
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
-<<<<<<< HEAD
-@chex.dataclass(frozen=True)
-class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
-  w: array_typing.ScalarFloat
-  rsource: array_typing.ScalarFloat
-  Ptot: array_typing.ScalarFloat
-  el_heat_fraction: array_typing.ScalarFloat
-  absorption_fraction: array_typing.ScalarFloat
+  def __call__(self, t: float) -> DynamicRuntimeParams:
+    """Returns the runtime parameters at time t."""
+    return DynamicRuntimeParams(
+        w=config_base.time_evaluate(self.w, t),
+        rsource=config_base.time_evaluate(self.rsource, t),
+        Ptot=config_base.time_evaluate(self.Ptot, t),
+        el_heat_fraction=config_base.time_evaluate(self.el_heat_fraction, t),
+        absorption_fraction=config_base.time_evaluate(
+            self.absorption_fraction, t
+        ),
+    )
 
 
-=======
->>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
 def calc_generic_heat_source(
     geo: geometry.Geometry,
     rsource: float,
     w: float,
     Ptot: float,
     el_heat_fraction: float,
-<<<<<<< HEAD
     absorption_fraction: float,
-=======
-    absorption_fraction: float = 1.0,
->>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
 ) -> tuple[chex.Array, chex.Array]:
   """Computes ion/electron heat source terms.
 
-  Flexible prescribed heat source term.
+  We model this as a Gaussian heat deposition in the core.
 
   Args:
-    geo: Geometry describing the torus.
-    rsource: Source Gaussian central location
-    w: Gaussian width
+    geo: magnetic geometry
+    rsource: center of the Gaussian in normalized radial coord
+    w: width of deposition profile
     Ptot: total heating
     el_heat_fraction: fraction of heating deposited on electrons
-<<<<<<< HEAD
     absorption_fraction: fraction of absorbed power
-=======
-    absorption_fraction: Fraction of absorbed power
->>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
 
   Returns:
-    source_ion: source term for ions.
-    source_el: source term for electrons.
+    A 2-tuple of the deposited powers in ion and electron channels (ion first)
   """
   # Calculate heat profile.
-<<<<<<< HEAD
-=======
   # Apply absorption_fraction to the total power
->>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
   absorbed_power = Ptot * absorption_fraction
   profile = formulas.gaussian_profile(geo, center=rsource, width=w, total=absorbed_power)
-  source_ion = profile * (1 - el_heat_fraction)
-  source_el = profile * el_heat_fraction
-
-  return source_ion, source_el
-
-
-def default_formula(
-    unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    source_name: str,
-    unused_core_profiles: state.CoreProfiles,
-    unused_calculated_source_profiles: source_profiles.SourceProfiles | None,
-) -> tuple[chex.Array, ...]:
-  """Returns the default formula-based ion/electron heat source profile."""
-  dynamic_source_runtime_params = dynamic_runtime_params_slice.sources[
-      source_name
-  ]
-  assert isinstance(dynamic_source_runtime_params, DynamicRuntimeParams)
-  ion, el = calc_generic_heat_source(
-      geo,
-      dynamic_source_runtime_params.rsource,
-      dynamic_source_runtime_params.w,
-      dynamic_source_runtime_params.Ptot,
-      dynamic_source_runtime_params.el_heat_fraction,
-      dynamic_source_runtime_params.absorption_fraction,
-  )
-  return (ion, el)
+  pion = (1 - el_heat_fraction) * profile
+  pel = el_heat_fraction * profile
+  return (pion, pel)
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class GenericIonElectronHeatSource(source.Source):
-  """Generic heat source for both ion and electron heat."""
+def model_func_impl(
+    static_runtime_params_slice,
+    dynamic_runtime_params_slice,
+    geo,
+    source_name,
+    core_profiles,
+    calculated_source_profiles,
+):
+    """Generic heat source model function.
 
-  SOURCE_NAME: ClassVar[str] = 'generic_ion_el_heat_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'default_formula'
-  model_func: source.SourceProfileFunction = default_formula
+    Args:
+        static_runtime_params_slice: Static runtime parameters.
+        dynamic_runtime_params_slice: Dynamic runtime parameters slice.
+        geo: Geometry of the torus.
+        source_name: Name of the source.
+        core_profiles: Core plasma profiles.
+        calculated_source_profiles: Already calculated source profiles if they exist.
+
+    Returns:
+        Tuple of arrays containing heat source profiles for ion and electron channels.
+    """
+    runtime_params = dynamic_runtime_params_slice.sources[source_name]
+    return calc_generic_heat_source(
+        geo=geo,
+        rsource=runtime_params.rsource,
+        w=runtime_params.w,
+        Ptot=runtime_params.Ptot,
+        el_heat_fraction=runtime_params.el_heat_fraction,
+        absorption_fraction=runtime_params.absorption_fraction,
+    )
+
+# Don't use jit at all due to complexity with geometry objects
+model_func = model_func_impl
+
+
+class GenericIonElHeatSource(source_lib.Source):
+  """Generic heating source for electron and ion."."""
+
+  SOURCE_NAME = 'generic_ion_el_heat_source'
+
+  def __init__(self, model_func: Optional[source_lib.SourceProfileFunction] = None):
+    """Initializes the source.
+
+    Args:
+      model_func: The function to use for computing the source profile.
+    """
+    super().__init__(model_func=model_func)
 
   @property
   def source_name(self) -> str:
+    """Returns the name of the source."""
     return self.SOURCE_NAME
 
+  def init(
+      self, gen_params: runtime_params_lib.DynamicRuntimeParams | None
+  ) -> None:
+    """Gets model parameters."""
+    self.rsource = gen_params.rsource if gen_params else 0.3  # type: ignore
+    self.width = gen_params.w if gen_params else 0.2  # type: ignore
+    self.Ptot = gen_params.Ptot if gen_params else 120e6  # type: ignore
+    self.el_heat_fraction = (
+        gen_params.el_heat_fraction if gen_params else 0.66666
+    )  # type: ignore
+    self.absorption_fraction = (
+        gen_params.absorption_fraction if gen_params else 1.0
+    )  # type: ignore
+
   @property
-  def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
+  def affected_core_profiles(
+      self,
+  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
+    """Returns which core profiles this source affects."""
     return (
-        source.AffectedCoreProfile.TEMP_ION,
-        source.AffectedCoreProfile.TEMP_EL,
+        source_lib.AffectedCoreProfile.TEMP_EL,
+        source_lib.AffectedCoreProfile.TEMP_ION,
     )
+
+
+# Add alias for backward compatibility
+GenericIonElectronHeatSource = GenericIonElHeatSource

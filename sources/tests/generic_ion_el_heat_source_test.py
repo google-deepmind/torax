@@ -21,9 +21,14 @@ import jax.numpy as jnp
 import numpy as np
 
 from torax import math_utils
-from torax.geometry import geometry_pydantic_model
+from torax.geometry.pydantic_model import CircularConfig
 from torax.sources import generic_ion_el_heat_source
 from torax.sources.tests import test_lib
+from torax.core_profiles import initialization
+from torax.config import build_runtime_params
+from torax.config import runtime_params as general_runtime_params
+from torax.config import runtime_params_slice
+from torax.sources import source_models as source_models_lib
 
 
 class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase, parameterized.TestCase):
@@ -32,13 +37,13 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase, parameteriz
   def setUp(self):
     super().setUp(
         source_config_class=generic_ion_el_heat_source.GenericIonElHeatSourceConfig,
-        source_name=generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME,
+        source_name=generic_ion_el_heat_source.GenericIonElHeatSource.SOURCE_NAME,
     )
 
   def test_absorption_fraction(self):
     """Tests that absorption_fraction correctly affects power calculations."""
     # Create test geometry
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = CircularConfig().build_geometry()
     
     # Test parameters
     rsource = 0.5

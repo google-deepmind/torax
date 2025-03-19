@@ -105,15 +105,10 @@ class PostProcessingTest(parameterized.TestCase):
         geometry=self.geo,
     )
 
+    # Call make_outputs without dynamic_runtime_params_slice (should use default None)
     updated_sim_state = post_processing.make_outputs(
         sim_state, 
-<<<<<<< HEAD:torax/tests/post_processing.py
         self.geo,
-        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice
-=======
-        self.geo, 
-        dynamic_runtime_params_slice=sim_state.dynamic_runtime_params_slice
->>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2:torax/tests/post_processing_test.py
     )
 
     # Check that the outputs were updated.
@@ -136,7 +131,6 @@ class PostProcessingTest(parameterized.TestCase):
     # pylint: disable=protected-access
     integrated_sources = post_processing._calculate_integrated_sources(
         self.geo,
-        self.core_profiles,
         self.source_profiles,
         self.dynamic_runtime_params_slice,
     )
@@ -153,6 +147,7 @@ class PostProcessingTest(parameterized.TestCase):
         'P_alpha_tot',
         'P_ohmic',
         'P_brems',
+        'P_cycl',
         'P_ecrh',
         'P_sol_ion',
         'P_sol_el',
@@ -164,6 +159,10 @@ class PostProcessingTest(parameterized.TestCase):
         'P_generic_injected',
         'I_ecrh',
         'I_generic',
+        'I_tot',
+        'P_icrh_ion',
+        'P_icrh_el',
+        'P_icrh_tot',
     }
 
     self.assertSameElements(integrated_sources.keys(), expected_keys)

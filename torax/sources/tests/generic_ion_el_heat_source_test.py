@@ -18,16 +18,22 @@ import numpy as np
 import jax.numpy as jnp
 import jax
 from torax.core_profiles import initialization
-from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.geometry.pydantic_model import CircularConfig
 from torax.config import build_runtime_params
 from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
 from torax.sources import source_models as source_models_lib
 from torax import math_utils
+from torax.sources import pydantic_model as source_pydantic_model
+
+
+def create_sources_pydantic(source_dict):
+  """Creates a Sources object from a dictionary."""
+  return source_pydantic_model.Sources.from_dict(source_dict)
 
 
 class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
-  """Tests for GenericIonElectronHeatSource."""
+  """Tests for GenericIonElHeatSource."""
 
   def setUp(self):
     super().setUp(
@@ -35,24 +41,35 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
         source_name=generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME,
     )
 
+  def _source_class_builder(self):
+    """Returns a function that builds a source instance."""
+    return lambda: generic_ion_el_heat_source.GenericIonElHeatSourceConfig()
+
   def test_absorption_fraction(self):
     """Tests that absorption_fraction correctly affects power calculations."""
     # Create test geometry
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    geo = CircularConfig().build_geometry()
 
     # Create runtime params and source models
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    source_builder = self._source_class_builder()
-    source_models_builder = source_models_lib.SourceModelsBuilder(
-        {self._source_name: source_builder},
+    source_config = generic_ion_el_heat_source.GenericIonElHeatSourceConfig()
+    source_model_config = {self._source_name: source_config}
+    
+    # Create sources dictionary
+    sources = {
+        self._source_name: source_config.build_source(),
+    }
+    
+    source_models = source_models_lib.SourceModels(
+        sources=source_model_config
     )
-    source_models = source_models_builder()
-
+    
     # Create dynamic and static runtime params slices
+    source_pydantic = create_sources_pydantic({self._source_name: {}})
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            sources=source_models_builder.runtime_params,
+            sources=source_pydantic,
             torax_mesh=geo.torax_mesh,
         )(
             t=runtime_params.numerics.t_initial,
@@ -60,7 +77,7 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
-        source_runtime_params=source_models_builder.runtime_params,
+        sources=source_pydantic,
         torax_mesh=geo.torax_mesh,
     )
 
@@ -73,10 +90,12 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
     )
 
     # Create source instance
-    source_instance = generic_ion_el_heat_source.GenericIonElectronHeatSource()
+    source_instance = generic_ion_el_heat_source.GenericIonElHeatSource(
+        model_func=generic_ion_el_heat_source.model_func
+    )
 
     # Create runtime params with different absorption fractions
-    rp1 = generic_ion_el_heat_source.RuntimeParams(
+    rp1 = generic_ion_el_heat_source.DynamicRuntimeParams(
         Ptot=1.0,
         rsource=0.5,
         w=0.2,
@@ -84,7 +103,7 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
         absorption_fraction=1.0,
     )
 
-    rp2 = generic_ion_el_heat_source.RuntimeParams(
+    rp2 = generic_ion_el_heat_source.DynamicRuntimeParams(
         Ptot=1.0,
         rsource=0.5,
         w=0.2,
@@ -95,14 +114,7 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
     # Create dynamic runtime params slices with our test parameters
     dynamic_slice1 = runtime_params_slice.DynamicRuntimeParamsSlice(
         sources={
-            'generic_ion_el_heat_source': generic_ion_el_heat_source.DynamicRuntimeParams(
-                w=rp1.w,
-                rsource=rp1.rsource,
-                Ptot=rp1.Ptot,
-                el_heat_fraction=rp1.el_heat_fraction,
-                absorption_fraction=rp1.absorption_fraction,
-                prescribed_values=jnp.zeros(geo.rho.shape),
-            )
+            'generic_ion_el_heat_source': rp1
         },
         numerics=dynamic_runtime_params_slice.numerics,
         plasma_composition=dynamic_runtime_params_slice.plasma_composition,
@@ -114,14 +126,7 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
 
     dynamic_slice2 = runtime_params_slice.DynamicRuntimeParamsSlice(
         sources={
-            'generic_ion_el_heat_source': generic_ion_el_heat_source.DynamicRuntimeParams(
-                w=rp2.w,
-                rsource=rp2.rsource,
-                Ptot=rp2.Ptot,
-                el_heat_fraction=rp2.el_heat_fraction,
-                absorption_fraction=rp2.absorption_fraction,
-                prescribed_values=jnp.zeros(geo.rho.shape),
-            )
+            'generic_ion_el_heat_source': rp2
         },
         numerics=dynamic_runtime_params_slice.numerics,
         plasma_composition=dynamic_runtime_params_slice.plasma_composition,

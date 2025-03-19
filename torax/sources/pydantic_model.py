@@ -150,3 +150,59 @@ class Sources(torax_pydantic.BaseModelFrozen):
       }
 
     return {'source_model_config': constructor_data}
+    
+  @pydantic.model_validator(mode='after')
+  def validate_radiation_models(self) -> 'Sources':
+    """Validates that bremsstrahlung and Mavrin impurity radiation are not both active.
+    
+    Both models account for bremsstrahlung radiation, so having both active would
+    result in double-counting radiation losses. This validator ensures that users
+    don't accidentally configure a simulation with both radiation loss models active
+    simultaneously.
+    
+    The Mavrin model for impurity radiation already includes bremsstrahlung radiation,
+    so having a separate bremsstrahlung model active would result in this physical
+    process being counted twice in the simulation.
+    
+    Returns:
+      The validated Sources object.
+      
+    Raises:
+      ValueError: If both models are active simultaneously.
+    """
+    bremsstrahlung_name = 'bremsstrahlung_heat_sink'
+    impurity_radiation_name = 'impurity_radiation_heat_sink'
+    
+    # Extract configs from source_model_config
+    bremsstrahlung_config = None
+    impurity_config = None
+    
+    for source_name, source_config in self.source_model_config.items():
+      if source_name == bremsstrahlung_name:
+        bremsstrahlung_config = source_config
+      elif source_name == impurity_radiation_name:
+        impurity_config = source_config
+    
+    if bremsstrahlung_config and impurity_config:
+      # Check if both sources are active
+      bremsstrahlung_active = (
+          getattr(bremsstrahlung_config, 'mode', None) != runtime_params.Mode.ZERO
+      )
+      
+      # Check if impurity radiation is active and using the Mavrin model
+      impurity_active = (
+          getattr(impurity_config, 'mode', None) != runtime_params.Mode.ZERO
+      )
+      using_mavrin = (
+          getattr(impurity_config, 'model_function_name', 'impurity_radiation_mavrin_fit') 
+          == 'impurity_radiation_mavrin_fit'
+      )
+      
+      if bremsstrahlung_active and impurity_active and using_mavrin:
+        raise ValueError(
+            f"Both {bremsstrahlung_name} and {impurity_radiation_name} with Mavrin model "
+            f"should not be active at the same time to avoid double-counting radiation losses. "
+            f"Please set one of them to Mode.ZERO or remove one of these sources from the config entirely."
+        )
+    
+    return self

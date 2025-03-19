@@ -594,11 +594,7 @@ def _run_simulation(
   sim_history = []
   sim_state = post_processing.make_outputs(
       sim_state=sim_state, 
-<<<<<<< HEAD
       geo=geo,
-=======
-      geo=geo, 
->>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
       dynamic_runtime_params_slice=dynamic_runtime_params_slice
   )
   sim_history.append(sim_state)

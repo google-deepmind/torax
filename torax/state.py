@@ -321,14 +321,8 @@ class PostProcessedOutputs:
     P_external_el: Total external electron heating power: auxiliary heating +
       Ohmic [W]
     P_external_tot: Total external heating power: auxiliary heating + Ohmic [W]
-<<<<<<< HEAD
-    P_external_injected: Total external injected power: auxiliary heating + Ohmic
-      [W]
-=======
     P_external_injected: External injected power before absorption [W]
->>>>>>> 1088c1a77746d37a560f1f4885c0152bf957f3a2
     P_ei_exchange_ion: Electron-ion heat exchange power to ions [W]
-    P_ei_exchange_el: Electron-ion heat exchange power to electrons [W]
     P_generic_ion: Total generic_ion_el_heat_source power to ions [W]
     P_generic_el: Total generic_ion_el_heat_source power to electrons [W]
     P_generic_tot: Total generic_ion_el_heat power [W]
