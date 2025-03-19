@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from collections.abc import Sequence
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from torax import output
 from torax.orchestration import run_simulation
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
+import xarray as xr
 
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
@@ -86,6 +89,40 @@ class RunSimulationTest(sim_test_case.SimTestCase):
             new_history.core_profiles.ne.value[-1],
         )
     )
+
+  def test_restart(self):
+    test_config_state_file = 'test_iterhybrid_rampup.nc'
+    restart_config = 'test_iterhybrid_rampup_restart.py'
+
+    config_module = self._get_config_module(restart_config)
+    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    history = run_simulation.run_simulation(torax_config)
+
+    data_tree_restart = history.simulation_output_to_xr()
+
+    # Load the reference dataset.
+    datatree_ref = output.load_state_file(
+        os.path.join(self.test_data_dir, test_config_state_file)
+    )
+
+    # Stitch the restart state file to the beginning of the reference dataset.
+    datatree_new = output.stitch_state_files(
+        torax_config.restart, data_tree_restart
+    )
+
+    # Check equality for all time-dependent variables.
+    def check_equality(ds1: xr.Dataset, ds2: xr.Dataset):
+      for var_name in ds1.data_vars:
+        if 'time' in ds1[var_name].dims:
+          with self.subTest(var_name=var_name):
+            np.testing.assert_allclose(
+                ds1[var_name].values,
+                ds2[var_name].values,
+                err_msg=f'Mismatch for {var_name} in restart test',
+                rtol=1e-6,
+            )
+
+    xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
 
 
 if __name__ == '__main__':

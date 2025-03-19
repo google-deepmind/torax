@@ -27,6 +27,7 @@ new_sim_outputs = torax.run_simulation(torax_config)
 from torax import output
 from torax import sim
 from torax.config import build_runtime_params
+from torax.orchestration import initial_state as initial_state_lib
 from torax.orchestration import step_function
 from torax.sources import source_models as source_models_lib
 from torax.torax_pydantic import model_config
@@ -88,12 +89,22 @@ def run_simulation(
           geometry_provider=geometry_provider,
       )
   )
-  initial_state = sim.get_initial_state(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
-      geo=geo_for_init,
-      step_fn=step_fn,
-  )
+
+  if torax_config.restart and torax_config.restart.do_restart:
+    initial_state = initial_state_lib.initial_state_from_file_restart(
+        file_restart=torax_config.restart,
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice_for_init=dynamic_runtime_params_slice_for_init,
+        geo_for_init=geo_for_init,
+        step_fn=step_fn,
+    )
+  else:
+    initial_state = sim.get_initial_state(
+        static_runtime_params_slice=static_runtime_params_slice,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
+        geo=geo_for_init,
+        step_fn=step_fn,
+    )
 
   sim_outputs = sim._run_simulation(  # pylint: disable=protected-access
       static_runtime_params_slice=static_runtime_params_slice,
