@@ -208,6 +208,23 @@ def _calculate_integrated_sources(
     if 'generic_current_source' in core_sources.psi:
       integrated['I_generic'] = math_utils.volume_integration(
           core_sources.psi['generic_current_source'], geo
+
+
+  # Calculate integrated sources with convenient names, transformed from
+  # TORAX internal names.
+  for key, value in ION_EL_HEAT_SOURCE_TRANSFORMATIONS.items():
+    # Only populate integrated dict with sources that exist.
+    ion_profiles = core_sources.temp_ion
+    el_profiles = core_sources.temp_el
+    if key in ion_profiles and key in el_profiles:
+      profile_ion, profile_el = ion_profiles[key], el_profiles[key]
+      integrated[f'{value}_ion'] = math_utils.volume_integration(
+          profile_ion, geo
+      )
+      integrated[f'{value}_el'] = math_utils.volume_integration(profile_el, geo)
+      integrated[f'{value}_tot'] = (
+          integrated[f'{value}_ion'] + integrated[f'{value}_el']
+
       )
       integrated['I_tot'] += integrated['I_generic']
   
@@ -267,7 +284,54 @@ def make_outputs(
   integrated_sources = _calculate_integrated_sources(
       geo,
       sim_state.core_sources,
+
       dynamic_runtime_params_slice,
+
+  )
+  # Calculate fusion gain with a zero division guard.
+  # Total energy released per reaction is 5 times the alpha particle energy.
+  Q_fusion = (
+      integrated_sources['P_alpha_tot']
+      * 5.0
+      / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
+  )
+
+  P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (
+      scaling_laws.calculate_plh_scaling_factor(geo, sim_state.core_profiles)
+  )
+
+  # Thermal energy confinement time is the stored energy divided by the total
+  # input power into the plasma.
+
+  # Ploss term here does not include the reduction of radiated power. Most
+  # analysis of confinement times from databases have not included this term.
+  # Therefore highly radiative scenarios can lead to skewed results.
+
+  Ploss = (
+      integrated_sources['P_alpha_tot'] + integrated_sources['P_external_tot']
+  )
+
+  if previous_sim_state is not None:
+    dW_th_dt = (
+        W_thermal_tot - previous_sim_state.post_processed_outputs.W_thermal_tot
+    ) / sim_state.dt
+  else:
+    dW_th_dt = 0.0
+
+  tauE = W_thermal_tot / Ploss
+
+  tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
+      geo, sim_state.core_profiles, Ploss, 'H89P'
+  )
+  tauH98 = scaling_laws.calculate_scaling_law_confinement_time(
+      geo, sim_state.core_profiles, Ploss, 'H98'
+  )
+  tauH97L = scaling_laws.calculate_scaling_law_confinement_time(
+      geo, sim_state.core_profiles, Ploss, 'H97L'
+  )
+  tauH20 = scaling_laws.calculate_scaling_law_confinement_time(
+      geo, sim_state.core_profiles, Ploss, 'H20'
+
   )
 
   # Calculate Ohmic energy.
@@ -340,6 +404,7 @@ def make_outputs(
       I_ecrh=integrated_sources.get('I_ecrh', jnp.array(0.0)),
       I_generic=integrated_sources.get('I_generic', jnp.array(0.0)),
       Q_fusion=Q_fusion,
+
       P_icrh_ion=integrated_sources.get('P_icrh_ion', jnp.array(0.0)),
       P_icrh_el=integrated_sources.get('P_icrh_el', jnp.array(0.0)),
       P_icrh_tot=integrated_sources.get('P_icrh_tot', jnp.array(0.0)),
@@ -361,6 +426,25 @@ def make_outputs(
       Wpol=sim_state.post_processed_outputs.Wpol,
       li3=sim_state.post_processed_outputs.li3,
       P_generic_injected=integrated_sources.get('P_generic_injected', jnp.array(0.0)),
+      P_LH=P_LH,
+      P_LH_min=P_LH_min,
+      P_LH_hi_dens=P_LH_hi_dens,
+      ne_min_P_LH=ne_min_P_LH,
+      E_cumulative_fusion=E_cumulative_fusion,
+      E_cumulative_external=E_cumulative_external,
+      te_volume_avg=te_volume_avg,
+      ti_volume_avg=ti_volume_avg,
+      ne_volume_avg=ne_volume_avg,
+      ni_volume_avg=ni_volume_avg,
+      ne_line_avg=ne_line_avg,
+      ni_line_avg=ni_line_avg,
+      fgw_ne_volume_avg=fgw_ne_volume_avg,
+      fgw_ne_line_avg=fgw_ne_line_avg,
+      q95=q95,
+      Wpol=Wpol,
+      li3=li3,
+      dW_th_dt=dW_th_dt,
+
   )
 
   return state.ToraxSimState(

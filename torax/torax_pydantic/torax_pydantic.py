@@ -25,6 +25,7 @@ from typing_extensions import Annotated
 
 
 TIME_INVARIANT = model_base.TIME_INVARIANT
+JAX_STATIC = model_base.JAX_STATIC
 
 # Physical units.
 # keep-sorted start
@@ -32,7 +33,7 @@ GreenwaldFraction: TypeAlias = pydantic.PositiveFloat
 KiloElectronVolt: TypeAlias = pydantic.PositiveFloat
 Meter: TypeAlias = pydantic.PositiveFloat
 MeterPerSecond: TypeAlias = float
-MeterSquaredPerSecond: TypeAlias = pydantic.PositiveFloat
+MeterSquaredPerSecond: TypeAlias = pydantic.NonNegativeFloat
 Pascal: TypeAlias = pydantic.PositiveFloat
 PositiveMeterSquaredPerSecond: TypeAlias = pydantic.PositiveFloat
 ReferenceDensity: TypeAlias = pydantic.PositiveFloat  # nref
@@ -53,6 +54,9 @@ BaseModelFrozen = model_base.BaseModelFrozen
 TimeVaryingScalar = interpolated_param_1d.TimeVaryingScalar
 TimeVaryingArray = interpolated_param_2d.TimeVaryingArray
 PositiveTimeVaryingScalar = interpolated_param_1d.PositiveTimeVaryingScalar
+UnitIntervalTimeVaryingScalar = (
+    interpolated_param_1d.UnitIntervalTimeVaryingScalar
+)
 PositiveTimeVaryingArray = interpolated_param_2d.PositiveTimeVaryingArray
 
 ValidatedDefault = functools.partial(pydantic.Field, validate_default=True)

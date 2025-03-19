@@ -13,10 +13,6 @@
 # limitations under the License.
 
 """Classes for representing a circular geometry."""
-
-
-from __future__ import annotations
-
 import numpy as np
 from torax.geometry import geometry
 from torax.torax_pydantic import torax_pydantic
@@ -51,7 +47,7 @@ def build_circular_geometry(
   # toroidal flux coordinate.
   drho_norm = 1.0 / n_rho
   # Define mesh (Slab Uniform 1D with Jacobian = 1)
-  mesh = torax_pydantic.Grid1D.construct(nx=n_rho, dx=drho_norm)
+  mesh = torax_pydantic.Grid1D(nx=n_rho, dx=drho_norm)
   # toroidal flux coordinate (rho) at boundary (last closed flux surface)
   rho_b = np.asarray(Rmin)
 

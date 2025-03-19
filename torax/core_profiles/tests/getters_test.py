@@ -26,7 +26,6 @@ from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.physics import formulas
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.transport_model import runtime_params as transport_params_lib
 
 SMALL_VALUE = 1e-6
 
@@ -85,7 +84,6 @@ class GettersTest(parameterized.TestCase):
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
         sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
@@ -133,7 +131,6 @@ class GettersTest(parameterized.TestCase):
 
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
         sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
@@ -169,7 +166,6 @@ class GettersTest(parameterized.TestCase):
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
         sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
@@ -186,7 +182,9 @@ class GettersTest(parameterized.TestCase):
 
     np.testing.assert_allclose(np.mean(ne_normalized.value), nbar, rtol=1e-1)
 
-    runtime_params.profile_conditions.normalize_to_nbar = False
+    runtime_params._update_fields(
+        {'profile_conditions.normalize_to_nbar': False}
+    )
     dynamic_runtime_params_slice_unnormalized = provider(
         t=1.0,
     )
@@ -221,7 +219,6 @@ class GettersTest(parameterized.TestCase):
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
         sources=sources_pydantic_model.Sources.from_dict({}),
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,
@@ -235,7 +232,7 @@ class GettersTest(parameterized.TestCase):
         self.geo,
     )
 
-    runtime_params.profile_conditions.ne_is_fGW = False
+    runtime_params._update_fields({'profile_conditions.ne_is_fGW': False})
     dynamic_runtime_params_slice = provider(
         t=1.0,
     )
@@ -264,7 +261,6 @@ class GettersTest(parameterized.TestCase):
     sources = sources_pydantic_model.Sources.from_dict({})
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(
         runtime_params=runtime_params,
-        transport=transport_params_lib.RuntimeParams(),
         sources=sources,
         stepper=stepper_pydantic_model.Stepper(),
         torax_mesh=self.geo.torax_mesh,

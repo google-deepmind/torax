@@ -16,9 +16,6 @@
 
 This is a separate file to not bloat the main sim.py test file.
 """
-
-from __future__ import annotations
-
 import dataclasses
 from unittest import mock
 
@@ -42,7 +39,7 @@ from torax.tests.test_lib import explicit_stepper
 from torax.tests.test_lib import sim_test_case
 from torax.time_step_calculator import fixed_time_step_calculator
 from torax.torax_pydantic import torax_pydantic
-from torax.transport_model import constant as constant_transport_model
+from torax.transport_model import pydantic_model as transport_pydantic_model
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
@@ -52,7 +49,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
 
   def test_merging_source_profiles(self):
     """Tests that the implicit and explicit source profiles merge correctly."""
-    torax_mesh = torax_pydantic.Grid1D.construct(nx=10, dx=0.1)
+    torax_mesh = torax_pydantic.Grid1D(nx=10, dx=0.1)
     sources = default_sources.get_default_sources()
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
@@ -113,8 +110,8 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         sources=sources.source_model_config
     )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    runtime_params.numerics.t_final = 2.0
-    runtime_params.numerics.fixed_dt = 1.0
+    runtime_params._update_fields({'numerics.t_final': 2.0})
+    runtime_params._update_fields({'numerics.fixed_dt': 1.0})
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     time_stepper = fixed_time_step_calculator.FixedTimeStepCalculator()
 
@@ -148,7 +145,9 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         runtime_params=runtime_params,
         geometry_provider=geometry_provider_lib.ConstantGeometryProvider(geo),
         stepper=explicit_stepper.ExplicitStepperModel(),
-        transport_model_builder=constant_transport_model.ConstantTransportModelBuilder(),
+        transport_model=transport_pydantic_model.Transport.from_dict(
+            {'transport_model': 'constant'}
+        ),
         sources=sources,
         pedestal=pedestal_pydantic_model.Pedestal(),
         time_step_calculator=time_stepper,

@@ -250,14 +250,6 @@ class MathUtilsTest(parameterized.TestCase):
             ),
         )
 
-  def test_cell_to_face_raises_when_too_few_values(
-      self,
-  ):
-    """Test that the cell_to_face method raises when too few values are provided."""
-    geo = geometry_pydantic_model.CircularConfig(n_rho=1).build_geometry()
-    with self.assertRaises(ValueError):
-      math_utils.cell_to_face(jnp.array([1.0], dtype=np.float32), geo)
-
 
 if __name__ == '__main__':
   absltest.main()

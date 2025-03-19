@@ -42,7 +42,7 @@ def build_sim_and_runtime_params_from_config_module(
     # The module likely uses the "basic" config setup which has a single CONFIG
     # dictionary defining the full simulation.
     config = config_module.CONFIG
-    new_runtime_params = build_sim.build_runtime_params_from_config(
+    new_runtime_params = runtime_params.GeneralRuntimeParams.from_dict(
         config['runtime_params']
     )
     simulator = build_sim.build_sim_from_config(config)

@@ -16,6 +16,9 @@
 
 from __future__ import annotations
 
+
+"""Generic heat source for both ion and electron heat."""
+
 import dataclasses
 from typing import Any, Callable, Literal, Optional, TypeVar
 
@@ -43,7 +46,6 @@ T = TypeVar('T')
 # For the Low density region (ne < 0.4 nGW), H_fraction=0.74
 # For the ITER baseline density (0.4 nGW < ne < 0.8 nGW), H_fraction = 0.95
 # For the high density region (0.8 nGW < ne < 1.0 nGW), H_fraction = 0.85
-
 
 class GenericIonElHeatSourceConfig(base.SourceModelBase):
   """Configuration for the generic ion/electron heat source.
@@ -100,6 +102,10 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
 
 
 @dataclasses.dataclass(frozen=True)
+
+# pylint: disable=invalid-name
+@chex.dataclass(frozen=True)
+
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   w: array_typing.ScalarFloat = 0.2
   rsource: array_typing.ScalarFloat = 0.3
@@ -290,5 +296,51 @@ class GenericIonElHeatSource(source_lib.Source):
     )
 
 
+
 # Add alias for backward compatibility
 GenericIonElectronHeatSource = GenericIonElHeatSource
+
+class GenericIonElHeatSourceConfig(base.SourceModelBase):
+  """Configuration for the GenericIonElHeatSource.
+
+  Attributes:
+    w: Gaussian width in normalized radial coordinate
+    rsource: Source Gaussian central location (in normalized r)
+    Ptot: Total heating: high default based on total ITER power including alphas
+    el_heat_fraction: Electron heating fraction
+  """
+
+  source_name: Literal['generic_ion_el_heat_source'] = (
+      'generic_ion_el_heat_source'
+  )
+  w: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.25)
+  rsource: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      0.0
+  )
+  Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
+      120e6
+  )
+  el_heat_fraction: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.66666)
+  )
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return default_formula
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        w=self.w.get_value(t),
+        rsource=self.rsource.get_value(t),
+        Ptot=self.Ptot.get_value(t),
+        el_heat_fraction=self.el_heat_fraction.get_value(t),
+    )
+
+  def build_source(self) -> GenericIonElectronHeatSource:
+    return GenericIonElectronHeatSource(model_func=self.model_func)
+
