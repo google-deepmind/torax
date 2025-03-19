@@ -31,6 +31,7 @@ from torax.state import SimError
 
 # pylint: enable=g-importing-member
 
+__version__ = '0.1.0'
 
 __all__ = [
     'build_sim_from_config',
