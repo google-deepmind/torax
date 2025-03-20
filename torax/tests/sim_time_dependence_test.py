@@ -16,33 +16,34 @@
 import copy
 import dataclasses
 from typing import Literal
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
 import jax.numpy as jnp
 import numpy as np
-from torax import sim as sim_lib
+import pydantic
+from torax import output
+from torax import sim
 from torax import state
-from torax.config import numerics as numerics_lib
-from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
+from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
-from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.orchestration import run_simulation
+from torax.orchestration import step_function
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles
 from torax.stepper import linear_theta_method
 from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.time_step_calculator import fixed_time_step_calculator
+from torax.torax_pydantic import model_config
 from torax.transport_model import pydantic_model as transport_pydantic_model
 from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import transport_model as transport_model_lib
+from typing_extensions import Annotated
 
 
 class SimWithTimeDependeceTest(parameterized.TestCase):
@@ -51,22 +52,17 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     # Register the fake transport config.
-    self.original_annotation = (
-        transport_pydantic_model.Transport.model_fields[
-            'transport_model_config'
-        ].annotation
-    )
     transport_pydantic_model.Transport.model_fields[
         'transport_model_config'
     ].annotation |= FakeTransportConfig
     transport_pydantic_model.Transport.model_rebuild(force=True)
 
-  def tearDown(self):
-    super().tearDown()
-    transport_pydantic_model.Transport.model_fields[
-        'transport_model_config'
-    ].annotation = self.original_annotation
-    transport_pydantic_model.Transport.model_rebuild(force=True)
+    stepper_pydantic_model.Stepper.model_fields[
+        'stepper_config'
+    ].annotation |= Annotated[FakeStepperConfig, pydantic.Tag('fake')]
+    stepper_pydantic_model.Stepper.model_rebuild(force=True)
+
+    model_config.ToraxConfig.model_rebuild(force=True)
 
   @parameterized.named_parameters(
       ('with_adaptive_dt', True, 3, 0, 2.44444444444, [1, 2, 3]),
@@ -81,65 +77,78 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
       inner_solver_iterations: list[int],
   ):
     """Tests the SimulationStepFn's adaptive dt uses time-dependent params."""
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            Ti_bound_right={0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
-            ne_bound_right=0.5,
-        ),
-        numerics=numerics_lib.Numerics(
-            adaptive_dt=adaptive_dt,
-            fixed_dt=1.0,  # 1 time step in, the Ti_bound_right will be 2.0
-            dt_reduction_factor=1.5,
-        ),
-    )
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    geometry_provider = geometry_provider_lib.ConstantGeometryProvider(geo)
-    transport = transport_pydantic_model.Transport.from_dict(
-        {'transport_model': 'fake'}
-    )
-    # max combined value of Ti_bound_right should be 2.5. Higher will make the
-    # error state from the stepper be 1.
-    time_calculator = fixed_time_step_calculator.FixedTimeStepCalculator()
-    sim = sim_lib.Sim.create(
-        runtime_params=runtime_params,
-        geometry_provider=geometry_provider,
-        stepper=FakeStepperModel.from_dict(
-            dict(
-                param='Ti_bound_right',
-                max_value=2.5,
-                inner_solver_iterations=inner_solver_iterations,
-            )
-        ),
-        transport_model=transport,
-        sources=source_pydantic_model.Sources(),
-        pedestal=pedestal_pydantic_model.Pedestal(),
-        time_step_calculator=time_calculator,
-    )
-    sim_step_fn = sim.step_fn
-    output_state, _ = sim_step_fn(
-        static_runtime_params_slice=sim.static_runtime_params_slice,
-        dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
-        geometry_provider=sim.geometry_provider,
-        input_state=sim.initial_state,
-    )
+
+    config = {
+        'runtime_params': {
+            'profile_conditions': {
+                'Ti_bound_right': {0.0: 1.0, 1.0: 2.0, 10.0: 11.0},
+                'ne_bound_right': 0.5,
+            },
+            'numerics': {
+                'adaptive_dt': adaptive_dt,
+                # 1 time step in, the Ti_bound_right will be 2.0
+                'fixed_dt': 1.0,
+                'dt_reduction_factor': 1.5,
+                't_final': 1.0,
+            },
+        },
+        'geometry': {
+            'geometry_type': 'circular',
+        },
+        'transport': {'transport_model': 'fake'},
+        'stepper': {
+            'stepper_type': 'fake',
+            'inner_solver_iterations': inner_solver_iterations,
+        },
+        'pedestal': {},
+        'time_step_calculator': {'calculator_type': 'fixed'},
+        'sources': {},
+    }
+    torax_config = model_config.ToraxConfig.from_dict(config)
+
+    def _fake_sim_run_simulation(
+        static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+        dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+        geometry_provider: geometry_provider_lib.GeometryProvider,
+        initial_state: state.ToraxSimState,
+        step_fn: step_function.SimulationStepFn,
+        log_timestep_info: bool = False,
+        progress_bar: bool = True,
+    ) -> output.ToraxSimOutputs:
+      del log_timestep_info, progress_bar
+      output_state, error = step_fn(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_provider,
+          geometry_provider,
+          initial_state,
+      )
+      self.assertEqual(
+          output_state.stepper_numeric_outputs.outer_stepper_iterations,
+          expected_outer_stepper_iterations,
+      )
+      self.assertEqual(
+          output_state.stepper_numeric_outputs.inner_solver_iterations,
+          np.sum(inner_solver_iterations),
+      )
+      self.assertEqual(
+          output_state.stepper_numeric_outputs.stepper_error_state,
+          expected_error_state,
+      )
+      np.testing.assert_allclose(
+          output_state.core_sources.qei.qei_coef, expected_combined_value
+      )
+      return output.ToraxSimOutputs(
+          sim_history=(output_state,), sim_error=error
+      )
+
+    with mock.patch.object(
+        sim, '_run_simulation', wraps=_fake_sim_run_simulation
+    ) as mock_run_simulation:
+      run_simulation.run_simulation(torax_config)
     # The initial step will not work, so it should take several adaptive time
     # steps to get under the Ti_bound_right threshold set above if adaptive_dt
     # was set to True.
-    self.assertEqual(
-        output_state.stepper_numeric_outputs.outer_stepper_iterations,
-        expected_outer_stepper_iterations,
-    )
-    self.assertEqual(
-        output_state.stepper_numeric_outputs.inner_solver_iterations,
-        np.sum(inner_solver_iterations),
-    )
-    self.assertEqual(
-        output_state.stepper_numeric_outputs.stepper_error_state,
-        expected_error_state,
-    )
-    np.testing.assert_allclose(
-        output_state.core_sources.qei.qei_coef, expected_combined_value
-    )
+    mock_run_simulation.assert_called_once()
 
 
 class FakeStepperConfig(stepper_pydantic_model.LinearThetaMethod):
@@ -160,12 +169,6 @@ class FakeStepperConfig(stepper_pydantic_model.LinearThetaMethod):
         source_models=source_models,
         pedestal_model=pedestal_model,
     )
-
-
-class FakeStepperModel(stepper_pydantic_model.Stepper):
-  """Config for a stepper."""
-
-  stepper_config: FakeStepperConfig
 
 
 class FakeStepper(linear_theta_method.LinearThetaMethod):
