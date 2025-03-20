@@ -125,11 +125,14 @@ def _calculate_integrated_sources(
         integrated['P_external_el'] += integrated[f'{value}_el']
 
         # Track injected power for heating sources that have absorption_fraction
-        source_params = dynamic_runtime_params_slice.sources.get(key)
-        if source_params and hasattr(source_params, 'absorption_fraction'):
-          total_absorbed = integrated[f'{value}_tot']
-          injected_power = total_absorbed / source_params.absorption_fraction
-          integrated['P_external_injected'] += injected_power
+        if dynamic_runtime_params_slice is not None:
+          source_params = dynamic_runtime_params_slice.sources.get(key)
+          if source_params and hasattr(source_params, 'absorption_fraction'):
+            total_absorbed = integrated[f'{value}_tot']
+            injected_power = total_absorbed / source_params.absorption_fraction
+            integrated['P_external_injected'] += injected_power
+          else:
+            integrated['P_external_injected'] += integrated[f'{value}_tot']
         else:
           integrated['P_external_injected'] += integrated[f'{value}_tot']
 
@@ -162,6 +165,7 @@ def make_outputs(
     sim_state: state.ToraxSimState,
     geo: geometry.Geometry,
     previous_sim_state: state.ToraxSimState | None = None,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice | None = None,
 ) -> state.ToraxSimState:
   """Calculates post-processed outputs based on the latest state.
 
@@ -175,6 +179,8 @@ def make_outputs(
       time step of a the simulation. The initialized values are zero for a clean
       simulation, or the last value of the previous simulation for a restarted
       simulation.
+    dynamic_runtime_params_slice: Runtime parameters slice for the current time
+      step, needed for calculating integrated power.
 
   Returns:
     sim_state: A ToraxSimState object, with any updated attributes.
@@ -184,7 +190,7 @@ def make_outputs(
       geo,
       sim_state.core_profiles,
       sim_state.core_sources,
-      sim_state.dynamic_runtime_params_slice,
+      dynamic_runtime_params_slice,
   )
 
   (
@@ -229,7 +235,7 @@ def make_outputs(
   # Therefore highly radiative scenarios can lead to skewed results.
 
   Ploss = (
-      integrated_sources['P_alpha_tot'] + integrated_sources['P_external_injected']
+      integrated_sources['P_alpha_tot'] + integrated_sources['P_external_tot']
   )
 
   if previous_sim_state is not None:
@@ -277,8 +283,8 @@ def make_outputs(
         previous_sim_state.post_processed_outputs.E_cumulative_external
         + sim_state.dt
         * (
-            integrated_sources['P_external_injected']
-            + previous_sim_state.post_processed_outputs.P_external_injected
+            integrated_sources['P_external_tot']
+            + previous_sim_state.post_processed_outputs.P_external_tot
         )
         / 2.0
     )

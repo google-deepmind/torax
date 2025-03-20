@@ -594,8 +594,6 @@ class ToraxSimState:
     geometry: Geometry at this time step used for the simulation.
     time_step_calculator_state: the state of the TimeStepper.
     stepper_numeric_outputs: Numerical quantities related to the stepper.
-    dynamic_runtime_params_slice: Runtime parameters that can change without
-      requiring recompilation, used for integration with the sources.
   """
 
   # Time variables.
@@ -617,9 +615,6 @@ class ToraxSimState:
   # TORAX.
   time_step_calculator_state: Any
   stepper_numeric_outputs: StepperNumericOutputs
-  
-  # Runtime parameters that can vary without recompilation
-  dynamic_runtime_params_slice: Optional[runtime_params_slice.DynamicRuntimeParamsSlice] = None
 
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""

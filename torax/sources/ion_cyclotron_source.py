@@ -453,9 +453,11 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   """Configuration for the IonCyclotronSource.
 
   Attributes:
-    wall_inner: Inner wall radial position [m].
-    wall_outer: Outer wall radial position [m].
-    frequency: RF frequency [Hz].
+    wall_inner: Inner radial location of first wall at plasma midplane level
+      [m].
+    wall_outer: Outer radial location of first wall at plasma midplane level
+      [m].
+    frequency: ICRF wave frequency [Hz].
     minority_concentration: He3 minority concentration relative to the electron
       density in %.
     Ptot: Total heating power [W].
@@ -472,9 +474,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       torax_pydantic.ValidatedDefault(3.0)
   )
   Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
-  # TODO: Add appropriate pydantic validation for absorption_fraction
-  # to ensure it's never below a small positive value to prevent division by zero.
-  absorption_fraction: torax_pydantic.TimeVaryingScalar = (
+  absorption_fraction: torax_pydantic.PositiveTimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(1.0)
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
