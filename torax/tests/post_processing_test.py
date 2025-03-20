@@ -47,6 +47,8 @@ class PostProcessingTest(parameterized.TestCase):
             sources=sources,
         )
     )
+    # Save dynamic_runtime_params_slice for test_calculate_integrated_sources
+    self.dynamic_runtime_params_slice = dynamic_runtime_params_slice
     # Make some dummy source profiles.
     ones = np.ones_like(geo.rho)
     self.source_profiles = source_profiles_lib.SourceProfiles(
