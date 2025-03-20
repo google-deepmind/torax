@@ -21,6 +21,7 @@ class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
 
   def setUp(self):
     super().setUp(
+        model_function_name=generic_ion_el_heat_source.GenericIonElHeatSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_config_class=generic_ion_el_heat_source.GenericIonElHeatSourceConfig,
         source_name=generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME,
     )

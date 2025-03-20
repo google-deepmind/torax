@@ -94,6 +94,7 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
     self.dummy_input = model_input
     self.dummy_output = model_output
     super().setUp(
+        model_function_name=ion_cyclotron_source.IonCyclotronSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_config_class=ion_cyclotron_source.IonCyclotronSourceConfig,
         source_name=ion_cyclotron_source.IonCyclotronSource.SOURCE_NAME,
     )
@@ -128,7 +129,9 @@ class IonCyclotronSourceTest(test_lib.SourceTestCase):
   def test_source_value(self, mock_path):
     """Tests that the source can provide a value by default."""
     del mock_path
-    sources = sources_pydantic_model.Sources.from_dict({self._source_name: {}})
+    sources = sources_pydantic_model.Sources.from_dict(
+        {self._source_name: {"model_function_name": self._model_function_name}}
+    )
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     source_models = source_models_lib.SourceModels(

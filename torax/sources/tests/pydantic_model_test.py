@@ -34,6 +34,7 @@ class PydanticModelTest(parameterized.TestCase):
       dict(
           config={
               'gas_puff_source': {
+                  'model_function_name': 'calc_puff_source',
                   'puff_decay_length': 0.3,
                   'S_puff_tot': 0.0,
               }
@@ -50,13 +51,17 @@ class PydanticModelTest(parameterized.TestCase):
       ),
       dict(
           config={
-              'fusion_heat_source': {},
+              'fusion_heat_source': {
+                  'model_function_name': 'fusion_heat_model_func'
+              },
           },
           expected_sources_model=fusion_heat_source.FusionHeatSourceConfig,
       ),
       dict(
           config={
-              'impurity_radiation_heat_sink': {},
+              'impurity_radiation_heat_sink': {
+                  'model_function_name': 'impurity_radiation_mavrin_fit'
+              },
           },
           expected_sources_model=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
       ),
@@ -91,9 +96,11 @@ class PydanticModelTest(parameterized.TestCase):
     """Tests that a source can be added with overriding defaults."""
     sources = pydantic_model.Sources.from_dict({
         'gas_puff_source': {
+            'model_function_name': 'calc_puff_source',
             'puff_decay_length': 1.23,
         },
         'ohmic_heat_source': {
+            'model_function_name': 'ohmic_model_func',
             'is_explicit': True,
             'mode': 'ZERO',  # turn it off.
         },

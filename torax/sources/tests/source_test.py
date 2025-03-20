@@ -32,6 +32,7 @@ class SourceTest(parameterized.TestCase):
     sources = source_pydantic_model.Sources.from_dict({
         generic_current_source.GenericCurrentSource.SOURCE_NAME: {
             'mode': runtime_params_lib.Mode.ZERO,
+            'model_function_name': 'calc_generic_current_source',
         }
     })
     source_models = source_models_lib.SourceModels(
@@ -90,6 +91,7 @@ class SourceTest(parameterized.TestCase):
         generic_current_source.GenericCurrentSource.SOURCE_NAME: {
             'mode': mode,
             'prescribed_values': 3,
+            'model_function_name': 'calc_generic_current_source',
         }
     })
     source_models = source_models_lib.SourceModels(

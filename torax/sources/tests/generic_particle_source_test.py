@@ -21,6 +21,7 @@ class SourceTest(test_lib.SingleProfileSourceTestCase):
 
   def setUp(self):
     super().setUp(
+        model_function_name=generic_particle_source.GenericParticleSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_config_class=generic_particle_source.GenericParticleSourceConfig,
         source_name=generic_particle_source.GenericParticleSource.SOURCE_NAME,
     )

@@ -24,6 +24,7 @@ class OhmicHeatSourceTest(test_lib.SingleProfileSourceTestCase):
 
   def setUp(self):
     super().setUp(
+        model_function_name=ohmic_heat_source.OhmicHeatSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_config_class=ohmic_heat_source.OhmicHeatSourceConfig,
         source_name=ohmic_heat_source.OhmicHeatSource.SOURCE_NAME,
         needs_source_models=True,

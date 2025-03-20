@@ -14,7 +14,7 @@
 
 """External current source profile."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import chex
 from jax import numpy as jnp
@@ -129,8 +129,6 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
     use_absolute_current: Toggles if external current is provided absolutely or
       as a fraction of Ip.
   """
-
-  source_name: Literal['generic_current_source'] = 'generic_current_source'
   Iext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(3.0)
   fext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.2)
   wext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.05)

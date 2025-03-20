@@ -93,8 +93,9 @@ class GenericParticleSourceConfig(base.SourceModelBase):
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
-
-  source_name: Literal['generic_particle_source'] = 'generic_particle_source'
+  model_function_name: Literal['calc_generic_particle_source'] = (
+      'calc_generic_particle_source'
+  )
   particle_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.25)
   )

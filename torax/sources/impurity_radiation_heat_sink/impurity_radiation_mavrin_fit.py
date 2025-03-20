@@ -224,10 +224,6 @@ class ImpurityRadiationHeatSinkMavrinFitConfig(base.SourceModelBase):
   Attributes:
     radiation_multiplier: Multiplier for the impurity radiation profile.
   """
-
-  source_name: Literal['impurity_radiation_heat_sink'] = (
-      'impurity_radiation_heat_sink'
-  )
   model_function_name: Literal['impurity_radiation_mavrin_fit'] = (
       'impurity_radiation_mavrin_fit'
   )

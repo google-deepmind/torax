@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Pydantic config for source models."""
-from typing import Any, Union
+from typing import Union
 
 import pydantic
 from torax.sources import base
@@ -34,32 +34,13 @@ from torax.sources import runtime_params
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax.torax_pydantic import torax_pydantic
-from typing_extensions import Annotated
 from typing_extensions import Self
 
 
-def get_impurity_heat_sink_discriminator_value(model: dict[str, Any]) -> str:
-  """Returns the discriminator value for a given model."""
-  # Default to impurity_radiation_mavrin_fit if no model_func is specified.
-  return model.get('model_function_name', 'impurity_radiation_mavrin_fit')
-
-
-ImpurityRadiationHeatSinkConfig = Annotated[
-    Union[
-        Annotated[
-            impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
-            pydantic.Tag('impurity_radiation_mavrin_fit'),
-        ],
-        Annotated[
-            impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
-            pydantic.Tag('radially_constant_fraction_of_Pin'),
-        ],
-    ],
-    pydantic.Field(
-        discriminator=pydantic.Discriminator(
-            get_impurity_heat_sink_discriminator_value
-        )
-    ),
+ImpurityRadiationHeatSinkConfig = Union[
+        impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
+        impurity_radiation_constant_fraction.
+        ImpurityRadiationHeatSinkConstantFractionConfig,
 ]
 
 
@@ -81,36 +62,67 @@ class Sources(torax_pydantic.BaseModelFrozen):
   )
   bremsstrahlung_heat_sink: (
       bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSinkConfig | None
-  ) = pydantic.Field(default=None)
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
   cyclotron_radiation_heat_sink: (
       cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSinkConfig | None
-  ) = pydantic.Field(default=None)
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
   electron_cyclotron_source: (
       electron_cyclotron_source_lib.ElectronCyclotronSourceConfig | None
-  ) = pydantic.Field(default=None)
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
   gas_puff_source: gas_puff_source_lib.GasPuffSourceConfig | None = (
-      pydantic.Field(default=None)
+      pydantic.Field(
+          discriminator='model_function_name',
+          default=None,
+      )
   )
   generic_particle_source: (
       generic_particle_source_lib.GenericParticleSourceConfig | None
-  ) = pydantic.Field(default=None)
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
   pellet_source: pellet_source_lib.PelletSourceConfig | None = pydantic.Field(
-      default=None
+      discriminator='model_function_name',
+      default=None,
   )
   fusion_heat_source: fusion_heat_source_lib.FusionHeatSourceConfig | None = (
-      pydantic.Field(default=None)
+      pydantic.Field(
+          discriminator='model_function_name',
+          default=None,
+      )
   )
   generic_ion_el_heat_source: (
       generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig | None
-  ) = pydantic.Field(default=None)
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
   impurity_radiation_heat_sink: ImpurityRadiationHeatSinkConfig | None = (
-      pydantic.Field(default=None)
+      pydantic.Field(
+          discriminator='model_function_name',
+          default=None,
+      )
   )
   ion_cyclotron_source: (
       ion_cyclotron_source_lib.IonCyclotronSourceConfig | None
-  ) = pydantic.Field(default=None)
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
   ohmic_heat_source: ohmic_heat_source_lib.OhmicHeatSourceConfig | None = (
-      pydantic.Field(default=None)
+      pydantic.Field(
+          discriminator='model_function_name',
+          default=None,
+      )
   )
 
   @pydantic.model_validator(mode='after')

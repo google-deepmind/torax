@@ -14,7 +14,7 @@
 
 """Collisional ion-electron heat source."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import chex
 import jax
@@ -155,8 +155,6 @@ class QeiSourceConfig(base.SourceModelBase):
     Qei_mult: multiplier for ion-electron heat exchange term for sensitivity
       testing
   """
-
-  source_name: Literal['qei_source'] = 'qei_source'
   Qei_mult: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
