@@ -21,6 +21,7 @@ class GasPuffSourceTest(test_lib.SingleProfileSourceTestCase):
 
   def setUp(self):
     super().setUp(
+        model_function_name=gas_puff_source.GasPuffSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_config_class=gas_puff_source.GasPuffSourceConfig,
         source_name=gas_puff_source.GasPuffSource.SOURCE_NAME,
     )

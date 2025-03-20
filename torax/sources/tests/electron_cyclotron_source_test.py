@@ -31,6 +31,7 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
   # pytype: disable=signature-mismatch
   def setUp(self):
     super().setUp(
+        model_function_name=electron_cyclotron_source.ElectronCyclotronSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_config_class=electron_cyclotron_source.ElectronCyclotronSourceConfig,
         source_name=electron_cyclotron_source.ElectronCyclotronSource.SOURCE_NAME,
     )
@@ -39,7 +40,9 @@ class ElectronCyclotronSourceTest(test_lib.SourceTestCase):
   def test_source_value(self):
     """Tests that the source can provide a value by default."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    sources = source_pydantic_model.Sources.from_dict({self._source_name: {}})
+    sources = source_pydantic_model.Sources.from_dict(
+        {self._source_name: {"model_function_name": self._model_function_name}}
+    )
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )

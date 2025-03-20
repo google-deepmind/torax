@@ -86,8 +86,7 @@ class OhmicHeatSource(source_lib.Source):
 
 class OhmicHeatSourceConfig(base.SourceModelBase):
   """Configuration for the OhmicHeatSource."""
-
-  source_name: Literal['ohmic_heat_source'] = 'ohmic_heat_source'
+  model_function_name: Literal['ohmic_model_func'] = 'ohmic_model_func'
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property

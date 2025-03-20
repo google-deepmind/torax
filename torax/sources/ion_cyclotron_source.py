@@ -458,8 +458,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       density in %.
     Ptot: Total heating power [W].
   """
-
-  source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
+  model_function_name: Literal['icrh_model_func'] = 'icrh_model_func'
   wall_inner: torax_pydantic.Meter = 1.24
   wall_outer: torax_pydantic.Meter = 2.43
   frequency: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(

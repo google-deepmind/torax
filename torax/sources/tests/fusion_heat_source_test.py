@@ -31,6 +31,7 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
 
   def setUp(self):
     super().setUp(
+        model_function_name=fusion_heat_source.FusionHeatSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_name=fusion_heat_source.FusionHeatSource.SOURCE_NAME,
         source_config_class=fusion_heat_source.FusionHeatSourceConfig,
         needs_source_models=True,
@@ -52,7 +53,9 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     runtime_params = references.runtime_params
 
     sources = sources_pydantic_model.Sources.from_dict({
-        fusion_heat_source.FusionHeatSource.SOURCE_NAME: {},
+        fusion_heat_source.FusionHeatSource.SOURCE_NAME: {
+            'model_function_name': self._model_function_name
+        },
     })
     dynamic_runtime_params_slice, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
@@ -111,7 +114,9 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
     )
 
     sources = sources_pydantic_model.Sources.from_dict({
-        fusion_heat_source.FusionHeatSource.SOURCE_NAME: {},
+        fusion_heat_source.FusionHeatSource.SOURCE_NAME: {
+            'model_function_name': self._model_function_name
+        },
     })
     dynamic_runtime_params_slice_t, geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(

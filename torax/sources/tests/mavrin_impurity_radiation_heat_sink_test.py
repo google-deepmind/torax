@@ -32,6 +32,7 @@ class ImpurityRadiationMavrinFitTest(test_lib.SourceTestCase):
 
   def setUp(self):
     super().setUp(
+        model_function_name=impurity_radiation_mavrin_fit.MODEL_FUNCTION_NAME,
         source_config_class=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
     )

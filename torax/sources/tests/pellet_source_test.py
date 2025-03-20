@@ -21,6 +21,7 @@ class PelletSourceTest(test_lib.SingleProfileSourceTestCase):
 
   def setUp(self):
     super().setUp(
+        model_function_name=pellet_source.PelletSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_config_class=pellet_source.PelletSourceConfig,
         source_name=pellet_source.PelletSource.SOURCE_NAME,
     )

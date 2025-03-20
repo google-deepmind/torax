@@ -21,6 +21,7 @@ class GenericCurrentSourceTest(test_lib.SingleProfileSourceTestCase):
 
   def setUp(self):
     super().setUp(
+        model_function_name=generic_current_source.GenericCurrentSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_config_class=generic_current_source.GenericCurrentSourceConfig,
         source_name=generic_current_source.GenericCurrentSource.SOURCE_NAME,
     )

@@ -28,6 +28,7 @@ class QeiSourceTest(test_lib.SourceTestCase):
   # pytype: disable=signature-mismatch
   def setUp(self):
     super().setUp(
+        model_function_name=qei_source.QeiSource.DEFAULT_MODEL_FUNCTION_NAME,
         source_name=qei_source.QeiSource.SOURCE_NAME,
         source_config_class=qei_source.QeiSourceConfig,
         needs_source_models=False,

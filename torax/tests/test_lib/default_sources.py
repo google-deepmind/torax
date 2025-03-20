@@ -41,22 +41,18 @@ def get_default_sources() -> source_pydantic_model.Sources:
   `torax/tests/test_data`.
   """
   names = [
-      # Current sources (for psi equation)
-      'j_bootstrap',
-      'generic_current_source',
       # Electron density sources/sink (for the ne equation).
-      'generic_particle_source',
-      'gas_puff_source',
-      'pellet_source',
+      ('generic_particle_source', 'calc_generic_particle_source'),
+      ('gas_puff_source', 'calc_puff_source'),
+      ('pellet_source', 'calc_pellet_source'),
       # Ion and electron heat sources (for the temp-ion and temp-el eqs).
-      'generic_ion_el_heat_source',
-      'fusion_heat_source',
-      'qei_source',
+      ('generic_ion_el_heat_source', 'default_formula'),
+      ('fusion_heat_source', 'fusion_heat_model_func'),
       # Ohmic heat source
-      'ohmic_heat_source',
-      'bremsstrahlung_heat_sink',
+      ('ohmic_heat_source', 'ohmic_model_func'),
+      ('bremsstrahlung_heat_sink', 'bremsstrahlung_model_func'),
   ]
   sources = {}
-  for name in names:
-    sources[name] = {}
+  for source_name, model_function_name in names:
+    sources[source_name] = {'model_function_name': model_function_name}
   return source_pydantic_model.Sources.from_dict(sources)

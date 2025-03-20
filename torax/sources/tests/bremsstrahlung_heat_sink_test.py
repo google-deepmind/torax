@@ -33,6 +33,7 @@ class BremsstrahlungHeatSinkTest(test_lib.SingleProfileSourceTestCase):
 
   def setUp(self):
     super().setUp(
+        model_function_name=bremsstrahlung_heat_sink.BremsstrahlungHeatSink.DEFAULT_MODEL_FUNCTION_NAME,
         source_config_class=bremsstrahlung_heat_sink.BremsstrahlungHeatSinkConfig,
         source_name=bremsstrahlung_heat_sink.BremsstrahlungHeatSink.SOURCE_NAME,
     )

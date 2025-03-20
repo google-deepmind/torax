@@ -171,15 +171,18 @@ class RuntimeParamsSliceTest(parameterized.TestCase):
       runtime_params = general_runtime_params.GeneralRuntimeParams()
       sources = sources_pydantic_model.Sources.from_dict({
           gas_puff_source_lib.GasPuffSource.SOURCE_NAME: {
+              'model_function_name': 'calc_puff_source',
               'puff_decay_length': {0.0: 0.0, 1.0: 4.0},
               'S_puff_tot': {0.0: 0.0, 1.0: 5.0},
           },
           pellet_source_lib.PelletSource.SOURCE_NAME: {
+              'model_function_name': 'calc_pellet_source',
               'pellet_width': {0.0: 0.0, 1.0: 1.0},
               'pellet_deposition_location': {0.0: 0.0, 1.0: 2.0},
               'S_pellet_tot': {0.0: 0.0, 1.0: 3.0},
           },
           generic_particle_source_lib.GenericParticleSource.SOURCE_NAME: {
+              'model_function_name': 'calc_generic_particle_source',
               'particle_width': {0.0: 0.0, 1.0: 6.0},
               'deposition_location': {0.0: 0.0, 1.0: 7.0},
               'S_tot': {0.0: 0.0, 1.0: 8.0},
