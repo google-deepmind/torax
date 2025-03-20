@@ -18,8 +18,8 @@ import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax.config import build_sim
 from torax.tests.test_lib import paths
+from torax.torax_pydantic import model_config
 
 PYTHON_MODULE_PREFIX = '.examples.'
 PYTHON_CONFIG_PACKAGE = 'torax'
@@ -33,15 +33,14 @@ class ExamplesTest(parameterized.TestCase):
       'iterhybrid_predictor_corrector',
       'iterhybrid_rampup',
   ])
-  def test_build_sim_from_config(self, config_name_no_py: str):
-    """Checks that build_sim from_config can run on those configs."""
+  def test_validation_of_configs(self, config_name_no_py: str):
     config_path = os.path.join(paths.examples_dir(), config_name_no_py + '.py')
     assert os.path.exists(config_path), config_path
     python_config_module = PYTHON_MODULE_PREFIX + config_name_no_py
     config_module = importlib.import_module(
         python_config_module, PYTHON_CONFIG_PACKAGE
     )
-    _ = build_sim.build_sim_from_config(config_module.CONFIG)
+    model_config.ToraxConfig.from_dict(config_module.CONFIG)
 
 
 if __name__ == '__main__':
