@@ -22,9 +22,9 @@ import time
 from absl import app
 from absl import flags
 from torax import simulation_app
-from torax.config import build_sim
 from torax.tests.test_lib import paths
 from torax.tests.test_lib import sim_test_case
+from torax.torax_pydantic import model_config
 
 import multiprocessing
 
@@ -68,12 +68,16 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
   if hasattr(config_module, 'get_sim'):
     # The config module likely uses the "advanced" configuration setup with
     # python functions defining all the Sim object attributes.
-    sim = config_module.get_sim()
+    raise NotImplementedError(
+        'get_sim() is not supported in this script. Please use the "basic"'
+        ' configuration setup with a single CONFIG dictionary defining'
+        ' everything.'
+    )
   elif hasattr(config_module, 'CONFIG'):
     # The config module is using the "basic" configuration setup with a single
     # CONFIG dictionary defining everything.
     # This CONFIG needs to be built into an actual Sim object.
-    sim = build_sim.build_sim_from_config(config_module.CONFIG)
+    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
   else:
     raise ValueError(
         f'Config module {config_name} must either define a get_sim() method'
@@ -81,7 +85,7 @@ def _run_sim(config_name: str, test_data_dir: str, output_dir: str):
     )
   try:
     output_file = simulation_app.main(
-        lambda: sim,
+        lambda: torax_config,
         output_dir=os.path.join(output_dir, config_name),
     )
     print(f'Finished running {config_name}, output saved to {output_file}')

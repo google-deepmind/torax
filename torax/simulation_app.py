@@ -60,17 +60,10 @@ from typing import Callable, Final
 from absl import logging
 import jax
 import numpy as np
-from torax import output
-from torax import sim as sim_lib
 from torax import state
-from torax.config import build_runtime_params
-from torax.config import runtime_params as runtime_params_lib
 from torax.geometry import geometry
-from torax.geometry import geometry_provider
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import pydantic_model as sources_pydantic_model
-from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.orchestration import run_simulation
+from torax.torax_pydantic import model_config
 import xarray as xr
 
 import shutil
@@ -160,63 +153,20 @@ def _get_output_dir(
   )
 
 
-def update_sim(
-    sim: sim_lib.Sim,
-    runtime_params: runtime_params_lib.GeneralRuntimeParams,
-    geo_provider: geometry_provider.GeometryProvider,
-    transport: transport_pydantic_model.Transport,
-    sources: sources_pydantic_model.Sources,
-    stepper: stepper_pydantic_model.Stepper,
-    pedestal: pedestal_pydantic_model.Pedestal,
-) -> None:
-  """Updates the sim with a new set of runtime params and geometry."""
-  # NOTE: This function will NOT update any of the following:
-  #  - stepper (for the mesh state)
-  #  - transport model object (runtime params are updated)
-  #  - spectator
-  #  - time step calculator
-  #  - source objects (runtime params are updated)
-  static_runtime_params_slice = (
-      build_runtime_params.build_static_runtime_params_slice(
-          runtime_params=runtime_params,
-          sources=sources,
-          torax_mesh=geo_provider.torax_mesh,
-          stepper=stepper,
-      )
-  )
-  dynamic_runtime_params_slice_provider = (
-      build_runtime_params.DynamicRuntimeParamsSliceProvider(
-          runtime_params=runtime_params,
-          transport=transport,
-          sources=sources,
-          stepper=stepper,
-          pedestal=pedestal,
-          torax_mesh=geo_provider.torax_mesh,
-      )
-  )
-
-  sim.update_base_components(
-      allow_recompilation=True,
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-      geometry_provider=geo_provider,
-  )
-
-
 def can_plot() -> bool:
   # TODO(b/335596567): Find way to detect displays that works on all OS's.
   return True
 
 
 def main(
-    get_sim: Callable[[], sim_lib.Sim],
+    get_config: Callable[[], model_config.ToraxConfig],
     *,
     output_dir: str | None = None,
     log_sim_progress: bool = False,
     log_sim_output: bool = False,
     plot_sim_progress: bool = False,
 ) -> str:
-  """Runs a simulation obtained via `get_sim`.
+  """Runs a simulation obtained via `get_config`.
 
   This function will always write files to a directory containing the
   simulation output and the input config. If the output directory exists, that
@@ -224,7 +174,7 @@ def main(
   a new folder will be created.
 
   Args:
-    get_sim: Callable that returns a Sim.
+    get_config: Callable that returns a ToraxConfig.
     output_dir: Path to an output directory. If not provided, then a folder in
       /tmp is created with a timestamp of this run. If the chosen directory
       already exists, then it will be deleted before writing new results to
@@ -244,26 +194,23 @@ def main(
   """
   output_dir = _get_output_dir(output_dir)
 
-  sim = get_sim()
-  geo = sim.geometry_provider(sim.initial_state.t)
+  torax_config = get_config()
 
   log_to_stdout('Starting simulation.', color=AnsiColors.GREEN)
-  sim_outputs = sim.run(
-      log_timestep_info=log_sim_progress,
-  )
+  state_history = run_simulation.run_simulation(torax_config, log_sim_progress)
   log_to_stdout('Finished running simulation.', color=AnsiColors.GREEN)
-  state_history = output.StateHistory(sim_outputs, sim.source_models)
 
   if plot_sim_progress:
     raise NotImplementedError('Plotting progress is temporarily disabled.')
 
-  data_tree = state_history.simulation_output_to_xr(sim.file_restart)
+  data_tree = state_history.simulation_output_to_xr(torax_config.restart)
 
   output_file = write_simulation_output_to_file(output_dir, data_tree)
 
   if log_sim_output:
     log_simulation_output_to_stdout(
-        state_history.core_profiles, geo, state_history.times
+        state_history.core_profiles, state_history.geometry, state_history.times
     )
 
   return output_file
+

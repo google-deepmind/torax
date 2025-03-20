@@ -17,18 +17,16 @@
 import importlib
 import logging
 
-from torax import sim
-from torax.config import build_sim
-from torax.config import runtime_params
+from torax.torax_pydantic import model_config
 
 # Tracks all the modules imported so far. Maps the name to the module object.
 _ALL_MODULES = {}
 
 
-def build_sim_and_runtime_params_from_config_module(
+def build_torax_config_from_config_module(
     config_module_str: str,
     config_package: str | None = None,
-) -> tuple[sim.Sim, runtime_params.GeneralRuntimeParams]:
+) -> model_config.ToraxConfig:
   """Returns a Sim and RuntimeParams from the config module.
 
   Args:
@@ -42,23 +40,12 @@ def build_sim_and_runtime_params_from_config_module(
     # The module likely uses the "basic" config setup which has a single CONFIG
     # dictionary defining the full simulation.
     config = config_module.CONFIG
-    new_runtime_params = runtime_params.GeneralRuntimeParams.from_dict(
-        config['runtime_params']
-    )
-    simulator = build_sim.build_sim_from_config(config)
-  elif hasattr(config_module, 'get_runtime_params') and hasattr(
-      config_module, 'get_sim'
-  ):
-    # The module is likely using the "advances", more Python-forward
-    # configuration setup.
-    new_runtime_params = config_module.get_runtime_params()
-    simulator = config_module.get_sim()
+    torax_config = model_config.ToraxConfig.from_dict(config)
   else:
     raise ValueError(
-        f'Config module {config_module_str} must either define a get_sim() '
-        'method or a CONFIG dictionary.'
+        f'Config module {config_module_str} must define a CONFIG dictionary.'
     )
-  return simulator, new_runtime_params
+  return torax_config
 
 
 def import_module(module_name: str, config_package: str | None = None):

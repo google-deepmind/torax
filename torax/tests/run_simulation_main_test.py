@@ -56,7 +56,7 @@ class RunSimulationMainTest(parameterized.TestCase):
     # The @patch decorator overrides the `input` function so that when
     # `prompt_user` calls `input`, it will receive an "r". That is a valid
     # command and it should return it.
-    user_command = run_simulation_main.prompt_user(config_str)
+    user_command = run_simulation_main._prompt_user(config_str)
     self.assertEqual(user_command, run_simulation_main._UserCommand.RUN)
 
   @mock.patch("builtins.input", side_effect=["invalid", "q"])
@@ -69,7 +69,7 @@ class RunSimulationMainTest(parameterized.TestCase):
     # a valid command so it should be rejected. The `prompt_user` function
     # re-prompts forever until a valid input is received so we next send
     # a valid "q" for quit.
-    user_command = run_simulation_main.prompt_user(config_str)
+    user_command = run_simulation_main._prompt_user(config_str)
     self.assertEqual(user_command, run_simulation_main._UserCommand.QUIT)
 
   @flagsaver.flagsaver(
@@ -163,7 +163,7 @@ class RunSimulationMainTest(parameterized.TestCase):
         os.remove(in_use)
         shutil.copy(after, in_use)
         os.sync()
-        response = "cc"
+        response = "mc"
       elif call_count == 1:
         self.assertEqual(prompt, run_simulation_main.Y_N_PROMPT)
         # The second call to `input` is confirming that we should run with
