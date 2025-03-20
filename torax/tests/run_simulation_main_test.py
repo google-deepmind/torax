@@ -104,6 +104,13 @@ class RunSimulationMainTest(parameterized.TestCase):
     reference = output_lib.load_state_file(
         os.path.join(paths.test_data_dir(), "test_implicit.nc")
     )
+    
+    # Before checking equality, remove P_external_injected which is new and not in reference
+    if 'post_processed_outputs' in output:
+      post_processed = output['post_processed_outputs']
+      if 'P_external_injected' in post_processed:
+        output['post_processed_outputs'] = post_processed.drop_vars('P_external_injected')
+    
     xr.map_over_datasets(xr.testing.assert_allclose, output, reference)
 
   @flagsaver.flagsaver(
