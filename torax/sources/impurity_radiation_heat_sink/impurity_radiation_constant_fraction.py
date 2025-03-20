@@ -28,8 +28,6 @@ from torax.sources import source_profiles as source_profiles_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax.torax_pydantic import torax_pydantic
 
-MODEL_FUNCTION_NAME = 'radially_constant_fraction_of_Pin'
-
 
 def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
     unused_static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
@@ -101,9 +99,6 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
     fraction_of_total_power_density: Fraction of total power density to be
       absorbed by the impurity.
   """
-  source_name: Literal['impurity_radiation_heat_sink'] = (
-      'impurity_radiation_heat_sink'
-  )
   model_function_name: Literal['radially_constant_fraction_of_Pin'] = (
       'radially_constant_fraction_of_Pin'
   )

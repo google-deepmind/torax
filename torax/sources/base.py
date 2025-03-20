@@ -13,6 +13,7 @@
 # limitations under the License.
 """Base model for source pydantic configs."""
 import abc
+from typing import Literal
 
 import chex
 from torax.sources import runtime_params
@@ -24,6 +25,10 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base model holding parameters common to all source models.
 
   Attributes:
+    model_function_name: Name of the model function to be used for the source.
+      This is also used as an identifier for the model function in the source
+      config for Pydantic to "discriminate" against. This should be given a
+      unique value for each source model function implementation.
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
     is_explicit: Defines whether this is an explicit or implicit source.
@@ -39,7 +44,7 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       default here is a vector of all zeros along for all rho and time, and the
       output vector is along the cell grid.
   """
-
+  model_function_name: Literal[str] = 'base'
   mode: runtime_params.Mode = runtime_params.Mode.ZERO
   is_explicit: bool = False
   prescribed_values: torax_pydantic.TimeVaryingArray = (

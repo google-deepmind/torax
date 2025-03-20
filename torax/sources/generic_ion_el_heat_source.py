@@ -14,7 +14,7 @@
 
 """Generic heat source for both ion and electron heat."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar, Final, Literal
 
 import chex
 from torax import array_typing
@@ -27,6 +27,12 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+
+
+# Default value for the model function to be used for the electron cyclotron
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'default_formula'
 
 
 # pylint: disable=invalid-name
@@ -103,7 +109,6 @@ class GenericIonElectronHeatSource(source.Source):
   """Generic heat source for both ion and electron heat."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_ion_el_heat_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'default_formula'
   model_func: source.SourceProfileFunction = default_formula
 
   @property
@@ -128,9 +133,8 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
     el_heat_fraction: Electron heating fraction
     absorption_fraction: Fraction of absorbed power
   """
-
-  source_name: Literal['generic_ion_el_heat_source'] = (
-      'generic_ion_el_heat_source'
+  model_function_name: Literal[DEFAULT_MODEL_FUNCTION_NAME] = (
+      DEFAULT_MODEL_FUNCTION_NAME
   )
   w: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.25)
   rsource: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(

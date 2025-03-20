@@ -13,7 +13,7 @@
 # limitations under the License.
 """Ohmic heat source."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar, Final, Literal
 
 import chex
 import jax.numpy as jnp
@@ -25,6 +25,12 @@ from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
 from torax.sources import source_profiles as source_profiles_lib
+
+
+# Default value for the model function to be used for the ohmic heat
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'ohmic_model_func'
 
 
 def ohmic_model_func(
@@ -70,7 +76,6 @@ class OhmicHeatSource(source_lib.Source):
   """
 
   SOURCE_NAME: ClassVar[str] = 'ohmic_heat_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'ohmic_model_func'
   model_func: source_lib.SourceProfileFunction = ohmic_model_func
 
   @property
@@ -86,8 +91,9 @@ class OhmicHeatSource(source_lib.Source):
 
 class OhmicHeatSourceConfig(base.SourceModelBase):
   """Configuration for the OhmicHeatSource."""
-
-  source_name: Literal['ohmic_heat_source'] = 'ohmic_heat_source'
+  model_function_name: Literal[DEFAULT_MODEL_FUNCTION_NAME] = (
+      DEFAULT_MODEL_FUNCTION_NAME
+  )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property
