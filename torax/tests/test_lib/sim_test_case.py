@@ -16,7 +16,7 @@
 import copy
 import importlib
 import os
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from absl.testing import parameterized
 import chex
@@ -53,25 +53,15 @@ class SimTestCase(parameterized.TestCase):
   def _expected_results_path(self, test_name: str) -> str:
     return os.path.join(self.test_data_dir, f'{test_name}')
 
-  def _get_config_module(
-      self,
-      config_name: str,
-  ):
-    """Returns an input Config from the name given."""
-    test_config_path = os.path.join(self.test_data_dir, config_name)
-    assert os.path.exists(test_config_path), test_config_path
-
-    # Load config structure with test-case-specific values.
-    assert config_name.endswith('.py'), config_name
-    config_name_no_py = config_name[:-3]
-    python_config_module = PYTHON_MODULE_PREFIX + config_name_no_py
-    return importlib.import_module(python_config_module, PYTHON_CONFIG_PACKAGE)
+  def _get_config_dict(self, config_name: str) -> dict[str, Any]:
+    """Returns a deepcopy of the config dict given the name of a module."""
+    config_module = _get_config_module(self.test_data_dir, config_name)
+    return copy.deepcopy(config_module.CONFIG)
 
   def _get_torax_config(self, config_name: str) -> model_config.ToraxConfig:
     """Returns a ToraxConfig given the name of a py file to build it."""
-    config_module = self._get_config_module(config_name)
-    return copy.deepcopy(
-        model_config.ToraxConfig.from_dict(config_module.CONFIG))
+    config_module = _get_config_module(self.test_data_dir, config_name)
+    return model_config.ToraxConfig.from_dict(config_module.CONFIG)
 
   def _get_refs(
       self,
@@ -213,8 +203,7 @@ class SimTestCase(parameterized.TestCase):
     if atol is None:
       atol = self.atol
 
-    config_module = self._get_config_module(config_name)
-    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    torax_config = self._get_torax_config(config_name)
     history = run_simulation.run_simulation(torax_config)
     ds = history.simulation_output_to_xr()
     output_dir = _FAILED_TEST_OUTPUT_DIR + config_name[:-3]
@@ -235,3 +224,15 @@ class SimTestCase(parameterized.TestCase):
         ds=ds,
         write_output=write_output,
     )
+
+
+def _get_config_module(test_data_dir: str, config_name: str):
+  """Returns an input Config module from the paths given."""
+  test_config_path = os.path.join(test_data_dir, config_name)
+  assert os.path.exists(test_config_path), test_config_path
+
+  # Load config structure with test-case-specific values.
+  assert config_name.endswith('.py'), config_name
+  config_name_no_py = config_name[:-3]
+  python_config_module = PYTHON_MODULE_PREFIX + config_name_no_py
+  return importlib.import_module(python_config_module, PYTHON_CONFIG_PACKAGE)

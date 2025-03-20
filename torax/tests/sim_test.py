@@ -595,8 +595,7 @@ class SimTest(sim_test_case.SimTestCase):
     loading_time = ref_time[index]
 
     # Build the sim and runtime params at t=`loading_time`.
-    config_module = self._get_config_module(test_config + '.py')
-    config = config_module.CONFIG
+    config = self._get_config_dict(test_config + '.py')
     config['runtime_params']['numerics']['t_initial'] = loading_time
     torax_config = model_config.ToraxConfig.from_dict(config)
 
@@ -671,15 +670,13 @@ class SimTest(sim_test_case.SimTestCase):
 
   def test_nans_trigger_error(self):
     """Verify that NaNs in profile evolution triggers early stopping and an error."""
-
-    config_module = self._get_config_module('test_iterhybrid_makenans.py')
-    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    torax_config = self._get_torax_config('test_iterhybrid_makenans.py')
     state_history = run_simulation.run_simulation(torax_config)
 
     self.assertEqual(state_history.sim_error, state.SimError.NAN_DETECTED)
     self.assertLess(
         state_history.times[-1],
-        config_module.CONFIG['runtime_params']['numerics']['t_final'],
+        torax_config.runtime_params.numerics.t_final,
     )
 
 

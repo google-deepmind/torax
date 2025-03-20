@@ -20,7 +20,6 @@ import numpy as np
 from torax import output
 from torax.orchestration import run_simulation
 from torax.tests.test_lib import sim_test_case
-from torax.torax_pydantic import model_config
 import xarray as xr
 
 
@@ -70,9 +69,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     )
 
   def test_change_config(self):
-    config_name = 'test_iterhybrid_newton.py'
-    config_module = self._get_config_module(config_name)
-    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    torax_config = self._get_torax_config('test_iterhybrid_newton.py')
     history = run_simulation.run_simulation(torax_config)
 
     original_value = torax_config.runtime_params.profile_conditions.nbar
@@ -94,8 +91,7 @@ class RunSimulationTest(sim_test_case.SimTestCase):
     test_config_state_file = 'test_iterhybrid_rampup.nc'
     restart_config = 'test_iterhybrid_rampup_restart.py'
 
-    config_module = self._get_config_module(restart_config)
-    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    torax_config = self._get_torax_config(restart_config)
     history = run_simulation.run_simulation(torax_config)
 
     data_tree_restart = history.simulation_output_to_xr()

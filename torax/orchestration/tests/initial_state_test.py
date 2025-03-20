@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import copy
 from unittest import mock
 
 from absl.testing import absltest
@@ -33,10 +32,7 @@ from torax.torax_pydantic import model_config
 class InitialStateTest(sim_test_case.SimTestCase):
 
   def test_from_file_restart(self):
-    restart_config = 'test_iterhybrid_rampup_restart.py'
-
-    config_module = self._get_config_module(restart_config)
-    torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+    torax_config = self._get_torax_config('test_iterhybrid_rampup_restart.py')
 
     step_fn = _get_step_fn(torax_config)
 
@@ -104,8 +100,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     ref_profiles, ref_time = self._get_refs(test_config + '.nc', profiles)
     t = int(ref_time[index])
 
-    config_module = self._get_config_module(test_config + '.py')
-    config = copy.deepcopy(config_module.CONFIG)
+    config = self._get_config_dict(test_config + '.py')
     config['runtime_params']['numerics']['t_initial'] = t
     torax_config = model_config.ToraxConfig.from_dict(config)
 
