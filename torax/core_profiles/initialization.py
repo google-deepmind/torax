@@ -93,6 +93,9 @@ def initial_core_profiles(
   currents = state.Currents.zeros(geo)
 
   # Set vloop_lcfs to 0 for the first time step if not provided
+  # TODO(b/396374895): For Ip_tot BC, introduce a feature for calculating
+  # vloop_lcfs in final post-processing and test to check vloop equivalence
+  # between vloop BC and Ip_tot BC
   vloop_lcfs = (
       jnp.array(0.0)
       if dynamic_runtime_params_slice.profile_conditions.vloop_lcfs is None
@@ -120,7 +123,7 @@ def initial_core_profiles(
       vloop_lcfs=vloop_lcfs,
   )
 
-  core_profiles = _init_psi_psidot_vloop_and_current(
+  core_profiles = _init_psi_psidot_and_currents(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
@@ -306,7 +309,7 @@ def _update_psi_from_j(
   return psi
 
 
-def _init_psi_psidot_vloop_and_current(
+def _init_psi_psidot_and_currents(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -511,7 +514,6 @@ def _init_psi_psidot_vloop_and_current(
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
       currents=currents,
-      vloop_lcfs=dynamic_runtime_params_slice.profile_conditions.vloop_lcfs,
   )
   bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -537,17 +539,9 @@ def _init_psi_psidot_vloop_and_current(
       geo=geo,
   )
   psidot_cell_var = dataclasses.replace(core_profiles.psidot, value=psidot)
-  # TODO(b/396374895): For Ip_tot BC, introduce a feature for calculating
-  # vloop_lcfs in final post-processing and test to check vloop equivalence
-  # between vloop BC and Ip_tot BC
   core_profiles = dataclasses.replace(
       core_profiles,
       psidot=psidot_cell_var,
-      vloop_lcfs=(
-          dynamic_runtime_params_slice.profile_conditions.vloop_lcfs
-          if use_vloop_bc
-          else 0.0
-      ),
   )
 
   return core_profiles
