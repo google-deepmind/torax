@@ -25,7 +25,6 @@ from torax.interpolated_param import InterpolatedVarTimeRho
 from torax.interpolated_param import InterpolationMode
 from torax.orchestration.run_simulation import run_simulation
 from torax.output import ToraxSimOutputs
-from torax.sim import Sim
 from torax.state import SimError
 from torax.torax_pydantic.model_config import ToraxConfig
 
@@ -38,7 +37,6 @@ __all__ = [
     'InterpolatedVarTimeRho',
     'InterpolationMode',
     'run_simulation',
-    'Sim',
     'SimError',
     'ToraxConfig',
     'ToraxSimOutputs',

@@ -57,7 +57,6 @@ class ArgOrderTest(parameterized.TestCase):
       dict(module=sim),
       dict(module=updaters),
       dict(module=physics),
-      dict(module=sim),
       dict(module=state),
       dict(module=block_1d_coeffs),
       dict(module=discrete_system),
