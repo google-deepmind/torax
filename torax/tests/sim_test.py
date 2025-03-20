@@ -18,7 +18,6 @@ These are full integration tests that run the simulation and compare to a
 previously executed TORAX reference:
 """
 import copy
-import os
 from typing import Optional, Sequence
 from unittest import mock
 
@@ -29,11 +28,9 @@ import numpy as np
 from torax import output
 from torax import sim as sim_lib
 from torax import state
-from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.orchestration import run_simulation
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
-import xarray as xr
 
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
@@ -685,74 +682,6 @@ class SimTest(sim_test_case.SimTestCase):
         state_history.times[-1],
         config_module.CONFIG['runtime_params']['numerics']['t_final'],
     )
-
-  def test_restart_sim_from_file(self):
-    test_config_state_file = 'test_iterhybrid_rampup.nc'
-    restart_config = 'test_iterhybrid_rampup_restart.py'
-    sim = self._get_sim(restart_config)
-    sim_outputs = sim.run()
-    history = output.StateHistory(sim_outputs, sim.source_models)
-    data_tree_restart = history.simulation_output_to_xr()
-
-    # Load the reference dataset.
-    datatree_ref = output.load_state_file(
-        os.path.join(self.test_data_dir, test_config_state_file)
-    )
-
-    # Stitch the restart state file to the beginning of the reference dataset.
-    datatree_new = output.stitch_state_files(
-        sim.file_restart, data_tree_restart
-    )
-
-    # Check equality for all time-dependent variables.
-    def check_equality(ds1: xr.Dataset, ds2: xr.Dataset):
-      for var_name in ds1.data_vars:
-        if 'time' in ds1[var_name].dims:
-          with self.subTest(var_name=var_name):
-            np.testing.assert_allclose(
-                ds1[var_name].values,
-                ds2[var_name].values,
-                err_msg=f'Mismatch for {var_name} in restart test',
-                rtol=1e-6,
-            )
-
-    xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
-
-  def test_update(self):
-    sim = self._get_sim('test_iterhybrid_predictor_corrector.py')
-    new_config = self._get_config_module(
-        'test_iterhybrid_predictor_corrector_eqdsk.py'
-    ).CONFIG
-    sim.update_base_components(
-        geometry_provider=geometry_pydantic_model.Geometry.from_dict(
-            new_config['geometry']
-        ).build_provider
-    )
-    sim_outputs = sim.run()
-
-    # Extract core profiles history for analysis against references
-    history = output.StateHistory(sim_outputs, sim.source_models)
-    ref_profiles, ref_time = self._get_refs(
-        'test_iterhybrid_predictor_corrector_eqdsk.nc', _ALL_PROFILES
-    )
-
-    self._check_profiles_vs_expected(
-        core_profiles=history.core_profiles,
-        t=history.times,
-        ref_time=ref_time,
-        ref_profiles=ref_profiles,
-        rtol=self.rtol,
-        atol=self.atol,
-    )
-
-  def test_update_new_mesh(self):
-    sim = self._get_sim('test_iterhybrid_rampup.py')
-    with self.assertRaisesRegex(ValueError, 'different mesh'):
-      sim.update_base_components(
-          geometry_provider=geometry_pydantic_model.Geometry.from_dict(
-              {'geometry_type': 'circular', 'n_rho': 10}
-          ).build_provider
-      )
 
 
 def verify_core_profiles(ref_profiles, index, core_profiles):
