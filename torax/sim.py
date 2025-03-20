@@ -236,6 +236,8 @@ def _run_simulation(
   )
 
   sim_state = initial_state
+  # Add the dynamic_runtime_params_slice to the sim_state
+  sim_state.dynamic_runtime_params_slice = dynamic_runtime_params_slice
   sim_history = []
   sim_state = post_processing.make_outputs(sim_state=sim_state, geo=geo)
   sim_history.append(sim_state)
@@ -267,6 +269,17 @@ def _run_simulation(
           geometry_provider,
           sim_state,
       )
+      
+      # Update the dynamic_runtime_params_slice for the current time step
+      dynamic_runtime_params_slice, geo = (
+          build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+              t=sim_state.t,
+              dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+              geometry_provider=geometry_provider,
+          )
+      )
+      sim_state.dynamic_runtime_params_slice = dynamic_runtime_params_slice
+      
       wall_clock_step_times.append(time.time() - step_start_time)
 
       # Checks if sim_state is valid. If not, exit simulation early.

@@ -15,14 +15,14 @@
 """Classes defining the TORAX state that evolves over time."""
 import dataclasses
 import enum
-from typing import Any, Optional
+from typing import Any, Optional, Mapping, Sequence, TypeVar, Union, cast
 
 from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
-from torax.config import config_args
+from torax.config import config_args, runtime_params_slice
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.sources import source_profiles
@@ -594,6 +594,8 @@ class ToraxSimState:
     geometry: Geometry at this time step used for the simulation.
     time_step_calculator_state: the state of the TimeStepper.
     stepper_numeric_outputs: Numerical quantities related to the stepper.
+    dynamic_runtime_params_slice: Runtime parameters that can change without
+      requiring recompilation, used for integration with the sources.
   """
 
   # Time variables.
@@ -615,6 +617,9 @@ class ToraxSimState:
   # TORAX.
   time_step_calculator_state: Any
   stepper_numeric_outputs: StepperNumericOutputs
+  
+  # Runtime parameters that can vary without recompilation
+  dynamic_runtime_params_slice: Optional[runtime_params_slice.DynamicRuntimeParamsSlice] = None
 
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""
