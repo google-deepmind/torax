@@ -134,6 +134,50 @@ class SourceTest(parameterized.TestCase):
         rtol=1e-6,
     )
 
+  def test_bremsstrahlung_and_mavrin_validator_with_bremsstrahlung_zero(self):
+    valid_config = {
+        'bremsstrahlung_heat_sink': {'mode': 'ZERO'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'PRESCRIBED',
+            'model_function_name': 'impurity_radiation_mavrin_fit',
+        },
+    }
+    source_pydantic_model.Sources.from_dict(valid_config)
+
+  def test_bremsstrahlung_and_mavrin_validator_with_mavrin_zero(self):
+    valid_config = {
+        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'ZERO',
+            'model_function_name': 'impurity_radiation_mavrin_fit',
+        },
+    }
+    source_pydantic_model.Sources.from_dict(valid_config)
+
+  def test_bremsstrahlung_and_mavrin_validator_with_constant_fraction(self):
+    valid_config = {
+        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'PRESCRIBED',
+            'model_function_name': 'radially_constant_fraction_of_Pin',
+        },
+    }
+    source_pydantic_model.Sources.from_dict(valid_config)
+
+  def test_bremsstrahlung_and_mavrin_validator_with_invalid_config(self):
+    invalid_config = {
+        'bremsstrahlung_heat_sink': {'mode': 'PRESCRIBED'},
+        'impurity_radiation_heat_sink': {
+            'mode': 'PRESCRIBED',
+            'model_function_name': 'impurity_radiation_mavrin_fit',
+        },
+    }
+    with self.assertRaisesRegex(
+        ValueError,
+        'Both bremsstrahlung_heat_sink and impurity_radiation_heat_sink',
+    ):
+      source_pydantic_model.Sources.from_dict(invalid_config)
+
 
 if __name__ == '__main__':
   absltest.main()

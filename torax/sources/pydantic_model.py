@@ -30,10 +30,12 @@ from torax.sources import ion_cyclotron_source as ion_cyclotron_source_lib
 from torax.sources import ohmic_heat_source as ohmic_heat_source_lib
 from torax.sources import pellet_source as pellet_source_lib
 from torax.sources import qei_source as qei_source_lib
+from torax.sources import runtime_params
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax.torax_pydantic import torax_pydantic
 from typing_extensions import Annotated
+from typing_extensions import Self
 
 
 def get_impurity_heat_sink_discriminator_value(model: dict[str, Any]) -> str:
@@ -110,6 +112,46 @@ class Sources(torax_pydantic.BaseModelFrozen):
   ohmic_heat_source: ohmic_heat_source_lib.OhmicHeatSourceConfig | None = (
       pydantic.Field(default=None)
   )
+
+  @pydantic.model_validator(mode='after')
+  def validate_radiation_models(self) -> Self:
+    """Validate that bremsstrahlung and Mavrin models are not both active at the same time.
+
+    This prevents double counting radiation losses.
+
+    Returns:
+      Self for method chaining.
+
+    Raises:
+      ValueError: If both bremsstrahlung and Mavrin models are active.
+    """
+    # Check if both sources are defined
+    if isinstance(
+        self.bremsstrahlung_heat_sink,
+        bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSinkConfig,
+    ) and isinstance(
+        self.impurity_radiation_heat_sink,
+        impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
+    ):
+
+      bremsstrahlung_active = (
+          self.bremsstrahlung_heat_sink.mode != runtime_params.Mode.ZERO
+      )
+
+      impurity_active = (
+          self.impurity_radiation_heat_sink.mode != runtime_params.Mode.ZERO
+      )
+
+      # Only raise error if both are active (not in ZERO mode)
+      if bremsstrahlung_active and impurity_active:
+        raise ValueError("""
+            Both bremsstrahlung_heat_sink and impurity_radiation_heat_sink
+            with the Mavrin model should not be active at the same time to avoid
+            double-counting Bremstrahlung losses. Please either set one of them
+            to Mode.ZERO or remove one of them (most likely Bremstrahlung).
+            """)
+
+    return self
 
   @property
   def source_model_config(self) -> dict[str, base.SourceModelBase]:
