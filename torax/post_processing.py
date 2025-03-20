@@ -28,6 +28,7 @@ from torax.physics import formulas
 from torax.physics import psi_calculations
 from torax.physics import scaling_laws
 from torax.sources import source_profiles
+from torax.config import runtime_params_slice
 
 _trapz = jax.scipy.integrate.trapezoid
 
@@ -60,6 +61,7 @@ def _calculate_integrated_sources(
     geo: geometry.Geometry,
     core_profiles: state.CoreProfiles,
     core_sources: source_profiles.SourceProfiles,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
 ) -> dict[str, jax.Array]:
   """Calculates total integrated internal and external source power and current.
 
@@ -67,6 +69,7 @@ def _calculate_integrated_sources(
     geo: Magnetic geometry
     core_profiles: Kinetic profiles such as temperature and density
     core_sources: Internal and external sources
+    dynamic_runtime_params_slice: Runtime parameters slice for current time step
 
   Returns:
     Dictionary with integrated quantities for all existing sources.
@@ -98,6 +101,7 @@ def _calculate_integrated_sources(
   integrated['P_sol_el'] = integrated['P_ei_exchange_el']
   integrated['P_external_ion'] = jnp.array(0.0)
   integrated['P_external_el'] = jnp.array(0.0)
+  integrated['P_external_injected'] = jnp.array(0.0)
 
   # Calculate integrated sources with convenient names, transformed from
   # TORAX internal names.
@@ -120,6 +124,15 @@ def _calculate_integrated_sources(
         integrated['P_external_ion'] += integrated[f'{value}_ion']
         integrated['P_external_el'] += integrated[f'{value}_el']
 
+        # Track injected power for heating sources that have absorption_fraction
+        source_params = dynamic_runtime_params_slice.sources.get(key)
+        if source_params and hasattr(source_params, 'absorption_fraction'):
+          total_absorbed = integrated[f'{value}_tot']
+          injected_power = total_absorbed / source_params.absorption_fraction
+          integrated['P_external_injected'] += injected_power
+        else:
+          integrated['P_external_injected'] += integrated[f'{value}_tot']
+
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
     profiles = core_sources.temp_el
@@ -128,6 +141,7 @@ def _calculate_integrated_sources(
       integrated['P_sol_el'] += integrated[f'{value}']
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_el'] += integrated[f'{value}']
+        integrated['P_external_injected'] += integrated[f'{value}']
 
   for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
     # Only populate integrated dict with sources that exist.
@@ -165,6 +179,14 @@ def make_outputs(
   Returns:
     sim_state: A ToraxSimState object, with any updated attributes.
   """
+  # Calculate the values of all quantities to output.
+  integrated_sources = _calculate_integrated_sources(
+      geo,
+      sim_state.core_profiles,
+      sim_state.core_sources,
+      sim_state.dynamic_runtime_params_slice,
+  )
+
   (
       pressure_thermal_el_face,
       pressure_thermal_ion_face,
@@ -184,17 +206,15 @@ def make_outputs(
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
   psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
-  integrated_sources = _calculate_integrated_sources(
-      geo,
-      sim_state.core_profiles,
-      sim_state.core_sources,
-  )
   # Calculate fusion gain with a zero division guard.
   # Total energy released per reaction is 5 times the alpha particle energy.
   Q_fusion = (
       integrated_sources['P_alpha_tot']
       * 5.0
-      / (integrated_sources['P_external_tot'] + constants.CONSTANTS.eps)
+      / (
+          integrated_sources['P_external_injected']
+          + constants.CONSTANTS.eps
+      )
   )
 
   P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (
@@ -209,7 +229,7 @@ def make_outputs(
   # Therefore highly radiative scenarios can lead to skewed results.
 
   Ploss = (
-      integrated_sources['P_alpha_tot'] + integrated_sources['P_external_tot']
+      integrated_sources['P_alpha_tot'] + integrated_sources['P_external_injected']
   )
 
   if previous_sim_state is not None:
@@ -257,8 +277,8 @@ def make_outputs(
         previous_sim_state.post_processed_outputs.E_cumulative_external
         + sim_state.dt
         * (
-            integrated_sources['P_external_tot']
-            + previous_sim_state.post_processed_outputs.P_external_tot
+            integrated_sources['P_external_injected']
+            + previous_sim_state.post_processed_outputs.P_external_injected
         )
         / 2.0
     )

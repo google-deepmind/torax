@@ -128,6 +128,7 @@ class PostProcessingTest(parameterized.TestCase):
         self.geo,
         self.core_profiles,
         self.source_profiles,
+        self.dynamic_runtime_params_slice,
     )
     # pylint: enable=protected-access
 
@@ -149,6 +150,7 @@ class PostProcessingTest(parameterized.TestCase):
         'P_external_ion',
         'P_external_el',
         'P_external_tot',
+        'P_external_injected',
         'I_ecrh',
         'I_generic',
     }

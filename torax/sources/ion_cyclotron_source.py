@@ -36,6 +36,7 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+from torax import interpolated_param
 
 # Internal import.
 
@@ -288,6 +289,7 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   frequency: array_typing.ScalarFloat
   minority_concentration: array_typing.ScalarFloat
   Ptot: array_typing.ScalarFloat
+  absorption_fraction: array_typing.ScalarFloat
   wall_inner: float
   wall_outer: float
 
@@ -410,18 +412,20 @@ def icrh_model_func(
       power_deposition_he3
       * frac_ion_heating
       * dynamic_source_runtime_params.Ptot
+      * dynamic_source_runtime_params.absorption_fraction
   )
   source_el = (
       power_deposition_he3
       * (1 - frac_ion_heating)
       * dynamic_source_runtime_params.Ptot
+      * dynamic_source_runtime_params.absorption_fraction
   )
 
   # Assume that all the power from the electron power profile goes to electrons.
-  source_el += power_deposition_e * dynamic_source_runtime_params.Ptot
+  source_el += power_deposition_e * dynamic_source_runtime_params.Ptot * dynamic_source_runtime_params.absorption_fraction
 
   # Assume that all the power from the tritium power profile goes to ions.
-  source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot
+  source_ion += power_deposition_2T * dynamic_source_runtime_params.Ptot * dynamic_source_runtime_params.absorption_fraction
 
   return (source_ion, source_el)
 
@@ -449,14 +453,13 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
   """Configuration for the IonCyclotronSource.
 
   Attributes:
-    wall_inner: Inner radial location of first wall at plasma midplane level
-      [m].
-    wall_outer: Outer radial location of first wall at plasma midplane level
-      [m].
-    frequency: ICRF wave frequency [Hz].
+    wall_inner: Inner wall radial position [m].
+    wall_outer: Outer wall radial position [m].
+    frequency: RF frequency [Hz].
     minority_concentration: He3 minority concentration relative to the electron
       density in %.
     Ptot: Total heating power [W].
+    absorption_fraction: Fraction of absorbed power.
   """
 
   source_name: Literal['ion_cyclotron_source'] = 'ion_cyclotron_source'
@@ -469,6 +472,11 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       torax_pydantic.ValidatedDefault(3.0)
   )
   Ptot: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(10e6)
+  # TODO: Add appropriate pydantic validation for absorption_fraction
+  # to ensure it's never below a small positive value to prevent division by zero.
+  absorption_fraction: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1.0)
+  )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property
@@ -489,6 +497,7 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
         frequency=self.frequency.get_value(t),
         minority_concentration=self.minority_concentration.get_value(t),
         Ptot=self.Ptot.get_value(t),
+        absorption_fraction=self.absorption_fraction.get_value(t),
     )
 
   def build_source(self) -> IonCyclotronSource:
