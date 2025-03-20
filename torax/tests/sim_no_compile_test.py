@@ -25,8 +25,8 @@ from torax.tests.test_lib import sim_test_case
 _ALL_PROFILES = ('temp_ion', 'temp_el', 'psi', 'q_face', 's_face', 'ne')
 
 
-class SimTest(sim_test_case.SimTestCase):
-  """No-compilation integration tests for torax.sim."""
+class SimNoCompileTest(sim_test_case.SimTestCase):
+  """No-compilation integration tests for torax.run_simulation."""
 
   @parameterized.named_parameters(
       (
@@ -46,7 +46,7 @@ class SimTest(sim_test_case.SimTestCase):
           1e-11,
       ),
   )
-  def test_torax_sim(
+  def test_run_simulation(
       self,
       config_name: str,
       profiles: Sequence[str],
@@ -55,7 +55,7 @@ class SimTest(sim_test_case.SimTestCase):
   ):
     """No-compilation version of integration tests."""
     with mock.patch.dict(os.environ, {'TORAX_COMPILATION_ENABLED': 'False'}):
-      self._test_torax_sim(
+      self._test_run_simulation(
           config_name,
           profiles,
           rtol=rtol,

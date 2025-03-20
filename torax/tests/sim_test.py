@@ -17,7 +17,6 @@
 These are full integration tests that run the simulation and compare to a
 previously executed TORAX reference:
 """
-import copy
 from typing import Optional, Sequence
 from unittest import mock
 
@@ -597,7 +596,7 @@ class SimTest(sim_test_case.SimTestCase):
 
     # Build the sim and runtime params at t=`loading_time`.
     config_module = self._get_config_module(test_config + '.py')
-    config = copy.deepcopy(config_module.CONFIG)
+    config = config_module.CONFIG
     config['runtime_params']['numerics']['t_initial'] = loading_time
     torax_config = model_config.ToraxConfig.from_dict(config)
 

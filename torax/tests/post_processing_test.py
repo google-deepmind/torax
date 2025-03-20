@@ -17,7 +17,6 @@ from absl.testing import parameterized
 import jax
 import numpy as np
 import scipy
-from torax import output
 from torax import post_processing
 from torax import state
 from torax.config import build_runtime_params
@@ -25,6 +24,7 @@ from torax.config import runtime_params as runtime_params_lib
 from torax.core_profiles import initialization
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.orchestration import run_simulation
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
@@ -227,14 +227,10 @@ class PostProcessingSimTest(sim_test_case.SimTestCase):
     """Tests E_fusion and E_external are calculated correctly."""
 
     # Use a test config with both external and fusion sources.
-    config_name = 'test_all_transport_fusion_qlknn'
+    config_name = 'test_all_transport_fusion_qlknn.py'
+    torax_config = self._get_torax_config(config_name)
 
-    # Load the config and run the simulation.
-    sim = self._get_sim(config_name + '.py')
-    sim_outputs = sim.run()
-
-    # Get the power and energy histories.
-    state_history = output.StateHistory(sim_outputs, sim.source_models)
+    state_history = run_simulation.run_simulation(torax_config)
     p_alpha = state_history.post_processed_outputs.P_alpha_tot
     p_external = state_history.post_processed_outputs.P_external_tot
     e_fusion = state_history.post_processed_outputs.E_cumulative_fusion
