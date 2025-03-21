@@ -106,6 +106,7 @@ class ImpurityRadiationConstantFractionTest(
         w=0.25,
         Ptot=120e6,
         el_heat_fraction=0.66666,
+        absorption_fraction=1.0,
     )
 
     static = runtime_params_lib.StaticRuntimeParams(

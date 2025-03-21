@@ -47,6 +47,8 @@ class PostProcessingTest(parameterized.TestCase):
             sources=sources,
         )
     )
+    # Save dynamic_runtime_params_slice for test_calculate_integrated_sources
+    self.dynamic_runtime_params_slice = dynamic_runtime_params_slice
     # Make some dummy source profiles.
     ones = np.ones_like(geo.rho)
     self.source_profiles = source_profiles_lib.SourceProfiles(
@@ -128,6 +130,7 @@ class PostProcessingTest(parameterized.TestCase):
         self.geo,
         self.core_profiles,
         self.source_profiles,
+        self.dynamic_runtime_params_slice,
     )
     # pylint: enable=protected-access
 
@@ -149,6 +152,7 @@ class PostProcessingTest(parameterized.TestCase):
         'P_external_ion',
         'P_external_el',
         'P_external_tot',
+        'P_external_injected',
         'I_ecrh',
         'I_generic',
     }

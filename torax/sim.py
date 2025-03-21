@@ -237,11 +237,12 @@ def _run_simulation(
 
   sim_state = initial_state
   sim_history = []
-  sim_state = post_processing.make_outputs(sim_state=sim_state, geo=geo)
+  sim_state = post_processing.make_outputs(
+      sim_state=sim_state, geo=geo, dynamic_runtime_params_slice=dynamic_runtime_params_slice
+  )
   sim_history.append(sim_state)
 
-  # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
-  # the appropriate error code.
+  # Simulation exit logic is specified by the TimeStepCalculator.
   sim_error = state.SimError.NO_ERROR
 
   with tqdm.tqdm(
@@ -267,6 +268,16 @@ def _run_simulation(
           geometry_provider,
           sim_state,
       )
+      
+      # Update the dynamic_runtime_params_slice for the current time step
+      dynamic_runtime_params_slice, geo = (
+          build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+              t=sim_state.t,
+              dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+              geometry_provider=geometry_provider,
+          )
+      )
+      
       wall_clock_step_times.append(time.time() - step_start_time)
 
       # Checks if sim_state is valid. If not, exit simulation early.
