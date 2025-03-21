@@ -1,7 +1,7 @@
 This section discusses a variety of options for building JAX-friendly interfaces to surrogate models.
 
 As an illustrative example, suppose we have a new neural network surrogate transport model that we would like to use in TORAX.
-Assume that all the boilerplate described in :ref:`_model-integration` has been taken care of, as well as the definition of some functions to convert between TORAX structures and tensors for the neural network.
+Assume that all the boilerplate described in the previous sections has been taken care of, as well as the definition of some functions to convert between TORAX structures and tensors for the neural network.
 
 .. code-block:: python
 
@@ -28,19 +28,20 @@ Assume that all the boilerplate described in :ref:`_model-integration` has been 
 
 In this guide, we explore a few options for how you could make the ``_call_surrogate_model`` function for an existing surrogate, while maintaining the full power of JAX:
 
-1. **Manually reimplementing the model in JAX**
-2. **Converting a Pytorch model to a JAX model**
-3. **Using an ONNX model**
+1. **Manually reimplementing the model in JAX**,
+2. **Converting a Pytorch model to a JAX model**,
+3. **Using an ONNX model**.
 
 .. note::
-    If you do not need end-to-end differentiability of TORAX with your surrogate included, then these methods are not required. In that case, you can simply import and call your surrogate in whatever way works.
+    These conversion methods are necessary in order to make an external model compatible with JAX's autodiff and JIT functionality, which is required for using TORAX's gradient-driven nonlinear solvers (e.g. Newton-Raphson).
+    Interfacing with non-differentiable, non-JITtable models is possible (for an example, see the `QuaLiKiz transport model`_) if the linear solver is used. However, note that if the model is called within the step function JIT will need to be disabled with ``TORAX_COMPILATION_ENABLED=0``.
 
 
-Manually reimplementing the model in JAX
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Option 1: manually reimplementing the model in JAX
+==================================================
 
 If the architecture of the surrogate is sufficiently simple, you might consider reimplementing the model in JAX.
-The surrogates in TORAX are mostly implemented using `Flax Linen`_.
+The surrogates in TORAX are mostly implemented using `Flax Linen`_, and can be found in the |fusion_surrogates|_ repository.
 If you're not familiar with Flax, you can check out the `Flax documentation`_ on how to define your own models.
 
 Consider a PyTorch neural network,
@@ -50,20 +51,20 @@ Consider a PyTorch neural network,
     import torch
 
     class PyTorchMLP(torch.nn.Module):
-        def __init__(self, hidden_dim: int, n_hidden: int, output_dim: int, input_dim: int):
-            super().__init__()
-            self.model = torch.nn.Sequential(
-                torch.nn.Linear(input_dim, hidden_dim),
-                torch.nn.ReLU(),
-                *[torch.nn.Sequential(
-                    torch.nn.Linear(hidden_dim, hidden_dim),
-                    torch.nn.ReLU()
-                ) for _ in range(n_hidden)],
-                torch.nn.Linear(hidden_dim, output_dim)
-            )
+      def __init__(self, hidden_dim: int, n_hidden: int, output_dim: int, input_dim: int):
+        super().__init__()
+        self.model = torch.nn.Sequential(
+          torch.nn.Linear(input_dim, hidden_dim),
+          torch.nn.ReLU(),
+          *[torch.nn.Sequential(
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            torch.nn.ReLU()
+          ) for _ in range(n_hidden)],
+          torch.nn.Linear(hidden_dim, output_dim)
+        )
 
-        def forward(self, x):
-            return self.model(x)
+      def forward(self, x):
+        return self.model(x)
 
     torch_model = PyTorchMLP(hidden_dim, n_hidden, output_dim, input_dim)
 
@@ -74,20 +75,20 @@ This model can be converted to a Flax model as follows:
     from flax import linen
 
     class FlaxMLP(linen.Module):
-        hidden_dim: int
-        n_hidden: int
-        output_dim: int
-        input_dim: int
+      hidden_dim: int
+      n_hidden: int
+      output_dim: int
+      input_dim: int
 
     @linen.compact
     def __call__(self, x):
+      x = linen.Dense(self.hidden_dim)(x)
+      x = linen.relu(x)
+      for _ in range(self.n_hidden):
         x = linen.Dense(self.hidden_dim)(x)
         x = linen.relu(x)
-        for _ in range(self.n_hidden):
-            x = linen.Dense(self.hidden_dim)(x)
-            x = linen.relu(x)
-        x = linen.Dense(self.output_dim)(x)
-        return x
+      x = linen.Dense(self.output_dim)(x)
+      return x
 
     flax_model = FlaxMLP(hidden_dim, n_hidden, output_dim, input_dim)
 
@@ -97,21 +98,22 @@ This can be a bit fiddly as you have to map from the parameter names in the weig
 For loading weights from a PyTorch checkpoint, you might do something like:
 
 .. code-block:: python
+
     import torch
 
     state_dict = torch.load(PYTORCH_CHECKPOINT_PATH)
 
     params = {}
     for i in range(n_hidden_layers):
-        layer_dict = {
-            "kernel": jnp.array(
-                state_dict[f"model.{i*2}.weight"]
-            ).T,
-            "bias": jnp.array(
-                pytorch_state_dict[f"model.{j*2}.bias"]
-            ).T,
-        }
-        params[f"Dense_{i}"] = layer_dict
+      layer_dict = {
+        "kernel": jnp.array(
+          state_dict[f"model.{i*2}.weight"]
+        ).T,
+        "bias": jnp.array(
+          pytorch_state_dict[f"model.{j*2}.bias"]
+        ).T,
+      }
+      params[f"Dense_{i}"] = layer_dict
 
     params = {'params': params}
 
@@ -119,11 +121,12 @@ For loading weights from a PyTorch checkpoint, you might do something like:
 The model can then be called like any Flax model,
 
 .. code-block:: python
+
     output_tensor = flax_model.apply(params, input_tensor)
 
 
-Converting a Pytorch model to a JAX model
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Option 2: converting a Pytorch model to a JAX model
+===================================================
 
 If your model is in PyTorch, you could also consider using the `torch_xla2`_ package to do the conversion to JAX automatically.
 For example,
@@ -143,8 +146,8 @@ The model can then be called as a pure JAX function:
     output_tensor = jax_model_from_torch(params, input_tensor)
 
 
-Using an ONNX model
-^^^^^^^^^^^^^^^^^^^
+Option 3: using an ONNX model
+=============================
 
 The `Open Neural Network Exchange`_ format (ONNX) is a highly interoperable format for sharing neural network models. ONNX files include the model architecture and weights bundled together.
 
@@ -157,11 +160,11 @@ An ONNX model can be loaded and called as follows, making sure to specify the co
 
     s = ort.InferenceSession(ONNX_MODEL_PATH)
     onnx_output_tensor = s.run(
-        # Output node names
-        ['output1', 'output2'],
-        # Mapping from input node names to input tensors
-        # NOTE: input tensors must have correct dtype for your specific model
-        {'input': np.asarray(input_tensor, dtype=np.float32)},
+      # Output node names
+      ['output1', 'output2'],
+      # Mapping from input node names to input tensors
+      # NOTE: input tensors must have correct dtype for your specific model
+      {'input': np.asarray(input_tensor, dtype=np.float32)},
     )
 
 However, JAX will not be able to differentiate through the InferenceSession.
@@ -180,8 +183,38 @@ To convert the ONNX model to a JAX representation, you can use the `jaxonnxrunti
     output_tensors = jax_model_from_onnx.run({"input": jnp.asarray(input_tensor, dtype=jnp.float32)})
 
 
+Best practices
+==============
+
+**Caching and lazy loading**: Ideally, the model should be constructed and weights loaded once only, on the first call to the function.
+The loaded model should be cached and reused for subsequent calls.
+
+For example, in the ``_combined`` function of the QLKNN transport model (the function that actually evaluates this model), we have:
+
+.. code-block:: python
+
+    model = get_model(self._model_path)
+    ...
+    model_output = model.predict(...)
+
+where
+
+.. code-block:: python
+
+    @functools.lru_cache(maxsize=1)
+    def get_model(path: str) -> base_qlknn_model.BaseQLKNNModel:
+    """Load the model."""
+    ...
+    return qlknn_10d.QLKNN10D(path)
+
+By decorating with ``functools.lru_cache(maxsize=1)``, the result of this function - the loaded model - is stored in the cache and is only re-loaded if the function is called with a different ``path``.
+
+
 ..  _Flax Linen: https://flax-linen.readthedocs.io/en/latest/index.html
 ..  _Flax documentation: https://flax-linen.readthedocs.io/en/latest/guides/flax_fundamentals/flax_basics.html#defining-your-own-models
 .. _torch_xla2: https://pytorch.org/xla/master/features/stablehlo.html
 .. _Open Neural Network Exchange: https://onnx.ai/
 .. _jaxonnxruntime: https://github.com/google/jaxonnxruntime
+.. _QuaLiKiz transport model: https://github.com/google-deepmind/torax/blob/main/torax/transport_model/qualikiz_transport_model.py
+.. |fusion_surrogates| replace:: ``google-deepmind/fusion_surrogates``
+.. _fusion_surrogates: https://github.com/google-deepmind/fusion_surrogates
