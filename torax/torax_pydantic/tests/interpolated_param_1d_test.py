@@ -166,6 +166,25 @@ class InterpolatedParam1dTest(parameterized.TestCase):
           expected_output,
       )
 
+  @parameterized.parameters(
+      (
+          ([0., 2., 3.], [1., 7., -1.]),
+          1.5,
+          5.5,
+      ),
+  )
+  def test_interpolated_var_returns_expected_output_for_linear_interpolation(
+      self,
+      values,
+      x,
+      expected_output,
+  ):
+    multi_val_range = torax_pydantic.TimeVaryingScalar.model_validate(values)
+    np.testing.assert_allclose(
+        multi_val_range.get_value(t=x),
+        expected_output,
+    )
+
   def test_test_equality_cached_property(self):
     scalar_1 = torax_pydantic.TimeVaryingScalar.model_validate(1.0)
     scalar_2 = torax_pydantic.TimeVaryingScalar.model_validate(1.0)

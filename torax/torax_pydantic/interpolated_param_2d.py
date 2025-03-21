@@ -177,12 +177,16 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
     if isinstance(data, xr.DataArray):
       value = _load_from_xr_array(data)
-    elif isinstance(data, tuple) and all(
-        isinstance(v, chex.Array) for v in data
-    ):
-      value = _load_from_arrays(
-          data,
-      )
+    elif isinstance(data, tuple):
+      values = []
+      for v in data:
+        if isinstance(v, chex.Array):
+          values.append(v)
+        elif isinstance(v, list):
+          values.append(np.array(v))
+        else:
+          raise ValueError('Input to TimeVaryingArray unsupported.')
+      value = _load_from_arrays(tuple(values))
     elif isinstance(data, Mapping) or isinstance(data, (float, int)):
       value = _load_from_primitives(data)
     else:
