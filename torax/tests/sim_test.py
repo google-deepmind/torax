@@ -438,10 +438,10 @@ class SimTest(sim_test_case.SimTestCase):
           0,
       ),
       # Tests current diffusion with vloop BC.
-      # Initial Ip from parameters and psi from CHEASE.
+      # Initial Ip from parameters and psi from CHEASE, varying vloop BC.
       (
-          'test_psichease_ip_parameters_vloop',
-          'test_psichease_ip_parameters_vloop.py',
+          'test_psichease_ip_parameters_vloop_varying',
+          'test_psichease_ip_parameters_vloop_varying.py',
           _ALL_PROFILES,
           0,
       ),

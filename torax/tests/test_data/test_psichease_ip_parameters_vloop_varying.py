@@ -12,14 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Identical to test_psichease_ip_chease but V-loop boundary condition."""
+"""Identical to test_psichease_ip_chease_vloop but with varying vloop_lcfs."""
 
 import copy
+import numpy as np
 from torax.tests.test_data import test_psichease_ip_parameters
 
 
 CONFIG = copy.deepcopy(test_psichease_ip_parameters.CONFIG)
+times = np.linspace(0, 3, 100)
+# 1 Hz frequency
+vloop = 8.7 + 10 * np.sin(2 * np.pi * times)
+
 CONFIG['runtime_params']['profile_conditions'][
     'use_vloop_lcfs_boundary_condition'
 ] = True
-CONFIG['runtime_params']['profile_conditions']['vloop_lcfs'] = 8.7
+CONFIG['runtime_params']['profile_conditions']['vloop_lcfs'] = (times, vloop)
