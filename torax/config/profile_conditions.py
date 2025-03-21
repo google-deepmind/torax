@@ -29,7 +29,6 @@ class DynamicProfileConditions:
 
   Ip_tot: array_typing.ScalarFloat
   vloop_lcfs: array_typing.ScalarFloat
-  use_vloop_lcfs_boundary_condition: bool
   Ti_bound_right: array_typing.ScalarFloat
   Te_bound_right: array_typing.ScalarFloat
   # Temperature profiles defined on the cell grid.

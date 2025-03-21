@@ -291,6 +291,12 @@ def update_all_core_profiles_after_step(
       ),
   )
 
+  vloop_lcfs = (
+      dynamic_runtime_params_slice.profile_conditions.vloop_lcfs
+      if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
+      else core_profiles.vloop_lcfs  # just copy over the old zero value for now
+  )
+
   return state.CoreProfiles(
       temp_ion=temp_ion,
       temp_el=temp_el,
@@ -311,7 +317,7 @@ def update_all_core_profiles_after_step(
       nref=core_profiles.nref,
       Ai=core_profiles.Ai,
       Aimp=core_profiles.Aimp,
-      vloop_lcfs=core_profiles.vloop_lcfs,
+      vloop_lcfs=vloop_lcfs,
   )
 
 
@@ -408,7 +414,7 @@ def compute_boundary_conditions_for_t_plus_dt(
                   Ip_tot=profile_conditions_t_plus_dt.Ip_tot,
                   geo=geo_t_plus_dt,
               )
-              if not profile_conditions_t_plus_dt.use_vloop_lcfs_boundary_condition
+              if not static_runtime_params_slice.use_vloop_lcfs_boundary_condition
               else None
           ),
           right_face_constraint=(
@@ -419,7 +425,7 @@ def compute_boundary_conditions_for_t_plus_dt(
                   psi_lcfs_t=core_profiles_t.psi.right_face_constraint,
                   theta=static_runtime_params_slice.stepper.theta_imp,
               )
-              if profile_conditions_t_plus_dt.use_vloop_lcfs_boundary_condition
+              if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
               else None
           ),
       ),
