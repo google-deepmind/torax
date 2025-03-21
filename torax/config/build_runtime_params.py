@@ -76,6 +76,7 @@ def build_static_runtime_params_slice(
       main_ion_names=runtime_params.plasma_composition.get_main_ion_names(),
       impurity_names=runtime_params.plasma_composition.get_impurity_names(),
       adaptive_dt=runtime_params.numerics.adaptive_dt,
+      use_vloop_lcfs_boundary_condition=runtime_params.profile_conditions.use_vloop_lcfs_boundary_condition,
   )
 
 
