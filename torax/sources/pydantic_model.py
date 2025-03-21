@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Pydantic config for source models."""
-from typing import Any, Union
+from typing import Union
 
 import pydantic
 from torax.sources import base
@@ -38,12 +38,6 @@ from typing_extensions import Annotated
 from typing_extensions import Self
 
 
-def get_impurity_heat_sink_discriminator_value(model: dict[str, Any]) -> str:
-  """Returns the discriminator value for a given model."""
-  # Default to impurity_radiation_mavrin_fit if no model_func is specified.
-  return model.get('model_function_name', 'impurity_radiation_mavrin_fit')
-
-
 ImpurityRadiationHeatSinkConfig = Annotated[
     Union[
         Annotated[
@@ -56,9 +50,7 @@ ImpurityRadiationHeatSinkConfig = Annotated[
         ],
     ],
     pydantic.Field(
-        discriminator=pydantic.Discriminator(
-            get_impurity_heat_sink_discriminator_value
-        )
+        discriminator='model_function_name'
     ),
 ]
 

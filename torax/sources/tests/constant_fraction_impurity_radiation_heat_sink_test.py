@@ -16,15 +16,18 @@ from unittest import mock
 from absl.testing import absltest
 import chex
 from torax import math_utils
+from torax.config import build_runtime_params
+from torax.config import runtime_params as general_runtime_params
 from torax.config import runtime_params_slice
+from torax.core_profiles import initialization
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_ion_el_heat_source
+from torax.sources import pydantic_model as source_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
+from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
-from torax.sources.impurity_radiation_heat_sink import (
-    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,
-)
+from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax.sources.tests import test_lib
 
 
@@ -38,6 +41,49 @@ class ImpurityRadiationConstantFractionTest(
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
         needs_source_models=True,
     )
+
+  def test_source_value_on_the_cell_grid(self):
+    """Tests that the source can provide a value by default on the cell grid."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    sources = source_pydantic_model.Sources.from_dict({
+        self._source_name: {
+            'model_function_name': 'impurity_radiation_mavrin_fit'
+        }
+    })
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    dynamic_runtime_params_slice = (
+        build_runtime_params.DynamicRuntimeParamsSliceProvider(
+            runtime_params=runtime_params,
+            sources=sources,
+            torax_mesh=geo.torax_mesh,
+        )(
+            t=runtime_params.numerics.t_initial,
+        )
+    )
+    static_slice = build_runtime_params.build_static_runtime_params_slice(
+        runtime_params=runtime_params,
+        sources=sources,
+        torax_mesh=geo.torax_mesh,
+    )
+    source_models = source_models_lib.SourceModels(
+        sources=sources.source_model_config
+    )
+    core_profiles = initialization.initial_core_profiles(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
+        geo=geo,
+        source_models=source_models,
+    )
+    source = source_models.sources[self._source_name]
+    value = source.get_value(
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        static_runtime_params_slice=static_slice,
+        geo=geo,
+        core_profiles=core_profiles,
+        calculated_source_profiles=None,
+    )[0]
+    chex.assert_rank(value, 1)
+    self.assertEqual(value.shape, geo.rho.shape)
 
   def test_source_value(self):
     heat_name = (

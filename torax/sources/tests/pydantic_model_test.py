@@ -56,7 +56,9 @@ class PydanticModelTest(parameterized.TestCase):
       ),
       dict(
           config={
-              'impurity_radiation_heat_sink': {},
+              'impurity_radiation_heat_sink': {
+                  'model_function_name': 'impurity_radiation_mavrin_fit'
+              },
           },
           expected_sources_model=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
       ),
