@@ -139,9 +139,9 @@ class PlasmaComposition(torax_pydantic.BaseModelFrozen):
   impurity: runtime_validation_utils.IonMapping = (
       torax_pydantic.ValidatedDefault('Ne')
   )
-  Zeff: runtime_validation_utils.TimeVaryingArrayDefinedAtRightBoundary = (
-      torax_pydantic.ValidatedDefault(1.0)
-  )
+  Zeff: (
+      runtime_validation_utils.TimeVaryingArrayDefinedAtRightBoundaryAndBounded
+  ) = torax_pydantic.ValidatedDefault(1.0)
   Zi_override: torax_pydantic.TimeVaryingScalar | None = None
   Ai_override: torax_pydantic.TimeVaryingScalar | None = None
   Zimp_override: torax_pydantic.TimeVaryingScalar | None = None

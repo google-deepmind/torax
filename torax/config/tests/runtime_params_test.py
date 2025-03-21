@@ -81,9 +81,9 @@ class RuntimeParamsTest(parameterized.TestCase):
         'plasma_composition': {
             'main_ion': 'D',
             'Zeff': {
-                0: {0: 0.1, 1: 0.1},
-                1: {0: 0.2, 1: 0.2},
-                2: {0: 0.3, 1: 0.3},
+                0: {0: 1.1, 1: 1.1},
+                1: {0: 1.2, 1: 1.2},
+                2: {0: 1.3, 1: 1.3},
             },  # time-dependent with constant radial profile.
         },
         'profile_conditions': {
@@ -106,7 +106,7 @@ class RuntimeParamsTest(parameterized.TestCase):
 
     t = 1.5
     np.testing.assert_allclose(
-        runtime_params.plasma_composition.Zeff.get_value(t), 0.25
+        runtime_params.plasma_composition.Zeff.get_value(t), 1.25
     )
     np.testing.assert_allclose(
         runtime_params.profile_conditions.Ip_tot.get_value(t), 0.5

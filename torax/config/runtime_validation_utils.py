@@ -15,6 +15,7 @@
 """Utilities for validating the config inputs."""
 
 from collections.abc import Mapping
+import functools
 import logging
 from typing import Annotated, Any, Final, TypeAlias
 
@@ -27,18 +28,44 @@ from torax.torax_pydantic import torax_pydantic
 _TOLERANCE: Final[float] = 1e-6
 
 
-def time_varying_defined_at_1(
-    value: torax_pydantic.TimeVaryingArray,
+def time_varying_array_defined_at_1(
+    time_varying_array: torax_pydantic.TimeVaryingArray,
 ) -> torax_pydantic.TimeVaryingArray:
   """Validates the input for the TimeVaryingArray."""
-  if not value.right_boundary_conditions_defined:
+  if not time_varying_array.right_boundary_conditions_defined:
     logging.debug("""Not defined at rho=1.0.""")
-  return value
+  return time_varying_array
 
 
-TimeVaryingArrayDefinedAtRightBoundary: TypeAlias = Annotated[
+def time_varying_array_bounded(
+    time_varying_array: torax_pydantic.TimeVaryingArray,
+    lower_bound: float = -np.inf,
+    upper_bound: float = np.inf,
+) -> torax_pydantic.TimeVaryingArray:
+  """Validates the input for the TimeVaryingArray."""
+  for t, (_, values) in time_varying_array.value.items():
+    if not np.all(values >= lower_bound):
+      raise ValueError(
+          f'Some values are smaller than lower bound {lower_bound} at time'
+          f' {t}: {values}'
+      )
+    if not np.all(values <= upper_bound):
+      raise ValueError(
+          f'Some values are larger than upper bound {upper_bound} at time'
+          f' {t}: {values}'
+      )
+  return time_varying_array
+
+
+TimeVaryingArrayDefinedAtRightBoundaryAndBounded: TypeAlias = Annotated[
     torax_pydantic.TimeVaryingArray,
-    pydantic.AfterValidator(time_varying_defined_at_1),
+    pydantic.AfterValidator(time_varying_array_defined_at_1),
+    pydantic.AfterValidator(
+        functools.partial(
+            time_varying_array_bounded,
+            lower_bound=1.0,
+        )
+    ),
 ]
 
 

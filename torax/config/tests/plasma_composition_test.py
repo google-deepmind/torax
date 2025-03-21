@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -23,6 +22,13 @@ from torax.torax_pydantic import torax_pydantic
 
 
 class PlasmaCompositionTest(parameterized.TestCase):
+
+  @parameterized.named_parameters(('too_low', 0.0))
+  def test_plasma_composition_validation_error_for_unphysical_zeff(
+      self, z_eff: float
+  ):
+    with self.assertRaises(pydantic.ValidationError):
+      plasma_composition.PlasmaComposition(Zeff=z_eff)
 
   def test_plasma_composition_build_dynamic_params(self):
     """Checks provider construction with no issues."""
