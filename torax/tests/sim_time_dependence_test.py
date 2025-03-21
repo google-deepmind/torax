@@ -46,7 +46,7 @@ from torax.transport_model import transport_model as transport_model_lib
 from typing_extensions import Annotated
 
 
-class SimWithTimeDependeceTest(parameterized.TestCase):
+class SimWithTimeDependenceTest(parameterized.TestCase):
   """Integration tests for torax.sim with time-dependent runtime params."""
 
   def setUp(self):
