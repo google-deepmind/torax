@@ -33,11 +33,6 @@ from typing_extensions import Annotated
 class LinearThetaMethod(torax_pydantic.BaseModelFrozen):
   """Model for the linear stepper.
 
-  This is also the base model for the NewtonRaphsonThetaMethod and
-  OptimizerThetaMethod steppers as they share the same parameters due to the
-  nonlinear solvers having an option to use the a linear stepper solution as an
-  initial guess.
-
   Attributes:
     stepper_type: The type of stepper to use, hardcoded to 'linear'.
     theta_imp: The theta value in the theta method 0 = explicit, 1 = fully
@@ -92,11 +87,25 @@ class LinearThetaMethod(torax_pydantic.BaseModelFrozen):
     return True
 
 
-class NewtonRaphsonThetaMethod(LinearThetaMethod):
+class NewtonRaphsonThetaMethod(torax_pydantic.BaseModelFrozen):
   """Model for nonlinear Newton-Raphson stepper.
 
   Attributes:
     stepper_type: The type of stepper to use, hardcoded to 'newton_raphson'.
+    theta_imp: The theta value in the theta method 0 = explicit, 1 = fully
+      implicit, 0.5 = Crank-Nicolson.
+    predictor_corrector: Enables predictor_corrector iterations with the linear
+      solver. If False, compilation is faster.
+    corrector_steps: The number of corrector steps for the predictor-corrector
+      linear solver. 0 means a pure linear solve with no corrector steps.
+    convection_dirichlet_mode: See `fvm.convection_terms` docstring,
+      `dirichlet_mode` argument.
+    convection_neumann_mode: See `fvm.convection_terms` docstring,
+      `neumann_mode` argument.
+    use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
+      the nonlinear solver for the optional initial guess from the linear solver
+    chi_per: (deliberately) large heat conductivity for Pereverzev rule.
+    d_per: (deliberately) large particle diffusion for Pereverzev rule.
     log_iterations: If True, log internal iterations in Newton-Raphson solver.
     initial_guess_mode: The initial guess mode for the Newton-Raphson solver.
     maxiter: The maximum number of iterations for the Newton-Raphson solver.
@@ -107,6 +116,16 @@ class NewtonRaphsonThetaMethod(LinearThetaMethod):
     tau_min: The minimum value of tau for the Newton-Raphson solver.
   """
   stepper_type: Literal['newton_raphson'] = 'newton_raphson'
+  theta_imp: torax_pydantic.UnitInterval = 1.0
+  predictor_corrector: bool = True
+  corrector_steps: pydantic.PositiveInt = 1
+  convection_dirichlet_mode: Literal['ghost', 'direct', 'semi-implicit'] = (
+      'ghost'
+  )
+  convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
+  use_pereverzev: bool = False
+  chi_per: pydantic.PositiveFloat = 20.0
+  d_per: pydantic.NonNegativeFloat = 10.0
   log_iterations: bool = False
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   maxiter: pydantic.NonNegativeInt = 30
@@ -148,17 +167,41 @@ class NewtonRaphsonThetaMethod(LinearThetaMethod):
     )
 
 
-class OptimizerThetaMethod(LinearThetaMethod):
+class OptimizerThetaMethod(torax_pydantic.BaseModelFrozen):
   """Model for nonlinear OptimizerThetaMethod stepper.
 
   Attributes:
     stepper_type: The type of stepper to use, hardcoded to 'optimizer'.
+    theta_imp: The theta value in the theta method 0 = explicit, 1 = fully
+      implicit, 0.5 = Crank-Nicolson.
+    predictor_corrector: Enables predictor_corrector iterations with the linear
+      solver. If False, compilation is faster.
+    corrector_steps: The number of corrector steps for the predictor-corrector
+      linear solver. 0 means a pure linear solve with no corrector steps.
+    convection_dirichlet_mode: See `fvm.convection_terms` docstring,
+      `dirichlet_mode` argument.
+    convection_neumann_mode: See `fvm.convection_terms` docstring,
+      `neumann_mode` argument.
+    use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
+      the nonlinear solver for the optional initial guess from the linear solver
+    chi_per: (deliberately) large heat conductivity for Pereverzev rule.
+    d_per: (deliberately) large particle diffusion for Pereverzev rule.
     initial_guess_mode: The initial guess mode for the optimizer.
     maxiter: The maximum number of iterations for the optimizer.
     tol: The tolerance for the optimizer.
   """
 
   stepper_type: Literal['optimizer'] = 'optimizer'
+  theta_imp: torax_pydantic.UnitInterval = 1.0
+  predictor_corrector: bool = True
+  corrector_steps: pydantic.PositiveInt = 1
+  convection_dirichlet_mode: Literal['ghost', 'direct', 'semi-implicit'] = (
+      'ghost'
+  )
+  convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
+  use_pereverzev: bool = False
+  chi_per: pydantic.PositiveFloat = 20.0
+  d_per: pydantic.NonNegativeFloat = 10.0
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   maxiter: pydantic.NonNegativeInt = 100
   tol: float = 1e-12
