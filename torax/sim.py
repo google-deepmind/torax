@@ -251,6 +251,7 @@ def _run_simulation(
       leave=True,
   ) as pbar:
     # Advance the simulation until the time_step_calculator tells us we are done
+    first_step = True
     while step_fn.time_step_calculator.not_done(
         sim_state.t,
         dynamic_runtime_params_slice.numerics.t_final,
@@ -276,6 +277,15 @@ def _run_simulation(
         sim_error.log_error()
         break
       else:
+        if first_step:
+          first_step = False
+          if not static_runtime_params_slice.use_vloop_lcfs_boundary_condition:
+            # For the Ip BC case, set vloop_lcfs[0] to the same value as
+            # vloop_lcfs[1] due the vloop_lcfs timeseries being underconstrained
+            sim_history[0].core_profiles = dataclasses.replace(
+                sim_history[0].core_profiles,
+                vloop_lcfs=sim_state.core_profiles.vloop_lcfs,
+            )
         sim_history.append(sim_state)
         # Calculate progress ratio and update pbar.n
         progress_ratio = (
