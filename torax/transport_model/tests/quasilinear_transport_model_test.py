@@ -272,6 +272,12 @@ class FakeQuasilinearTransportModel(
         gyrobohm_flux_reference_length=1.0,
     )
 
+  def __hash__(self):
+    return hash('FakeQuasilinearTransportModel')
+
+  def __eq__(self, other):
+    return isinstance(other, FakeQuasilinearTransportModel)
+
 
 def _get_dummy_core_profiles(value, right_face_constraint):
   """Returns dummy core profiles for testing."""

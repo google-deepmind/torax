@@ -24,6 +24,7 @@ import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import constants
+from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -75,7 +76,7 @@ class TransportModel(abc.ABC):
     )
 
     # Apply min/max clipping and pedestal region clipping
-    transport_coeffs = self._apply_clipping(
+    transport_coeffs = _apply_clipping(
         dynamic_runtime_params_slice,
         geo,
         transport_coeffs,
@@ -83,14 +84,14 @@ class TransportModel(abc.ABC):
     )
 
     # Apply inner and outer transport patch
-    transport_coeffs = self._apply_transport_patches(
+    transport_coeffs = _apply_transport_patches(
         dynamic_runtime_params_slice,
         geo,
         transport_coeffs,
     )
 
     # Return smoothed coefficients if smoothing is enabled
-    return self._smooth_coeffs(
+    return _smooth_coeffs(
         geo,
         dynamic_runtime_params_slice,
         transport_coeffs,
@@ -107,224 +108,243 @@ class TransportModel(abc.ABC):
   ) -> state.CoreTransport:
     pass
 
-  def _apply_clipping(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
-      transport_coeffs: state.CoreTransport,
-      pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
-    """Applies min/max and pedestal region clipping to transport coefficients."""
+  @abc.abstractmethod
+  def __hash__(self) -> int:
+    """Returns a hash of the transport model.
 
-    # set minimum and maximum transport coefficents for PDE stability
-    chi_face_ion = jnp.clip(
-        transport_coeffs.chi_face_ion,
-        dynamic_runtime_params_slice.transport.chimin,
-        dynamic_runtime_params_slice.transport.chimax,
+    Should be implemented to support jax.jit caching.
+    """
+
+  @abc.abstractmethod
+  def __eq__(self, other) -> bool:
+    """Returns whether the transport model is equal to the other.
+
+    Should be implemented to support jax.jit caching.
+
+    Args:
+      other: The object to compare to.
+    """
+
+
+@jax_utils.jit
+def _apply_clipping(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+    transport_coeffs: state.CoreTransport,
+    pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
+) -> state.CoreTransport:
+  """Applies min/max and pedestal region clipping to transport coefficients."""
+
+  # set minimum and maximum transport coefficents for PDE stability
+  chi_face_ion = jnp.clip(
+      transport_coeffs.chi_face_ion,
+      dynamic_runtime_params_slice.transport.chimin,
+      dynamic_runtime_params_slice.transport.chimax,
+  )
+
+  # set minimum and maximum chi for PDE stability
+  chi_face_el = jnp.clip(
+      transport_coeffs.chi_face_el,
+      dynamic_runtime_params_slice.transport.chimin,
+      dynamic_runtime_params_slice.transport.chimax,
+  )
+  d_face_el = jnp.clip(
+      transport_coeffs.d_face_el,
+      dynamic_runtime_params_slice.transport.Demin,
+      dynamic_runtime_params_slice.transport.Demax,
+  )
+  v_face_el = jnp.clip(
+      transport_coeffs.v_face_el,
+      dynamic_runtime_params_slice.transport.Vemin,
+      dynamic_runtime_params_slice.transport.Vemax,
+  )
+
+  # set low transport in pedestal region to facilitate PDE solver
+  # (more consistency between desired profile and transport coefficients)
+  # if runtime_params.profile_conditions.set_pedestal:
+  mask = geo.rho_face_norm >= pedestal_model_outputs.rho_norm_ped_top
+  chi_face_ion = jnp.where(
+      jnp.logical_and(
+          dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+      ),
+      dynamic_runtime_params_slice.transport.chimin,
+      chi_face_ion,
+  )
+  chi_face_el = jnp.where(
+      jnp.logical_and(
+          dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+      ),
+      dynamic_runtime_params_slice.transport.chimin,
+      chi_face_el,
+  )
+  d_face_el = jnp.where(
+      jnp.logical_and(
+          dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+      ),
+      dynamic_runtime_params_slice.transport.Demin,
+      d_face_el,
+  )
+  v_face_el = jnp.where(
+      jnp.logical_and(
+          dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
+      ),
+      0.0,
+      v_face_el,
+  )
+
+  return dataclasses.replace(
+      transport_coeffs,
+      chi_face_ion=chi_face_ion,
+      chi_face_el=chi_face_el,
+      d_face_el=d_face_el,
+      v_face_el=v_face_el,
+  )
+
+
+@jax_utils.jit
+def _apply_transport_patches(
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo: geometry.Geometry,
+    transport_coeffs: state.CoreTransport,
+) -> state.CoreTransport:
+  """Applies inner and outer transport patches to transport coefficients."""
+  consts = constants.CONSTANTS
+
+  # Apply inner and outer patch constant transport coefficients. rho_inner and
+  # rho_outer are shifted by consts.eps (1e-7) to avoid ambiguities if their
+  # values are close to and geo.rho_face_norm values.
+  chi_face_ion = jnp.where(
+      jnp.logical_and(
+          dynamic_runtime_params_slice.transport.apply_inner_patch,
+          geo.rho_face_norm
+          < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
+      ),
+      dynamic_runtime_params_slice.transport.chii_inner,
+      transport_coeffs.chi_face_ion,
+  )
+  chi_face_el = jnp.where(
+      jnp.logical_and(
+          dynamic_runtime_params_slice.transport.apply_inner_patch,
+          geo.rho_face_norm
+          < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
+      ),
+      dynamic_runtime_params_slice.transport.chie_inner,
+      transport_coeffs.chi_face_el,
+  )
+  d_face_el = jnp.where(
+      jnp.logical_and(
+          dynamic_runtime_params_slice.transport.apply_inner_patch,
+          geo.rho_face_norm
+          < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
+      ),
+      dynamic_runtime_params_slice.transport.De_inner,
+      transport_coeffs.d_face_el,
+  )
+  v_face_el = jnp.where(
+      jnp.logical_and(
+          dynamic_runtime_params_slice.transport.apply_inner_patch,
+          geo.rho_face_norm
+          < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
+      ),
+      dynamic_runtime_params_slice.transport.Ve_inner,
+      transport_coeffs.v_face_el,
+  )
+
+  # Apply outer patch constant transport coefficients.
+  # Due to Pereverzev-Corrigan convection, it is required
+  # for the convection modes to be 'ghost' to avoid numerical instability
+  chi_face_ion = jnp.where(
+      jnp.logical_and(
+          jnp.logical_and(
+              dynamic_runtime_params_slice.transport.apply_outer_patch,
+              jnp.logical_not(
+                  dynamic_runtime_params_slice.profile_conditions.set_pedestal
+              ),
+          ),
+          geo.rho_face_norm
+          > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
+      ),
+      dynamic_runtime_params_slice.transport.chii_outer,
+      chi_face_ion,
+  )
+  chi_face_el = jnp.where(
+      jnp.logical_and(
+          jnp.logical_and(
+              dynamic_runtime_params_slice.transport.apply_outer_patch,
+              jnp.logical_not(
+                  dynamic_runtime_params_slice.profile_conditions.set_pedestal
+              ),
+          ),
+          geo.rho_face_norm
+          > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
+      ),
+      dynamic_runtime_params_slice.transport.chie_outer,
+      chi_face_el,
+  )
+  d_face_el = jnp.where(
+      jnp.logical_and(
+          jnp.logical_and(
+              dynamic_runtime_params_slice.transport.apply_outer_patch,
+              jnp.logical_not(
+                  dynamic_runtime_params_slice.profile_conditions.set_pedestal
+              ),
+          ),
+          geo.rho_face_norm
+          > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
+      ),
+      dynamic_runtime_params_slice.transport.De_outer,
+      d_face_el,
+  )
+  v_face_el = jnp.where(
+      jnp.logical_and(
+          jnp.logical_and(
+              dynamic_runtime_params_slice.transport.apply_outer_patch,
+              jnp.logical_not(
+                  dynamic_runtime_params_slice.profile_conditions.set_pedestal
+              ),
+          ),
+          geo.rho_face_norm
+          > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
+      ),
+      dynamic_runtime_params_slice.transport.Ve_outer,
+      v_face_el,
+  )
+
+  return dataclasses.replace(
+      transport_coeffs,
+      chi_face_ion=chi_face_ion,
+      chi_face_el=chi_face_el,
+      d_face_el=d_face_el,
+      v_face_el=v_face_el,
+  )
+
+
+@jax_utils.jit
+def _smooth_coeffs(
+    geo: geometry.Geometry,
+    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    transport_coeffs: state.CoreTransport,
+    pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
+) -> state.CoreTransport:
+  """Gaussian smoothing of turbulent transport coefficients."""
+  smoothing_matrix = build_smoothing_matrix(
+      geo, dynamic_runtime_params_slice, pedestal_model_outputs
+  )
+
+  # Iterate over fields of the CoreTransport dataclass.
+  # Ignore optional fields that are made all zero in post_init.
+  def smooth_single_coeff(coeff):
+    return jax.lax.cond(
+        jnp.all(coeff == 0.0),
+        lambda: coeff,
+        lambda: jnp.dot(smoothing_matrix, coeff),
     )
 
-    # set minimum and maximum chi for PDE stability
-    chi_face_el = jnp.clip(
-        transport_coeffs.chi_face_el,
-        dynamic_runtime_params_slice.transport.chimin,
-        dynamic_runtime_params_slice.transport.chimax,
-    )
+  smoothed_coeffs = jax.tree_util.tree_map(
+      smooth_single_coeff, transport_coeffs
+  )
 
-    d_face_el = jnp.clip(
-        transport_coeffs.d_face_el,
-        dynamic_runtime_params_slice.transport.Demin,
-        dynamic_runtime_params_slice.transport.Demax,
-    )
-    v_face_el = jnp.clip(
-        transport_coeffs.v_face_el,
-        dynamic_runtime_params_slice.transport.Vemin,
-        dynamic_runtime_params_slice.transport.Vemax,
-    )
-
-    # set low transport in pedestal region to facilitate PDE solver
-    # (more consistency between desired profile and transport coefficients)
-    # if runtime_params.profile_conditions.set_pedestal:
-    mask = geo.rho_face_norm >= pedestal_model_outputs.rho_norm_ped_top
-    chi_face_ion = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
-        dynamic_runtime_params_slice.transport.chimin,
-        chi_face_ion,
-    )
-    chi_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
-        dynamic_runtime_params_slice.transport.chimin,
-        chi_face_el,
-    )
-    d_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
-        dynamic_runtime_params_slice.transport.Demin,
-        d_face_el,
-    )
-    v_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.profile_conditions.set_pedestal, mask
-        ),
-        0.0,
-        v_face_el,
-    )
-
-    return dataclasses.replace(
-        transport_coeffs,
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
-    )
-
-  def _apply_transport_patches(
-      self,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      geo: geometry.Geometry,
-      transport_coeffs: state.CoreTransport,
-  ) -> state.CoreTransport:
-    """Applies inner and outer transport patches to transport coefficients."""
-    consts = constants.CONSTANTS
-
-    # Apply inner and outer patch constant transport coefficients. rho_inner and
-    # rho_outer are shifted by consts.eps (1e-7) to avoid ambiguities if their
-    # values are close to and geo.rho_face_norm values.
-    chi_face_ion = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.transport.apply_inner_patch,
-            geo.rho_face_norm
-            < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
-        ),
-        dynamic_runtime_params_slice.transport.chii_inner,
-        transport_coeffs.chi_face_ion,
-    )
-    chi_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.transport.apply_inner_patch,
-            geo.rho_face_norm
-            < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
-        ),
-        dynamic_runtime_params_slice.transport.chie_inner,
-        transport_coeffs.chi_face_el,
-    )
-    d_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.transport.apply_inner_patch,
-            geo.rho_face_norm
-            < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
-        ),
-        dynamic_runtime_params_slice.transport.De_inner,
-        transport_coeffs.d_face_el,
-    )
-    v_face_el = jnp.where(
-        jnp.logical_and(
-            dynamic_runtime_params_slice.transport.apply_inner_patch,
-            geo.rho_face_norm
-            < dynamic_runtime_params_slice.transport.rho_inner + consts.eps,
-        ),
-        dynamic_runtime_params_slice.transport.Ve_inner,
-        transport_coeffs.v_face_el,
-    )
-
-    # Apply outer patch constant transport coefficients.
-    # Due to Pereverzev-Corrigan convection, it is required
-    # for the convection modes to be 'ghost' to avoid numerical instability
-    chi_face_ion = jnp.where(
-        jnp.logical_and(
-            jnp.logical_and(
-                dynamic_runtime_params_slice.transport.apply_outer_patch,
-                jnp.logical_not(
-                    dynamic_runtime_params_slice.profile_conditions.set_pedestal
-                ),
-            ),
-            geo.rho_face_norm
-            > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
-        ),
-        dynamic_runtime_params_slice.transport.chii_outer,
-        chi_face_ion,
-    )
-    chi_face_el = jnp.where(
-        jnp.logical_and(
-            jnp.logical_and(
-                dynamic_runtime_params_slice.transport.apply_outer_patch,
-                jnp.logical_not(
-                    dynamic_runtime_params_slice.profile_conditions.set_pedestal
-                ),
-            ),
-            geo.rho_face_norm
-            > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
-        ),
-        dynamic_runtime_params_slice.transport.chie_outer,
-        chi_face_el,
-    )
-    d_face_el = jnp.where(
-        jnp.logical_and(
-            jnp.logical_and(
-                dynamic_runtime_params_slice.transport.apply_outer_patch,
-                jnp.logical_not(
-                    dynamic_runtime_params_slice.profile_conditions.set_pedestal
-                ),
-            ),
-            geo.rho_face_norm
-            > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
-        ),
-        dynamic_runtime_params_slice.transport.De_outer,
-        d_face_el,
-    )
-    v_face_el = jnp.where(
-        jnp.logical_and(
-            jnp.logical_and(
-                dynamic_runtime_params_slice.transport.apply_outer_patch,
-                jnp.logical_not(
-                    dynamic_runtime_params_slice.profile_conditions.set_pedestal
-                ),
-            ),
-            geo.rho_face_norm
-            > dynamic_runtime_params_slice.transport.rho_outer - consts.eps,
-        ),
-        dynamic_runtime_params_slice.transport.Ve_outer,
-        v_face_el,
-    )
-
-    return dataclasses.replace(
-        transport_coeffs,
-        chi_face_ion=chi_face_ion,
-        chi_face_el=chi_face_el,
-        d_face_el=d_face_el,
-        v_face_el=v_face_el,
-    )
-
-  def _smooth_coeffs(
-      self,
-      geo: geometry.Geometry,
-      dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-      transport_coeffs: state.CoreTransport,
-      pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
-  ) -> state.CoreTransport:
-    """Gaussian smoothing of turbulent transport coefficients."""
-    smoothing_matrix = build_smoothing_matrix(
-        geo, dynamic_runtime_params_slice, pedestal_model_outputs
-    )
-
-    # Iterate over fields of the CoreTransport dataclass.
-    # Ignore optional fields that are made all zero in post_init.
-    def smooth_single_coeff(coeff):
-      return jax.lax.cond(
-          jnp.all(coeff == 0.0),
-          lambda: coeff,
-          lambda: jnp.dot(smoothing_matrix, coeff),
-      )
-
-    smoothed_coeffs = jax.tree_util.tree_map(
-        smooth_single_coeff, transport_coeffs
-    )
-
-    return state.CoreTransport(**smoothed_coeffs)
+  return state.CoreTransport(**smoothed_coeffs)
 
 
 def build_smoothing_matrix(
