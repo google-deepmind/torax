@@ -16,9 +16,9 @@
 
 import logging
 from typing import Any, Mapping
-
 import pydantic
 from torax.config import runtime_params as general_runtime_params
+from torax.fvm import enums
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
@@ -59,20 +59,36 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:
-    if (
+    using_nonlinear_transport_model = (
         self.transport.transport_model_config.transport_model
         in ['qlknn', 'CGM']
-        and self.stepper.stepper_config.use_pereverzev
-        and self.stepper.stepper_config.linear_solver
+    )
+    using_linear_solver = isinstance(
+        self.stepper.stepper_config, stepper_pydantic_model.LinearThetaMethod
+    )
+    initial_guess_mode_is_linear = (
+        False  # pylint: disable=g-long-ternary
+        if using_linear_solver
+        else self.stepper.stepper_config.initial_guess_mode
+        == enums.InitialGuessMode.LINEAR
+    )
+
+    if (
+        using_nonlinear_transport_model
+        and (using_linear_solver or initial_guess_mode_is_linear)
+        and not self.stepper.stepper_config.use_pereverzev
     ):
-      logging.warning(
-          'The linear solver is being used: either directly, or to provide an'
-          ' initial guess for a nonlinear solver. Additionally, a stiff'
-          ' nonlinear transport model is being used. For this configuration, it'
-          ' is strongly recommended to set use_pereverzev=True to avoid'
-          ' numerical instability in the linear solver. Furthermore, it is'
-          ' recommend to apply several predictor_corrector steps.'
-      )
+      logging.warning("""
+          use_pereverzev=False in a configuration where setting
+          use_pereverzev=True is recommended.
+
+          A nonlinear transport model is used. However, a linear solver is also
+          being used, either directly, or to provide an initial guess for a
+          nonlinear solver.
+
+          With this configuration, it is strongly recommended to set
+          use_pereverzev=True to avoid numerical instability in the solver.
+          """)
     return self
 
   def update_fields(self, x: Mapping[str, Any]):
