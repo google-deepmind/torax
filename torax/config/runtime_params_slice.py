@@ -131,6 +131,8 @@ class StaticRuntimeParamsSlice:
   # inconsistently between the static and dynamic runtime params slices.
   main_ion_names: tuple[str, ...]
   impurity_names: tuple[str, ...]
+  # Whether to use the vloop_lcfs BC or Ip_total BC for the psi equation.
+  use_vloop_lcfs_boundary_condition: bool
 
   # Iterative reduction of dt if nonlinear step does not converge,
   # If nonlinear step does not converge, then the step is redone

@@ -336,9 +336,7 @@ def _init_psi_psidot_and_currents(
   Returns:
     Refined core profiles.
   """
-  use_vloop_bc = (
-      dynamic_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
-  )
+  use_vloop_bc = static_runtime_params_slice.use_vloop_lcfs_boundary_condition
 
   source_profiles = source_profiles_lib.SourceProfiles(
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(geo),
