@@ -37,10 +37,11 @@ class PostProcessingTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     runtime_params = runtime_params_lib.GeneralRuntimeParams()
-    self.geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    geo_provider = geometry_provider.ConstantGeometryProvider(self.geo)
+    geo_provider = geometry_provider.ConstantGeometryProvider(
+        geometry_pydantic_model.CircularConfig().build_geometry()
+    )
     sources = default_sources.get_default_sources()
-    dynamic_runtime_params_slice, geo = (
+    self.dynamic_runtime_params_slice, self.geo = (
         torax_refs.build_consistent_dynamic_runtime_params_slice_and_geometry(
             runtime_params,
             geo_provider,
@@ -48,12 +49,12 @@ class PostProcessingTest(parameterized.TestCase):
         )
     )
     # Make some dummy source profiles.
-    ones = np.ones_like(geo.rho)
+    ones = np.ones_like(self.geo.rho)
     self.source_profiles = source_profiles_lib.SourceProfiles(
         j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
-            geo
+            self.geo
         ),
-        qei=source_profiles_lib.QeiInfo.zeros(geo),
+        qei=source_profiles_lib.QeiInfo.zeros(self.geo),
         temp_ion={
             'fusion_heat_source': ones,
             'generic_ion_el_heat_source': 2 * ones,
@@ -74,15 +75,15 @@ class PostProcessingTest(parameterized.TestCase):
     static_slice = build_runtime_params.build_static_runtime_params_slice(
         runtime_params=runtime_params,
         sources=sources,
-        torax_mesh=geo.torax_mesh,
+        torax_mesh=self.geo.torax_mesh,
     )
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )
     self.core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
+        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
-        geo=geo,
+        geo=self.geo,
         source_models=source_models,
     )
 
@@ -104,7 +105,11 @@ class PostProcessingTest(parameterized.TestCase):
         geometry=self.geo,
     )
 
-    updated_sim_state = post_processing.make_outputs(sim_state, self.geo)
+    updated_sim_state = post_processing.make_outputs(
+        sim_state=sim_state,
+        geo=self.geo,
+        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
+    )
 
     # Check that the outputs were updated.
     for field in state.PostProcessedOutputs.__dataclass_fields__:
@@ -128,6 +133,7 @@ class PostProcessingTest(parameterized.TestCase):
         self.geo,
         self.core_profiles,
         self.source_profiles,
+        self.dynamic_runtime_params_slice,
     )
     # pylint: enable=protected-access
 
@@ -149,6 +155,7 @@ class PostProcessingTest(parameterized.TestCase):
         'P_external_ion',
         'P_external_el',
         'P_external_tot',
+        'P_external_injected',
         'I_ecrh',
         'I_generic',
     }

@@ -185,20 +185,23 @@ class SimulationStepFn:
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if
       # output_state.stepper_numeric_outputs.stepper_error_state == 0.
-      geo_t_plus_dt, output_state = self.adaptive_step(
-          output_state,
-          static_runtime_params_slice,
-          dynamic_runtime_params_slice_t,
-          dynamic_runtime_params_slice_provider,
-          geo_t,
-          geometry_provider,
-          input_state,
-          explicit_source_profiles,
+      dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt, output_state = (
+          self.adaptive_step(
+              output_state,
+              static_runtime_params_slice,
+              dynamic_runtime_params_slice_t,
+              dynamic_runtime_params_slice_provider,
+              geo_t,
+              geometry_provider,
+              input_state,
+              explicit_source_profiles,
+          )
       )
 
     output_state = post_processing.make_outputs(
         sim_state=output_state,
         geo=geo_t_plus_dt,
+        dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
         previous_sim_state=input_state,
     )
 
@@ -363,7 +366,11 @@ class SimulationStepFn:
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
-  ) -> tuple[geometry.Geometry, state.ToraxSimState]:
+  ) -> tuple[
+      runtime_params_slice.DynamicRuntimeParamsSlice,
+      geometry.Geometry,
+      state.ToraxSimState,
+  ]:
     """Performs adaptive time stepping until stepper converges.
 
     If the initial step has converged (i.e.
@@ -386,6 +393,8 @@ class SimulationStepFn:
 
     Returns:
       A tuple containing:
+        - Dynamic runtime params at time t + dt, where dt is the actual time
+          step used.
         - Geometry at time t + dt, where dt is the actual time step used.
         - ToraxSimState after adaptive time stepping.
     """
@@ -472,7 +481,7 @@ class SimulationStepFn:
 
     # Calculate dynamic_runtime_params and geo at t + dt.
     # Update geos with phibdot.
-    _, _, geo_t_plus_dt = (
+    dynamic_runtime_params_slice_t_plus_dt, _, geo_t_plus_dt = (
         _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
             input_state.t,
             output_state.dt,
@@ -482,7 +491,7 @@ class SimulationStepFn:
         )
     )
 
-    return geo_t_plus_dt, output_state
+    return dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt, output_state
 
 
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
