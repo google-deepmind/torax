@@ -26,7 +26,7 @@ dependencies = [
     "flax>=0.10.0",
     "matplotlib>=3.3.0",
     "numpy>2",
-    "setuptools;python_version>='3.10'",
+    "setuptools==77.0.3", # https://github.com/pypa/setuptools/issues/491"
     "chex>=0.1.88",
     "equinox>=0.11.3",
     "PyYAML>=6.0.1",
