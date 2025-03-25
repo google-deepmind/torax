@@ -128,8 +128,10 @@ The model can then be called like any Flax model,
 Option 2: converting a Pytorch model to a JAX model
 ===================================================
 
+.. warning::
+    The `torch_xla2`_ package is still evolving, which means there may be unexpected breaking changes. Some of the methods described in this section may become deprecated with little warning.
+
 If your model is in PyTorch, you could also consider using the `torch_xla2`_ package to do the conversion to JAX automatically.
-For example,
 
 .. code-block:: python
 
@@ -144,6 +146,34 @@ The model can then be called as a pure JAX function:
 .. code-block:: python
 
     output_tensor = jax_model_from_torch(params, input_tensor)
+
+To remove the need for performing the conversion every time the model is loaded, you might want to save a JAX-compatible version of the weights and model to disk:
+
+.. code-block:: python
+
+    import jax
+    import numpy as np
+
+    # jax.export uses StableHLO to serialize the model to a binary format
+    exported_model = jax.export(jax_model_from_torch)
+    with open("model.hlo", "wb") as f:
+      f.write(exported_model.serialize())
+
+    # The weights can be saved as numpy arrays
+    np.savez("weights.npz", *params)
+
+The model can then be loaded and run as follows:
+
+.. code-block:: python
+
+    # Load the HLO checkpoint
+    with open('model.hlo', 'rb') as f:
+      model_as_bytes = f.read()
+      model = jax.export.deserialize(model_as_bytes)
+
+    # Load the weights
+    weights_as_npz = jnp.load('weights.npz')
+    weights = [jnp.array(v) for v in weights_as_npz.values()]
 
 
 Option 3: using an ONNX model
