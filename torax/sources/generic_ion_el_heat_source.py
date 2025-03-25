@@ -128,10 +128,7 @@ class GenericIonElHeatSourceConfig(base.SourceModelBase):
     el_heat_fraction: Electron heating fraction
     absorption_fraction: Fraction of absorbed power
   """
-
-  source_name: Literal['generic_ion_el_heat_source'] = (
-      'generic_ion_el_heat_source'
-  )
+  model_function_name: Literal['default_formula'] = 'default_formula'
   w: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.25)
   rsource: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(
       0.0
