@@ -291,6 +291,12 @@ def update_all_core_profiles_after_step(
       ),
   )
 
+  vloop_lcfs = jnp.where(
+      static_runtime_params_slice.use_vloop_lcfs_boundary_condition,
+      dynamic_runtime_params_slice.profile_conditions.vloop_lcfs,
+      jnp.array(0.0),  # vloop_lcfs not calculated yet for Ip BC
+  )
+
   return state.CoreProfiles(
       temp_ion=temp_ion,
       temp_el=temp_el,
@@ -311,7 +317,7 @@ def update_all_core_profiles_after_step(
       nref=core_profiles.nref,
       Ai=core_profiles.Ai,
       Aimp=core_profiles.Aimp,
-      vloop_lcfs=core_profiles.vloop_lcfs,
+      vloop_lcfs=vloop_lcfs,
   )
 
 

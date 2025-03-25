@@ -155,6 +155,7 @@ class CoreProfiles:
         temp_el=self.temp_el.history_elem(),
         psi=self.psi.history_elem(),
         psidot=self.psidot.history_elem(),
+        vloop_lcfs=self.vloop_lcfs,
         ne=self.ne.history_elem(),
         ni=self.ni.history_elem(),
         nimp=self.nimp.history_elem(),
