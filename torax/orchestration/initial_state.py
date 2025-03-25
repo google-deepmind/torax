@@ -15,7 +15,6 @@
 import dataclasses
 
 from absl import logging
-
 from torax import output
 from torax import sim
 from torax import state
@@ -69,11 +68,9 @@ def initial_state_from_file_restart(
       {output.RHO_CELL_NORM: config_args.RHO_NORM}
   )
   post_processed_dataset = post_processed_dataset.squeeze()
-  post_processed_outputs = (
-      sim._override_initial_state_post_processed_outputs_from_file(  # pylint: disable=protected-access
-          geo_for_init,
-          post_processed_dataset,
-      )
+  post_processed_outputs = sim._override_initial_state_post_processed_outputs_from_file(  # pylint: disable=protected-access
+      geo_for_init,
+      post_processed_dataset,
   )
 
   initial_state = sim.get_initial_state(
@@ -82,7 +79,14 @@ def initial_state_from_file_restart(
       geo=geo_for_init,
       step_fn=step_fn,
   )
+  # In restarts we always know the initial vloop_lcfs so replace the
+  # zeros initialization (for Ip BC case) from get_initial_state.
+  core_profiles = dataclasses.replace(
+      initial_state.core_profiles,
+      vloop_lcfs=core_profiles_dataset.vloop_lcfs.values,
+  )
   return dataclasses.replace(
       initial_state,
       post_processed_outputs=post_processed_outputs,
+      core_profiles=core_profiles,
   )

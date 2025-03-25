@@ -101,7 +101,7 @@ def _override_initial_runtime_params_from_file(
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
   dynamic_runtime_params_slice.profile_conditions.Ip_tot = ds.data_vars[
       output.IP_PROFILE_FACE
-  ].to_numpy()[-1]
+  ].to_numpy()[-1]/1e6  # Convert from A to MA.
   dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
       output.TEMP_EL
   ].to_numpy()
@@ -160,6 +160,7 @@ def _run_simulation(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     initial_state: state.ToraxSimState,
+    restart_case: bool,
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
@@ -195,6 +196,7 @@ def _run_simulation(
     initial_state: The starting state of the simulation. This includes both the
       state variables which the stepper.Stepper will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
+    restart_case: If True, the simulation is being restarted from a saved state.
     step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
       after one timestep. Note that step_fn determines dt (how long the timestep
       is). The state_history that run_simulation() outputs comes from these
@@ -255,6 +257,7 @@ def _run_simulation(
       leave=True,
   ) as pbar:
     # Advance the simulation until the time_step_calculator tells us we are done
+    first_step = True if not restart_case else False
     while step_fn.time_step_calculator.not_done(
         sim_state.t,
         dynamic_runtime_params_slice.numerics.t_final,
@@ -281,6 +284,15 @@ def _run_simulation(
         sim_error.log_error()
         break
       else:
+        if first_step:
+          first_step = False
+          if not static_runtime_params_slice.use_vloop_lcfs_boundary_condition:
+            # For the Ip BC case, set vloop_lcfs[0] to the same value as
+            # vloop_lcfs[1] due the vloop_lcfs timeseries being underconstrained
+            sim_history[0].core_profiles = dataclasses.replace(
+                sim_history[0].core_profiles,
+                vloop_lcfs=sim_state.core_profiles.vloop_lcfs,
+            )
         sim_history.append(sim_state)
         # Calculate progress ratio and update pbar.n
         progress_ratio = (

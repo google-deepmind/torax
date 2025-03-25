@@ -98,6 +98,7 @@ def run_simulation(
         geo_for_init=geo_for_init,
         step_fn=step_fn,
     )
+    restart_case = True
   else:
     initial_state = sim.get_initial_state(
         static_runtime_params_slice=static_runtime_params_slice,
@@ -105,12 +106,14 @@ def run_simulation(
         geo=geo_for_init,
         step_fn=step_fn,
     )
+    restart_case = False
 
   sim_outputs = sim._run_simulation(  # pylint: disable=protected-access
       static_runtime_params_slice=static_runtime_params_slice,
       dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
       geometry_provider=geometry_provider,
       initial_state=initial_state,
+      restart_case=restart_case,
       step_fn=step_fn,
       log_timestep_info=log_timestep_info,
       progress_bar=progress_bar,

@@ -22,6 +22,7 @@ from torax.config import build_runtime_params
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import updaters
+from torax.fvm import cell_variable
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import pydantic_model as source_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -281,6 +282,45 @@ class UpdatersTest(parameterized.TestCase):
     self.assertEqual(
         boundary_conditions['temp_ion']['right_face_constraint'],
         expected_Ti_bound_right,
+    )
+
+  def test_update_vloop_lcfs_from_psi(self):
+    """Consistency check for _update_vloop_lcfs_from_psi.
+
+    Check the the output inverts _calculate_psi_value_constraint_from_vloop
+    as expected.
+    """
+
+    dt = 1.0
+    theta = 1.0
+    vloop_lcfs_t = 0.1
+    vloop_lcfs_t_plus_dt_expected = 0.2
+    psi_lcfs_t = 0.5
+    psi_lcfs_t_plus_dt = updaters._calculate_psi_value_constraint_from_vloop(
+        dt,
+        theta,
+        vloop_lcfs_t,
+        vloop_lcfs_t_plus_dt_expected,
+        psi_lcfs_t,
+    )
+
+    psi_t = cell_variable.CellVariable(
+        value=np.ones_like(self.geo.rho) * 0.5,
+        dr=self.geo.drho_norm,
+        right_face_grad_constraint=0.0,
+    )
+    psi_t_plus_dt = cell_variable.CellVariable(
+        value=np.ones_like(self.geo.rho) * psi_lcfs_t_plus_dt,
+        dr=self.geo.drho_norm,
+        right_face_grad_constraint=0.0,
+    )
+
+    vloop_lcfs_t_plus_dt = updaters._update_vloop_lcfs_from_psi(
+        psi_t, psi_t_plus_dt, dt
+    )
+
+    np.testing.assert_allclose(
+        vloop_lcfs_t_plus_dt, vloop_lcfs_t_plus_dt_expected
     )
 
 

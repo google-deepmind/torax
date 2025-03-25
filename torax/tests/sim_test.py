@@ -17,6 +17,7 @@
 These are full integration tests that run the simulation and compare to a
 previously executed TORAX reference:
 """
+import copy
 from typing import Optional, Sequence
 from unittest import mock
 
@@ -517,8 +518,9 @@ class SimTest(sim_test_case.SimTestCase):
 
     history_length = history.core_profiles.temp_ion.value.shape[0]
     self.assertEqual(history_length, history.times.shape[0])
-    self.assertGreater(history.times[-1],
-                       torax_config.runtime_params.numerics.t_final)
+    self.assertGreater(
+        history.times[-1], torax_config.runtime_params.numerics.t_final
+    )
 
     for torax_profile in _ALL_PROFILES:
       profile_history = history.core_profiles[torax_profile]
@@ -600,6 +602,7 @@ class SimTest(sim_test_case.SimTestCase):
     torax_config = model_config.ToraxConfig.from_dict(config)
 
     original_get_initial_state = sim_lib.get_initial_state
+
     def wrapped_get_initial_state(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
@@ -630,9 +633,7 @@ class SimTest(sim_test_case.SimTestCase):
       dynamic_runtime_params_slice.profile_conditions.ne_bound_right = (
           ne_bound_right
       )
-      dynamic_runtime_params_slice.profile_conditions.psi = (
-          psi
-      )
+      dynamic_runtime_params_slice.profile_conditions.psi = psi
       # When loading from file we want ne not to have transformations.
       # Both ne and the boundary condition are given in absolute values
       # (not fGW).
@@ -666,6 +667,58 @@ class SimTest(sim_test_case.SimTestCase):
         lambda x: x[-1] if x is not None else None, sim_outputs.core_profiles
     )
     verify_core_profiles(ref_profiles, -1, final_core_profiles)
+    # pylint: enable=invalid-name
+
+  def test_ip_bc_vloop_bc_equivalence(self):
+    """Tests the equivalence of the Ip BC and the VLoop BC.
+
+    In this test we:
+    - Run a sim with the Ip BC.
+    - Get from the output the vloop_lcfs
+    - Run a second sim with the Vloop BC using vloop_lcfs from the first sim
+    - Compare core profiles between the two sims. Exact equivalence is not
+    expected since the boundary condition numerics are different, but should be
+    close. This is a strong test that the VLoop BC is working as expected.
+    """
+    test_config = 'test_timedependence'
+    profiles = [
+        output.TEMP_ION,
+        output.TEMP_EL,
+        output.NE,
+        output.PSI,
+    ]
+
+    # Run the first sim
+    config_ip_bc = self._get_config_dict(test_config + '.py')
+    torax_config = model_config.ToraxConfig.from_dict(config_ip_bc)
+    sim_outputs_ip_bc = run_simulation.run_simulation(torax_config)
+    middle_index = len(sim_outputs_ip_bc.times) // 2
+    times = sim_outputs_ip_bc.times
+
+    # Run the second sim
+    config_vloop_bc = copy.deepcopy(config_ip_bc)
+    config_vloop_bc['runtime_params']['profile_conditions'][
+        'use_vloop_lcfs_boundary_condition'
+    ] = True
+    config_vloop_bc['runtime_params']['profile_conditions']['vloop_lcfs'] = (
+        times,
+        sim_outputs_ip_bc.core_profiles.vloop_lcfs,
+    )
+    torax_config = model_config.ToraxConfig.from_dict(config_vloop_bc)
+    sim_outputs_vloop_bc = run_simulation.run_simulation(torax_config)
+
+    for profile in profiles:
+      np.testing.assert_allclose(
+          sim_outputs_ip_bc.core_profiles[profile].value[middle_index, :],
+          sim_outputs_vloop_bc.core_profiles[profile].value[middle_index, :],
+          rtol=1e-4,
+      )
+      np.testing.assert_allclose(
+          sim_outputs_ip_bc.core_profiles[profile].value[-1, :],
+          sim_outputs_vloop_bc.core_profiles[profile].value[-1, :],
+          rtol=1e-4,
+      )
+
     # pylint: enable=invalid-name
 
   def test_nans_trigger_error(self):

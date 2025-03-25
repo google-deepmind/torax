@@ -46,7 +46,7 @@ from torax.transport_model import transport_model as transport_model_lib
 from typing_extensions import Annotated
 
 
-class SimWithTimeDependeceTest(parameterized.TestCase):
+class SimWithTimeDependenceTest(parameterized.TestCase):
   """Integration tests for torax.sim with time-dependent runtime params."""
 
   def setUp(self):
@@ -112,10 +112,11 @@ class SimWithTimeDependeceTest(parameterized.TestCase):
         geometry_provider: geometry_provider_lib.GeometryProvider,
         initial_state: state.ToraxSimState,
         step_fn: step_function.SimulationStepFn,
+        restart_case: bool,
         log_timestep_info: bool = False,
         progress_bar: bool = True,
     ) -> output.ToraxSimOutputs:
-      del log_timestep_info, progress_bar
+      del log_timestep_info, progress_bar, restart_case
       output_state, error = step_fn(
           static_runtime_params_slice,
           dynamic_runtime_params_slice_provider,
