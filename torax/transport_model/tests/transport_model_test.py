@@ -451,6 +451,12 @@ class FakeTransportModel(transport_model_lib.TransportModel):
         v_face_el=v_face_el,
     )
 
+  def __hash__(self) -> int:
+    return hash(self.__class__.__name__)
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, type(self))
+
 
 class FakeTransportConfig(transport_pydantic_model_base.TransportBase):
   """Fake transport config for a model that always returns zeros."""

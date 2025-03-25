@@ -222,6 +222,12 @@ class FakeQualikizBasedTransportModel(
         gyrobohm_flux_reference_length=geo.Rmin,
     )
 
+  def __hash__(self) -> int:
+    return hash(self.__class__.__name__)
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, type(self))
+
 
 # pylint: disable=invalid-name
 class QualikizBasedTransportModelConfig(

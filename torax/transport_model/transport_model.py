@@ -107,6 +107,23 @@ class TransportModel(abc.ABC):
   ) -> state.CoreTransport:
     pass
 
+  @abc.abstractmethod
+  def __hash__(self) -> int:
+    """Returns a hash of the transport model.
+
+    Should be implemented to support jax.jit caching.
+    """
+
+  @abc.abstractmethod
+  def __eq__(self, other) -> bool:
+    """Returns whether the transport model is equal to the other.
+
+    Should be implemented to support jax.jit caching.
+
+    Args:
+      other: The object to compare to.
+    """
+
   def _apply_clipping(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
