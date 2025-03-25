@@ -16,9 +16,9 @@
 
 import contextlib
 import dataclasses
+import functools
 import os
 from typing import Any, Callable, Optional, TypeVar, Union
-
 import chex
 import equinox as eqx
 import jax
@@ -27,6 +27,26 @@ from jax import numpy as jnp
 
 T = TypeVar('T')
 BooleanNumeric = Any  # A bool, or a Boolean array.
+
+
+@functools.cache
+def get_dtype() -> type(jnp.float32):
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  return jnp.float64 if precision == 'f64' else jnp.float32
+
+
+@functools.cache
+def get_int_dtype() -> type(jnp.int32):
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  return jnp.int64 if precision == 'f64' else jnp.int32
 
 
 def env_bool(name: str, default: bool) -> bool:
@@ -147,7 +167,7 @@ def jax_default(value: chex.Numeric) -> ...:
 
 def compat_linspace(
     start: Union[chex.Numeric, jax.Array], stop: jax.Array, num: jax.Array
-)-> jax.Array:
+) -> jax.Array:
   """See np.linspace.
 
   This implementation of a subset of the linspace API reproduces the
