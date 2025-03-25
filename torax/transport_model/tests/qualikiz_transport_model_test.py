@@ -41,12 +41,19 @@ except ImportError:
 
 class QualikizTransportModelTest(absltest.TestCase):
 
+  def setUp(self):
+    os.environ['TORAX_COMPILATION_ENABLED'] = '0'
+    super().setUp()
+
+  def tearDown(self):
+    os.environ['TORAX_COMPILATION_ENABLED'] = '1'
+    super().tearDown()
+
   def test_call(self):
     """Tests that the model can be called."""
     # Test prerequisites
     if not _QUALIKIZ_TRANSPORT_MODEL_AVAILABLE:
       self.skipTest('Qualikiz transport model is not available.')
-    os.environ['TORAX_COMPILATION_ENABLED'] = '0'
 
     # Building the model inputs.
     geo = geometry_pydantic_model.CircularConfig().build_geometry()

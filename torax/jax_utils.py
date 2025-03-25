@@ -75,12 +75,6 @@ def env_bool(name: str, default: bool) -> bool:
 # persistent compilation cache.
 _ERRORS_ENABLED: bool = env_bool('TORAX_ERRORS_ENABLED', False)
 
-# If True, jax_utils.jit is jax.jit and causes compilation.
-# Otherwise, jax_utils.jit is a no-op for debugging purposes.
-# This setting cannot be changed because it determines the behavior
-# of most torax modules at import time.
-_COMPILATION_ENABLED: bool = env_bool('TORAX_COMPILATION_ENABLED', True)
-
 
 @contextlib.contextmanager
 def enable_errors(value: bool):
@@ -225,8 +219,8 @@ def is_tracer(var: jax.Array) -> bool:
 
 
 def jit(*args, **kwargs) -> Callable[..., Any]:
-  """Calls jax.jit iff TORAX_COMPILATION_ENABLED is True."""
-  if _COMPILATION_ENABLED:
+  """Calls jax.jit if TORAX_COMPILATION_ENABLED is True, otherwise no-op."""
+  if env_bool('TORAX_COMPILATION_ENABLED', True):
     return jax.jit(*args, **kwargs)
   return args[0]
 
