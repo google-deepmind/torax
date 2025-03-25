@@ -174,3 +174,13 @@ class Source(abc.ABC):
         return (zeros,) * len(self.affected_core_profiles)
       case _:
         raise ValueError(f'Unknown mode: {mode}')
+
+  def __hash__(self) -> int:
+    return hash((self.SOURCE_NAME, self.model_func))
+
+  def __eq__(self, other) -> bool:
+    return (
+        isinstance(other, type(self))
+        and self.SOURCE_NAME == other.SOURCE_NAME
+        and self.model_func == other.model_func
+    )
