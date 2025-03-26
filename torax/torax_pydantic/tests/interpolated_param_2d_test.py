@@ -57,6 +57,17 @@ class InterpolatedParam2dTest(parameterized.TestCase):
           expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
       ),
       dict(
+          testcase_name='2_tuple__list_input_t=1',
+          time_rho_interpolated_input=(
+              _RHO_NORM_ARRAY.tolist(),
+              _VALUES_ARRAY.tolist(),
+          ),
+          nx=4,
+          dx=0.25,
+          time=1.0,
+          expected_output=np.array([1.0, 2.0, 3.0, 4.0]),
+      ),
+      dict(
           testcase_name='3_tuple_input_t=0',
           time_rho_interpolated_input=(
               np.array([0.0, 1.0]),
@@ -74,6 +85,18 @@ class InterpolatedParam2dTest(parameterized.TestCase):
               np.array([0.0, 1.0]),
               _RHO_NORM_ARRAY,
               np.array([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]),
+          ),
+          nx=4,
+          dx=0.25,
+          time=1.0,
+          expected_output=np.array([5.0, 6.0, 7.0, 8.0]),
+      ),
+      dict(
+          testcase_name='3_tuple_list_input_t=1',
+          time_rho_interpolated_input=(
+              [0.0, 1.0],
+              _RHO_NORM_ARRAY,
+              [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
           ),
           nx=4,
           dx=0.25,

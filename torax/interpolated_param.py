@@ -59,13 +59,17 @@ InterpolationModeLiteral: TypeAlias = Literal[
 ]
 
 
+_ArrayOrListOfFloats: TypeAlias = (
+    chex.Array | list[float]
+)
+
 # Config input types convertible to InterpolatedParam objects.
 InterpolatedVarSingleAxisInput: TypeAlias = (
     float
     | dict[float, float]
     | bool
     | dict[float, bool]
-    | tuple[chex.Array, chex.Array]
+    | tuple[_ArrayOrListOfFloats, _ArrayOrListOfFloats]
     | xr.DataArray
 )
 InterpolatedVarTimeRhoInput: TypeAlias = (
@@ -73,8 +77,8 @@ InterpolatedVarTimeRhoInput: TypeAlias = (
     Mapping[float, InterpolatedVarSingleAxisInput]
     | float
     | xr.DataArray
-    | tuple[chex.Array, chex.Array, chex.Array]
-    | tuple[chex.Array, chex.Array]
+    | tuple[_ArrayOrListOfFloats, _ArrayOrListOfFloats, _ArrayOrListOfFloats]
+    | tuple[_ArrayOrListOfFloats, _ArrayOrListOfFloats]
 )
 
 
@@ -309,9 +313,9 @@ def convert_input_to_xs_ys(
       )
     xs, ys = interp_input
     sort_order = np.argsort(xs)
-    xs = xs[sort_order]
-    ys = ys[sort_order]
-    return np.asarray(xs), np.asarray(ys), interpolation_mode, is_bool_param
+    xs = np.asarray(xs)[sort_order]
+    ys = np.asarray(ys)[sort_order]
+    return xs, ys, interpolation_mode, is_bool_param
   if isinstance(interp_input, dict):
     if not interp_input:
       raise ValueError('InterpolatedVarSingleAxisInput must include values.')
