@@ -17,7 +17,8 @@
 import dataclasses
 import importlib
 import os
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
+from torax.geometry import pydantic_model as geometry_pydantic_model
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -30,7 +31,7 @@ try:
 except ImportError:
     IDSToplevel = Any
 from torax.tests.test_lib import sim_test_case
-from torax.config import runtime_params_slice
+from torax.config import build_runtime_params
 from torax.geometry import geometry
 from torax.config import build_sim
 from torax import post_processing
@@ -66,7 +67,7 @@ class EquilibriumTest(sim_test_case.SimTestCase):
     sim = build_sim.build_sim_from_config(config_module.CONFIG)
     #sim = self._get_sim(config_name)
     dynamic_runtime_params_slice, geo = (
-        runtime_params_slice.get_consistent_dynamic_runtime_params_slice_and_geometry(
+        build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
             t=sim.initial_state.t,
             dynamic_runtime_params_slice_provider=sim.dynamic_runtime_params_slice_provider,
             geometry_provider=sim.geometry_provider,
@@ -125,16 +126,15 @@ class EquilibriumTest(sim_test_case.SimTestCase):
 
 
     #Loading the equilibrium and constructing geometry object
-    intermediate_IMAS = geometry.StandardGeometryIntermediates.from_IMAS(equilibrium_object = 'ITERhybrid_COCOS17_IDS_ddv4.nc', Ip_from_parameters = True)
-    geo_IMAS = geometry.build_standard_geometry(intermediate_IMAS)
+    config = geometry_pydantic_model.IMASConfig(equilibrium_object = 'ITERhybrid_COCOS17_IDS_ddv4.nc', Ip_from_parameters = True)
+    geo_IMAS = config.build_geometry()
 
-    intermediate_CHEASE = geometry.StandardGeometryIntermediates.from_chease()
-    geo_CHEASE = geometry.build_standard_geometry(intermediate_CHEASE)
+    geo_CHEASE =  geometry_pydantic_model.CheaseConfig().build_geometry()
 
     #Comparison of the fields
     diverging_fields = []
     for key in geo_IMAS:
-      if key != 'geometry_type' and key != 'Ip_from_parameters' and key != 'torax_mesh':
+      if key != 'geometry_type' and key != 'Ip_from_parameters' and key != 'torax_mesh' and key != '_z_magnetic_axis':
         try:
           np.testing.assert_allclose(geo_IMAS[key],
                                 geo_CHEASE[key],

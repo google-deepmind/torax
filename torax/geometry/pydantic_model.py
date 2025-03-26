@@ -275,6 +275,14 @@ class IMASConfig(torax_pydantic.BaseModelFrozen):
   equilibrium_object: str | Any = 'ITERhybrid_COCOS17_IDS_ddv4.nc'
   Ip_from_parameters: Annotated[bool, TIME_INVARIANT] = False
 
+  @pydantic.model_validator(mode='after')
+  def _validate_model(self) -> typing_extensions.Self:
+    if self.equilibrium_object[-3:] == '.h5':
+      raise ValueError(
+          "If you are using hdf5 backend, the equilibrium_object must be either the repository containing the equilibrium.h5 and master.h5 files or '' (if your geometry_dir is already this specific repository).\n \
+        In any case, make sure geometry_dir + equilibrium_object gives the path to this directory and not to the .h5 file."
+      )
+    return self
 
   def build_geometry(self) -> standard_geometry.StandardGeometry:
 
