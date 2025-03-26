@@ -29,6 +29,10 @@ from torax.sources import source_profiles
 import typing_extensions
 
 
+def has_nan(inputs: Any) -> bool:
+  return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
+
+
 @chex.dataclass(frozen=True)
 class Currents:
   """Dataclass to group currents and related variables (e.g. conductivity).
@@ -169,26 +173,6 @@ class CoreProfiles:
         Zimp=self.Zimp,
         Zimp_face=self.Zimp_face,
         Aimp=self.Aimp,
-    )
-
-  def has_nans(self) -> bool:
-    """Checks for NaNs in all attributes of CoreProfiles."""
-
-    def _check_for_nans(x: Any) -> bool:
-      if isinstance(x, jax.Array):
-        return jnp.any(jnp.isnan(x)).item()
-      elif isinstance(x, (int, float)):
-        return jnp.isnan(x).item()
-      elif isinstance(x, Currents):
-        return x.has_nans()  # Check for NaNs within nested Currents dataclass
-      elif isinstance(x, cell_variable.CellVariable):
-        return jnp.any(jnp.isnan(x.value)).item()
-      else:
-        return False
-
-    return any(
-        _check_for_nans(getattr(self, field))
-        for field in self.__dataclass_fields__
     )
 
   def quasineutrality_satisfied(self) -> bool:
@@ -552,7 +536,7 @@ class SimError(enum.Enum):
     match self:
       case SimError.NAN_DETECTED:
         logging.error("""
-            Simulation stopped due to NaNs in core profiles.
+            Simulation stopped due to NaNs in state.
             Possible cause is negative temperatures or densities.
             Output file contains all profiles up to the last valid step.
             """)
@@ -619,7 +603,7 @@ class ToraxSimState:
 
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""
-    if self.core_profiles.has_nans():
+    if has_nan(self):
       return SimError.NAN_DETECTED
     elif not self.core_profiles.quasineutrality_satisfied():
       return SimError.QUASINEUTRALITY_BROKEN

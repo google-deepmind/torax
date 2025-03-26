@@ -28,12 +28,14 @@ from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
+from torax.fvm import cell_variable
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import torax_refs
 
 
@@ -155,9 +157,105 @@ class StateTest(torax_refs.ReferenceValueTest):
     for i in range(self.history_length):
       self.assertEqual(i, history.index(i).temp_ion.value[0])
 
+  def test_nan_check(self,):
+    t = jnp.array(0.0)
+    dt = jnp.array(0.1)
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    source_profiles = source_profiles_lib.SourceProfiles(
+        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+            geo
+        ),
+        qei=source_profiles_lib.QeiInfo.zeros(geo),
+    )
+    dummy_cell_variable = cell_variable.CellVariable(
+        value=jnp.zeros_like(geo.rho),
+        dr=geo.drho_norm,
+        right_face_constraint=jnp.ones(()),
+        right_face_grad_constraint=None,
+    )
+    core_profiles = state.CoreProfiles(
+        currents=state.Currents.zeros(geo),
+        temp_ion=dummy_cell_variable,
+        temp_el=dummy_cell_variable,
+        psi=dummy_cell_variable,
+        psidot=dummy_cell_variable,
+        ne=dummy_cell_variable,
+        ni=dummy_cell_variable,
+        nimp=dummy_cell_variable,
+        q_face=jnp.zeros_like(geo.rho_face),
+        s_face=jnp.zeros_like(geo.rho_face),
+        nref=jnp.array(0.0),
+        vloop_lcfs=jnp.array(0.0),
+        Zi=jnp.zeros_like(geo.rho),
+        Zi_face=jnp.zeros_like(geo.rho_face),
+        Ai=jnp.zeros(()),
+        Zimp=jnp.zeros_like(geo.rho),
+        Zimp_face=jnp.zeros_like(geo.rho_face),
+        Aimp=jnp.zeros(()),
+    )
+    sim_state = state.ToraxSimState(
+        core_profiles=core_profiles,
+        core_transport=state.CoreTransport.zeros(geo),
+        core_sources=source_profiles,
+        t=t,
+        dt=dt,
+        time_step_calculator_state=None,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
+        stepper_numeric_outputs=state.StepperNumericOutputs(
+            outer_stepper_iterations=1,
+            stepper_error_state=1,
+            inner_solver_iterations=1,
+        ),
+        geometry=geo,
+    )
+
+    with self.subTest('no NaN'):
+      error = sim_state.check_for_errors()
+      self.assertEqual(error, state.SimError.NO_ERROR)
+
+    with self.subTest('NaN in BC'):
+      core_profiles = dataclasses.replace(
+          core_profiles,
+          temp_ion=dataclasses.replace(
+              core_profiles.temp_ion,
+              right_face_constraint=jnp.array(jnp.nan),
+          ),
+      )
+      new_sim_state_core_profiles = dataclasses.replace(
+          sim_state, core_profiles=core_profiles
+      )
+      error = new_sim_state_core_profiles.check_for_errors()
+      self.assertEqual(error, state.SimError.NAN_DETECTED)
+
+    with self.subTest('NaN in post processed outputs'):
+      postprocessed_outputs = dataclasses.replace(
+          sim_state.post_processed_outputs,
+          P_external_tot=jnp.array(jnp.nan),
+      )
+      new_sim_state_post = dataclasses.replace(
+          sim_state, post_processed_outputs=postprocessed_outputs
+      )
+      error = new_sim_state_post.check_for_errors()
+      self.assertEqual(error, state.SimError.NAN_DETECTED)
+
+    with self.subTest('NaN in one element of source array'):
+      nan_array = np.zeros_like(geo.rho)
+      nan_array[-1] = np.nan
+      j_bootstrap = dataclasses.replace(
+          sim_state.core_sources.j_bootstrap,
+          j_bootstrap=nan_array,
+      )
+      new_core_sources = dataclasses.replace(
+          sim_state.core_sources, j_bootstrap=j_bootstrap
+      )
+      new_sim_state_sources = dataclasses.replace(
+          sim_state, core_sources=new_core_sources
+      )
+      error = new_sim_state_sources.check_for_errors()
+      self.assertEqual(error, state.SimError.NAN_DETECTED)
+
 
 class InitialStatesTest(parameterized.TestCase):
-  """Unit tests for the `torax.updaters` module."""
 
   def test_initial_boundary_condition_from_time_dependent_params(self):
     """Tests that the initial boundary conditions are set from the config."""
