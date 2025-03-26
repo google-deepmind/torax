@@ -38,13 +38,12 @@ from torax import post_processing
 from torax.torax_imastools.equilibrium import geometry_to_IMAS
 from torax.torax_imastools.util import load_IMAS_data
 
-
-class EquilibriumTest(sim_test_case.SimTestCase):
-  """Unit tests for the `toraximastools.equilibrium` module."""
-  @pytest.mark.skipif(
+@pytest.mark.skipif(
       importlib.util.find_spec('imaspy') is None,
       reason='IMASPy optional dependency'
     )
+class EquilibriumTest(sim_test_case.SimTestCase):
+  """Unit tests for the `toraximastools.equilibrium` module."""
   @parameterized.parameters([
       dict(config_name='test_imas.py', rtol = 0.02, atol = 1e-8),
   ])
@@ -109,11 +108,6 @@ class EquilibriumTest(sim_test_case.SimTestCase):
       err_msg = 'f profile failed',
     )
 
-
-  @pytest.mark.skipif(
-    importlib.util.find_spec('imaspy') is None,
-    reason='IMASPy optional dependency'
-  )
   @parameterized.parameters([
       dict(rtol = 0.02, atol = 1e-8),
   ])
