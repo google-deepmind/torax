@@ -32,7 +32,7 @@ from torax.torax_imastools.util import requires_module, face_to_cell
 @requires_module("imaspy")
 def write_ids_equilibrium_into_config(
     config: dict, equilibrium: IDSToplevel
-) -> dict:
+) -> dict[str, np.ndarray]:
     """Loads the equilibrium into the geometry config.
     Args:
     config: TORAX config object.
@@ -53,7 +53,7 @@ def geometry_from_IMAS(
     Ip_from_parameters: bool = False,
     n_rho: int = 25,
     hires_fac: int = 4,
-) -> dict:
+) -> Dict:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
     Args:
       equilibrium_object: Either directly the equilbrium IDS containing the

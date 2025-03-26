@@ -14,7 +14,7 @@
 
 import os
 import importlib
-
+import pytest
 from absl.testing import absltest
 from absl.testing import parameterized
 import jax
@@ -86,11 +86,11 @@ class GeometryTest(parameterized.TestCase):
   @parameterized.parameters([
       dict(equilibrium_object='ITERhybrid_COCOS17_IDS_ddv4.nc'),
   ])
-  def test_build_standard_geometry_from_IMAS(self, geometry_file):
+  def test_build_standard_geometry_from_IMAS(self, equilibrium_object):
     """Test that the default IMAS geometry can be built."""
     if importlib.util.find_spec('imaspy') is None:
       self.skipTest('IMASPy optional dependency')
-    config = geometry_pydantic_model.IMASConfig(equilibrium_object=geometry_file)
+    config = geometry_pydantic_model.IMASConfig(equilibrium_object=equilibrium_object)
     config.build_geometry()
 
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
