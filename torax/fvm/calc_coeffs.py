@@ -168,25 +168,20 @@ def _calculate_pereverzev_flux(
       * geo_factor
   )
 
-  # remove Pereverzev flux from boundary region if pedestal model is on
-  # (for PDE stability)
-  chi_face_per_ion = jnp.where(
-      jnp.logical_and(
-          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
-      ),
-      0.0,
-      chi_face_per_ion,
+  # Precompute the pedestal condition and corresponding mask.
+  pedestal_condition = jnp.logical_and(
+      dynamic_runtime_params_slice.profile_conditions.set_pedestal,
+      geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
   )
-  chi_face_per_el = jnp.where(
-      jnp.logical_and(
-          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
-      ),
-      0.0,
-      chi_face_per_el,
-  )
-  # set heat convection terms to zero out Pereverzev-Corrigan heat diffusion
+  # mask is 1.0 where values should be kept, 0.0 where they should be zeroed.
+  mask = pedestal_condition.astype(chi_face_per_ion.dtype)
+  mask = 1.0 - mask
+
+  # Apply the mask to zero out Pereverzev flux in the boundary region.
+  chi_face_per_ion = chi_face_per_ion * mask
+  chi_face_per_el = chi_face_per_el * mask
+
+  # Set heat convection terms based on the updated chi values.
   v_heat_face_ion = (
       core_profiles.temp_ion.face_grad()
       / core_profiles.temp_ion.face_value()
@@ -198,24 +193,19 @@ def _calculate_pereverzev_flux(
       * chi_face_per_el
   )
 
-  d_face_per_el = jnp.where(
-      jnp.logical_and(
-          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
-      ),
-      0.0,
-      d_face_per_el * geo.g1_over_vpr_face,
+  # Apply the same mask for the diffusion-related terms.
+  d_face_per_el = (
+      d_face_per_el
+      * geo.g1_over_vpr_face
+      * (1.0 - pedestal_condition.astype(d_face_per_el.dtype))
+  )
+  v_face_per_el = (
+      v_face_per_el
+      * geo.g0_face
+      * (1.0 - pedestal_condition.astype(v_face_per_el.dtype))
   )
 
-  v_face_per_el = jnp.where(
-      jnp.logical_and(
-          dynamic_runtime_params_slice.profile_conditions.set_pedestal,
-          geo.rho_face_norm > pedestal_model_output.rho_norm_ped_top,
-      ),
-      0.0,
-      v_face_per_el * geo.g0_face,
-  )
-
+  # For boundary consistency, set the first element equal to the second element.
   chi_face_per_ion = chi_face_per_ion.at[0].set(chi_face_per_ion[1])
   chi_face_per_el = chi_face_per_el.at[0].set(chi_face_per_el[1])
 
@@ -308,6 +298,7 @@ def calc_coeffs(
         'pedestal_model',
         'source_models',
         'evolving_names',
+        'use_pereverzev',
     ],
 )
 def _calc_coeffs_full(
@@ -449,12 +440,11 @@ def _calc_coeffs_full(
       )
 
   # entire coefficient preceding dT/dr in heat transport equations
-  full_chi_face_ion = (
-      geo.g1_over_vpr_face * true_ni_face * consts.keV2J * chi_face_ion
-  )
-  full_chi_face_el = (
-      geo.g1_over_vpr_face * true_ne_face * consts.keV2J * chi_face_el
-  )
+
+  common_factor = geo.g1_over_vpr_face * consts.keV2J
+
+  full_chi_face_ion = common_factor * true_ni_face * chi_face_ion
+  full_chi_face_el = common_factor * true_ne_face * chi_face_el
 
   # entire coefficient preceding dne/dr in particle equation
   full_d_face_el = geo.g1_over_vpr_face * d_face_el
