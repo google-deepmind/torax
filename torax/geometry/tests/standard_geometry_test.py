@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import importlib
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -76,6 +77,20 @@ class GeometryTest(parameterized.TestCase):
   def test_build_geometry_from_eqdsk(self, geometry_file):
     """Test that EQDSK geometries can be built."""
     config = geometry_pydantic_model.EQDSKConfig(geometry_file=geometry_file)
+    config.build_geometry()
+
+  @pytest.mark.skipif(
+      importlib.util.find_spec('imaspy') is None,
+      reason='IMASPy optional dependency'
+  )
+  @parameterized.parameters([
+      dict(equilibrium_object='ITERhybrid_COCOS17_IDS_ddv4.nc'),
+  ])
+  def test_build_standard_geometry_from_IMAS(self, geometry_file):
+    """Test that the default IMAS geometry can be built."""
+    if importlib.util.find_spec('imaspy') is None:
+      self.skipTest('IMASPy optional dependency')
+    config = geometry_pydantic_model.IMASConfig(equilibrium_object=geometry_file)
     config.build_geometry()
 
   def test_access_z_magnetic_axis_raises_error_for_chease_geometry(self):
