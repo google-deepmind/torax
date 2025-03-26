@@ -26,6 +26,7 @@ from jax import numpy as jnp
 import jaxtyping as jt
 import numpy as np
 from torax import array_typing
+from torax import jax_utils
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
@@ -266,7 +267,7 @@ class ToricNNWrapper:
         inputs.temperature_peaking_factor,
         inputs.density_peaking_factor,
         inputs.B0,
-    ])
+    ], dtype=jax_utils.get_dtype())
     outputs_He3 = self._power_deposition_network.apply(
         self._power_deposition_He3_params, inputs
     )

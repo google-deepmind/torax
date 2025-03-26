@@ -20,6 +20,7 @@ Builds the convection terms of the discrete matrix equation.
 import chex
 import jax
 from jax import numpy as jnp
+from torax import jax_utils
 from torax import math_utils
 from torax.fvm import cell_variable
 
@@ -50,11 +51,11 @@ def make_convection_terms(
       with the constraint value specifying the value of the "other" cell:
       x_{boundary_face} = alpha x_{last_cell} + (1 - alpha) BC
     neumann_mode: Which strategy to use to handle Neumann boundary conditions.
-      The default is `ghost`, which has superior stability.
-      'ghost' -> Boundary face values are inferred by constructing a ghost cell
-      then alpha weighting cells. 'semi-implicit' -> Matches FiPy. Boundary face
-      values are alpha weighted, with the (1 - alpha) weight applied to the
-      external face value rather than to a ghost cell.
+      The default is `ghost`, which has superior stability. 'ghost' -> Boundary
+      face values are inferred by constructing a ghost cell then alpha weighting
+      cells. 'semi-implicit' -> Matches FiPy. Boundary face values are alpha
+      weighted, with the (1 - alpha) weight applied to the external face value
+      rather than to a ghost cell.
 
   Returns:
     mat: Tridiagonal matrix of coefficients on u
@@ -71,7 +72,7 @@ def make_convection_terms(
   d_face = nonzero_sign * jnp.maximum(eps, jnp.abs(d_face))
 
   # FiPy uses half mesh width at the boundaries
-  half = jnp.array([0.5])
+  half = jnp.array([0.5], dtype=jax_utils.get_dtype())
   ones = jnp.ones_like(v_face[1:-1])
   scale = jnp.concatenate((half, ones, half))
 

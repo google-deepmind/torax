@@ -83,7 +83,7 @@ def _calculate_integrated_sources(
   integrated = {}
 
   # Initialize total alpha power to zero. Needed for Q calculation.
-  integrated['P_alpha_tot'] = jnp.array(0.0)
+  integrated['P_alpha_tot'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
   # electron-ion heat exchange always exists, and is not in
   # core_sources.profiles, so we calculate it here.
@@ -99,9 +99,11 @@ def _calculate_integrated_sources(
   # stored energy).
   integrated['P_sol_ion'] = integrated['P_ei_exchange_ion']
   integrated['P_sol_el'] = integrated['P_ei_exchange_el']
-  integrated['P_external_ion'] = jnp.array(0.0)
-  integrated['P_external_el'] = jnp.array(0.0)
-  integrated['P_external_injected'] = jnp.array(0.0)
+  integrated['P_external_ion'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+  integrated['P_external_el'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+  integrated['P_external_injected'] = jnp.array(
+      0.0, dtype=jax_utils.get_dtype()
+  )
 
   # Calculate integrated sources with convenient names, transformed from
   # TORAX internal names.

@@ -20,6 +20,7 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import constants
+from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -55,7 +56,7 @@ def calc_fusion(
   # Otherwise, calculate the fusion power.
   if not {'D', 'T'}.issubset(static_runtime_params_slice.main_ion_names):
     return (
-        jnp.array(0.0),
+        jnp.array(0.0, dtype=jax_utils.get_dtype()),
         jnp.zeros_like(core_profiles.temp_ion.value),
         jnp.zeros_like(core_profiles.temp_ion.value),
     )

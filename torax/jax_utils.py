@@ -23,6 +23,7 @@ import chex
 import equinox as eqx
 import jax
 from jax import numpy as jnp
+import numpy as np
 
 
 T = TypeVar('T')
@@ -37,6 +38,16 @@ def get_dtype() -> type(jnp.float32):
       'Unknown JAX precision environment variable: %s' % precision
   )
   return jnp.float64 if precision == 'f64' else jnp.float32
+
+
+@functools.cache
+def get_np_dtype() -> type(np.float32):
+  # Default TORAX JAX precision is f64
+  precision = os.getenv('JAX_PRECISION', 'f64')
+  assert precision == 'f64' or precision == 'f32', (
+      'Unknown JAX precision environment variable: %s' % precision
+  )
+  return np.float64 if precision == 'f64' else np.float32
 
 
 @functools.cache
@@ -116,8 +127,6 @@ def error_if(
   Returns:
     var: Identity wrapper that must be used for the check to be included.
   """
-  var = jnp.array(var)
-  cond = jnp.array(cond)
   if not _ERRORS_ENABLED:
     return var
   return eqx.error_if(var, cond, msg)

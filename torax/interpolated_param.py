@@ -211,12 +211,16 @@ class StepInterpolatedParam(InterpolatedParamBase):
       )
     diff = jnp.sum(jnp.abs(jnp.sort(self.xs) - self.xs))
     jax_utils.error_if(diff, diff > 1e-8, 'xs must be sorted.')
-    self._padded_xs = jnp.concatenate(
-        [jnp.array([-jnp.inf]), self.xs, jnp.array([jnp.inf])]
-    )
-    self._padded_ys = jnp.concatenate(
-        [jnp.array([self.ys[0]]), self.ys, jnp.array([self.ys[-1]])]
-    )
+    self._padded_xs = jnp.concatenate([
+        jnp.array([-jnp.inf], dtype=jax_utils.get_dtype()),
+        self.xs,
+        jnp.array([jnp.inf], dtype=jax_utils.get_dtype()),
+    ])
+    self._padded_ys = jnp.concatenate([
+        jnp.array([self.ys[0]], dtype=jax_utils.get_dtype()),
+        self.ys,
+        jnp.array([self.ys[-1]], dtype=jax_utils.get_dtype()),
+    ])
 
   @property
   def xs(self) -> chex.Array:

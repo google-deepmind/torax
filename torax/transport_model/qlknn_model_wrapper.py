@@ -17,11 +17,13 @@ from typing import Final
 import immutabledict
 import jax
 import jax.numpy as jnp
+from torax import jax_utils
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qualikiz_based_transport_model
 # pylint: disable=g-import-not-at-top
 try:
   from fusion_surrogates import qlknn_model
+
   _FUSION_SURROGATES_AVAILABLE = True
 except ImportError:
   _FUSION_SURROGATES_AVAILABLE = False
@@ -74,11 +76,13 @@ class QLKNNModelWrapper(base_qlknn_model.BaseQLKNNModel):
     def _get_input(key: str) -> jax.Array:
       # If no complex mapping is defined, we use the trivial mapping.
       return jnp.array(
-          input_map.get(key, lambda x: getattr(x, key))(qualikiz_inputs)
+          input_map.get(key, lambda x: getattr(x, key))(qualikiz_inputs),
+          dtype=jax_utils.get_dtype(),
       )
 
     return jnp.array(
-        [_get_input(key) for key in self.inputs_and_ranges.keys()]
+        [_get_input(key) for key in self.inputs_and_ranges.keys()],
+        dtype=jax_utils.get_dtype(),
     ).T
 
   def predict(self, inputs: jax.Array) -> dict[str, jax.Array]:
