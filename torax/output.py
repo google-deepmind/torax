@@ -31,26 +31,6 @@ import xarray as xr
 import os
 
 
-@chex.dataclass(frozen=True)
-class ToraxSimOutputs:
-  """Output structure returned by `run_simulation()`.
-
-  Contains the error state and the history of the simulation state.
-  Can be extended in the future to include more metadata about the simulation.
-
-  Attributes:
-    sim_error: simulation error state: NO_ERROR for no error, NAN_DETECTED for
-      NaNs found in core profiles.
-    sim_history: history of the simulation state.
-  """
-
-  # Error state
-  sim_error: state.SimError
-
-  # Time-dependent TORAX outputs
-  sim_history: tuple[state.ToraxSimState, ...]
-
-
 # Core profiles.
 CORE_PROFILES = "core_profiles"
 TEMP_EL = "temp_el"
@@ -201,18 +181,19 @@ class StateHistory:
 
   def __init__(
       self,
-      sim_outputs: ToraxSimOutputs,
+      state_history: tuple[state.ToraxSimState, ...],
+      sim_error: state.SimError,
       source_models: source_models_lib.SourceModels,
   ):
     core_profiles = [
-        state.core_profiles.history_elem() for state in sim_outputs.sim_history
+        state.core_profiles.history_elem() for state in state_history
     ]
-    core_sources = [state.core_sources for state in sim_outputs.sim_history]
-    transport = [state.core_transport for state in sim_outputs.sim_history]
+    core_sources = [state.core_sources for state in state_history]
+    transport = [state.core_transport for state in state_history]
     post_processed_output = [
-        state.post_processed_outputs for state in sim_outputs.sim_history
+        state.post_processed_outputs for state in state_history
     ]
-    geometries = [state.geometry for state in sim_outputs.sim_history]
+    geometries = [state.geometry for state in state_history]
     self.geometry = geometry_lib.stack_geometries(geometries)
     stack = lambda *ys: np.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
@@ -227,14 +208,14 @@ class StateHistory:
     self.post_processed_outputs: state.PostProcessedOutputs = (
         jax.tree_util.tree_map(stack, *post_processed_output)
     )
-    self.times = np.array([state.t for state in sim_outputs.sim_history])
+    self.times = np.array([state.t for state in state_history])
     # The rho grid does not change in time so we can just take the first one.
-    self.rho_norm = sim_outputs.sim_history[0].geometry.rho_norm
-    self.rho_face_norm = sim_outputs.sim_history[0].geometry.rho_face_norm
-    self.rho_face = sim_outputs.sim_history[0].geometry.rho_face
-    self.rho = sim_outputs.sim_history[0].geometry.rho
+    self.rho_norm = state_history[0].geometry.rho_norm
+    self.rho_face_norm = state_history[0].geometry.rho_face_norm
+    self.rho_face = state_history[0].geometry.rho_face
+    self.rho = state_history[0].geometry.rho
     chex.assert_rank(self.times, 1)
-    self.sim_error = sim_outputs.sim_error
+    self.sim_error = sim_error
     self.source_models = source_models
 
   def _pack_into_data_array(

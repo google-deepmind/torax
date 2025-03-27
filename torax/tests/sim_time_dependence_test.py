@@ -24,7 +24,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pydantic
-from torax import output
 from torax import sim
 from torax import state
 from torax.config import build_runtime_params
@@ -115,7 +114,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         restart_case: bool,
         log_timestep_info: bool = False,
         progress_bar: bool = True,
-    ) -> output.ToraxSimOutputs:
+    ) -> tuple[tuple[state.ToraxSimState, ...], state.SimError]:
       del log_timestep_info, progress_bar, restart_case
       output_state, error = step_fn(
           static_runtime_params_slice,
@@ -138,9 +137,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       np.testing.assert_allclose(
           output_state.core_sources.qei.qei_coef, expected_combined_value
       )
-      return output.ToraxSimOutputs(
-          sim_history=(output_state,), sim_error=error
-      )
+      return (output_state,), error
 
     with mock.patch.object(
         sim, '_run_simulation', wraps=_fake_sim_run_simulation

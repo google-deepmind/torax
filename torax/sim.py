@@ -98,9 +98,9 @@ def _override_initial_runtime_params_from_file(
   """Override parts of runtime params slice from state in a file."""
   # pylint: disable=invalid-name
   dynamic_runtime_params_slice.numerics.t_initial = t_restart
-  dynamic_runtime_params_slice.profile_conditions.Ip_tot = ds.data_vars[
-      output.IP_PROFILE_FACE
-  ].to_numpy()[-1]/1e6  # Convert from A to MA.
+  dynamic_runtime_params_slice.profile_conditions.Ip_tot = (
+      ds.data_vars[output.IP_PROFILE_FACE].to_numpy()[-1] / 1e6
+  )  # Convert from A to MA.
   dynamic_runtime_params_slice.profile_conditions.Te = ds.data_vars[
       output.TEMP_EL
   ].to_numpy()
@@ -163,7 +163,7 @@ def _run_simulation(
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
-) -> output.ToraxSimOutputs:
+) -> tuple[tuple[state.ToraxSimState, ...], state.SimError]:
   """Runs the transport simulation over a prescribed time interval.
 
   This is the main entrypoint for running a TORAX simulation.
@@ -205,12 +205,13 @@ def _run_simulation(
     progress_bar: If True, displays a progress bar.
 
   Returns:
-    ToraxSimOutputs, containing information on the sim error state, and the
-    simulation history, consisting of a tuple of ToraxSimState objects, one for
-    each time step. There are N+1 objects returned, where N is the number of
-    simulation steps taken. The first object in the tuple is for the initial
-    state. If the sim error state is 1, then a trunctated simulation history is
-    returned up until the last valid timestep.
+    A tuple of:
+      - the simulation history, consisting of a tuple of ToraxSimState objects,
+        one for each time step. There are N+1 objects returned, where N is the
+        number of simulation steps taken. The first object in the tuple is for
+        the initial state. If the sim error state is 1, then a trunctated
+        simulation history is returned up until the last valid timestep.
+      - The sim error state.
   """
 
   # Provide logging information on precision setting
@@ -334,9 +335,7 @@ def _run_simulation(
       simulation_time,
       wall_clock_time_elapsed,
   )
-  return output.ToraxSimOutputs(
-      sim_error=sim_error, sim_history=tuple(sim_history)
-  )
+  return tuple(sim_history), sim_error
 
 
 def _log_timestep(

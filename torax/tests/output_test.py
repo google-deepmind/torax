@@ -116,10 +116,9 @@ class StateHistoryTest(parameterized.TestCase):
     sim_error = state.SimError.NO_ERROR
 
     self.history = output.StateHistory(
-        output.ToraxSimOutputs(
-            sim_error=sim_error, sim_history=(self.sim_state,)
-        ),
-        self.source_models,
+        sim_error=sim_error,
+        state_history=(self.sim_state,),
+        source_models=self.source_models,
     )
 
   def test_geometry_is_saved(self):
@@ -132,11 +131,9 @@ class StateHistoryTest(parameterized.TestCase):
         ),
     )
     state_history = output.StateHistory(
-        output.ToraxSimOutputs(
-            sim_error=state.SimError.NO_ERROR,
-            sim_history=(self.sim_state, self.sim_state_t2),
-        ),
-        self.source_models,
+        sim_error=state.SimError.NO_ERROR,
+        state_history=(self.sim_state, self.sim_state_t2),
+        source_models=self.source_models,
     )
     output_xr = state_history.simulation_output_to_xr()
     print(output_xr.children[output.GEOMETRY].dataset.data_vars)
