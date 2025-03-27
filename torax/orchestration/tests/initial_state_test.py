@@ -17,7 +17,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from torax import output
-from torax import sim
 from torax.config import build_runtime_params
 from torax.orchestration import initial_state
 from torax.orchestration import step_function
@@ -38,7 +37,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
     static, dynamic, geo = _get_geo_and_runtime_params_slice(torax_config)
 
-    non_restart = sim.get_initial_state(
+    non_restart = initial_state.get_initial_state(
         static_runtime_params_slice=static,
         dynamic_runtime_params_slice=dynamic,
         geo=geo,
@@ -140,7 +139,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     # Additionally we want to avoid normalizing to nbar.
     dynamic.profile_conditions.normalize_to_nbar = False
 
-    result = sim.get_initial_state(
+    result = initial_state.get_initial_state(
         static, dynamic, geo, step_fn
     )
     _verify_core_profiles(ref_profiles, index, result.core_profiles)

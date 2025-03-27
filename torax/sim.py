@@ -29,59 +29,14 @@ import time
 
 from absl import logging
 import jax
-import jax.numpy as jnp
 import numpy as np
 from torax import post_processing
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
-from torax.core_profiles import initialization
-from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
-from torax.sources import source_profile_builders
 import tqdm
-
-
-def get_initial_state(
-    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo: geometry.Geometry,
-    step_fn: step_function.SimulationStepFn,
-) -> state.ToraxSimState:
-  """Returns the initial state to be used by run_simulation()."""
-  initial_core_profiles = initialization.initial_core_profiles(
-      static_runtime_params_slice,
-      dynamic_runtime_params_slice,
-      geo,
-      step_fn.stepper.source_models,
-  )
-  # Populate the starting state with source profiles from the implicit sources
-  # before starting the run-loop. The explicit source profiles will be computed
-  # inside the loop and will be merged with these implicit source profiles.
-  initial_core_sources = source_profile_builders.get_initial_source_profiles(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-      geo=geo,
-      core_profiles=initial_core_profiles,
-      source_models=step_fn.stepper.source_models,
-  )
-
-  return state.ToraxSimState(
-      t=jnp.array(dynamic_runtime_params_slice.numerics.t_initial),
-      dt=jnp.zeros(()),
-      core_profiles=initial_core_profiles,
-      # This will be overridden within run_simulation().
-      core_sources=initial_core_sources,
-      core_transport=state.CoreTransport.zeros(geo),
-      post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
-      stepper_numeric_outputs=state.StepperNumericOutputs(
-          stepper_error_state=0,
-          outer_stepper_iterations=0,
-          inner_solver_iterations=0,
-      ),
-      geometry=geo,
-  )
 
 
 def _run_simulation(

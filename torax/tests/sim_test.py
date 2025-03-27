@@ -26,8 +26,8 @@ from absl.testing import parameterized
 from jax import tree
 import numpy as np
 from torax import output
-from torax import sim as sim_lib
 from torax import state
+from torax.orchestration import initial_state
 from torax.orchestration import run_simulation
 from torax.tests.test_lib import sim_test_case
 from torax.torax_pydantic import model_config
@@ -598,7 +598,7 @@ class SimTest(sim_test_case.SimTestCase):
     config['runtime_params']['numerics']['t_initial'] = loading_time
     torax_config = model_config.ToraxConfig.from_dict(config)
 
-    original_get_initial_state = sim_lib.get_initial_state
+    original_get_initial_state = initial_state.get_initial_state
 
     def wrapped_get_initial_state(
         static_runtime_params_slice,
@@ -651,7 +651,7 @@ class SimTest(sim_test_case.SimTestCase):
       )
 
     with mock.patch.object(
-        sim_lib, 'get_initial_state', wraps=wrapped_get_initial_state
+        initial_state, 'get_initial_state', wraps=wrapped_get_initial_state
     ):
       sim_outputs = run_simulation.run_simulation(torax_config)
 

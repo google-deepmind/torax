@@ -100,7 +100,7 @@ def run_simulation(
     )
     restart_case = True
   else:
-    initial_state = sim.get_initial_state(
+    initial_state = initial_state_lib.get_initial_state(
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
         geo=geo_for_init,
