@@ -151,17 +151,25 @@ class StaticRuntimeParamsSlice:
     if not isinstance(other, StaticRuntimeParamsSlice):
       return False
     
-    # Handle backward compatibility for enable_sanity_checks
-    self_dict = self.__dict__.copy()
-    other_dict = other.__dict__.copy()
+    # List of primary fields we care about for equality
+    primary_fields = [
+        'ion_heat_eq', 'el_heat_eq', 'current_eq', 'dens_eq',
+        'use_bootstrap_calc', 'use_vloop_lcfs_boundary_condition',
+        'adaptive_dt', 'show_progress_bar'
+    ]
     
-    # If enable_sanity_checks is missing in either object, set it to False for comparison
-    if 'enable_sanity_checks' not in self_dict:
-      self_dict['enable_sanity_checks'] = False
-    if 'enable_sanity_checks' not in other_dict:
-      other_dict['enable_sanity_checks'] = False
-      
-    return self_dict == other_dict
+    # Compare all primary fields
+    for field in primary_fields:
+        if getattr(self, field) != getattr(other, field):
+            return False
+    
+    # Handle enable_sanity_checks separately for backward compatibility
+    self_enable_checks = getattr(self, 'enable_sanity_checks', False)
+    other_enable_checks = getattr(other, 'enable_sanity_checks', False)
+    if self_enable_checks != other_enable_checks:
+        return False
+    
+    return True
   
   def __hash__(self) -> int:
     """Implements StaticRuntimeParamsSlice hash.
@@ -169,16 +177,18 @@ class StaticRuntimeParamsSlice:
     Returns:
       Hash value for this instance.
     """
-    # Create a dictionary for hashing with defaults for backward compatibility
-    hash_dict = self.__dict__.copy()
+    # List of fields to include in hash
+    primary_fields = [
+        'ion_heat_eq', 'el_heat_eq', 'current_eq', 'dens_eq',
+        'use_bootstrap_calc', 'use_vloop_lcfs_boundary_condition',
+        'adaptive_dt', 'show_progress_bar'
+    ]
     
-    # If enable_sanity_checks is missing, use False as default
-    if 'enable_sanity_checks' not in hash_dict:
-      hash_dict['enable_sanity_checks'] = False
-      
-    # Convert the dict to a frozenset of tuple items for hashing
-    items = frozenset(hash_dict.items())
-    return hash(items)
+    # Create a tuple of field values for hashing
+    values = tuple(getattr(self, field) for field in primary_fields)
+    
+    # Add enable_sanity_checks with backward compatibility
+    return hash(values + (getattr(self, 'enable_sanity_checks', False),))
 
 
 def make_ip_consistent(

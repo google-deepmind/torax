@@ -38,6 +38,7 @@ class DynamicNumerics:
   largeValue_T: float
   largeValue_n: float
   calcphibdot: bool
+  enable_sanity_checks: bool
 
 
 class Numerics(torax_pydantic.BaseModelFrozen):
@@ -78,6 +79,10 @@ class Numerics(torax_pydantic.BaseModelFrozen):
       internal boundary conditions.
     largeValue_n: Prefactor for adaptive source term for setting density
       internal boundary conditions.
+    enable_sanity_checks: If True, enables runtime validation checks for 
+      configuration parameters, simulation state, and step outputs to detect
+      issues early such as NaN values, negative temperatures/densities,
+      and other physically unrealistic values.
   """
 
   t_initial: torax_pydantic.Second = 0.0
@@ -100,6 +105,7 @@ class Numerics(torax_pydantic.BaseModelFrozen):
   nref: pydantic.PositiveFloat = 1e20
   largeValue_T: pydantic.PositiveFloat = 2.0e10
   largeValue_n: pydantic.PositiveFloat = 2.0e8
+  enable_sanity_checks: bool = False
 
   @pydantic.model_validator(mode='after')
   def model_validation(self) -> Self:
@@ -135,4 +141,5 @@ class Numerics(torax_pydantic.BaseModelFrozen):
         nref=self.nref,
         largeValue_T=self.largeValue_T,
         largeValue_n=self.largeValue_n,
+        enable_sanity_checks=self.enable_sanity_checks,
     )

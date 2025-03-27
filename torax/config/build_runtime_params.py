@@ -63,22 +63,21 @@ def build_static_runtime_params_slice(
   """
   stepper = stepper or stepper_pydantic_model.Stepper()
   return runtime_params_slice.StaticRuntimeParamsSlice(
+      ion_heat_eq=runtime_params.numerics.ion_heat_eq,
+      el_heat_eq=runtime_params.numerics.el_heat_eq,
+      current_eq=runtime_params.numerics.current_eq,
+      dens_eq=runtime_params.numerics.dens_eq,
+      adaptive_dt=runtime_params.numerics.adaptive_dt,
+      use_vloop_lcfs_boundary_condition=runtime_params.numerics.vloop_lcfs,
+      use_bootstrap_calc=sources.build_static_params().use_bootstrap_calc,
+      show_progress_bar=runtime_params.numerics.show_progress_bar,
+      enable_sanity_checks=getattr(runtime_params.numerics, 'enable_sanity_checks', False),
       sources={
           source_name: source_config.build_static_params()
           for source_name, source_config in sources.source_model_config.items()
       },
       torax_mesh=torax_mesh,
       stepper=stepper.build_static_params(),
-      ion_heat_eq=runtime_params.numerics.ion_heat_eq,
-      el_heat_eq=runtime_params.numerics.el_heat_eq,
-      current_eq=runtime_params.numerics.current_eq,
-      dens_eq=runtime_params.numerics.dens_eq,
-      main_ion_names=runtime_params.plasma_composition.get_main_ion_names(),
-      impurity_names=runtime_params.plasma_composition.get_impurity_names(),
-      adaptive_dt=runtime_params.numerics.adaptive_dt,
-      use_vloop_lcfs_boundary_condition=runtime_params.profile_conditions.use_vloop_lcfs_boundary_condition,
-      enable_sanity_checks=runtime_params.numerics.enable_sanity_checks,
-      show_progress_bar=runtime_params.numerics.progress_bar,
   )
 
 
