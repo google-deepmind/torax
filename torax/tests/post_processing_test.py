@@ -106,7 +106,6 @@ class PostProcessingTest(parameterized.TestCase):
 
     updated_sim_state = post_processing.make_outputs(
         sim_state=sim_state,
-        geo=self.geo,
         dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
     )
 

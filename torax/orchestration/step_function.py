@@ -183,22 +183,19 @@ class SimulationStepFn:
     if static_runtime_params_slice.adaptive_dt:
       # This is a no-op if
       # output_state.stepper_numeric_outputs.stepper_error_state == 0.
-      dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt, output_state = (
-          self.adaptive_step(
-              output_state,
-              static_runtime_params_slice,
-              dynamic_runtime_params_slice_t,
-              dynamic_runtime_params_slice_provider,
-              geo_t,
-              geometry_provider,
-              input_state,
-              explicit_source_profiles,
-          )
+      dynamic_runtime_params_slice_t_plus_dt, output_state = self.adaptive_step(
+          output_state,
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_t,
+          dynamic_runtime_params_slice_provider,
+          geo_t,
+          geometry_provider,
+          input_state,
+          explicit_source_profiles,
       )
 
     output_state = post_processing.make_outputs(
         sim_state=output_state,
-        geo=geo_t_plus_dt,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
         previous_sim_state=input_state,
     )
@@ -360,7 +357,6 @@ class SimulationStepFn:
       explicit_source_profiles: source_profiles_lib.SourceProfiles,
   ) -> tuple[
       runtime_params_slice.DynamicRuntimeParamsSlice,
-      geometry.Geometry,
       state.ToraxSimState,
   ]:
     """Performs adaptive time stepping until stepper converges.
@@ -387,14 +383,17 @@ class SimulationStepFn:
       A tuple containing:
         - Dynamic runtime params at time t + dt, where dt is the actual time
           step used.
-        - Geometry at time t + dt, where dt is the actual time step used.
         - ToraxSimState after adaptive time stepping.
     """
     core_profiles_t = input_state.core_profiles
 
     # Check if stepper converged. If not, proceed to body_fun
-    def cond_fun(updated_output: state.ToraxSimState) -> bool:
-      if updated_output.stepper_numeric_outputs.stepper_error_state == 1:
+    def cond_fun(
+        updated_output: tuple[
+            state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
+        ],
+    ) -> bool:
+      if updated_output[0].stepper_numeric_outputs.stepper_error_state == 1:
         do_dt_backtrack = True
       else:
         do_dt_backtrack = False
@@ -404,16 +403,19 @@ class SimulationStepFn:
     # profiles.
     # Exit if dt < mindt
     def body_fun(
-        updated_output: state.ToraxSimState,
-    ) -> state.ToraxSimState:
+        updated_output: tuple[
+            state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
+        ],
+    ) -> tuple[
+        state.ToraxSimState, runtime_params_slice.DynamicRuntimeParamsSlice
+    ]:
+      old_state, old_slice = updated_output
+      numerics = old_slice.numerics
 
-      dt = (
-          updated_output.dt
-          / dynamic_runtime_params_slice_t.numerics.dt_reduction_factor
-      )
+      dt = old_state.dt / numerics.dt_reduction_factor
       if jnp.any(jnp.isnan(dt)):
         raise ValueError('dt is NaN.')
-      if dt < dynamic_runtime_params_slice_t.numerics.mindt:
+      if dt < numerics.mindt:
         raise ValueError('dt below minimum timestep following adaptation')
 
       # Calculate dynamic_runtime_params and geo at t + dt.
@@ -453,37 +455,38 @@ class SimulationStepFn:
           )
       )
       stepper_numeric_outputs.outer_stepper_iterations = (
-          updated_output.stepper_numeric_outputs.outer_stepper_iterations + 1
+          old_state.stepper_numeric_outputs.outer_stepper_iterations + 1
       )
 
       stepper_numeric_outputs.inner_solver_iterations += (
-          updated_output.stepper_numeric_outputs.inner_solver_iterations
+          old_state.stepper_numeric_outputs.inner_solver_iterations
       )
-      return dataclasses.replace(
-          updated_output,
-          t=input_state.t + dt,
-          dt=dt,
-          core_profiles=core_profiles,
-          core_transport=core_transport,
-          core_sources=core_sources,
-          stepper_numeric_outputs=stepper_numeric_outputs,
+      return (
+          state.ToraxSimState(
+              t=input_state.t + dt,
+              dt=dt,
+              core_profiles=core_profiles,
+              core_transport=core_transport,
+              core_sources=core_sources,
+              post_processed_outputs=state.PostProcessedOutputs.zeros(
+                  geo_t_plus_dt
+              ),
+              stepper_numeric_outputs=stepper_numeric_outputs,
+              geometry=geo_t_plus_dt,
+          ),
+          dynamic_runtime_params_slice_t_plus_dt,
       )
 
-    output_state = jax_utils.py_while(cond_fun, body_fun, output_state)
-
-    # Calculate dynamic_runtime_params and geo at t + dt.
-    # Update geos with phibdot.
-    dynamic_runtime_params_slice_t_plus_dt, _, geo_t_plus_dt = (
-        _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(
-            input_state.t,
-            output_state.dt,
-            dynamic_runtime_params_slice_provider,
-            geo_t,
-            geometry_provider,
-        )
+    # Note that the initial state provided here uses the dynamic slice at time t
+    # whereas the return value of this function uses the dynamic slice at time
+    # t + dt. The input should technically be the dynamic state at time t + dt,
+    # but we don't have that value here and we also don't use any of the dynamic
+    # state in the cond_fun or body_fun.
+    output_state, dynamic_runtime_params_slice_t_plus_dt = jax_utils.py_while(
+        cond_fun, body_fun, (output_state, dynamic_runtime_params_slice_t)
     )
 
-    return dynamic_runtime_params_slice_t_plus_dt, geo_t_plus_dt, output_state
+    return dynamic_runtime_params_slice_t_plus_dt, output_state
 
 
 def _get_geo_and_dynamic_runtime_params_at_t_plus_dt_and_phibdot(

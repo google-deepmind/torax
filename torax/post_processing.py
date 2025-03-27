@@ -164,7 +164,6 @@ def _calculate_integrated_sources(
 @jax_utils.jit
 def make_outputs(
     sim_state: state.ToraxSimState,
-    geo: geometry.Geometry,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     previous_sim_state: state.ToraxSimState | None = None,
 ) -> state.ToraxSimState:
@@ -173,7 +172,6 @@ def make_outputs(
   Called at the beginning and end of each `sim.run_simulation` step.
   Args:
     sim_state: The state to add outputs to.
-    geo: Geometry object
     dynamic_runtime_params_slice: Runtime parameters slice for the current time
       step, needed for calculating integrated power.
     previous_sim_state: The previous state, used to calculate cumulative
@@ -199,15 +197,17 @@ def make_outputs(
           pressure_thermal_el_face,
           pressure_thermal_ion_face,
           pressure_thermal_tot_face,
-          geo,
+          sim_state.geometry,
       )
   )
-  FFprime_face = formulas.calc_FFprime(sim_state.core_profiles, geo)
+  FFprime_face = formulas.calc_FFprime(
+      sim_state.core_profiles, sim_state.geometry
+  )
   # Calculate normalized poloidal flux.
   psi_face = sim_state.core_profiles.psi.face_value()
   psi_norm_face = (psi_face - psi_face[0]) / (psi_face[-1] - psi_face[0])
   integrated_sources = _calculate_integrated_sources(
-      geo,
+      sim_state.geometry,
       sim_state.core_profiles,
       sim_state.core_sources,
       dynamic_runtime_params_slice,
@@ -221,7 +221,9 @@ def make_outputs(
   )
 
   P_LH_hi_dens, P_LH_min, P_LH, ne_min_P_LH = (
-      scaling_laws.calculate_plh_scaling_factor(geo, sim_state.core_profiles)
+      scaling_laws.calculate_plh_scaling_factor(
+          sim_state.geometry, sim_state.core_profiles
+      )
   )
 
   # Thermal energy confinement time is the stored energy divided by the total
@@ -245,16 +247,16 @@ def make_outputs(
   tauE = W_thermal_tot / Ploss
 
   tauH89P = scaling_laws.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss, 'H89P'
+      sim_state.geometry, sim_state.core_profiles, Ploss, 'H89P'
   )
   tauH98 = scaling_laws.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss, 'H98'
+      sim_state.geometry, sim_state.core_profiles, Ploss, 'H98'
   )
   tauH97L = scaling_laws.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss, 'H97L'
+      sim_state.geometry, sim_state.core_profiles, Ploss, 'H97L'
   )
   tauH20 = scaling_laws.calculate_scaling_law_confinement_time(
-      geo, sim_state.core_profiles, Ploss, 'H20'
+      sim_state.geometry, sim_state.core_profiles, Ploss, 'H20'
   )
 
   H89P = tauE / tauH89P
@@ -300,30 +302,38 @@ def make_outputs(
 
   # Calculate te and ti volume average [keV]
   te_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.temp_el.value, geo
+      sim_state.core_profiles.temp_el.value, sim_state.geometry
   )
   ti_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.temp_ion.value, geo
+      sim_state.core_profiles.temp_ion.value, sim_state.geometry
   )
 
   # Calculate ne and ni (main ion) volume and line averages [nref m^-3]
   ne_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.ne.value, geo
+      sim_state.core_profiles.ne.value, sim_state.geometry
   )
   ni_volume_avg = math_utils.volume_average(
-      sim_state.core_profiles.ni.value, geo
+      sim_state.core_profiles.ni.value, sim_state.geometry
   )
-  ne_line_avg = math_utils.line_average(sim_state.core_profiles.ne.value, geo)
-  ni_line_avg = math_utils.line_average(sim_state.core_profiles.ni.value, geo)
+  ne_line_avg = math_utils.line_average(
+      sim_state.core_profiles.ne.value, sim_state.geometry
+  )
+  ni_line_avg = math_utils.line_average(
+      sim_state.core_profiles.ni.value, sim_state.geometry
+  )
   fgw_ne_volume_avg = formulas.calculate_greenwald_fraction(
-      ne_volume_avg, sim_state.core_profiles, geo
+      ne_volume_avg, sim_state.core_profiles, sim_state.geometry
   )
   fgw_ne_line_avg = formulas.calculate_greenwald_fraction(
-      ne_line_avg, sim_state.core_profiles, geo
+      ne_line_avg, sim_state.core_profiles, sim_state.geometry
   )
-  Wpol = psi_calculations.calc_Wpol(geo, sim_state.core_profiles.psi)
+  Wpol = psi_calculations.calc_Wpol(
+      sim_state.geometry, sim_state.core_profiles.psi
+  )
   li3 = psi_calculations.calc_li3(
-      geo.Rmaj, Wpol, sim_state.core_profiles.currents.Ip_profile_face[-1]
+      sim_state.geometry.Rmaj,
+      Wpol,
+      sim_state.core_profiles.currents.Ip_profile_face[-1],
   )
 
   # pylint: enable=invalid-name

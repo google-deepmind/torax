@@ -228,7 +228,7 @@ def _run_simulation(
   running_main_loop_start_time = time.time()
   wall_clock_step_times = []
 
-  dynamic_runtime_params_slice, geo = (
+  dynamic_runtime_params_slice, _ = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
           t=initial_state.t,
           dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
@@ -240,7 +240,6 @@ def _run_simulation(
   sim_history = []
   sim_state = post_processing.make_outputs(
       sim_state=sim_state,
-      geo=geo,
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
   )
   sim_history.append(sim_state)
