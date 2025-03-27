@@ -14,6 +14,7 @@
 
 """Logic which controls the stepping over time of the simulation."""
 import dataclasses
+import logging
 
 import jax
 import jax.numpy as jnp
@@ -298,6 +299,9 @@ class SimulationStepFn:
 
     Returns:
       ToraxSimState after the step.
+      
+    Raises:
+      ValueError: If any sanity check fails.
     """
 
     core_profiles_t = input_state.core_profiles
@@ -331,10 +335,8 @@ class SimulationStepFn:
     )
     stepper_numeric_outputs.outer_stepper_iterations = 1
 
-    # post_processed_outputs set to zero since post-processing is done at the
-    # end of the simulation step following recalculation of explicit
-    # core_sources to be consistent with the final core_profiles.
-    return state.ToraxSimState(
+    # Create the output state
+    output_state = state.ToraxSimState(
         t=input_state.t + dt,
         dt=dt,
         core_profiles=core_profiles,
@@ -344,6 +346,33 @@ class SimulationStepFn:
         stepper_numeric_outputs=stepper_numeric_outputs,
         geometry=geo_t_plus_dt,
     )
+    
+    # Perform sanity checks if enabled in static_runtime_params_slice
+    enable_sanity_checks = getattr(
+        static_runtime_params_slice, 'enable_sanity_checks', False
+    )
+    
+    if enable_sanity_checks:
+      try:
+        # Check core_profiles for physical consistency and NaN values
+        core_profiles.sanity_check()
+        
+        # Check transport coefficients
+        core_transport.sanity_check()
+        
+        # Run stepper-specific sanity checks
+        stepper_numeric_outputs.sanity_check()
+        
+      except ValueError as e:
+        # Log the error, but don't crash the simulation
+        logging.error(
+            "Sanity check failed during step (t=%f, dt=%f): %s", 
+            output_state.t, output_state.dt, str(e)
+        )
+        # Set the error state to alert the simulation that there was a problem
+        stepper_numeric_outputs.stepper_error_state = 1
+        
+    return output_state
 
   def adaptive_step(
       self,

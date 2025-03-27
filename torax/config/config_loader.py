@@ -41,11 +41,98 @@ def build_torax_config_from_config_module(
     # dictionary defining the full simulation.
     config = config_module.CONFIG
     torax_config = model_config.ToraxConfig.from_dict(config)
+    # Perform additional sanity checks on the configuration
+    perform_config_sanity_checks(torax_config)
   else:
     raise ValueError(
         f'Config module {config_module_str} must define a CONFIG dictionary.'
     )
   return torax_config
+
+
+def perform_config_sanity_checks(torax_config: model_config.ToraxConfig) -> None:
+  """Performs sanity checks on the ToraxConfig.
+  
+  Validates that the configuration is physically and numerically sensible.
+  Raises ValueError with detailed error messages when issues are found.
+  
+  Args:
+    torax_config: The ToraxConfig object to validate.
+    
+  Raises:
+    ValueError: If any sanity check fails.
+  """
+  # Check numerics parameters
+  numerics = torax_config.runtime_params.numerics
+  if numerics.t_final <= numerics.t_initial:
+    raise ValueError(
+        f'Final time {numerics.t_final} must be greater than initial time '
+        f'{numerics.t_initial}.'
+    )
+  
+  if numerics.mindt <= 0:
+    raise ValueError(f'Minimum time step (mindt) must be positive, got {numerics.mindt}.')
+
+  if numerics.dt_reduction_factor <= 1.0:
+    raise ValueError(
+        f'Time step reduction factor must be greater than 1.0, got '
+        f'{numerics.dt_reduction_factor}.'
+    )
+  
+  # Check if at least one equation is being solved
+  if not (numerics.ion_heat_eq or numerics.el_heat_eq or 
+          numerics.current_eq or numerics.dens_eq):
+    raise ValueError(
+        'At least one equation must be enabled. Set at least one of ion_heat_eq, '
+        'el_heat_eq, current_eq, or dens_eq to True.'
+    )
+  
+  # Check transport parameters
+  transport = torax_config.transport
+  if transport.chimin >= transport.chimax:
+    raise ValueError(
+        f'Minimum chi ({transport.chimin}) must be less than maximum chi '
+        f'({transport.chimax}).'
+    )
+  
+  if transport.Demin >= transport.Demax:
+    raise ValueError(
+        f'Minimum electron diffusivity (Demin: {transport.Demin}) must be less '
+        f'than maximum (Demax: {transport.Demax}).'
+    )
+  
+  if transport.Vemin >= transport.Vemax:
+    raise ValueError(
+        f'Minimum electron convection (Vemin: {transport.Vemin}) must be less '
+        f'than maximum (Vemax: {transport.Vemax}).'
+    )
+  
+  # Check for potential geometry issues
+  geometry = torax_config.geometry
+  if hasattr(geometry, 'n_rho') and geometry.n_rho < 10:
+    raise ValueError(
+        f'Number of radial grid points (n_rho: {geometry.n_rho}) is too small. '
+        f'Recommended minimum is 10.'
+    )
+    
+  # Check for consistency between models
+  if (numerics.dens_eq and 
+      torax_config.pedestal.set_pedestal and 
+      not torax_config.pedestal.neped_is_fGW):
+    logging.warning(
+        'Density equation is enabled with pedestal model, but neped_is_fGW is False. '
+        'Consider setting neped_is_fGW to True for better consistency.'
+    )
+
+  # Check for potentially problematic combinations of stepper and transport model
+  stepper_type = torax_config.stepper.stepper_type
+  transport_model = transport.transport_model
+  if transport_model in ['qlknn', 'CGM'] and stepper_type == 'linear':
+    logging.warning(
+        f'Using advanced transport model ({transport_model}) with linear stepper. '
+        f'This may lead to numerical instabilities. Consider using newton_raphson or '
+        f'optimizer stepper type instead.'
+    )
 
 
 def import_module(module_name: str, config_package: str | None = None):

@@ -196,10 +196,54 @@ class CoreProfiles:
     return state
 
   def sanity_check(self):
-    for field in CoreProfiles.__dataclass_fields__:
+    """Performs sanity checks on the core profiles.
+    
+    Checks for NaN values, physically unrealistic values, and other issues
+    in the core plasma profiles. Called during simulation to detect problems
+    early, before they cause simulation failure.
+    
+    Raises:
+      ValueError: If any sanity check fails.
+    """
+    # Check CellVariables for NaNs
+    cell_var_fields = ['temp_ion', 'temp_el', 'psi', 'psidot', 'ne', 'ni', 'nimp']
+    for field in cell_var_fields:
       value = getattr(self, field)
       if hasattr(value, "sanity_check"):
         value.sanity_check()
+      
+      # Check for NaN values
+      if jnp.any(jnp.isnan(value.value)).item():
+        raise ValueError(f'NaN values detected in {field}.')
+      
+      # Check for temperature and density positivity
+      if field in ['temp_ion', 'temp_el'] and jnp.any(value.value <= 0).item():
+        raise ValueError(f'Non-positive values detected in {field}. Physical temperatures must be positive.')
+      
+      if field in ['ne', 'ni'] and jnp.any(value.value < 0).item():
+        raise ValueError(f'Negative values detected in {field}. Densities must be non-negative.')
+    
+    # Check that ion temperature is physically reasonable
+    if jnp.any(self.temp_ion.value > 100).item():
+      raise ValueError(f'Unrealistically high ion temperature detected (> 100 keV).')
+    
+    if jnp.any(self.temp_el.value > 100).item():
+      raise ValueError(f'Unrealistically high electron temperature detected (> 100 keV).')
+    
+    # Check current-related values
+    if self.currents.has_nans():
+      raise ValueError('NaN values detected in currents.')
+    
+    # Check for safety factor issues
+    if jnp.any(jnp.isnan(self.q_face)).item():
+      raise ValueError('NaN values detected in safety factor (q_face).')
+    
+    if jnp.any(self.q_face <= 0).item():
+      raise ValueError('Non-positive safety factor (q_face) detected.')
+    
+    # Check quasineutrality
+    if not self.quasineutrality_satisfied():
+      raise ValueError('Quasineutrality constraint violated. Check ion and electron densities.')
 
   def __hash__(self):
     """Make CoreProfiles hashable.
@@ -290,6 +334,48 @@ class CoreTransport:
         chi_face_ion_bohm=jnp.zeros(shape),
         chi_face_ion_gyrobohm=jnp.zeros(shape),
     )
+
+  def sanity_check(self) -> None:
+    """Performs sanity checks on transport coefficients.
+    
+    Checks for NaN values, negative diffusivities, and unrealistically large
+    values in transport coefficients.
+    
+    Raises:
+      ValueError: If any sanity check fails.
+    """
+    # Check for NaN values
+    if jnp.any(jnp.isnan(self.chi_face_ion)).item():
+      raise ValueError('NaN values detected in ion heat conductivity (chi_face_ion).')
+    
+    if jnp.any(jnp.isnan(self.chi_face_el)).item():
+      raise ValueError('NaN values detected in electron heat conductivity (chi_face_el).')
+    
+    if jnp.any(jnp.isnan(self.d_face_el)).item():
+      raise ValueError('NaN values detected in electron diffusivity (d_face_el).')
+    
+    if jnp.any(jnp.isnan(self.v_face_el)).item():
+      raise ValueError('NaN values detected in electron convection (v_face_el).')
+    
+    # Check for negative diffusivities
+    if jnp.any(self.chi_face_ion < 0).item():
+      raise ValueError('Negative ion heat conductivity (chi_face_ion) detected.')
+    
+    if jnp.any(self.chi_face_el < 0).item():
+      raise ValueError('Negative electron heat conductivity (chi_face_el) detected.')
+    
+    if jnp.any(self.d_face_el < 0).item():
+      raise ValueError('Negative electron diffusivity (d_face_el) detected.')
+    
+    # Check for unrealistically large values
+    if jnp.any(self.chi_face_ion > 1000).item():
+      raise ValueError('Unrealistically large ion heat conductivity (chi_face_ion > 1000) detected.')
+    
+    if jnp.any(self.chi_face_el > 1000).item():
+      raise ValueError('Unrealistically large electron heat conductivity (chi_face_el > 1000) detected.')
+    
+    if jnp.any(self.d_face_el > 500).item():
+      raise ValueError('Unrealistically large electron diffusivity (d_face_el > 500) detected.')
 
 
 @chex.dataclass(frozen=True, eq=False)
@@ -441,68 +527,110 @@ class PostProcessedOutputs:
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
-    """Returns a PostProcessedOutputs with all zeros, used for initializing."""
-    return cls(
-        pressure_thermal_ion_face=jnp.zeros(geo.rho_face.shape),
-        pressure_thermal_el_face=jnp.zeros(geo.rho_face.shape),
-        pressure_thermal_tot_face=jnp.zeros(geo.rho_face.shape),
-        pprime_face=jnp.zeros(geo.rho_face.shape),
-        W_thermal_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        W_thermal_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        W_thermal_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        tauE=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        H89P=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        H98=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        H97L=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        H20=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        FFprime_face=jnp.zeros(geo.rho_face.shape),
-        psi_norm_face=jnp.zeros(geo.rho_face.shape),
-        psi_face=jnp.zeros(geo.rho_face.shape),
-        P_sol_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_sol_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_sol_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_external_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_external_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_external_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_external_injected=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_ei_exchange_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_ei_exchange_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_generic_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_generic_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_generic_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_alpha_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_alpha_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_alpha_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_ohmic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_brems=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_cycl=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_rad=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        I_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        I_generic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        Q_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_icrh_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_icrh_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_icrh_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH_hi_dens=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ne_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        E_cumulative_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        E_cumulative_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        te_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ti_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ne_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ni_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ne_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        ni_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        fgw_ne_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        fgw_ne_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        q95=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        Wpol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        li3=jnp.array(0.0, dtype=jax_utils.get_dtype()),
-        dW_th_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+    """Creates an empty PostProcessedOutputs from a geometry."""
+
+    # Outputs on a face grid
+    face_shape = geo.rho_face.shape
+    zeros_face = jnp.zeros(face_shape, dtype=jax_utils.get_dtype())
+
+    # Scalar outputs
+    zero = jnp.array(0.0, dtype=jax_utils.get_dtype())
+
+    ret = cls(
+        pressure_thermal_ion_face=zeros_face,
+        pressure_thermal_el_face=zeros_face,
+        pressure_thermal_tot_face=zeros_face,
+        pprime_face=zeros_face,
+        W_thermal_ion=zero,
+        W_thermal_el=zero,
+        W_thermal_tot=zero,
+        tauE=zero,
+        H89P=zero,
+        H98=zero,
+        H97L=zero,
+        H20=zero,
+        FFprime_face=zeros_face,
+        psi_norm_face=zeros_face,
+        psi_face=zeros_face,
+        P_sol_ion=zero,
+        P_sol_el=zero,
+        P_sol_tot=zero,
+        P_external_ion=zero,
+        P_external_el=zero,
+        P_external_tot=zero,
+        P_external_injected=zero,
+        P_ei_exchange_ion=zero,
+        P_ei_exchange_el=zero,
+        P_generic_ion=zero,
+        P_generic_el=zero,
+        P_generic_tot=zero,
+        P_alpha_ion=zero,
+        P_alpha_el=zero,
+        P_alpha_tot=zero,
+        P_ohmic=zero,
+        P_brems=zero,
+        P_cycl=zero,
+        P_ecrh=zero,
+        P_rad=zero,
+        I_ecrh=zero,
+        I_generic=zero,
+        Q_fusion=zero,
+        P_icrh_el=zero,
+        P_icrh_ion=zero,
+        P_icrh_tot=zero,
+        P_LH_hi_dens=zero,
+        P_LH_min=zero,
+        P_LH=zero,
+        ne_min_P_LH=zero,
+        E_cumulative_fusion=zero,
+        E_cumulative_external=zero,
+        te_volume_avg=zero,
+        ti_volume_avg=zero,
+        ne_volume_avg=zero,
+        ni_volume_avg=zero,
+        ne_line_avg=zero,
+        ni_line_avg=zero,
+        fgw_ne_volume_avg=zero,
+        fgw_ne_line_avg=zero,
+        q95=zero,
+        Wpol=zero,
+        li3=zero,
+        dW_th_dt=zero,
     )
+    return ret
+    
+  def sanity_check(self) -> None:
+    """Performs sanity checks on post-processed outputs.
+    
+    Checks for NaN values and physically unrealistic values in post-processed 
+    outputs.
+    
+    Raises:
+      ValueError: If any sanity check fails.
+    """
+    # Check all fields for NaN values
+    for field in self.__dataclass_fields__:
+      value = getattr(self, field)
+      if isinstance(value, jax.Array) and jnp.any(jnp.isnan(value)).item():
+        raise ValueError(f'NaN values detected in post-processed output {field}.')
+    
+    # Check for negative energy values
+    energy_fields = ['W_thermal_ion', 'W_thermal_el', 'W_thermal_tot', 'Wpol']
+    for field in energy_fields:
+      value = getattr(self, field)
+      if value < 0:
+        raise ValueError(f'Negative energy detected in {field}.')
+    
+    # Check for negative confinement time
+    if self.tauE < 0:
+      raise ValueError('Negative energy confinement time (tauE) detected.')
+    
+    # Check for unrealistically high volume average temperatures
+    if self.te_volume_avg > 100:
+      raise ValueError('Unrealistically high volume-averaged electron temperature (> 100 keV).')
+    
+    if self.ti_volume_avg > 100:
+      raise ValueError('Unrealistically high volume-averaged ion temperature (> 100 keV).')
 
 
 @chex.dataclass
@@ -523,6 +651,35 @@ class StepperNumericOutputs:
   outer_stepper_iterations: int = 0
   stepper_error_state: int = 0
   inner_solver_iterations: int = 0
+  
+  def sanity_check(self) -> None:
+    """Performs sanity checks on stepper numeric outputs.
+    
+    Checks for unreasonably high iteration counts and validates the error state.
+    
+    Raises:
+      ValueError: If any sanity check fails.
+    """
+    # Check for excessive iterations which may indicate problems
+    if self.outer_stepper_iterations > 100:
+      raise ValueError(
+          f'Excessive outer stepper iterations ({self.outer_stepper_iterations}) detected. '
+          f'This may indicate convergence problems.'
+      )
+    
+    if self.inner_solver_iterations > 1000:
+      raise ValueError(
+          f'Excessive inner solver iterations ({self.inner_solver_iterations}) detected. '
+          f'This may indicate convergence problems.'
+      )
+    
+    # Verify stepper_error_state is valid
+    valid_error_states = [0, 1, 2]
+    if self.stepper_error_state not in valid_error_states:
+      raise ValueError(
+          f'Invalid stepper error state: {self.stepper_error_state}. '
+          f'Valid values are {valid_error_states}.'
+      )
 
 
 @enum.unique
@@ -609,3 +766,28 @@ class ToraxSimState:
       return SimError.QUASINEUTRALITY_BROKEN
     else:
       return SimError.NO_ERROR
+
+  def sanity_check(self) -> None:
+    """Performs sanity checks on the entire simulation state.
+    
+    Checks for NaN values, physically unrealistic values, and other issues
+    in the simulation state. Called during simulation to detect problems
+    early, before they cause simulation failure.
+    
+    Raises:
+      ValueError: If any sanity check fails.
+    """
+    # Check core_profiles
+    self.core_profiles.sanity_check()
+    
+    # Check core_transport
+    self.core_transport.sanity_check()
+    
+    # Check post_processed_outputs
+    self.post_processed_outputs.sanity_check()
+    
+    # Check geometry
+    self.geometry.sanity_check()
+    
+    # Check stepper_numeric_outputs
+    self.stepper_numeric_outputs.sanity_check()

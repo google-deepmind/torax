@@ -77,6 +77,8 @@ def build_static_runtime_params_slice(
       impurity_names=runtime_params.plasma_composition.get_impurity_names(),
       adaptive_dt=runtime_params.numerics.adaptive_dt,
       use_vloop_lcfs_boundary_condition=runtime_params.profile_conditions.use_vloop_lcfs_boundary_condition,
+      enable_sanity_checks=runtime_params.numerics.enable_sanity_checks,
+      show_progress_bar=runtime_params.numerics.progress_bar,
   )
 
 

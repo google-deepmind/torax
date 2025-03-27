@@ -36,6 +36,7 @@ used.
 """
 from collections.abc import Mapping
 import dataclasses
+import typing
 
 import chex
 from torax.config import numerics
@@ -96,67 +97,60 @@ class DynamicRuntimeParamsSlice:
 
 @chex.dataclass(frozen=True)
 class StaticRuntimeParamsSlice:
-  """Static arguments to SimulationStepFn which cannot be changed.
+  """Static runtime parameters for a simulation time step.
 
-  If any changes are made to these arguments, then components in
-  SimulationStepFn must be recompiled.
+  This config slice contains all the parameters that, if they change, should
+  trigger a recompilation of the simulation step function. The parameters here
+  are ones which are accessed in the JIT-compiled forward pass. They should be
+  immutable (hence the @chex.dataclass(frozen=True)), and be hashable.
 
-  NOTE: These are not the only parameters which can trigger recompilations! For
-  instance, if the geometry changes its shape (i.e. nr or hires_fac change),
-  that can also trigger a recompile. This is just to note that this list is not
-  an exhaustive list of what can cause recompilations.
+  Changing the elements of this config slice should be paired with a
+  recompilation of the simulation step.
 
-  TODO(b/335596447): Add function to help users detect whether their
-  change in config will trigger a recompile.
+  Technically the params in this config slice are static in that they don't
+  change during the course of one simulation step. But they could change between
+  simulation steps. E.g. if you want to simulate an ITER scenario with
+  additional NBI at a certain point in time, you could encode it via a large
+  step function that recompiles at specific time points with different static
+  params. We do not provide that currently.
   """
 
-  stepper: stepper_params.StaticRuntimeParams
-  # Mapping of source name to source-specific static runtime params.
-  sources: Mapping[str, sources_params.StaticRuntimeParams]
-  # Torax mesh used to construct the geometry.
-  torax_mesh: torax_pydantic.Grid1D
-  # Solve the ion heat equation (ion temperature evolves over time)
+  # ----- What to evolve with transport equations -----
+  # Whether to evolve ion and electron temperatures separately or consider
+  # them equal.
   ion_heat_eq: bool
-  # Solve the electron heat equation (electron temperature evolves over time)
   el_heat_eq: bool
-  # Solve the current equation (psi evolves over time driven by the solver;
-  # q and s evolve over time as a function of psi)
   current_eq: bool
-  # Solve the density equation (n evolves over time)
   dens_eq: bool
-  # Ion symbols for main ion and impurity (which each could be mixtures of ions)
-  # These are static to simplify source functions for fusion power and radiation
-  # which are species-dependent.
-  # TODO(b/390279669): add guards against changing ion information
-  # inconsistently between the static and dynamic runtime params slices.
-  main_ion_names: tuple[str, ...]
-  impurity_names: tuple[str, ...]
-  # Whether to use the vloop_lcfs BC or Ip_total BC for the psi equation.
+
+  # ----- Source helpers -----
+  # Compute the bootstrap current from the plasma pressure, density and
+  # temperature during the sim.
+  use_bootstrap_calc: bool
+  # For the current diffusion, imposes a loop voltage boundary condition at LCFS
+  # instead of boundary condition on total plasma current.
   use_vloop_lcfs_boundary_condition: bool
-
-  # Iterative reduction of dt if nonlinear step does not converge,
-  # If nonlinear step does not converge, then the step is redone
-  # iteratively at successively lower dt until convergence is reached
+  # Whether to use adaptive time stepping for large nonlinear PDE steps
   adaptive_dt: bool
+  # Whether to show the progress bar during simulations
+  show_progress_bar: bool
+  # Whether to run sanity checks during the simulation
+  enable_sanity_checks: bool = False
 
-  def __hash__(self):
-    return hash((
-        self.stepper,
-        tuple(sorted(self.sources.items())),  # Hashable version of sources
-        hash(self.torax_mesh),  # Grid1D has a hash method defined.
-        self.ion_heat_eq,
-        self.el_heat_eq,
-        self.current_eq,
-        self.dens_eq,
-        self.main_ion_names,
-        self.impurity_names,
-        self.adaptive_dt,
-    ))
+  def __eq__(self, other: typing.Any) -> bool:
+    """Implements StaticRuntimeParamsSlice equality.
 
-  def validate_new(self, new_params: typing_extensions.Self):
-    """Validates that the new static runtime params slice is compatible."""
-    if set(new_params.sources) != set(self.sources):
-      raise ValueError('New static runtime params slice has different sources.')
+    Args:
+      other: rhs to __eq__
+
+    Returns:
+      True if StaticRuntimeParamsSlice and other are the same.
+    """
+    # All members of this class are atomic Python types, so simple equality
+    # suffices.
+    if not isinstance(other, StaticRuntimeParamsSlice):
+      return False
+    return self.__dict__ == other.__dict__
 
 
 def make_ip_consistent(

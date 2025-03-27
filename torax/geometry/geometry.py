@@ -312,13 +312,79 @@ class Geometry:
         [jnp.expand_dims(first_element, axis=-1), bulk], axis=-1
     )
 
-  def z_magnetic_axis(self) -> chex.Numeric:
-    """z position of magnetic axis [m]."""
-    z_magnetic_axis = self._z_magnetic_axis
-    if z_magnetic_axis is not None:
-      return z_magnetic_axis
-    else:
-      raise ValueError('Geometry does not have a z magnetic axis.')
+  @property
+  def z_magnetic_axis(self) -> chex.Array:
+    """Returns the vertical position of the magnetic axis.
+
+    The magnetic axis is the center of the tokamak, where the poloidal flux is
+    zero.
+
+    Returns:
+      z_magnetic_axis: The vertical position of the magnetic axis.
+    """
+    return self._z_magnetic_axis
+    
+  def sanity_check(self) -> None:
+    """Performs sanity checks on the geometry.
+    
+    Checks for NaN values, physically unrealistic values, and other issues
+    in the geometry data.
+    
+    Raises:
+      ValueError: If any sanity check fails.
+    """
+    # Check for NaN values in key geometry attributes
+    geometry_checks = [
+        ('Phi', self.Phi),
+        ('Phi_face', self.Phi_face),
+        ('Rmaj', self.Rmaj),
+        ('Rmin', self.Rmin),
+        ('B0', self.B0),
+        ('volume', self.volume),
+        ('volume_face', self.volume_face),
+        ('area', self.area),
+        ('area_face', self.area_face),
+        ('vpr', self.vpr),
+        ('vpr_face', self.vpr_face),
+        ('g2g3_over_rhon', self.g2g3_over_rhon),
+        ('g2g3_over_rhon_face', self.g2g3_over_rhon_face),
+        ('F', self.F),
+        ('F_face', self.F_face),
+    ]
+    
+    for name, value in geometry_checks:
+      if jnp.any(jnp.isnan(value)).item():
+        raise ValueError(f'NaN values detected in geometry attribute {name}.')
+    
+    # Check for physically unrealistic values
+    if jnp.any(self.Rmaj <= 0).item():
+      raise ValueError('Non-positive major radius (Rmaj) detected.')
+    
+    if jnp.any(self.Rmin <= 0).item():
+      raise ValueError('Non-positive minor radius (Rmin) detected.')
+      
+    if jnp.any(self.B0 <= 0).item():
+      raise ValueError('Non-positive toroidal field (B0) detected.')
+      
+    if jnp.any(self.volume < 0).item():
+      raise ValueError('Negative volume detected.')
+      
+    if jnp.any(self.area < 0).item():
+      raise ValueError('Negative area detected.')
+      
+    # Check for unrealistic elongation or triangularity
+    if hasattr(self, 'elongation') and jnp.any(self.elongation <= 0).item():
+      raise ValueError('Non-positive elongation detected.')
+      
+    if hasattr(self, 'elongation') and jnp.any(self.elongation > 5).item():
+      raise ValueError('Unrealistically high elongation (> 5) detected.')
+      
+    if hasattr(self, 'delta_face') and jnp.any(jnp.abs(self.delta_face) > 1).item():
+      raise ValueError('Unrealistic triangularity (|delta| > 1) detected.')
+      
+    # Check for valid grid
+    if not hasattr(self.torax_mesh, 'rho_cell') or not hasattr(self.torax_mesh, 'rho_face'):
+      raise ValueError('Invalid grid in geometry. Missing rho_cell or rho_face attributes.')
 
 
 def stack_geometries(geometries: Sequence[Geometry]) -> Geometry:
