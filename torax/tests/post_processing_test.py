@@ -95,7 +95,6 @@ class PostProcessingTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=jax.numpy.array(0.0),
         dt=jax.numpy.array(0.1),
-        time_step_calculator_state=None,
         post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
         stepper_numeric_outputs=state.StepperNumericOutputs(
             outer_stepper_iterations=1,

@@ -77,7 +77,6 @@ def get_initial_state(
       core_sources=initial_core_sources,
       core_transport=state.CoreTransport.zeros(geo),
       post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
-      time_step_calculator_state=step_fn.time_step_calculator.initial_state(),
       stepper_numeric_outputs=state.StepperNumericOutputs(
           stepper_error_state=0,
           outer_stepper_iterations=0,
@@ -261,7 +260,6 @@ def _run_simulation(
     while step_fn.time_step_calculator.not_done(
         sim_state.t,
         dynamic_runtime_params_slice.numerics.t_final,
-        sim_state.time_step_calculator_state,
     ):
       # Measure how long in wall clock time each simulation step takes.
       step_start_time = time.time()

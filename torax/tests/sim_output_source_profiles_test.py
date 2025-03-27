@@ -146,7 +146,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
               input_state,
               t=new_t,
               dt=dt,
-              time_step_calculator_state=(),
               core_sources=source_profile_builders.get_initial_source_profiles(
                   static_runtime_params_slice,
                   dynamic_runtime_params_slice_provider(new_t),

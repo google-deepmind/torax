@@ -24,30 +24,22 @@ from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.time_step_calculator import time_step_calculator
 
-# Dummy state and type for compatibility with time_step_calculator base class
-STATE = None
-State = type(STATE)
-
 
 # TODO(b/337844885). Make this a time dependent calculator.
-class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
+class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator):
   """TimeStepCalculator based on constant time steps.
 
   Attributes:
     config: General configuration parameters.
   """
 
-  def initial_state(self):
-    return STATE
-
   def next_dt(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state_module.CoreProfiles,
-      time_step_calculator_state: State,
       core_transport: state_module.CoreTransport,
-  ) -> tuple[jax.Array, State]:
+  ) -> jax.Array:
     """Calculates the next time step duration.
 
     Args:
@@ -55,8 +47,6 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
         without triggering a JAX recompilation.
       geo: Geometry for the tokamak being simulated.
       core_profiles: Current core plasma profiles.
-      time_step_calculator_state: None, for compatibility with
-        TimeStepCalculator base class.
       core_transport: Used to calculate chi, which determines maximum step size.
 
     Returns:
@@ -65,4 +55,4 @@ class FixedTimeStepCalculator(time_step_calculator.TimeStepCalculator[State]):
 
     dt = jnp.array(dynamic_runtime_params_slice.numerics.fixed_dt)
 
-    return dt, STATE
+    return dt

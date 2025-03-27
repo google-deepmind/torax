@@ -14,7 +14,6 @@
 
 """Logic which controls the stepping over time of the simulation."""
 import dataclasses
-from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -150,7 +149,7 @@ class SimulationStepFn:
         explicit=True,
     )
 
-    dt, time_step_calculator_state = self.init_time_step_calculator(
+    dt = self.init_time_step_calculator(
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state,
@@ -172,7 +171,6 @@ class SimulationStepFn:
 
     output_state = self.step(
         dt,
-        time_step_calculator_state,
         static_runtime_params_slice,
         dynamic_runtime_params_slice_t,
         dynamic_runtime_params_slice_t_plus_dt,
@@ -212,7 +210,7 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo_t: geometry.Geometry,
       input_state: state.ToraxSimState,
-  ) -> tuple[jnp.ndarray, Any]:
+  ) -> jnp.ndarray:
     """First phase: Initialize the stepper state.
 
     Args:
@@ -225,9 +223,7 @@ class SimulationStepFn:
         profiles which are being evolved.
 
     Returns:
-      Tuple containing:
-        - time step duration (dt)
-        - internal time stepper state
+      Time step duration (dt)
     """
     # TODO(b/335598388): We call the transport model both here and in the the
     # Stepper / CoeffsCallback. This isn't a problem *so long as all of those
@@ -247,11 +243,10 @@ class SimulationStepFn:
     )
 
     # initialize new dt and reset stepper iterations.
-    dt, time_step_calculator_state = self._time_step_calculator.next_dt(
+    dt = self._time_step_calculator.next_dt(
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
-        input_state.time_step_calculator_state,
         transport_coeffs,
     )
 
@@ -272,12 +267,11 @@ class SimulationStepFn:
     if jnp.any(jnp.isnan(dt)):
       raise ValueError('dt is NaN.')
 
-    return (dt, time_step_calculator_state)
+    return dt
 
   def step(
       self,
       dt: jnp.ndarray,
-      time_step_calculator_state: Any,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
       dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
@@ -293,7 +287,6 @@ class SimulationStepFn:
 
     Args:
       dt: Time step duration.
-      time_step_calculator_state: Internal time stepper state.
       static_runtime_params_slice: Static parameters that, if they change,
         should trigger a recompilation of the SimulationStepFn.
       dynamic_runtime_params_slice_t: Runtime parameters at time t.
@@ -351,7 +344,6 @@ class SimulationStepFn:
         core_transport=core_transport,
         core_sources=core_sources,
         post_processed_outputs=state.PostProcessedOutputs.zeros(geo_t_plus_dt),
-        time_step_calculator_state=time_step_calculator_state,
         stepper_numeric_outputs=stepper_numeric_outputs,
         geometry=geo_t_plus_dt,
     )

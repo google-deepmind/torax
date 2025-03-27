@@ -599,7 +599,6 @@ class ToraxSimState:
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.
-  time_step_calculator_state: Any
   stepper_numeric_outputs: StepperNumericOutputs
 
   def check_for_errors(self) -> SimError:
