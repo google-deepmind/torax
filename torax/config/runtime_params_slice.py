@@ -135,7 +135,7 @@ class StaticRuntimeParamsSlice:
   # Whether to show the progress bar during simulations
   show_progress_bar: bool
   # Whether to run sanity checks during the simulation
-  enable_sanity_checks: bool = False
+  enable_sanity_checks: bool
 
   def __eq__(self, other: typing.Any) -> bool:
     """Implements StaticRuntimeParamsSlice equality.
@@ -150,7 +150,35 @@ class StaticRuntimeParamsSlice:
     # suffices.
     if not isinstance(other, StaticRuntimeParamsSlice):
       return False
-    return self.__dict__ == other.__dict__
+    
+    # Handle backward compatibility for enable_sanity_checks
+    self_dict = self.__dict__.copy()
+    other_dict = other.__dict__.copy()
+    
+    # If enable_sanity_checks is missing in either object, set it to False for comparison
+    if 'enable_sanity_checks' not in self_dict:
+      self_dict['enable_sanity_checks'] = False
+    if 'enable_sanity_checks' not in other_dict:
+      other_dict['enable_sanity_checks'] = False
+      
+    return self_dict == other_dict
+  
+  def __hash__(self) -> int:
+    """Implements StaticRuntimeParamsSlice hash.
+
+    Returns:
+      Hash value for this instance.
+    """
+    # Create a dictionary for hashing with defaults for backward compatibility
+    hash_dict = self.__dict__.copy()
+    
+    # If enable_sanity_checks is missing, use False as default
+    if 'enable_sanity_checks' not in hash_dict:
+      hash_dict['enable_sanity_checks'] = False
+      
+    # Convert the dict to a frozenset of tuple items for hashing
+    items = frozenset(hash_dict.items())
+    return hash(items)
 
 
 def make_ip_consistent(
