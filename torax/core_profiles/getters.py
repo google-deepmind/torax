@@ -134,7 +134,7 @@ def get_updated_electron_density(
       value=ne_value,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=jnp.array(ne_bound_right),
+      right_face_constraint=ne_bound_right,
   )
   return ne
 
@@ -203,16 +203,14 @@ def get_ion_density_and_charge_states(
       value=ne.value * dilution_factor,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=jnp.array(
-          ne.right_face_constraint * dilution_factor_edge
-      ),
+      right_face_constraint=ne.right_face_constraint * dilution_factor_edge,
   )
 
   nimp = cell_variable.CellVariable(
       value=(ne.value - ni.value * Zi) / Zimp,
       dr=geo.drho_norm,
       right_face_grad_constraint=None,
-      right_face_constraint=jnp.array(
+      right_face_constraint=(
           ne.right_face_constraint - ni.right_face_constraint * Zi_face[-1]
       )
       / Zimp_face[-1],

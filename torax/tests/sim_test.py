@@ -495,24 +495,21 @@ class SimTest(sim_test_case.SimTestCase):
 
   def test_no_op(self):
     """Tests that running the stepper with all equations off is a no-op."""
-    torax_config = model_config.ToraxConfig.from_dict(
-        dict(
-            runtime_params={
-                'numerics': {
-                    't_final': 0.1,
-                    'ion_heat_eq': False,
-                    'el_heat_eq': False,
-                    'current_eq': False,
-                }
-            },
-            geometry={'geometry_type': 'circular'},
-            pedestal={},
-            sources={},
-            stepper={},
-            time_step_calculator={},
-            transport={},
-        )
-    )
+    torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+    torax_config.update_fields({
+        'runtime_params.numerics.t_final': 0.1,  # Modify final step.
+        'runtime_params.numerics.ion_heat_eq': False,
+        'runtime_params.numerics.el_heat_eq': False,
+        'runtime_params.numerics.current_eq': False,
+        'runtime_params.numerics.dens_eq': False,
+        # Keep profiles fixed.
+        'runtime_params.profile_conditions.Ip_tot': 3.0,
+        'runtime_params.profile_conditions.ne': 1.0,
+        'runtime_params.profile_conditions.ne_bound_right': 1.0,
+        'runtime_params.profile_conditions.ne_is_fGW': False,
+        'runtime_params.profile_conditions.Ti': 6.0,
+        'runtime_params.profile_conditions.Te': 6.0,
+    })
 
     history = run_simulation.run_simulation(torax_config)
 

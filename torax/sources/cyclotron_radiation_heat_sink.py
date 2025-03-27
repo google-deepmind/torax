@@ -23,6 +23,7 @@ import jax
 from jax import numpy as jnp
 import pydantic
 from torax import array_typing
+from torax import jax_utils
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
@@ -217,7 +218,7 @@ def _solve_alpha_t_beta_t_grid_search(
       rho_norm,
       te_data,
   )
-  min_index = jnp.argmin(jnp.array(losses))
+  min_index = jnp.argmin(jnp.array(losses, dtype=jax_utils.get_dtype()))
   best_beta_t = beta_t_trials[min_index]
   best_alpha_t = _alpha_closed_form(
       beta=best_beta_t,

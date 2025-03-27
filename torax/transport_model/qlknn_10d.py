@@ -23,6 +23,7 @@ import immutabledict
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax import jax_utils
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qualikiz_based_transport_model
 import typing_extensions
@@ -177,7 +178,11 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
   ) -> jax.Array:
     """Converts QualikizInputs to model inputs."""
     return jnp.array(
-        [getattr(qualikiz_inputs, key) for key in self.inputs_and_ranges.keys()]
+        [
+            getattr(qualikiz_inputs, key)
+            for key in self.inputs_and_ranges.keys()
+        ],
+        dtype=jax_utils.get_dtype(),
     ).T
 
   @property

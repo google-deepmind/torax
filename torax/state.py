@@ -22,11 +22,16 @@ import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
+from torax import jax_utils
 from torax.config import config_args
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.sources import source_profiles
 import typing_extensions
+
+
+def has_nan(inputs: Any) -> bool:
+  return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
 
 
 @chex.dataclass(frozen=True)
@@ -81,7 +86,7 @@ class Currents:
         external_current_source=jnp.zeros(geo.rho_face.shape),
         j_bootstrap=jnp.zeros(geo.rho_face.shape),
         j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
-        I_bootstrap=jnp.array(0.0),
+        I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         Ip_profile_face=jnp.zeros(geo.rho_face.shape),
         sigma=jnp.zeros(geo.rho_face.shape),
         jtot_hires=jnp.zeros(geo.rho_face.shape),
@@ -169,26 +174,6 @@ class CoreProfiles:
         Zimp=self.Zimp,
         Zimp_face=self.Zimp_face,
         Aimp=self.Aimp,
-    )
-
-  def has_nans(self) -> bool:
-    """Checks for NaNs in all attributes of CoreProfiles."""
-
-    def _check_for_nans(x: Any) -> bool:
-      if isinstance(x, jax.Array):
-        return jnp.any(jnp.isnan(x)).item()
-      elif isinstance(x, (int, float)):
-        return jnp.isnan(x).item()
-      elif isinstance(x, Currents):
-        return x.has_nans()  # Check for NaNs within nested Currents dataclass
-      elif isinstance(x, cell_variable.CellVariable):
-        return jnp.any(jnp.isnan(x.value)).item()
-      else:
-        return False
-
-    return any(
-        _check_for_nans(getattr(self, field))
-        for field in self.__dataclass_fields__
     )
 
   def quasineutrality_satisfied(self) -> bool:
@@ -462,61 +447,61 @@ class PostProcessedOutputs:
         pressure_thermal_el_face=jnp.zeros(geo.rho_face.shape),
         pressure_thermal_tot_face=jnp.zeros(geo.rho_face.shape),
         pprime_face=jnp.zeros(geo.rho_face.shape),
-        W_thermal_ion=jnp.array(0.0),
-        W_thermal_el=jnp.array(0.0),
-        W_thermal_tot=jnp.array(0.0),
-        tauE=jnp.array(0.0),
-        H89P=jnp.array(0.0),
-        H98=jnp.array(0.0),
-        H97L=jnp.array(0.0),
-        H20=jnp.array(0.0),
+        W_thermal_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        W_thermal_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        W_thermal_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        tauE=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        H89P=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        H98=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        H97L=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        H20=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         FFprime_face=jnp.zeros(geo.rho_face.shape),
         psi_norm_face=jnp.zeros(geo.rho_face.shape),
         psi_face=jnp.zeros(geo.rho_face.shape),
-        P_sol_ion=jnp.array(0.0),
-        P_sol_el=jnp.array(0.0),
-        P_sol_tot=jnp.array(0.0),
-        P_external_ion=jnp.array(0.0),
-        P_external_el=jnp.array(0.0),
-        P_external_tot=jnp.array(0.0),
-        P_external_injected=jnp.array(0.0),
-        P_ei_exchange_ion=jnp.array(0.0),
-        P_ei_exchange_el=jnp.array(0.0),
-        P_generic_ion=jnp.array(0.0),
-        P_generic_el=jnp.array(0.0),
-        P_generic_tot=jnp.array(0.0),
-        P_alpha_ion=jnp.array(0.0),
-        P_alpha_el=jnp.array(0.0),
-        P_alpha_tot=jnp.array(0.0),
-        P_ohmic=jnp.array(0.0),
-        P_brems=jnp.array(0.0),
-        P_cycl=jnp.array(0.0),
-        P_ecrh=jnp.array(0.0),
-        P_rad=jnp.array(0.0),
-        I_ecrh=jnp.array(0.0),
-        I_generic=jnp.array(0.0),
-        Q_fusion=jnp.array(0.0),
-        P_icrh_ion=jnp.array(0.0),
-        P_icrh_el=jnp.array(0.0),
-        P_icrh_tot=jnp.array(0.0),
-        P_LH_hi_dens=jnp.array(0.0),
-        P_LH_min=jnp.array(0.0),
-        P_LH=jnp.array(0.0),
-        ne_min_P_LH=jnp.array(0.0),
-        E_cumulative_fusion=jnp.array(0.0),
-        E_cumulative_external=jnp.array(0.0),
-        te_volume_avg=jnp.array(0.0),
-        ti_volume_avg=jnp.array(0.0),
-        ne_volume_avg=jnp.array(0.0),
-        ni_volume_avg=jnp.array(0.0),
-        ne_line_avg=jnp.array(0.0),
-        ni_line_avg=jnp.array(0.0),
-        fgw_ne_volume_avg=jnp.array(0.0),
-        fgw_ne_line_avg=jnp.array(0.0),
-        q95=jnp.array(0.0),
-        Wpol=jnp.array(0.0),
-        li3=jnp.array(0.0),
-        dW_th_dt=jnp.array(0.0),
+        P_sol_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_sol_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_sol_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_external_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_external_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_external_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_external_injected=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ei_exchange_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ei_exchange_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_alpha_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_alpha_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_alpha_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ohmic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_brems=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_cycl=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_rad=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_generic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        Q_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_icrh_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_icrh_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_icrh_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_hi_dens=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ne_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_cumulative_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_cumulative_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        te_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ti_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ne_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ni_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ne_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ni_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        fgw_ne_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        fgw_ne_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        q95=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        Wpol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        li3=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        dW_th_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
 
 
@@ -552,7 +537,7 @@ class SimError(enum.Enum):
     match self:
       case SimError.NAN_DETECTED:
         logging.error("""
-            Simulation stopped due to NaNs in core profiles.
+            Simulation stopped due to NaNs in state.
             Possible cause is negative temperatures or densities.
             Output file contains all profiles up to the last valid step.
             """)
@@ -619,7 +604,7 @@ class ToraxSimState:
 
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""
-    if self.core_profiles.has_nans():
+    if has_nan(self):
       return SimError.NAN_DETECTED
     elif not self.core_profiles.quasineutrality_satisfied():
       return SimError.QUASINEUTRALITY_BROKEN

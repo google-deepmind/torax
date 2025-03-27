@@ -277,7 +277,7 @@ class GettersTest(parameterized.TestCase):
         * 100.0,  # ensure full ionization
         left_face_grad_constraint=jnp.zeros(()),
         right_face_grad_constraint=None,
-        right_face_constraint=jnp.array(100.0),
+        right_face_constraint=jnp.array(100.0, dtype=jax_utils.get_dtype()),
         dr=self.geo.drho_norm,
     )
     ne = getters.get_updated_electron_density(
