@@ -39,7 +39,7 @@ class SimpleRedistribution(sawtooth_model.RedistributionModel):
     return core_profiles
 
 
-@chex.dataclass
+@chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params.RedistributionDynamicRuntimeParams):
   # TODO(b/317360481): implement redistribution model. For now, does nothing.
   """Dynamic runtime params for simple redistribution model."""

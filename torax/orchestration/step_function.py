@@ -14,7 +14,6 @@
 
 """Logic which controls the stepping over time of the simulation."""
 import dataclasses
-
 import jax
 import jax.numpy as jnp
 from torax import jax_utils
@@ -25,6 +24,7 @@ from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.mhd import base as mhd_base
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
@@ -51,6 +51,7 @@ class SimulationStepFn:
       time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      mhd_models: mhd_base.MHDModels | None = None,
   ):
     """Initializes the SimulationStepFn.
 
@@ -64,11 +65,13 @@ class SimulationStepFn:
       time_step_calculator: Calculates the dt for each time step.
       transport_model: Calculates diffusion and convection coefficients.
       pedestal_model: Calculates pedestal coefficients.
+      mhd_models: Collection of MHD models applied, e.g. sawtooth
     """
     self._stepper_fn = stepper
     self._time_step_calculator = time_step_calculator
     self._transport_model = transport_model
     self._pedestal_model = pedestal_model
+    self._mhd_models = mhd_models
 
   @property
   def pedestal_model(self) -> pedestal_model_lib.PedestalModel:
@@ -81,6 +84,10 @@ class SimulationStepFn:
   @property
   def transport_model(self) -> transport_model_lib.TransportModel:
     return self._transport_model
+
+  @property
+  def mhd_models(self) -> mhd_base.MHDModels | None:
+    return self._mhd_models
 
   @property
   def time_step_calculator(self) -> ts.TimeStepCalculator:

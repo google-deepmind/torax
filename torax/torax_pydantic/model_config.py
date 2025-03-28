@@ -20,6 +20,7 @@ import pydantic
 from torax.config import runtime_params as general_runtime_params
 from torax.fvm import enums
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.mhd import pydantic_model as mhd_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
@@ -42,6 +43,9 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     stepper: Config for the stepper.
     time_step_calculator: Config for the time step calculator.
     transport: Config for the transport model.
+    mhd: Optional config for mhd models. If None, no MHD models are used.
+    restart: Optional config for file restart. If None, no file restart is
+      performed.
   """
 
   # TODO(b/401187494): Flatten the runtime_params config, is this nesting
@@ -53,6 +57,7 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   stepper: stepper_pydantic_model.Stepper
   time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
   transport: transport_model_pydantic_model.Transport
+  mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
   restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
       default=None
   )

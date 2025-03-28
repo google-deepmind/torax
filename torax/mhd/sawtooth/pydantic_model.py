@@ -45,7 +45,7 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
   )
   crash_step_duration: torax_pydantic.Second = 1e-3
 
-  def build_sawtooth_model(self) -> sawtooth_model.SawtoothModel:
+  def build_model(self) -> sawtooth_model.SawtoothModel:
     return sawtooth_model.SawtoothModel(
         trigger_model=self.trigger_model_config.build_trigger_model(),
         redistribution_model=self.redistribution_model_config.build_redistribution_model(),

@@ -51,7 +51,7 @@ class RedistributionModel(abc.ABC):
 
 
 class SawtoothModel:
-  """Container for sawtooth trigger and redistribution models."""
+  """Sawtooth trigger and redistribution, and carries out sawtooth step."""
 
   def __init__(
       self,

@@ -43,6 +43,7 @@ from torax.config import plasma_composition
 from torax.config import profile_conditions
 from torax.geometry import geometry
 from torax.geometry import standard_geometry
+from torax.mhd import runtime_params as mhd_runtime_params
 from torax.pedestal_model import runtime_params as pedestal_model_params
 from torax.sources import runtime_params as sources_params
 from torax.stepper import runtime_params as stepper_params
@@ -76,10 +77,14 @@ class DynamicRuntimeParamsSlice:
   This class contains "slices" of various RuntimeParams attributes defined
   throughout TORAX:
 
-  - from the "general" runtime params
+  - from the profile_conditions runtime params
+  - from the numerics runtime params
+  - from the plasma_composition runtime params
   - from the transport model's runtime params
   - from the stepper's runtime params
   - from each of the sources' runtime params
+  - from the pedestal model's runtime params
+  - from each of the mhd models' runtime params
 
   This class packages all these together for convenience, as it simplifies many
   of the internal APIs within TORAX.
@@ -92,6 +97,7 @@ class DynamicRuntimeParamsSlice:
   numerics: numerics.DynamicNumerics
   sources: Mapping[str, sources_params.DynamicRuntimeParams]
   pedestal: pedestal_model_params.DynamicRuntimeParams
+  mhd: mhd_runtime_params.DynamicMHDParams
 
 
 @chex.dataclass(frozen=True)

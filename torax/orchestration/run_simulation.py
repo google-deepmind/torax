@@ -55,11 +55,14 @@ def run_simulation(
       pedestal_model=pedestal_model,
   )
 
+  mhd_models = torax_config.mhd.build_mhd_models()
+
   step_fn = step_function.SimulationStepFn(
       stepper=stepper,
       time_step_calculator=torax_config.time_step_calculator.time_step_calculator,
       transport_model=transport_model,
       pedestal_model=pedestal_model,
+      mhd_models=mhd_models,
   )
 
   static_runtime_params_slice = (
@@ -78,6 +81,7 @@ def run_simulation(
           transport=torax_config.transport,
           sources=torax_config.sources,
           stepper=torax_config.stepper,
+          mhd=torax_config.mhd,
           torax_mesh=torax_config.geometry.build_provider.torax_mesh,
       )
   )
