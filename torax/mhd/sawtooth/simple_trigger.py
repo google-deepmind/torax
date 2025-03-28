@@ -14,6 +14,7 @@
 
 """Simple trigger model for sawteeth."""
 
+import dataclasses
 from typing import Literal
 import chex
 from jax import numpy as jnp
@@ -22,6 +23,7 @@ from torax import constants
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
+from torax.mhd.sawtooth import base_pydantic_model
 from torax.mhd.sawtooth import runtime_params
 from torax.mhd.sawtooth import sawtooth_model
 from torax.torax_pydantic import torax_pydantic
@@ -36,7 +38,7 @@ class SimpleTrigger(sawtooth_model.TriggerModel):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> array_typing.ScalarBool:
+  ) -> tuple[array_typing.ScalarBool, array_typing.ScalarFloat]:
     """Checks if the simple critical shear condition for a sawtooth is met.
 
     Args:
@@ -46,13 +48,14 @@ class SimpleTrigger(sawtooth_model.TriggerModel):
       core_profiles: Core plasma profiles.
 
     Returns:
-      True if sawtooth crash is triggered, False otherwise.
+      tuple of (True if sawtooth crash is triggered, False otherwise,
+        radius of q=1 surface (set to 0.0 if no surface exists))
     """
     # Extract necessary parameters
     sawtooth_params = dynamic_runtime_params_slice.mhd.sawtooth
     assert isinstance(sawtooth_params, runtime_params.DynamicRuntimeParams)
     assert isinstance(sawtooth_params.trigger_params, DynamicRuntimeParams)
-    minimum_radius = sawtooth_params.minimum_radius
+    minimum_radius = sawtooth_params.trigger_params.minimum_radius
     s_critical = sawtooth_params.trigger_params.s_critical
 
     q_face = core_profiles.q_face
@@ -95,7 +98,10 @@ class SimpleTrigger(sawtooth_model.TriggerModel):
     rho_norm_above_minimum = rho_norm_q1 > minimum_radius
     s_above_critical = s_at_q1 > s_critical
 
-    return jnp.logical_and(rho_norm_above_minimum, s_above_critical)
+    return (
+        jnp.logical_and(rho_norm_above_minimum, s_above_critical),
+        rho_norm_q1,
+    )
 
 
 @chex.dataclass(frozen=True)
@@ -109,7 +115,7 @@ class DynamicRuntimeParams(runtime_params.TriggerDynamicRuntimeParams):
   s_critical: array_typing.ScalarFloat
 
 
-class SimpleTriggerConfig(torax_pydantic.BaseModelFrozen):
+class SimpleTriggerConfig(base_pydantic_model.TriggerConfig):
   """Pydantic model for simple trigger configuration.
 
   Attributes:
@@ -125,7 +131,11 @@ class SimpleTriggerConfig(torax_pydantic.BaseModelFrozen):
       self,
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(s_critical=self.s_critical.get_value(t))
+    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
+    return DynamicRuntimeParams(
+        **base_kwargs,
+        s_critical=self.s_critical.get_value(t),
+    )
 
   def build_trigger_model(self) -> SimpleTrigger:
     return SimpleTrigger()

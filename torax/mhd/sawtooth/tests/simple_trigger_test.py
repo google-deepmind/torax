@@ -124,15 +124,15 @@ class SimpleTriggerTest(parameterized.TestCase):
             sawtooth=mock.create_autospec(
                 sawtooth_runtime_params.DynamicRuntimeParams,
                 instance=True,
-                minimum_radius=minimum_radius,
                 trigger_params=simple_trigger.DynamicRuntimeParams(
-                    s_critical=s_critical
+                    s_critical=s_critical,
+                    minimum_radius=minimum_radius,
                 ),
             )
         ),
     )
 
-    trigger_result = self.trigger(
+    trigger_result, _ = self.trigger(
         self.mock_static_params,
         mock_dynamic_params,
         self.geo,

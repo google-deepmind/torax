@@ -107,11 +107,13 @@ class MHDPydanticModelTest(parameterized.TestCase):
         'transport': {},
         'mhd': {
             'sawtooth': {
-                'trigger_model_config': {'trigger_model_type': 'simple'},
+                'trigger_model_config': {
+                    'trigger_model_type': 'simple',
+                    'minimum_radius': 0.06,
+                },
                 'redistribution_model_config': {
                     'redistribution_model_type': 'simple'
                 },
-                'minimum_radius': 0.06,
             }
         },
     }
@@ -140,7 +142,9 @@ class MHDPydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(
         sawtooth_dynamic_params, sawtooth_runtime_params.DynamicRuntimeParams
     )
-    self.assertEqual(sawtooth_dynamic_params.minimum_radius, 0.06)
+    self.assertEqual(
+        sawtooth_dynamic_params.trigger_params.minimum_radius, 0.06
+    )
 
 
 if __name__ == '__main__':

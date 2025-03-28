@@ -34,8 +34,8 @@ class TriggerModel(abc.ABC):
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
       core_profiles: state.CoreProfiles,
-  ) -> array_typing.ScalarBool:
-    """Indicates if a crash is triggered."""
+  ) -> tuple[array_typing.ScalarBool, array_typing.ScalarFloat]:
+    """Indicates if a crash is triggered and the radius of the q=1 surface."""
 
 
 class RedistributionModel(abc.ABC):
@@ -44,6 +44,7 @@ class RedistributionModel(abc.ABC):
   @abc.abstractmethod
   def __call__(
       self,
+      rho_norm_q1: array_typing.ScalarFloat,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
       geo: geometry.Geometry,
@@ -88,7 +89,7 @@ class SawtoothModel:
       The output ToraxSimState, which may be modified by the sawtooth model.
     """
 
-    trigger_sawtooth = self.trigger_model(
+    trigger_sawtooth, rho_norm_q1 = self.trigger_model(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
         input_state.geometry,
@@ -98,6 +99,7 @@ class SawtoothModel:
     jax.lax.cond(
         trigger_sawtooth,
         self.redistribution_model(
+            rho_norm_q1,
             static_runtime_params_slice,
             dynamic_runtime_params_slice,
             input_state.geometry,

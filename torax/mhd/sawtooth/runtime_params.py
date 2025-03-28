@@ -20,19 +20,37 @@ from torax import array_typing
 
 @chex.dataclass(frozen=True)
 class TriggerDynamicRuntimeParams:
-  """Dynamic runtime params for trigger models."""
+  """Dynamic runtime params for trigger models.
+
+  Attributes:
+    minimum_radius: Minimum radius of q=1 surface for triggering [rho_norm].
+  """
+
+  minimum_radius: array_typing.ScalarFloat
 
 
 @chex.dataclass(frozen=True)
 class RedistributionDynamicRuntimeParams:
-  """Dynamic runtime params for redistribution models."""
+  """Dynamic runtime params for redistribution models.
+
+  Attributes:
+    flattening_factor: Ratio of "flat" profile between magnetic axis and q=1
+      surface.
+  """
+
+  flattening_factor: array_typing.ScalarFloat
 
 
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams:
-  """Dynamic runtime params for sawtooth model."""
+  """Dynamic runtime params for sawtooth model.
+
+  Attributes:
+    trigger_params: Dynamic runtime params for trigger models.
+    redistribution_params: Dynamic runtime params for redistribution models.
+    crash_step_duration: Sawtooth crash period for extra timestep generated.
+  """
 
   trigger_params: TriggerDynamicRuntimeParams
   redistribution_params: RedistributionDynamicRuntimeParams
-  minimum_radius: array_typing.ScalarFloat
   crash_step_duration: array_typing.ScalarFloat
