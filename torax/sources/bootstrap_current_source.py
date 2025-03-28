@@ -14,7 +14,7 @@
 
 """bootstrap current source profile."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import chex
 import jax
@@ -136,8 +136,6 @@ class BootstrapCurrentSourceConfig(base.SourceModelBase):
   Attributes:
     bootstrap_mult: Multiplication factor for bootstrap current.
   """
-
-  source_name: Literal['j_bootstrap'] = 'j_bootstrap'
   bootstrap_mult: float = 1.0
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

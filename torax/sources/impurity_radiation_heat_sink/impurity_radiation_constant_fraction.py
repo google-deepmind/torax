@@ -101,9 +101,6 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
     fraction_of_total_power_density: Fraction of total power density to be
       absorbed by the impurity.
   """
-  source_name: Literal['impurity_radiation_heat_sink'] = (
-      'impurity_radiation_heat_sink'
-  )
   model_function_name: Literal['radially_constant_fraction_of_Pin'] = (
       'radially_constant_fraction_of_Pin'
   )
