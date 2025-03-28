@@ -504,6 +504,12 @@ class PostProcessedOutputs:
         dW_th_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
 
+  def check_for_errors(self):
+    if has_nan(self):
+      return SimError.NAN_DETECTED
+    else:
+      return SimError.NO_ERROR
+
 
 @chex.dataclass
 class StepperNumericOutputs:
@@ -591,9 +597,6 @@ class ToraxSimState:
   core_transport: CoreTransport
   core_sources: source_profiles.SourceProfiles
 
-  # Post-processed outputs after a step.
-  post_processed_outputs: PostProcessedOutputs
-
   # Geometry used for the simulation.
   geometry: geometry.Geometry
 
@@ -609,3 +612,15 @@ class ToraxSimState:
       return SimError.QUASINEUTRALITY_BROKEN
     else:
       return SimError.NO_ERROR
+
+
+def check_for_errors(
+    sim_state: ToraxSimState,
+    post_processed_outputs: PostProcessedOutputs,
+) -> SimError:
+  """Checks for errors in the simulation state."""
+  state_error = sim_state.check_for_errors()
+  if state_error != SimError.NO_ERROR:
+    return state_error
+  else:
+    return post_processed_outputs.check_for_errors()

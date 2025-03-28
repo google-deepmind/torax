@@ -14,6 +14,7 @@
 
 import dataclasses
 import os
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -105,7 +106,6 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
         stepper_numeric_outputs=state.StepperNumericOutputs(
             outer_stepper_iterations=1,
             stepper_error_state=1,
@@ -118,6 +118,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.history = output.StateHistory(
         sim_error=sim_error,
         state_history=(self.sim_state,),
+        post_processed_outputs_history=(mock.ANY,),
         source_models=self.source_models,
     )
 
@@ -133,6 +134,7 @@ class StateHistoryTest(parameterized.TestCase):
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
         state_history=(self.sim_state, self.sim_state_t2),
+        post_processed_outputs_history=(mock.ANY, mock.ANY),
         source_models=self.source_models,
     )
     output_xr = state_history.simulation_output_to_xr()
