@@ -32,7 +32,7 @@ class RedistributionDynamicRuntimeParams:
 class DynamicRuntimeParams:
   """Dynamic runtime params for sawtooth model."""
 
-  trigger_model: TriggerDynamicRuntimeParams
-  redistribution_model_config: RedistributionDynamicRuntimeParams
+  trigger_params: TriggerDynamicRuntimeParams
+  redistribution_params: RedistributionDynamicRuntimeParams
   minimum_radius: array_typing.ScalarFloat
   crash_step_duration: array_typing.ScalarFloat

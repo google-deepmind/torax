@@ -57,8 +57,8 @@ class SawtoothConfig(torax_pydantic.BaseModelFrozen):
     return sawtooth_runtime_params.DynamicRuntimeParams(
         minimum_radius=self.minimum_radius.get_value(t),
         crash_step_duration=self.crash_step_duration,
-        trigger_model=self.trigger_model_config.build_dynamic_params(t),
-        redistribution_model_config=self.redistribution_model_config.build_dynamic_params(
+        trigger_params=self.trigger_model_config.build_dynamic_params(t),
+        redistribution_params=self.redistribution_model_config.build_dynamic_params(
             t
         ),
     )

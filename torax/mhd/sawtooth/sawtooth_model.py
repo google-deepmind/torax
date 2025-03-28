@@ -15,8 +15,10 @@
 """Sawtooth model."""
 
 import abc
+import functools
 import jax
 from torax import array_typing
+from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -61,6 +63,9 @@ class SawtoothModel:
     self.trigger_model = trigger_model
     self.redistribution_model = redistribution_model
 
+  @functools.partial(
+      jax_utils.jit, static_argnames=['self', 'static_runtime_params_slice']
+  )
   def __call__(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
