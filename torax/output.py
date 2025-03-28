@@ -182,6 +182,7 @@ class StateHistory:
   def __init__(
       self,
       state_history: tuple[state.ToraxSimState, ...],
+      post_processed_outputs_history: tuple[state.PostProcessedOutputs, ...],
       sim_error: state.SimError,
       source_models: source_models_lib.SourceModels,
   ):
@@ -190,9 +191,6 @@ class StateHistory:
     ]
     core_sources = [state.core_sources for state in state_history]
     transport = [state.core_transport for state in state_history]
-    post_processed_output = [
-        state.post_processed_outputs for state in state_history
-    ]
     geometries = [state.geometry for state in state_history]
     self.geometry = geometry_lib.stack_geometries(geometries)
     stack = lambda *ys: np.stack(ys)
@@ -206,7 +204,7 @@ class StateHistory:
         stack, *transport
     )
     self.post_processed_outputs: state.PostProcessedOutputs = (
-        jax.tree_util.tree_map(stack, *post_processed_output)
+        jax.tree_util.tree_map(stack, *post_processed_outputs_history)
     )
     self.times = np.array([state.t for state in state_history])
     # The rho grid does not change in time so we can just take the first one.
