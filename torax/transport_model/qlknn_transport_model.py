@@ -212,12 +212,6 @@ class QLKNNTransportModel(
     )
     return self._combined(runtime_config_inputs, geo, core_profiles)
 
-  # Wrap in JIT here in order to cache the tracing/compilation of this function.
-  # We mark self as static because it is a singleton. Other args are pytrees.
-  # There's no global coordination of calls to transport model so it is called
-  # 2-4X with the same args. Caching prevents construction of multiple copies of
-  # identical expressions saving ~30% in compile time.
-  @functools.partial(jax.jit, static_argnames=['self'])
   def _combined(
       self,
       runtime_config_inputs: QLKNNRuntimeConfigInputs,

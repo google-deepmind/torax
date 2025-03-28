@@ -20,10 +20,12 @@ coefficients.
 
 import abc
 import dataclasses
+import functools
 
 import jax
 from jax import numpy as jnp
 from torax import constants
+from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
@@ -53,6 +55,7 @@ class TransportModel(abc.ABC):
       raise AttributeError("TransportModels are immutable.")
     return super().__setattr__(attr, value)
 
+  @functools.partial(jax_utils.jit, static_argnums=(0,))
   def __call__(
       self,
       dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,

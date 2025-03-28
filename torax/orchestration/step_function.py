@@ -69,9 +69,6 @@ class SimulationStepFn:
     self._time_step_calculator = time_step_calculator
     self._transport_model = transport_model
     self._pedestal_model = pedestal_model
-    self._jitted_transport_model = jax_utils.jit(
-        transport_model.__call__,
-    )
 
   @property
   def pedestal_model(self) -> pedestal_model_lib.PedestalModel:
@@ -232,7 +229,7 @@ class SimulationStepFn:
     pedestal_model_output = self._pedestal_model(
         dynamic_runtime_params_slice_t, geo_t, input_state.core_profiles
     )
-    transport_coeffs = self._jitted_transport_model(
+    transport_coeffs = self._transport_model(
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,

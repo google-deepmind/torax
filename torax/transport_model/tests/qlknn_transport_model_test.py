@@ -76,7 +76,7 @@ class QlknnTransportModelTest(parameterized.TestCase):
     qlknn(
         dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
     )
-    cache_size = qlknn._combined._cache_size()  # pylint: disable=protected-access
+    cache_size = qlknn.__call__._cache_size()  # pytype: disable=attribute-error
     self.assertGreaterEqual(cache_size, 1)
 
     # Executing again should lead to the same cache entry being used.
@@ -84,7 +84,7 @@ class QlknnTransportModelTest(parameterized.TestCase):
         dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
     )
     self.assertEqual(
-        qlknn._combined._cache_size(),  # pylint: disable=protected-access
+        qlknn.__call__._cache_size(),  # pytype: disable=attribute-error
         cache_size,
     )
 
