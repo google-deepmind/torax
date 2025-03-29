@@ -51,7 +51,7 @@ class SimulationStepFn:
       time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel,
       pedestal_model: pedestal_model_lib.PedestalModel,
-      mhd_models: mhd_base.MHDModels | None = None,
+      mhd_models: mhd_base.MHDModels,
   ):
     """Initializes the SimulationStepFn.
 
@@ -86,7 +86,7 @@ class SimulationStepFn:
     return self._transport_model
 
   @property
-  def mhd_models(self) -> mhd_base.MHDModels | None:
+  def mhd_models(self) -> mhd_base.MHDModels:
     return self._mhd_models
 
   @property
@@ -140,6 +140,17 @@ class SimulationStepFn:
             geometry_provider=geometry_provider,
         )
     )
+
+    # Check for sawtooth model and see if sawtooth should trigger.
+    # Triggered sawtooth will trigger a redistribution step with early return.
+    if self.mhd_models.sawtooth is not None:
+      sawtooth_triggered, output_state = self.mhd_models.sawtooth(
+          static_runtime_params_slice,
+          dynamic_runtime_params_slice_t,
+          input_state,
+      )
+      if sawtooth_triggered:
+        return output_state, output_state.check_for_errors()
 
     # This only computes sources set to explicit in the
     # DynamicSourceConfigSlice. All implicit sources will have their profiles
