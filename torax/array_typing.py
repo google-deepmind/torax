@@ -23,6 +23,7 @@ F = TypeVar("F", bound=Callable)
 ScalarFloat = jt.Float[chex.Array | float, ""]
 ScalarBool = jt.Bool[chex.Array | bool, ""]
 ArrayFloat = jt.Float[chex.Array, "rhon"]
+ArrayBool = jt.Bool[chex.Array, "rhon"]
 
 
 def typed(function: F) -> F:
