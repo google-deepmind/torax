@@ -14,7 +14,7 @@
 
 """External current source profile."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar, Final, Literal
 
 import chex
 from jax import numpy as jnp
@@ -29,6 +29,12 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+
+
+# Default value for the model function to be used for the generic current
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'calc_generic_current'
 
 
 # pylint: disable=invalid-name
@@ -106,7 +112,6 @@ class GenericCurrentSource(source.Source):
   """A generic current density source profile."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_current_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_current'
   model_func: source.SourceProfileFunction = calculate_generic_current
 
   @property
@@ -129,8 +134,9 @@ class GenericCurrentSourceConfig(source_base.SourceModelBase):
     use_absolute_current: Toggles if external current is provided absolutely or
       as a fraction of Ip.
   """
-
-  source_name: Literal['generic_current_source'] = 'generic_current_source'
+  model_function_name: Literal[DEFAULT_MODEL_FUNCTION_NAME] = (
+      DEFAULT_MODEL_FUNCTION_NAME
+  )
   Iext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(3.0)
   fext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.2)
   wext: torax_pydantic.TimeVaryingScalar = torax_pydantic.ValidatedDefault(0.05)

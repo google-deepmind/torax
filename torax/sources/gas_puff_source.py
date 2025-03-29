@@ -14,7 +14,7 @@
 
 """Gas puff source for the ne equation."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar, Final, Literal
 
 import chex
 from torax import array_typing
@@ -27,6 +27,12 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+
+
+# Default value for the model function to be used for the gas puff
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'calc_puff_source'
 
 
 # pylint: disable=invalid-name
@@ -66,7 +72,6 @@ class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'gas_puff_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_puff_source'
   model_func: source.SourceProfileFunction = calc_puff_source
 
   @property
@@ -87,8 +92,9 @@ class GasPuffSourceConfig(base.SourceModelBase):
       [normalized radial coord]
     S_puff_tot: total gas puff particles/s
   """
-
-  source_name: Literal['gas_puff_source'] = 'gas_puff_source'
+  model_function_name: Literal[DEFAULT_MODEL_FUNCTION_NAME] = (
+      DEFAULT_MODEL_FUNCTION_NAME
+  )
   puff_decay_length: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.05)
   )
