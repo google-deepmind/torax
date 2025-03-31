@@ -14,18 +14,25 @@
 """A wrapper for QLKNN transport surrogate models."""
 from collections.abc import Mapping
 from typing import Final
+
+from absl import logging
 import immutabledict
 import jax
 import jax.numpy as jnp
 from torax import jax_utils
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qualikiz_based_transport_model
+
+
 # pylint: disable=g-import-not-at-top
 try:
   from fusion_surrogates import qlknn_model
 
   _FUSION_SURROGATES_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+  logging.error(
+      'Error importing fusion_surrogates: %s', e, exc_info=True
+  )
   _FUSION_SURROGATES_AVAILABLE = False
 # pylint: enable=g-import-not-at-top
 
@@ -51,7 +58,8 @@ class QLKNNModelWrapper(base_qlknn_model.BaseQLKNNModel):
   ):
     if not _FUSION_SURROGATES_AVAILABLE:
       raise ImportError(
-          'QLKNNModelWrapper requires fusion_surrogates to be installed.'
+          'QLKNNModelWrapper requires fusion_surrogates to be installed. '
+          'There was an error importing it.'
       )
     if flux_name_map is None:
       flux_name_map = _FLUX_NAME_MAP

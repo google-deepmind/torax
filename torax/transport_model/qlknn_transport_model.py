@@ -37,7 +37,7 @@ import typing_extensions
 MODEL_PATH_ENV_VAR: Final[str] = 'TORAX_QLKNN_MODEL_PATH'
 # If no path is set in either the config or the environment variable, use
 # this path.
-DEFAULT_MODEL_PATH = '~/qlknn_hyper'
+DEFAULT_MODEL_PATH: Final[str] = '~/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn'  # pylint: disable=line-too-long
 
 
 def get_default_model_path() -> str:
