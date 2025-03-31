@@ -15,7 +15,7 @@
 """Classes defining the TORAX state that evolves over time."""
 import dataclasses
 import enum
-from typing import Any, Optional
+from typing import Optional
 
 from absl import logging
 import chex
@@ -57,20 +57,6 @@ class Currents:
   def Ip_total(self) -> array_typing.ScalarFloat:
     """Returns the total plasma current [A]."""
     return self.Ip_profile_face[..., -1]
-
-  def has_nans(self) -> bool:
-    """Checks for NaNs in all attributes of Currents."""
-
-    def _check_for_nans(x: Any) -> bool:
-      if isinstance(x, jax.Array):
-        return jnp.any(jnp.isnan(x)).item()
-      else:
-        return False
-
-    return any(
-        _check_for_nans(getattr(self, field))
-        for field in self.__dataclass_fields__
-    )
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> "Currents":
