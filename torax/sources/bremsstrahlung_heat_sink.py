@@ -16,7 +16,7 @@
 
 """Bremsstrahlung heat sink for electron heat equation.."""
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar, Final, Literal
 
 import chex
 import jax
@@ -29,6 +29,12 @@ from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
+
+
+# Default value for the model function to be used for the Bremsstrahlung heat
+# sink. This is also used as an identifier for the model function in the default
+# source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'bremsstrahlung_model_func'
 
 
 @chex.dataclass(frozen=True)
@@ -121,7 +127,6 @@ class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
 
   SOURCE_NAME: ClassVar[str] = 'bremsstrahlung_heat_sink'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'bremsstrahlung_model_func'
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func
 
   @property
@@ -139,8 +144,9 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
   Attributes:
     use_relativistic_correction: Whether to use relativistic correction.
   """
-
-  source_name: Literal['bremsstrahlung_heat_sink'] = 'bremsstrahlung_heat_sink'
+  model_function_name: Literal['bremsstrahlung_model_func'] = (
+      'bremsstrahlung_model_func'
+  )
   use_relativistic_correction: bool = False
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 

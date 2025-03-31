@@ -35,6 +35,12 @@ from torax.sources import source_profiles
 import typing_extensions
 
 
+# Default value for the model function to be used for the Cyclotron radiation
+# heat sink source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: str = 'cyclotron_radiation_albajar'
+
+
 @chex.dataclass(frozen=True)
 class StaticRuntimeParams(runtime_params_lib.StaticRuntimeParams):
   beta_min: float
@@ -359,7 +365,6 @@ class CyclotronRadiationHeatSink(source.Source):
   """Cyclotron radiation heat sink for electron heat equation."""
 
   SOURCE_NAME: ClassVar[str] = 'cyclotron_radiation_heat_sink'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'cyclotron_radiation_albajar'
   model_func: source.SourceProfileFunction = cyclotron_radiation_albajar
 
   @property
@@ -386,9 +391,8 @@ class CyclotronRadiationHeatSinkConfig(base.SourceModelBase):
     beta_grid_size: The number of points to use in the grid search for the best
       fit of the temperature function.
   """
-
-  source_name: Literal['cyclotron_radiation_heat_sink'] = (
-      'cyclotron_radiation_heat_sink'
+  model_function_name: Literal['cyclotron_radiation_albajar'] = (
+      'cyclotron_radiation_albajar'
   )
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
   wall_reflection_coeff: float = 0.9
