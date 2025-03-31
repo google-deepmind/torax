@@ -13,7 +13,9 @@
 # limitations under the License.
 
 """Logic which controls the stepping over time of the simulation."""
+
 import dataclasses
+import functools
 import jax
 import jax.numpy as jnp
 from torax import jax_utils
@@ -31,6 +33,23 @@ from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
+
+
+@functools.partial(jax_utils.jit, static_argnums=(0,))
+def _jitted_transport_model(
+    transport_model: transport_model_lib.TransportModel,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo_t: geometry.Geometry,
+    core_profiles_t: state.CoreProfiles,
+    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+) -> state.CoreTransport:
+  """Calls the transport model with the given arguments."""
+  return transport_model(
+      dynamic_runtime_params_slice_t,
+      geo_t,
+      core_profiles_t,
+      pedestal_model_output,
+  )
 
 
 class SimulationStepFn:
@@ -236,7 +255,8 @@ class SimulationStepFn:
     pedestal_model_output = self._pedestal_model(
         dynamic_runtime_params_slice_t, geo_t, input_state.core_profiles
     )
-    transport_coeffs = self._transport_model(
+    transport_coeffs = _jitted_transport_model(
+        self._transport_model,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,
