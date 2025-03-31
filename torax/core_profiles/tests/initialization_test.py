@@ -38,7 +38,7 @@ class InitializationTest(torax_refs.ReferenceValueTest):
     jax_utils.enable_errors(True)
     self.geo = geometry_pydantic_model.CircularConfig(n_rho=4).build_geometry()
 
-  def test_update_psi_from_j(self):
+  def testupdate_psi_from_j(self):
     """Compare `update_psi_from_j` function to a reference implementation."""
     references = torax_refs.circular_references()
 
@@ -68,7 +68,7 @@ class InitializationTest(torax_refs.ReferenceValueTest):
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
     )
-    psi = initialization._update_psi_from_j(
+    psi = initialization.update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip_tot,
         geo,
         currents.jtot_hires,
