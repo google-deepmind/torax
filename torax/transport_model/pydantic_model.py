@@ -93,9 +93,6 @@ class QLKNNTransportModel(pydantic_model_base.TransportBase):
         # The QLK version this specific QLKNN was trained on tends to
         # underpredict ITG electron heat flux in shaped, high-beta scenarios.
         data['ITG_flux_ratio_correction'] = 2.0
-    else:
-      if 'smoothing_sigma' not in data:
-        data['smoothing_sigma'] = 0.1
     return data
 
   def build_transport_model(self) -> qlknn_transport_model.QLKNNTransportModel:
