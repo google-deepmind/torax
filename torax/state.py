@@ -30,10 +30,6 @@ from torax.sources import source_profiles
 import typing_extensions
 
 
-def has_nan(inputs: Any) -> bool:
-  return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
-
-
 @chex.dataclass(frozen=True)
 class Currents:
   """Dataclass to group currents and related variables (e.g. conductivity).
@@ -604,8 +600,22 @@ class ToraxSimState:
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""
     if has_nan(self):
+      log_nans(self)
       return SimError.NAN_DETECTED
     elif not self.core_profiles.quasineutrality_satisfied():
       return SimError.QUASINEUTRALITY_BROKEN
     else:
       return SimError.NO_ERROR
+
+
+def has_nan(inputs: ToraxSimState) -> bool:
+  return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
+
+
+def log_nans(inputs: ToraxSimState):
+  path_vals, _ = jax.tree.flatten_with_path(inputs)
+  for path, value in path_vals:
+    if jnp.any(jnp.isnan(value)):
+      logging.info(
+          "Found NaN in %s, value=%s", jax.tree_util.keystr(path), value
+      )
