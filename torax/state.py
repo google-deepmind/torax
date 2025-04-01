@@ -15,7 +15,7 @@
 """Classes defining the TORAX state that evolves over time."""
 import dataclasses
 import enum
-from typing import Any, Optional
+from typing import Optional
 
 from absl import logging
 import chex
@@ -28,10 +28,6 @@ from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.sources import source_profiles
 import typing_extensions
-
-
-def has_nan(inputs: Any) -> bool:
-  return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
 
 
 @chex.dataclass(frozen=True)
@@ -61,20 +57,6 @@ class Currents:
   def Ip_total(self) -> array_typing.ScalarFloat:
     """Returns the total plasma current [A]."""
     return self.Ip_profile_face[..., -1]
-
-  def has_nans(self) -> bool:
-    """Checks for NaNs in all attributes of Currents."""
-
-    def _check_for_nans(x: Any) -> bool:
-      if isinstance(x, jax.Array):
-        return jnp.any(jnp.isnan(x)).item()
-      else:
-        return False
-
-    return any(
-        _check_for_nans(getattr(self, field))
-        for field in self.__dataclass_fields__
-    )
 
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> "Currents":
@@ -761,12 +743,12 @@ class ToraxSimState:
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""
     if has_nan(self):
+      log_nans(self)
       return SimError.NAN_DETECTED
     elif not self.core_profiles.quasineutrality_satisfied():
       return SimError.QUASINEUTRALITY_BROKEN
     else:
       return SimError.NO_ERROR
-
   def sanity_check(self) -> None:
     """Performs sanity checks on the entire simulation state.
     
@@ -791,3 +773,17 @@ class ToraxSimState:
     
     # Check stepper_numeric_outputs
     self.stepper_numeric_outputs.sanity_check()
+
+
+def has_nan(inputs: ToraxSimState) -> bool:
+  return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
+
+
+def log_nans(inputs: ToraxSimState):
+  path_vals, _ = jax.tree.flatten_with_path(inputs)
+  for path, value in path_vals:
+    if jnp.any(jnp.isnan(value)):
+      logging.info(
+          "Found NaN in %s, value=%s", jax.tree_util.keystr(path), value
+      )
+

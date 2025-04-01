@@ -16,6 +16,10 @@
 import dataclasses
 import logging
 
+
+
+import dataclasses
+import functools
 import jax
 import jax.numpy as jnp
 from torax import jax_utils
@@ -26,12 +30,30 @@ from torax.config import runtime_params_slice
 from torax.core_profiles import updaters
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.mhd import base as mhd_base
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 from torax.stepper import stepper as stepper_lib
 from torax.time_step_calculator import time_step_calculator as ts
 from torax.transport_model import transport_model as transport_model_lib
+
+
+@functools.partial(jax_utils.jit, static_argnums=(0,))
+def _jitted_transport_model(
+    transport_model: transport_model_lib.TransportModel,
+    dynamic_runtime_params_slice_t: runtime_params_slice.DynamicRuntimeParamsSlice,
+    geo_t: geometry.Geometry,
+    core_profiles_t: state.CoreProfiles,
+    pedestal_model_output: pedestal_model_lib.PedestalModelOutput,
+) -> state.CoreTransport:
+  """Calls the transport model with the given arguments."""
+  return transport_model(
+      dynamic_runtime_params_slice_t,
+      geo_t,
+      core_profiles_t,
+      pedestal_model_output,
+  )
 
 
 class SimulationStepFn:
@@ -52,6 +74,7 @@ class SimulationStepFn:
       time_step_calculator: ts.TimeStepCalculator,
       transport_model: transport_model_lib.TransportModel,
       pedestal_model: pedestal_model_lib.PedestalModel,
+      mhd_models: mhd_base.MHDModels | None = None,
   ):
     """Initializes the SimulationStepFn.
 
@@ -65,14 +88,13 @@ class SimulationStepFn:
       time_step_calculator: Calculates the dt for each time step.
       transport_model: Calculates diffusion and convection coefficients.
       pedestal_model: Calculates pedestal coefficients.
+      mhd_models: Collection of MHD models applied, e.g. sawtooth
     """
     self._stepper_fn = stepper
     self._time_step_calculator = time_step_calculator
     self._transport_model = transport_model
     self._pedestal_model = pedestal_model
-    self._jitted_transport_model = jax_utils.jit(
-        transport_model.__call__,
-    )
+    self._mhd_models = mhd_models
 
   @property
   def pedestal_model(self) -> pedestal_model_lib.PedestalModel:
@@ -85,6 +107,10 @@ class SimulationStepFn:
   @property
   def transport_model(self) -> transport_model_lib.TransportModel:
     return self._transport_model
+
+  @property
+  def mhd_models(self) -> mhd_base.MHDModels | None:
+    return self._mhd_models
 
   @property
   def time_step_calculator(self) -> ts.TimeStepCalculator:
@@ -233,7 +259,8 @@ class SimulationStepFn:
     pedestal_model_output = self._pedestal_model(
         dynamic_runtime_params_slice_t, geo_t, input_state.core_profiles
     )
-    transport_coeffs = self._jitted_transport_model(
+    transport_coeffs = _jitted_transport_model(
+        self._transport_model,
         dynamic_runtime_params_slice_t,
         geo_t,
         input_state.core_profiles,

@@ -37,7 +37,7 @@ import typing_extensions
 MODEL_PATH_ENV_VAR: Final[str] = 'TORAX_QLKNN_MODEL_PATH'
 # If no path is set in either the config or the environment variable, use
 # this path.
-DEFAULT_MODEL_PATH = '~/qlknn_hyper'
+DEFAULT_MODEL_PATH: Final[str] = '~/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn'  # pylint: disable=line-too-long
 
 
 def get_default_model_path() -> str:
@@ -212,12 +212,6 @@ class QLKNNTransportModel(
     )
     return self._combined(runtime_config_inputs, geo, core_profiles)
 
-  # Wrap in JIT here in order to cache the tracing/compilation of this function.
-  # We mark self as static because it is a singleton. Other args are pytrees.
-  # There's no global coordination of calls to transport model so it is called
-  # 2-4X with the same args. Caching prevents construction of multiple copies of
-  # identical expressions saving ~30% in compile time.
-  @functools.partial(jax.jit, static_argnames=['self'])
   def _combined(
       self,
       runtime_config_inputs: QLKNNRuntimeConfigInputs,

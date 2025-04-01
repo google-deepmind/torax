@@ -13,8 +13,7 @@
 # limitations under the License.
 """Pellet source for the ne equation."""
 import dataclasses
-from typing import ClassVar
-from typing import Literal
+from typing import ClassVar, Literal
 
 import chex
 from torax import array_typing
@@ -27,6 +26,12 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+
+
+# Default value for the model function to be used for the pellet source
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: str = 'calc_pellet_source'
 
 
 # pylint: disable=invalid-name
@@ -61,7 +66,6 @@ class PelletSource(source.Source):
   """Pellet source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'pellet_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_pellet_source'
   model_func: source.SourceProfileFunction = calc_pellet_source
 
   @property
@@ -91,8 +95,7 @@ class PelletSourceConfig(base.SourceModelBase):
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
-
-  source_name: Literal['pellet_source'] = 'pellet_source'
+  model_function_name: Literal['calc_pellet_source'] = 'calc_pellet_source'
   pellet_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.1)
   )

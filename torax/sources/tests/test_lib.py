@@ -48,8 +48,10 @@ class SourceTestCase(parameterized.TestCase):
       source_name: str,
       source_config_class: Type[base.SourceModelBase],
       needs_source_models: bool = False,
+      model_function_name: str | None = None,
   ):
     self._source_name = source_name
+    self._model_function_name = model_function_name
     self._source_config_class = source_config_class
     self._needs_source_models = needs_source_models
     super().setUp()
@@ -93,7 +95,15 @@ class SingleProfileSourceTestCase(SourceTestCase):
   def test_source_value_on_the_cell_grid(self):
     """Tests that the source can provide a value by default on the cell grid."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
-    sources = source_pydantic_model.Sources.from_dict({self._source_name: {}})
+    if self._model_function_name is not None:
+      sources_dict = {
+          self._source_name: {
+              'model_function_name': self._model_function_name,
+          }
+      }
+    else:
+      sources_dict = {self._source_name: {}}
+    sources = source_pydantic_model.Sources.from_dict(sources_dict)
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
@@ -148,7 +158,15 @@ class IonElSourceTestCase(SourceTestCase):
     """Tests that the source can provide values on the cell grid."""
     runtime_params = general_runtime_params.GeneralRuntimeParams()
     geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    sources = source_pydantic_model.Sources.from_dict({self._source_name: {}})
+    if self._model_function_name is not None:
+      sources_dict = {
+          self._source_name: {
+              'model_function_name': self._model_function_name,
+          }
+      }
+    else:
+      sources_dict = {self._source_name: {}}
+    sources = source_pydantic_model.Sources.from_dict(sources_dict)
     source_models = source_models_lib.SourceModels(
         sources=sources.source_model_config
     )

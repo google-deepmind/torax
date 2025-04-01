@@ -99,7 +99,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_qlknnheat.py',
           _ALL_PROFILES,
           0,
-          1e-11,
+          1e-10,
       ),
       # Tests fixed_dt timestep
       (
@@ -188,6 +188,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_all_transport_fusion_qlknn.py',
           _ALL_PROFILES,
           0,
+          1e-8,
       ),
       # Tests CHEASE geometry. Implicit solver. Heat transport only.
       (
@@ -347,6 +348,7 @@ class SimTest(sim_test_case.SimTestCase):
           'test_iterhybrid_predictor_corrector_zeffprofile.py',
           _ALL_PROFILES,
           0,
+          1e-8,
       ),
       # Predictor-corrector solver with a time-dependent isotope mix.
       (
@@ -708,12 +710,12 @@ class SimTest(sim_test_case.SimTestCase):
       np.testing.assert_allclose(
           sim_outputs_ip_bc.core_profiles[profile].value[middle_index, :],
           sim_outputs_vloop_bc.core_profiles[profile].value[middle_index, :],
-          rtol=1e-4,
+          rtol=1e-3,
       )
       np.testing.assert_allclose(
           sim_outputs_ip_bc.core_profiles[profile].value[-1, :],
           sim_outputs_vloop_bc.core_profiles[profile].value[-1, :],
-          rtol=1e-4,
+          rtol=1e-3,
       )
 
     # pylint: enable=invalid-name

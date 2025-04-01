@@ -68,6 +68,11 @@ class InterpolatedParam1dTest(parameterized.TestCase):
           model_pydantic, TestModel.model_validate_json(model_json)
       )
 
+    with self.subTest('update'):
+      a_time = np.copy(a_expected.time) * 2.0
+      a_expected._update_fields({'time': a_time})
+      self.assertIs(a_expected.time, a_time)
+
   def test_bool_single_value_param_always_return_constant(self):
     """Tests that when passed a single value this is always returned."""
     expected_output = True
@@ -168,7 +173,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
 
   @parameterized.parameters(
       (
-          ([0., 2., 3.], [1., 7., -1.]),
+          ([0.0, 2.0, 3.0], [1.0, 7.0, -1.0]),
           1.5,
           5.5,
       ),

@@ -30,9 +30,11 @@ from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
 
-InterpolatedVarTimeRhoInput = (
-    runtime_params_lib.interpolated_param.InterpolatedVarTimeRhoInput
-)
+
+# Default value for the model function to be used for the electron cyclotron
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: str = "calc_heating_and_current"
 
 
 @chex.dataclass(frozen=True)
@@ -122,7 +124,6 @@ class ElectronCyclotronSource(source.Source):
   """Electron cyclotron source for the Te and Psi equations."""
 
   SOURCE_NAME: ClassVar[str] = "electron_cyclotron_source"
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = "calc_heating_and_current"
   model_func: source.SourceProfileFunction = calc_heating_and_current
 
   @property
@@ -146,9 +147,8 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
       location
     gaussian_ec_total_power: Gaussian EC total power
   """
-
-  source_name: Literal["electron_cyclotron_source"] = (
-      "electron_cyclotron_source"
+  model_function_name: Literal["calc_heating_and_current"] = (
+      "calc_heating_and_current"
   )
   cd_efficiency: torax_pydantic.TimeVaryingArray = (
       torax_pydantic.ValidatedDefault({0.0: {0.0: 0.2, 1.0: 0.2}})

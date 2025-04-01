@@ -78,8 +78,6 @@ class Source(abc.ABC):
 
   Attributes:
     SOURCE_NAME: The name of the source.
-    DEFAULT_MODEL_FUNCTION_NAME: The name of the model function used with this
-      source if another isn't specified.
     runtime_params: Input dataclass containing all the source-specific runtime
       parameters. At runtime, the parameters here are interpolated to a specific
       time t and then passed to the model_func, depending on the mode this
@@ -95,7 +93,6 @@ class Source(abc.ABC):
   """
 
   SOURCE_NAME: ClassVar[str] = 'source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'default'
   model_func: SourceProfileFunction | None = None
 
   @property

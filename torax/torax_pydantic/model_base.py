@@ -261,7 +261,18 @@ class BaseModelFrozen(pydantic.BaseModel):
         )
       assert value_name in model.__dict__
       field_type = model.model_fields[value_name].annotation
-      value = pydantic.TypeAdapter(field_type).validate_python(value)
+
+      # TypeAdapter does not allow a config arg if the value is a Pydantic
+      # model, as this has its own config.
+      cfg = pydantic.ConfigDict(arbitrary_types_allowed=True)
+      try:
+        cfg = None if issubclass(field_type, pydantic.BaseModel) else cfg
+      except TypeError:
+        pass
+      value = pydantic.TypeAdapter(field_type, config=cfg).validate_python(
+          value
+      )
+
       model.__dict__[value_name] = value
       # Re-validate the model. Will throw an exception if the new value is
       # invalid.
