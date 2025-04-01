@@ -127,4 +127,5 @@ def run_simulation(
       state_history=state_history,
       sim_error=sim_error,
       source_models=source_models,
+      torax_config=torax_config,
   )
