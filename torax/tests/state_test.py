@@ -29,6 +29,7 @@ from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
@@ -37,6 +38,38 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import torax_refs
+
+
+def make_zero_core_profiles(
+    geo: geometry.Geometry,
+) -> state.CoreProfiles:
+  """Returns a dummy CoreProfiles object."""
+  zero_cell_variable = cell_variable.CellVariable(
+      value=jnp.zeros_like(geo.rho),
+      dr=geo.drho_norm,
+      right_face_constraint=jnp.ones(()),
+      right_face_grad_constraint=None,
+  )
+  return state.CoreProfiles(
+      currents=state.Currents.zeros(geo),
+      temp_ion=zero_cell_variable,
+      temp_el=zero_cell_variable,
+      psi=zero_cell_variable,
+      psidot=zero_cell_variable,
+      ne=zero_cell_variable,
+      ni=zero_cell_variable,
+      nimp=zero_cell_variable,
+      q_face=jnp.zeros_like(geo.rho_face),
+      s_face=jnp.zeros_like(geo.rho_face),
+      nref=jnp.array(0.0),
+      vloop_lcfs=jnp.array(0.0),
+      Zi=jnp.zeros_like(geo.rho),
+      Zi_face=jnp.zeros_like(geo.rho_face),
+      Ai=jnp.zeros(()),
+      Zimp=jnp.zeros_like(geo.rho),
+      Zimp_face=jnp.zeros_like(geo.rho_face),
+      Aimp=jnp.zeros(()),
+  )
 
 
 class StateTest(torax_refs.ReferenceValueTest):
@@ -173,26 +206,7 @@ class StateTest(torax_refs.ReferenceValueTest):
         right_face_constraint=jnp.ones(()),
         right_face_grad_constraint=None,
     )
-    core_profiles = state.CoreProfiles(
-        currents=state.Currents.zeros(geo),
-        temp_ion=dummy_cell_variable,
-        temp_el=dummy_cell_variable,
-        psi=dummy_cell_variable,
-        psidot=dummy_cell_variable,
-        ne=dummy_cell_variable,
-        ni=dummy_cell_variable,
-        nimp=dummy_cell_variable,
-        q_face=jnp.zeros_like(geo.rho_face),
-        s_face=jnp.zeros_like(geo.rho_face),
-        nref=jnp.array(0.0),
-        vloop_lcfs=jnp.array(0.0),
-        Zi=jnp.zeros_like(geo.rho),
-        Zi_face=jnp.zeros_like(geo.rho_face),
-        Ai=jnp.zeros(()),
-        Zimp=jnp.zeros_like(geo.rho),
-        Zimp_face=jnp.zeros_like(geo.rho_face),
-        Aimp=jnp.zeros(()),
-    )
+    core_profiles = make_zero_core_profiles(geo)
     sim_state = state.ToraxSimState(
         core_profiles=core_profiles,
         core_transport=state.CoreTransport.zeros(geo),
@@ -616,6 +630,30 @@ class InitialStatesTest(parameterized.TestCase):
     np.testing.assert_allclose(
         core_profiles1.currents.jtot, core_profiles2.currents.jtot
     )
+
+  def test_core_profiles_negative_values_check(self):
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    core_profiles = make_zero_core_profiles(geo)
+    with self.subTest('no negative values'):
+      self.assertFalse(core_profiles.negative_temperature_or_density())
+    with self.subTest('negative temp_ion triggers'):
+      new_core_profiles = dataclasses.replace(
+          core_profiles,
+          temp_ion=dataclasses.replace(
+              core_profiles.temp_ion,
+              value=jnp.array(-1.0),
+          ),
+      )
+      self.assertTrue(new_core_profiles.negative_temperature_or_density())
+    with self.subTest('negative psi does not trigger'):
+      new_core_profiles = dataclasses.replace(
+          core_profiles,
+          psi=dataclasses.replace(
+              core_profiles.psi,
+              value=jnp.array(-1.0),
+          ),
+      )
+      self.assertFalse(new_core_profiles.negative_temperature_or_density())
 
 
 if __name__ == '__main__':

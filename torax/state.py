@@ -165,6 +165,19 @@ class CoreProfiles:
         self.ne.value,
     ).item()
 
+  def negative_temperature_or_density(self) -> bool:
+    """Checks if any temperature or density is negative."""
+    profiles_to_check = (
+        self.temp_ion,
+        self.temp_el,
+        self.ne,
+        self.ni,
+        self.nimp,
+    )
+    return any(
+        [jnp.any(jnp.less(x, 0.0)) for x in jax.tree.leaves(profiles_to_check)]
+    )
+
   def index(self, i: int) -> typing_extensions.Self:
     """If the CoreProfiles is a history, returns the i-th CoreProfiles."""
     idx = lambda x: x[i]
@@ -526,13 +539,17 @@ class SimError(enum.Enum):
   NO_ERROR = 0
   NAN_DETECTED = 1
   QUASINEUTRALITY_BROKEN = 2
+  NEGATIVE_CORE_PROFILES = 3
 
   def log_error(self):
     match self:
+      case SimError.NEGATIVE_CORE_PROFILES:
+        logging.error("""
+            Simulation stopped due to negative values in core profiles.
+            """)
       case SimError.NAN_DETECTED:
         logging.error("""
             Simulation stopped due to NaNs in state.
-            Possible cause is negative temperatures or densities.
             Output file contains all profiles up to the last valid step.
             """)
       case SimError.QUASINEUTRALITY_BROKEN:
@@ -597,9 +614,14 @@ class ToraxSimState:
 
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""
+    if self.core_profiles.negative_temperature_or_density():
+      logging.info("%s", self.core_profiles)
+      log_negative_profile_names(self.core_profiles)
+      return SimError.NEGATIVE_CORE_PROFILES
+    # If there are NaNs that occured without negative core profiles, log this
+    # as a separate error.
     if has_nan(self):
       logging.info("%s", self.core_profiles)
-      log_negative_values(self.core_profiles)
       return SimError.NAN_DETECTED
     elif not self.core_profiles.quasineutrality_satisfied():
       return SimError.QUASINEUTRALITY_BROKEN
@@ -611,7 +633,7 @@ def has_nan(inputs: ToraxSimState) -> bool:
   return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
 
 
-def log_negative_values(inputs: CoreProfiles):
+def log_negative_profile_names(inputs: CoreProfiles):
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   for path, value in path_vals:
     if jnp.any(jnp.less(value, 0.0)):
