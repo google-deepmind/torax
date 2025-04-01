@@ -196,6 +196,18 @@ class CoreProfiles:
     """
     return id(self)
 
+  def __str__(self) -> str:
+    return f"""
+      CoreProfiles(
+        temp_ion={self.temp_ion},
+        temp_el={self.temp_el},
+        psi={self.psi},
+        ne={self.ne},
+        nimp={self.nimp},
+        ni={self.ni},
+      )
+    """
+
 
 @chex.dataclass
 class CoreTransport:
@@ -586,7 +598,8 @@ class ToraxSimState:
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""
     if has_nan(self):
-      log_nans(self)
+      logging.info("%s", self.core_profiles)
+      log_negative_values(self.core_profiles)
       return SimError.NAN_DETECTED
     elif not self.core_profiles.quasineutrality_satisfied():
       return SimError.QUASINEUTRALITY_BROKEN
@@ -598,10 +611,8 @@ def has_nan(inputs: ToraxSimState) -> bool:
   return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
 
 
-def log_nans(inputs: ToraxSimState):
+def log_negative_values(inputs: CoreProfiles):
   path_vals, _ = jax.tree.flatten_with_path(inputs)
   for path, value in path_vals:
-    if jnp.any(jnp.isnan(value)):
-      logging.info(
-          "Found NaN in %s, value=%s", jax.tree_util.keystr(path), value
-      )
+    if jnp.any(jnp.less(value, 0.0)):
+      logging.info("Found negative value in %s", jax.tree_util.keystr(path))
