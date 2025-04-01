@@ -197,7 +197,8 @@ def geometry_to_IMAS(SimState: state.ToraxSimState, equilibrium_in: IDSToplevel 
     equilibrium.time.resize(1)
     equilibrium.time = [SimState.t] #What time should be set ? Needed for B0
     equilibrium.vacuum_toroidal_field.r0 = geometry.Rmaj
-    equilibrium.vacuum_toroidal_field.b0 = [-1 * geometry.B0]
+    equilibrium.vacuum_toroidal_field.b0.resize(1)
+    equilibrium.vacuum_toroidal_field.b0[0] = -1 * geometry.B0
     equilibrium.time_slice.resize(1)
     eq = equilibrium.time_slice[0]
     eq.boundary.geometric_axis.r = geometry.Rmaj
