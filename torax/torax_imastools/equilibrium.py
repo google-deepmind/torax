@@ -31,8 +31,8 @@ from torax.torax_imastools.util import requires_module, face_to_cell
 
 @requires_module("imaspy")
 def write_ids_equilibrium_into_config(
-    config: dict, equilibrium: IDSToplevel
-) -> dict[str, np.ndarray]:
+    config: Dict, equilibrium: IDSToplevel
+) -> Dict[str, np.ndarray]:
     """Loads the equilibrium into the geometry config.
     Args:
     config: TORAX config object.
