@@ -244,3 +244,24 @@ class CellVariable:
 
   def __eq__(self, other):
     return self is other
+
+  def __str__(self) -> str:
+    output_string = f'CellVariable(value={self.value}'
+    if self.left_face_constraint is not None:
+      output_string += (
+          f', left_face_constraint={self.left_face_constraint}'
+      )
+    if self.right_face_constraint is not None:
+      output_string += (
+          f', right_face_constraint={self.right_face_constraint}'
+      )
+    if self.left_face_grad_constraint is not None:
+      output_string += (
+          f', left_face_grad_constraint={self.left_face_grad_constraint}'
+      )
+    if self.right_face_grad_constraint is not None:
+      output_string += (
+          f', right_face_grad_constraint={self.right_face_grad_constraint}'
+      )
+    output_string += ')'
+    return output_string

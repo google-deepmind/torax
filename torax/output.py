@@ -26,6 +26,7 @@ from torax.geometry import geometry as geometry_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
 from torax.torax_pydantic import file_restart as file_restart_pydantic_model
+from torax.torax_pydantic import model_config
 import xarray as xr
 
 import os
@@ -88,6 +89,9 @@ SIM_ERROR = "sim_error"
 
 # Sources.
 CORE_SOURCES = "core_sources"
+
+# ToraxConfig.
+CONFIG = "config"
 
 # Excluded coordinates from geometry since they are at the top DataTree level.
 # Exclude q_correction_factor as it is not an interesting quantity to save.
@@ -184,6 +188,7 @@ class StateHistory:
       state_history: tuple[state.ToraxSimState, ...],
       sim_error: state.SimError,
       source_models: source_models_lib.SourceModels,
+      torax_config: model_config.ToraxConfig,
   ):
     core_profiles = [
         state.core_profiles.history_elem() for state in state_history
@@ -217,6 +222,7 @@ class StateHistory:
     chex.assert_rank(self.times, 1)
     self.sim_error = sim_error
     self.source_models = source_models
+    self.torax_config = torax_config
 
   def _pack_into_data_array(
       self,
@@ -496,7 +502,11 @@ class StateHistory:
             ),
             GEOMETRY: xr.DataTree(dataset=geometry_ds),
         },
-        dataset=xr.Dataset(top_level_xr_dict, coords=coords),
+        dataset=xr.Dataset(
+            top_level_xr_dict,
+            coords=coords,
+            attrs={CONFIG: self.torax_config.model_dump_json()},
+        ),
     )
 
     if file_restart is not None and file_restart.stitch:

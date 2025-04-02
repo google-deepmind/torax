@@ -15,10 +15,9 @@
 """Commonly repeated jax expressions."""
 
 import contextlib
-import dataclasses
 import functools
 import os
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, Optional, TypeVar
 import chex
 import equinox as eqx
 import jax
@@ -155,39 +154,6 @@ def error_if_negative(
   return error_if(to_wrap, min_var < 0, msg)
 
 
-def jax_default(value: chex.Numeric) -> ...:
-  """Define a dataclass field with a jax-type default value.
-
-  Args:
-    value: The default value of the field.
-
-  Returns:
-    field: The dataclass field.
-  """
-  jax_value = lambda: jnp.array(value)
-  return dataclasses.field(default_factory=jax_value)
-
-
-def compat_linspace(
-    start: Union[chex.Numeric, jax.Array], stop: jax.Array, num: jax.Array
-) -> jax.Array:
-  """See np.linspace.
-
-  This implementation of a subset of the linspace API reproduces the
-  output of numpy better (at least when run in float64 mode) than
-  jnp.linspace does.
-
-  Args:
-    start: first value
-    stop: last value
-    num: Number of points in the series
-
-  Returns:
-    linspace: array of shape (num) increasing linearly from `start` to `stop`
-  """
-  return jnp.arange(num) * ((stop - start) / (num - 1)) + start
-
-
 def assert_rank(
     inputs: chex.Numeric | jax.stages.ArgInfo,
     rank: int,
@@ -197,34 +163,6 @@ def assert_rank(
     chex.assert_rank(inputs.shape, rank)
   else:
     chex.assert_rank(inputs, rank)
-
-
-def select(
-    cond: jax.Array | bool,
-    true_val: jax.Array,
-    false_val: jax.Array,
-) -> jax.Array:
-  """Wrapper around jnp.where for readability."""
-  return jnp.where(cond, true_val, false_val)
-
-
-def is_tracer(var: jax.Array) -> bool:
-  """Checks whether `var` is a jax tracer.
-
-  Args:
-    var: The jax variable to inspect.
-
-  Returns:
-    output: True `var` is a tracer, False if concrete.
-  """
-
-  try:
-    if var.sum() > 0:
-      return False
-    return False
-  except jax.errors.TracerBoolConversionError:
-    return True
-  assert False  # Should be unreachable
 
 
 def jit(*args, **kwargs) -> Callable[..., Any]:
