@@ -483,6 +483,21 @@ class SimTest(sim_test_case.SimTestCase):
         atol=atol,
     )
 
+  @parameterized.parameters([
+      dict(config_name='test_imas.py'),
+      dict(config_name='test_iterhybrid_predictor_corrector_imas.py'),
+  ])
+  def test_imas(self, config_name):
+    """Integration test comparing to reference output from TORAX."""
+    if importlib.util.find_spec('imaspy') is None:
+      self.skipTest('IMASPy optional dependency')
+    self._test_run_simulation(
+        config_name,
+        _ALL_PROFILES,
+        rtol=0,
+        atol=None,
+    )
+
   def test_fail(self):
     """Test that the integration tests can actually fail."""
 
@@ -730,92 +745,6 @@ class SimTest(sim_test_case.SimTestCase):
         state_history.times[-1],
         torax_config.runtime_params.numerics.t_final,
     )
-
-  def test_restart_sim_from_file(self):
-    test_config_state_file = 'test_iterhybrid_rampup.nc'
-    restart_config = 'test_iterhybrid_rampup_restart.py'
-    sim = self._get_sim(restart_config)
-    sim_outputs = sim.run()
-    history = output.StateHistory(sim_outputs, sim.source_models)
-    data_tree_restart = history.simulation_output_to_xr()
-
-    # Load the reference dataset.
-    datatree_ref = output.load_state_file(
-        os.path.join(self.test_data_dir, test_config_state_file)
-    )
-
-    # Stitch the restart state file to the beginning of the reference dataset.
-    datatree_new = output.stitch_state_files(
-        sim.file_restart, data_tree_restart
-    )
-
-    # Check equality for all time-dependent variables.
-    def check_equality(ds1: xr.Dataset, ds2: xr.Dataset):
-      for var_name in ds1.data_vars:
-        if 'time' in ds1[var_name].dims:
-          with self.subTest(var_name=var_name):
-            np.testing.assert_allclose(
-                ds1[var_name].values,
-                ds2[var_name].values,
-                err_msg=f'Mismatch for {var_name} in restart test',
-                rtol=1e-6,
-            )
-
-    xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
-
-  def test_update(self):
-    sim = self._get_sim('test_iterhybrid_predictor_corrector.py')
-    new_config = self._get_config_module(
-        'test_iterhybrid_predictor_corrector_eqdsk.py'
-    ).CONFIG
-    sim.update_base_components(
-        geometry_provider=geometry_pydantic_model.Geometry.from_dict(
-            new_config['geometry']
-        ).build_provider
-    )
-    sim_outputs = sim.run()
-
-    # Extract core profiles history for analysis against references
-    history = output.StateHistory(sim_outputs, sim.source_models)
-    ref_profiles, ref_time = self._get_refs(
-        'test_iterhybrid_predictor_corrector_eqdsk.nc', _ALL_PROFILES
-    )
-
-    self._check_profiles_vs_expected(
-        core_profiles=history.core_profiles,
-        t=history.times,
-        ref_time=ref_time,
-        ref_profiles=ref_profiles,
-        rtol=self.rtol,
-        atol=self.atol,
-    )
-
-  def test_update_new_mesh(self):
-    sim = self._get_sim('test_iterhybrid_rampup.py')
-    with self.assertRaisesRegex(ValueError, 'different mesh'):
-      sim.update_base_components(
-          geometry_provider=geometry_pydantic_model.Geometry.from_dict(
-              {'geometry_type': 'circular', 'n_rho': 10}
-          ).build_provider
-      )
-
-  @parameterized.parameters([
-      dict(config_name='test_imas.py'),
-      dict(config_name='test_iterhybrid_predictor_corrector_imas.py'),
-  ])
-  def test_imas(self, config_name):
-    """Integration test comparing to reference output from TORAX."""
-    if importlib.util.find_spec('imaspy') is None:
-      self.skipTest('IMASPy optional dependency')
-    self._test_torax_sim(
-        config_name,
-        _ALL_PROFILES,
-    )
-    self._test_torax_sim(
-        'test_iterhybrid_predictor_corrector_imas.py',
-        _ALL_PROFILES,
-    )
-
 
 def verify_core_profiles(ref_profiles, index, core_profiles):
   """Verify core profiles matches a reference at given index."""
