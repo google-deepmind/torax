@@ -7,7 +7,8 @@ https://github.com/google-deepmind/torax/tree/main/torax/tutorials.
 The tutorials are intended to be run in either a Jupyter or Colab notebook.
 
 It is necessary to build your own notebook kernel in the same environment
-where you installed Torax.
+where you installed TORAX. These tutorials are tested for TORAX v0.3.1 and are
+not guaranteed to work with later versions due to API changes.
 
 First install the necessary dependencies. Running from the torax root directory:
 
