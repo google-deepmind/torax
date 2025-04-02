@@ -41,7 +41,6 @@ from torax.geometry import geometry
 from torax.physics import charge_states
 from torax.physics import formulas
 from torax.physics import psi_calculations
-from torax.sources import source_operations
 from torax.sources import source_profiles as source_profiles_lib
 
 _trapz = jax.scipy.integrate.trapezoid
@@ -244,11 +243,13 @@ def update_core_profiles_during_step(
 def update_all_core_profiles_after_step(
     x_new: tuple[cell_variable.CellVariable, ...],
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
+    dynamic_runtime_params_slice_t_plus_dt: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
     source_profiles: source_profiles_lib.SourceProfiles,
-    core_profiles: state.CoreProfiles,
+    core_profiles_t: state.CoreProfiles,
+    core_profiles_t_plus_dt: state.CoreProfiles,
     evolving_names: tuple[str, ...],
+    dt: array_typing.ScalarFloat,
 ) -> state.CoreProfiles:
   """Returns a new core profiles after the stepper has finished.
 
@@ -257,39 +258,57 @@ def update_all_core_profiles_after_step(
   Args:
     x_new: The new values of the evolving variables.
     static_runtime_params_slice: The static runtime params slice.
-    dynamic_runtime_params_slice: The dynamic runtime params slice.
+    dynamic_runtime_params_slice_t_plus_dt: The dynamic runtime params slice.
     geo: Magnetic geometry.
     source_profiles: The source profiles from the step function output.
-    core_profiles: The old set of core plasma profiles.
+    core_profiles_t: The old set of core plasma profiles.
+    core_profiles_t_plus_dt: The partially new set of core plasma profiles. On
+      input into this function, all prescribed profiles and used boundary
+      conditions are already set. But evolving values are not.
     evolving_names: The names of the evolving variables.
+    dt: The size of the last timestep.
   """
 
-  temp_ion = _get_update(x_new, evolving_names, core_profiles, 'temp_ion')
-  temp_el = _get_update(x_new, evolving_names, core_profiles, 'temp_el')
-  psi = _get_update(x_new, evolving_names, core_profiles, 'psi')
-  ne = _get_update(x_new, evolving_names, core_profiles, 'ne')
+  temp_ion = _get_update(
+      x_new, evolving_names, core_profiles_t_plus_dt, 'temp_ion'
+  )
+  temp_el = _get_update(
+      x_new, evolving_names, core_profiles_t_plus_dt, 'temp_el'
+  )
+  psi = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'psi')
+  ne = _get_update(x_new, evolving_names, core_profiles_t_plus_dt, 'ne')
 
   ni, nimp, Zi, Zi_face, Zimp, Zimp_face = (
       getters.get_ion_density_and_charge_states(
           static_runtime_params_slice,
-          dynamic_runtime_params_slice,
+          dynamic_runtime_params_slice_t_plus_dt,
           geo,
           ne,
           temp_el,
       )
   )
 
-  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
+  psi_sources = source_profiles.total_psi_sources(geo)
   psidot = dataclasses.replace(
-      core_profiles.psidot,
+      core_profiles_t_plus_dt.psidot,
       value=psi_calculations.calculate_psidot_from_psi_sources(
           psi_sources=psi_sources,
           sigma=source_profiles.j_bootstrap.sigma,
           sigma_face=source_profiles.j_bootstrap.sigma_face,
-          resistivity_multiplier=dynamic_runtime_params_slice.numerics.resistivity_mult,
+          resistivity_multiplier=dynamic_runtime_params_slice_t_plus_dt.numerics.resistivity_mult,
           psi=psi,
           geo=geo,
       ),
+  )
+
+  vloop_lcfs = (
+      dynamic_runtime_params_slice_t_plus_dt.profile_conditions.vloop_lcfs  # pylint: disable=g-long-ternary
+      if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
+      else _update_vloop_lcfs_from_psi(
+          core_profiles_t.psi,
+          psi,
+          dt,
+      )
   )
 
   return state.CoreProfiles(
@@ -304,15 +323,15 @@ def update_all_core_profiles_after_step(
       Zimp=Zimp,
       Zimp_face=Zimp_face,
       currents=_get_updated_currents(
-          geo, psi, core_profiles.currents, source_profiles
+          geo, psi, core_profiles_t_plus_dt.currents, source_profiles
       ),
       psidot=psidot,
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
-      nref=core_profiles.nref,
-      Ai=core_profiles.Ai,
-      Aimp=core_profiles.Aimp,
-      vloop_lcfs=core_profiles.vloop_lcfs,
+      nref=core_profiles_t_plus_dt.nref,
+      Ai=core_profiles_t_plus_dt.Ai,
+      Aimp=core_profiles_t_plus_dt.Aimp,
+      vloop_lcfs=vloop_lcfs,
   )
 
 
@@ -409,7 +428,7 @@ def compute_boundary_conditions_for_t_plus_dt(
                   Ip_tot=profile_conditions_t_plus_dt.Ip_tot,
                   geo=geo_t_plus_dt,
               )
-              if not profile_conditions_t_plus_dt.use_vloop_lcfs_boundary_condition
+              if not static_runtime_params_slice.use_vloop_lcfs_boundary_condition
               else None
           ),
           right_face_constraint=(
@@ -417,13 +436,47 @@ def compute_boundary_conditions_for_t_plus_dt(
                   dt=dt,
                   vloop_lcfs_t=dynamic_runtime_params_slice_t.profile_conditions.vloop_lcfs,
                   vloop_lcfs_t_plus_dt=profile_conditions_t_plus_dt.vloop_lcfs,
-                  psi_lcfs_t=core_profiles_t.psi.face_value()[-1],
+                  psi_lcfs_t=core_profiles_t.psi.right_face_constraint,
                   theta=static_runtime_params_slice.stepper.theta_imp,
               )
-              if profile_conditions_t_plus_dt.use_vloop_lcfs_boundary_condition
+              if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
               else None
           ),
       ),
       'Zi_edge': Zi_edge,
       'Zimp_edge': Zimp_edge,
   }
+
+
+# TODO(b/406173731): Find robust solution for underdetermination and solve this
+# for general theta_imp values.
+def _update_vloop_lcfs_from_psi(
+    psi_t: cell_variable.CellVariable,
+    psi_t_plus_dt: cell_variable.CellVariable,
+    dt: array_typing.ScalarFloat,
+) -> jax.Array:
+  """Updates the vloop_lcfs for the next timestep.
+
+  For the Ip boundary condition case, the vloop_lcfs formula is in principle
+  calculated from:
+
+  (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt =
+    vloop_lcfs_t_plus_dt*theta_imp - vloop_lcfs_t*(1-theta_imp)
+
+  However this set of equations is underdetermined. We thus restrict this
+  calculation assuming a fully implicit system, i.e. theta_imp=1, which is the
+  TORAX default. Be cautious when interpreting the results of this function
+  when theta_imp != 1 (non-standard usage).
+
+  Args:
+    psi_t: The psi CellVariable at the beginning of the timestep interval.
+    psi_t_plus_dt: The updated psi CellVariable for the next timestep.
+    dt: The size of the last timestep.
+
+  Returns:
+    The updated vloop_lcfs for the next timestep.
+  """
+  psi_lcfs_t = psi_t.face_value()[-1]
+  psi_lcfs_t_plus_dt = psi_t_plus_dt.face_value()[-1]
+  vloop_lcfs_t_plus_dt = (psi_lcfs_t_plus_dt - psi_lcfs_t) / dt
+  return vloop_lcfs_t_plus_dt

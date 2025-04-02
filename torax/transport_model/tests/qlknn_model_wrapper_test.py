@@ -20,7 +20,7 @@ import jax.numpy as jnp
 from torax.transport_model import qlknn_model_wrapper
 # pylint: disable=g-import-not-at-top
 try:
-  from fusion_transport_surrogates import qlknn_model_test_utils
+  from fusion_surrogates import qlknn_model_test_utils
 except ImportError:
   qlknn_model_test_utils = None
 # pylint: enable=g-import-not-at-top
@@ -40,7 +40,7 @@ class QlknnModelWrapperTest(parameterized.TestCase):
   def setUp(self):
     super().setUp()
     if qlknn_model_test_utils is None:
-      self.skipTest('fusion_transport_surrogates is not available.')
+      self.skipTest('fusion_surrogates is not available.')
     # Create a test model on disk to be loaded by the wrapper.
     self._config = qlknn_model_test_utils.get_test_model_config()
     self._batch_dim = 10

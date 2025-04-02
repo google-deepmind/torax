@@ -73,3 +73,18 @@ NumpyArray = Annotated[
 NumpyArray1D = Annotated[
     NumpyArray, pydantic.AfterValidator(_numpy_array_is_rank_1)
 ]
+
+
+def _array_is_unit_interval(array: np.ndarray) -> np.ndarray:
+  """Checks if the array is in the unit interval."""
+  if not np.all((array >= 0.0) & (array <= 1.0)):
+    raise ValueError(
+        f'Some array elements are not in the unit interval: {array}'
+    )
+  return array
+
+
+NumpyArray1DUnitInterval = Annotated[
+    NumpyArray1D,
+    pydantic.AfterValidator(_array_is_unit_interval),
+]

@@ -13,8 +13,6 @@
 # limitations under the License.
 """Class for handling QLKNN10D models."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 import json
 import os
@@ -25,11 +23,14 @@ import immutabledict
 import jax
 import jax.numpy as jnp
 import numpy as np
+from torax import jax_utils
 from torax.transport_model import base_qlknn_model
 from torax.transport_model import qualikiz_based_transport_model
+import typing_extensions
 
 # Internal import.
 # Internal import.
+
 
 # Move this to common lib.
 _ACTIVATION_FNS: Final[Mapping[str, Callable[[jax.Array], jax.Array]]] = (
@@ -115,7 +116,7 @@ class QuaLiKizNDNN:
     return outputs
 
   @classmethod
-  def from_json(cls, json_file) -> QuaLiKizNDNN:
+  def from_json(cls, json_file) -> typing_extensions.Self:
     with open(json_file) as file_:
       model_dict = json.load(file_)
     return cls(model_dict)
@@ -177,7 +178,11 @@ class QLKNN10D(base_qlknn_model.BaseQLKNNModel):
   ) -> jax.Array:
     """Converts QualikizInputs to model inputs."""
     return jnp.array(
-        [getattr(qualikiz_inputs, key) for key in self.inputs_and_ranges.keys()]
+        [
+            getattr(qualikiz_inputs, key)
+            for key in self.inputs_and_ranges.keys()
+        ],
+        dtype=jax_utils.get_dtype(),
     ).T
 
   @property

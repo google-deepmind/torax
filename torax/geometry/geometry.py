@@ -13,10 +13,6 @@
 # limitations under the License.
 
 """Classes for representing the problem geometry."""
-
-
-from __future__ import annotations
-
 from collections.abc import Sequence
 import dataclasses
 import enum

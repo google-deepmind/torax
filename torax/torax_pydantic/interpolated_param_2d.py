@@ -31,52 +31,29 @@ import xarray as xr
 class Grid1D(model_base.BaseModelFrozen):
   """Data structure defining a 1-D grid of cells with faces.
 
-  Construct via `construct` classmethod.
-
   Attributes:
     nx: Number of cells.
     dx: Distance between cell centers.
-    face_centers: Coordinates of face centers.
-    cell_centers: Coordinates of cell centers.
   """
 
-  nx: pydantic.PositiveInt
-  dx: pydantic.PositiveFloat
-  face_centers: pydantic_types.NumpyArray1D
-  cell_centers: pydantic_types.NumpyArray1D
+  nx: Annotated[pydantic.conint(ge=4), model_base.JAX_STATIC]
+  dx: Annotated[pydantic.PositiveFloat, model_base.JAX_STATIC]
+
+  @property
+  def face_centers(self) -> np.ndarray:
+    """Coordinates of face centers."""
+    return _get_face_centers(nx=self.nx, dx=self.dx)
+
+  @property
+  def cell_centers(self) -> np.ndarray:
+    """Coordinates of cell centers."""
+    return _get_cell_centers(nx=self.nx, dx=self.dx)
 
   def __eq__(self, other: Self) -> bool:
-    return (
-        self.nx == other.nx
-        and self.dx == other.dx
-        and np.array_equal(self.face_centers, other.face_centers)
-        and np.array_equal(self.cell_centers, other.cell_centers)
-    )
+    return self.nx == other.nx and self.dx == other.dx
 
   def __hash__(self) -> int:
     return hash((self.nx, self.dx))
-
-  @classmethod
-  def construct(cls, nx: int, dx: float) -> Self:
-    """Constructs a Grid1D.
-
-    Args:
-      nx: Number of cells.
-      dx: Distance between cell centers.
-
-    Returns:
-      grid: A Grid1D with the remaining fields filled in.
-    """
-
-    # Note: nx needs to be an int so that the shape `nx + 1` is not a Jax
-    # tracer.
-
-    return Grid1D(
-        nx=nx,
-        dx=dx,
-        face_centers=np.linspace(0, nx * dx, nx + 1),
-        cell_centers=np.linspace(dx * 0.5, (nx - 0.5) * dx, nx),
-    )
 
 
 class TimeVaryingArray(model_base.BaseModelFrozen):
@@ -89,7 +66,8 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
   Attributes:
     value: A mapping of the form `{time: (rho_norm, values), ...}`, where
-      `rho_norm` and `values` are 1D NumPy arrays of equal length.
+      `rho_norm` and `values` are 1D NumPy arrays of equal length. Note that all
+      `rho_norm` values `x` are in the range `0 <= x <= 1.0`.
     rho_interpolation_mode: The interpolation mode to use for the rho axis.
     time_interpolation_mode: The interpolation mode to use for the time axis.
     grid_face_centers: The face centers of the grid to use for the
@@ -101,7 +79,10 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
   """
 
   value: Mapping[
-      float, tuple[pydantic_types.NumpyArray1D, pydantic_types.NumpyArray1D]
+      float,
+      tuple[
+          pydantic_types.NumpyArray1DUnitInterval, pydantic_types.NumpyArray1D
+      ],
   ]
   rho_interpolation_mode: interpolated_param.InterpolationMode = (
       interpolated_param.InterpolationMode.PIECEWISE_LINEAR
@@ -150,8 +131,12 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
   def __eq__(self, other: Self):
     try:
-      chex.assert_trees_all_equal(vars(self), vars(other))
-      return True
+      chex.assert_trees_all_equal(self.value, other.value)
+      return (
+          self.rho_interpolation_mode == other.rho_interpolation_mode
+          and self.time_interpolation_mode == other.time_interpolation_mode
+          and self.grid == other.grid
+      )
     except AssertionError:
       return False
 
@@ -192,16 +177,26 @@ class TimeVaryingArray(model_base.BaseModelFrozen):
 
     if isinstance(data, xr.DataArray):
       value = _load_from_xr_array(data)
-    elif isinstance(data, tuple) and all(
-        isinstance(v, chex.Array) for v in data
-    ):
-      value = _load_from_arrays(
-          data,
-      )
+    elif isinstance(data, tuple):
+      values = []
+      for v in data:
+        if isinstance(v, chex.Array):
+          values.append(v)
+        elif isinstance(v, list):
+          values.append(np.array(v))
+        else:
+          raise ValueError(
+              'Input to TimeVaryingArray unsupported. Input was of type:'
+              f' {type(v)}. Expected chex.Array or list of floats/ints/bools.'
+          )
+      value = _load_from_arrays(tuple(values))
     elif isinstance(data, Mapping) or isinstance(data, (float, int)):
       value = _load_from_primitives(data)
     else:
-      raise ValueError('Input to TimeVaryingArray unsupported.')
+      raise ValueError(
+          'Input to TimeVaryingArray unsupported. Input was of type:'
+          f' {type(data)}'
+      )
 
     return dict(
         value=value,
@@ -394,12 +389,21 @@ def set_grid(
   """
 
   def _update_rule(submodel):
+    # The update API assumes all submodels are unique objects. Construct
+    # a new Grid1D object (without validation) to ensure this. We do reuse
+    # the same NumPy arrays.
+    new_grid = Grid1D.model_construct(
+        nx=grid.nx,
+        dx=grid.dx,
+        face_centers=grid.face_centers,
+        cell_centers=grid.cell_centers,
+    )
     if submodel.grid is None:
-      submodel.__dict__['grid'] = grid
+      submodel.__dict__['grid'] = new_grid
     else:
       match mode:
         case 'force':
-          submodel.__dict__['grid'] = grid
+          submodel.__dict__['grid'] = new_grid
         case 'relaxed':
           pass
         case 'strict':
@@ -410,3 +414,15 @@ def set_grid(
   for submodel in model.submodels:
     if isinstance(submodel, TimeVaryingArray):
       _update_rule(submodel)
+
+
+# The Torax mesh objects will generally have the same grid parameters. Thus
+# a global cache prevents recomputing the same linspaces for each mesh.
+@functools.cache
+def _get_face_centers(nx: int, dx: float) -> np.ndarray:
+  return np.linspace(0, nx * dx, nx + 1)
+
+
+@functools.cache
+def _get_cell_centers(nx: int, dx: float) -> np.ndarray:
+  return np.linspace(dx * 0.5, (nx - 0.5) * dx, nx)

@@ -12,84 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
+"""Unit tests for torax.config.runtime_params."""
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from torax.config import config_args
+import numpy as np
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.geometry import pydantic_model as geometry_pydantic_model
+from torax.torax_pydantic import torax_pydantic
 
 
 # pylint: disable=invalid-name
 class RuntimeParamsTest(parameterized.TestCase):
-
-  def test_recursive_replace(self):
-    """Basic test of recursive replace."""
-
-    # Make an nested dataclass with 3 layers of nesting, to make sure we can
-    # handle root, internal, and leaf nodes. Make sure we can run a
-    # recursive_replace call that is able to update some values but leave other
-    # values untouched, at every level of the nested hierarchy.
-
-    instance = A()
-
-    # Change all values so we notice if `replace` fills them in with constructor
-    # defaults
-    instance.a1 = 7
-    instance.a2 = 8
-    instance.a3.b1 = 9
-    instance.a3.b2 = 10
-    instance.a3.b3.c1 = 11
-    instance.a3.b3.c2 = 12
-    instance.a3.b4.c1 = 13
-    instance.a3.b4.c2 = 14
-    instance.a4.b1 = 15
-    instance.a4.b2 = 16
-    instance.a4.b3.c1 = 17
-    instance.a4.b3.c2 = 18
-    instance.a4.b4.c1 = 19
-    instance.a4.b4.c2 = 20
-
-    changes = {
-        "a1": -1,
-        # Don't update a2, to test that it is untouched
-        "a3": {
-            # Don't update b1, to test that it is untouched
-            "b2": -2,
-            # Don't update b3, to test that it is untouched
-            "b4": {
-                "c1": -3,
-                # Don't update c2, to test that it is untouched
-            },
-        },
-        # Don't update a4, to test that it is untouched
-    }
-
-    result = config_args.recursive_replace(instance, **changes)
-
-    self.assertIsInstance(result, A)
-    self.assertEqual(result.a1, -1)
-    self.assertEqual(result.a2, 8)
-    self.assertIsInstance(result.a3, B)
-    self.assertEqual(result.a3.b1, 9)
-    self.assertEqual(result.a3.b2, -2)
-    self.assertIsInstance(result.a3.b3, C)
-    self.assertEqual(result.a3.b3.c1, 11)
-    self.assertEqual(result.a3.b3.c2, 12)
-    self.assertIsInstance(result.a3.b4, C)
-    self.assertEqual(result.a3.b4.c1, -3)
-    self.assertEqual(result.a3.b4.c2, 14)
-    self.assertIsInstance(result.a4, B)
-    self.assertEqual(result.a4.b1, 15)
-    self.assertEqual(result.a4.b2, 16)
-    self.assertIsInstance(result.a4.b3, C)
-    self.assertEqual(result.a4.b3.c1, 17)
-    self.assertEqual(result.a4.b3.c2, 18)
-    self.assertIsInstance(result.a4.b4, C)
-    self.assertEqual(result.a4.b4.c1, 19)
-    self.assertEqual(result.a4.b4.c2, 20)
 
   def test_runtime_params_raises_for_invalid_temp_boundary_conditions(
       self,
@@ -129,39 +64,57 @@ class RuntimeParamsTest(parameterized.TestCase):
         )
     )
 
-  def test_runtime_params_make_provider(self):
-    """Test that runtime params can make a provider and build dynamic params."""
+  def test_runtime_params_build_dynamic_params(self):
+    """Test that runtime params can build dynamic params."""
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions()
     )
     torax_mesh = (
         geometry_pydantic_model.CircularConfig().build_geometry().torax_mesh
     )
-    runtime_params_provider = runtime_params.make_provider(torax_mesh)
-    runtime_params_provider.build_dynamic_params(0.0)
+    torax_pydantic.set_grid(runtime_params, torax_mesh)
+    runtime_params.build_dynamic_params(0.0)
+
+  def test_general_runtime_params_with_time_dependent_args(self):
+    """Tests that we can build all types of attributes in the runtime params."""
+    runtime_params = general_runtime_params.GeneralRuntimeParams.model_validate({
+        'plasma_composition': {
+            'main_ion': 'D',
+            'Zeff': {
+                0: {0: 1.1, 1: 1.1},
+                1: {0: 1.2, 1: 1.2},
+                2: {0: 1.3, 1: 1.3},
+            },  # time-dependent with constant radial profile.
+        },
+        'profile_conditions': {
+            'ne_is_fGW': False,  # scalar fields.
+            'Ip_tot': {0: 0.2, 1: 0.4, 2: 0.6},  # time-dependent.
+        },
+        'numerics': {
+            # Designate the interpolation mode, as well, setting to "step".
+            'resistivity_mult': ({0: 0.3, 1: 0.6, 2: 0.9}, 'step'),
+        },
+        'output_dir': '/tmp/this/is/a/test',
+    })
+    self.assertEqual(
+        list(runtime_params.plasma_composition.main_ion.keys()), ['D']
+    )
+    self.assertEqual(runtime_params.profile_conditions.ne_is_fGW, False)
+    self.assertEqual(runtime_params.output_dir, '/tmp/this/is/a/test')
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    torax_pydantic.set_grid(runtime_params, geo.torax_mesh)
+
+    t = 1.5
+    np.testing.assert_allclose(
+        runtime_params.plasma_composition.Zeff.get_value(t), 1.25
+    )
+    np.testing.assert_allclose(
+        runtime_params.profile_conditions.Ip_tot.get_value(t), 0.5
+    )
+    np.testing.assert_allclose(
+        runtime_params.numerics.resistivity_mult.get_value(t), 0.6
+    )
 
 
-@dataclasses.dataclass
-class C:
-  c1: int = 1
-  c2: int = 2
-
-
-@dataclasses.dataclass
-class B:
-  b1: int = 3
-  b2: int = 4
-  b3: C = dataclasses.field(default_factory=C)
-  b4: C = dataclasses.field(default_factory=C)
-
-
-@dataclasses.dataclass
-class A:
-  a1: int = 5
-  a2: int = 6
-  a3: B = dataclasses.field(default_factory=B)
-  a4: B = dataclasses.field(default_factory=B)
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
   absltest.main()

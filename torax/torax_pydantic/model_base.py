@@ -17,7 +17,7 @@
 from collections.abc import Set
 import functools
 import inspect
-from typing import Any, Final, Mapping, Sequence
+from typing import Any, Final, Mapping, Sequence, TypeAlias
 import jax
 import pydantic
 import treelib
@@ -25,6 +25,10 @@ from typing_extensions import Self
 
 
 TIME_INVARIANT: Final[str] = '_pydantic_time_invariant_field'
+JAX_STATIC: Final[str] = '_pydantic_jax_static_field'
+
+StaticKwargs: TypeAlias = dict[str, Any]
+DynamicArgs: TypeAlias = list[Any]
 
 
 class BaseModelFrozen(pydantic.BaseModel):
@@ -33,7 +37,9 @@ class BaseModelFrozen(pydantic.BaseModel):
   See https://docs.pydantic.dev/latest/ for documentation on pydantic.
 
   This class is compatible with JAX, so can be used as an argument to a JITted
-  function.
+  function. Static fields can be annotated via
+  `typing.Annotated[dtype, torax_pydantic.JAX_STATIC`] to make them static in
+  the JAX tree. These fields must be hashable.
   """
 
   model_config = pydantic.ConfigDict(
@@ -50,24 +56,70 @@ class BaseModelFrozen(pydantic.BaseModel):
       registered_cls = cls  # Already registered.
     return super().__new__(registered_cls)
 
-  def tree_flatten(self):
-
-    children = tuple(getattr(self, k) for k in self.model_fields.keys())
-    aux_data = None
-    return (children, aux_data)
+  @classmethod
+  @functools.cache
+  def _jit_dynamic_kwarg_names(cls) -> tuple[str, ...]:
+    return tuple(
+        name
+        for name in cls.model_fields.keys()
+        if JAX_STATIC not in cls.model_fields[name].metadata
+    )
 
   @classmethod
-  def tree_unflatten(cls, aux_data, children):
-    del aux_data
+  @functools.cache
+  def _jit_static_kwarg_names(cls) -> tuple[str, ...]:
+    return tuple(
+        name
+        for name in cls.model_fields.keys()
+        if JAX_STATIC in cls.model_fields[name].metadata
+    )
 
-    init = {
-        key: value
-        for key, value in zip(cls.model_fields, children, strict=True)
+  def tree_flatten(self) -> tuple[DynamicArgs, StaticKwargs]:
+    """Flattens the model into a JAX dynamic and static argument tuple.
+
+    Static arguments are model fields annotated via
+    `typing.Annotated[dtype, torax_pydantic.JAX_STATIC]`. Dynamic arguments are
+    all other fields.
+
+    Required by the use of `jax.tree_util.register_pytree_node_class`.
+
+    Returns:
+      A tuple of the dynamic and static arguments. Dynamic arguments are a list
+      of numeric values compatible with `jax.jit`. Static arguments are a
+      dictionary of hashable values considered `static_argnames` by `jax.jit`.
+    """
+    static_names = self._jit_static_kwarg_names()
+    dynamic_names = self._jit_dynamic_kwarg_names()
+    static_children = {name: getattr(self, name) for name in static_names}
+    dynamic_children = [getattr(self, name) for name in dynamic_names]
+
+    return (dynamic_children, static_children)
+
+  @classmethod
+  def tree_unflatten(
+      cls, aux_data: StaticKwargs, children: DynamicArgs
+  ) -> Self:
+    """Reconstructs a model from a JAX dynamic and static argument tuple.
+
+    Required by the use of `jax.tree_util.register_pytree_node_class`.
+
+    Args:
+      aux_data: A dictionary of static arguments.
+      children: A list of dynamic arguments.
+
+    Returns:
+      A model instance.
+    """
+    dynamic_kwargs = {
+        name: value
+        for name, value in zip(
+            cls._jit_dynamic_kwarg_names(), children, strict=True
+        )
     }
     # The model needs to be reconstructed without validation, as init can
     # contain JAX tracers inside a JIT, which will fail Pydantic validation. In
     # addition, validation is unecessary overhead.
-    return cls.model_construct(**init)
+    return cls.model_construct(**(dynamic_kwargs | aux_data))
 
   @classmethod
   def from_dict(cls: type[Self], cfg: Mapping[str, Any]) -> Self:
@@ -83,7 +135,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         k for k, v in cls.model_fields.items() if TIME_INVARIANT in v.metadata
     )
 
-  @functools.cached_property
+  @property
   def _direct_submodels(self) -> tuple[Self, ...]:
     """Direct submodels in the model."""
 
@@ -92,10 +144,14 @@ class BaseModelFrozen(pydantic.BaseModel):
         return False
       return True
 
-    leaves = jax.tree.flatten(self.__dict__, is_leaf=is_leaf)[0]
+    # Exclude non-field values in __dict__, such as cached_properties.
+    leaves = {k: self.__dict__[k] for k in self.model_fields.keys()}
+    # Some Pydantic models are values of a dict. We flatten the tree to access
+    # them.
+    leaves = jax.tree.flatten(leaves, is_leaf=is_leaf)[0]
     return tuple(i for i in leaves if isinstance(i, BaseModelFrozen))
 
-  @functools.cached_property
+  @property
   def submodels(self) -> tuple[Self, ...]:
     """A tuple of the model and all submodels.
 
@@ -116,7 +172,7 @@ class BaseModelFrozen(pydantic.BaseModel):
       new_submodels = new_submodels_temp
     return tuple(all_submodels)
 
-  @functools.cached_property
+  @property
   def _has_unique_submodels(self) -> bool:
     """Returns True if all submodels are different instances of models."""
     submodels = self.submodels
@@ -168,7 +224,7 @@ class BaseModelFrozen(pydantic.BaseModel):
         del self.__dict__[p]
 
   def _update_fields(self, x: Mapping[str, Any]):
-    """Safely update fields in the config.
+    """Safely update fields a nested BaseModelFrozen.
 
     This method will invalidate all `functools.cached_property` caches of
     all ancestral models in the nested tree, as these could have a dependency
@@ -191,21 +247,31 @@ class BaseModelFrozen(pydantic.BaseModel):
     mutated_models = []
 
     for path, value in x.items():
-      path = path.split('.')
-      value_name = path.pop()
-      model = self._lookup_path(path)
+      path_split = path.split('.')
+      value_name = path_split.pop()
+      model = self._lookup_path(path_split)
       mutated_models.append(model)
-      # Mutate even frozen models.
-      if value_name not in model.__dict__:
-        raise ValueError(
-            f'Cannot update field {value_name} in {model} as field not found.'
-        )
 
-      # If the value is a field of a Pydantic model, validate the value against
-      # the field type annotation.
-      if isinstance(model, pydantic.BaseModel):
-        field_type = model.model_fields[value_name].annotation
-        value = pydantic.TypeAdapter(field_type).validate_python(value)
+      if not isinstance(model, BaseModelFrozen) or (
+          value_name not in model.model_fields
+      ):
+        raise ValueError(
+            f'The path {path} is does not refer to a field of a Pydantic'
+            ' BaseModelFrozen model.'
+        )
+      assert value_name in model.__dict__
+      field_type = model.model_fields[value_name].annotation
+
+      # TypeAdapter does not allow a config arg if the value is a Pydantic
+      # model, as this has its own config.
+      cfg = pydantic.ConfigDict(arbitrary_types_allowed=True)
+      try:
+        cfg = None if issubclass(field_type, pydantic.BaseModel) else cfg
+      except TypeError:
+        pass
+      value = pydantic.TypeAdapter(field_type, config=cfg).validate_python(
+          value
+      )
 
       model.__dict__[value_name] = value
       # Re-validate the model. Will throw an exception if the new value is
@@ -222,6 +288,11 @@ class BaseModelFrozen(pydantic.BaseModel):
     value = self
     for path in paths:
       if isinstance(value, BaseModelFrozen):
+        if path not in value.model_fields:
+          raise ValueError(
+              f'The path {".".join(paths)} is does not refer to a field of a'
+              ' Pydantic BaseModelFrozen model.'
+          )
         value = getattr(value, path)
       elif isinstance(value, dict):
         value = value[path]

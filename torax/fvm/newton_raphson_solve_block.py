@@ -290,9 +290,9 @@ def newton_raphson_solve_block(
   residual_vec_init_x_new, aux_output_init_x_new = residual_fun(init_x_new_vec)
   initial_state = {
       'x': init_x_new_vec,
-      'iterations': jnp.array(0),
+      'iterations': jnp.array(0, dtype=jax_utils.get_int_dtype()),
       'residual': residual_vec_init_x_new,
-      'last_tau': jnp.array(1.0),
+      'last_tau': jnp.array(1.0, dtype=jax_utils.get_dtype()),
       'aux_output': aux_output_init_x_new,
   }
 
@@ -396,7 +396,7 @@ def body(
       'residual_old': input_state['residual'],
       'residual_new': input_state['residual'],
       'aux_output_new': input_state['aux_output'],
-      'tau': jnp.array(1.0),
+      'tau': jnp.array(1.0, dtype=jax_utils.get_dtype()),
   }
   output_delta_state = jax_utils.py_while(
       delta_cond_fun, delta_body_fun, initial_delta_state
@@ -405,7 +405,12 @@ def body(
   output_state = {
       'x': input_state['x'] + output_delta_state['delta'],
       'residual': output_delta_state['residual_new'],
-      'iterations': jnp.array(input_state['iterations'][...]) + 1,
+      'iterations': (
+          jnp.array(
+              input_state['iterations'][...], dtype=jax_utils.get_int_dtype()
+          )
+          + 1
+      ),
       'last_tau': output_delta_state['tau'],
       'aux_output': output_delta_state['aux_output_new'],
   }
@@ -463,5 +468,6 @@ def delta_body(
 
   return input_delta_state | dict(
       delta=input_delta_state['delta'] * delta_reduction_factor,
-      tau=jnp.array(input_delta_state['tau'][...]) * delta_reduction_factor,
+      tau=jnp.array(input_delta_state['tau'][...], dtype=jax_utils.get_dtype())
+      * delta_reduction_factor,
   )

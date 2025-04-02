@@ -22,9 +22,7 @@ from torax.sources import generic_ion_el_heat_source
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_profiles
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
-from torax.sources.impurity_radiation_heat_sink import (
-    impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib,
-)
+from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink as impurity_radiation_heat_sink_lib
 from torax.sources.tests import test_lib
 
 
@@ -36,6 +34,7 @@ class ImpurityRadiationConstantFractionTest(
     super().setUp(
         source_config_class=impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
         source_name=impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME,
+        model_function_name='radially_constant_fraction_of_Pin',
         needs_source_models=True,
     )
 
@@ -60,6 +59,7 @@ class ImpurityRadiationConstantFractionTest(
         w=0.25,
         Ptot=120e6,
         el_heat_fraction=0.66666,
+        absorption_fraction=1.0,
     )
 
     static = runtime_params_lib.StaticRuntimeParams(

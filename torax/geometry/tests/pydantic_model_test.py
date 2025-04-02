@@ -21,7 +21,6 @@ from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model
 from torax.geometry import standard_geometry
 from torax.stepper import pydantic_model as stepper_pydantic_model
-from torax.transport_model import runtime_params as transport_model_params
 
 
 class PydanticModelTest(parameterized.TestCase):
@@ -141,7 +140,6 @@ class PydanticModelTest(parameterized.TestCase):
     runtime_params_provider = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
             runtime_params=runtime_params,
-            transport=transport_model_params.RuntimeParams(),
             sources={},
             stepper=stepper_pydantic_model.Stepper(),
             torax_mesh=geo_provider.torax_mesh,
@@ -157,7 +155,7 @@ class PydanticModelTest(parameterized.TestCase):
     self.assertIsInstance(geo, standard_geometry.StandardGeometry)
     self.assertIsNotNone(dynamic_slice)
     self.assertNotEqual(
-        dynamic_slice.profile_conditions.Ip_tot, original_Ip_tot
+        dynamic_slice.profile_conditions.Ip_tot, original_Ip_tot.value[0]
     )
     # pylint: enable=invalid-name
 

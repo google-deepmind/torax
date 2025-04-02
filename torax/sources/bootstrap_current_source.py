@@ -13,11 +13,8 @@
 # limitations under the License.
 
 """bootstrap current source profile."""
-
-from __future__ import annotations
-
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import chex
 import jax
@@ -40,35 +37,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   bootstrap_mult: float
 
 
-class BootstrapCurrentSourceConfig(base.SourceModelBase):
-  """Bootstrap current density source profile.
-
-  Attributes:
-    bootstrap_mult: Multiplication factor for bootstrap current.
-  """
-
-  source_name: Literal['j_bootstrap'] = 'j_bootstrap'
-  bootstrap_mult: float = 1.0
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  def model_func(self):
-    raise NotImplementedError(
-        'Bootstrap current source is not meant to be used as a model.'
-    )
-
-  def build_source(self) -> BootstrapCurrentSource:
-    return BootstrapCurrentSource()
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
-        bootstrap_mult=self.bootstrap_mult,
-    )
-
-
 @dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
 class BootstrapCurrentSource(source.Source):
   """Bootstrap current density source profile.
@@ -83,7 +51,6 @@ class BootstrapCurrentSource(source.Source):
   """
 
   SOURCE_NAME: ClassVar[str] = 'j_bootstrap'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_neoclassical'
 
   @property
   def source_name(self) -> str:
@@ -160,6 +127,33 @@ class BootstrapCurrentSource(source.Source):
       geo: geometry.Geometry,
   ) -> jax.Array:
     raise NotImplementedError('Call `get_bootstrap` instead.')
+
+
+class BootstrapCurrentSourceConfig(base.SourceModelBase):
+  """Bootstrap current density source profile.
+
+  Attributes:
+    bootstrap_mult: Multiplication factor for bootstrap current.
+  """
+  bootstrap_mult: float = 1.0
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  def model_func(self):
+    raise NotImplementedError(
+        'Bootstrap current source is not meant to be used as a model.'
+    )
+
+  def build_source(self) -> BootstrapCurrentSource:
+    return BootstrapCurrentSource()
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicRuntimeParams:
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        bootstrap_mult=self.bootstrap_mult,
+    )
 
 
 @jax_utils.jit

@@ -13,67 +13,19 @@
 # limitations under the License.
 
 """The CriticalGradientModel class."""
-
-from __future__ import annotations
-
-import dataclasses
-from typing import Callable
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants as constants_module
-from torax import interpolated_param
-from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
 
 
 # pylint: disable=invalid-name
-@chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Extends the base runtime params with additional params for this model.
-
-  See base class runtime_params.RuntimeParams docstring for more info.
-  """
-
-  # Exponent of chi power law: chi \propto (R/LTi - R/LTi_crit)^alpha
-  alpha: float = 2.0
-  # Stiffness parameter
-  chistiff: float = 2.0
-  # Ratio of electron to ion heat transport coefficient (ion higher for ITG)
-  chiei_ratio: runtime_params_lib.TimeInterpolatedInput = 2.0
-  # Ratio of electron particle to ion heat transport coefficient
-  chi_D_ratio: runtime_params_lib.TimeInterpolatedInput = 5.0
-  # Ratio of major radius * electron particle convection, to electron diffusion.
-  # Sets the value of electron particle convection in the model.
-  VR_D_ratio: runtime_params_lib.TimeInterpolatedInput = 0.0
-
-  def make_provider(
-      self, torax_mesh: torax_pydantic.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
-    # TODO(b/360831279)
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-  chiei_ratio: interpolated_param.InterpolatedVarSingleAxis
-  chi_D_ratio: interpolated_param.InterpolatedVarSingleAxis
-  VR_D_ratio: interpolated_param.InterpolatedVarSingleAxis
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Dynamic runtime params for the CGM transport model."""
@@ -83,13 +35,6 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   chiei_ratio: array_typing.ScalarFloat
   chi_D_ratio: array_typing.ScalarFloat
   VR_D_ratio: array_typing.ScalarFloat
-
-  def sanity_check(self):
-    runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
-    jax_utils.error_if_negative(self.chi_D_ratio, 'chi_D_ratio')
-
-  def __post_init__(self):
-    self.sanity_check()
 
 
 class CriticalGradientTransportModel(transport_model.TransportModel):
@@ -212,26 +157,3 @@ class CriticalGradientTransportModel(transport_model.TransportModel):
 
   def __eq__(self, other):
     return isinstance(other, CriticalGradientTransportModel)
-
-
-def _default_cgm_builder() -> CriticalGradientTransportModel:
-  return CriticalGradientTransportModel()
-
-
-@dataclasses.dataclass(kw_only=True)
-class CriticalGradientModelBuilder(transport_model.TransportModelBuilder):
-  """Builds a class CriticialGradientTransportModel."""
-
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-
-  builder: Callable[
-      [],
-      CriticalGradientTransportModel,
-  ] = _default_cgm_builder
-
-  def __call__(
-      self,
-  ) -> CriticalGradientTransportModel:
-    return self.builder()

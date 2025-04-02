@@ -22,19 +22,18 @@ This module also provides a method
 `get_consistent_dynamic_runtime_params_slice_and_geometry` which returns a
 DynamicRuntimeParamsSlice and a corresponding geometry with consistent Ip.
 """
-
-from __future__ import annotations
-
 import chex
 from torax.config import runtime_params as general_runtime_params_lib
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.geometry import geometry_provider as geometry_provider_lib
+from torax.mhd import pydantic_model as mhd_pydantic_model
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.torax_pydantic import torax_pydantic
-from torax.transport_model import runtime_params as transport_model_params
+from torax.transport_model import pydantic_model as transport_model_pydantic_model
+import typing_extensions
 
 
 def build_static_runtime_params_slice(
@@ -49,9 +48,9 @@ def build_static_runtime_params_slice(
   Args:
     runtime_params: General runtime params from which static params are taken,
       which are the choices on equations being solved, and adaptive dt.
-    sources: data from which the source related static variables
-      are taken, which are the explicit/implicit toggle and calculation mode for
-      each source.
+    sources: data from which the source related static variables are taken,
+      which are the explicit/implicit toggle and calculation mode for each
+      source.
     torax_mesh: The torax mesh, e.g. the grid used to construct the geometry.
       This is static for the entire simulation and any modification implies
       changed array sizes, and hence would require a recompilation. Useful to
@@ -78,24 +77,8 @@ def build_static_runtime_params_slice(
       main_ion_names=runtime_params.plasma_composition.get_main_ion_names(),
       impurity_names=runtime_params.plasma_composition.get_impurity_names(),
       adaptive_dt=runtime_params.numerics.adaptive_dt,
+      use_vloop_lcfs_boundary_condition=runtime_params.profile_conditions.use_vloop_lcfs_boundary_condition,
   )
-
-
-def get_consistent_dynamic_runtime_params_slice_and_geometry(
-    *,
-    t: chex.Numeric,
-    dynamic_runtime_params_slice_provider: DynamicRuntimeParamsSliceProvider,
-    geometry_provider: geometry_provider_lib.GeometryProvider,
-) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
-  """Returns the dynamic runtime params and geometry for a given time."""
-  geo = geometry_provider(t)
-  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
-      t=t,
-  )
-  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
-      dynamic_runtime_params_slice, geo
-  )
-  return dynamic_runtime_params_slice, geo
 
 
 class DynamicRuntimeParamsSliceProvider:
@@ -143,9 +126,10 @@ class DynamicRuntimeParamsSliceProvider:
       self,
       runtime_params: general_runtime_params_lib.GeneralRuntimeParams,
       pedestal: pedestal_pydantic_model.Pedestal | None = None,
-      transport: transport_model_params.RuntimeParams | None = None,
+      transport: transport_model_pydantic_model.Transport | None = None,
       sources: sources_pydantic_model.Sources | None = None,
       stepper: stepper_pydantic_model.Stepper | None = None,
+      mhd: mhd_pydantic_model.MHD | None = None,
       torax_mesh: torax_pydantic.Grid1D | None = None,
   ):
     """Constructs a build_simulation_params.DynamicRuntimeParamsSliceProvider.
@@ -160,22 +144,28 @@ class DynamicRuntimeParamsSliceProvider:
         defaults to an empty dict (i.e. no sources).
       stepper: The stepper configuration to use. If None, defaults to the
         default stepper configuration.
+      mhd: The mhd configuration to use. If None, defaults to an empty MHD
+        object.
       torax_mesh: The torax mesh to use. If the slice provider doesn't need to
         construct any rho interpolated values, this can be None, else an error
         will be raised within the constructor of the interpolated variable.
     """
-    transport = transport or transport_model_params.RuntimeParams()
+    torax_pydantic.set_grid(runtime_params, torax_mesh, mode='relaxed')
+    transport = transport or transport_model_pydantic_model.Transport.from_dict(
+        {'transport_model': 'qlknn'}
+    )
     sources = sources or sources_pydantic_model.Sources()
     stepper = stepper or stepper_pydantic_model.Stepper()
     pedestal = pedestal or pedestal_pydantic_model.Pedestal()
+    mhd = mhd or mhd_pydantic_model.MHD()
     torax_pydantic.set_grid(sources, torax_mesh, mode='relaxed')
     self._torax_mesh = torax_mesh
     self._sources = sources
     self._runtime_params = runtime_params
-    self._transport_runtime_params = transport
+    self._transport_model = transport
     self._stepper = stepper
     self._pedestal = pedestal
-    self._construct_providers()
+    self._mhd = mhd
 
   @property
   def sources(self) -> sources_pydantic_model.Sources:
@@ -183,7 +173,7 @@ class DynamicRuntimeParamsSliceProvider:
 
   def validate_new(
       self,
-      new_provider: DynamicRuntimeParamsSliceProvider,
+      new_provider: typing_extensions.Self,
   ):
     """Validates that the new provider is compatible."""
     if set(new_provider.sources.source_model_config.keys()) != set(
@@ -193,33 +183,16 @@ class DynamicRuntimeParamsSliceProvider:
           'New dynamic runtime params slice provider has different sources.'
       )
 
-  @property
-  def runtime_params_provider(
-      self,
-  ) -> general_runtime_params_lib.GeneralRuntimeParamsProvider:
-    return self._runtime_params_provider
-
-  def _construct_providers(self):
-    """Construct the providers that will give us the dynamic params."""
-    self._runtime_params_provider = self._runtime_params.make_provider(
-        self._torax_mesh
-    )
-    self._transport_runtime_params_provider = (
-        self._transport_runtime_params.make_provider(self._torax_mesh)
-    )
-
   def __call__(
       self,
       t: chex.Numeric,
   ) -> runtime_params_slice.DynamicRuntimeParamsSlice:
     """Returns a runtime_params_slice.DynamicRuntimeParamsSlice to use during time t of the sim."""
-    dynamic_general_runtime_params = (
-        self._runtime_params_provider.build_dynamic_params(t)
+    dynamic_general_runtime_params = self._runtime_params.build_dynamic_params(
+        t
     )
     return runtime_params_slice.DynamicRuntimeParamsSlice(
-        transport=self._transport_runtime_params_provider.build_dynamic_params(
-            t
-        ),
+        transport=self._transport_model.build_dynamic_params(t),
         stepper=self._stepper.build_dynamic_params,
         sources={
             source_name: input_source_config.build_dynamic_params(t)
@@ -229,4 +202,22 @@ class DynamicRuntimeParamsSliceProvider:
         profile_conditions=dynamic_general_runtime_params.profile_conditions,
         numerics=dynamic_general_runtime_params.numerics,
         pedestal=self._pedestal.build_dynamic_params(t),
+        mhd=self._mhd.build_dynamic_params(t),
     )
+
+
+def get_consistent_dynamic_runtime_params_slice_and_geometry(
+    *,
+    t: chex.Numeric,
+    dynamic_runtime_params_slice_provider: DynamicRuntimeParamsSliceProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
+) -> tuple[runtime_params_slice.DynamicRuntimeParamsSlice, geometry.Geometry]:
+  """Returns the dynamic runtime params and geometry for a given time."""
+  geo = geometry_provider(t)
+  dynamic_runtime_params_slice = dynamic_runtime_params_slice_provider(
+      t=t,
+  )
+  dynamic_runtime_params_slice, geo = runtime_params_slice.make_ip_consistent(
+      dynamic_runtime_params_slice, geo
+  )
+  return dynamic_runtime_params_slice, geo

@@ -38,33 +38,44 @@ class PydanticBaseTest(parameterized.TestCase):
       with self.assertRaises(ValueError):
         m.x = 2.0
 
-  @parameterized.parameters(True, False)
-  def test_model_base_map_pytree(self, frozen: bool):
+  def test_model_base_jax_pytree(self):
 
-    if frozen:
+    class TestModel1(model_base.BaseModelFrozen):
+      name: Annotated[str, model_base.JAX_STATIC]
+      y: float
 
-      class TestModel(model_base.BaseModelFrozen):
-        x: float
-        y: float
+    class TestModel2(model_base.BaseModelFrozen):
+      name: Annotated[
+          str, 'distractor_1', model_base.JAX_STATIC, 'distractor_2'
+      ]
+      y: TestModel1  # pytype: disable=invalid-annotation
+      z: float
 
-    else:
+    m = TestModel2(name='test2', y=TestModel1(name='test1', y=2.0), z=3.0)
 
-      class TestModel(model_base.BaseModelFrozen):
-        x: float
-        y: float
+    with self.subTest('flatten'):
+      flat_dynamic, tree_struct = jax.tree.flatten(m)
+      self.assertListEqual(flat_dynamic, [m.y.y, m.z])
+      m_unflattened = jax.tree.unflatten(tree_struct, flat_dynamic)
+      self.assertEqual(m_unflattened, m)
 
-    m = TestModel(x=2.0, y=4.0)
-    m2 = jax.tree_util.tree_map(lambda x: x**2, m)
+    with self.subTest('map_pytree'):
+      m2 = jax.tree_util.tree_map(lambda x: x**2, m)
 
-    self.assertEqual(m2.x, 4.0)
-    self.assertEqual(m2.y, 16.0)
+      self.assertEqual(m2.z, m.z**2)
+      self.assertEqual(m2.y.y, m.y.y**2)
 
+    # This would fail if data.name was not correctly marked as static, as it
+    # is both an invalid JAX input type (string) and is used in control-flow.
     @jax.jit
     def f(data):
-      return data.x * data.y
+      if data.name == 'test2':
+        return data.y.y * data.z
+      else:
+        return data.y.y + data.z
 
     with self.subTest('jit_works'):
-      self.assertEqual(f(m), m.x * m.y)
+      self.assertEqual(f(m), m.y.y * m.z)
 
   def test_model_field_metadata(self):
 
@@ -243,7 +254,11 @@ class PydanticBaseTest(parameterized.TestCase):
         model_2._update_fields({'x': -1.0})
 
     with self.subTest('invalid_path'):
-      with self.assertRaisesRegex(ValueError, 'Cannot update field'):
+      with self.assertRaisesRegex(
+          ValueError,
+          'The path x.zz is does not refer to a field of a Pydantic'
+          ' BaseModelFrozen model',
+      ):
         model._update_fields({'x.zz': -1.0})
 
   def test_update_fields_dict(self):
@@ -303,6 +318,43 @@ class PydanticBaseTest(parameterized.TestCase):
     self.assertEqual(t.x[1].y, 11.0)
     self.assertEqual(t.y.x, 12.0)
     self.assertEqual(t.y.y, 13.0)
+
+  def test_cached_property_submodules(self):
+
+    class TestModel1(model_base.BaseModelFrozen):
+      x: float
+      y: float
+
+    class TestModel2(model_base.BaseModelFrozen):
+      x: float
+      y: float
+
+      @functools.cached_property
+      def get_model_1(self) -> TestModel1:
+        return TestModel1(x=self.x, y=self.y)
+
+    model = TestModel2(x=2.0, y=4.0)
+    ids_before = tuple(id(m) for m in model.submodels)
+    model.get_model_1  # pylint: disable=pointless-statement
+    ids_after = tuple(id(m) for m in model.submodels)
+
+    with self.subTest('submodels_unchanged_cached_property_called'):
+      self.assertTupleEqual(ids_before, ids_after)
+
+    with self.subTest('update_cached_property_raises_error'):
+      with self.assertRaisesRegex(
+          ValueError,
+          'The path get_model_1 is does not refer to a field of a Pydantic'
+          ' BaseModelFrozen model',
+      ):
+        model._update_fields({'get_model_1': TestModel1(x=1.0, y=2.0)})
+
+      with self.assertRaisesRegex(
+          ValueError,
+          'The path get_model_1 is does not refer to a field of a Pydantic'
+          ' BaseModelFrozen model',
+      ):
+        model._update_fields({'get_model_1.x': 2.3})
 
 
 if __name__ == '__main__':

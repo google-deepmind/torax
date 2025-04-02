@@ -16,74 +16,10 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy.testing as npt
-from torax.config import build_runtime_params
-from torax.config import runtime_params as general_runtime_params
-from torax.core_profiles import initialization
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import pydantic_model as sources_pydantic_model
-from torax.sources import source_models as source_models_lib
 from torax.transport_model import qlknn_transport_model
 
 
 class QlknnTransportModelTest(parameterized.TestCase):
-
-  def test_qlknn_transport_model_cache_works(self):
-    """Tests that QLKNN calls are properly cached."""
-    # This test can uncover and changes to the data structures which break the
-    # caching.
-    qlknn = qlknn_transport_model.QLKNNTransportModel(
-        qlknn_transport_model.get_default_model_path()
-    )
-    runtime_params = general_runtime_params.GeneralRuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    sources = sources_pydantic_model.Sources()
-    pedestal = pedestal_pydantic_model.Pedestal()
-    dynamic_runtime_params_slice = (
-        build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params=runtime_params,
-            transport=qlknn_transport_model.RuntimeParams(),
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
-            pedestal=pedestal,
-        )(
-            t=runtime_params.numerics.t_initial,
-        )
-    )
-    static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
-        sources=sources,
-        torax_mesh=geo.torax_mesh,
-    )
-    source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
-    )
-    core_profiles = initialization.initial_core_profiles(
-        dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-        static_runtime_params_slice=static_slice,
-        geo=geo,
-        source_models=source_models,
-    )
-    pedestal_model = pedestal.build_pedestal_model()
-    pedestal_model_outputs = pedestal_model(
-        dynamic_runtime_params_slice, geo, core_profiles
-    )
-
-    # Executing once should lead to a cache entry being created.
-    qlknn(
-        dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
-    )
-    cache_size = qlknn._combined._cache_size()  # pylint: disable=protected-access
-    self.assertGreaterEqual(cache_size, 1)
-
-    # Executing again should lead to the same cache entry being used.
-    qlknn(
-        dynamic_runtime_params_slice, geo, core_profiles, pedestal_model_outputs
-    )
-    self.assertEqual(
-        qlknn._combined._cache_size(),  # pylint: disable=protected-access
-        cache_size,
-    )
 
   def test_hash_and_eq(self):
     # Test that hash and eq are invariant to copying, so that they will work
@@ -166,12 +102,6 @@ class QlknnTransportModelTest(parameterized.TestCase):
         clip_margin=clip_margin,
     )
     npt.assert_allclose(clipped_feature_scan, expected)
-
-  def test_runtime_params_builds_dynamic_params(self):
-    runtime_params = qlknn_transport_model.RuntimeParams()
-    geo = geometry_pydantic_model.CircularConfig().build_geometry()
-    provider = runtime_params.make_provider(geo.torax_mesh)
-    provider.build_dynamic_params(t=0.0)
 
 
 if __name__ == '__main__':

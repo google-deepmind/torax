@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Gas puff source for the ne equation."""
-
-from __future__ import annotations
-
 import dataclasses
 from typing import ClassVar, Literal
 
@@ -32,44 +29,13 @@ from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
 
 
+# Default value for the model function to be used for the gas puff
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: str = 'calc_puff_source'
+
+
 # pylint: disable=invalid-name
-class GasPuffSourceConfig(base.SourceModelBase):
-  """Gas puff source for the ne equation.
-
-  Attributes:
-    source_name: Name of the source, hardcoded to 'gas_puff_source'
-    puff_decay_length: exponential decay length of gas puff ionization
-      [normalized radial coord]
-    S_puff_tot: total gas puff particles/s
-  """
-
-  source_name: Literal['gas_puff_source'] = 'gas_puff_source'
-  puff_decay_length: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(0.05)
-  )
-  S_puff_tot: torax_pydantic.TimeVaryingScalar = (
-      torax_pydantic.ValidatedDefault(1e22)
-  )
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return calc_puff_source
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> DynamicGasPuffRuntimeParams:
-    return DynamicGasPuffRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
-        puff_decay_length=self.puff_decay_length.get_value(t),
-        S_puff_tot=self.S_puff_tot.get_value(t),
-    )
-
-  def build_source(self) -> GasPuffSource:
-    return GasPuffSource(model_func=self.model_func)
-
-
 @chex.dataclass(frozen=True)
 class DynamicGasPuffRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   puff_decay_length: array_typing.ScalarFloat
@@ -106,7 +72,6 @@ class GasPuffSource(source.Source):
   """Gas puff source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'gas_puff_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_puff_source'
   model_func: source.SourceProfileFunction = calc_puff_source
 
   @property
@@ -116,3 +81,39 @@ class GasPuffSource(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.NE,)
+
+
+class GasPuffSourceConfig(base.SourceModelBase):
+  """Gas puff source for the ne equation.
+
+  Attributes:
+    source_name: Name of the source, hardcoded to 'gas_puff_source'
+    puff_decay_length: exponential decay length of gas puff ionization
+      [normalized radial coord]
+    S_puff_tot: total gas puff particles/s
+  """
+  model_function_name: Literal['calc_puff_source'] = 'calc_puff_source'
+  puff_decay_length: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(0.05)
+  )
+  S_puff_tot: torax_pydantic.TimeVaryingScalar = (
+      torax_pydantic.ValidatedDefault(1e22)
+  )
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return calc_puff_source
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> DynamicGasPuffRuntimeParams:
+    return DynamicGasPuffRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        puff_decay_length=self.puff_decay_length.get_value(t),
+        S_puff_tot=self.S_puff_tot.get_value(t),
+    )
+
+  def build_source(self) -> GasPuffSource:
+    return GasPuffSource(model_func=self.model_func)

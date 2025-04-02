@@ -15,10 +15,8 @@
 # pylint: disable=invalid-name
 
 """Bremsstrahlung heat sink for electron heat equation.."""
-from __future__ import annotations
-
 import dataclasses
-from typing import ClassVar, Literal
+from typing import ClassVar, Final, Literal
 
 import chex
 import jax
@@ -33,32 +31,10 @@ from torax.sources import source
 from torax.sources import source_profiles
 
 
-class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
-  """Bremsstrahlung heat sink for electron heat equation.
-
-  Attributes:
-    use_relativistic_correction: Whether to use relativistic correction.
-  """
-
-  source_name: Literal['bremsstrahlung_heat_sink'] = 'bremsstrahlung_heat_sink'
-  use_relativistic_correction: bool = False
-  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
-
-  @property
-  def model_func(self) -> source.SourceProfileFunction:
-    return bremsstrahlung_model_func
-
-  def build_dynamic_params(
-      self,
-      t: chex.Numeric,
-  ) -> 'DynamicRuntimeParams':
-    return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
-        use_relativistic_correction=self.use_relativistic_correction,
-    )
-
-  def build_source(self) -> BremsstrahlungHeatSink:
-    return BremsstrahlungHeatSink(model_func=self.model_func)
+# Default value for the model function to be used for the Bremsstrahlung heat
+# sink. This is also used as an identifier for the model function in the default
+# source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: Final[str] = 'bremsstrahlung_model_func'
 
 
 @chex.dataclass(frozen=True)
@@ -151,7 +127,6 @@ class BremsstrahlungHeatSink(source.Source):
   """Brehmsstrahlung heat sink for electron heat equation."""
 
   SOURCE_NAME: ClassVar[str] = 'bremsstrahlung_heat_sink'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'bremsstrahlung_model_func'
   model_func: source.SourceProfileFunction = bremsstrahlung_model_func
 
   @property
@@ -161,3 +136,32 @@ class BremsstrahlungHeatSink(source.Source):
   @property
   def affected_core_profiles(self) -> tuple[source.AffectedCoreProfile, ...]:
     return (source.AffectedCoreProfile.TEMP_EL,)
+
+
+class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
+  """Bremsstrahlung heat sink for electron heat equation.
+
+  Attributes:
+    use_relativistic_correction: Whether to use relativistic correction.
+  """
+  model_function_name: Literal['bremsstrahlung_model_func'] = (
+      'bremsstrahlung_model_func'
+  )
+  use_relativistic_correction: bool = False
+  mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
+
+  @property
+  def model_func(self) -> source.SourceProfileFunction:
+    return bremsstrahlung_model_func
+
+  def build_dynamic_params(
+      self,
+      t: chex.Numeric,
+  ) -> 'DynamicRuntimeParams':
+    return DynamicRuntimeParams(
+        prescribed_values=self.prescribed_values.get_value(t),
+        use_relativistic_correction=self.use_relativistic_correction,
+    )
+
+  def build_source(self) -> BremsstrahlungHeatSink:
+    return BremsstrahlungHeatSink(model_func=self.model_func)

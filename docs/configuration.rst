@@ -787,6 +787,22 @@ Runtime parameters for the Bohm-GyroBohm model, defined within a
 ``chi_i_gyrobohm_coeff`` (float = 5e-6), **time-varying-scalar**
   Prefactor for GyroBohm term for ion heat conductivity.
 
+``chi_e_bohm_multiplier`` (float = 1.0), **time-varying-scalar**
+  Multiplier for Bohm term for electron heat conductivity. Intended for
+  user-friendly default modification.
+
+``chi_e_gyrobohm_multiplier`` (float = 1.0), **time-varying-scalar**
+  Multiplier for GyroBohm term for electron heat conductivity. Intended for
+  user-friendly default modification.
+
+``chi_i_bohm_multiplier`` (float = 1.0), **time-varying-scalar**
+  Multiplier for Bohm term for ion heat conductivity. Intended for
+  user-friendly default modification.
+
+``chi_i_gyrobohm_multiplier`` (float = 1.0), **time-varying-scalar**
+  Multiplier for GyroBohm term for ion heat conductivity. Intended for
+  user-friendly default modification.
+
 ``d_face_c1`` (float = 1.0), **time-varying-scalar**
   Constant for the electron diffusivity weighting factor.
 

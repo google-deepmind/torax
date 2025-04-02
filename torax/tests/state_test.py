@@ -28,13 +28,48 @@ from torax.config import config_args
 from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
+from torax.fvm import cell_variable
+from torax.geometry import geometry
 from torax.geometry import geometry_provider
 from torax.geometry import pydantic_model as geometry_pydantic_model
 from torax.sources import generic_current_source
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source_models as source_models_lib
+from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import torax_refs
+
+
+def make_zero_core_profiles(
+    geo: geometry.Geometry,
+) -> state.CoreProfiles:
+  """Returns a dummy CoreProfiles object."""
+  zero_cell_variable = cell_variable.CellVariable(
+      value=jnp.zeros_like(geo.rho),
+      dr=geo.drho_norm,
+      right_face_constraint=jnp.ones(()),
+      right_face_grad_constraint=None,
+  )
+  return state.CoreProfiles(
+      currents=state.Currents.zeros(geo),
+      temp_ion=zero_cell_variable,
+      temp_el=zero_cell_variable,
+      psi=zero_cell_variable,
+      psidot=zero_cell_variable,
+      ne=zero_cell_variable,
+      ni=zero_cell_variable,
+      nimp=zero_cell_variable,
+      q_face=jnp.zeros_like(geo.rho_face),
+      s_face=jnp.zeros_like(geo.rho_face),
+      nref=jnp.array(0.0),
+      vloop_lcfs=jnp.array(0.0),
+      Zi=jnp.zeros_like(geo.rho),
+      Zi_face=jnp.zeros_like(geo.rho_face),
+      Ai=jnp.zeros(()),
+      Zimp=jnp.zeros_like(geo.rho),
+      Zimp_face=jnp.zeros_like(geo.rho_face),
+      Aimp=jnp.zeros(()),
+  )
 
 
 class StateTest(torax_refs.ReferenceValueTest):
@@ -155,9 +190,85 @@ class StateTest(torax_refs.ReferenceValueTest):
     for i in range(self.history_length):
       self.assertEqual(i, history.index(i).temp_ion.value[0])
 
+  def test_nan_check(self,):
+    t = jnp.array(0.0)
+    dt = jnp.array(0.1)
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    source_profiles = source_profiles_lib.SourceProfiles(
+        j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(
+            geo
+        ),
+        qei=source_profiles_lib.QeiInfo.zeros(geo),
+    )
+    dummy_cell_variable = cell_variable.CellVariable(
+        value=jnp.zeros_like(geo.rho),
+        dr=geo.drho_norm,
+        right_face_constraint=jnp.ones(()),
+        right_face_grad_constraint=None,
+    )
+    core_profiles = make_zero_core_profiles(geo)
+    sim_state = state.ToraxSimState(
+        core_profiles=core_profiles,
+        core_transport=state.CoreTransport.zeros(geo),
+        core_sources=source_profiles,
+        t=t,
+        dt=dt,
+        post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
+        stepper_numeric_outputs=state.StepperNumericOutputs(
+            outer_stepper_iterations=1,
+            stepper_error_state=1,
+            inner_solver_iterations=1,
+        ),
+        geometry=geo,
+    )
+
+    with self.subTest('no NaN'):
+      error = sim_state.check_for_errors()
+      self.assertEqual(error, state.SimError.NO_ERROR)
+
+    with self.subTest('NaN in BC'):
+      core_profiles = dataclasses.replace(
+          core_profiles,
+          temp_ion=dataclasses.replace(
+              core_profiles.temp_ion,
+              right_face_constraint=jnp.array(jnp.nan),
+          ),
+      )
+      new_sim_state_core_profiles = dataclasses.replace(
+          sim_state, core_profiles=core_profiles
+      )
+      error = new_sim_state_core_profiles.check_for_errors()
+      self.assertEqual(error, state.SimError.NAN_DETECTED)
+
+    with self.subTest('NaN in post processed outputs'):
+      postprocessed_outputs = dataclasses.replace(
+          sim_state.post_processed_outputs,
+          P_external_tot=jnp.array(jnp.nan),
+      )
+      new_sim_state_post = dataclasses.replace(
+          sim_state, post_processed_outputs=postprocessed_outputs
+      )
+      error = new_sim_state_post.check_for_errors()
+      self.assertEqual(error, state.SimError.NAN_DETECTED)
+
+    with self.subTest('NaN in one element of source array'):
+      nan_array = np.zeros_like(geo.rho)
+      nan_array[-1] = np.nan
+      j_bootstrap = dataclasses.replace(
+          sim_state.core_sources.j_bootstrap,
+          j_bootstrap=nan_array,
+      )
+      new_core_sources = dataclasses.replace(
+          sim_state.core_sources, j_bootstrap=j_bootstrap
+      )
+      new_sim_state_sources = dataclasses.replace(
+          sim_state, core_sources=new_core_sources
+      )
+      error = new_sim_state_sources.check_for_errors()
+      self.assertEqual(error, state.SimError.NAN_DETECTED)
+
 
 class InitialStatesTest(parameterized.TestCase):
-  """Unit tests for the `torax.updaters` module."""
 
   def test_initial_boundary_condition_from_time_dependent_params(self):
     """Tests that the initial boundary conditions are set from the config."""
@@ -166,7 +277,7 @@ class InitialStatesTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti_bound_right=27.7,
-            Te_bound_right={0.0: 42.0, 1.0: 0.0},
+            Te_bound_right={0.0: 42.0, 1.0: 0.001},
             ne_bound_right=({0.0: 0.1, 1.0: 2.0}, 'step'),
             normalize_to_nbar=False,
         ),
@@ -393,7 +504,7 @@ class InitialStatesTest(parameterized.TestCase):
     # calculate total and Ohmic current profiles arising from nu=2
     jformula = (1 - geo.rho_norm**2) ** 2
     denom = jax.scipy.integrate.trapezoid(jformula * geo.spr, geo.rho_norm)
-    ctot = config1.profile_conditions.Ip_tot * 1e6 / denom
+    ctot = config1.profile_conditions.Ip_tot.value[0] * 1e6 / denom
     jtot_formula = jformula * ctot
     johm_formula = jtot_formula * (
         1
@@ -413,7 +524,7 @@ class InitialStatesTest(parameterized.TestCase):
         core_profiles=core_profiles3_helper,
     )
     f_bootstrap = bootstrap_profile.I_bootstrap / (
-        config3.profile_conditions.Ip_tot * 1e6
+        config3.profile_conditions.Ip_tot.value[0] * 1e6
     )
 
     np.testing.assert_raises(
@@ -519,6 +630,30 @@ class InitialStatesTest(parameterized.TestCase):
     np.testing.assert_allclose(
         core_profiles1.currents.jtot, core_profiles2.currents.jtot
     )
+
+  def test_core_profiles_negative_values_check(self):
+    geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    core_profiles = make_zero_core_profiles(geo)
+    with self.subTest('no negative values'):
+      self.assertFalse(core_profiles.negative_temperature_or_density())
+    with self.subTest('negative temp_ion triggers'):
+      new_core_profiles = dataclasses.replace(
+          core_profiles,
+          temp_ion=dataclasses.replace(
+              core_profiles.temp_ion,
+              value=jnp.array(-1.0),
+          ),
+      )
+      self.assertTrue(new_core_profiles.negative_temperature_or_density())
+    with self.subTest('negative psi does not trigger'):
+      new_core_profiles = dataclasses.replace(
+          core_profiles,
+          psi=dataclasses.replace(
+              core_profiles.psi,
+              value=jnp.array(-1.0),
+          ),
+      )
+      self.assertFalse(new_core_profiles.negative_temperature_or_density())
 
 
 if __name__ == '__main__':

@@ -11,12 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
+import logging
+from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 from torax.config import config_loader
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
+
+
+def get_unique_objects(x: Any, object_ids: list[int]) -> list[int]:
+  if isinstance(x, dict):
+    for _, value in x.items():
+      object_ids = get_unique_objects(value, object_ids)
+  elif isinstance(x, (list, tuple)):
+    for value in x:
+      object_ids = get_unique_objects(value, object_ids)
+  object_ids.append(id(x))
+  return object_ids
 
 
 class ConfigTest(parameterized.TestCase):
@@ -26,6 +40,7 @@ class ConfigTest(parameterized.TestCase):
       "test_bohmgyrobohm_all",
       "test_iterhybrid_predictor_corrector",
       "test_iterhybrid_rampup",
+      "test_iterhybrid_rampup_restart",
   )
   def test_full_config_construction(self, config_name):
     """Test for basic config construction."""
@@ -34,7 +49,18 @@ class ConfigTest(parameterized.TestCase):
         f".tests.test_data.{config_name}",
         config_package="torax",
     ).CONFIG
+    unique_objects_before = get_unique_objects(config_dict, list())
+    config_dict_copy = copy.deepcopy(config_dict)  # Keep a copy for comparison.
     config_pydantic = model_config.ToraxConfig.from_dict(config_dict)
+
+    with self.subTest("original_config_dict_unchanged"):
+      chex.assert_trees_all_equal(config_dict, config_dict_copy)
+      # And the object ids should be unchanged.
+      unique_objects_after = get_unique_objects(config_dict, list())
+      self.assertListEqual(unique_objects_before, unique_objects_after)
+
+    with self.subTest("has_unique_submodels"):
+      self.assertTrue(config_pydantic._has_unique_submodels)
 
     self.assertEqual(
         config_pydantic.time_step_calculator.calculator_type.value,
@@ -114,6 +140,56 @@ class ConfigTest(parameterized.TestCase):
       )
       self.assertLen(v1_cell, new_n_rho)
       self.assertLen(v1_face, new_n_rho + 1)
+
+  @parameterized.named_parameters(
+      ("const_lin_no_per", "constant", "linear", None, False, False),
+      ("qlknn_lin_no_per", "qlknn", "linear", None, False, True),
+      ("cgm_lin_no_per", "CGM", "linear", None, False, True),
+      ("qlknn_lin_per", "qlknn", "linear", None, True, False),
+      ("qlknn_newton_no_per_0", "qlknn", "newton_raphson", 0, False, False),
+      ("qlknn_newton_no_per_1", "qlknn", "newton_raphson", 1, False, True),
+      ("qlknn_newton_per_1", "qlknn", "newton_raphson", 1, True, False),
+  )
+  def test_pereverzev_warning(
+      self,
+      transport_model,
+      stepper_type,
+      initial_guess_mode,
+      use_pereverzev,
+      expect_warning,
+  ):
+    # Use a basic config and modify it to test the warning.
+    config_dict = {
+        "sources": {},
+        "runtime_params": {},
+        "geometry": {"geometry_type": "circular"},
+        "stepper": {},
+        "transport": {},
+        "pedestal": {},
+        "time_step_calculator": {},
+    }
+
+    config_dict["transport"] = {"transport_model": transport_model}
+    config_dict["stepper"] = {
+        "stepper_type": stepper_type,
+        "use_pereverzev": use_pereverzev,
+    }
+    if initial_guess_mode is not None:
+      config_dict["stepper"]["initial_guess_mode"] = initial_guess_mode
+
+    warning_snippet = "use_pereverzev=False in a configuration where setting"
+
+    # Avoid assertion failure when no warnings are logged at all.
+    try:
+      with self.assertLogs(level=logging.WARNING) as cm:
+        model_config.ToraxConfig.from_dict(config_dict)
+        warnings = "\n".join(cm.output)
+    except Exception:  # pylint: disable=broad-except
+      warnings = ""
+    if expect_warning:
+      self.assertIn(warning_snippet, warnings)
+    else:
+      self.assertNotIn(warning_snippet, warnings)
 
 
 if __name__ == "__main__":

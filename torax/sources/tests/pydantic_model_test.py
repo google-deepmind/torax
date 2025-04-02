@@ -56,7 +56,9 @@ class PydanticModelTest(parameterized.TestCase):
       ),
       dict(
           config={
-              'impurity_radiation_heat_sink': {},
+              'impurity_radiation_heat_sink': {
+                  'model_function_name': 'impurity_radiation_mavrin_fit'
+              },
           },
           expected_sources_model=impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
       ),
@@ -130,6 +132,23 @@ class PydanticModelTest(parameterized.TestCase):
         sources.source_model_config['ohmic_heat_source'].mode,
         source_runtime_params_lib.Mode.ZERO,
     )
+
+  def test_empty_source_config_only_has_defaults_turned_off(self):
+    """Tests that an empty source config has all sources turned off."""
+    sources = pydantic_model.Sources.from_dict({})
+    self.assertEqual(
+        sources.source_model_config['j_bootstrap'].mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+    self.assertEqual(
+        sources.source_model_config['generic_current_source'].mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+    self.assertEqual(
+        sources.source_model_config['qei_source'].mode,
+        source_runtime_params_lib.Mode.ZERO,
+    )
+    self.assertLen(sources.source_model_config, 3)
 
 
 if __name__ == '__main__':

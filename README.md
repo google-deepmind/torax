@@ -104,41 +104,23 @@ Activate the virtual env:
 source toraxvenv/bin/activate
 ```
 
-#### Install QLKNN-hyper
-
-Download QLKNN-hyper dependencies:
+#### Install QLKNN_7_11
 
 ```shell
-git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
-```
-
-```shell
-export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
-```
-
-It is recommended to automate the environment variable export. For example, if
-using bash, run:
-
-```shell
-echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
-```
-The above command only needs to be run once on a given system.
-
-#### (Optional) Install QLKNN_7_11
-
-Optionally, you can instead use QLKNN_7_11, a more recent surrogate model:
-
-```shell
-git clone https://github.com/google-deepmind/fusion_transport_surrogates.git
-pip install -e ./fusion_transport_surrogates
-export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn
+git clone https://github.com/google-deepmind/fusion_surrogates.git
+pip install -e ./fusion_surrogates
+export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn
 ```
 
 We recommend automating the variable export. If using bash, run:
 
 ```shell
-echo export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_transport_surrogates/fusion_transport_surrogates/models/qlknn_7_11.qlknn >> ~/.bashrc
+echo export TORAX_QLKNN_MODEL_PATH="$PWD"/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn >> ~/.bashrc
 ```
+
+The above command only needs to be run once on a given system.
+
+An alternative to QLKNN_7_11 is [QLKNN-hyper](#optional-install-qlknn-hyper)
 
 #### Install TORAX
 
@@ -305,6 +287,36 @@ You can get out of the Python virtual env by deactivating it:
 ```shell
 deactivate
 ```
+
+#### (Optional) Install QLKNN-hyper
+
+An alternative to QLKNN_7_11 is to use QLKNN-hyper-10D, also known as QLKNN10D
+[K.L. van de Plassche PoP 2020](https://doi.org/10.1063/1.5134126). QLKNN_7_11
+is based on QuaLiKiz 2.8.1 which has an improved collision operator compared to
+the QLKNN10D training set. QLKNN_7_11 training data includes impurity density
+gradients as an input feature and has better coverage of the near-LCFS region
+compared to QLKNN-hyper-10D. However, it is still widely used in other
+simulators, so it can be useful for comparative studies for instance.
+
+Download QLKNN-hyper dependencies:
+
+```shell
+git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
+```
+
+Make QLKNN-hyper the default QLKNN model.
+
+```shell
+export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper
+```
+
+It is recommended to automate the environment variable export. For example, if
+using bash, run:
+
+```shell
+echo export TORAX_QLKNN_MODEL_PATH="$PWD"/qlknn-hyper >> ~/.bashrc
+```
+The above command only needs to be run once on a given system.
 
 ## Simulation tutorials
 

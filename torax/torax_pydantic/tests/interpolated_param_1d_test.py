@@ -68,6 +68,11 @@ class InterpolatedParam1dTest(parameterized.TestCase):
           model_pydantic, TestModel.model_validate_json(model_json)
       )
 
+    with self.subTest('update'):
+      a_time = np.copy(a_expected.time) * 2.0
+      a_expected._update_fields({'time': a_time})
+      self.assertIs(a_expected.time, a_time)
+
   def test_bool_single_value_param_always_return_constant(self):
     """Tests that when passed a single value this is always returned."""
     expected_output = True
@@ -87,11 +92,11 @@ class InterpolatedParam1dTest(parameterized.TestCase):
   @parameterized.named_parameters(
       dict(
           testcase_name='negative_value',
-          values={0.: 1., 2.: -1},
+          values={0.0: 1.0, 2.0: -1},
       ),
       dict(
           testcase_name='zero_value',
-          values=0.,
+          values=0.0,
       ),
   )
   def test_raises_error_when_value_is_not_positive(self, values):
@@ -156,9 +161,7 @@ class InterpolatedParam1dTest(parameterized.TestCase):
       expected_output,
   ):
     """Tests that the range returns the expected output."""
-    multi_val_range = torax_pydantic.TimeVaryingScalar.model_validate(
-        values
-    )
+    multi_val_range = torax_pydantic.TimeVaryingScalar.model_validate(values)
 
     if isinstance(expected_output, bool):
       self.assertEqual(multi_val_range.get_value(t=x), expected_output)
@@ -167,6 +170,34 @@ class InterpolatedParam1dTest(parameterized.TestCase):
           multi_val_range.get_value(t=x),
           expected_output,
       )
+
+  @parameterized.parameters(
+      (
+          ([0.0, 2.0, 3.0], [1.0, 7.0, -1.0]),
+          1.5,
+          5.5,
+      ),
+  )
+  def test_interpolated_var_returns_expected_output_for_linear_interpolation(
+      self,
+      values,
+      x,
+      expected_output,
+  ):
+    multi_val_range = torax_pydantic.TimeVaryingScalar.model_validate(values)
+    np.testing.assert_allclose(
+        multi_val_range.get_value(t=x),
+        expected_output,
+    )
+
+  def test_test_equality_cached_property(self):
+    scalar_1 = torax_pydantic.TimeVaryingScalar.model_validate(1.0)
+    scalar_2 = torax_pydantic.TimeVaryingScalar.model_validate(1.0)
+
+    # Check that the cached property does not break equality.
+    self.assertEqual(scalar_1, scalar_2)
+    scalar_1.get_value(t=0.0)
+    self.assertEqual(scalar_1, scalar_2)
 
 
 if __name__ == '__main__':

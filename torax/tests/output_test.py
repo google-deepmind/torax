@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import dataclasses
+import json
 import os
 
 from absl.testing import absltest
@@ -32,6 +33,7 @@ from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.tests.test_lib import default_sources
 from torax.tests.test_lib import torax_refs
+from torax.torax_pydantic import model_config
 import xarray as xr
 
 
@@ -47,7 +49,7 @@ class StateHistoryTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti_bound_right=27.7,
-            Te_bound_right={0.0: 42.0, 1.0: 0.0},
+            Te_bound_right={0.0: 42.0, 1.0: 0.0001},
             ne_bound_right=({0.0: 0.1, 1.0: 2.0}, 'step'),
         ),
     )
@@ -105,7 +107,6 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        time_step_calculator_state=None,
         post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
         stepper_numeric_outputs=state.StepperNumericOutputs(
             outer_stepper_iterations=1,
@@ -116,11 +117,24 @@ class StateHistoryTest(parameterized.TestCase):
     )
     sim_error = state.SimError.NO_ERROR
 
+    self.torax_config = model_config.ToraxConfig.from_dict({
+        'runtime_params': {},
+        'geometry': {'geometry_type': 'circular'},
+        'pedestal': {},
+        'sources': {},
+        'stepper': {},
+        'time_step_calculator': {},
+        'transport': {
+            'transport_model': 'constant',
+            'chii_const': 2.0,
+        },
+    })
+
     self.history = output.StateHistory(
-        output.ToraxSimOutputs(
-            sim_error=sim_error, sim_history=(self.sim_state,)
-        ),
-        self.source_models,
+        sim_error=sim_error,
+        state_history=(self.sim_state,),
+        source_models=self.source_models,
+        torax_config=self.torax_config,
     )
 
   def test_geometry_is_saved(self):
@@ -133,11 +147,10 @@ class StateHistoryTest(parameterized.TestCase):
         ),
     )
     state_history = output.StateHistory(
-        output.ToraxSimOutputs(
-            sim_error=state.SimError.NO_ERROR,
-            sim_history=(self.sim_state, self.sim_state_t2),
-        ),
-        self.source_models,
+        sim_error=state.SimError.NO_ERROR,
+        state_history=(self.sim_state, self.sim_state_t2),
+        source_models=self.source_models,
+        torax_config=self.torax_config,
     )
     output_xr = state_history.simulation_output_to_xr()
     print(output_xr.children[output.GEOMETRY].dataset.data_vars)
@@ -248,6 +261,35 @@ class StateHistoryTest(parameterized.TestCase):
         output.concat_datatrees(tree1, tree2),
         tree_expected,
     )
+
+  def test_config_is_saved(self):
+    """Tests that the config is saved correctly."""
+    output_xr = self.history.simulation_output_to_xr()
+    config_dict = json.loads(output_xr.dataset.attrs[output.CONFIG])
+    self.assertEqual(
+        config_dict['transport']['transport_model_config']['transport_model'],
+        'constant',
+    )
+    self.assertEqual(
+        config_dict['transport']['transport_model_config']['chii_const'][
+            'value'
+        ][1][0],
+        2.0,
+    )
+    # Default values are expected to be set in the saved config
+    self.assertEqual(
+        config_dict['transport']['transport_model_config']['chie_const'][
+            'value'
+        ][1][0],
+        1.0,
+    )
+
+  def test_config_round_trip(self):
+    """Tests that the serialization/deserialization of the config is correct."""
+    output_xr = self.history.simulation_output_to_xr()
+    config_dict = json.loads(output_xr.dataset.attrs[output.CONFIG])
+    rebuilt_torax_config = model_config.ToraxConfig.from_dict(config_dict)
+    self.assertEqual(rebuilt_torax_config, self.torax_config)
 
 
 if __name__ == '__main__':

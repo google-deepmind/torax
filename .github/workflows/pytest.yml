@@ -63,10 +63,12 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - run: git clone https://gitlab.com/qualikiz-group/qlknn-hyper.git
-    - run: echo "TORAX_QLKNN_MODEL_PATH=$PWD/qlknn-hyper" >> "$GITHUB_ENV"
-
     - run: pip --version
+
+    - run: git clone https://github.com/google-deepmind/fusion_surrogates.git
+    - run: pip install -e ./fusion_surrogates
+    - run: echo "TORAX_QLKNN_MODEL_PATH=$PWD/fusion_surrogates/fusion_surrogates/models/qlknn_7_11.qlknn" >> "$GITHUB_ENV"
+
     - run: pip install -e .[dev]
     - run: pip freeze
 

@@ -45,9 +45,6 @@ class ImpurityRadiationMavrinFitTest(test_lib.SourceTestCase):
     sources = sources_pydantic_model.Sources.from_dict({
         generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME: {},
         impurity_radiation_heat_sink_lib.ImpurityRadiationHeatSink.SOURCE_NAME: {
-            'model_function_name': (
-                impurity_radiation_mavrin_fit.MODEL_FUNCTION_NAME
-            )
         },
     })
     source_models = source_models_lib.SourceModels(

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """Module containing functions for saving and loading simulation output."""
-from __future__ import annotations
 
 import dataclasses
 import inspect
@@ -21,35 +20,16 @@ import inspect
 from absl import logging
 import chex
 import jax
-from jax import numpy as jnp
+import numpy as np
 from torax import state
-from torax.config import runtime_params
 from torax.geometry import geometry as geometry_lib
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profiles
+from torax.torax_pydantic import file_restart as file_restart_pydantic_model
+from torax.torax_pydantic import model_config
 import xarray as xr
 
 import os
-
-
-@chex.dataclass(frozen=True)
-class ToraxSimOutputs:
-  """Output structure returned by `run_simulation()`.
-
-  Contains the error state and the history of the simulation state.
-  Can be extended in the future to include more metadata about the simulation.
-
-  Attributes:
-    sim_error: simulation error state: NO_ERROR for no error, NAN_DETECTED for
-      NaNs found in core profiles.
-    sim_history: history of the simulation state.
-  """
-
-  # Error state
-  sim_error: state.SimError
-
-  # Time-dependent TORAX outputs
-  sim_history: tuple[state.ToraxSimState, ...]
 
 
 # Core profiles.
@@ -109,6 +89,9 @@ SIM_ERROR = "sim_error"
 
 # Sources.
 CORE_SOURCES = "core_sources"
+
+# ToraxConfig.
+CONFIG = "config"
 
 # Excluded coordinates from geometry since they are at the top DataTree level.
 # Exclude q_correction_factor as it is not an interesting quantity to save.
@@ -177,7 +160,7 @@ def concat_datatrees(
 
 
 def stitch_state_files(
-    file_restart: runtime_params.FileRestart, datatree: xr.DataTree
+    file_restart: file_restart_pydantic_model.FileRestart, datatree: xr.DataTree
 ) -> xr.DataTree:
   """Stitch a datatree to the end of a previous state file.
 
@@ -202,20 +185,22 @@ class StateHistory:
 
   def __init__(
       self,
-      sim_outputs: ToraxSimOutputs,
+      state_history: tuple[state.ToraxSimState, ...],
+      sim_error: state.SimError,
       source_models: source_models_lib.SourceModels,
+      torax_config: model_config.ToraxConfig,
   ):
     core_profiles = [
-        state.core_profiles.history_elem() for state in sim_outputs.sim_history
+        state.core_profiles.history_elem() for state in state_history
     ]
-    core_sources = [state.core_sources for state in sim_outputs.sim_history]
-    transport = [state.core_transport for state in sim_outputs.sim_history]
+    core_sources = [state.core_sources for state in state_history]
+    transport = [state.core_transport for state in state_history]
     post_processed_output = [
-        state.post_processed_outputs for state in sim_outputs.sim_history
+        state.post_processed_outputs for state in state_history
     ]
-    geometries = [state.geometry for state in sim_outputs.sim_history]
+    geometries = [state.geometry for state in state_history]
     self.geometry = geometry_lib.stack_geometries(geometries)
-    stack = lambda *ys: jnp.stack(ys)
+    stack = lambda *ys: np.stack(ys)
     self.core_profiles: state.CoreProfiles = jax.tree_util.tree_map(
         stack, *core_profiles
     )
@@ -228,15 +213,16 @@ class StateHistory:
     self.post_processed_outputs: state.PostProcessedOutputs = (
         jax.tree_util.tree_map(stack, *post_processed_output)
     )
-    self.times = jnp.array([state.t for state in sim_outputs.sim_history])
+    self.times = np.array([state.t for state in state_history])
     # The rho grid does not change in time so we can just take the first one.
-    self.rho_norm = sim_outputs.sim_history[0].geometry.rho_norm
-    self.rho_face_norm = sim_outputs.sim_history[0].geometry.rho_face_norm
-    self.rho_face = sim_outputs.sim_history[0].geometry.rho_face
-    self.rho = sim_outputs.sim_history[0].geometry.rho
+    self.rho_norm = state_history[0].geometry.rho_norm
+    self.rho_face_norm = state_history[0].geometry.rho_face_norm
+    self.rho_face = state_history[0].geometry.rho_face
+    self.rho = state_history[0].geometry.rho
     chex.assert_rank(self.times, 1)
-    self.sim_error = sim_outputs.sim_error
+    self.sim_error = sim_error
     self.source_models = source_models
+    self.torax_config = torax_config
 
   def _pack_into_data_array(
       self,
@@ -271,7 +257,7 @@ class StateHistory:
         logging.warning(
             "Unsupported data shape for %s: %s. Skipping persisting.",
             name,
-            data.shape,
+            data.shape,  # pytype: disable=attribute-error
         )
         return None
 
@@ -343,6 +329,19 @@ class StateHistory:
     xr_dict[CHI_FACE_EL] = self.core_transport.chi_face_el
     xr_dict[D_FACE_EL] = self.core_transport.d_face_el
     xr_dict[V_FACE_EL] = self.core_transport.v_face_el
+
+    # Save optional BohmGyroBohm attributes if nonzero.
+    core_transport = self.core_transport
+    if (
+        np.any(core_transport.chi_face_el_bohm != 0)
+        or np.any(core_transport.chi_face_el_gyrobohm != 0)
+        or np.any(core_transport.chi_face_ion_bohm != 0)
+        or np.any(core_transport.chi_face_ion_gyrobohm != 0)
+    ):
+      xr_dict["chi_face_el_bohm"] = core_transport.chi_face_el_bohm
+      xr_dict["chi_face_el_gyrobohm"] = core_transport.chi_face_el_gyrobohm
+      xr_dict["chi_face_ion_bohm"] = core_transport.chi_face_ion_bohm
+      xr_dict["chi_face_ion_gyrobohm"] = core_transport.chi_face_ion_gyrobohm
 
     xr_dict = {
         name: self._pack_into_data_array(
@@ -430,7 +429,7 @@ class StateHistory:
 
   def simulation_output_to_xr(
       self,
-      file_restart: runtime_params.FileRestart | None = None,
+      file_restart: file_restart_pydantic_model.FileRestart | None = None,
   ) -> xr.DataTree:
     """Build an xr.DataTree of the simulation output.
 
@@ -503,7 +502,11 @@ class StateHistory:
             ),
             GEOMETRY: xr.DataTree(dataset=geometry_ds),
         },
-        dataset=xr.Dataset(top_level_xr_dict, coords=coords),
+        dataset=xr.Dataset(
+            top_level_xr_dict,
+            coords=coords,
+            attrs={CONFIG: self.torax_config.model_dump_json()},
+        ),
     )
 
     if file_restart is not None and file_restart.stitch:

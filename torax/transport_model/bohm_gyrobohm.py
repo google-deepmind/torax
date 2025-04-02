@@ -13,70 +13,16 @@
 # limitations under the License.
 
 """The BohmGyroBohmModel class."""
-
-from __future__ import annotations
-
-import dataclasses
-from typing import Callable
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants as constants_module
-from torax import interpolated_param
-from torax import jax_utils
 from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
-
-
-# pylint: disable=invalid-name
-@chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Extends the base runtime params with additional params for this model.
-
-  See base class runtime_params.RuntimeParams docstring for more info.
-  """
-
-  # Prefactor for Bohm term for electron heat conductivity.
-  chi_e_bohm_coeff: runtime_params_lib.TimeInterpolatedInput = 8e-5
-  # Prefactor for GyroBohm term for electron heat conductivity.
-  chi_e_gyrobohm_coeff: runtime_params_lib.TimeInterpolatedInput = 5e-6
-  # Prefactor for Bohm term for ion heat conductivity.
-  chi_i_bohm_coeff: runtime_params_lib.TimeInterpolatedInput = 8e-5
-  # Prefactor for GyroBohm term for ion heat conductivity.
-  chi_i_gyrobohm_coeff: runtime_params_lib.TimeInterpolatedInput = 5e-6
-  # Constants for the electron diffusivity weighting factor.
-  d_face_c1: runtime_params_lib.TimeInterpolatedInput = 1.0
-  d_face_c2: runtime_params_lib.TimeInterpolatedInput = 0.3
-  # Proportionality factor between convectivity and diffusivity.
-  v_face_coeff: runtime_params_lib.TimeInterpolatedInput = -0.1
-
-  def make_provider(
-      self, torax_mesh: torax_pydantic.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-  chi_e_bohm_coeff: interpolated_param.InterpolatedVarSingleAxis
-  chi_e_gyrobohm_coeff: interpolated_param.InterpolatedVarSingleAxis
-  chi_i_bohm_coeff: interpolated_param.InterpolatedVarSingleAxis
-  chi_i_gyrobohm_coeff: interpolated_param.InterpolatedVarSingleAxis
-  d_face_c1: interpolated_param.InterpolatedVarSingleAxis
-  d_face_c2: interpolated_param.InterpolatedVarSingleAxis
-  v_face_coeff: interpolated_param.InterpolatedVarSingleAxis
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
 
 
 @chex.dataclass(frozen=True)
@@ -90,19 +36,10 @@ class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   d_face_c1: array_typing.ScalarFloat
   d_face_c2: array_typing.ScalarFloat
   v_face_coeff: array_typing.ScalarFloat
-
-  def sanity_check(self):
-    runtime_params_lib.DynamicRuntimeParams.sanity_check(self)
-    jax_utils.error_if_negative(self.chi_e_bohm_coeff, 'chi_e_bohm_coeff')
-    jax_utils.error_if_negative(
-        self.chi_e_gyrobohm_coeff, 'chi_e_gyrobohm_coeff'
-    )
-    jax_utils.error_if_negative(self.chi_i_bohm_coeff, 'chi_i_bohm_coeff')
-    jax_utils.error_if_negative(
-        self.chi_i_gyrobohm_coeff, 'chi_i_gyrobohm_coeff'
-    )
-    jax_utils.error_if_negative(self.d_face_c1, 'd_face_c1')
-    jax_utils.error_if_negative(self.d_face_c2, 'd_face_c2')
+  chi_e_bohm_multiplier: array_typing.ScalarFloat
+  chi_e_gyrobohm_multiplier: array_typing.ScalarFloat
+  chi_i_bohm_multiplier: array_typing.ScalarFloat
+  chi_i_gyrobohm_multiplier: array_typing.ScalarFloat
 
 
 class BohmGyroBohmTransportModel(transport_model.TransportModel):
@@ -167,6 +104,10 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         / geo.rho_b
     )
 
+    # Set proportionality of chi_i to chi_e according to the assumptions of the
+    # Bohm model.
+    chi_i_B = 2 * chi_e_B
+
     # Gyrobohm term of heat transport
     chi_e_gB = (
         jnp.sqrt(
@@ -178,18 +119,36 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         / geo.rho_b
     )
 
-    chi_i_B = 2 * chi_e_B
+    # Set proportionality of chi_i to chi_e according to the assumptions of the
+    # GyroBohm model.
     chi_i_gB = 0.5 * chi_e_gB
 
-    # Total heat transport
-    chi_i = (
-        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff * chi_i_B
-        + dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff * chi_i_gB
+    # Calibrated transport coefficients
+    chi_e_bohm = (
+        dynamic_runtime_params_slice.transport.chi_e_bohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_e_bohm_multiplier
+        * chi_e_B
     )
-    chi_e = (
-        dynamic_runtime_params_slice.transport.chi_e_bohm_coeff * chi_e_B
-        + dynamic_runtime_params_slice.transport.chi_e_gyrobohm_coeff * chi_e_gB
+    chi_e_gyrobohm = (
+        dynamic_runtime_params_slice.transport.chi_e_gyrobohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_e_gyrobohm_multiplier
+        * chi_e_gB
     )
+
+    chi_i_bohm = (
+        dynamic_runtime_params_slice.transport.chi_i_bohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_i_bohm_multiplier
+        * chi_i_B
+    )
+    chi_i_gyrobohm = (
+        dynamic_runtime_params_slice.transport.chi_i_gyrobohm_coeff
+        * dynamic_runtime_params_slice.transport.chi_i_gyrobohm_multiplier
+        * chi_i_gB
+    )
+
+    # Total heat transport (combined contributions)
+    chi_e = chi_e_gyrobohm + chi_e_bohm
+    chi_i = chi_i_gyrobohm + chi_i_bohm
 
     # Electron diffusivity
     weighting = (
@@ -201,10 +160,9 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         * geo.rho_face_norm
     )
 
-    # Diffusion
-    # d_face_el is zero on-axis by definition
-    # We also add a small epsilon to the denominator to avoid the cases where
-    # chi_i + chi_e = 0
+    # Diffusion: d_face_el is zero on-axis by definition.
+    # We add a small epsilon to the denominator to avoid cases where
+    # chi_i + chi_e = 0.
     d_face_el = jnp.concatenate([
         jnp.zeros(1),
         weighting[1:]
@@ -221,6 +179,10 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
         chi_face_el=chi_e,
         d_face_el=d_face_el,
         v_face_el=v_face_el,
+        chi_face_el_bohm=chi_e_bohm,
+        chi_face_el_gyrobohm=chi_e_gyrobohm,
+        chi_face_ion_bohm=chi_i_bohm,
+        chi_face_ion_gyrobohm=chi_i_gyrobohm,
     )
 
   def __hash__(self):
@@ -229,26 +191,3 @@ class BohmGyroBohmTransportModel(transport_model.TransportModel):
 
   def __eq__(self, other):
     return isinstance(other, BohmGyroBohmTransportModel)
-
-
-def _default_bgb_builder() -> BohmGyroBohmTransportModel:
-  return BohmGyroBohmTransportModel()
-
-
-@dataclasses.dataclass(kw_only=True)
-class BohmGyroBohmModelBuilder(transport_model.TransportModelBuilder):
-  """Builds a class BohmGyroBohmModel."""
-
-  runtime_params: RuntimeParams = dataclasses.field(
-      default_factory=RuntimeParams
-  )
-
-  builder: Callable[
-      [],
-      BohmGyroBohmTransportModel,
-  ] = _default_bgb_builder
-
-  def __call__(
-      self,
-  ) -> BohmGyroBohmTransportModel:
-    return self.builder()

@@ -56,7 +56,7 @@ class RunSimulationMainTest(parameterized.TestCase):
     # The @patch decorator overrides the `input` function so that when
     # `prompt_user` calls `input`, it will receive an "r". That is a valid
     # command and it should return it.
-    user_command = run_simulation_main.prompt_user(config_str)
+    user_command = run_simulation_main._prompt_user(config_str)
     self.assertEqual(user_command, run_simulation_main._UserCommand.RUN)
 
   @mock.patch("builtins.input", side_effect=["invalid", "q"])
@@ -69,7 +69,7 @@ class RunSimulationMainTest(parameterized.TestCase):
     # a valid command so it should be rejected. The `prompt_user` function
     # re-prompts forever until a valid input is received so we next send
     # a valid "q" for quit.
-    user_command = run_simulation_main.prompt_user(config_str)
+    user_command = run_simulation_main._prompt_user(config_str)
     self.assertEqual(user_command, run_simulation_main._UserCommand.QUIT)
 
   @flagsaver.flagsaver(
@@ -104,6 +104,7 @@ class RunSimulationMainTest(parameterized.TestCase):
     reference = output_lib.load_state_file(
         os.path.join(paths.test_data_dir(), "test_implicit.nc")
     )
+
     xr.map_over_datasets(xr.testing.assert_allclose, output, reference)
 
   @flagsaver.flagsaver(
@@ -139,7 +140,9 @@ class RunSimulationMainTest(parameterized.TestCase):
     after = os.path.join(test_data_dir, "test_changing_config_after.py")
     # Copy the "before" config to the active location
     shutil.copy(before, in_use)
-    os.sync()
+    # Sync if os.sync() is available (e.g. not available on Windows)
+    if hasattr(os, "sync"):
+      os.sync()
 
     # Redirect stdout to this string buffer
     captured_stdout = io.StringIO()
@@ -162,8 +165,10 @@ class RunSimulationMainTest(parameterized.TestCase):
         # changed config, then send the 'cc' response
         os.remove(in_use)
         shutil.copy(after, in_use)
-        os.sync()
-        response = "cc"
+        # Sync if os.sync() is available (e.g. not available on Windows)
+        if hasattr(os, "sync"):
+          os.sync()
+        response = "mc"
       elif call_count == 1:
         self.assertEqual(prompt, run_simulation_main.Y_N_PROMPT)
         # The second call to `input` is confirming that we should run with
@@ -237,6 +242,7 @@ class RunSimulationMainTest(parameterized.TestCase):
                 f"Diff: {diff}"
                 f"Max diff: {max_diff}"
             )
+
       xr.map_over_datasets(check_equality, output, ground_truth)
 
     check(filepaths[0], ground_truth_before)

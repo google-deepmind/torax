@@ -13,72 +13,29 @@
 # limitations under the License.
 
 """Pydantic config for source models."""
-
-from collections.abc import Mapping
 import copy
-from typing import Any, Union
+from typing import Any
 
 import pydantic
-from torax.sources import bootstrap_current_source
-from torax.sources import bremsstrahlung_heat_sink
-from torax.sources import cyclotron_radiation_heat_sink
-from torax.sources import electron_cyclotron_source
-from torax.sources import fusion_heat_source
-from torax.sources import gas_puff_source
-from torax.sources import generic_current_source
-from torax.sources import generic_ion_el_heat_source
-from torax.sources import generic_particle_source
-from torax.sources import ion_cyclotron_source
-from torax.sources import ohmic_heat_source
-from torax.sources import pellet_source
-from torax.sources import qei_source
+from torax.sources import base
+from torax.sources import bootstrap_current_source as bootstrap_current_source_lib
+from torax.sources import bremsstrahlung_heat_sink as bremsstrahlung_heat_sink_lib
+from torax.sources import cyclotron_radiation_heat_sink as cyclotron_radiation_heat_sink_lib
+from torax.sources import electron_cyclotron_source as electron_cyclotron_source_lib
+from torax.sources import fusion_heat_source as fusion_heat_source_lib
+from torax.sources import gas_puff_source as gas_puff_source_lib
+from torax.sources import generic_current_source as generic_current_source_lib
+from torax.sources import generic_ion_el_heat_source as generic_ion_el_heat_source_lib
+from torax.sources import generic_particle_source as generic_particle_source_lib
+from torax.sources import ion_cyclotron_source as ion_cyclotron_source_lib
+from torax.sources import ohmic_heat_source as ohmic_heat_source_lib
+from torax.sources import pellet_source as pellet_source_lib
+from torax.sources import qei_source as qei_source_lib
 from torax.sources import runtime_params
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_constant_fraction
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_mavrin_fit
 from torax.torax_pydantic import torax_pydantic
-from typing_extensions import Annotated
-
-
-def get_impurity_heat_sink_discriminator_value(model: dict[str, Any]) -> str:
-  """Returns the discriminator value for a given model."""
-  # Default to impurity_radiation_mavrin_fit if no model_func is specified.
-  return model.get('model_function_name', 'impurity_radiation_mavrin_fit')
-
-
-ImpurityRadiationHeatSinkConfig = Annotated[
-    Union[
-        Annotated[
-            impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
-            pydantic.Tag('impurity_radiation_mavrin_fit'),
-        ],
-        Annotated[
-            impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig,
-            pydantic.Tag('radially_constant_fraction_of_Pin'),
-        ],
-    ],
-    pydantic.Field(
-        discriminator=pydantic.Discriminator(
-            get_impurity_heat_sink_discriminator_value
-        )
-    ),
-]
-
-SourceModelConfig = Union[
-    bootstrap_current_source.BootstrapCurrentSourceConfig,
-    bremsstrahlung_heat_sink.BremsstrahlungHeatSinkConfig,
-    cyclotron_radiation_heat_sink.CyclotronRadiationHeatSinkConfig,
-    electron_cyclotron_source.ElectronCyclotronSourceConfig,
-    gas_puff_source.GasPuffSourceConfig,
-    generic_particle_source.GenericParticleSourceConfig,
-    pellet_source.PelletSourceConfig,
-    fusion_heat_source.FusionHeatSourceConfig,
-    generic_current_source.GenericCurrentSourceConfig,
-    generic_ion_el_heat_source.GenericIonElHeatSourceConfig,
-    ImpurityRadiationHeatSinkConfig,
-    ion_cyclotron_source.IonCyclotronSourceConfig,
-    ohmic_heat_source.OhmicHeatSourceConfig,
-    qei_source.QeiSourceConfig,
-]
+from typing_extensions import Self
 
 
 class Sources(torax_pydantic.BaseModelFrozen):
@@ -87,66 +44,193 @@ class Sources(torax_pydantic.BaseModelFrozen):
   The `from_dict` method of constructing this class supports the config
   described in: https://torax.readthedocs.io/en/latest/configuration.html
   """
-  source_model_config: Mapping[str, SourceModelConfig] = pydantic.Field(
-      discriminator='source_name'
+
+  j_bootstrap: bootstrap_current_source_lib.BootstrapCurrentSourceConfig = (
+      torax_pydantic.ValidatedDefault({'mode': 'ZERO'})
+  )
+  generic_current_source: (
+      generic_current_source_lib.GenericCurrentSourceConfig
+  ) = torax_pydantic.ValidatedDefault({'mode': 'ZERO'})
+  qei_source: qei_source_lib.QeiSourceConfig = torax_pydantic.ValidatedDefault(
+      {'mode': 'ZERO'}
+  )
+  bremsstrahlung_heat_sink: (
+      bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSinkConfig | None
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  cyclotron_radiation_heat_sink: (
+      cyclotron_radiation_heat_sink_lib.CyclotronRadiationHeatSinkConfig | None
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  electron_cyclotron_source: (
+      electron_cyclotron_source_lib.ElectronCyclotronSourceConfig | None
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  gas_puff_source: gas_puff_source_lib.GasPuffSourceConfig | None = (
+      pydantic.Field(
+          discriminator='model_function_name',
+          default=None,
+      )
+  )
+  generic_particle_source: (
+      generic_particle_source_lib.GenericParticleSourceConfig | None
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  pellet_source: pellet_source_lib.PelletSourceConfig | None = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  fusion_heat_source: fusion_heat_source_lib.FusionHeatSourceConfig | None = (
+      pydantic.Field(
+          discriminator='model_function_name',
+          default=None,
+      )
+  )
+  generic_ion_el_heat_source: (
+      generic_ion_el_heat_source_lib.GenericIonElHeatSourceConfig | None
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  impurity_radiation_heat_sink: (
+      impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig
+      | impurity_radiation_constant_fraction.ImpurityRadiationHeatSinkConstantFractionConfig
+      | None
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  ion_cyclotron_source: (
+      ion_cyclotron_source_lib.IonCyclotronSourceConfig | None
+  ) = pydantic.Field(
+      discriminator='model_function_name',
+      default=None,
+  )
+  ohmic_heat_source: ohmic_heat_source_lib.OhmicHeatSourceConfig | None = (
+      pydantic.Field(
+          discriminator='model_function_name',
+          default=None,
+      )
   )
 
   @pydantic.model_validator(mode='before')
   @classmethod
-  def _conform_data(cls, data: dict[str, Any]) -> dict[str, Any]:
-    bootstrap_current_source_name = (
-        bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
-    )
-    generic_current_source_name = (
-        generic_current_source.GenericCurrentSource.SOURCE_NAME
-    )
-    qei_source_name = qei_source.QeiSource.SOURCE_NAME
-    # If we are running with the standard class constructor (for example after
-    # serialisation) then we can skip the validation and return the data.
-    if 'source_model_config' in data:
-      keys_to_check = {
-          bootstrap_current_source_name,
-          generic_current_source_name,
-          qei_source_name,
-      }
-      if not keys_to_check.issubset(data['source_model_config'].keys()):
-        raise ValueError(
-            'The following default source keys are not in the input dict:'
-            f' {keys_to_check - set(data["source_model_config"].keys())}'
-        )
-      return data
+  def _set_default_model_functions(cls, x: dict[str, Any]) -> dict[str, Any]:
+    constructor_data = copy.deepcopy(x)
+    for k, v in x.items():
+      # If this an already validated model, skip it.
+      if isinstance(v, base.SourceModelBase) or v is None:
+        continue
+      match k:
+        case 'bremsstrahlung_heat_sink':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = bremsstrahlung_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'cyclotron_radiation_heat_sink':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = cyclotron_radiation_heat_sink_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'electron_cyclotron_source':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = electron_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'gas_puff_source':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = gas_puff_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'generic_particle_source':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = generic_particle_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'pellet_source':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = pellet_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'fusion_heat_source':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = fusion_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'generic_ion_el_heat_source':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = generic_ion_el_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'impurity_radiation_heat_sink':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = impurity_radiation_mavrin_fit.DEFAULT_MODEL_FUNCTION_NAME
+        case 'ion_cyclotron_source':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = ion_cyclotron_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+        case 'ohmic_heat_source':
+          if 'model_function_name' not in v:
+            constructor_data[k][
+                'model_function_name'
+            ] = ohmic_heat_source_lib.DEFAULT_MODEL_FUNCTION_NAME
+    return constructor_data
 
-    constructor_data = copy.deepcopy(data)
-    bootstrap_found = generic_current_found = qei_found = False
-    for key in data.keys():
-      constructor_data[key].update({'source_name': key})
-      if key == bootstrap_current_source_name:
-        bootstrap_found = True
-      elif key == qei_source_name:
-        qei_found = True
-      elif key == generic_current_source_name:
-        generic_current_found = True
+  @pydantic.model_validator(mode='after')
+  def validate_radiation_models(self) -> Self:
+    """Validate that bremsstrahlung and Mavrin models are not both active at the same time.
 
-    if not bootstrap_found:
-      bootstrap_name = (
-          bootstrap_current_source.BootstrapCurrentSource.SOURCE_NAME
+    This prevents double counting radiation losses.
+
+    Returns:
+      Self for method chaining.
+
+    Raises:
+      ValueError: If both bremsstrahlung and Mavrin models are active.
+    """
+    # Check if both sources are defined
+    if isinstance(
+        self.bremsstrahlung_heat_sink,
+        bremsstrahlung_heat_sink_lib.BremsstrahlungHeatSinkConfig,
+    ) and isinstance(
+        self.impurity_radiation_heat_sink,
+        impurity_radiation_mavrin_fit.ImpurityRadiationHeatSinkMavrinFitConfig,
+    ):
+
+      bremsstrahlung_active = (
+          self.bremsstrahlung_heat_sink.mode != runtime_params.Mode.ZERO
       )
-      constructor_data[bootstrap_name] = {
-          'mode': runtime_params.Mode.ZERO,
-          'source_name': bootstrap_name,
-      }
-    if not generic_current_found:
-      generic_current_name = (
-          generic_current_source.GenericCurrentSource.SOURCE_NAME
-      )
-      constructor_data[generic_current_name] = {
-          'mode': runtime_params.Mode.ZERO,
-          'source_name': generic_current_name,
-      }
-    if not qei_found:
-      constructor_data[qei_source.QeiSource.SOURCE_NAME] = {
-          'mode': runtime_params.Mode.ZERO,
-          'source_name': qei_source.QeiSource.SOURCE_NAME,
-      }
 
-    return {'source_model_config': constructor_data}
+      impurity_active = (
+          self.impurity_radiation_heat_sink.mode != runtime_params.Mode.ZERO
+      )
+
+      # Only raise error if both are active (not in ZERO mode)
+      if bremsstrahlung_active and impurity_active:
+        raise ValueError("""
+            Both bremsstrahlung_heat_sink and impurity_radiation_heat_sink
+            with the Mavrin model should not be active at the same time to avoid
+            double-counting Bremstrahlung losses. Please either set one of them
+            to Mode.ZERO or remove one of them (most likely Bremstrahlung).
+            """)
+
+    return self
+
+  @property
+  def source_model_config(self) -> dict[str, base.SourceModelBase]:
+    return {
+        k: v
+        for k, v in self.__dict__.items()
+        if isinstance(v, base.SourceModelBase)
+    }

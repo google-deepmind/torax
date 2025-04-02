@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Pedestal model that specifies pressure, temperature ratio, and density."""
-
-from __future__ import annotations
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing
@@ -117,3 +114,9 @@ class SetPressureTemperatureRatioAndDensityPedestalModel(
         Teped=Teped,
         rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,
     )
+
+  def __hash__(self) -> int:
+    return hash('SetPressureTemperatureRatioAndDensityPedestalModel')
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, SetPressureTemperatureRatioAndDensityPedestalModel)

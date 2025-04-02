@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base class for quasilinear models."""
-from __future__ import annotations
-
 import chex
 import jax
 from jax import numpy as jnp
@@ -21,12 +19,53 @@ from torax import constants as constants_module
 from torax import state
 from torax.fvm import cell_variable
 from torax.geometry import geometry
-from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import runtime_params as runtime_params_lib
 from torax.transport_model import transport_model
+import typing_extensions
 
 
-def calculate_chiGB(  # pylint: disable=invalid-name
+@chex.dataclass(frozen=True)
+class NormalizedLogarithmicGradients:
+  """Normalized logarithmic gradients of plasma profiles.
+
+  Defined as Lref/Lprofile. Lref is an arbitrary reference length [m].
+  lprofile is each profile gradient length [m] defined as -1/grad(log(profile)),
+  e.g. lti = -1/grad(log(ti)), i.e. lti = - ti / (dti/dr).
+  The specific radial coordinate r used for the gradient is a user input.
+  """
+
+  lref_over_lti: chex.Array
+  lref_over_lte: chex.Array
+  lref_over_lne: chex.Array
+  lref_over_lni0: chex.Array
+  lref_over_lni1: chex.Array
+
+  @classmethod
+  def from_profiles(
+      cls,
+      core_profiles: state.CoreProfiles,
+      radial_coordinate: jnp.ndarray,
+      reference_length: jnp.ndarray,
+  ) -> typing_extensions.Self:
+    """Calculates the normalized logarithmic gradients."""
+    gradients = {}
+    for name, profile in {
+        "lref_over_lti": core_profiles.temp_ion,
+        "lref_over_lte": core_profiles.temp_el,
+        "lref_over_lne": core_profiles.ne,
+        "lref_over_lni0": core_profiles.ni,
+        "lref_over_lni1": core_profiles.nimp,
+    }.items():
+      gradients[name] = calculate_normalized_logarithmic_gradient(
+          var=profile,
+          radial_coordinate=radial_coordinate,
+          reference_length=reference_length,
+      )
+    return cls(**gradients)
+
+
+# pylint: disable=invalid-name
+def calculate_chiGB(
     reference_temperature: chex.Array,
     reference_magnetic_field: chex.Numeric,
     reference_mass: chex.Numeric,
@@ -114,78 +153,12 @@ def calculate_alpha(
   return alpha
 
 
-# pylint: disable=invalid-name
-@chex.dataclass
-class RuntimeParams(runtime_params_lib.RuntimeParams):
-  """Shared parameters for Quasilinear models."""
-
-  # effective D / effective V approach for particle transport
-  DVeff: bool = False
-  # minimum |R/Lne| below which effective V is used instead of effective D
-  An_min: float = 0.05
-
-  def make_provider(
-      self, torax_mesh: torax_pydantic.Grid1D | None = None
-  ) -> RuntimeParamsProvider:
-    return RuntimeParamsProvider(**self.get_provider_kwargs(torax_mesh))
-
-
 @chex.dataclass(frozen=True)
 class DynamicRuntimeParams(runtime_params_lib.DynamicRuntimeParams):
   """Shared parameters for Quasilinear models."""
 
   DVeff: bool
   An_min: float
-
-
-@chex.dataclass
-class RuntimeParamsProvider(runtime_params_lib.RuntimeParamsProvider):
-  """Provides a RuntimeParams to use during time t of the sim."""
-
-  runtime_params_config: RuntimeParams
-
-  def build_dynamic_params(self, t: chex.Numeric) -> DynamicRuntimeParams:
-    return DynamicRuntimeParams(**self.get_dynamic_params_kwargs(t))
-
-
-@chex.dataclass(frozen=True)
-class NormalizedLogarithmicGradients:
-  """Normalized logarithmic gradients of plasma profiles.
-
-  Defined as Lref/Lprofile. Lref is an arbitrary reference length [m].
-  lprofile is each profile gradient length [m] defined as -1/grad(log(profile)),
-  e.g. lti = -1/grad(log(ti)), i.e. lti = - ti / (dti/dr).
-  The specific radial coordinate r used for the gradient is a user input.
-  """
-
-  lref_over_lti: chex.Array
-  lref_over_lte: chex.Array
-  lref_over_lne: chex.Array
-  lref_over_lni0: chex.Array
-  lref_over_lni1: chex.Array
-
-  @classmethod
-  def from_profiles(
-      cls,
-      core_profiles: state.CoreProfiles,
-      radial_coordinate: jnp.ndarray,
-      reference_length: jnp.ndarray,
-  ) -> NormalizedLogarithmicGradients:
-    """Calculates the normalized logarithmic gradients."""
-    gradients = {}
-    for name, profile in {
-        "lref_over_lti": core_profiles.temp_ion,
-        "lref_over_lte": core_profiles.temp_el,
-        "lref_over_lne": core_profiles.ne,
-        "lref_over_lni0": core_profiles.ni,
-        "lref_over_lni1": core_profiles.nimp,
-    }.items():
-      gradients[name] = calculate_normalized_logarithmic_gradient(
-          var=profile,
-          radial_coordinate=radial_coordinate,
-          reference_length=reference_length,
-      )
-    return cls(**gradients)
 
 
 def calculate_normalized_logarithmic_gradient(

@@ -14,7 +14,7 @@
 
 """Pydantic config for Stepper."""
 import functools
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 import pydantic
 from torax.fvm import enums
@@ -26,17 +26,11 @@ from torax.stepper import runtime_params
 from torax.stepper import stepper as stepper_lib
 from torax.torax_pydantic import torax_pydantic
 from torax.transport_model import transport_model as transport_model_lib
-from typing_extensions import Annotated
 
 
 # pylint: disable=invalid-name
 class LinearThetaMethod(torax_pydantic.BaseModelFrozen):
   """Model for the linear stepper.
-
-  This is also the base model for the NewtonRaphsonThetaMethod and
-  OptimizerThetaMethod steppers as they share the same parameters due to the
-  nonlinear solvers having an option to use the a linear stepper solution as an
-  initial guess.
 
   Attributes:
     stepper_type: The type of stepper to use, hardcoded to 'linear'.
@@ -92,11 +86,25 @@ class LinearThetaMethod(torax_pydantic.BaseModelFrozen):
     return True
 
 
-class NewtonRaphsonThetaMethod(LinearThetaMethod):
+class NewtonRaphsonThetaMethod(torax_pydantic.BaseModelFrozen):
   """Model for nonlinear Newton-Raphson stepper.
 
   Attributes:
     stepper_type: The type of stepper to use, hardcoded to 'newton_raphson'.
+    theta_imp: The theta value in the theta method 0 = explicit, 1 = fully
+      implicit, 0.5 = Crank-Nicolson.
+    predictor_corrector: Enables predictor_corrector iterations with the linear
+      solver. If False, compilation is faster.
+    corrector_steps: The number of corrector steps for the predictor-corrector
+      linear solver. 0 means a pure linear solve with no corrector steps.
+    convection_dirichlet_mode: See `fvm.convection_terms` docstring,
+      `dirichlet_mode` argument.
+    convection_neumann_mode: See `fvm.convection_terms` docstring,
+      `neumann_mode` argument.
+    use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
+      the nonlinear solver for the optional initial guess from the linear solver
+    chi_per: (deliberately) large heat conductivity for Pereverzev rule.
+    d_per: (deliberately) large particle diffusion for Pereverzev rule.
     log_iterations: If True, log internal iterations in Newton-Raphson solver.
     initial_guess_mode: The initial guess mode for the Newton-Raphson solver.
     maxiter: The maximum number of iterations for the Newton-Raphson solver.
@@ -106,7 +114,18 @@ class NewtonRaphsonThetaMethod(LinearThetaMethod):
       solver.
     tau_min: The minimum value of tau for the Newton-Raphson solver.
   """
+
   stepper_type: Literal['newton_raphson'] = 'newton_raphson'
+  theta_imp: torax_pydantic.UnitInterval = 1.0
+  predictor_corrector: bool = True
+  corrector_steps: pydantic.PositiveInt = 1
+  convection_dirichlet_mode: Literal['ghost', 'direct', 'semi-implicit'] = (
+      'ghost'
+  )
+  convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
+  use_pereverzev: bool = False
+  chi_per: pydantic.PositiveFloat = 20.0
+  d_per: pydantic.NonNegativeFloat = 10.0
   log_iterations: bool = False
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   maxiter: pydantic.NonNegativeInt = 30
@@ -148,17 +167,41 @@ class NewtonRaphsonThetaMethod(LinearThetaMethod):
     )
 
 
-class OptimizerThetaMethod(LinearThetaMethod):
+class OptimizerThetaMethod(torax_pydantic.BaseModelFrozen):
   """Model for nonlinear OptimizerThetaMethod stepper.
 
   Attributes:
     stepper_type: The type of stepper to use, hardcoded to 'optimizer'.
+    theta_imp: The theta value in the theta method 0 = explicit, 1 = fully
+      implicit, 0.5 = Crank-Nicolson.
+    predictor_corrector: Enables predictor_corrector iterations with the linear
+      solver. If False, compilation is faster.
+    corrector_steps: The number of corrector steps for the predictor-corrector
+      linear solver. 0 means a pure linear solve with no corrector steps.
+    convection_dirichlet_mode: See `fvm.convection_terms` docstring,
+      `dirichlet_mode` argument.
+    convection_neumann_mode: See `fvm.convection_terms` docstring,
+      `neumann_mode` argument.
+    use_pereverzev: Use pereverzev terms for linear solver. Is only applied in
+      the nonlinear solver for the optional initial guess from the linear solver
+    chi_per: (deliberately) large heat conductivity for Pereverzev rule.
+    d_per: (deliberately) large particle diffusion for Pereverzev rule.
     initial_guess_mode: The initial guess mode for the optimizer.
     maxiter: The maximum number of iterations for the optimizer.
     tol: The tolerance for the optimizer.
   """
 
   stepper_type: Literal['optimizer'] = 'optimizer'
+  theta_imp: torax_pydantic.UnitInterval = 1.0
+  predictor_corrector: bool = True
+  corrector_steps: pydantic.PositiveInt = 1
+  convection_dirichlet_mode: Literal['ghost', 'direct', 'semi-implicit'] = (
+      'ghost'
+  )
+  convection_neumann_mode: Literal['ghost', 'semi-implicit'] = 'ghost'
+  use_pereverzev: bool = False
+  chi_per: pydantic.PositiveFloat = 20.0
+  d_per: pydantic.NonNegativeFloat = 10.0
   initial_guess_mode: enums.InitialGuessMode = enums.InitialGuessMode.LINEAR
   maxiter: pydantic.NonNegativeInt = 100
   tol: float = 1e-12
@@ -192,26 +235,16 @@ class OptimizerThetaMethod(LinearThetaMethod):
     )
 
 
-StepperConfig = Union[
-    Annotated[LinearThetaMethod, pydantic.Tag('linear')],
-    Annotated[NewtonRaphsonThetaMethod, pydantic.Tag('newton_raphson')],
-    Annotated[OptimizerThetaMethod, pydantic.Tag('optimizer')],
-]
-
-
-def get_discriminator_value(model: dict[str, Any]) -> str:
-  return model.get('stepper_type', 'linear')
-
-
 class Stepper(torax_pydantic.BaseModelFrozen):
   """Config for a stepper.
 
   The `from_dict` method of constructing this class supports the config
   described in: https://torax.readthedocs.io/en/latest/configuration.html
   """
-  stepper_config: Annotated[
-      StepperConfig, pydantic.Discriminator(get_discriminator_value)
-  ]
+
+  stepper_config: (
+      LinearThetaMethod | NewtonRaphsonThetaMethod | OptimizerThetaMethod
+  ) = pydantic.Field(discriminator='stepper_type')
 
   @pydantic.model_validator(mode='before')
   @classmethod
@@ -221,6 +254,10 @@ class Stepper(torax_pydantic.BaseModelFrozen):
     if 'stepper_config' in data:
       return data
 
+    # The default stepper type is linear, which we set here if the user
+    # failed to specify any stepper type.
+    if 'stepper_type' not in data:
+      data['stepper_type'] = 'linear'
     return {'stepper_config': data}
 
   @functools.cached_property

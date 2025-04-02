@@ -28,7 +28,6 @@ from torax import state
 from torax.config import runtime_params_slice
 from torax.geometry import geometry
 from torax.pedestal_model import pedestal_model as pedestal_model_lib
-from torax.transport_model import runtime_params as runtime_params_lib
 
 
 class TransportModel(abc.ABC):
@@ -107,6 +106,23 @@ class TransportModel(abc.ABC):
       pedestal_model_outputs: pedestal_model_lib.PedestalModelOutput,
   ) -> state.CoreTransport:
     pass
+
+  @abc.abstractmethod
+  def __hash__(self) -> int:
+    """Returns a hash of the transport model.
+
+    Should be implemented to support jax.jit caching.
+    """
+
+  @abc.abstractmethod
+  def __eq__(self, other) -> bool:
+    """Returns whether the transport model is equal to the other.
+
+    Should be implemented to support jax.jit caching.
+
+    Args:
+      other: The object to compare to.
+    """
 
   def _apply_clipping(
       self,
@@ -311,10 +327,20 @@ class TransportModel(abc.ABC):
     smoothing_matrix = build_smoothing_matrix(
         geo, dynamic_runtime_params_slice, pedestal_model_outputs
     )
-    smoothed_coeffs = {}
-    for coeff in transport_coeffs:
-      smoothed_coeff = jnp.dot(smoothing_matrix, transport_coeffs[coeff])
-      smoothed_coeffs[coeff] = smoothed_coeff
+
+    # Iterate over fields of the CoreTransport dataclass.
+    # Ignore optional fields that are made all zero in post_init.
+    def smooth_single_coeff(coeff):
+      return jax.lax.cond(
+          jnp.all(coeff == 0.0),
+          lambda: coeff,
+          lambda: jnp.dot(smoothing_matrix, coeff),
+      )
+
+    smoothed_coeffs = jax.tree_util.tree_map(
+        smooth_single_coeff, transport_coeffs
+    )
+
     return state.CoreTransport(**smoothed_coeffs)
 
 
@@ -417,19 +443,3 @@ def build_smoothing_matrix(
   row_sums = jnp.sum(kernel, axis=1)
   kernel /= row_sums[:, jnp.newaxis]
   return kernel
-
-
-@dataclasses.dataclass(kw_only=True)
-class TransportModelBuilder(abc.ABC):
-  """Factory for TransportModel objects."""
-
-  @abc.abstractmethod
-  def __call__(
-      self,
-  ) -> TransportModel:
-    """Builds a TransportModel instance."""
-
-  # Input parameters to the TransportModel built by this class.
-  runtime_params: runtime_params_lib.RuntimeParams = dataclasses.field(
-      default_factory=runtime_params_lib.RuntimeParams
-  )

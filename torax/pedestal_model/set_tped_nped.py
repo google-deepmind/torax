@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A basic version of the pedestal model that uses direct specification."""
-
-from __future__ import annotations
-
 import chex
 from jax import numpy as jnp
 from torax import array_typing
@@ -75,3 +72,9 @@ class SetTemperatureDensityPedestalModel(pedestal_model.PedestalModel):
         Teped=dynamic_runtime_params_slice.pedestal.Teped,
         rho_norm_ped_top=dynamic_runtime_params_slice.pedestal.rho_norm_ped_top,
     )
+
+  def __hash__(self) -> int:
+    return hash(('SetTemperatureDensityPedestalModel'))
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, SetTemperatureDensityPedestalModel)

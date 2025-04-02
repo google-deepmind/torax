@@ -56,9 +56,9 @@ class BoundaryConditionsTest(parameterized.TestCase):
     runtime_params = general_runtime_params.GeneralRuntimeParams(
         profile_conditions=profile_conditions_lib.ProfileConditions(
             Ti={0.0: {0.0: 27.7, 1.0: 1.0}},
-            Te={0.0: {0.0: 42.0, 1.0: 0.0}, 1.0: 0},
+            Te={0.0: {0.0: 42.0, 1.0: 0.1}, 1.0: 0.1},
             Ti_bound_right=27.7,
-            Te_bound_right={0.0: 42.0, 1.0: 0.0},
+            Te_bound_right={0.0: 42.0, 1.0: 0.1},
             ne_bound_right=ne_bound_right,
             ne=ne,
             ne_is_fGW=False,
@@ -134,7 +134,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
         expected_ne_bound_right - expected_ni_bound_right * Zi_face[-1]
     ) / Zimp_face[-1]
     np.testing.assert_allclose(updated.temp_ion.right_face_constraint, 27.7)
-    np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)
+    np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.05)
     np.testing.assert_allclose(
         updated.ne.right_face_constraint,
         expected_ne_bound_right,
@@ -147,7 +147,7 @@ class BoundaryConditionsTest(parameterized.TestCase):
     np.testing.assert_allclose(
         updated.nimp.right_face_constraint, expected_nimp_bound_right
     )
-    np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.0)
+    np.testing.assert_allclose(updated.temp_el.right_face_constraint, 21.05)
     np.testing.assert_allclose(
         updated.psi.right_face_grad_constraint, psi_constraint
     )

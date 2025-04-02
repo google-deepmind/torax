@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Ohmic heat source."""
-
-from __future__ import annotations
-
 import dataclasses
 from typing import ClassVar, Literal
 
@@ -27,8 +24,13 @@ from torax.physics import psi_calculations
 from torax.sources import base
 from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source as source_lib
-from torax.sources import source_operations
 from torax.sources import source_profiles as source_profiles_lib
+
+
+# Default value for the model function to be used for the ohmic heat
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: str = 'ohmic_model_func'
 
 
 def ohmic_model_func(
@@ -51,9 +53,7 @@ def ohmic_model_func(
       geo,
       core_profiles.psi,
   )
-  psi_sources = source_operations.sum_sources_psi(
-      geo, calculated_source_profiles
-  )
+  psi_sources = calculated_source_profiles.total_psi_sources(geo)
   sigma = calculated_source_profiles.j_bootstrap.sigma
   sigma_face = calculated_source_profiles.j_bootstrap.sigma_face
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
@@ -68,10 +68,30 @@ def ohmic_model_func(
   return (pohm,)
 
 
+@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
+class OhmicHeatSource(source_lib.Source):
+  """Ohmic heat source for electron heat equation.
+
+  Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
+  """
+
+  SOURCE_NAME: ClassVar[str] = 'ohmic_heat_source'
+  model_func: source_lib.SourceProfileFunction = ohmic_model_func
+
+  @property
+  def source_name(self) -> str:
+    return self.SOURCE_NAME
+
+  @property
+  def affected_core_profiles(
+      self,
+  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
+    return (source_lib.AffectedCoreProfile.TEMP_EL,)
+
+
 class OhmicHeatSourceConfig(base.SourceModelBase):
   """Configuration for the OhmicHeatSource."""
-
-  source_name: Literal['ohmic_heat_source'] = 'ohmic_heat_source'
+  model_function_name: Literal['ohmic_model_func'] = 'ohmic_model_func'
   mode: runtime_params_lib.Mode = runtime_params_lib.Mode.MODEL_BASED
 
   @property
@@ -88,27 +108,3 @@ class OhmicHeatSourceConfig(base.SourceModelBase):
 
   def build_source(self) -> OhmicHeatSource:
     return OhmicHeatSource(model_func=self.model_func)
-
-
-# OhmicHeatSource is a special case and defined here to avoid circular
-# dependencies, since it depends on the psi sources
-@dataclasses.dataclass(kw_only=True, frozen=True, eq=True)
-class OhmicHeatSource(source_lib.Source):
-  """Ohmic heat source for electron heat equation.
-
-  Pohm = jtor * psidot /(2*pi*Rmaj), related to electric power formula P = IV.
-  """
-
-  SOURCE_NAME: ClassVar[str] = 'ohmic_heat_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'ohmic_model_func'
-  model_func: source_lib.SourceProfileFunction = ohmic_model_func
-
-  @property
-  def source_name(self) -> str:
-    return self.SOURCE_NAME
-
-  @property
-  def affected_core_profiles(
-      self,
-  ) -> tuple[source_lib.AffectedCoreProfile, ...]:
-    return (source_lib.AffectedCoreProfile.TEMP_EL,)

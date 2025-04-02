@@ -18,25 +18,22 @@ This is a geometry object that is used for most geometries sources
 CHEASE, FBT, etc.
 """
 
-
-from __future__ import annotations
-from typing import Any
-from collections.abc import Mapping
 import dataclasses
 import functools
+from collections.abc import Mapping
+from typing import Any
 
 import chex
 import contourpy
 import numpy as np
 import scipy
-from torax import constants
-from torax import interpolated_param
-from torax import jax_utils
-from torax.geometry import geometry
-from torax.geometry import geometry_loader
-from torax.geometry import geometry_provider
-from torax.torax_pydantic import torax_pydantic
+import typing_extensions
+
+from torax import constants, interpolated_param, jax_utils
+from torax.geometry import geometry, geometry_loader, geometry_provider
 from torax.torax_imastools.equilibrium import geometry_from_IMAS
+from torax.torax_pydantic import torax_pydantic
+
 # pylint: disable=invalid-name
 
 _RHO_SMOOTHING_LIMIT = 0.1
@@ -265,7 +262,7 @@ class StandardGeometryIntermediates:
       Rmin: float,
       B0: float,
       hires_fac: int,
-  ) -> StandardGeometryIntermediates:
+  ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from a CHEASE file.
 
     Args:
@@ -358,7 +355,7 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
       hires_fac: int = 4,
-  ) -> StandardGeometryIntermediates:
+  ) -> typing_extensions.Self:
     """Returns StandardGeometryIntermediates from a single slice FBT LY file.
 
     LY and L are FBT data files containing magnetic geometry information.
@@ -425,7 +422,7 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
       hires_fac: int = 4,
-  ) -> Mapping[float, StandardGeometryIntermediates]:
+  ) -> Mapping[float, typing_extensions.Self]:
     """Returns StandardGeometryIntermediates from a bundled FBT LY file.
 
     LY_bundle_object is an FBT data object containing a bundle of LY geometry
@@ -542,7 +539,7 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: bool = True,
       n_rho: int = 25,
       hires_fac: int = 4,
-  ) -> StandardGeometryIntermediates:
+  ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from a single FBT LY slice.
 
     Args:
@@ -605,7 +602,7 @@ class StandardGeometryIntermediates:
       n_rho: int,
       n_surfaces: int,
       last_surface_factor: float,
-  ) -> StandardGeometryIntermediates:
+  ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from EQDSK.
 
     This method constructs a StandardGeometryIntermediates object from an EQDSK
@@ -904,7 +901,7 @@ class StandardGeometryIntermediates:
       Ip_from_parameters: bool,
       n_rho: int,
       hires_fac: int,
-  ) -> StandardGeometryIntermediates:
+  ) -> typing_extensions.Self:
     """Constructs a StandardGeometryIntermediates from a IMAS equilibrium IDS.
 
     Args:
@@ -1015,7 +1012,7 @@ def build_standard_geometry(
   # fill geometry structure
   drho_norm = float(rho_norm_intermediate[-1]) / intermediate.n_rho
   # normalized grid
-  mesh = torax_pydantic.Grid1D.construct(nx=intermediate.n_rho, dx=drho_norm)
+  mesh = torax_pydantic.Grid1D(nx=intermediate.n_rho, dx=drho_norm)
   rho_b = rho_intermediate[-1]  # radius denormalization constant
   # helper variables for mesh cells and faces
   rho_face_norm = mesh.face_centers

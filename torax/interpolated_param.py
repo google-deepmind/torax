@@ -59,13 +59,17 @@ InterpolationModeLiteral: TypeAlias = Literal[
 ]
 
 
+_ArrayOrListOfFloats: TypeAlias = (
+    chex.Array | list[float]
+)
+
 # Config input types convertible to InterpolatedParam objects.
 InterpolatedVarSingleAxisInput: TypeAlias = (
     float
     | dict[float, float]
     | bool
     | dict[float, bool]
-    | tuple[chex.Array, chex.Array]
+    | tuple[_ArrayOrListOfFloats, _ArrayOrListOfFloats]
     | xr.DataArray
 )
 InterpolatedVarTimeRhoInput: TypeAlias = (
@@ -73,8 +77,8 @@ InterpolatedVarTimeRhoInput: TypeAlias = (
     Mapping[float, InterpolatedVarSingleAxisInput]
     | float
     | xr.DataArray
-    | tuple[chex.Array, chex.Array, chex.Array]
-    | tuple[chex.Array, chex.Array]
+    | tuple[_ArrayOrListOfFloats, _ArrayOrListOfFloats, _ArrayOrListOfFloats]
+    | tuple[_ArrayOrListOfFloats, _ArrayOrListOfFloats]
 )
 
 
@@ -207,12 +211,16 @@ class StepInterpolatedParam(InterpolatedParamBase):
       )
     diff = jnp.sum(jnp.abs(jnp.sort(self.xs) - self.xs))
     jax_utils.error_if(diff, diff > 1e-8, 'xs must be sorted.')
-    self._padded_xs = jnp.concatenate(
-        [jnp.array([-jnp.inf]), self.xs, jnp.array([jnp.inf])]
-    )
-    self._padded_ys = jnp.concatenate(
-        [jnp.array([self.ys[0]]), self.ys, jnp.array([self.ys[-1]])]
-    )
+    self._padded_xs = jnp.concatenate([
+        jnp.array([-jnp.inf], dtype=jax_utils.get_dtype()),
+        self.xs,
+        jnp.array([jnp.inf], dtype=jax_utils.get_dtype()),
+    ])
+    self._padded_ys = jnp.concatenate([
+        jnp.array([self.ys[0]], dtype=jax_utils.get_dtype()),
+        self.ys,
+        jnp.array([self.ys[-1]], dtype=jax_utils.get_dtype()),
+    ])
 
   @property
   def xs(self) -> chex.Array:
@@ -227,48 +235,6 @@ class StepInterpolatedParam(InterpolatedParamBase):
       x: chex.Numeric,
   ) -> chex.Array:
     return step_interpolate(self._padded_xs, self._padded_ys, x)
-
-
-def rhonorm1_defined_in_timerhoinput(
-    values: InterpolatedVarTimeRhoInput,
-) -> bool:
-  """Checks if the boundary condition at rho=1.0 is always defined."""
-  match values:
-    # In case of constant profile case expect an explicit boundary condition.
-    case float():
-      return False
-    # In case of constant profile case expect an explicit boundary condition.
-    case int():
-      return False
-    case dict():
-      # Initial condition dict shortcut.
-      if all(isinstance(v, float) for v in values.values()):
-        if 1.0 not in values:
-          return False
-      else:
-        # Check for all times that the boundary condition is defined.
-        for _, value in values.items():
-          if 1.0 not in value:
-            return False
-    case xr.DataArray():
-      if 1.0 not in values.coords[RHO_NORM]:
-        return False
-    # Arrays case.
-    case _:
-      if not isinstance(values, tuple):
-        raise ValueError(f'Cannot identify a valid way to map {values}.')
-      # Initial condition array shortcut. Disable bad-unpacking: pytype bug.
-      # pytype: disable=bad-unpacking
-      if len(values) == 2:
-        rho_norm, _ = values
-      elif len(values) == 3:
-        _, rho_norm, _ = values
-      else:
-        # pytype: enable=bad-unpacking
-        raise ValueError('Only array tuples of length 2 or 3 are supported.')
-      if 1.0 not in rho_norm:
-        return False
-  return True
 
 
 def _is_bool(
@@ -351,9 +317,9 @@ def convert_input_to_xs_ys(
       )
     xs, ys = interp_input
     sort_order = np.argsort(xs)
-    xs = xs[sort_order]
-    ys = ys[sort_order]
-    return np.asarray(xs), np.asarray(ys), interpolation_mode, is_bool_param
+    xs = np.asarray(xs)[sort_order]
+    ys = np.asarray(ys)[sort_order]
+    return xs, ys, interpolation_mode, is_bool_param
   if isinstance(interp_input, dict):
     if not interp_input:
       raise ValueError('InterpolatedVarSingleAxisInput must include values.')

@@ -11,11 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import dataclasses
+from typing import Literal
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
 import jax.numpy as jnp
+import pydantic
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params as general_runtime_params
@@ -27,12 +30,15 @@ from torax.pedestal_model import pedestal_model as pedestal_model_lib
 from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import source_models as source_models_lib
+from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.transport_model import pydantic_model_base as transport_pydantic_model_base
 from torax.transport_model import qualikiz_based_transport_model
 from torax.transport_model import quasilinear_transport_model
-from torax.transport_model import runtime_params as runtime_params_lib
 
 
-def _get_model_inputs(transport: qualikiz_based_transport_model.RuntimeParams):
+def _get_model_inputs(
+    transport: transport_pydantic_model.Transport,
+):
   """Returns the model inputs for testing."""
   runtime_params = general_runtime_params.GeneralRuntimeParams()
   geo = geometry_pydantic_model.CircularConfig().build_geometry()
@@ -68,15 +74,23 @@ def _get_model_inputs(transport: qualikiz_based_transport_model.RuntimeParams):
 
 class QualikizTransportModelTest(parameterized.TestCase):
 
+  def setUp(self):
+    super().setUp()
+    # Register the fake transport config.
+    transport_pydantic_model.Transport.model_fields[
+        'transport_model_config'
+    ].annotation |= QualikizBasedTransportModelConfig
+    transport_pydantic_model.Transport.model_rebuild(force=True)
+
   def test_qualikiz_based_transport_model_output_shapes(self):
     """Tests that the core transport output has the right shapes."""
-    transport = qualikiz_based_transport_model.RuntimeParams(
-        coll_mult=1.0,
-        avoid_big_negative_s=True,
-        q_sawtooth_proxy=True,
-        **runtime_params_lib.RuntimeParams()
-    )
-    transport_model = FakeQualikizBasedTransportModel()
+    transport = transport_pydantic_model.Transport.from_dict({
+        'transport_model': 'qualikiz_based',
+        'coll_mult': 1.0,
+        'avoid_big_negative_s': True,
+        'q_sawtooth_proxy': True,
+    })
+    transport_model = transport.build_transport_model()
     dynamic_runtime_params_slice, geo, core_profiles = _get_model_inputs(
         transport
     )
@@ -97,16 +111,17 @@ class QualikizTransportModelTest(parameterized.TestCase):
 
   def test_qualikiz_based_transport_model_prepare_qualikiz_inputs_shapes(self):
     """Tests that the qualikiz inputs have the expected shapes."""
-    transport = qualikiz_based_transport_model.RuntimeParams(
-        coll_mult=1.0,
-        avoid_big_negative_s=True,
-        q_sawtooth_proxy=True,
-        smag_alpha_correction=True,
-    )
+    transport = transport_pydantic_model.Transport.from_dict({
+        'transport_model': 'qualikiz_based',
+        'coll_mult': 1.0,
+        'avoid_big_negative_s': True,
+        'q_sawtooth_proxy': True,
+        'smag_alpha_correction': True,
+    })
     dynamic_runtime_params_slice, geo, core_profiles = _get_model_inputs(
         transport
     )
-    transport_model = FakeQualikizBasedTransportModel()
+    transport_model = transport.build_transport_model()
     assert isinstance(
         dynamic_runtime_params_slice.transport,
         qualikiz_based_transport_model.DynamicRuntimeParams,
@@ -206,6 +221,60 @@ class FakeQualikizBasedTransportModel(
         gradient_reference_length=geo.Rmaj,
         gyrobohm_flux_reference_length=geo.Rmin,
     )
+
+  def __hash__(self) -> int:
+    return hash(self.__class__.__name__)
+
+  def __eq__(self, other) -> bool:
+    return isinstance(other, type(self))
+
+
+# pylint: disable=invalid-name
+class QualikizBasedTransportModelConfig(
+    transport_pydantic_model_base.TransportBase
+):
+  """Model for the Qualikiz-based transport model.
+
+  Attributes:
+    transport_model: The transport model to use. Hardcoded to 'qualikiz'.
+    coll_mult: Collisionality multiplier.
+    avoid_big_negative_s: Ensure that smag - alpha > -0.2 always, to compensate
+      for no slab modes.
+    smag_alpha_correction: Reduce magnetic shear by 0.5*alpha to capture main
+      impact of alpha.
+    q_sawtooth_proxy: If q < 1, modify input q and smag as if q~1 as if there
+      are sawteeth.
+    DVeff: Effective D / effective V approach for particle transport.
+    An_min: Minimum |R/Lne| below which effective V is used instead of effective
+      D.
+  """
+
+  transport_model: Literal['qualikiz_based'] = 'qualikiz_based'
+  coll_mult: pydantic.PositiveFloat = 1.0
+  avoid_big_negative_s: bool = True
+  smag_alpha_correction: bool = True
+  q_sawtooth_proxy: bool = True
+  DVeff: bool = False
+  An_min: pydantic.PositiveFloat = 0.05
+
+  # pylint: disable=undefined-variable
+  def build_transport_model(
+      self,
+  ) -> FakeQualikizBasedTransportModel:
+    return FakeQualikizBasedTransportModel()
+
+  def build_dynamic_params(self, t: chex.Numeric):
+    base_kwargs = dataclasses.asdict(super().build_dynamic_params(t))
+    return qualikiz_based_transport_model.DynamicRuntimeParams(
+        coll_mult=self.coll_mult,
+        avoid_big_negative_s=self.avoid_big_negative_s,
+        smag_alpha_correction=self.smag_alpha_correction,
+        q_sawtooth_proxy=self.q_sawtooth_proxy,
+        DVeff=self.DVeff,
+        An_min=self.An_min,
+        **base_kwargs,
+    )
+# pylint: enable=undefined-variable
 
 
 if __name__ == '__main__':

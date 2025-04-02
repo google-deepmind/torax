@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Impurity radiation heat sink for electron heat equation based on constant fraction of total power density."""
-from __future__ import annotations
-
 from typing import Literal
 
 import chex
@@ -29,8 +27,6 @@ from torax.sources import source as source_lib
 from torax.sources import source_profiles as source_profiles_lib
 from torax.sources.impurity_radiation_heat_sink import impurity_radiation_heat_sink
 from torax.torax_pydantic import torax_pydantic
-
-MODEL_FUNCTION_NAME = 'radially_constant_fraction_of_Pin'
 
 
 def radially_constant_fraction_of_Pin(  # pylint: disable=invalid-name
@@ -103,9 +99,6 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
     fraction_of_total_power_density: Fraction of total power density to be
       absorbed by the impurity.
   """
-  source_name: Literal['impurity_radiation_heat_sink'] = (
-      'impurity_radiation_heat_sink'
-  )
   model_function_name: Literal['radially_constant_fraction_of_Pin'] = (
       'radially_constant_fraction_of_Pin'
   )

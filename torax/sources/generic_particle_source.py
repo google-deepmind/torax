@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Generic particle source for the ne equation."""
-from __future__ import annotations
-
 import dataclasses
 from typing import ClassVar, Literal
 
@@ -28,6 +26,12 @@ from torax.sources import runtime_params as runtime_params_lib
 from torax.sources import source
 from torax.sources import source_profiles
 from torax.torax_pydantic import torax_pydantic
+
+
+# Default value for the model function to be used for the generic particle
+# source. This is also used as an identifier for the model function in
+# the default source config for Pydantic to "discriminate" against.
+DEFAULT_MODEL_FUNCTION_NAME: str = 'calc_generic_particle_source'
 
 
 # pylint: disable=invalid-name
@@ -65,7 +69,6 @@ class GenericParticleSource(source.Source):
   """Neutral-beam injection source for the ne equation."""
 
   SOURCE_NAME: ClassVar[str] = 'generic_particle_source'
-  DEFAULT_MODEL_FUNCTION_NAME: ClassVar[str] = 'calc_generic_particle_source'
   model_func: source.SourceProfileFunction = calc_generic_particle_source
 
   @property
@@ -95,8 +98,9 @@ class GenericParticleSourceConfig(base.SourceModelBase):
     mode: Defines how the source values are computed (from a model, from a file,
       etc.)
   """
-
-  source_name: Literal['generic_particle_source'] = 'generic_particle_source'
+  model_function_name: Literal['calc_generic_particle_source'] = (
+      'calc_generic_particle_source'
+  )
   particle_width: torax_pydantic.TimeVaryingScalar = (
       torax_pydantic.ValidatedDefault(0.25)
   )

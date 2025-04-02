@@ -19,6 +19,7 @@ import jax
 from jax import numpy as jnp
 from torax import array_typing
 from torax import constants
+from torax import jax_utils
 from torax import math_utils
 from torax import state
 from torax.config import runtime_params_slice
@@ -28,7 +29,6 @@ from torax.geometry import geometry
 from torax.geometry import standard_geometry
 from torax.physics import psi_calculations
 from torax.sources import source_models as source_models_lib
-from torax.sources import source_operations
 from torax.sources import source_profile_builders
 from torax.sources import source_profiles as source_profiles_lib
 
@@ -93,11 +93,18 @@ def initial_core_profiles(
   s_face = jnp.zeros_like(geo.rho_face)
   currents = state.Currents.zeros(geo)
 
-  # Set vloop_lcfs to 0 for the first time step if not provided
+  # Set vloop_lcfs. Two branches:
+  # 1. Set the vloop_lcfs from profile_conditions if using the vloop BC option
+  # 2. Initialize vloop_lcfs to 0 if using the Ip boundary condition for psi.
+  # In case 2, vloop_lcfs will be updated every timestep based on the psi_lcfs
+  # values across the time interval. Since there is is one more time value than
+  # time intervals, the vloop_lcfs time-series is underconstrained. Therefore,
+  # after the first timestep we reset vloop_lcfs[0] to vloop_lcfs[1].
+
   vloop_lcfs = (
-      jnp.array(0.0)
-      if dynamic_runtime_params_slice.profile_conditions.vloop_lcfs is None
-      else jnp.array(dynamic_runtime_params_slice.profile_conditions.vloop_lcfs)
+      jnp.array(dynamic_runtime_params_slice.profile_conditions.vloop_lcfs)
+      if static_runtime_params_slice.use_vloop_lcfs_boundary_condition
+      else jnp.array(0.0, dtype=jax_utils.get_dtype())
   )
 
   core_profiles = state.CoreProfiles(
@@ -121,7 +128,7 @@ def initial_core_profiles(
       vloop_lcfs=vloop_lcfs,
   )
 
-  core_profiles = _init_psi_psidot_vloop_and_current(
+  core_profiles = _init_psi_psidot_and_currents(
       static_runtime_params_slice,
       dynamic_runtime_params_slice,
       geo,
@@ -307,7 +314,7 @@ def _update_psi_from_j(
   return psi
 
 
-def _init_psi_psidot_vloop_and_current(
+def _init_psi_psidot_and_currents(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -334,9 +341,7 @@ def _init_psi_psidot_vloop_and_current(
   Returns:
     Refined core profiles.
   """
-  use_vloop_bc = (
-      dynamic_runtime_params_slice.profile_conditions.use_vloop_lcfs_boundary_condition
-  )
+  use_vloop_bc = static_runtime_params_slice.use_vloop_lcfs_boundary_condition
 
   source_profiles = source_profiles_lib.SourceProfiles(
       j_bootstrap=source_profiles_lib.BootstrapCurrentProfile.zero_profile(geo),
@@ -512,7 +517,6 @@ def _init_psi_psidot_vloop_and_current(
       q_face=psi_calculations.calc_q_face(geo, psi),
       s_face=psi_calculations.calc_s_face(geo, psi),
       currents=currents,
-      vloop_lcfs=dynamic_runtime_params_slice.profile_conditions.vloop_lcfs,
   )
   bootstrap_profile = source_models.j_bootstrap.get_bootstrap(
       dynamic_runtime_params_slice=dynamic_runtime_params_slice,
@@ -526,7 +530,7 @@ def _init_psi_psidot_vloop_and_current(
   # psidot calculated here with phibdot=0 in geo, since this is initial
   # conditions and we don't yet have information on geo_t_plus_dt for the
   # phibdot calculation.
-  psi_sources = source_operations.sum_sources_psi(geo, source_profiles)
+  psi_sources = source_profiles.total_psi_sources(geo)
   sigma = source_profiles.j_bootstrap.sigma
   sigma_face = source_profiles.j_bootstrap.sigma_face
   psidot = psi_calculations.calculate_psidot_from_psi_sources(
@@ -538,17 +542,9 @@ def _init_psi_psidot_vloop_and_current(
       geo=geo,
   )
   psidot_cell_var = dataclasses.replace(core_profiles.psidot, value=psidot)
-  # TODO(b/396374895): For Ip_tot BC, introduce a feature for calculating
-  # vloop_lcfs in final post-processing and test to check vloop equivalence
-  # between vloop BC and Ip_tot BC
   core_profiles = dataclasses.replace(
       core_profiles,
       psidot=psidot_cell_var,
-      vloop_lcfs=(
-          dynamic_runtime_params_slice.profile_conditions.vloop_lcfs
-          if use_vloop_bc
-          else 0.0
-      ),
   )
 
   return core_profiles

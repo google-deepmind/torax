@@ -30,16 +30,10 @@ from absl import flags
 from absl import logging
 import jax
 import torax
-from torax import sim as sim_lib
 from torax import simulation_app
-from torax.config import build_sim
 from torax.config import config_loader
-from torax.config import runtime_params
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
 from torax.plotting import plotruns_lib
-from torax.sources import pydantic_model as sources_pydantic_model
-from torax.stepper import pydantic_model as stepper_pydantic_model
+from torax.torax_pydantic import model_config
 
 
 # String used when prompting the user to make a choice of command
@@ -125,14 +119,8 @@ class _UserCommand(enum.Enum):
   """Options to do on every iteration of the script."""
 
   RUN = ('RUN SIMULATION', 'r', simulation_app.AnsiColors.GREEN)
-  CHANGE_CONFIG = (
-      'change config for the same sim object (may recompile)',
-      'cc',
-  )
-  CHANGE_SIM_OBJ = (
-      'change config and build new sim object (will recompile)',
-      'cs',
-  )
+  MODIFY_CONFIG = ('modify the existing config and reload it', 'mc')
+  CHANGE_CONFIG = ('provide a new config file to load', 'cc')
   TOGGLE_LOG_SIM_PROGRESS = ('toggle --log_progress', 'tlp')
   TOGGLE_PLOT_SIM_PROGRESS = ('toggle --plot_progress', 'tpp')
   TOGGLE_LOG_SIM_OUTPUT = ('toggle --log_output', 'tlo')
@@ -140,7 +128,7 @@ class _UserCommand(enum.Enum):
   QUIT = ('quit', 'q', simulation_app.AnsiColors.RED)
 
 
-def prompt_user(config_module_str: str) -> _UserCommand:
+def _prompt_user(config_module_str: str) -> _UserCommand:
   """Prompts the user for the next thing to do."""
   simulation_app.log_to_stdout('\n')
   simulation_app.log_to_stdout(
@@ -173,7 +161,7 @@ def prompt_user(config_module_str: str) -> _UserCommand:
   return user_command
 
 
-def maybe_update_config_module(
+def _maybe_update_config_module(
     config_module_str: str,
 ) -> str:
   """Returns a possibly-updated config module to import."""
@@ -194,42 +182,13 @@ def maybe_update_config_module(
     return config_module_str
 
 
-def change_config(
-    sim: sim_lib.Sim,
+def _modify_config(
     config_module_str: str,
-) -> tuple[sim_lib.Sim, runtime_params.GeneralRuntimeParams] | None:
-  """Returns a new Sim with the updated config but same SimulationStepFn.
-
-  This function gives the user a chance to reuse the SimulationStepFn without
-  triggering a recompile. The SimulationStepFn will only recompile if the
-  StaticConfigSlice derived from the the new Config changes.
-
-  This function will NOT change the stepper, transport model, or time step
-  calculator built into the SimulationStepFn. To change these attributes, the
-  user must build a new Sim object.
-
-  Args:
-    sim: Sim object used in the previous run.
-    config_module_str: Config module being used.
-
-  Returns:
-    Tuple with:
-     - New Sim object with new config.
-     - New Config object with modified configuration attributes
-  """
+) -> tuple[model_config.ToraxConfig, str] | None:
+  """Returns a new ToraxConfig from the modified config module."""
   simulation_app.log_to_stdout(
       f'Change {config_module_str} to include new values.',
       color=simulation_app.AnsiColors.BLUE,
-  )
-  yellow = simulation_app.AnsiColors.YELLOW
-  simulation_app.log_to_stdout('You cannot change the following:', color=yellow)
-  simulation_app.log_to_stdout('  - stepper type', color=yellow)
-  simulation_app.log_to_stdout('  - transport model type', color=yellow)
-  simulation_app.log_to_stdout('  - source types', color=yellow)
-  simulation_app.log_to_stdout('  - time step calculator', color=yellow)
-  simulation_app.log_to_stdout(
-      'To change these parameters, select "cs" from the main menu.',
-      color=yellow,
   )
   simulation_app.log_to_stdout(
       'Modify the config with new values, then enter "y".',
@@ -250,79 +209,30 @@ def change_config(
         f'Config module {config_module_str} does not have a CONFIG attribute.'
         ' Please use the basic config dict to build Sim.'
     )
-  sim_config = config_module.CONFIG
-  new_runtime_params = build_sim.build_runtime_params_from_config(
-      sim_config['runtime_params']
-  )
-  new_geo_provider = geometry_pydantic_model.Geometry.from_dict(
-      sim_config['geometry']
-  ).build_provider
-  new_transport_model_builder = (
-      build_sim.build_transport_model_builder_from_config(
-          sim_config['transport']
-      )
-  )
-  new_stepper = stepper_pydantic_model.Stepper.from_dict(
-      sim_config['stepper']
-  )
-  new_pedestal = pedestal_pydantic_model.Pedestal.from_dict(
-      sim_config['pedestal'] if 'pedestal' in sim_config else {}
-  )
-  new_sources = sources_pydantic_model.Sources.from_dict(
-      sim_config['sources']
-    )
-  # Make sure the transport model has not changed.
-  # TODO(b/330172917): Improve the check for updated configs.
-  if not isinstance(new_transport_model_builder(), type(sim.transport_model)):
-    raise ValueError(
-        f'New transport model type {type(new_transport_model_builder())} does'
-        f' not match the existing transport model {type(sim.transport_model)}.'
-        ' When using this option, you cannot change the transport model.'
-    )
-  simulation_app.update_sim(
-      sim=sim,
-      runtime_params=new_runtime_params,
-      geo_provider=new_geo_provider,
-      transport_runtime_params=new_transport_model_builder.runtime_params,
-      sources=new_sources,
-      stepper=new_stepper,
-      pedestal=new_pedestal,
-  )
-  return sim, new_runtime_params
+  return model_config.ToraxConfig.from_dict(config_module.CONFIG)
 
 
-def change_sim_obj(
+def _change_config(
     config_module_str: str,
-) -> tuple[sim_lib.Sim, runtime_params.GeneralRuntimeParams, str]:
-  """Builds a new Sim from the config module.
-
-  Unlike change_config(), this function builds a brand new Sim object with a
-  new transport model, stepper, time step calculator, and so on. It will always
-  recompile (unless requested not to).
-
-  Args:
-    config_module_str: Config module used previously. User will have the
-      opportunity to update which module to load.
-
-  Returns:
-    Tuple with:
-     - New Sim object with a new config.
-     - New Config object with modified config attributes
-     - Name of the module used to load the config.
-  """
-  config_module_str = maybe_update_config_module(config_module_str)
+) -> tuple[model_config.ToraxConfig, str]:
+  """Returns a ToraxConfig from the new config module and the config file."""
+  config_module_str = _maybe_update_config_module(config_module_str)
   simulation_app.log_to_stdout(
       f'Change {config_module_str} to include new values. Any changes to '
-      'CONFIG or get_sim() will be picked up.',
+      'CONFIG will be picked up.',
       color=simulation_app.AnsiColors.BLUE,
   )
   input('Press Enter when done changing the module.')
-  sim, new_runtime_params = (
-      config_loader.build_sim_and_runtime_params_from_config_module(
-          config_module_str, _PYTHON_CONFIG_PACKAGE.value
-      )
+  config_module = config_loader.import_module(
+      config_module_str, _PYTHON_CONFIG_PACKAGE.value
   )
-  return sim, new_runtime_params, config_module_str
+  if not hasattr(config_module, 'CONFIG'):
+    raise ValueError(
+        f'Config module {config_module_str} does not have a CONFIG attribute.'
+        ' Please use the basic config dict to build Sim.'
+    )
+  torax_config = model_config.ToraxConfig.from_dict(config_module.CONFIG)
+  return torax_config, config_module_str
 
 
 def _get_yes_or_no() -> bool:
@@ -457,25 +367,24 @@ def main(_):
   log_sim_progress = _LOG_SIM_PROGRESS.value
   plot_sim_progress = _PLOT_SIM_PROGRESS.value
   log_sim_output = _LOG_SIM_OUTPUT.value
-  sim = None
-  new_runtime_params = None
+  torax_config = None
   output_files = []
   try:
     start_time = time.time()
-    sim, new_runtime_params = (
-        config_loader.build_sim_and_runtime_params_from_config_module(
+    torax_config = (
+        config_loader.build_torax_config_from_config_module(
             config_module_str, _PYTHON_CONFIG_PACKAGE.value
         )
     )
     output_dir = (
         _OUTPUT_DIR.value
         if _OUTPUT_DIR.value is not None
-        else new_runtime_params.output_dir
+        else torax_config.runtime_params.output_dir
     )
     build_time = time.time() - start_time
     start_time = time.time()
     output_file = _call_sim_app_main(
-        sim=sim,
+        torax_config,
         output_dir=output_dir,
         log_sim_progress=log_sim_progress,
         plot_sim_progress=plot_sim_progress,
@@ -490,7 +399,7 @@ def main(_):
     )
   except ValueError as ve:
     simulation_app.log_to_stdout(
-        f'Error ocurred: {ve}',
+        f'Error occurred: {ve}',
         color=simulation_app.AnsiColors.RED,
         exc_info=True,
     )
@@ -500,28 +409,23 @@ def main(_):
     )
   if _QUIT.value:
     return
-  user_command = prompt_user(config_module_str)
+  user_command = _prompt_user(config_module_str)
   while user_command != _UserCommand.QUIT:
     match user_command:
       case _UserCommand.QUIT:
         # This line shouldn't get hit, but is here for pytype.
         return  # Exit the function.
       case _UserCommand.RUN:
-        if sim is None or new_runtime_params is None:
+        if torax_config is None:
           simulation_app.log_to_stdout(
               'Need to reload the simulation.',
-              color=simulation_app.AnsiColors.RED,
-          )
-          simulation_app.log_to_stdout(
-              'Try changing the config and running with'
-              f' {_UserCommand.CHANGE_SIM_OBJ.value[1]} from the main menu.',
               color=simulation_app.AnsiColors.RED,
           )
         else:
           start_time = time.time()
           output_file = _call_sim_app_main(
-              sim=sim,
-              output_dir=new_runtime_params.output_dir,
+              torax_config,
+              output_dir=torax_config.runtime_params.output_dir,
               log_sim_progress=log_sim_progress,
               plot_sim_progress=plot_sim_progress,
               log_sim_output=log_sim_output,
@@ -531,59 +435,62 @@ def main(_):
           simulation_app.log_to_stdout(
               f'Simulation time: {simulation_time:.2f}s'
           )
-      case _UserCommand.CHANGE_CONFIG:
+      case _UserCommand.MODIFY_CONFIG:
         # See docstring for detailed info on what recompiles.
-        if sim is None or new_runtime_params is None:
+        if torax_config is None:
           simulation_app.log_to_stdout(
               'Need to reload the simulation.',
-              color=simulation_app.AnsiColors.RED,
-          )
-          simulation_app.log_to_stdout(
-              'Try changing the config and running with'
-              f' {_UserCommand.CHANGE_SIM_OBJ.value[1]} from the main menu.',
               color=simulation_app.AnsiColors.RED,
           )
         else:
           try:
             start_time = time.time()
-            sim_and_runtime_params_or_none = change_config(
-                sim, config_module_str
+            torax_config_or_none = _modify_config(
+                config_module_str
             )
-            if sim_and_runtime_params_or_none is not None:
-              sim, new_runtime_params = sim_and_runtime_params_or_none
+            if torax_config_or_none is not None:
+              torax_config = torax_config_or_none
             config_change_time = time.time() - start_time
             simulation_app.log_to_stdout(
                 f'Config change time: {config_change_time:.2f}s'
             )
           except ValueError as ve:
             simulation_app.log_to_stdout(
-                f'Error ocurred: {ve}',
+                f'Error occurred: {ve}',
                 color=simulation_app.AnsiColors.RED,
             )
             simulation_app.log_to_stdout(
                 'Update config and try again.',
                 color=simulation_app.AnsiColors.RED,
             )
-      case _UserCommand.CHANGE_SIM_OBJ:
-        # This always builds a new object and requires recompilation.
-        try:
-          start_time = time.time()
-          sim, new_runtime_params, config_module_str = change_sim_obj(
-              config_module_str
-          )
-          sim_change_time = time.time() - start_time
+      case _UserCommand.CHANGE_CONFIG:
+        # See docstring for detailed info on what recompiles.
+        if torax_config is None:
           simulation_app.log_to_stdout(
-              f'Sim change time: {sim_change_time:.2f}s'
-          )
-        except ValueError as ve:
-          simulation_app.log_to_stdout(
-              f'Error ocurred: {ve}',
+              'Need to reload the simulation.',
               color=simulation_app.AnsiColors.RED,
           )
-          simulation_app.log_to_stdout(
-              'Update config and try again.',
-              color=simulation_app.AnsiColors.RED,
-          )
+        else:
+          try:
+            start_time = time.time()
+            torax_config_or_none = _change_config(
+                config_module_str
+            )
+            if torax_config_or_none is not None:
+              torax_config, config_module_str = torax_config_or_none
+            config_change_time = time.time() - start_time
+            simulation_app.log_to_stdout(
+                f'Config change time: {config_change_time:.2f}s'
+            )
+          except ValueError as ve:
+            simulation_app.log_to_stdout(
+                f'Error occurred: {ve}',
+                color=simulation_app.AnsiColors.RED,
+            )
+            simulation_app.log_to_stdout(
+                'Update config and try again.',
+                color=simulation_app.AnsiColors.RED,
+            )
       case _UserCommand.TOGGLE_LOG_SIM_PROGRESS:
         log_sim_progress = _toggle_log_progress(log_sim_progress)
       case _UserCommand.TOGGLE_PLOT_SIM_PROGRESS:
@@ -594,7 +501,7 @@ def main(_):
         _post_run_plotting(output_files)
       case _:
         raise ValueError('Unknown command')
-    user_command = prompt_user(config_module_str)
+    user_command = _prompt_user(config_module_str)
 
 
 def use_jax_profiler_if_enabled(f):
@@ -619,14 +526,14 @@ def use_jax_profiler_if_enabled(f):
 
 @use_jax_profiler_if_enabled
 def _call_sim_app_main(
-    sim,
+    torax_config,
     output_dir: str,
     log_sim_progress: bool,
     plot_sim_progress: bool,
     log_sim_output: bool,
 ):
   return simulation_app.main(
-      lambda: sim,
+      lambda: torax_config,
       output_dir=output_dir,
       log_sim_progress=log_sim_progress,
       plot_sim_progress=plot_sim_progress,

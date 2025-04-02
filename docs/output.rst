@@ -73,10 +73,15 @@ with both ``rho_cell`` and ``rho_cell_norm``.
 Top level dataset
 =================
 The top level dataset contains an indicator of whether the simulation completed
-successfully.
+successfully as well as the input config that was used to run the simulation.
 
 ``sim_error`` ()
   Indicator if the simulation completed successfully, 0 if successful, 1 if not.
+
+``attrs`` ()
+  The ``attrs`` field of a Dataset is used to store metadata about the Dataset
+  as a dictionary. We use this field to store the input config as a json string
+  under the ``config`` key.
 
 
 Child datasets
@@ -500,8 +505,27 @@ is assumed to not be time varying.
   import numpy as np
   from torax import output
 
-  data_tree = output.safe_load_state_file('state_history.nc').sel(time=1.0, method='nearest')
+  data_tree = output.load_state_file('state_history.nc').sel(time=1.0, method='nearest')
   fusion_heat_source_el = data_tree.children['core_sources'].dataset['fusion_heat_source_el']
   fusion_heat_source_ion = data_tree.children['core_sources'].dataset['fusion_heat_source_ion']
 
   Ptot = np.trapz((fusion_heat_source_el + fusion_heat_source_ion) * data_tree.vpr, data_tree.rho_cell_norm)
+
+
+It is possible to retrieve the input config from the output for debugging
+purposes or to rerun the simulation.
+
+.. code-block:: python
+
+  import json
+  import torax
+  from torax import output
+
+  data_tree = output.load_state_file('state_history.nc')
+  config_dict = json.loads(data_tree.attrs['config'])
+  # Check which transport model was used.
+  print(config_dict['transport']['transport_model_config']['transport_model'])
+  # We can also use ToraxConfig to run the simulation again.
+  torax_config = torax.ToraxConfig.from_dict(config_dict)
+  new_output = torax.run_simulation(torax_config)
+

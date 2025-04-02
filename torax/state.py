@@ -13,22 +13,21 @@
 # limitations under the License.
 
 """Classes defining the TORAX state that evolves over time."""
-
-from __future__ import annotations
-
 import dataclasses
 import enum
-from typing import Any, Optional
+from typing import Optional
 
 from absl import logging
 import chex
 import jax
 from jax import numpy as jnp
 from torax import array_typing
+from torax import jax_utils
 from torax.config import config_args
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 from torax.sources import source_profiles
+import typing_extensions
 
 
 @chex.dataclass(frozen=True)
@@ -59,20 +58,6 @@ class Currents:
     """Returns the total plasma current [A]."""
     return self.Ip_profile_face[..., -1]
 
-  def has_nans(self) -> bool:
-    """Checks for NaNs in all attributes of Currents."""
-
-    def _check_for_nans(x: Any) -> bool:
-      if isinstance(x, jax.Array):
-        return jnp.any(jnp.isnan(x)).item()
-      else:
-        return False
-
-    return any(
-        _check_for_nans(getattr(self, field))
-        for field in self.__dataclass_fields__
-    )
-
   @classmethod
   def zeros(cls, geo: geometry.Geometry) -> "Currents":
     """Returns a Currents with all zeros."""
@@ -83,7 +68,7 @@ class Currents:
         external_current_source=jnp.zeros(geo.rho_face.shape),
         j_bootstrap=jnp.zeros(geo.rho_face.shape),
         j_bootstrap_face=jnp.zeros(geo.rho_face.shape),
-        I_bootstrap=jnp.array(0.0),
+        I_bootstrap=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         Ip_profile_face=jnp.zeros(geo.rho_face.shape),
         sigma=jnp.zeros(geo.rho_face.shape),
         jtot_hires=jnp.zeros(geo.rho_face.shape),
@@ -142,7 +127,7 @@ class CoreProfiles:
   Aimp: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
-  def history_elem(self) -> CoreProfiles:
+  def history_elem(self) -> typing_extensions.Self:
     """Returns the current CoreProfiles as a history entry.
 
     Histories are CoreProfiles with all the tree leaves getting an extra
@@ -157,6 +142,7 @@ class CoreProfiles:
         temp_el=self.temp_el.history_elem(),
         psi=self.psi.history_elem(),
         psidot=self.psidot.history_elem(),
+        vloop_lcfs=self.vloop_lcfs,
         ne=self.ne.history_elem(),
         ni=self.ni.history_elem(),
         nimp=self.nimp.history_elem(),
@@ -172,26 +158,6 @@ class CoreProfiles:
         Aimp=self.Aimp,
     )
 
-  def has_nans(self) -> bool:
-    """Checks for NaNs in all attributes of CoreProfiles."""
-
-    def _check_for_nans(x: Any) -> bool:
-      if isinstance(x, jax.Array):
-        return jnp.any(jnp.isnan(x)).item()
-      elif isinstance(x, (int, float)):
-        return jnp.isnan(x).item()
-      elif isinstance(x, Currents):
-        return x.has_nans()  # Check for NaNs within nested Currents dataclass
-      elif isinstance(x, cell_variable.CellVariable):
-        return jnp.any(jnp.isnan(x.value)).item()
-      else:
-        return False
-
-    return any(
-        _check_for_nans(getattr(self, field))
-        for field in self.__dataclass_fields__
-    )
-
   def quasineutrality_satisfied(self) -> bool:
     """Checks if quasineutrality is satisfied."""
     return jnp.allclose(
@@ -199,7 +165,20 @@ class CoreProfiles:
         self.ne.value,
     ).item()
 
-  def index(self, i: int) -> CoreProfiles:
+  def negative_temperature_or_density(self) -> bool:
+    """Checks if any temperature or density is negative."""
+    profiles_to_check = (
+        self.temp_ion,
+        self.temp_el,
+        self.ne,
+        self.ni,
+        self.nimp,
+    )
+    return any(
+        [jnp.any(jnp.less(x, 0.0)) for x in jax.tree.leaves(profiles_to_check)]
+    )
+
+  def index(self, i: int) -> typing_extensions.Self:
     """If the CoreProfiles is a history, returns the i-th CoreProfiles."""
     idx = lambda x: x[i]
     state = jax.tree_util.tree_map(idx, self)
@@ -230,8 +209,20 @@ class CoreProfiles:
     """
     return id(self)
 
+  def __str__(self) -> str:
+    return f"""
+      CoreProfiles(
+        temp_ion={self.temp_ion},
+        temp_el={self.temp_el},
+        psi={self.psi},
+        ne={self.ne},
+        nimp={self.nimp},
+        ni={self.ni},
+      )
+    """
 
-@chex.dataclass(frozen=True, eq=False)
+
+@chex.dataclass
 class CoreTransport:
   """Coefficients for the plasma transport.
 
@@ -239,19 +230,41 @@ class CoreTransport:
   transport_model/ folder for more info.
 
   NOTE: The naming of this class is inspired by the IMAS `core_transport` IDS,
-  but it's schema is not a 1:1 mapping to that IDS.
+  but its schema is not a 1:1 mapping to that IDS.
 
   Attributes:
     chi_face_ion: Ion heat conductivity, on the face grid.
     chi_face_el: Electron heat conductivity, on the face grid.
     d_face_el: Diffusivity of electron density, on the face grid.
     v_face_el: Convection strength of electron density, on the face grid.
+    chi_face_el_bohm: (Optional) Bohm contribution for electron heat
+      conductivity.
+    chi_face_el_gyrobohm: (Optional) GyroBohm contribution for electron heat
+      conductivity.
+    chi_face_ion_bohm: (Optional) Bohm contribution for ion heat conductivity.
+    chi_face_ion_gyrobohm: (Optional) GyroBohm contribution for ion heat
+      conductivity.
   """
 
   chi_face_ion: jax.Array
   chi_face_el: jax.Array
   d_face_el: jax.Array
   v_face_el: jax.Array
+  chi_face_el_bohm: Optional[jax.Array] = None
+  chi_face_el_gyrobohm: Optional[jax.Array] = None
+  chi_face_ion_bohm: Optional[jax.Array] = None
+  chi_face_ion_gyrobohm: Optional[jax.Array] = None
+
+  def __post_init__(self):
+    # Use the array size of chi_face_el as a reference.
+    if self.chi_face_el_bohm is None:
+      self.chi_face_el_bohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_el_gyrobohm is None:
+      self.chi_face_el_gyrobohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_ion_bohm is None:
+      self.chi_face_ion_bohm = jnp.zeros_like(self.chi_face_el)
+    if self.chi_face_ion_gyrobohm is None:
+      self.chi_face_ion_gyrobohm = jnp.zeros_like(self.chi_face_el)
 
   def chi_max(
       self,
@@ -265,20 +278,24 @@ class CoreTransport:
     Returns:
       chi_max: Maximum value of chi.
     """
-
     return jnp.maximum(
         jnp.max(self.chi_face_ion * geo.g1_over_vpr2_face),
         jnp.max(self.chi_face_el * geo.g1_over_vpr2_face),
     )
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> CoreTransport:
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
     """Returns a CoreTransport with all zeros. Useful for initializing."""
+    shape = geo.rho_face.shape
     return cls(
-        chi_face_ion=jnp.zeros(geo.rho_face.shape),
-        chi_face_el=jnp.zeros(geo.rho_face.shape),
-        d_face_el=jnp.zeros(geo.rho_face.shape),
-        v_face_el=jnp.zeros(geo.rho_face.shape),
+        chi_face_ion=jnp.zeros(shape),
+        chi_face_el=jnp.zeros(shape),
+        d_face_el=jnp.zeros(shape),
+        v_face_el=jnp.zeros(shape),
+        chi_face_el_bohm=jnp.zeros(shape),
+        chi_face_el_gyrobohm=jnp.zeros(shape),
+        chi_face_ion_bohm=jnp.zeros(shape),
+        chi_face_ion_gyrobohm=jnp.zeros(shape),
     )
 
 
@@ -321,6 +338,7 @@ class PostProcessedOutputs:
     P_external_el: Total external electron heating power: auxiliary heating +
       Ohmic [W]
     P_external_tot: Total external heating power: auxiliary heating + Ohmic [W]
+    P_external_injected: Total external injected power before absorption [W]
     P_ei_exchange_ion: Electron-ion heat exchange power to ions [W]
     P_ei_exchange_el: Electron-ion heat exchange power to electrons [W]
     P_generic_ion: Total generic_ion_el_heat_source power to ions [W]
@@ -360,6 +378,7 @@ class PostProcessedOutputs:
     q95: q at 95% of the normalized poloidal flux
     Wpol: Total magnetic energy [J]
     li3: Normalized plasma internal inductance, ITER convention [dimensionless]
+    dW_th_dt: Time derivative of the total stored thermal energy [W]
   """
 
   pressure_thermal_ion_face: array_typing.ArrayFloat
@@ -387,6 +406,7 @@ class PostProcessedOutputs:
   P_external_ion: array_typing.ScalarFloat
   P_external_el: array_typing.ScalarFloat
   P_external_tot: array_typing.ScalarFloat
+  P_external_injected: array_typing.ScalarFloat
   P_ei_exchange_ion: array_typing.ScalarFloat
   P_ei_exchange_el: array_typing.ScalarFloat
   P_generic_ion: array_typing.ScalarFloat
@@ -423,69 +443,72 @@ class PostProcessedOutputs:
   q95: array_typing.ScalarFloat
   Wpol: array_typing.ScalarFloat
   li3: array_typing.ScalarFloat
+  dW_th_dt: array_typing.ScalarFloat
   # pylint: enable=invalid-name
 
   @classmethod
-  def zeros(cls, geo: geometry.Geometry) -> PostProcessedOutputs:
+  def zeros(cls, geo: geometry.Geometry) -> typing_extensions.Self:
     """Returns a PostProcessedOutputs with all zeros, used for initializing."""
     return cls(
         pressure_thermal_ion_face=jnp.zeros(geo.rho_face.shape),
         pressure_thermal_el_face=jnp.zeros(geo.rho_face.shape),
         pressure_thermal_tot_face=jnp.zeros(geo.rho_face.shape),
         pprime_face=jnp.zeros(geo.rho_face.shape),
-        W_thermal_ion=jnp.array(0.0),
-        W_thermal_el=jnp.array(0.0),
-        W_thermal_tot=jnp.array(0.0),
-        tauE=jnp.array(0.0),
-        H89P=jnp.array(0.0),
-        H98=jnp.array(0.0),
-        H97L=jnp.array(0.0),
-        H20=jnp.array(0.0),
+        W_thermal_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        W_thermal_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        W_thermal_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        tauE=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        H89P=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        H98=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        H97L=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        H20=jnp.array(0.0, dtype=jax_utils.get_dtype()),
         FFprime_face=jnp.zeros(geo.rho_face.shape),
         psi_norm_face=jnp.zeros(geo.rho_face.shape),
         psi_face=jnp.zeros(geo.rho_face.shape),
-        P_sol_ion=jnp.array(0.0),
-        P_sol_el=jnp.array(0.0),
-        P_sol_tot=jnp.array(0.0),
-        P_external_ion=jnp.array(0.0),
-        P_external_el=jnp.array(0.0),
-        P_external_tot=jnp.array(0.0),
-        P_ei_exchange_ion=jnp.array(0.0),
-        P_ei_exchange_el=jnp.array(0.0),
-        P_generic_ion=jnp.array(0.0),
-        P_generic_el=jnp.array(0.0),
-        P_generic_tot=jnp.array(0.0),
-        P_alpha_ion=jnp.array(0.0),
-        P_alpha_el=jnp.array(0.0),
-        P_alpha_tot=jnp.array(0.0),
-        P_ohmic=jnp.array(0.0),
-        P_brems=jnp.array(0.0),
-        P_cycl=jnp.array(0.0),
-        P_ecrh=jnp.array(0.0),
-        P_rad=jnp.array(0.0),
-        I_ecrh=jnp.array(0.0),
-        I_generic=jnp.array(0.0),
-        Q_fusion=jnp.array(0.0),
-        P_icrh_ion=jnp.array(0.0),
-        P_icrh_el=jnp.array(0.0),
-        P_icrh_tot=jnp.array(0.0),
-        P_LH_hi_dens=jnp.array(0.0),
-        P_LH_min=jnp.array(0.0),
-        P_LH=jnp.array(0.0),
-        ne_min_P_LH=jnp.array(0.0),
-        E_cumulative_fusion=jnp.array(0.0),
-        E_cumulative_external=jnp.array(0.0),
-        te_volume_avg=jnp.array(0.0),
-        ti_volume_avg=jnp.array(0.0),
-        ne_volume_avg=jnp.array(0.0),
-        ni_volume_avg=jnp.array(0.0),
-        ne_line_avg=jnp.array(0.0),
-        ni_line_avg=jnp.array(0.0),
-        fgw_ne_volume_avg=jnp.array(0.0),
-        fgw_ne_line_avg=jnp.array(0.0),
-        q95=jnp.array(0.0),
-        Wpol=jnp.array(0.0),
-        li3=jnp.array(0.0),
+        P_sol_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_sol_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_sol_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_external_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_external_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_external_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_external_injected=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ei_exchange_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ei_exchange_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_generic_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_alpha_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_alpha_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_alpha_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ohmic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_brems=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_cycl=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_rad=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_ecrh=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        I_generic=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        Q_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_icrh_ion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_icrh_el=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_icrh_tot=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_hi_dens=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH_min=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ne_min_P_LH=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_cumulative_fusion=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        E_cumulative_external=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        te_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ti_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ne_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ni_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ne_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        ni_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        fgw_ne_volume_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        fgw_ne_line_avg=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        q95=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        Wpol=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        li3=jnp.array(0.0, dtype=jax_utils.get_dtype()),
+        dW_th_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
 
 
@@ -516,13 +539,17 @@ class SimError(enum.Enum):
   NO_ERROR = 0
   NAN_DETECTED = 1
   QUASINEUTRALITY_BROKEN = 2
+  NEGATIVE_CORE_PROFILES = 3
 
   def log_error(self):
     match self:
+      case SimError.NEGATIVE_CORE_PROFILES:
+        logging.error("""
+            Simulation stopped due to negative values in core profiles.
+            """)
       case SimError.NAN_DETECTED:
         logging.error("""
-            Simulation stopped due to NaNs in core profiles.
-            Possible cause is negative temperatures or densities.
+            Simulation stopped due to NaNs in state.
             Output file contains all profiles up to the last valid step.
             """)
       case SimError.QUASINEUTRALITY_BROKEN:
@@ -583,14 +610,31 @@ class ToraxSimState:
 
   # Other "side" states used for logging and feeding to other components of
   # TORAX.
-  time_step_calculator_state: Any
   stepper_numeric_outputs: StepperNumericOutputs
 
   def check_for_errors(self) -> SimError:
     """Checks for errors in the simulation state."""
-    if self.core_profiles.has_nans():
+    if self.core_profiles.negative_temperature_or_density():
+      logging.info("%s", self.core_profiles)
+      log_negative_profile_names(self.core_profiles)
+      return SimError.NEGATIVE_CORE_PROFILES
+    # If there are NaNs that occured without negative core profiles, log this
+    # as a separate error.
+    if has_nan(self):
+      logging.info("%s", self.core_profiles)
       return SimError.NAN_DETECTED
     elif not self.core_profiles.quasineutrality_satisfied():
       return SimError.QUASINEUTRALITY_BROKEN
     else:
       return SimError.NO_ERROR
+
+
+def has_nan(inputs: ToraxSimState) -> bool:
+  return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
+
+
+def log_negative_profile_names(inputs: CoreProfiles):
+  path_vals, _ = jax.tree.flatten_with_path(inputs)
+  for path, value in path_vals:
+    if jnp.any(jnp.less(value, 0.0)):
+      logging.info("Found negative value in %s", jax.tree_util.keystr(path))

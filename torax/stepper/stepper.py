@@ -165,8 +165,10 @@ class Stepper(abc.ABC):
         dynamic_runtime_params_slice_t_plus_dt,
         geo_t_plus_dt,
         core_sources,
+        core_profiles_t,
         core_profiles_t_plus_dt,
         evolving_names,
+        dt=dt,
     )
 
     return (

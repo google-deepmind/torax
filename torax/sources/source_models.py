@@ -13,9 +13,6 @@
 # limitations under the License.
 
 """Functions for building source profiles in TORAX."""
-
-from __future__ import annotations
-
 from collections.abc import Mapping
 
 from torax.sources import base
@@ -94,11 +91,8 @@ class SourceModels:
     # The rest of the sources are "standard".
     self._standard_sources = {}
 
-    # Divide up the sources based on which core profiles they affect.
+    # Pull out the psi sources as these are calculated first.
     self._psi_sources: dict[str, source_lib.Source] = {}
-    self._ne_sources: dict[str, source_lib.Source] = {}
-    self._temp_ion_sources: dict[str, source_lib.Source] = {}
-    self._temp_el_sources: dict[str, source_lib.Source] = {}
 
     # First set the "special" sources.
     for source in sources.values():
@@ -183,12 +177,6 @@ class SourceModels:
     self._standard_sources[source_name] = source
     if source_lib.AffectedCoreProfile.PSI in source.affected_core_profiles:
       self._psi_sources[source_name] = source
-    if source_lib.AffectedCoreProfile.NE in source.affected_core_profiles:
-      self._ne_sources[source_name] = source
-    if source_lib.AffectedCoreProfile.TEMP_ION in source.affected_core_profiles:
-      self._temp_ion_sources[source_name] = source
-    if source_lib.AffectedCoreProfile.TEMP_EL in source.affected_core_profiles:
-      self._temp_el_sources[source_name] = source
 
   # Some sources require direct access, so this class defines properties for
   # those sources.
@@ -232,3 +220,15 @@ class SourceModels:
         self.j_bootstrap_name: self.j_bootstrap,
         self.qei_source_name: self.qei_source,
     }
+
+  def __hash__(self) -> int:
+    hashes = [hash(source) for source in self.sources.values()]
+    return hash(tuple(hashes))
+
+  def __eq__(self, other) -> bool:
+    if set(self.sources.keys()) == set(other.sources.keys()):
+      return all(
+          self.sources[name] == other.sources[name]
+          for name in self.sources.keys()
+      )
+    return False

@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Base model for source pydantic configs."""
-from __future__ import annotations
-
 import abc
 
 import chex
@@ -24,6 +22,12 @@ from torax.torax_pydantic import torax_pydantic
 
 class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
   """Base model holding parameters common to all source models.
+
+  Subclasses should define the `model_function_name` attribute as a `Literal`
+  string. This string should match the name of the function that calculates the
+  source profile. This is used as an identifier for the model function in the
+  source config for Pydantic to "discriminate" against. This should be given a
+  unique value for each source model function implementation.
 
   Attributes:
     mode: Defines how the source values are computed (from a model, from a file,
@@ -41,7 +45,6 @@ class SourceModelBase(torax_pydantic.BaseModelFrozen, abc.ABC):
       default here is a vector of all zeros along for all rho and time, and the
       output vector is along the cell grid.
   """
-
   mode: runtime_params.Mode = runtime_params.Mode.ZERO
   is_explicit: bool = False
   prescribed_values: torax_pydantic.TimeVaryingArray = (
