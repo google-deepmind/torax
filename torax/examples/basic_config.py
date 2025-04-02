@@ -19,7 +19,9 @@ CONFIG = {
     'runtime_params': {
         'profile_conditions': {},  # use default profile conditions
         'plasma_composition': {},  # use default plasma composition
-        'numerics': {},  # use default numerics
+        'numerics': {
+            'enable_sanity_checks': True,  # Enable sanity checks for demonstration
+        },
     },
     # circular geometry is only for testing and prototyping
     'geometry': {
