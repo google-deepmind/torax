@@ -19,6 +19,7 @@ import jax
 
 # pylint: disable=g-importing-member
 
+from torax import version
 from torax.config.config_loader import import_module
 from torax.interpolated_param import InterpolatedVarSingleAxis
 from torax.interpolated_param import InterpolatedVarTimeRho
@@ -29,6 +30,8 @@ from torax.torax_pydantic.model_config import ToraxConfig
 
 # pylint: enable=g-importing-member
 
+__version__ = version.TORAX_VERSION
+__version_info__ = version.TORAX_VERSION_INFO
 
 __all__ = [
     'import_module',
