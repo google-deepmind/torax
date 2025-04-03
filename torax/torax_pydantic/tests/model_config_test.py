@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import json
 import logging
 from typing import Any
 from absl.testing import absltest
 from absl.testing import parameterized
 import chex
+from torax import version
 from torax.config import config_loader
 from torax.torax_pydantic import model_config
 from torax.torax_pydantic import torax_pydantic
@@ -73,12 +75,17 @@ class ConfigTest(parameterized.TestCase):
         else "set_tped_nped",
     )
     # The full model should always be serializable.
-    with self.subTest("json_serialization"):
-      config_json = config_pydantic.model_dump_json()
+    config_json = config_pydantic.model_dump_json()
+    with self.subTest("json_roundtrip"):
       config_pydantic_roundtrip = model_config.ToraxConfig.model_validate_json(
           config_json
       )
       chex.assert_trees_all_equal(config_pydantic, config_pydantic_roundtrip)
+
+    with self.subTest("json_has_torax_version"):
+      self.assertEqual(
+          json.loads(config_json)["torax_version"], version.TORAX_VERSION
+      )
 
     with self.subTest("geometry_grid_set"):
       mesh = config_pydantic.geometry.build_provider.torax_mesh
