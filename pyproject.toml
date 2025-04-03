@@ -70,6 +70,11 @@ tutorial = [
     "notebook",
 ]
 
+imas = [
+    "imas>=4.0.0",
+    "imaspy",
+]
+
 [tool.pyink]
 # Formatting configuration to follow Google style-guide
 line-length = 80
