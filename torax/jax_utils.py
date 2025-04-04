@@ -18,6 +18,7 @@ import contextlib
 import functools
 import os
 from typing import Any, Callable, Optional, TypeVar
+
 import chex
 import equinox as eqx
 import jax
@@ -255,6 +256,23 @@ def py_cond(
     return true_fun()
   else:
     return false_fun()
+
+
+def get_number_of_compiles(
+    jitted_function: Callable[..., Any],
+) -> int:
+  """Helper function for debugging JAX compilation.
+
+  Args:
+    jitted_function: A function that has been wrapped with `jax.jit`.
+  Returns:
+    The number of times the function has been compiled.
+  """
+  # pylint: disable=protected-access
+  # pytype: disable=attribute-error
+  return jitted_function._cache_size()
+  # pylint: enable=protected-access
+  # pytype: enable=attribute-error
 
 
 # pylint: enable=g-bare-generic
