@@ -239,7 +239,7 @@ def _calculate_currents_from_psi(
   return currents
 
 
-def _update_psi_from_j(
+def update_psi_from_j(
     Ip_tot: array_typing.ScalarFloat,
     geo: geometry.Geometry,
     jtot_hires: jax.Array,
@@ -473,7 +473,7 @@ def _init_psi_psidot_and_currents(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
     )
-    psi = _update_psi_from_j(
+    psi = update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip_tot,
         geo,
         currents.jtot_hires,
@@ -499,7 +499,7 @@ def _init_psi_psidot_and_currents(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
     )
-    psi = _update_psi_from_j(
+    psi = update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip_tot,
         geo,
         currents.jtot_hires,
