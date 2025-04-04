@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from collections.abc import Sequence
+import logging
 import os
 
 from absl.testing import absltest
@@ -119,6 +120,31 @@ class RunSimulationTest(sim_test_case.SimTestCase):
             )
 
     xr.map_over_datasets(check_equality, datatree_ref, datatree_new)
+
+  def test_no_compile_for_second_run(self):
+    # Access the jax logger and set its level to DEBUG.
+    jax_logger = logging.getLogger('jax')
+    jax_logger.setLevel(logging.DEBUG)
+    with self.assertLogs(logger=jax_logger, level=logging.DEBUG) as l:
+      torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+      run_simulation.run_simulation(torax_config)
+      # Check that the messages we expect to see for tracing and compilation
+      # are present in the first run.
+      self.assertTrue(any('Finished tracing' in line for line in l.output))
+      self.assertTrue(any('Compiling' in line for line in l.output))
+      self.assertTrue(
+          any('Finished XLA compilation' in line for line in l.output)
+      )
+    with self.assertLogs(jax_logger, level=logging.DEBUG) as l:
+      jax_logger.debug('Second run')
+      torax_config = self._get_torax_config('test_iterhybrid_rampup.py')
+      run_simulation.run_simulation(torax_config)
+      # Check that the same messages are not present in the second run.
+      self.assertFalse(any('Finished tracing' in line for line in l.output))
+      self.assertFalse(any('Compiling f' in line for line in l.output))
+      self.assertFalse(
+          any('Finished XLA compilation' in line for line in l.output)
+      )
 
 
 if __name__ == '__main__':
