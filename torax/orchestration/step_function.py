@@ -118,7 +118,8 @@ class SimulationStepFn:
       dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
       geometry_provider: geometry_provider_lib.GeometryProvider,
       input_state: state.ToraxSimState,
-  ) -> tuple[state.ToraxSimState, state.SimError]:
+      previous_post_processed_outputs: state.PostProcessedOutputs,
+  ) -> tuple[state.ToraxSimState, state.PostProcessedOutputs, state.SimError]:
     """Advances the simulation state one time step.
 
     Args:
@@ -138,6 +139,8 @@ class SimulationStepFn:
         (in order to support time-dependent geometries).
       input_state: State at the start of the time step, including the core
         profiles which are being evolved.
+      previous_post_processed_outputs: Post-processed outputs from the previous
+        time step.
 
     Returns:
       ToraxSimState containing:
@@ -150,6 +153,9 @@ class SimulationStepFn:
             1 if solver did not converge for this step (was above coarse tol)
             2 if solver converged within coarse tolerance. Allowed to pass with
               a warning. Occasional error=2 has low impact on final sim state.
+      PostProcessedOutputs containing:
+        - post-processed outputs at the end of the time step.
+        - cumulative quantities.
       SimError indicating if an error has occurred during simulation.
     """
     dynamic_runtime_params_slice_t, geo_t = (
@@ -217,13 +223,14 @@ class SimulationStepFn:
           explicit_source_profiles,
       )
 
-    output_state = post_processing.make_outputs(
+    post_processed_outputs = post_processing.make_post_processed_outputs(
         sim_state=output_state,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice_t_plus_dt,
-        previous_sim_state=input_state,
+        previous_post_processed_outputs=previous_post_processed_outputs,
     )
 
-    return output_state, output_state.check_for_errors()
+    return output_state, post_processed_outputs, state.check_for_errors(
+        output_state, post_processed_outputs)
 
   def init_time_step_calculator(
       self,
@@ -364,7 +371,6 @@ class SimulationStepFn:
         core_profiles=core_profiles,
         core_transport=core_transport,
         core_sources=core_sources,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(geo_t_plus_dt),
         stepper_numeric_outputs=stepper_numeric_outputs,
         geometry=geo_t_plus_dt,
     )
@@ -492,9 +498,6 @@ class SimulationStepFn:
               core_profiles=core_profiles,
               core_transport=core_transport,
               core_sources=core_sources,
-              post_processed_outputs=state.PostProcessedOutputs.zeros(
-                  geo_t_plus_dt
-              ),
               stepper_numeric_outputs=stepper_numeric_outputs,
               geometry=geo_t_plus_dt,
           ),

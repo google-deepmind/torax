@@ -14,9 +14,6 @@
 
 """Functions for adding post-processed outputs to the simulation state."""
 
-# In torax/post_processing.py
-
-import dataclasses
 import jax
 from jax import numpy as jnp
 from torax import constants
@@ -108,7 +105,6 @@ def _calculate_integrated_sources(
   # Calculate integrated sources with convenient names, transformed from
   # TORAX internal names.
   for key, value in ION_EL_HEAT_SOURCE_TRANSFORMATIONS.items():
-    # Only populate integrated dict with sources that exist.
     ion_profiles = core_sources.temp_ion
     el_profiles = core_sources.temp_el
     if key in ion_profiles and key in el_profiles:
@@ -136,9 +132,12 @@ def _calculate_integrated_sources(
           integrated['P_external_injected'] += injected_power
         else:
           integrated['P_external_injected'] += integrated[f'{value}_tot']
+    else:
+      integrated[f'{value}_ion'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+      integrated[f'{value}_el'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
+      integrated[f'{value}_tot'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
   for key, value in EL_HEAT_SOURCE_TRANSFORMATIONS.items():
-    # Only populate integrated dict with sources that exist.
     profiles = core_sources.temp_el
     if key in profiles:
       integrated[f'{value}'] = math_utils.volume_integration(profiles[key], geo)
@@ -146,12 +145,15 @@ def _calculate_integrated_sources(
       if key in EXTERNAL_HEATING_SOURCES:
         integrated['P_external_el'] += integrated[f'{value}']
         integrated['P_external_injected'] += integrated[f'{value}']
+    else:
+      integrated[f'{value}'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
   for key, value in CURRENT_SOURCE_TRANSFORMATIONS.items():
-    # Only populate integrated dict with sources that exist.
     profiles = core_sources.psi
     if key in profiles:
       integrated[f'{value}'] = math_utils.area_integration(profiles[key], geo)
+    else:
+      integrated[f'{value}'] = jnp.array(0.0, dtype=jax_utils.get_dtype())
 
   integrated['P_sol_tot'] = integrated['P_sol_ion'] + integrated['P_sol_el']
   integrated['P_external_tot'] = (
@@ -162,11 +164,11 @@ def _calculate_integrated_sources(
 
 
 @jax_utils.jit
-def make_outputs(
+def make_post_processed_outputs(
     sim_state: state.ToraxSimState,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
-    previous_sim_state: state.ToraxSimState | None = None,
-) -> state.ToraxSimState:
+    previous_post_processed_outputs: state.PostProcessedOutputs | None = None,
+) -> state.PostProcessedOutputs:
   """Calculates post-processed outputs based on the latest state.
 
   Called at the beginning and end of each `sim.run_simulation` step.
@@ -174,15 +176,15 @@ def make_outputs(
     sim_state: The state to add outputs to.
     dynamic_runtime_params_slice: Runtime parameters slice for the current time
       step, needed for calculating integrated power.
-    previous_sim_state: The previous state, used to calculate cumulative
-      quantities. Optional input. If None, then cumulative quantities are set at
-      the initialized values in sim_state itself. This is used for the first
-      time step of a the simulation. The initialized values are zero for a clean
-      simulation, or the last value of the previous simulation for a restarted
-      simulation.
+    previous_post_processed_outputs: The previous outputs, used to calculate
+      cumulative quantities. Optional input. If None, then cumulative quantities
+      are set at the initialized values in sim_state itself. This is used for
+      the first time step of a the simulation. The initialized values are zero
+      for a clean simulation, or the last value of the previous simulation for a
+      restarted simulation.
 
   Returns:
-    sim_state: A ToraxSimState object, with any updated attributes.
+    post_processed_outputs: The post_processed_outputs for the given state.
   """
 
   (
@@ -237,9 +239,9 @@ def make_outputs(
       integrated_sources['P_alpha_tot'] + integrated_sources['P_external_tot']
   )
 
-  if previous_sim_state is not None:
+  if previous_post_processed_outputs is not None:
     dW_th_dt = (
-        W_thermal_tot - previous_sim_state.post_processed_outputs.W_thermal_tot
+        W_thermal_tot - previous_post_processed_outputs.W_thermal_tot
     ) / sim_state.dt
   else:
     dW_th_dt = 0.0
@@ -266,36 +268,32 @@ def make_outputs(
 
   # Calculate total external (injected) and fusion (generated) energies based on
   # interval average.
-  if previous_sim_state is not None:
+  if previous_post_processed_outputs is not None:
     # Factor 5 due to including neutron energy: E_fusion = 5.0 * E_alpha
     E_cumulative_fusion = (
-        previous_sim_state.post_processed_outputs.E_cumulative_fusion
+        previous_post_processed_outputs.E_cumulative_fusion
         + 5.0
         * sim_state.dt
         * (
             integrated_sources['P_alpha_tot']
-            + previous_sim_state.post_processed_outputs.P_alpha_tot
+            + previous_post_processed_outputs.P_alpha_tot
         )
         / 2.0
     )
     E_cumulative_external = (
-        previous_sim_state.post_processed_outputs.E_cumulative_external
+        previous_post_processed_outputs.E_cumulative_external
         + sim_state.dt
         * (
             integrated_sources['P_external_tot']
-            + previous_sim_state.post_processed_outputs.P_external_tot
+            + previous_post_processed_outputs.P_external_tot
         )
         / 2.0
     )
   else:
-    # First step of simulation, so no previous state. We set cumulative
-    # quantities to whatever the initial_state was initialized to, which is
-    # typically zero for a clean simulation, or the last value of the previous
-    # simulation for a restarted simulation.
-    E_cumulative_fusion = sim_state.post_processed_outputs.E_cumulative_fusion
-    E_cumulative_external = (
-        sim_state.post_processed_outputs.E_cumulative_external
-    )
+    # Used during initiailization. Note for restarted simulations this should
+    # be overwritten by the previous_post_processed_outputs.
+    E_cumulative_fusion = 0.0
+    E_cumulative_external = 0.0
 
   # Calculate q at 95% of the normalized poloidal flux
   q95 = psi_calculations.calc_q95(psi_norm_face, sim_state.core_profiles.q_face)
@@ -337,8 +335,7 @@ def make_outputs(
   )
 
   # pylint: enable=invalid-name
-  updated_post_processed_outputs = dataclasses.replace(
-      sim_state.post_processed_outputs,
+  return state.PostProcessedOutputs(
       pressure_thermal_ion_face=pressure_thermal_ion_face,
       pressure_thermal_el_face=pressure_thermal_el_face,
       pressure_thermal_tot_face=pressure_thermal_tot_face,
@@ -374,9 +371,4 @@ def make_outputs(
       Wpol=Wpol,
       li3=li3,
       dW_th_dt=dW_th_dt,
-  )
-  # pylint: enable=invalid-name
-  return dataclasses.replace(
-      sim_state,
-      post_processed_outputs=updated_post_processed_outputs,
   )

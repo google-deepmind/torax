@@ -30,7 +30,6 @@ import time
 from absl import logging
 import jax
 import numpy as np
-from torax import post_processing
 from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params_slice
@@ -44,11 +43,16 @@ def _run_simulation(
     dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
     geometry_provider: geometry_provider_lib.GeometryProvider,
     initial_state: state.ToraxSimState,
+    initial_post_processed_outputs: state.PostProcessedOutputs,
     restart_case: bool,
     step_fn: step_function.SimulationStepFn,
     log_timestep_info: bool = False,
     progress_bar: bool = True,
-) -> tuple[tuple[state.ToraxSimState, ...], state.SimError]:
+) -> tuple[
+    tuple[state.ToraxSimState, ...],
+    tuple[state.PostProcessedOutputs, ...],
+    state.SimError,
+]:
   """Runs the transport simulation over a prescribed time interval.
 
   This is the main entrypoint for running a TORAX simulation.
@@ -80,6 +84,8 @@ def _run_simulation(
     initial_state: The starting state of the simulation. This includes both the
       state variables which the stepper.Stepper will evolve (like ion temp, psi,
       etc.) as well as other states that need to be be tracked, like time.
+    initial_post_processed_outputs: The post-processed outputs at the start of
+      the simulation. This is used to calculate cumulative quantities.
     restart_case: If True, the simulation is being restarted from a saved state.
     step_fn: Callable which takes in ToraxSimState and outputs the ToraxSimState
       after one timestep. Note that step_fn determines dt (how long the timestep
@@ -96,6 +102,12 @@ def _run_simulation(
         number of simulation steps taken. The first object in the tuple is for
         the initial state. If the sim error state is 1, then a trunctated
         simulation history is returned up until the last valid timestep.
+      - the post-processed outputs history, consisting of a tuple of
+        PostProcessedOutputs objects, one for each time step. There are N+1
+        objects returned, where N is the number of simulation steps taken. The
+        first object in the tuple is for the initial state. If the sim error
+        state is 1, then a trunctated simulation history is returned up until
+        the last valid timestep.
       - The sim error state.
   """
 
@@ -123,12 +135,8 @@ def _run_simulation(
   )
 
   sim_state = initial_state
-  sim_history = []
-  sim_state = post_processing.make_outputs(
-      sim_state=sim_state,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice,
-  )
-  sim_history.append(sim_state)
+  state_history = [sim_state]
+  post_processing_history = [initial_post_processed_outputs]
 
   # Set the sim_error to NO_ERROR. If we encounter an error, we will set it to
   # the appropriate error code.
@@ -151,11 +159,12 @@ def _run_simulation(
       if log_timestep_info:
         _log_timestep(sim_state)
 
-      sim_state, sim_error = step_fn(
+      sim_state, post_processed_outputs, sim_error = step_fn(
           static_runtime_params_slice,
           dynamic_runtime_params_slice_provider,
           geometry_provider,
           sim_state,
+          post_processing_history[-1],
       )
 
       wall_clock_step_times.append(time.time() - step_start_time)
@@ -172,11 +181,12 @@ def _run_simulation(
           if not static_runtime_params_slice.use_vloop_lcfs_boundary_condition:
             # For the Ip BC case, set vloop_lcfs[0] to the same value as
             # vloop_lcfs[1] due the vloop_lcfs timeseries being underconstrained
-            sim_history[0].core_profiles = dataclasses.replace(
-                sim_history[0].core_profiles,
+            state_history[0].core_profiles = dataclasses.replace(
+                state_history[0].core_profiles,
                 vloop_lcfs=sim_state.core_profiles.vloop_lcfs,
             )
-        sim_history.append(sim_state)
+        state_history.append(sim_state)
+        post_processing_history.append(post_processed_outputs)
         # Calculate progress ratio and update pbar.n
         progress_ratio = (
             float(sim_state.t) - dynamic_runtime_params_slice.numerics.t_initial
@@ -211,7 +221,7 @@ def _run_simulation(
     long_first_step = False
 
   wall_clock_time_elapsed = time.time() - running_main_loop_start_time
-  simulation_time = sim_history[-1].t - sim_history[0].t
+  simulation_time = state_history[-1].t - state_history[0].t
   if long_first_step:
     # Don't include the long first step in the total time logged.
     wall_clock_time_elapsed -= wall_clock_step_times[0]
@@ -220,7 +230,7 @@ def _run_simulation(
       simulation_time,
       wall_clock_time_elapsed,
   )
-  return tuple(sim_history), sim_error
+  return tuple(state_history), tuple(post_processing_history), sim_error
 
 
 def _log_timestep(

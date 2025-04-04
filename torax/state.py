@@ -511,6 +511,12 @@ class PostProcessedOutputs:
         dW_th_dt=jnp.array(0.0, dtype=jax_utils.get_dtype()),
     )
 
+  def check_for_errors(self):
+    if has_nan(self):
+      return SimError.NAN_DETECTED
+    else:
+      return SimError.NO_ERROR
+
 
 @chex.dataclass
 class StepperNumericOutputs:
@@ -602,9 +608,6 @@ class ToraxSimState:
   core_transport: CoreTransport
   core_sources: source_profiles.SourceProfiles
 
-  # Post-processed outputs after a step.
-  post_processed_outputs: PostProcessedOutputs
-
   # Geometry used for the simulation.
   geometry: geometry.Geometry
 
@@ -629,7 +632,7 @@ class ToraxSimState:
       return SimError.NO_ERROR
 
 
-def has_nan(inputs: ToraxSimState) -> bool:
+def has_nan(inputs: ToraxSimState | PostProcessedOutputs) -> bool:
   return any([jnp.any(jnp.isnan(x)) for x in jax.tree.leaves(inputs)])
 
 
@@ -638,3 +641,15 @@ def log_negative_profile_names(inputs: CoreProfiles):
   for path, value in path_vals:
     if jnp.any(jnp.less(value, 0.0)):
       logging.info("Found negative value in %s", jax.tree_util.keystr(path))
+
+
+def check_for_errors(
+    sim_state: ToraxSimState,
+    post_processed_outputs: PostProcessedOutputs,
+) -> SimError:
+  """Checks for errors in the simulation state."""
+  state_error = sim_state.check_for_errors()
+  if state_error != SimError.NO_ERROR:
+    return state_error
+  else:
+    return post_processed_outputs.check_for_errors()

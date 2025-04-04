@@ -17,18 +17,49 @@ import dataclasses
 from absl import logging
 import jax.numpy as jnp
 from torax import output
+from torax import post_processing
 from torax import state
+from torax.config import build_runtime_params
 from torax.config import config_args
 from torax.config import runtime_params_slice
 from torax.core_profiles import initialization
 from torax.geometry import geometry
+from torax.geometry import geometry_provider as geometry_provider_lib
 from torax.orchestration import step_function
 from torax.sources import source_profile_builders
 from torax.torax_pydantic import file_restart as file_restart_pydantic_model
 import xarray as xr
 
 
-def get_initial_state(
+def get_initial_state_and_post_processed_outputs(
+    t: float,
+    static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
+    dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
+    step_fn: step_function.SimulationStepFn,
+) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+  """Returns the initial state and post processed outputs."""
+  dynamic_runtime_params_slice_for_init, geo_for_init = (
+      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+          t=t,
+          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+          geometry_provider=geometry_provider,
+      )
+  )
+  initial_state = _get_initial_state(
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
+      geo=geo_for_init,
+      step_fn=step_fn,
+  )
+  post_processed_outputs = post_processing.make_post_processed_outputs(
+      initial_state,
+      dynamic_runtime_params_slice_for_init,
+  )
+  return initial_state, post_processed_outputs
+
+
+def _get_initial_state(
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
     dynamic_runtime_params_slice: runtime_params_slice.DynamicRuntimeParamsSlice,
     geo: geometry.Geometry,
@@ -59,7 +90,6 @@ def get_initial_state(
       # This will be overridden within run_simulation().
       core_sources=initial_core_sources,
       core_transport=state.CoreTransport.zeros(geo),
-      post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
       stepper_numeric_outputs=state.StepperNumericOutputs(
           stepper_error_state=0,
           outer_stepper_iterations=0,
@@ -69,14 +99,15 @@ def get_initial_state(
   )
 
 
-def initial_state_from_file_restart(
+def get_initial_state_and_post_processed_outputs_from_file(
+    t_initial: float,
     file_restart: file_restart_pydantic_model.FileRestart,
     static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
-    dynamic_runtime_params_slice_for_init: runtime_params_slice.DynamicRuntimeParamsSlice,
-    geo_for_init: geometry.Geometry,
+    dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
+    geometry_provider: geometry_provider_lib.GeometryProvider,
     step_fn: step_function.SimulationStepFn,
-) -> state.ToraxSimState:
-  """Returns the initial state for a file restart."""
+) -> tuple[state.ToraxSimState, state.PostProcessedOutputs]:
+  """Returns the initial state and post processed outputs from a file."""
   data_tree = output.load_state_file(file_restart.filename)
   # Find the closest time in the given dataset.
   data_tree = data_tree.sel(time=file_restart.time, method='nearest')
@@ -84,11 +115,8 @@ def initial_state_from_file_restart(
   core_profiles_dataset = data_tree.children[output.CORE_PROFILES].dataset
   # Remap coordinates in saved file to be consistent with expectations of
   # how config_args parses xarrays.
-  core_profiles_dataset = core_profiles_dataset.rename(
-      {output.RHO_CELL_NORM: config_args.RHO_NORM}
-  )
   core_profiles_dataset = core_profiles_dataset.squeeze()
-  if t_restart != dynamic_runtime_params_slice_for_init.numerics.t_initial:
+  if t_restart != t_initial:
     logging.warning(
         'Requested restart time %f not exactly available in state file %s.'
         ' Restarting from closest available time %f instead.',
@@ -96,7 +124,14 @@ def initial_state_from_file_restart(
         file_restart.filename,
         t_restart,
     )
-  # Override some of dynamic runtime params slice from t=t_initial.
+
+  dynamic_runtime_params_slice_for_init, geo_for_init = (
+      build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
+          t=t_initial,
+          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
+          geometry_provider=geometry_provider,
+      )
+  )
   dynamic_runtime_params_slice_for_init, geo_for_init = (
       _override_initial_runtime_params_from_file(
           dynamic_runtime_params_slice_for_init,
@@ -105,6 +140,12 @@ def initial_state_from_file_restart(
           core_profiles_dataset,
       )
   )
+  initial_state = _get_initial_state(
+      static_runtime_params_slice=static_runtime_params_slice,
+      dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
+      geo=geo_for_init,
+      step_fn=step_fn,
+  )
   post_processed_dataset = data_tree.children[
       output.POST_PROCESSED_OUTPUTS
   ].dataset
@@ -112,29 +153,29 @@ def initial_state_from_file_restart(
       {output.RHO_CELL_NORM: config_args.RHO_NORM}
   )
   post_processed_dataset = post_processed_dataset.squeeze()
-  post_processed_outputs = (
-      _override_initial_state_post_processed_outputs_from_file(
-          geo_for_init,
-          post_processed_dataset,
-      )
+  post_processed_outputs = post_processing.make_post_processed_outputs(
+      initial_state,
+      dynamic_runtime_params_slice_for_init,
   )
-
-  initial_state = get_initial_state(
-      static_runtime_params_slice=static_runtime_params_slice,
-      dynamic_runtime_params_slice=dynamic_runtime_params_slice_for_init,
-      geo=geo_for_init,
-      step_fn=step_fn,
+  post_processed_outputs = dataclasses.replace(
+      post_processed_outputs,
+      E_cumulative_fusion=post_processed_dataset.data_vars[
+          'E_cumulative_fusion'
+      ].to_numpy(),
+      E_cumulative_external=post_processed_dataset.data_vars[
+          'E_cumulative_external'
+      ].to_numpy(),
   )
-  # In restarts we always know the initial vloop_lcfs so replace the
-  # zeros initialization (for Ip BC case) from get_initial_state.
   core_profiles = dataclasses.replace(
       initial_state.core_profiles,
       vloop_lcfs=core_profiles_dataset.vloop_lcfs.values,
   )
-  return dataclasses.replace(
-      initial_state,
-      post_processed_outputs=post_processed_outputs,
-      core_profiles=core_profiles,
+  return (
+      dataclasses.replace(
+          initial_state,
+          core_profiles=core_profiles,
+      ),
+      post_processed_outputs,
   )
 
 
@@ -190,17 +231,3 @@ def _override_initial_runtime_params_from_file(
   )
 
   return dynamic_runtime_params_slice, geo
-
-
-def _override_initial_state_post_processed_outputs_from_file(
-    geo: geometry.Geometry,
-    ds: xr.Dataset,
-) -> state.PostProcessedOutputs:
-  """Override parts of initial state post processed outputs from file."""
-  post_processed_outputs = state.PostProcessedOutputs.zeros(geo)
-  post_processed_outputs = dataclasses.replace(
-      post_processed_outputs,
-      E_cumulative_fusion=ds.data_vars['E_cumulative_fusion'].to_numpy(),
-      E_cumulative_external=ds.data_vars['E_cumulative_external'].to_numpy(),
-  )
-  return post_processed_outputs

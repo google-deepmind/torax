@@ -138,6 +138,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         dynamic_runtime_params_slice_provider,
         geometry_provider,
         input_state,
+        previous_post_processed_outputs,
     ):
       dt = 1.0
       new_t = input_state.t + dt
@@ -154,6 +155,7 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
                   source_models=source_models,
               ),
           ),
+          previous_post_processed_outputs,
           state_module.SimError.NO_ERROR,
       )
     with mock.patch.object(
