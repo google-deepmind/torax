@@ -238,9 +238,9 @@ def _log_timestep(
     case 0:
       pass
     case 1:
-      log_str += 'Solver did not converge in previous step.'
+      log_str += ' Solver did not converge in previous step.'
     case 2:
       log_str += (
-          'Solver converged only within coarse tolerance in previous step.'
+          ' Solver converged only within coarse tolerance in previous step.'
       )
   tqdm.tqdm.write(log_str)
