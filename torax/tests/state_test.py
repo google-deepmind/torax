@@ -118,7 +118,9 @@ class StateTest(torax_refs.ReferenceValueTest):
           )
       )
       static_slice = build_runtime_params.build_static_runtime_params_slice(
-          runtime_params=runtime_params,
+          profile_conditions=runtime_params.profile_conditions,
+          numerics=runtime_params.numerics,
+          plasma_composition=runtime_params.plasma_composition,
           sources=self.sources,
           torax_mesh=geo.torax_mesh,
       )
@@ -158,7 +160,9 @@ class StateTest(torax_refs.ReferenceValueTest):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=references.runtime_params,
+        profile_conditions=references.profile_conditions,
+        numerics=references.numerics,
+        plasma_composition=references.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -305,7 +309,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -341,7 +347,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -420,7 +428,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config1,
+        profile_conditions=config1.profile_conditions,
+        numerics=config1.numerics,
+        plasma_composition=config1.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -438,7 +448,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config2,
+        profile_conditions=config2.profile_conditions,
+        numerics=config2.numerics,
+        plasma_composition=config2.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -469,7 +481,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config3,
+        profile_conditions=config3.profile_conditions,
+        numerics=config3.numerics,
+        plasma_composition=config3.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -498,7 +512,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config3_helper,
+        profile_conditions=config3_helper.profile_conditions,
+        numerics=config3_helper.numerics,
+        plasma_composition=config3_helper.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -614,7 +630,9 @@ class InitialStatesTest(parameterized.TestCase):
         t=config2.numerics.t_initial,
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config1,
+        profile_conditions=config1.profile_conditions,
+        numerics=config1.numerics,
+        plasma_composition=config1.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -625,7 +643,9 @@ class InitialStatesTest(parameterized.TestCase):
         source_models=source_models,
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config2,
+        profile_conditions=config2.profile_conditions,
+        numerics=config2.numerics,
+        plasma_composition=config2.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )

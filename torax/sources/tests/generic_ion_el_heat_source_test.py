@@ -16,7 +16,7 @@ from torax.sources import generic_ion_el_heat_source
 from torax.sources.tests import test_lib
 
 
-class GenericIonElectronHeatSourceTest(test_lib.IonElSourceTestCase):
+class GenericIonElectronHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   """Tests for GenericIonElectronHeatSource."""
 
   def setUp(self):

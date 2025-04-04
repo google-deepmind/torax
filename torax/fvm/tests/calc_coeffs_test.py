@@ -15,20 +15,13 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 from torax.config import build_runtime_params
-from torax.config import numerics as numerics_lib
-from torax.config import profile_conditions as profile_conditions_lib
-from torax.config import runtime_params as general_runtime_params
 from torax.core_profiles import initialization
 from torax.fvm import calc_coeffs
-from torax.geometry import pydantic_model as geometry_pydantic_model
-from torax.pedestal_model import pydantic_model as pedestal_pydantic_model
-from torax.sources import pydantic_model as sources_pydantic_model
 from torax.sources import runtime_params as source_runtime_params
 from torax.sources import source_models as source_models_lib
 from torax.sources import source_profile_builders
-from torax.stepper import pydantic_model as stepper_pydantic_model
 from torax.tests.test_lib import default_sources
-from torax.transport_model import pydantic_model as transport_pydantic_model
+from torax.torax_pydantic import model_config
 
 
 class CoreProfileSettersTest(parameterized.TestCase):
@@ -42,66 +35,55 @@ class CoreProfileSettersTest(parameterized.TestCase):
   def test_calc_coeffs_smoke_test(
       self, num_cells, theta_imp, set_pedestal
   ):
-    runtime_params = general_runtime_params.GeneralRuntimeParams(
-        profile_conditions=profile_conditions_lib.ProfileConditions(
-            set_pedestal=set_pedestal,
-        ),
-        numerics=numerics_lib.Numerics(
-            el_heat_eq=False,
-        ),
+    sources_config = default_sources.get_default_source_config()
+    sources_config['qei_source']['Qei_mult'] = 0.0
+    sources_config['generic_ion_el_heat_source']['Ptot'] = 0.0
+    sources_config['fusion_heat_source']['mode'] = (
+        source_runtime_params.Mode.ZERO
     )
-    stepper_params = stepper_pydantic_model.Stepper.from_dict(
+    sources_config['ohmic_heat_source']['mode'] = (
+        source_runtime_params.Mode.ZERO
+    )
+    torax_config = model_config.ToraxConfig.from_dict(
         dict(
-            predictor_corrector=False,
-            theta_imp=theta_imp,
+            runtime_params=dict(
+                profile_conditions=dict(set_pedestal=set_pedestal),
+                numerics=dict(el_heat_eq=False),
+            ),
+            geometry=dict(geometry_type='circular', n_rho=num_cells),
+            pedestal=dict(),
+            sources=sources_config,
+            stepper=dict(predictor_corrector=False, theta_imp=theta_imp),
+            transport=dict(transport_model='constant', chimin=0, chii_const=1),
+            time_step_calculator=dict(),
         )
     )
-    geo = geometry_pydantic_model.CircularConfig(
-        n_rho=num_cells
-    ).build_geometry()
-
-    transport = transport_pydantic_model.Transport.from_dict(
-        {'transport_model': 'constant', 'chimin': 0, 'chii_const': 1}
-    )
-    pedestal = pedestal_pydantic_model.Pedestal()
-    pedestal_model = pedestal.build_pedestal_model()
-    transport_model = transport.build_transport_model()
-    sources = default_sources.get_default_sources()
-    sources_dict = sources.to_dict()
-    sources_dict['qei_source']['Qei_mult'] = 0.0
-    sources_dict['generic_ion_el_heat_source']['Ptot'] = (
-        0.0
-    )
-    sources_dict['fusion_heat_source']['mode'] = (
-        source_runtime_params.Mode.ZERO
-    )
-    sources_dict['ohmic_heat_source']['mode'] = (
-        source_runtime_params.Mode.ZERO
-    )
-    sources = sources_pydantic_model.Sources.from_dict(sources_dict)
     source_models = source_models_lib.SourceModels(
-        sources=sources.source_model_config
+        sources=torax_config.sources.source_model_config
     )
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            runtime_params,
-            transport=transport,
-            sources=sources,
-            stepper=stepper_params,
-            pedestal=pedestal,
-            torax_mesh=geo.torax_mesh,
+            torax_config.runtime_params,
+            transport=torax_config.transport,
+            sources=torax_config.sources,
+            stepper=torax_config.stepper,
+            pedestal=torax_config.pedestal,
+            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
         )(
-            t=runtime_params.numerics.t_initial,
+            t=torax_config.numerics.t_initial,
         )
     )
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
-            runtime_params=runtime_params,
-            sources=sources,
-            torax_mesh=geo.torax_mesh,
-            stepper=stepper_params,
+            profile_conditions=torax_config.profile_conditions,
+            numerics=torax_config.numerics,
+            plasma_composition=torax_config.plasma_composition,
+            sources=torax_config.sources,
+            torax_mesh=torax_config.geometry.build_provider.torax_mesh,
+            stepper=torax_config.stepper,
         )
     )
+    geo = torax_config.geometry.build_provider(torax_config.numerics.t_initial)
     core_profiles = initialization.initial_core_profiles(
         static_runtime_params_slice,
         dynamic_runtime_params_slice,
@@ -117,6 +99,8 @@ class CoreProfileSettersTest(parameterized.TestCase):
         core_profiles=core_profiles,
         explicit=True,
     )
+    pedestal_model = torax_config.pedestal.build_pedestal_model()
+    transport_model = torax_config.transport.build_transport_model()
     calc_coeffs.calc_coeffs(
         static_runtime_params_slice=static_runtime_params_slice,
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,

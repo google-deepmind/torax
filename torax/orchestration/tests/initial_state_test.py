@@ -158,7 +158,9 @@ def _get_step_fn(torax_config):
 def _get_geo_and_runtime_params_providers(torax_config):
   static_runtime_params_slice = (
       build_runtime_params.build_static_runtime_params_slice(
-          runtime_params=torax_config.runtime_params,
+          profile_conditions=torax_config.profile_conditions,
+          numerics=torax_config.numerics,
+          plasma_composition=torax_config.plasma_composition,
           sources=torax_config.sources,
           torax_mesh=torax_config.geometry.build_provider.torax_mesh,
           stepper=torax_config.stepper,

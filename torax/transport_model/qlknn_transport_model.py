@@ -112,12 +112,11 @@ class QLKNNRuntimeConfigInputs:
     )
 
 
-def filter_model_output(
+def _filter_model_output(
     model_output: base_qlknn_model.ModelOutput,
     include_ITG: bool,
     include_TEM: bool,
     include_ETG: bool,
-    zeros_shape: tuple[int, ...],
 ) -> base_qlknn_model.ModelOutput:
   """Potentially filtering out some fluxes."""
   filter_map = {
@@ -129,13 +128,12 @@ def filter_model_output(
       'pfe_tem': include_TEM,
       'qe_etg': include_ETG,
   }
-  zeros = jnp.zeros(zeros_shape)
 
   def filter_flux(flux_name: str, value: jax.Array) -> jax.Array:
     return jax.lax.cond(
         filter_map.get(flux_name, True),
         lambda: value,
-        lambda: zeros,
+        lambda: jnp.zeros_like(value),
     )
 
   return {k: filter_flux(k, v) for k, v in model_output.items()}
@@ -265,12 +263,11 @@ class QLKNNTransportModel(
         lambda: feature_scan,  # Called when False
     )
     model_output = model.predict(feature_scan)
-    model_output = filter_model_output(
+    model_output = _filter_model_output(
         model_output=model_output,
         include_ITG=runtime_config_inputs.transport.include_ITG,
         include_TEM=runtime_config_inputs.transport.include_TEM,
         include_ETG=runtime_config_inputs.transport.include_ETG,
-        zeros_shape=(feature_scan.shape[0], 1),
     )
 
     # combine fluxes

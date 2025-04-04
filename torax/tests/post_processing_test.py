@@ -71,7 +71,9 @@ class PostProcessingTest(parameterized.TestCase):
         ne={},
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )

@@ -115,7 +115,9 @@ class SingleProfileSourceTestCase(SourceTestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -151,7 +153,7 @@ class SingleProfileSourceTestCase(SourceTestCase):
     self.assertEqual(value.shape, geo.rho.shape)
 
 
-class IonElSourceTestCase(SourceTestCase):
+class MultipleProfileSourceTestCase(SourceTestCase):
   """Base test class for IonElSource subclasses."""
 
   def test_source_values_on_the_cell_grid(self):
@@ -182,7 +184,9 @@ class IonElSourceTestCase(SourceTestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -192,13 +196,16 @@ class IonElSourceTestCase(SourceTestCase):
         geo=geo,
         source_models=source_models,
     )
-    ion_and_el = source.get_value(
+    value = source.get_value(
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         static_runtime_params_slice=static_slice,
         geo=geo,
         core_profiles=core_profiles,
         calculated_source_profiles=None,
     )
-    self.assertLen(ion_and_el, 2)
-    self.assertEqual(ion_and_el[0].shape, geo.rho.shape)
-    self.assertEqual(ion_and_el[1].shape, geo.rho.shape)
+    self.assertLen(value, 2)
+    self.assertEqual(value[0].shape, geo.rho.shape)
+    self.assertEqual(value[1].shape, geo.rho.shape)
+
+    self.assertFalse(jnp.any(jnp.isnan(value[0])))
+    self.assertFalse(jnp.any(jnp.isnan(value[1])))

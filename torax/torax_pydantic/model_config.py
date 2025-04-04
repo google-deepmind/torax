@@ -18,6 +18,9 @@ import logging
 from typing import Any, Mapping
 import pydantic
 from torax import version
+from torax.config import numerics as numerics_lib
+from torax.config import plasma_composition as plasma_composition_lib
+from torax.config import profile_conditions as profile_conditions_lib
 from torax.config import runtime_params as general_runtime_params
 from torax.fvm import enums
 from torax.geometry import pydantic_model as geometry_pydantic_model
@@ -62,6 +65,18 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
       default=None
   )
+
+  @property
+  def profile_conditions(self) -> profile_conditions_lib.ProfileConditions:
+    return self.runtime_params.profile_conditions
+
+  @property
+  def numerics(self) -> numerics_lib.Numerics:
+    return self.runtime_params.numerics
+
+  @property
+  def plasma_composition(self) -> plasma_composition_lib.PlasmaComposition:
+    return self.runtime_params.plasma_composition
 
   @pydantic.model_validator(mode='after')
   def _check_fields(self) -> typing_extensions.Self:

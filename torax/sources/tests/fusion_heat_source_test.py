@@ -26,7 +26,7 @@ from torax.sources.tests import test_lib
 from torax.tests.test_lib import torax_refs
 
 
-class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
+class FusionHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
   """Tests for FusionHeatSource."""
 
   def setUp(self):
@@ -62,7 +62,9 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -122,7 +124,9 @@ class FusionHeatSourceTest(test_lib.IonElSourceTestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
