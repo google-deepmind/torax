@@ -68,7 +68,7 @@ class InitializationTest(torax_refs.ReferenceValueTest):
         dynamic_runtime_params_slice=dynamic_runtime_params_slice,
         geo=geo,
     )
-    psi = initialization._update_psi_from_j(
+    psi = initialization.update_psi_from_j(
         dynamic_runtime_params_slice.profile_conditions.Ip_tot,
         geo,
         currents.jtot_hires,

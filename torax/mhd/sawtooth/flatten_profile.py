@@ -18,6 +18,7 @@ import dataclasses
 from jax import numpy as jnp
 from torax import array_typing
 from torax import math_utils
+from torax.core_profiles import initialization
 from torax.fvm import cell_variable
 from torax.geometry import geometry
 
@@ -57,7 +58,7 @@ def flatten_density_profile(
 
   # Get a trial profile shape for the redistributed value and a boolean mask
   # for the redistribution region.
-  trial_density, redistribution_mask = _get_trial_value(
+  trial_density, redistribution_mask = _get_trial_profile(
       rho_norm_q1,
       rho_norm_mixing,
       flattening_factor,
@@ -70,14 +71,14 @@ def flatten_density_profile(
   )
   scaling = _get_scaling_factor(
       value_at_mixing_edge=density_at_mixing_edge,
-      original_value=original_density,
-      trial_value=trial_density,
+      original_profile=original_density,
+      trial_profile=trial_density,
       redistribution_mask=redistribution_mask,
       geo=geo,
   )
 
   # Build the new value using masks and the scaling factor
-  new_value = jnp.where(
+  new_profile = jnp.where(
       redistribution_mask,
       (trial_density - density_at_mixing_edge) * scaling
       + density_at_mixing_edge,
@@ -86,7 +87,7 @@ def flatten_density_profile(
 
   return dataclasses.replace(
       original_density_profile,
-      value=new_value,
+      value=new_profile,
   )
 
 
@@ -134,7 +135,7 @@ def flatten_temperature_profile(
 
   # Get a trial profile shape for the redistributed value and a boolean mask
   # for the redistribution region.
-  trial_temperature, redistribution_mask = _get_trial_value(
+  trial_temperature, redistribution_mask = _get_trial_profile(
       rho_norm_q1,
       rho_norm_mixing,
       flattening_factor,
@@ -144,44 +145,135 @@ def flatten_temperature_profile(
 
   original_pressure = original_temperature * original_density
 
-  pressure_value_at_mixing_edge = jnp.interp(
+  pressure_at_mixing_edge = jnp.interp(
       rho_norm_mixing,
       rho_norm,
       original_pressure,
   )
 
-  trial_pressure_value = trial_temperature * flattened_density
+  trial_pressure = trial_temperature * flattened_density
 
   scaling = _get_scaling_factor(
-      value_at_mixing_edge=pressure_value_at_mixing_edge,
-      original_value=original_pressure,
-      trial_value=trial_pressure_value,
+      value_at_mixing_edge=pressure_at_mixing_edge,
+      original_profile=original_pressure,
+      trial_profile=trial_pressure,
       redistribution_mask=redistribution_mask,
       geo=geo,
   )
 
-  new_pressure_value = (
-      trial_pressure_value - pressure_value_at_mixing_edge
-  ) * scaling + pressure_value_at_mixing_edge
+  new_pressure = (
+      trial_pressure - pressure_at_mixing_edge
+  ) * scaling + pressure_at_mixing_edge
 
   # Build the new value using masks and the scaling factor
-  new_temperature_value = jnp.where(
+  new_temperature = jnp.where(
       redistribution_mask,
-      new_pressure_value / flattened_density,
+      new_pressure / flattened_density,
       original_temperature,
   )
 
   return dataclasses.replace(
       original_temperature_profile,
-      value=new_temperature_value,
+      value=new_temperature,
   )
 
 
-def _get_trial_value(
+# pylint: disable=invalid-name
+def flatten_current_profile(
     rho_norm_q1: array_typing.ScalarFloat,
     rho_norm_mixing: array_typing.ScalarFloat,
     flattening_factor: array_typing.ScalarFloat,
-    original_value: array_typing.ArrayFloat,
+    original_psi_profile: cell_variable.CellVariable,
+    original_jtot_profile: array_typing.ArrayFloat,
+    Ip_total: array_typing.ScalarFloat,
+    geo: geometry.Geometry,
+) -> cell_variable.CellVariable:
+  """Redistributes a poloidal flux profile while preserving total current.
+
+  This function redistributes a profile due to a sawtooth crash by modifying
+  the profile from the magnetic axis up to the mixing radius. The profile is
+  (roughly) flattened between the magnetic axis and the q=1 surface. Between
+  the q=1 surface to the mixing radius, the profile is linearly redistributed.
+  The original profile value is maintained at the mixing radius.
+
+  The unknown quantity is the value of the redistributed profile at the q=1
+  surface. This is calculated by ensuring that volume integrals are conserved,
+  e.g. for conservation of particles, energy, currents.
+
+  Args:
+    rho_norm_q1: The normalised radius of the q=1 surface.
+    rho_norm_mixing: The normalised radius of the mixing surface.
+    flattening_factor: The factor by which the profile is flattened.
+    original_psi_profile: The original poloidal flux profile.
+    original_jtot_profile: The original jtot profile already precalculated and
+      consistent with the psi profile.
+    Ip_total: The total plasma current.
+    geo: The geometry of the simulation at this time slice.
+
+  Returns:
+    The redistributed temperature profile.
+  """
+
+  rho_norm = geo.rho_norm
+
+  # Get a trial profile shape for the redistributed value and a boolean mask
+  # for the redistribution region.
+  trial_jtot, redistribution_mask = _get_trial_profile(
+      rho_norm_q1,
+      rho_norm_mixing,
+      flattening_factor,
+      original_jtot_profile,
+      geo,
+  )
+
+  jtot_at_mixing_edge = jnp.interp(
+      rho_norm_mixing,
+      rho_norm,
+      original_jtot_profile,
+  )
+
+  scaling = _get_scaling_factor(
+      value_at_mixing_edge=jtot_at_mixing_edge,
+      original_profile=original_jtot_profile,
+      trial_profile=trial_jtot,
+      redistribution_mask=redistribution_mask,
+      geo=geo,
+  )
+
+  new_jtot = (trial_jtot - jtot_at_mixing_edge) * scaling + jtot_at_mixing_edge
+
+  # Build the new value using masks and the scaling factor
+  new_jtot = jnp.where(
+      redistribution_mask,
+      new_jtot,
+      original_jtot_profile,
+  )
+
+  # Construct a new psi profile using the new jtot profile.
+  # Since we will need to use a hires jtot profile, we expect a minor deviation
+  # from the conserved current.
+  # TODO(b/317360481). Come up with a better way to conserve current through
+  # the j-->psi conversion.
+
+  new_jtot_hires = jnp.interp(geo.rho_hires_norm, geo.rho_norm, new_jtot)
+
+  new_psi = initialization.update_psi_from_j(Ip_total, geo, new_jtot_hires)
+
+  # Shift the new psi profile to match the original psi profile at the
+  # cell boundary.
+  new_psi = new_psi.value - new_psi.value[-1] + original_psi_profile.value[-1]
+
+  return dataclasses.replace(
+      original_psi_profile,
+      value=new_psi,
+  )
+
+
+def _get_trial_profile(
+    rho_norm_q1: array_typing.ScalarFloat,
+    rho_norm_mixing: array_typing.ScalarFloat,
+    flattening_factor: array_typing.ScalarFloat,
+    original_profile: array_typing.ArrayFloat,
     geo: geometry.Geometry,
 ) -> tuple[array_typing.ArrayFloat, array_typing.ArrayBool]:
   """Returns a trial new value using two linear interpolations."""
@@ -198,9 +290,9 @@ def _get_trial_value(
 
   # Construct a trial new value using two linear interpolations in
   # the redistribution region.
-  value_at_q1 = jnp.interp(rho_norm_q1, rho_norm, original_value)
+  value_at_q1 = jnp.interp(rho_norm_q1, rho_norm, original_profile)
   value_at_axis = flattening_factor * value_at_q1
-  value_at_mixing_edge = jnp.interp(rho_norm_mixing, rho_norm, original_value)
+  value_at_mixing_edge = jnp.interp(rho_norm_mixing, rho_norm, original_profile)
 
   # Define the key points for interpolation for the trial new value
   interp_rhos = jnp.array([0.0, rho_norm_q1, rho_norm_mixing])
@@ -209,16 +301,16 @@ def _get_trial_value(
   # Create the trial value shape.
   # This will do constant extrapolation for rho_norm > rho_norm_mixing , but
   # it doesn't matter since the redistribution mask will be false for these
-  # points. It is important for trial_value to have the same shape as
-  # original_value to avoid unnecessary slicing operations.
-  trial_value = jnp.interp(rho_norm, interp_rhos, interp_vals)
+  # points. It is important for trial_profile to have the same shape as
+  # original_profile to avoid unnecessary slicing operations.
+  trial_profile = jnp.interp(rho_norm, interp_rhos, interp_vals)
 
-  return trial_value, redistribution_mask
+  return trial_profile, redistribution_mask
 
 
 def _get_scaling_factor(
-    original_value: array_typing.ArrayFloat,
-    trial_value: array_typing.ArrayFloat,
+    original_profile: array_typing.ArrayFloat,
+    trial_profile: array_typing.ArrayFloat,
     value_at_mixing_edge: array_typing.ScalarFloat,
     redistribution_mask: array_typing.ArrayBool,
     geo: geometry.Geometry,
@@ -228,10 +320,10 @@ def _get_scaling_factor(
   # Use where mask for integration regions. Shift by mixing value to
   # calculate correct scaling factor
   shifted_original_integrand = jnp.where(
-      redistribution_mask, original_value - value_at_mixing_edge, 0.0
+      redistribution_mask, original_profile - value_at_mixing_edge, 0.0
   )
   shifted_trial_integrand = jnp.where(
-      redistribution_mask, trial_value - value_at_mixing_edge, 0.0
+      redistribution_mask, trial_profile - value_at_mixing_edge, 0.0
   )
   original_integral = math_utils.volume_integration(
       shifted_original_integrand, geo
