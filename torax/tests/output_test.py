@@ -125,7 +125,6 @@ class StateHistoryTest(parameterized.TestCase):
         'pedestal': {},
         'sources': {},
         'stepper': {},
-        'time_step_calculator': {},
         'transport': {
             'transport_model': 'constant',
             'chii_const': 2.0,

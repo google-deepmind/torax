@@ -45,9 +45,10 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
     pedestal: Config for the pedestal model.
     sources: Config for the sources.
     stepper: Config for the stepper.
-    time_step_calculator: Config for the time step calculator.
     transport: Config for the transport model.
     mhd: Optional config for mhd models. If None, no MHD models are used.
+    time_step_calculator: Optional config for the time step calculator. If not
+      provided the default chi time step calculator is used.
     restart: Optional config for file restart. If None, no file restart is
       performed.
   """
@@ -59,9 +60,11 @@ class ToraxConfig(torax_pydantic.BaseModelFrozen):
   pedestal: pedestal_pydantic_model.Pedestal
   sources: sources_pydantic_model.Sources
   stepper: stepper_pydantic_model.Stepper
-  time_step_calculator: time_step_calculator_pydantic_model.TimeStepCalculator
   transport: transport_model_pydantic_model.Transport
   mhd: mhd_pydantic_model.MHD = mhd_pydantic_model.MHD()
+  time_step_calculator: (
+      time_step_calculator_pydantic_model.TimeStepCalculator
+  ) = time_step_calculator_pydantic_model.TimeStepCalculator()
   restart: file_restart_pydantic_model.FileRestart | None = pydantic.Field(
       default=None
   )

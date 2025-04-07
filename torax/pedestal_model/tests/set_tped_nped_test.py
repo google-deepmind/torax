@@ -59,7 +59,6 @@ class SetTemperatureDensityPedestalModelTest(parameterized.TestCase):
             sources=dict(),
             stepper=dict(),
             transport=dict(),
-            time_step_calculator=dict(),
         )
     )
     provider = build_runtime_params.DynamicRuntimeParamsSliceProvider(

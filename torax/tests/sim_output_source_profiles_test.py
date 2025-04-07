@@ -124,7 +124,6 @@ class SimOutputSourceProfilesTest(sim_test_case.SimTestCase):
         'stepper': {'stepper_type': 'explicit'},
         'transport': {},
         'pedestal': {},
-        'time_step_calculator': {},
     }
 
     torax_config = model_config.ToraxConfig.from_dict(config)
