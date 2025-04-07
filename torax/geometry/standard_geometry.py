@@ -866,6 +866,18 @@ class StandardGeometryIntermediates:
         / (F_eqdsk * flux_surf_avg_1_over_R2_eqdsk)
     )
 
+    # Sense-check the profiles
+    dvolumes = np.diff(volumes)
+    if not np.all(dvolumes > 0):
+      idx = np.where(dvolumes <= 0)
+      raise ValueError(
+          'Volumes are not monotonically increasing (got decrease in volume '
+          f'between surfaces {", ".join([f"{i} -> {i+1}" for i in idx[0]])}). '
+          'This likely means that the contour generation failed to produce a '
+          'closed flux surface at these indices. To fix, try reducing '
+          'last_surface_factor or n_surfaces.'
+      )
+
     return cls(
         geometry_type=geometry.GeometryType.EQDSK,
         Ip_from_parameters=Ip_from_parameters,
