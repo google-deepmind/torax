@@ -16,6 +16,7 @@ import os
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
+import jax
 from jax import numpy as jnp
 from torax import jax_utils
 
@@ -104,6 +105,28 @@ class JaxUtilsTest(parameterized.TestCase):
   def test_f32_int_dtype(self):
     """Test that the dtype is int32 when JAX_PRECISION is set to 'f32'."""
     self.assertEqual(jax_utils.get_int_dtype(), jnp.int32)
+
+  def test_get_number_of_compiles(self):
+    """Check assumptions on JAX internals are valid."""
+
+    def f(x: jax.Array):
+      return x
+
+    jit_f = jax.jit(f)
+    self.assertTrue(hasattr(jit_f, '_cache_size'))
+    # Should be 0 before any calls.
+    self.assertEqual(jax_utils.get_number_of_compiles(jit_f), 0)
+
+    # Should be 1 after one call.
+    jit_f(jnp.array(0))
+    self.assertEqual(jax_utils.get_number_of_compiles(jit_f), 1)
+    # Should be 1 after another call with same shape.
+    jit_f(jnp.array(1))
+    self.assertEqual(jax_utils.get_number_of_compiles(jit_f), 1)
+
+    # Should be 2 after another call with different shape.
+    jit_f(jnp.array([1]))
+    self.assertEqual(jax_utils.get_number_of_compiles(jit_f), 2)
 
 
 if __name__ == '__main__':
