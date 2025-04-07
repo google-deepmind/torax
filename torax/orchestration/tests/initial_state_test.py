@@ -35,27 +35,29 @@ class InitialStateTest(sim_test_case.SimTestCase):
 
     step_fn = _get_step_fn(torax_config)
 
-    static, dynamic, geo = _get_geo_and_runtime_params_slice(torax_config)
+    static, dynamic, geo = _get_geo_and_runtime_params_providers(torax_config)
 
-    non_restart = initial_state.get_initial_state(
+    non_restart, _ = initial_state.get_initial_state_and_post_processed_outputs(
+        t=torax_config.runtime_params.numerics.t_initial,
         static_runtime_params_slice=static,
-        dynamic_runtime_params_slice=dynamic,
-        geo=geo,
+        dynamic_runtime_params_slice_provider=dynamic,
+        geometry_provider=geo,
         step_fn=step_fn,
     )
 
-    result = initial_state.initial_state_from_file_restart(
-        file_restart=torax_config.restart,
-        static_runtime_params_slice=static,
-        dynamic_runtime_params_slice_for_init=dynamic,
-        geo_for_init=geo,
-        step_fn=step_fn,
+    result, post_processed = (
+        initial_state.get_initial_state_and_post_processed_outputs_from_file(
+            t_initial=torax_config.runtime_params.numerics.t_initial,
+            file_restart=torax_config.restart,
+            static_runtime_params_slice=static,
+            dynamic_runtime_params_slice_provider=dynamic,
+            geometry_provider=geo,
+            step_fn=step_fn,
+        )
     )
 
-    self.assertNotEqual(result.post_processed_outputs.E_cumulative_fusion,
-                        0.)
-    self.assertNotEqual(result.post_processed_outputs.E_cumulative_external,
-                        0.)
+    self.assertNotEqual(post_processed.E_cumulative_fusion, 0.0)
+    self.assertNotEqual(post_processed.E_cumulative_external, 0.0)
 
     self.assertNotEqual(result.core_profiles, non_restart.core_profiles)
     self.assertNotEqual(result.t, non_restart.t)
@@ -139,7 +141,7 @@ class InitialStateTest(sim_test_case.SimTestCase):
     # Additionally we want to avoid normalizing to nbar.
     dynamic.profile_conditions.normalize_to_nbar = False
 
-    result = initial_state.get_initial_state(
+    result = initial_state._get_initial_state(
         static, dynamic, geo, step_fn
     )
     _verify_core_profiles(ref_profiles, index, result.core_profiles)
@@ -153,10 +155,12 @@ def _get_step_fn(torax_config):
   return mock.create_autospec(step_function.SimulationStepFn, stepper=stepper)
 
 
-def _get_geo_and_runtime_params_slice(torax_config):
+def _get_geo_and_runtime_params_providers(torax_config):
   static_runtime_params_slice = (
       build_runtime_params.build_static_runtime_params_slice(
-          runtime_params=torax_config.runtime_params,
+          profile_conditions=torax_config.profile_conditions,
+          numerics=torax_config.numerics,
+          plasma_composition=torax_config.plasma_composition,
           sources=torax_config.sources,
           torax_mesh=torax_config.geometry.build_provider.torax_mesh,
           stepper=torax_config.stepper,
@@ -172,15 +176,26 @@ def _get_geo_and_runtime_params_slice(torax_config):
           torax_mesh=torax_config.geometry.build_provider.torax_mesh,
       )
   )
+  return (
+      static_runtime_params_slice,
+      dynamic_runtime_params_slice_provider,
+      torax_config.geometry.build_provider,
+  )
+
+
+def _get_geo_and_runtime_params_slice(torax_config):
+  static, dynamic_provider, geo_provider = (
+      _get_geo_and_runtime_params_providers(torax_config)
+  )
   dynamic_runtime_params_slice_for_init, geo_for_init = (
       build_runtime_params.get_consistent_dynamic_runtime_params_slice_and_geometry(
           t=torax_config.runtime_params.numerics.t_initial,
-          dynamic_runtime_params_slice_provider=dynamic_runtime_params_slice_provider,
-          geometry_provider=torax_config.geometry.build_provider,
+          dynamic_runtime_params_slice_provider=dynamic_provider,
+          geometry_provider=geo_provider,
       )
   )
   return (
-      static_runtime_params_slice,
+      static,
       dynamic_runtime_params_slice_for_init,
       geo_for_init,
   )

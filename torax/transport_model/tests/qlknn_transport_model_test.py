@@ -55,12 +55,11 @@ class QlknnTransportModelTest(parameterized.TestCase):
     model_output = dict(
         [(k, jnp.ones(shape)) for k in itg_keys + tem_keys + etg_keys]
     )
-    filtered_model_output = qlknn_transport_model.filter_model_output(
+    filtered_model_output = qlknn_transport_model._filter_model_output(
         model_output=model_output,
         include_ITG=include_dict.get('itg', True),
         include_TEM=include_dict.get('tem', True),
         include_ETG=include_dict.get('etg', True),
-        zeros_shape=shape,
     )
     for key in itg_keys:
       expected = (

@@ -11,20 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from absl.testing import absltest
-from torax.sources import generic_ion_el_heat_source
-from torax.sources.tests import test_lib
+"""Torax version information."""
+
+from typing import Final
+
+# b/404741308: This is currently a closest tag that could be made more
+# fine-grained in the future, eg. based on an actual commit.
+TORAX_VERSION: Final[str] = "0.3.1"
 
 
-class GenericIonElectronHeatSourceTest(test_lib.MultipleProfileSourceTestCase):
-  """Tests for GenericIonElectronHeatSource."""
-
-  def setUp(self):
-    super().setUp(
-        source_config_class=generic_ion_el_heat_source.GenericIonElHeatSourceConfig,
-        source_name=generic_ion_el_heat_source.GenericIonElectronHeatSource.SOURCE_NAME,
-    )
+def _version_as_tuple(version_str: str) -> tuple[int, int, int]:
+  return tuple(int(i) for i in version_str.split(".") if i.isdigit())
 
 
-if __name__ == '__main__':
-  absltest.main()
+TORAX_VERSION_INFO: Final[tuple[int, int, int]] = _version_as_tuple(
+    TORAX_VERSION
+)

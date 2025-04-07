@@ -82,7 +82,9 @@ class StateHistoryTest(parameterized.TestCase):
         psi={},
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -107,7 +109,6 @@ class StateHistoryTest(parameterized.TestCase):
         core_sources=self.source_profiles,
         t=t,
         dt=dt,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
         stepper_numeric_outputs=state.StepperNumericOutputs(
             outer_stepper_iterations=1,
             stepper_error_state=1,
@@ -116,6 +117,7 @@ class StateHistoryTest(parameterized.TestCase):
         geometry=self.geo,
     )
     sim_error = state.SimError.NO_ERROR
+    self._output_state = state.PostProcessedOutputs.zeros(self.geo)
 
     self.torax_config = model_config.ToraxConfig.from_dict({
         'runtime_params': {},
@@ -133,6 +135,7 @@ class StateHistoryTest(parameterized.TestCase):
     self.history = output.StateHistory(
         sim_error=sim_error,
         state_history=(self.sim_state,),
+        post_processed_outputs_history=(self._output_state,),
         source_models=self.source_models,
         torax_config=self.torax_config,
     )
@@ -149,6 +152,8 @@ class StateHistoryTest(parameterized.TestCase):
     state_history = output.StateHistory(
         sim_error=state.SimError.NO_ERROR,
         state_history=(self.sim_state, self.sim_state_t2),
+        post_processed_outputs_history=(
+            self._output_state, self._output_state,),
         source_models=self.source_models,
         torax_config=self.torax_config,
     )

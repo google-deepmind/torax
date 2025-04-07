@@ -118,7 +118,9 @@ class StateTest(torax_refs.ReferenceValueTest):
           )
       )
       static_slice = build_runtime_params.build_static_runtime_params_slice(
-          runtime_params=runtime_params,
+          profile_conditions=runtime_params.profile_conditions,
+          numerics=runtime_params.numerics,
+          plasma_composition=runtime_params.plasma_composition,
           sources=self.sources,
           torax_mesh=geo.torax_mesh,
       )
@@ -158,7 +160,9 @@ class StateTest(torax_refs.ReferenceValueTest):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=references.runtime_params,
+        profile_conditions=references.profile_conditions,
+        numerics=references.numerics,
+        plasma_composition=references.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -213,7 +217,6 @@ class StateTest(torax_refs.ReferenceValueTest):
         core_sources=source_profiles,
         t=t,
         dt=dt,
-        post_processed_outputs=state.PostProcessedOutputs.zeros(geo),
         stepper_numeric_outputs=state.StepperNumericOutputs(
             outer_stepper_iterations=1,
             stepper_error_state=1,
@@ -221,9 +224,12 @@ class StateTest(torax_refs.ReferenceValueTest):
         ),
         geometry=geo,
     )
+    post_processed_outputs = state.PostProcessedOutputs.zeros(geo)
 
     with self.subTest('no NaN'):
       error = sim_state.check_for_errors()
+      self.assertEqual(error, state.SimError.NO_ERROR)
+      error = state.check_for_errors(sim_state, post_processed_outputs)
       self.assertEqual(error, state.SimError.NO_ERROR)
 
     with self.subTest('NaN in BC'):
@@ -239,16 +245,18 @@ class StateTest(torax_refs.ReferenceValueTest):
       )
       error = new_sim_state_core_profiles.check_for_errors()
       self.assertEqual(error, state.SimError.NAN_DETECTED)
+      error = state.check_for_errors(
+          new_sim_state_core_profiles, post_processed_outputs)
+      self.assertEqual(error, state.SimError.NAN_DETECTED)
 
     with self.subTest('NaN in post processed outputs'):
-      postprocessed_outputs = dataclasses.replace(
-          sim_state.post_processed_outputs,
+      new_post_processed_outputs = dataclasses.replace(
+          post_processed_outputs,
           P_external_tot=jnp.array(jnp.nan),
       )
-      new_sim_state_post = dataclasses.replace(
-          sim_state, post_processed_outputs=postprocessed_outputs
-      )
-      error = new_sim_state_post.check_for_errors()
+      error = new_post_processed_outputs.check_for_errors()
+      self.assertEqual(error, state.SimError.NAN_DETECTED)
+      error = state.check_for_errors(sim_state, new_post_processed_outputs)
       self.assertEqual(error, state.SimError.NAN_DETECTED)
 
     with self.subTest('NaN in one element of source array'):
@@ -265,6 +273,10 @@ class StateTest(torax_refs.ReferenceValueTest):
           sim_state, core_sources=new_core_sources
       )
       error = new_sim_state_sources.check_for_errors()
+      self.assertEqual(error, state.SimError.NAN_DETECTED)
+      error = state.check_for_errors(
+          new_sim_state_sources, post_processed_outputs
+      )
       self.assertEqual(error, state.SimError.NAN_DETECTED)
 
 
@@ -297,7 +309,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -333,7 +347,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -412,7 +428,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config1,
+        profile_conditions=config1.profile_conditions,
+        numerics=config1.numerics,
+        plasma_composition=config1.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -430,7 +448,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config2,
+        profile_conditions=config2.profile_conditions,
+        numerics=config2.numerics,
+        plasma_composition=config2.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -461,7 +481,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config3,
+        profile_conditions=config3.profile_conditions,
+        numerics=config3.numerics,
+        plasma_composition=config3.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -490,7 +512,9 @@ class InitialStatesTest(parameterized.TestCase):
         )
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config3_helper,
+        profile_conditions=config3_helper.profile_conditions,
+        numerics=config3_helper.numerics,
+        plasma_composition=config3_helper.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -606,7 +630,9 @@ class InitialStatesTest(parameterized.TestCase):
         t=config2.numerics.t_initial,
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config1,
+        profile_conditions=config1.profile_conditions,
+        numerics=config1.numerics,
+        plasma_composition=config1.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )
@@ -617,7 +643,9 @@ class InitialStatesTest(parameterized.TestCase):
         source_models=source_models,
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=config2,
+        profile_conditions=config2.profile_conditions,
+        numerics=config2.numerics,
+        plasma_composition=config2.plasma_composition,
         sources=sources,
         torax_mesh=geo.torax_mesh,
     )

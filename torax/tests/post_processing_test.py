@@ -14,11 +14,9 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import jax
 import numpy as np
 import scipy
 from torax import post_processing
-from torax import state
 from torax.config import build_runtime_params
 from torax.config import runtime_params as runtime_params_lib
 from torax.core_profiles import initialization
@@ -73,7 +71,9 @@ class PostProcessingTest(parameterized.TestCase):
         ne={},
     )
     static_slice = build_runtime_params.build_static_runtime_params_slice(
-        runtime_params=runtime_params,
+        profile_conditions=runtime_params.profile_conditions,
+        numerics=runtime_params.numerics,
+        plasma_composition=runtime_params.plasma_composition,
         sources=sources,
         torax_mesh=self.geo.torax_mesh,
     )
@@ -86,43 +86,6 @@ class PostProcessingTest(parameterized.TestCase):
         geo=self.geo,
         source_models=source_models,
     )
-
-  def test_make_outputs(self):
-    """Test that post-processing outputs are added to the state."""
-    sim_state = state.ToraxSimState(
-        core_profiles=self.core_profiles,
-        core_transport=state.CoreTransport.zeros(self.geo),
-        core_sources=self.source_profiles,
-        t=jax.numpy.array(0.0),
-        dt=jax.numpy.array(0.1),
-        post_processed_outputs=state.PostProcessedOutputs.zeros(self.geo),
-        stepper_numeric_outputs=state.StepperNumericOutputs(
-            outer_stepper_iterations=1,
-            stepper_error_state=1,
-            inner_solver_iterations=1,
-        ),
-        geometry=self.geo,
-    )
-
-    updated_sim_state = post_processing.make_outputs(
-        sim_state=sim_state,
-        dynamic_runtime_params_slice=self.dynamic_runtime_params_slice,
-    )
-
-    # Check that the outputs were updated.
-    for field in state.PostProcessedOutputs.__dataclass_fields__:
-      with self.subTest(field=field):
-        try:
-          np.testing.assert_array_equal(
-              getattr(updated_sim_state.post_processed_outputs, field),
-              getattr(sim_state.post_processed_outputs, field),
-          )
-        except AssertionError:
-          # At least one field is different, so the test passes.
-          return
-    # If no assertion error was raised, then all fields are the same
-    # so raise an error.
-    raise AssertionError('PostProcessedOutputs did not change.')
 
   def test_calculate_integrated_sources(self):
     """Checks integrated quantities match expectations."""
@@ -147,6 +110,11 @@ class PostProcessingTest(parameterized.TestCase):
         'P_ohmic',
         'P_brems',
         'P_ecrh',
+        'P_icrh_ion',
+        'P_icrh_el',
+        'P_icrh_tot',
+        'P_rad',
+        'P_cycl',
         'P_sol_ion',
         'P_sol_el',
         'P_sol_tot',
@@ -158,7 +126,7 @@ class PostProcessingTest(parameterized.TestCase):
         'I_generic',
     }
 
-    self.assertSameElements(integrated_sources.keys(), expected_keys)
+    self.assertSameElements(expected_keys, integrated_sources.keys())
 
     # Volume is calculated in terms of a cell integration (see math_utils.py)
     volume = np.sum(self.geo.vpr * self.geo.drho_norm)

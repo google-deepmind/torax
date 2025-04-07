@@ -110,17 +110,23 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
         dynamic_runtime_params_slice_provider: build_runtime_params.DynamicRuntimeParamsSliceProvider,
         geometry_provider: geometry_provider_lib.GeometryProvider,
         initial_state: state.ToraxSimState,
+        initial_post_processed_outputs: state.PostProcessedOutputs,
         step_fn: step_function.SimulationStepFn,
         restart_case: bool,
         log_timestep_info: bool = False,
         progress_bar: bool = True,
-    ) -> tuple[tuple[state.ToraxSimState, ...], state.SimError]:
+    ) -> tuple[
+        tuple[state.ToraxSimState, ...],
+        tuple[state.PostProcessedOutputs, ...],
+        state.SimError,
+    ]:
       del log_timestep_info, progress_bar, restart_case
-      output_state, error = step_fn(
+      output_state, post_processed_outputs, error = step_fn(
           static_runtime_params_slice,
           dynamic_runtime_params_slice_provider,
           geometry_provider,
           initial_state,
+          initial_post_processed_outputs,
       )
       self.assertEqual(
           output_state.stepper_numeric_outputs.outer_stepper_iterations,
@@ -137,7 +143,7 @@ class SimWithTimeDependenceTest(parameterized.TestCase):
       np.testing.assert_allclose(
           output_state.core_sources.qei.qei_coef, expected_combined_value
       )
-      return (output_state,), error
+      return (output_state,), (post_processed_outputs,), error
 
     with mock.patch.object(
         sim, '_run_simulation', wraps=_fake_sim_run_simulation

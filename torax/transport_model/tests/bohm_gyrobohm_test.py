@@ -36,16 +36,20 @@ class BohmGyroBohmTest(absltest.TestCase):
     super().setUp()
     self.model = bohm_gyrobohm.BohmGyroBohmTransportModel()
     self.geo = geometry_pydantic_model.CircularConfig().build_geometry()
+    runtime_params = general_runtime_params.GeneralRuntimeParams()
+    sources = source_pydantic_model.Sources()
     dynamic_runtime_params_slice = (
         build_runtime_params.DynamicRuntimeParamsSliceProvider(
-            general_runtime_params.GeneralRuntimeParams(),
+            runtime_params=runtime_params,
+            sources=sources,
             torax_mesh=self.geo.torax_mesh,
         )(t=0.0)
     )
-    sources = source_pydantic_model.Sources()
     static_runtime_params_slice = (
         build_runtime_params.build_static_runtime_params_slice(
-            runtime_params=general_runtime_params.GeneralRuntimeParams(),
+            profile_conditions=runtime_params.profile_conditions,
+            numerics=runtime_params.numerics,
+            plasma_composition=runtime_params.plasma_composition,
             sources=sources,
             torax_mesh=self.geo.torax_mesh,
         )
