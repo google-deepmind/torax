@@ -14,6 +14,7 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import chex
 from jax import numpy as jnp
 import numpy as np
 from torax import math_utils
@@ -33,7 +34,7 @@ class FlattenProfileTest(parameterized.TestCase):
         n_rho=_NRHO
     ).build_geometry()
 
-  def _create_profile(self, values: np.ndarray) -> cell_variable.CellVariable:
+  def _create_profile(self, values: chex.Array) -> cell_variable.CellVariable:
     """Helper to create a CellVariable for testing."""
     return cell_variable.CellVariable(
         value=jnp.array(values),
@@ -167,11 +168,11 @@ class FlattenProfileTest(parameterized.TestCase):
   ):
     initial_profile = self._create_profile(initial_values)
 
-    flattened_profile = flatten_profile.flatten_profile(
+    flattened_profile = flatten_profile.flatten_density_profile(
         rho_norm_q1=jnp.array(rho_norm_q1),
         rho_norm_mixing=jnp.array(rho_norm_mixing),
         flattening_factor=jnp.array(flatten_factor),
-        original_profile=initial_profile,
+        original_density_profile=initial_profile,
         geo=self.geo,
     )
 
@@ -203,6 +204,84 @@ class FlattenProfileTest(parameterized.TestCase):
             initial_profile.value[idx_mixing:],
             err_msg='Profile changed outside mixing radius',
         )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='peaked_density_hollow_temperature',
+          initial_density_values=3.0
+          + 1.5 * np.exp(-((np.linspace(0, 1, _NRHO) / 0.2) ** 2)),
+          initial_temperature_values=6.0
+          - 3.0 * np.exp(-(((np.linspace(0, 1, _NRHO) - 0.3) / 0.15) ** 2)),
+      ),
+      dict(
+          testcase_name='hollow_density_hollow_temperature',
+          initial_density_values=3.0
+          - 1.5 * np.exp(-(((np.linspace(0, 1, _NRHO) - 0.3) / 0.15) ** 2)),
+          initial_temperature_values=6.0
+          - 3.0 * np.exp(-(((np.linspace(0, 1, _NRHO) - 0.3) / 0.15) ** 2)),
+      ),
+      dict(
+          testcase_name='peaked_density_peaked_temperature',
+          initial_density_values=3.0
+          + 1.5 * np.exp(-((np.linspace(0, 1, _NRHO) / 0.2) ** 2)),
+          initial_temperature_values=6.0
+          + 3.0 * np.exp(-((np.linspace(0, 1, _NRHO) / 0.2) ** 2)),
+      ),
+      dict(
+          testcase_name='hollow_density_peaked_temperature',
+          initial_density_values=3.0
+          - 1.5 * np.exp(-(((np.linspace(0, 1, _NRHO) - 0.3) / 0.15) ** 2)),
+          initial_temperature_values=6.0
+          + 3.0 * np.exp(-((np.linspace(0, 1, _NRHO) / 0.2) ** 2)),
+      ),
+  )
+  def test_temperature_profile_flattening_and_energy_conservation(
+      self,
+      initial_density_values: np.ndarray,
+      initial_temperature_values: np.ndarray,
+  ):
+    initial_density_profile = self._create_profile(initial_density_values)
+    initial_temperature_profile = self._create_profile(
+        initial_temperature_values
+    )
+    rho_norm_q1 = 0.3
+    rho_norm_mixing = 0.5
+    flatten_factor = 1.01
+
+    flattened_density_profile = flatten_profile.flatten_density_profile(
+        rho_norm_q1=jnp.array(rho_norm_q1),
+        rho_norm_mixing=jnp.array(rho_norm_mixing),
+        flattening_factor=jnp.array(flatten_factor),
+        original_density_profile=initial_density_profile,
+        geo=self.geo,
+    )
+
+    flattened_temperature_profile = flatten_profile.flatten_temperature_profile(
+        rho_norm_q1=jnp.array(rho_norm_q1),
+        rho_norm_mixing=jnp.array(rho_norm_mixing),
+        flattening_factor=jnp.array(flatten_factor),
+        original_temperature_profile=initial_temperature_profile,
+        original_density_profile=initial_density_profile,
+        flattened_density_profile=flattened_density_profile,
+        geo=self.geo,
+    )
+
+    initial_pressure_profile = self._create_profile(
+        initial_temperature_profile.value * initial_density_profile.value
+    )
+    flattened_pressure_profile = self._create_profile(
+        flattened_temperature_profile.value * flattened_density_profile.value
+    )
+
+    with self.subTest('conservation_within_mixing_radius'):
+      self._check_conservation_within_mixing_radius(
+          initial_pressure_profile, flattened_pressure_profile, rho_norm_mixing
+      )
+
+    with self.subTest('total_conservation'):
+      self._check_total_conservation(
+          initial_pressure_profile, flattened_pressure_profile
+      )
 
 
 if __name__ == '__main__':
