@@ -48,7 +48,7 @@ class DynamicRuntimeParams:
   stateless, so these params are their inputs to determine their output
   profiles.
   """
-  prescribed_values: array_typing.ArrayFloat
+  prescribed_values: tuple[array_typing.ArrayFloat, ...]
 
 
 @chex.dataclass(frozen=True)

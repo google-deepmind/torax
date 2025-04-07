@@ -57,11 +57,11 @@ CONFIG = {
         # Only drive the external current source
         'generic_current_source': {
             'mode': 'PRESCRIBED',
-            'prescribed_values': (
+            'prescribed_values': ((
                 times,
                 gauss_r,
                 generic_current_source_profiles,
-            ),
+            ),),
         },
         # Disable density sources/sinks
         'generic_particle_source': {

@@ -105,10 +105,6 @@ class Source(abc.ABC):
   def affected_core_profiles(self) -> tuple[AffectedCoreProfile, ...]:
     """Returns the core profiles affected by this source."""
 
-  @property
-  def affected_core_profiles_ints(self) -> tuple[int, ...]:
-    return tuple([int(cp) for cp in self.affected_core_profiles])
-
   def get_value(
       self,
       static_runtime_params_slice: runtime_params_slice.StaticRuntimeParamsSlice,
@@ -163,9 +159,16 @@ class Source(abc.ABC):
             calculated_source_profiles,
         )
       case runtime_params_lib.Mode.PRESCRIBED.value:
-        # TODO(b/395854896) add support for sources that affect multiple core
-        # profiles.
-        return (dynamic_source_runtime_params.prescribed_values,)
+        if len(self.affected_core_profiles) != len(
+            dynamic_source_runtime_params.prescribed_values
+        ):
+          raise ValueError(
+              'When using PRESCRIBED mode, the number of prescribed values must'
+              ' match the number of affected core profiles. Was: '
+              f'{len(dynamic_source_runtime_params.prescribed_values)} '
+              f' Expected: {len(self.affected_core_profiles)}.'
+          )
+        return dynamic_source_runtime_params.prescribed_values
       case runtime_params_lib.Mode.ZERO.value:
         zeros = jnp.zeros(geo.rho_norm.shape)
         return (zeros,) * len(self.affected_core_profiles)

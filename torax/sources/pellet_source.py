@@ -116,7 +116,9 @@ class PelletSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> DynamicPelletRuntimeParams:
     return DynamicPelletRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         pellet_width=self.pellet_width.get_value(t),
         pellet_deposition_location=self.pellet_deposition_location.get_value(t),
         S_pellet_tot=self.S_pellet_tot.get_value(t),

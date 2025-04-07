@@ -176,7 +176,9 @@ class ElectronCyclotronSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         cd_efficiency=self.cd_efficiency.get_value(t),
         manual_ec_power_density=self.manual_ec_power_density.get_value(t),
         gaussian_ec_power_density_width=self.gaussian_ec_power_density_width.get_value(

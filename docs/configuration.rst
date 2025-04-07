@@ -918,9 +918,15 @@ The configurable runtime parameters of each source are as follows:
     This is documented in the individual source sections.
 
 * ``'PRESCRIBED'``
-    Source values are arbitrarily prescribed by the user. The value is set by ``prescribed_values``, and can contain the same
-    data structures as :ref:`Time-varying arrays`. Currently, this is only supported for sources that have a 1D output
-    along the cell grid or face grid.
+    Source values are arbitrarily prescribed by the user. The value is set by
+    ``prescribed_values``, and  should be a tuple of values. Each value can
+    contain the same data structures as :ref:`Time-varying arrays`. Note that
+    these values are treated completely independently of each other so for
+    sources with multiple time dimensions, the prescribed values should each
+    contain all the information they need.
+    For sources which affect multiple core profiles, look at the source's
+    ``affected_core_profiles`` property to see the order in which the
+    prescribed values should be provided.
 
 For example, to set 'fusion_power' to zero, e.g. for testing or sensitivity purposes, set:
 
@@ -938,7 +944,7 @@ preamble to the CONFIG dict within config module, set:
     'sources': {
         'generic_current_source': {
             'mode': 'PRESCRIBED',
-            'prescribed_values': (times, rhon, current_profiles),
+            'prescribed_values': ((times, rhon, current_profiles),),
         },
 
 where the example ``times`` is a 1D numpy array of times, ``rhon`` is a 1D numpy array of normalized toroidal flux

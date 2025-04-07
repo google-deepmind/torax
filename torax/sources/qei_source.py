@@ -166,7 +166,9 @@ class QeiSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         Qei_mult=self.Qei_mult,
     )
 

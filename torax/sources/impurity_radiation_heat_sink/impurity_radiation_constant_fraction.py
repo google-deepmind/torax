@@ -112,7 +112,9 @@ class ImpurityRadiationHeatSinkConstantFractionConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> 'DynamicRuntimeParams':
     return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         fraction_of_total_power_density=self.fraction_of_total_power_density.get_value(
             t
         ),

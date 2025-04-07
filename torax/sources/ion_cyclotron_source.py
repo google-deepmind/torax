@@ -489,7 +489,9 @@ class IonCyclotronSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> DynamicRuntimeParams:
     return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         wall_inner=self.wall_inner,
         wall_outer=self.wall_outer,
         frequency=self.frequency.get_value(t),

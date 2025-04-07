@@ -121,7 +121,9 @@ class GenericParticleSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> DynamicParticleRuntimeParams:
     return DynamicParticleRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         particle_width=self.particle_width.get_value(t),
         deposition_location=self.deposition_location.get_value(t),
         S_tot=self.S_tot.get_value(t),

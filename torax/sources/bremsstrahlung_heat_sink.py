@@ -159,7 +159,9 @@ class BremsstrahlungHeatSinkConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> 'DynamicRuntimeParams':
     return DynamicRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         use_relativistic_correction=self.use_relativistic_correction,
     )
 

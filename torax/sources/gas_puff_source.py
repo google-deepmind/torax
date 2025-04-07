@@ -110,7 +110,9 @@ class GasPuffSourceConfig(base.SourceModelBase):
       t: chex.Numeric,
   ) -> DynamicGasPuffRuntimeParams:
     return DynamicGasPuffRuntimeParams(
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
         puff_decay_length=self.puff_decay_length.get_value(t),
         S_puff_tot=self.S_puff_tot.get_value(t),
     )

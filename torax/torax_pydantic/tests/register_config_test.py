@@ -77,7 +77,9 @@ class NewGasPuffSourceModelConfig(source_base_pydantic_model.SourceModelBase):
     return DynamicRuntimeParams(
         a=self.a.get_value(t),
         b=self.b,
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
     )
 
 
@@ -103,7 +105,9 @@ class DuplicateGasPuffSourceModelConfig(
     return DynamicRuntimeParams(
         a=self.a.get_value(t),
         b=self.b,
-        prescribed_values=self.prescribed_values.get_value(t),
+        prescribed_values=tuple(
+            [v.get_value(t) for v in self.prescribed_values]
+        ),
     )
 
 
